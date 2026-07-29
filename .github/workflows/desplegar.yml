@@ -1,0 +1,63 @@
+name: Desplegar · Cloudflare Pages
+
+# Publica el caparazón en cada empuje a main, después de que el CI pase.
+#
+# ⚠️ Requiere dos secretos del repositorio. Mientras no existan, el trabajo se
+# SALTA solo y no rompe nada — el despliegue se sigue haciendo a mano con
+# `npm run deploy --workspace web`:
+#   CLOUDFLARE_API_TOKEN   — plantilla "Edit Cloudflare Workers", o una a medida
+#                            con permiso "Cloudflare Pages: Edit"
+#   CLOUDFLARE_ACCOUNT_ID  — visible en el panel de Cloudflare
+on:
+  workflow_run:
+    workflows: ['CI · Cerebro + Tests']
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desplegar-produccion
+  cancel-in-progress: false
+
+jobs:
+  publicar:
+    name: Publicar en producción
+    runs-on: ubuntu-latest
+    # Solo si el CI pasó: nunca se publica algo con las pruebas en rojo.
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: ¿Hay credenciales?
+        id: cred
+        run: |
+          if [ -n "${{ secrets.CLOUDFLARE_API_TOKEN }}" ] && [ -n "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" ]; then
+            echo "listo=si" >> "$GITHUB_OUTPUT"
+          else
+            echo "listo=no" >> "$GITHUB_OUTPUT"
+            echo "::notice::sin secretos de Cloudflare — despliegue omitido (se hace a mano)"
+          fi
+
+      - name: Setup Node.js
+        if: steps.cred.outputs.listo == 'si'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Instalar y construir
+        if: steps.cred.outputs.listo == 'si'
+        run: |
+          npm ci --no-audit --no-fund || npm install --no-audit --no-fund
+          npm run build
+
+      - name: Publicar
+        if: steps.cred.outputs.listo == 'si'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy web/dist --project-name=mantenimiento-lineas-at
