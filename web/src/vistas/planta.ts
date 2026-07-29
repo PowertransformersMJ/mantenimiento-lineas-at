@@ -1,13 +1,16 @@
 // ============================================================================
 // vistas/planta.ts — vista en planta de la línea, en SVG
 // ----------------------------------------------------------------------------
-// Dibuja. No calcula: la geometría se la pide al núcleo. Si algún día hay que
-// cambiar de librería de mapas, esto se tira y el cálculo no se entera.
+// Dibuja. No calcula: la geometría se la pide al núcleo. Y no inventa: si no
+// hay apoyos, no dibuja nada.
 // ============================================================================
 import { vincenty, deflexion } from '@lineas/nucleo/geodesia';
-import type { Apoyo } from '../datos/demo';
+import { FUNCIONES_ANCLA, type Apoyo } from '@lineas/contratos';
 
-const ANCLA = /retenci|terminal|ángulo|angulo|derivaci/i;
+/** Forma mínima que necesita el núcleo para calcular geometría. */
+interface PuntoGeo { lat: number; lon: number }
+
+const aGeo = (a: Apoyo): PuntoGeo => ({ lat: a.coordenada.lat, lon: a.coordenada.lon });
 
 export interface PuntoPlanta {
   apoyo: Apoyo;
@@ -19,34 +22,39 @@ export interface PuntoPlanta {
 
 /**
  * Proyecta las coordenadas geográficas a un plano local en metros, con origen
- * en el centroide. A la escala de una línea (pocos kilómetros) la deformación
- * es despreciable y evita arrastrar una librería de proyecciones.
+ * en el centroide. A la escala de una línea la deformación es despreciable y
+ * evita arrastrar una librería de proyecciones.
  */
 export function proyectar(apoyos: Apoyo[]): PuntoPlanta[] {
-  const lat0 = apoyos.reduce((s, p) => s + p.lat, 0) / apoyos.length;
-  const lon0 = apoyos.reduce((s, p) => s + p.lon, 0) / apoyos.length;
+  if (!apoyos.length) return [];
+  const geo = apoyos.map(aGeo);
+  const lat0 = geo.reduce((s, p) => s + p.lat, 0) / geo.length;
+  const lon0 = geo.reduce((s, p) => s + p.lon, 0) / geo.length;
   const mLat = 111132.92 - 559.82 * Math.cos((2 * lat0 * Math.PI) / 180);
   const mLon = 111412.84 * Math.cos((lat0 * Math.PI) / 180);
 
   return apoyos.map((apoyo, i) => ({
     apoyo,
-    x: (apoyo.lon - lon0) * mLon,
-    y: (apoyo.lat - lat0) * mLat,
-    deflexion: deflexion(apoyos, i),
-    esAncla: ANCLA.test(apoyo.funcionEstructural),
+    x: (apoyo.coordenada.lon - lon0) * mLon,
+    y: (apoyo.coordenada.lat - lat0) * mLat,
+    deflexion: deflexion(geo, i),
+    esAncla: FUNCIONES_ANCLA.includes(apoyo.funcionEstructural),
   }));
 }
 
 export function vanos(apoyos: Apoyo[]): number[] {
-  return apoyos.slice(1).map((p, i) => vincenty(apoyos[i].lat, apoyos[i].lon, p.lat, p.lon).d);
+  const g = apoyos.map(aGeo);
+  return g.slice(1).map((p, i) => vincenty(g[i].lat, g[i].lon, p.lat, p.lon).d);
 }
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c] as string);
 
-/** Devuelve el SVG de la vista en planta. Norte arriba. */
+/** SVG de la vista en planta. Norte arriba. Cadena vacía si no hay datos. */
 export function dibujarPlanta(apoyos: Apoyo[], ancho = 640, alto = 420): string {
   const pts = proyectar(apoyos);
+  if (pts.length < 2) return '';
+
   const margen = 46;
   const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y);
   const spanX = Math.max(...xs) - Math.min(...xs) || 1;
@@ -62,19 +70,21 @@ export function dibujarPlanta(apoyos: Apoyo[], ancho = 640, alto = 420): string 
 
   const marcas = pts.map((p) => {
     const X = px(p.x).toFixed(1), Y = py(p.y).toFixed(1);
-    if (/terminal/i.test(p.apoyo.funcionEstructural)) {
-      return `<rect x="${(+X - 4).toFixed(1)}" y="${(+Y - 4).toFixed(1)}" width="8" height="8"
-        class="ap-terminal"><title>${esc(p.apoyo.nombre)} · terminal</title></rect>`;
+    const nombre = p.apoyo.nombreNormalizado ?? p.apoyo.nombreCampo;
+    const def = p.deflexion === null ? '' : ` · deflexión ${p.deflexion.toFixed(1)}°`;
+    const titulo = `<title>${esc(nombre)} · ${esc(p.apoyo.funcionEstructural)}${def}</title>`;
+
+    if (p.apoyo.funcionEstructural === 'Terminal') {
+      return `<rect x="${(+X - 4).toFixed(1)}" y="${(+Y - 4).toFixed(1)}" width="8" height="8" class="ap-terminal">${titulo}</rect>`;
     }
     const cls = p.esAncla ? 'ap-ancla' : 'ap-susp';
     const r = p.esAncla ? 5.5 : 3;
-    const def = p.deflexion === null ? '' : ` · deflexión ${p.deflexion.toFixed(1)}°`;
-    return `<circle cx="${X}" cy="${Y}" r="${r}" class="${cls}"><title>${esc(p.apoyo.nombre)} · ${esc(p.apoyo.funcionEstructural)}${def}</title></circle>`;
+    return `<circle cx="${X}" cy="${Y}" r="${r}" class="${cls}">${titulo}</circle>`;
   }).join('');
 
   const etiquetas = pts
     .filter((p) => p.esAncla)
-    .map((p) => `<text x="${(px(p.x) + 9).toFixed(1)}" y="${(py(p.y) + 4).toFixed(1)}" class="ap-lbl">${esc(p.apoyo.nombre)}</text>`)
+    .map((p) => `<text x="${(px(p.x) + 9).toFixed(1)}" y="${(py(p.y) + 4).toFixed(1)}" class="ap-lbl">${esc(p.apoyo.nombreNormalizado ?? p.apoyo.nombreCampo)}</text>`)
     .join('');
 
   return `<svg viewBox="0 0 ${ancho} ${alto}" role="img" aria-label="Vista en planta de la línea, norte arriba">

@@ -111,3 +111,10 @@ body {
   .tabla { font-size: 12px; }
   .tabla th, .tabla td { padding: 7px 5px; }
 }
+
+/* ── estados que no son el camino feliz (ADR-004) ─────────────────────── */
+.vacio { text-align: center; padding: 40px 24px; }
+.vacio-t { font-size: 17px; font-weight: 600; color: var(--tx); margin-bottom: 10px; }
+.vacio-c { color: var(--mut); font-size: 14px; max-width: 62ch; margin: 0 auto; line-height: 1.7; }
+.vacio .fine { margin-top: 16px; }
+.ver { display: block; margin-top: 8px; font-size: 11.5px; font-style: normal; opacity: .6; }

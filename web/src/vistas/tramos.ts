@@ -2,12 +2,12 @@
 // vistas/tramos.ts — tabla de tramos de tensión y sus cuatro estados
 // ----------------------------------------------------------------------------
 // Presenta. El cálculo entero vive en @lineas/nucleo: aquí no hay ni una
-// fórmula. Esa frontera es lo que permite auditar la ingeniería sin leer
-// código de interfaz.
+// fórmula. Esa frontera es lo que permite auditar la ingeniería sin leer código
+// de interfaz.
 // ============================================================================
 import { tramosDeTension, estadosDelTramo, flechaCatenaria, tiroMaximoAdmisible }
   from '@lineas/nucleo/mecanica';
-import type { Apoyo, Conductor, Hipotesis } from '../datos/demo';
+import type { Apoyo, Conductor, Hipotesis } from '@lineas/contratos';
 import { vanos } from './planta';
 
 const nf = (v: number, d = 0) =>
@@ -31,15 +31,26 @@ export interface FilaTramo {
 }
 
 export function calcularTramos(apoyos: Apoyo[], c: Conductor, h: Hipotesis): FilaTramo[] {
+  if (apoyos.length < 2) return [];
   const L = vanos(apoyos);
-  const conductor = {
-    w: c.masaLineal, rts: c.rts, S: c.seccion,
-    E: c.moduloElastico, alfa: c.dilatacion, diametro: c.diametro,
-  };
-  const admisible = tiroMaximoAdmisible(c.rts);
 
-  return tramosDeTension(apoyos, L).map((t: any, i: number) => {
-    const e = estadosDelTramo(t, conductor, h);
+  // El núcleo trabaja con nombres neutros: aquí se traduce del contrato a él.
+  const paraNucleo = apoyos.map((a) => ({
+    funcionEstructural: a.funcionEstructural,
+    nombre: a.nombreNormalizado ?? a.nombreCampo,
+  }));
+  const conductor = {
+    w: c.masaLineal_kg_m, rts: c.rts_kgf, S: c.seccion_mm2,
+    E: c.moduloElastico_kg_mm2, alfa: c.dilatacion_1_C, diametro: c.diametro_m,
+  };
+  const params = {
+    eds: h.eds_pct, tEds: h.tempEds_C, tMax: h.tempMax_C, tMin: h.tempMin_C,
+    vViento: h.vientoMax_kmh, tViento: h.tempViento_C, cx: h.cx, rho: h.densidadAire_kg_m3,
+  };
+  const admisible = tiroMaximoAdmisible(c.rts_kgf);
+
+  return tramosDeTension(paraNucleo, L).map((t: any, i: number) => {
+    const e = estadosDelTramo(t, conductor, params);
     const vanoMax = Math.max(...t.vanos);
     const pico = Math.max(e.eds.H, e.tMax.H, e.viento.H, e.tMin.H);
     return {
@@ -54,15 +65,17 @@ export function calcularTramos(apoyos: Apoyo[], c: Conductor, h: Hipotesis): Fil
       hViento: e.viento.H,
       hTMin: e.tMin.H,
       pico,
-      pctRts: (pico / c.rts) * 100,
-      flechaMax: flechaCatenaria(c.masaLineal, vanoMax, e.tMax.H),
+      pctRts: (pico / c.rts_kgf) * 100,
+      flechaMax: flechaCatenaria(c.masaLineal_kg_m, vanoMax, e.tMax.H),
       excede: pico > admisible,
     };
   });
 }
 
 export function dibujarTramos(filas: FilaTramo[], c: Conductor, h: Hipotesis): string {
-  const admisible = tiroMaximoAdmisible(c.rts);
+  if (!filas.length) return '';
+  const admisible = tiroMaximoAdmisible(c.rts_kgf);
+
   const cuerpo = filas.map((f) => `
     <tr${f.excede ? ' class="excede"' : ''}>
       <td class="num">${f.n}</td>
@@ -80,19 +93,19 @@ export function dibujarTramos(filas: FilaTramo[], c: Conductor, h: Hipotesis): s
 
   const excedidos = filas.filter((f) => f.excede);
   const veredicto = excedidos.length
-    ? `<p class="alerta"><b>Atención:</b> ${excedidos.length} tramo(s) superan el 50 % de la carga de
-       rotura (${nf(admisible)} kgf): ${excedidos.map((f) => f.n).join(', ')}.</p>`
-    : `<p class="ok"><b>Ningún tramo supera</b> el 50 % de la carga de rotura (${nf(admisible)} kgf).
+    ? `<p class="alerta"><b>Atención:</b> ${excedidos.length} tramo(s) superan el umbral adoptado
+       (${nf(admisible)} kgf): ${excedidos.map((f) => f.n).join(', ')}.</p>`
+    : `<p class="ok">Ningún tramo supera el umbral adoptado de ${nf(admisible)} kgf.
        El máximo es ${nf(Math.max(...filas.map((f) => f.pctRts)), 1)} %.</p>`;
 
   return `
     <table class="tabla">
       <caption>Estados mecánicos por tramo de tensión · conductor ${c.material} ${c.codigo} ·
-        RTS ${nf(c.rts)} kgf · EDS ${h.eds} % a ${h.tEds} °C</caption>
+        RTS ${nf(c.rts_kgf)} kgf · EDS ${h.eds_pct} % a ${h.tempEds_C} °C</caption>
       <thead>
         <tr>
           <th>#</th><th>Tramo</th><th>Vanos</th><th>Vano máx (m)</th><th>VIR (m)</th>
-          <th>EDS</th><th>${h.tMax} °C</th><th>Viento</th><th>${h.tMin} °C</th>
+          <th>EDS</th><th>${h.tempMax_C} °C</th><th>Viento</th><th>${h.tempMin_C} °C</th>
           <th>% RTS</th><th>Flecha (m)</th>
         </tr>
       </thead>
@@ -100,6 +113,9 @@ export function dibujarTramos(filas: FilaTramo[], c: Conductor, h: Hipotesis): s
     </table>
     ${veredicto}
     <p class="fine">Tiros en kgf. La flecha es la del vano más largo del tramo, por catenaria exacta,
-    con el tiro del estado de ${h.tMax} °C. El vano ideal de regulación (VIR) es √(Σa³/Σa) del tramo:
-    por eso cada tramo se calcula con el suyo y nunca con uno único para toda la línea.</p>`;
+    con el tiro del estado de ${h.tempMax_C} °C. El vano ideal de regulación (VIR) es √(Σa³/Σa) del
+    tramo: por eso cada tramo se calcula con el suyo y nunca con uno único para toda la línea.</p>
+    <p class="fine"><b>Este cálculo no es un dictamen firmable.</b> El umbral, las hipótesis
+    climáticas y la distancia al terreno están pendientes de cerrarse contra norma y contra la ficha
+    del proveedor. Ver el historial de decisiones del proyecto.</p>`;
 }
