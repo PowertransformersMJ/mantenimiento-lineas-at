@@ -583,3 +583,129 @@ modos.
 ### Crudo de respaldo
 
 `../brain-private/mantenimiento-lineas-at/research-archive/2026-07-29-arquitectura-ia-y-paralelo.md`
+
+---
+
+## ADR-005 · 2026-07-29 · Framework del frontend: React 19 como aplicación de una sola página
+
+**Estado:** ✅ Decidido (comité de 11 agentes: 2 verificadores con fuente + 4 expertos + peer review
+anónimo + presidente). ⏳ Pendiente de aprobación del Ingeniero.
+
+### Contexto
+
+`web/` son hoy ~300 renglones de TypeScript sin framework. El alcance creció (ADR-003: plataforma
+completa) y entró un subsistema de IA con cinco estados que pintar (ADR-004). La pregunta —qué
+framework— es cara de revertir, y **este es el momento más barato que va a existir para decidirla**.
+
+**Criterio dominante, declarado al comité de entrada:** el código entero lo escribe una IA. No hay
+equipo de frontend, no hay revisor humano de código, y dentro de 18 meses otra sesión sin memoria de
+ésta tiene que abrir el repositorio y entender qué pasa. Bajo ese criterio, *un framework que se
+escribe de forma predecible vale más que uno técnicamente superior*.
+
+Tres de los cuatro expertos recomendaron React como SPA. El cuarto —el escéptico, cuyo encargo era
+defender que no se usara ninguno— sostuvo seguir sin framework.
+
+### Decisión
+
+> **React 19 como aplicación de una sola página sobre el Vite que ya existe: sin Next.js, sin Server
+> Components, sin React Compiler, sin ningún meta-framework.**
+
+React se usa **únicamente para pintar**. Todo lo que importa —el cálculo, la base local, la cola de
+sincronización, el informe firmado— vive fuera de él.
+
+### Por qué ése
+
+**1. Es el único candidato donde el error conocido de la IA es el comportamiento correcto.**
+El hecho más sólido del expediente no es que React gane pruebas de rendimiento: es que **el asistente
+escribe la versión vieja del framework dentro de la nueva**. Escribe Vue 2 dentro de Vue 3, Svelte sin
+runas dentro de Svelte 5. En React ese "dialecto viejo" —aplicación de una sola página, en el
+navegador, sin servidor de renderizado— **es exactamente lo que este proyecto necesita**. Elegimos que
+la deriva apunte hacia donde queremos ir: no pagamos el impuesto, lo cobramos.
+
+Y hay un cerrojo verificable por máquina: como no hay servidor de renderizado en el despliegue,
+cualquier alucinación con forma de Next.js (`'use client'`, `getServerSideProps`, `next/image`)
+**rompe la compilación en CI**, ruidosamente, antes de llegar a nadie.
+
+**2. La red de seguridad tiene que poder guardarse en el repositorio.** Es lo que decide contra
+Svelte, que era el rival serio.
+
+**3. Es lo que menos estorba a la parte que de verdad decide el proyecto** — que no es la interfaz.
+
+### Por qué no los otros
+
+| Descartado | Motivo |
+|---|---|
+| **Seguir sin framework** (la opción actual) | No estamos eligiendo "sin framework": estamos eligiendo **escribir uno nosotros**. Datos que llegan solos, cola con estados por documento, tablas de cientos de apoyos, cinco estados de IA — esa capa se escribe igual. La pregunta es si la escribe React, con millones de ejemplos y una regla automática que audita sus errores, o **cuarenta sesiones distintas de IA, cada una a su manera, sin un solo ejemplo en el mundo fuera de este repositorio**. Un framework casero tiene, por definición, **cero datos de entrenamiento**: el peor escenario posible para el único autor que este proyecto va a tener. Y su mejor defensa —"escribimos una convención"— es prosa en un archivo: **ningún sistema automático hace cumplir un párrafo** |
+| **Svelte / SvelteKit** | El rival serio. Su red de seguridad no cabe en el repositorio · **SvelteKit 3 está en prelanzamiento esta misma semana** con cambio obligatorio de configuración y de variables de entorno: firmar hoy es firmar una migración a ciegas ejecutada por una sesión sin memoria · su modelo de datos envuelve los objetos, que es el fallo silencioso que mata una app de captura de fotos |
+| **Vue / Nuxt** | Tiene el mejor dato objetivo de la mesa: **casi seis años sin ruptura**. Y aun así cae: el fallo documentado del asistente con Vue produce **dos idiomas conviviendo en el mismo repositorio**, y hay que leer cada archivo entero para saber en cuál está escrito. Su modo nuevo se activa archivo por archivo: un tercer idioma |
+| **Astro** | **Dos versiones mayores en 3,5 meses** (6.0 en marzo, 7.0 en junio de 2026). Cadencia incompatible con un mantenedor sin memoria |
+| **Angular** | Notable: pasó a mayores anuales citando textualmente *"increased API stability for developers using agentic workflows"* — un framework optimizando su gobernanza **para** asistentes de IA. Aun así, peso y ceremonia desproporcionados aquí |
+
+### Qué cambia en el repositorio
+
+**Sobrevive intacto:** `nucleo/` con sus 53 pruebas · `contratos/` · Vite, TypeScript, GitHub Actions,
+Cloudflare Pages y el modelo de despliegue entero.
+
+**Se reescribe:** los ~300 renglones de `web/`. **Uno o dos días, no semanas.**
+
+**Se añade, y es lo que de verdad cuesta:** la capa de datos (base local dueña de la verdad, cola de
+envíos, revisión base y cuarentena) como **módulo puro hermano de `nucleo/` que no importa React**, e
+`informes/` también puro.
+
+> **El reparto honesto: la interfaz es el 20 %; la capa de datos, la cola y el informe son el 80 %.**
+> Por eso esta decisión importa menos de lo que parece, y por eso hay que tomarla rápido y dejar de
+> discutirla.
+
+### Reglas de uso — ejecutadas por la máquina, no confiadas a la memoria
+
+1. **Nada de Next.js ni meta-frameworks.** Una prueba revisa las dependencias y detiene el despliegue.
+2. **Nada de Server Components ni React Compiler** sin decisión escrita nueva y aprobación del Ingeniero.
+3. **Prohibida cualquier segunda capa de caché de datos.** La verdad está en la base local.
+4. **Prohibido el "estado optimista" de React para la cola.** Esa herramienta espera segundos contra
+   un servidor; aquí la confirmación puede tardar **días**. Y todo dato pendiente que solo viva en la
+   memoria del framework **desaparece** cuando el teléfono mata la pestaña, sin avisar, con el técnico
+   en mitad de una inspección.
+5. **Ningún componente se conecta directamente a Firestore.** Ninguno.
+6. Las piezas retiradas en React 19 quedan prohibidas por regla automática: algunas fallan en silencio
+   y dejan un campo del formulario vacío sin que nadie se entere.
+
+### Las dos cosas que el comité entero firmó sin ver, y que el presidente corrigió
+
+**(a) Ninguna verificación pinta un píxel.** Tipos, reglas de estilo y pruebas unitarias no dibujan
+nada — y **todos los miedos de este proyecto son visuales**: pantalla en blanco, tabla incompleta,
+informe mal paginado, el estado "apagado por presupuesto" que nunca se dibuja. Entra una **prueba de
+navegador con captura de pantalla** de los cinco estados y del informe, comparada contra imagen de
+referencia. Es agnóstica del framework, vive en git y **es el revisor humano que no tenemos**.
+
+**(b) La trampa de la tabla virtualizada — y es peligrosa.** Los cuatro expertos exigieron virtualizar
+las tablas. Una tabla virtualizada tiene **30 filas de 400 realmente presentes**; el resto no existe
+hasta que uno se desplaza. Imprimir o exportar a PDF imprime lo que existe. **La regla que los cuatro
+firmaron produce un informe con el 90 % de los apoyos ausentes, y falla en silencio** — se ve bien en
+pantalla. Se habría entregado a AFINIA con la matrícula profesional del Ingeniero al pie.
+
+> **Regla que lo corrige, y que es más importante que la elección de framework: el informe NO se
+> genera imprimiendo la pantalla.** `informes/` es un módulo puro, hermano de `nucleo/`, con plantilla
+> versionada, que va **de los datos al documento**. Consecuencias: el informe deja de depender del
+> framework · subir de versión React nunca podrá alterar en silencio un informe ya firmado · el mismo
+> documento se regenera idéntico dentro de tres años · y la tabla tiene dos presentaciones sobre la
+> misma fuente —resumida en pantalla, completa en papel— por diseño y no por parche.
+
+### La prueba de arrepentimiento
+
+**Sería un error si el framework acabara siendo el 60 % del código en vez del 20 %**, es decir, si la
+lógica de negocio se colara dentro de los componentes. *Detección:* medición mensual automática de
+cuántos renglones viven fuera de la interfaz. Si `nucleo/`, `contratos/`, la capa de datos e
+`informes/` dejan de sumar la mayoría, es la alarma.
+
+**Sería un error si el asistente resultara ya no escribir React mejor que las alternativas.** La
+evidencia dura es de mayo de 2025, con modelos de otra generación, y no hay réplica. *La decisión se
+apoya en el mecanismo —volumen de corpus, refuerzo del dialecto dominante—, no en el número.*
+*Detección:* llevar la cuenta de cada vez que una sesión escriba código que no compila por confundir
+versiones de API. Si a los seis meses el grueso de los errores es de React y no de Firestore o
+MapLibre, la premisa se cayó.
+
+### Crudo de respaldo
+
+`../brain-private/mantenimiento-lineas-at/research-archive/2026-07-29-comite-framework-frontend.md`
+(76 KB: hechos verificados con fuente y fecha, los cuatro aportes, el peer review anónimo y el
+veredicto íntegro).
