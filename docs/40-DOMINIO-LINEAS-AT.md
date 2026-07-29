@@ -253,3 +253,31 @@ AAAC 6300 / 23,0e−6 · ACAR 6500 / 21,5e−6 · ACSS-ACCC 6000 / 19,5e−6.
 
 > Las dos filas pendientes son deuda técnica declarada, no olvido. Se cierran antes de que el sistema
 > emita un cálculo mecánico con valor de entrega a cliente.
+
+**Advertencia que enmarca toda esta tabla** (la cazó el peer review anónimo del comité, `99 §ADR-001`):
+las pruebas comprueban que el sistema nuevo **reproduce** al módulo original, no que el original
+estuviera bien. Por eso las tres primeras filas se validan contra **referencias externas** —constantes
+geodésicas publicadas y tabla de fabricante—, no contra el propio HTML. Las dos pendientes siguen
+sin referencia externa, y **quien firma es el Ingeniero, no el software**.
+
+---
+
+## §9 — El mapa: lo que hoy NO funciona en campo
+
+El módulo actual pide las teselas del mapa a dos servidores de internet:
+
+```js
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, …})
+L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/…')
+```
+
+**Sin señal el mapa es un lienzo gris.** Lo que sí sobrevive offline son los datos, todo el cálculo y
+el esquema geométrico en SVG. Además, la política de uso de `tile.openstreetmap.org` **prohíbe
+textualmente el uso offline** y la descarga anticipada de teselas, y los planes gratuitos de MapTiler
+y Stadia **prohíben el uso comercial** — un entregable a cliente sería incumplimiento desde la
+primera carga.
+
+**Camino decidido:** Protomaps / PMTiles servido desde almacenamiento de objetos, con **recortes por
+línea** y MapLibre. Un solo archivo, servido por peticiones de rango HTTP, licencia BSD, datos ODbL
+con atribución visible a OpenStreetMap. Sin cuota, sin contrato y **offline por diseño**.
+Detalle → `30 · L-03` y `L-10`.

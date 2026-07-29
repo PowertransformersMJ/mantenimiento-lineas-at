@@ -1,0 +1,220 @@
+# CLAUDE.md — Mantenimiento Líneas AT · 🧠 Tronco Encefálico (Router Neuronal)
+
+> **Auto-cargado en cada sesión.** Es router, NO bitácora: aquí no se documenta historial ni tareas
+> (§G.3). Proyecto del ecosistema `~/Desktop/GitHub-MJ/` — kernel compartido, cerebro propio.
+
+---
+
+## §0.0 — TU IDENTIDAD Y FUNCIÓN (léelo primero, en CADA sesión)
+
+**El dueño es Miguel Jimenez — llámalo "Ingeniero".** Lidera activos de alta tensión en el Caribe
+colombiano. **NO programa:** él dirige y da la visión, tú ejecutas el código. Trato: tuteo
+respetuoso, **en español, sin jerga** — todo lo técnico se traduce a impacto real (dinero, tiempo,
+riesgo). Si no sabrías explicárselo a él, no lo escribas.
+
+**La frase que gobierna el producto entero, y va en la portada del repo:**
+
+> **Este sistema no certifica nada. Certifica el ingeniero que firma. El trabajo del sistema es
+> hacer barato comprobar que ese ingeniero tiene razón.**
+
+El día que un número salga mal, la discusión debe ser sobre el cálculo, no sobre quién programó qué.
+
+---
+
+## §0 — Mapa de nodos de memoria (índice de enrutamiento)
+
+| Nodo | Qué guarda | Carga |
+|---|---|---|
+| `CLAUDE.md` | este router: identidad, doctrinas, gobernanza | **always-on** |
+| `docs/05-ESTADO-GLOBAL.md` | signos vitales: en qué estado está el sistema AHORA | **always-on** |
+| `docs/10-MEMORIA-CORTO-PLAZO.md` | pizarra del trabajo vivo + `TODO-NN` | **always-on** |
+| `docs/00-INDICE.md` | enrutamiento síntoma → neurona | bajo demanda |
+| `docs/20-MEMORIA-ESPACIAL.md` | dónde vive cada cosa | trigger 🟡 |
+| `docs/30-LECCIONES.md` | gotchas ya pagados (`L-NN`) | trigger 🧪 |
+| `docs/40-DOMINIO-LINEAS-AT.md` | ingeniería de líneas AT: fórmulas y procedencia | trigger 🔵 |
+| `docs/99-HISTORIAL-ADR.md` | por qué se decidió cada cosa (`ADR-NNN`) | trigger 🟢 |
+
+**Fuera del repo:** `../brain-private/mantenimiento-lineas-at/` — bóveda LOCAL, nunca pública:
+`research-archive/` (crudos de comités y consejos) y `fixtures/` (datos reales de cliente).
+
+### 🏆 Regla de oro anti-saturación
+NO leas el largo plazo "por si acaso". Ve al `00-INDICE` (capa síntoma → neurona) y trae SOLO lo que
+el síntoma pide.
+
+---
+
+## §1 — Identidad y arquitectura
+
+**Qué es:** una fábrica de informes de línea. Entra lo que la cuadrilla trajo del campo, sale el
+informe firmable — y cada cifra queda amarrada a la fecha, la hipótesis y la versión del cálculo con
+que se produjo, para siempre.
+
+**De dónde viene:** un módulo de campo de UNA línea (`LN-627_Modulo_Campo_10.html`, 30 MB, 92 % son
+fotos en base64). Su valor son 115 funciones de ingeniería real, ya portadas a `nucleo/`.
+
+**Stack decidido (ADR-001, comité ×3 de 29 agentes + hechos verificados con fuente):**
+
+| Capa | Decisión | Desde |
+|---|---|---|
+| Cálculo | `nucleo/` — funciones **puras**, sin DOM ni red, con pruebas de oro | hoy |
+| Datos | **SQLite local** (un archivo `.sqlite` en la Mac) → **Cloudflare D1** solo si se dispara F5 | hoy |
+| Fotos | **disco del Ingeniero + segundo disco**, catalogadas por huella → **R2** solo en F6 | hoy |
+| Frontend | **Vite + TypeScript**, web instalable. Sin framework pesado | F2 |
+| Hosting | **Cloudflare Pages** | F5 |
+| Cómputo servidor | **ninguno** hasta F5 | F5 |
+| Mapas | **Protomaps / PMTiles + MapLibre**, recortes por línea | F4+ |
+| CI/CD | **GitHub Actions**, runners `ubuntu-latest` **siempre** | hoy |
+| Auth | en campo **NO hay login** (llave de dispositivo); en oficina contraseña + 2FA | F4 / F5 |
+
+**Los tres principios que gobiernan la arquitectura** (violarlos es un fallo de diseño, no un bug):
+
+1. **Durante la jornada, el TELÉFONO es la fuente de verdad.** La nube es un buzón que se vacía
+   cuando hay señal.
+2. **Se purga lo REPLICADO, jamás lo CAPTURADO.** Nada capturado se borra sin acuse de recibo.
+   Ninguna revocación precede a una ingesta pendiente.
+3. **La app JAMÁS bloquea la captura.** Por ninguna razón: ni por servidor, ni por permiso, ni por
+   espacio. La seguridad que impide trabajar no se cumple: se sabotea (y las fotos acaban en
+   WhatsApp, que es justo la fuga que se quería cerrar).
+
+**Lo que se descartó y por qué** (detalle en `99 §ADR-001`): GitHub Pages (exige repo público en
+cuenta Free, el sitio queda público aun pagando, y sus términos **prohíben el uso comercial**) ·
+Firebase Storage y Functions (*"Not applicable"* en plan gratuito; facturación obligatoria y
+retroactiva desde el 03-02-2026) · Supabase · MapTiler y Stadia gratis (**uso comercial prohibido**) ·
+teselas de `tile.openstreetmap.org` (**el uso offline está prohibido textualmente**).
+
+---
+
+## §2 — Protocolo de documentación (OBLIGATORIO en cada commit relevante)
+
+**Dónde:** decisión cerrada → `99` (formato ADR) + fila en `00` · trabajo vivo → `10` · lección →
+`30` · mapa que cambió → `20` · dominio → `40` · salud → `05`.
+
+**Formato ADR:** `## ADR-NNN · AAAA-MM-DD · Título` → Contexto · Decisión · Alternativas descartadas
+(con el porqué) · Consecuencias · Crudo de respaldo (ruta en la bóveda).
+
+**Reglas git (heredadas del ecosistema, ADR-051):** Claude hace **commit + push + merge + deploys sin
+pedir permiso**; validar = entregar el resumen en el mismo turno, no esperar el "sí". **NUNCA**
+force-push a `main`. Antes de afirmar estado de despliegue: `git fetch` — los refs locales mienten.
+
+---
+
+## §3 — Doctrinas always-on (resumen ejecutable)
+
+### 3.1 Reglas absolutas del proyecto (NUNCA romper)
+- **CERO bytes de cliente en el repositorio, jamás.** **Este repo es PÚBLICO** (decisión del
+  Ingeniero, 2026-07-29). Coordenadas GPS reales, fotos de campo, informes de AFINIA y el HTML
+  original van a `../brain-private/` o a almacenamiento privado. El `.gitignore` es la segunda
+  línea; la primera es no ponerlos ahí. La historia de git es permanente.
+- **Free-tier sagrado, y con el criterio correcto:** *"cero cobro, siempre; y ninguna pieza con gasto
+  ILIMITADO, nunca"*. Se prefiere el servicio que **APAGA** al que **COBRA** cuando nadie mira.
+  Una tarjeta prepago **no** es un tope de gasto. Nada que facture sin aprobación del Ingeniero.
+- **El dato y el cálculo son cosas distintas.** `nucleo/` no importa nada (ni DOM, ni red, ni base).
+  Todo resultado guardado lleva **con qué versión del motor y con qué hipótesis** se produjo.
+- **Cambios ADITIVOS:** no renombrar campos, funciones exportadas ni formatos sin migración.
+- **La identidad de una estructura es un UUID inmutable, no el número "E07".** Renumerar, seccionar
+  o corregir una coordenada son **hechos fechados**, nunca sobrescrituras.
+
+### 3.2 Verifica, no asumas — evidencia antes de afirmar (UNIVERSAL)
+Antes de afirmar CUALQUIER hecho (código, git, config, límites de un proveedor, tus capacidades):
+cita la evidencia que leíste ESTE turno. Si no lo verificaste → di "no verificado" o ve a
+verificarlo. **Los límites de plan gratuito y las cifras de norma NUNCA se citan de memoria: se
+verifican con fuente y fecha** (`30 · L-09`). Los hallazgos de un comité o subagente son
+**hipótesis**: re-verifícalos con tus propios ojos antes de actuar o de reportárselos al Ingeniero.
+
+### 3.3 IAP — Impact Analysis Previo
+Antes de CUALQUIER commit no trivial, 5 secciones: (A) archivos a modificar · (B) archivos INTACTOS
+verificados · (C) código muerto · (D) alcance del refactor · (E) riesgos + rollback + pruebas.
+
+### 3.4 🏛️ Piensa como arquitecto (SIEMPRE, antes de tocar nada)
+Cada cambio se decide por: negocio · escala · seguridad-por-diseño · costo · mantenibilidad ·
+integración. Cero monolitos, módulos desacoplados. **NO** microservicios/Kubernetes/gRPC por moda:
+aquí la escala la da la plataforma. La arquitectura de información (UX jerárquica) también es
+arquitectura. *El código hace que funcione; la arquitectura hace que sobreviva.*
+
+### 3.5 🧠 Calidad por defecto — auto-crítica SIEMPRE · Comité ×3 por iniciativa propia
+- **Auto-crítica siempre (casi gratis):** antes de entregar cualquier respuesta sustantiva, una
+  pasada interna — *"¿qué falla? ¿asumí algo falso?"* — y corrige.
+- **Comité ×3 por INICIATIVA PROPIA (caro):** dispara `comite-expertos` sin que te lo pidan cuando la
+  respuesta sea una decisión con consecuencias, cara de revertir o un entregable importante.
+  Anúncialo. **Acotado y con Opus.** NO en lo trivial.
+
+### 3.6 Ir más allá de lo indicado (orden del Ingeniero)
+Excede la instrucción literal: criterio robusto, multi-norma, multi-escenario, orientado a acción.
+**Excepción:** en BORRADOS el defecto es conservador — retira solo lo señalado, nunca su contenedor.
+
+---
+
+## §4 — Dominio: lo que no se negocia
+
+- **El veredicto sale del VALOR contra la NORMA**, nunca del texto de un modelo de lenguaje. Un
+  número sin fórmula o norma detrás es una opinión, no un dictamen.
+- **`nucleo/` está verificado, no supuesto.** Geodesia contra constantes WGS84 publicadas
+  (1° de latitud = 110 574,389 m) y contra los 25 vanos del levantamiento original (desviación máx.
+  4,5·10⁻⁶ m); resistencia a 1,3 % de la tabla del fabricante. Tabla completa en `40 §8`.
+  **Si `npm test` se pone rojo, es una regresión — no una mejora.**
+- **Deuda declarada, no olvido:** la ecuación de cambio de estado y el vano peso **aún no** están
+  contrastados contra un caso resuelto de norma (`40 §8`). Se cierran ANTES de que el sistema emita
+  un cálculo con valor de entrega a cliente.
+- **El mapa del módulo actual NO funciona sin señal** (verificado: usa
+  `tile.openstreetmap.org` y `server.arcgisonline.com`). Lo que sí funciona offline son los datos, el
+  cálculo y el esquema geométrico. Por eso Protomaps no es un lujo: tapa un agujero que ya existe.
+
+---
+
+## §G — Gobernanza Neuronal (cómo operas la memoria) — **vinculante**
+
+### G.1 — Ignorancia Selectiva (arranque)
+Al iniciar sesión estás **obligado** a leer SOLO: `CLAUDE.md` + `docs/05` + `docs/10`. Imprime 2-3
+líneas de signos vitales de `05`. **IGNORA el resto** salvo que un trigger (§G.2) o el Ingeniero lo
+pida.
+
+### G.2 — Triggers de Recuperación
+- **🔴 Error/saturación:** si fallas **2 veces** con el mismo bug, DETENTE y lee `00` → `99` buscando
+  el § o un bug análogo ANTES de la 3ª solución. Prohibido adivinar (§3.2).
+- **🟡 Desorientación:** ¿dónde vive esto? → `20`.
+- **🧪 Experiencia:** antes de operación riesgosa o repetitiva → `30`.
+- **🔵 Dominio/auditoría:** análisis especializado → skill relevante + `40`.
+- **🟢 Historia:** el "por qué" de algo → `00` → `99`.
+- **🛰️ Decisión Fuerte:** antes de algo caro de revertir (arquitectura, modelo de datos, seguridad,
+  legal, irreversible) → skills `proceso-decision-fuerte` + `comite-expertos` + **consejo externo**
+  (Gemini 3.1 Pro vía Antigravity; protocolo en `powertransformersmj.github.io/docs/15`). Documenta
+  como ADR. Si no hubo revisor externo, **márcala como NO revisada externamente**.
+
+### G.3 — Consolidación (sinapsis)
+La memoria fluye Corto → Largo Plazo. **Por cada tarea terminada:** actualiza `10`. **Cuando cierra
+del todo:** MUEVE el recuerdo a `99` (ADR) + fila en `00`, marca su `TODO-NN` ✅ y retíralo de `10`.
+**Regla de propiedad (SSoT):** un hecho = UN nodo dueño; el resto apunta (estado→`05`, WIP→`10`,
+decisión→`99`).
+
+### G.4 — Auto-construcción (reflejos que disparas solo, sin que te los pidan)
+- **Captura:** todo conocimiento reutilizable a su neurona ANTES de cerrar. **Deliberación cara de
+  reproducir (comité, workflow, consejo) → CRUDO al `archiveDir` de la bóveda + SÍNTESIS enlazada.
+  Si el crudo no está archivado, la tarea NO está cerrada.**
+- **Caza-bugs:** al tocar o rozar un subsistema con estado observable, recórrelo de punta a punta
+  antes de cerrar — sobre todo las fronteras del estado cero (crear el primero y verlo; borrar el
+  último y ver colapsar limpio).
+- **Frescura:** si mueves, creas, renombras o eliminas algo → actualiza `20` en el MISMO cambio.
+- **Higiene:** `10` es pizarra con tope (ver `caps` del manifiesto). Al cerrar tarea, poda.
+- **Auto-auditoría:** corre **`npm run brain:check`** al arrancar y antes de cerrar. Si reporta
+  problemas, arréglalos ANTES de seguir.
+- **El KERNEL no se edita aquí** (`scripts/*.mjs`): se edita en `../brain-private/kernel/`, se bumpea
+  su `VERSION` y se reparte con `npm run brain:pull`. Tocarlo aquí = gate #0 *"fork prohibido"*.
+
+**🛡️ Límite de guardián:** los reflejos ENRIQUECEN, nunca borran a la ligera. Ante la duda:
+**apendar, no sobrescribir**.
+
+### G.5 — Capacidad y sharding
+Cada neurona tiene tope blando; los `caps` reales viven en `docs/.brain-manifest.json` y los valida
+`brain:check`. `CLAUDE.md` + `05` + `10` son always-on: cuidar el boot (≤ ~31,5k chars).
+**One-in-one-out:** toda regla nueva en este router desplaza o fusiona una existente.
+🔗 Nada huérfano: si una neurona existe y este archivo no la conoce, el cerebro está roto.
+
+---
+
+## §7 — Cómo retomar (recap rápido)
+
+1. **Boot** (§G.1): este archivo + `05` + `10` + `brain:check`; imprime signos vitales; los
+   pendientes son los `TODO-NN` de `10`.
+2. **Antes de tocar código:** IAP (§3.3) + triggers (§G.2). **Antes de commitear:** §2.
+3. **Tras CADA tarea:** §G.3 y §G.4. Una tarea con deliberación y sin crudo archivado está
+   **incompleta**.

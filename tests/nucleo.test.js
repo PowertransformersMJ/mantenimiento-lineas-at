@@ -57,8 +57,10 @@ describe('geodesia — contra constantes WGS84 publicadas', () => {
   });
 
   test('la distancia es simétrica', () => {
-    const ida = vincenty(10.35117, -75.49245, 10.350359, -75.492049).d;
-    const vuelta = vincenty(10.350359, -75.492049, 10.35117, -75.49245).d;
+    // Coordenadas arbitrarias a latitud caribeña. NO son de una línea real:
+    // las coordenadas de infraestructura de cliente no viven en este repo.
+    const ida = vincenty(10.0, -75.0, 10.001, -75.0004).d;
+    const vuelta = vincenty(10.001, -75.0004, 10.0, -75.0).d;
     cerca(ida, vuelta, 1e-9, 'ida y vuelta');
   });
 

@@ -89,6 +89,25 @@
 
 ---
 
+### L-10 · El módulo de campo NO es 100 % offline: el mapa se cae sin señal
+- **Síntoma:** el HTML no tiene ni una dependencia remota de **código** (Leaflet va embebido, cero
+  `<script src>` externos), y de ahí se concluyó —y se afirmó— que funcionaba entero sin conexión.
+- **Causa:** el código de **código** es offline, pero los **datos del mapa** no. Verificado leyendo
+  el archivo:
+  ```js
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', …)
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/…')
+  ```
+  En el vano 14, sin señal, el mapa es un lienzo gris. Lo que sí funciona offline son los datos, el
+  cálculo y el esquema geométrico — el propio HTML lo dice en ese título: *"funciona sin conexión"*,
+  aplicado al esquema, **no** al mapa. Y como agravante, la política de uso de
+  `tile.openstreetmap.org` **prohíbe textualmente el uso offline** y la descarga anticipada.
+- **Regla:** *"no tiene dependencias externas"* se comprueba buscando **URLs en tiempo de ejecución**,
+  no solo etiquetas `<script src>` y `<link href>`. Y por eso Protomaps/PMTiles no es un lujo del
+  sistema nuevo: **tapa un agujero que ya existe hoy en campo**.
+
+---
+
 ## Proceso
 
 ### L-08 · Al comité se le da el problema crudo, no la conclusión ya pulida
