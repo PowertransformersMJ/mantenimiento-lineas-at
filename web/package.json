@@ -1,0 +1,21 @@
+{
+  "name": "@lineas/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Frontend de Mantenimiento Líneas AT — caparazón público, sin datos de cliente.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --port 4173",
+    "deploy": "wrangler pages deploy dist --project-name=mantenimiento-lineas-at"
+  },
+  "dependencies": {
+    "@lineas/nucleo": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2",
+    "vite": "^6.0.7",
+    "wrangler": "^3.99.0"
+  }
+}

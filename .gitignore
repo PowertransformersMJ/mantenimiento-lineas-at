@@ -64,3 +64,6 @@ LN-*.html
 /fotos/
 *.CR2
 *.NEF
+
+# Build del frontend
+web/dist/

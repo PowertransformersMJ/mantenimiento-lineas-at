@@ -1,0 +1,13 @@
+{
+  "name": "@lineas/nucleo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Núcleo de cálculo de ingeniería de líneas AT — funciones puras, sin DOM ni red.",
+  "exports": {
+    "./geodesia": "./geodesia.js",
+    "./mecanica": "./mecanica.js",
+    "./termica": "./termica.js"
+  },
+  "sideEffects": false
+}

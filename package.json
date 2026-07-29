@@ -9,7 +9,14 @@
     "url": "https://github.com/PowertransformersMJ/mantenimiento-lineas-at.git"
   },
   "license": "UNLICENSED",
+  "workspaces": [
+    "nucleo",
+    "web"
+  ],
   "scripts": {
+    "dev": "npm run dev --workspace web",
+    "build": "npm run build --workspace web",
+    "preview": "npm run preview --workspace web",
     "brain:check": "node scripts/brain-check.mjs",
     "brain:pull": "node ../brain-private/kernel/pull.mjs",
     "brain:archive": "node scripts/brain-archive.mjs",
