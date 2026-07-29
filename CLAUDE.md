@@ -82,6 +82,17 @@ fotos en base64). Su valor son 115 funciones de ingeniería real, ya portadas a 
    Un hallazgo de 5 KB encolado tras 18 MB de fotos muere en un timeout de 3G rural, y con él la
    emergencia estructural que reportaba.
 
+**La regla madre del subsistema de IA (ADR-004):**
+
+> **La IA mira y redacta; el núcleo mide; el ingeniero decide.** Nada que haya tocado el modelo entra
+> a un informe sin que una persona lo confirme, una por una.
+
+No es política escrita: es **permisos**. El modelo solo escribe en `sugerencias/`; las reglas le
+niegan `hallazgos/`, `calculos/` y `apoyos/`. Además: la clave de la API vive **solo** en Cloud
+Functions y el SDK solo puede importarse en `funciones/ia/pasarela.js` (lo vigila un gate de CI).
+**App Check obligatorio desde el día 1** — sin él, el sitio público es un proxy anónimo a la API
+pagado por el Ingeniero. Y **la ausencia de bandera nunca es aprobación**.
+
 **Guardarraíles de código (ADR-002) — errores que la propia IA induce al portar:**
 - **Las fotos viajan como binario (`Blob`), jamás como texto en base64.** Es la inercia del HTML
   original y revienta el límite de 1 MiB por documento y la RAM del móvil al parsear.

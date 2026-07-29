@@ -383,3 +383,203 @@ Por eso se conserva, ahora como procedimiento y no como restricción de diseño:
   `base_revision_id` de ADR-002 desde el primer día.
 - La elección de backend de F5 se decide **al entrar en F5**, con datos reales en la mano.
 - Presupuesto esperado sin cambios respecto a ADR-001 mientras no llegue F6: **$0**.
+
+---
+
+## ADR-004 · 2026-07-29 · Subsistema de IA y contrato para trabajar en paralelo
+
+**Estado:** ✅ Decidido (comité acotado de 5 agentes) · ⚠️ contiene **un desacuerdo con el encargo
+literal del Ingeniero**, planteado abiertamente en «Lo que se rechaza del encargo».
+
+### Contexto
+
+El Ingeniero fijó el rumbo: *"un sistema web completo de los más altos estándares, súper escalable,
+inteligente y avanzado; usaremos la API de Anthropic para enlazar LLMs que analicen en vivo"*, con el
+stack **Cloudflare Pages + R2 · Firebase (Firestore + Auth) · Cloud Functions en Node · GitHub**, y
+pidió trabajar **frontend y backend en paralelo**.
+
+Nada de eso estaba deliberado: ADR-001 y ADR-002 no contemplaban subsistema de IA.
+
+### La regla madre del subsistema
+
+> **La IA mira y redacta; el núcleo mide; el ingeniero decide.
+> Nada que haya tocado el modelo entra a un informe sin que una persona lo confirme, una por una.**
+
+Tres verbos, tres dueños. El modelo **mira** (una foto, un PDF, una frase de la cuadrilla) y
+**redacta** (prosa alrededor de números que le vienen dados). `nucleo/` es el único que **mide**. El
+ingeniero con matrícula es el único que **decide**.
+
+**No es una política escrita: se implementa como permisos.** El modelo solo puede escribir en
+`sugerencias/`; las reglas de Firestore le **niegan** escribir en `hallazgos/`, `calculos/`, `apoyos/`
+o cualquier campo que alimente una firma. Aunque el código se escriba mal —y lo escribe un asistente
+a alta velocidad— la doctrina se cumple porque la máquina no permite otra cosa.
+
+Es la aplicación directa de la doctrina de `CLAUDE.md §4`: *el veredicto sale del VALOR contra la
+NORMA, nunca del texto de un modelo de lenguaje*.
+
+### Lo que se rechaza del encargo (y por qué)
+
+**El análisis "en vivo" durante la inspección NO se construye.** Tres razones, ninguna opinable:
+
+1. **En el trazado no hay señal.** Es el requisito operativo fundador del proyecto.
+2. **Choca con el guardarraíl «la app jamás bloquea la captura»**: poner al modelo en la ruta crítica
+   del trabajo de campo es exactamente lo prohibido.
+3. **Anclaje.** Mostrar la sugerencia *antes* de que el linero forme su juicio destruye el único
+   control real que existe. El día que el modelo diga "cadena en buen estado" y el técnico deje de
+   mirar, se perdió la inspección.
+
+**"En vivo" se redefine como *la misma noche*, no *durante la subida*.** La IA es tarea de gabinete.
+Si el Ingeniero quiere sostener el encargo literal, es su decisión — pero queda registrado que el
+comité la desaconseja por seguridad de las cuadrillas, no por dificultad técnica.
+
+### El agujero de seguridad que se tapa el día 1
+
+Cloudflare Pages sirve un paquete público que contiene el `projectId` de Firebase. **Sin App Check en
+modo obligatorio, cualquiera con el navegador abierto tiene un proxy anónimo a la API de Anthropic
+pagado por el Ingeniero.** La clave nunca se filtra y aun así vacían la cuenta.
+
+Cierre: **App Check obligatorio** + solo funciones `onCall` (jamás `onRequest` abierta) + `auth`
+verificado + rol en *claim* + allowlist de dominio de correo. Del día 1, no de la fase 2.
+
+### Dónde corre cada cosa
+
+```
+NAVEGADOR/TELÉFONO   Cloudflare Pages + SDK de Firestore + MapLibre
+                     NO tiene clave · NO elige modelo · NO manda prompt
+                     Solo escribe: solicitudes_ia/{id} = {caso_de_uso, referencias}
+        │ datos                                    │ binarios
+        v                                          v
+FIREBASE             Firestore + Auth + App Check   ◄──►   CLOUDFLARE R2
+                     el documento nuevo dispara ↓          fotos, nunca salen
+        v
+CLOUD FUNCTIONS v2 · Node 22 — ÚNICO lugar que conoce la clave
+  funciones/ia/pasarela.js ← único archivo que importa el SDK
+  presupuesto → idempotencia → minimización → prompt versionado → llamada
+  → validación de esquema → auditoría → escribe en sugerencias/
+        v
+  api.anthropic.com
+```
+
+**Por dónde NUNCA pasa la clave:** navegador, teléfono, paquete de Pages, Worker de Cloudflare, R2,
+documento de Firestore, variable del build, el repositorio (que es público), un mensaje de error, un
+log. Dos entornos separados (`dev` y `prod`) para que una prueba en bucle no se coma el presupuesto.
+
+### Los cinco casos de uso que SÍ, por dinero ahorrado
+
+| # | Caso | Por qué | Cómo se verifica que no alucinó |
+|---|---|---|---|
+| **1** | **Control de calidad de la evidencia** — revisa la CAPTURA, no la línea: foto movida, foto que no muestra lo que dice el formulario, placa ilegible, apoyo sin foto | **Es el que paga el proyecto.** El costo real del negocio no es el análisis: es el **re-viaje** de 4-6 h por trocha. Evitar uno al mes lo paga varias veces. Riesgo de firma: cero | El 80 % lo hace código determinista (nitidez, exposición, duplicados por hash). Al modelo se le pregunta **una sola cosa** que el código no sabe. Si discrepan, **gana el código** |
+| **2** | **Redacción del informe** sobre números ya calculados | Convierte una tarde de escribir en 20 min de revisar | El modelo escribe `{{marcador}}`; **el servidor sustituye el número**. Verificador de dígitos: cualquier cifra fuera de la lista blanca rechaza el texto entero. **El modelo no cita norma, jamás** |
+| **3** | **Normalización del texto de campo** a taxonomía cerrada | Hace posibles las estadísticas del parque, que hoy no existen porque cada linero escribe distinto | El modelo elige de una lista; valor fuera del enum invalida la respuesta. Muestreo ciego del 10 % |
+| **4** | **La pregunta ante una incoherencia** | La incoherencia la detecta una regla determinista de `nucleo/`; el modelo solo **formula la pregunta** al técnico | No emite juicio, solo pregunta |
+| **5** | **Extracción de ficha técnica de PDF de fabricante** | Ahorra horas de tecleo | Sin página y cita literal, el campo se descarta · chequeo de rango físico contra `nucleo/` · confirmación humana. **Mayor superficie de inyección del sistema** |
+
+**Regla transversal:** si el modelo falla, el sistema hace **exactamente lo que hacía sin IA**. Y la
+**ausencia de bandera nunca es aprobación**: el sistema jamás marca algo como bueno.
+
+### Control de coste — cuatro peldaños que apagan
+
+| Peldaño | Umbral | Qué se apaga |
+|---|---|---|
+| 1 | 80 % del tope diario | El control de calidad nocturno de fotos (el caro, el de visión) |
+| 2 | 100 % del tope diario | Todo salvo la redacción de informe bajo demanda |
+| 3 | 100 % del tope mensual | La pasarela responde `apagado_por_presupuesto` **sin llamar** |
+| 4 | Tope del workspace en la consola de Anthropic | La API devuelve error. **El freno que no se puede programar mal** |
+
+Más un interruptor manual `config/ia.enabled` que el Ingeniero baja sin desplegar código, y una
+alerta de GCP que lo baja sola. Se enciende a mano, siempre.
+
+Números de arranque, revisables al mes: **workspace prod USD 60/mes · dev USD 15/mes · proyecto USD
+3/día · por usuario 40 llamadas/día y USD 0,50/día**. `max_tokens` fijado en el servidor por caso de
+uso, temperatura 0, imágenes a 1.568 px sin EXIF (el original de 12 MP se queda en R2). Modelo
+escalonado; **los identificadores exactos y los precios se toman de la documentación al escribir el
+código —skill `claude-api`—, jamás de memoria**, y se fija el snapshot fechado: un alias tipo "el
+último" convierte el histórico en irreproducible.
+
+**Guardia en CI, la pieza más barata y la que más dinero salva:** el SDK solo puede importarse en
+`funciones/ia/pasarela.js`. Un `grep` en GitHub Actions rompe el build con *"llamada al modelo fuera
+de la pasarela: prohibido"*. Existe porque a un asistente le resulta natural importar el SDK en el
+archivo que tiene delante.
+
+### Trazabilidad
+
+Colección `llamadas_ia/{id}` de **escritura única**: las reglas no permiten `update` ni `delete` a
+nadie, ni al administrador. Guarda quién y cuándo · identificador **exacto y fechado** del modelo,
+versión y hash del prompt, versión del esquema, **versión de `nucleo/`** · referencias y hashes de la
+entrada (**nunca los bytes, nunca identificadores de cliente**) · salida cruda · tokens y coste · y
+**el desenlace humano**: `aceptada | editada | rechazada`, con quién y el diff.
+
+> *Sin ese último campo no hay métrica de acierto, y sin métrica de acierto no hay derecho a usar el
+> subsistema.*
+
+**Tres métricas mensuales:** aceptación humana por caso de uso (si baja del 70 % en 30 días, **ese
+caso se apaga solo**) · aceptación **por clase** de hallazgo, no en agregado · y aceptación **por
+encima del 92 %**, que no se celebra sino que **se audita**: significa que la gente firma a ciegas.
+
+### El contrato frontend ↔ backend
+
+**Con Firestore no hay API que diseñar, y eso engaña.** El frontend habla directo con la base. El
+contrato real son tres cosas que casi nadie trata como contrato, y si no se congelan antes de la
+primera línea, "trabajar en paralelo" son dos proyectos que se enteran en la semana 6 de que no
+encajan.
+
+Un paquete `contratos/` con esquemas Zod como **única fuente de verdad**: de ahí salen los tipos de
+ambos lados, el validador del servidor, el esquema que se le impone al modelo y los datos de prueba.
+Nadie escribe tipos a mano.
+
+1. **Nueve tipos de documento, ni uno más en v1**: `lineas`, `apoyos`, `inspecciones`, `evidencias`,
+   `solicitudes_ia`, `sugerencias`, `hallazgos`, `calculos`, `llamadas_ia`.
+2. **Tres funciones invocables**: `crearSolicitudIA`, `confirmarSugerencia`, `estadoContrato`.
+3. **Una máquina de estados idéntica en las dos mitades**: `pendiente → en_proceso → (listo |
+   fallido | rechazado)`, con motivos cerrados. **El frontend pinta los cinco desde el día 1** — es
+   exactamente donde el paralelo se estrella: el front hace el camino feliz, el back devuelve
+   degradaciones, y juntarlos cuesta una semana de parches.
+4. **Las reglas de seguridad son parte del contrato**, no del backend.
+5. **Prohibido por diseño** que el frontend mande prompt, modelo, temperatura o `max_tokens`: sería
+   una fuga de presupuesto y un *jailbreak* gratis.
+
+**Se PROHÍBE que el frontend monte su propio simulador** (MSW, json-server, JSON a mano): crea una
+segunda verdad que no modela las reglas de seguridad —que aquí *son* el contrato—, ni la cola sin
+señal, ni los estados feos. En su lugar: **emulador de Firebase + `npm run sembrar`** con ~30
+documentos de oro generados desde los mismos esquemas, y una costura `ProveedorModelo` con
+`ProveedorAnthropic` y `ProveedorFalso` (determinista, latencia simulada, 10 % de fallo inyectado).
+
+> **Consecuencia práctica, la más importante del documento:** el flujo completo se construye, se
+> despliega y se usa **sin gastar un solo token y sin necesitar todavía los papeles legales**.
+> Encender el modelo real es cambiar una variable de entorno.
+
+### Orden de construcción
+
+| Semana | Qué queda desplegado |
+|---|---|
+| **1** | Contrato v0.1 congelado. En Cloudflare Pages: entrar, lista de líneas, ficha de apoyo, contra un Firestore de desarrollo sembrado. Feo pero real |
+| **2** | Flujo de IA **completo** con `ProveedorFalso`: solicitud → borrador → confirmación → hallazgo, con reglas de seguridad y los cinco estados pintados. **Aquí muere el 80 % del riesgo de integración sin gastar un dólar** |
+| **3** | Proveedor real solo para el caso 2 (redacción). **Puerta dura: no arranca sin los dos papeles legales firmados** |
+| **4** | Caso 1 (control de calidad), con su conjunto dorado de 30 casos construido **antes** del primer prompt en producción |
+| **5–6** | Normalización, incoherencias, extracción de PDF |
+
+### Frontera legal
+
+AFINIA es **responsable** del dato; el Ingeniero es **encargado**. Antes de la primera llamada real
+con datos de campo hacen falta dos papeles: **autorización escrita del cliente** para usar un
+subencargado en el exterior, y el **acuerdo de tratamiento de datos** con el proveedor. Hasta que
+existan, el sistema corre con `ProveedorFalso` — que es lo que hará las dos primeras semanas de todos
+modos.
+
+### Lo que NO se construye todavía
+
+| No se construye | Señal que lo dispara |
+|---|---|
+| **Pre-hallazgo por foto** (que el modelo proponga el defecto de la línea) | 300 hallazgos humanos confirmados con foto **y** ≥70 % de acuerdo **por clase** en muestreo ciego. Entonces entra clase por clase, solo **añadiendo** a la cola de revisión, jamás cerrando nada |
+| API de lotes | Gasto diario real > USD 1,50 tres días seguidos |
+| Caché del prompt fijo | Un caso de uso pasa de 100 llamadas/día |
+| RAG normativo | Nunca por sofisticación. Solo con corpus real > 10.000 páginas **y** una pregunta que `nucleo/` no respondió en tres meses |
+| **Auto-aceptación de sugerencias, en cualquier forma** | **Ninguna. Nunca.** Única línea del documento sin condición de reapertura |
+
+### El examen final del diseño
+
+> **Si el sistema no es útil y vendible con el subsistema de IA apagado, el problema no es la IA.**
+
+### Crudo de respaldo
+
+`../brain-private/mantenimiento-lineas-at/research-archive/2026-07-29-arquitectura-ia-y-paralelo.md`

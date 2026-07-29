@@ -60,6 +60,7 @@ Guarda `research-archive/` (crudos de deliberación: comités, consejos externos
 | `ADR-001` | 2026-07-29 | Arquitectura y stack de la plataforma | `research-archive/2026-07-28-comite-vision-arquitectura.md` |
 | `ADR-002` | 2026-07-29 | Integración del Consejo Externo: confirma ADR-001 y lo enmienda en 3 puntos | `research-archive/2026-07-29-consejo-externo-respuesta.md` |
 | `ADR-003` | 2026-07-29 | El Ingeniero fija alcance (plataforma completa e independiente) y presupuesto (asume el coste al pasarse) | — (decisión directa del dueño) |
+| `ADR-004` | 2026-07-29 | Subsistema de IA (API de Anthropic) y contrato para trabajar frontend y backend en paralelo | `research-archive/2026-07-29-arquitectura-ia-y-paralelo.md` |
 
 > Toda decisión cara de revertir entra aquí con su ADR y su crudo enlazado. Si hubo comité o consejo
 > externo y el crudo no está archivado, la tarea **no está cerrada** (`CLAUDE.md §G.4`).
