@@ -22,13 +22,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Sin `cache: npm` A PROPÓSITO: el proyecto todavía no tiene ninguna
+      # dependencia, así que no existe package-lock.json y la caché fallaría
+      # con "Dependencies lock file is not found". Cuando entre la primera
+      # dependencia se commitea el lock y se vuelve a activar la caché.
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'npm'
 
-      - name: Instalar dependencias
+      - name: Instalar dependencias (si las hubiera)
         run: npm ci --no-audit --no-fund || npm install --no-audit --no-fund
 
       # La bóveda ../brain-private NO existe en CI (es local y privada, ADR-059).
