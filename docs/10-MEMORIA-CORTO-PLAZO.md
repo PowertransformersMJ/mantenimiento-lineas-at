@@ -15,7 +15,6 @@ de AFINIA que definen el alcance real.
 
 | # | Qué | Por qué bloquea |
 |---|---|---|
-| **TODO-01** | **Correr el Consejo Externo.** Abrir `~/Desktop/GitHub-MJ/` como workspace en Antigravity, pedir **Gemini 3.1 Pro (High)** y pegar el prompt de `../brain-private/mantenimiento-lineas-at/research-archive/2026-07-28-consejo-externo-prompt.md`. Traer la respuesta completa. | ADR-001 está marcado **NO revisado externamente**. Es la única decisión cara de revertir del proyecto. |
 | **TODO-02** | **Enviar a AFINIA las 8 preguntas** (`99 §ADR-001 · Anexo`) con fecha límite escrita. | La pregunta 2 (*¿ya tienen Maximo/SAP/ArcGIS?*) decide si esto es una plataforma o un exportador: puede recortar el 70 % del alcance. La 3 (*¿se puede instalar app en sus teléfonos?*) decide si F4 existe. |
 | **TODO-03** | **Cronometrar el proceso actual de LN-627** paso a paso (conversación de 20 min). | Sin eso se optimiza un proceso que nadie midió y el ahorro prometido sería inventado. |
 | **TODO-04** | **Abrir el HTML en el teléfono de la cuadrilla, en modo avión**, y decir si el mapa se ve o es un lienzo gris. | Confirma en vivo el hallazgo de `30 · L-10`. Un sí/no. |
@@ -28,8 +27,10 @@ de AFINIA que definen el alcance real.
 
 | # | Qué | Estado |
 |---|---|---|
-| **TODO-07** | Integrar la respuesta del Consejo Externo como un peer review más: adoptar lo correcto, **refutar con razones** lo que esté mal, y actualizar ADR-001. | 🔲 bloqueado por TODO-01 |
 | **TODO-08** | **Contrastar la ecuación de cambio de estado y el vano peso contra un caso resuelto de norma o libro.** Cerrar las dos filas ⬜ de `40 §8`. | 🔲 — bloquea emitir cálculo con valor de entrega a cliente |
+| **TODO-13** | **F3:** la capa de datos debe disparar la **invalidación por tramo de tensión** — editar un apoyo recalcula todo su tramo, no solo ese apoyo (ADR-002, enmienda 3). `nucleo/mecanica.js` ya calcula por tramo; falta el disparador. | 🔲 |
+| **TODO-14** | **F4:** implementar el **canal de sincronización bifurcado** (datos primero y solos; fotos en cola asíncrona) y el **`base_revision_id` con cuarentena**, nunca rechazo (ADR-002, enmiendas 1 y 2). | 🔲 |
+| **TODO-15** | **Si F5 se dispara:** reabrir la comparación *seguridad declarativa de Firestore* vs *D1 + Workers*, con el coste de Blaze sin techo en la balanza. Condición de reapertura anotada en ADR-002. | 🔲 condicional |
 | **TODO-09** | Contar cuántos de los **48 campos de ficha** están realmente llenos en LN-627. Decide si el formulario de campo es de 8 campos o de 48. | 🔲 |
 | **TODO-10** | Leer las 4 funciones de ingeniería restantes: ¿los **2 empalmes** parten vano? ¿contra qué hipótesis se compara el despeje al terreno? | 🔲 |
 | **TODO-11** | **F1 · Nota técnica de LN-627**: una página, 5 números, decisión binaria, para que el Ingeniero la firme. | 🔲 tras TODO-08 |
@@ -45,7 +46,12 @@ de AFINIA que definen el alcance real.
 - **`nucleo/` portado y verificado** — geodesia, mecánica y térmica como funciones puras.
   **45 pruebas en verde.** Detalle de qué se verificó contra qué → `40 §8`.
 - **Comité de Expertos ×3** (29 agentes, 0 fallos, 59 min) → **ADR-001**. Crudo de 477 KB archivado.
-- **Prompt del Consejo Externo** preparado con anti-anclaje R1.
+- **Consejo Externo corrido e integrado** (Gemini 3.1 Pro vía Antigravity) → **ADR-002**. Confirmó
+  ADR-001 en 7 puntos a los que llegó por su cuenta desde el problema crudo, y lo enmendó en 3:
+  canal de sincronización bifurcado, OPFS + revisión base con cuarentena, y tres guardarraíles de
+  código. Se le **refutaron con evidencia** dos puntos: reusar Firebase (sus Functions no existen en
+  plan gratuito, y las 699 líneas de reglas del proyecto hermano son de dominio de transformadores,
+  no transferibles) y no guardar los valores calculados (haría irreproducible un informe firmado).
 - **Mediciones de F0 ya ejecutadas** (el comité las dejaba pendientes; se hicieron en la misma
   sesión): 99 fotos de trabajo · 17,97 MB · **177 KB de media**; 99 miniaturas · 1,65 MB · **16 KB**
   (9,2 % del original); **14 de 26 apoyos** con foto; 3,8 fotos por apoyo sobre el total.

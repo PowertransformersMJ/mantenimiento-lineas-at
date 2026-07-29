@@ -76,6 +76,21 @@ fotos en base64). Su valor son 115 funciones de ingeniería real, ya portadas a 
 3. **La app JAMÁS bloquea la captura.** Por ninguna razón: ni por servidor, ni por permiso, ni por
    espacio. La seguridad que impide trabajar no se cumple: se sabotea (y las fotos acaban en
    WhatsApp, que es justo la fuga que se quería cerrar).
+4. **El dato crítico NUNCA viaja detrás de una foto** (ADR-002). Dos canales separados: los datos
+   suben **primero**, solos, en su propia transacción; las fotos van a una **cola asíncrona**. Una
+   inspección puede quedar `sincronizada` con fotos `pendientes` — es un estado válido, no un error.
+   Un hallazgo de 5 KB encolado tras 18 MB de fotos muere en un timeout de 3G rural, y con él la
+   emergencia estructural que reportaba.
+
+**Guardarraíles de código (ADR-002) — errores que la propia IA induce al portar:**
+- **Las fotos viajan como binario (`Blob`), jamás como texto en base64.** Es la inercia del HTML
+  original y revienta el límite de 1 MiB por documento y la RAM del móvil al parsear.
+- **El motor de cálculo no entra en el ciclo de vida de ningún framework.** Nada de hooks: bucles de
+  render y pérdida de precisión. `nucleo/` ya cumple.
+- **Editar un apoyo invalida y recalcula TODO su tramo de tensión**, no solo ese apoyo. Si no, las
+  validaciones de coherencia dan falsos positivos.
+- **Ante un conflicto se ACEPTA y se pone en cuarentena; nunca se rechaza y descarta** (rechazar
+  convierte un problema de calidad de dato en pérdida de jornada de campo).
 
 **Lo que se descartó y por qué** (detalle en `99 §ADR-001`): GitHub Pages (exige repo público en
 cuenta Free, el sitio queda público aun pagando, y sus términos **prohíben el uso comercial**) ·

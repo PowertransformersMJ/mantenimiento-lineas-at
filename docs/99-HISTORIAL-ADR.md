@@ -8,8 +8,8 @@
 
 ## ADR-001 · 2026-07-29 · Arquitectura y stack de la plataforma
 
-**Estado:** ✅ Decidido · ⚠️ **NO REVISADO EXTERNAMENTE** (el Consejo Externo es `TODO-01`; hasta que
-corra, esta decisión lleva esa marca por honestidad, según `CLAUDE.md §G.2` 🛰️).
+**Estado:** ✅ Decidido · ✅ **REVISADO EXTERNAMENTE el 2026-07-29** (Gemini 3.1 Pro vía Antigravity).
+El veredicto se **confirma en lo esencial** y se **enmienda en tres puntos** → ver **ADR-002**.
 
 ### Contexto
 
@@ -168,3 +168,148 @@ acata, y cambia dos cosas:
 (477 KB: hechos con fuente, las tres síntesis completas, los peer reviews anónimos y los fallos
 señalados por ronda).
 Prompt del Consejo Externo: `…/2026-07-28-consejo-externo-prompt.md`.
+
+---
+
+## ADR-002 · 2026-07-29 · Integración del Consejo Externo (Gemini 3.1 Pro)
+
+**Estado:** ✅ Cerrado. Enmienda ADR-001 en tres puntos y lo confirma en el resto.
+
+### Contexto
+
+`ADR-001` quedó marcado *NO revisado externamente*. Se corrió el Consejo Externo con **Gemini 3.1 Pro
+(High)** vía Antigravity, aplicando **anti-anclaje R1**: se le entregó el problema **CRUDO** —con las
+opciones descartadas y las invariantes— **sin contarle el veredicto del comité**, para que decidiera
+por su cuenta. Si converge, es señal fuerte; si diverge, ahí está el valor.
+
+Se integra como **un peer review más**, nunca como oráculo: se adopta lo correcto y **se refuta con
+razones** lo que no lo es.
+
+### Dónde convergió sin saber lo que habíamos decidido (señal fuerte)
+
+Llegó de forma independiente a: **R2 para las fotos por su egreso a coste cero** · **Cloudflare Pages
+para el frontend** · **PMTiles + MapLibre, y explícitamente NO cachear teselas con el Service Worker**
+· **IndexedDB, no LocalStorage** · **activos de mutación lenta separados de eventos inmutables
+append-only** · **el motor de cálculo como librería pura aislada del framework** · **la topología del
+tramo de tensión modelada explícitamente**. Siete coincidencias desde cero refuerzan ADR-001.
+
+> La tercera de esas coincidencias ya está implementada: `nucleo/` son funciones puras sin DOM, sin
+> red y sin framework, con 45 pruebas. El consejo lo señaló como riesgo a evitar; aquí ya estaba
+> evitado.
+
+### ENMIENDA 1 (ADOPTADA) — Sincronización bifurcada: el dato crítico nunca viaja detrás de una foto
+
+**Su fallo fatal, y tiene razón.** El comité había resuelto la *resiliencia* del envío (reanudable
+foto por foto, contador "142 de 209", partido en paquetes, cuarentena en vez de rechazo) pero **no la
+PRIORIDAD**: nada impedía que un hallazgo de 5 KB —*"retenida rota con riesgo de caída"*— quedara
+encolado detrás de 18 MB de fotografías y muriera en un timeout de 3G rural. La emergencia estructural
+no llegaría, y nadie se enteraría.
+
+**Se adopta:** dos canales separados. Los **datos relacionales suben primero**, solos, en su propia
+transacción. Las **fotos van a una cola asíncrona de segundo plano**. Una inspección puede quedar
+`sincronizada` con sus fotos `pendientes`, y eso es un estado válido y visible, no un error.
+
+Se combina con lo que ya traía el comité: la cola solo se vacía contra **acuse explícito**, y se
+purga lo replicado, jamás lo capturado.
+
+### ENMIENDA 2 (ADOPTADA) — Mecanismos concretos que el comité dejó al nivel de principio
+
+| Qué | Lo que decía ADR-001 | Lo que aporta el consejo |
+|---|---|---|
+| Dónde vive el mapa offline | "PMTiles + MapLibre" | **Origin Private File System (OPFS)**, descargado **explícitamente en la oficina con WiFi**. La caché del Service Worker no sirve: el sistema operativo la purga cuando le falta memoria, y la cuadrilla llega al monte con un lienzo gris. |
+| Resolución de conflictos | "explícita" | **`base_revision_id`** en cada registro al descargarlo. Si al subir no coincide con el del servidor, el evento **NO se pierde**: va a `conflictos_pendientes` y la interfaz de oficina obliga a fusionar a mano. |
+
+> **Matiz obligatorio sobre el conflicto:** el consejo dice *"la Cloud Function rechaza el UPDATE"*.
+> **Rechazar está prohibido** por el guardarraíl de `CLAUDE.md §1`: una restricción que RECHAZA
+> convierte un problema de calidad de dato en pérdida de jornada de campo. Se implementa como
+> **aceptar y poner en cuarentena**, nunca como rechazar y descartar. Con ese cambio, el mecanismo
+> es correcto y **es independiente del motor**: funciona igual en SQLite, en D1 o en Firestore.
+
+### ENMIENDA 3 (ADOPTADA) — Tres guardarraíles de código contra errores que la propia IA induce
+
+1. **Inercia del Base64.** Al portar desde un HTML que guarda fotos en base64, la tentación es
+   guardarlas como texto. Reventaría el límite de 1 MiB por documento y colapsaría la RAM del móvil
+   al parsear. **Las fotos viajan como binario (`Blob`), jamás como texto.**
+2. **No "reactificar" el motor.** El cálculo no entra en hooks ni en el ciclo de vida de ningún
+   framework: bucles de render y pérdida de precisión. **Ya cumplido en `nucleo/`.**
+3. **Invalidación por tramo de tensión.** Editar mecánicamente un apoyo debe **invalidar y recalcular
+   todo su tramo**, no solo ese apoyo. Si no, las validaciones de coherencia dan falsos positivos.
+   `nucleo/mecanica.js` ya calcula por tramo con el VIR; falta que la **capa de datos** dispare esa
+   invalidación — se anota como requisito de F3.
+
+### REFUTACIÓN 1 — «Reusa Firebase (Firestore + Auth + Functions)»: no se adopta para F0–F5
+
+Su argumento de fondo es **bueno y se reconoce**: la seguridad declarativa de `firestore.rules` es más
+segura que un control de acceso escrito a mano por una IA, y para un dueño que no programa eso pesa.
+Pero la recomendación no sobrevive a tres comprobaciones:
+
+1. **Cloud Functions no existen en el plan gratuito.** Su diseño necesita una función de servidor para
+   firmar las URLs de R2 y para el chequeo de revisión. La tabla oficial marca *"Not applicable"* en
+   Spark y el despliegue exige Blaze — **un plan sin techo de gasto**. Eso viola frontalmente la
+   invariante nº 2 que se le entregó en el propio prompt ("que nadie reciba una factura sorpresa").
+   **El consejo no abordó este punto en ningún momento.**
+2. **El "activo gigante" de 700 líneas no es transferible.** Verificado con mis propios ojos:
+   `firestore.rules` del proyecto hermano tiene **699 líneas, 19 funciones auxiliares y 37 bloques
+   `match`**. De las 19 auxiliares, **solo 4 son genéricas** (`isSignedIn`, `isAdmin`, `hasProfile`,
+   `isTeamMember`); las otras 15 validan dominio de transformadores
+   (`isCodigoSuministroValido`, `isEstadoRepuestoValido`, `isTipoActivoValido`…). Y **los 37 bloques
+   `match` son colecciones de transformadores** (`contramuestras`, `historial_hi`,
+   `acciones_refrigeracion`, `macroactividades`…): **cero** aplican a líneas, apoyos, vanos o
+   inspecciones. Lo reutilizable es el **patrón** (unas decenas de líneas), no el activo.
+3. **Su número de egreso está mal.** Afirma que 5 gerentes descargando 150 MB *"volarán la capa
+   gratuita en días"*. La cuota gratuita verificada de un bucket nuevo son **100 GB/mes descargados**;
+   ese escenario son ~16 GB/mes, el **16 %**. Sería casi correcto solo en buckets antiguos
+   `*.appspot.com` (1 GB/día). La conclusión —R2 es mejor por egreso— es la misma, pero el número que
+   la sostiene no.
+4. **Falló el dato decisivo:** Firebase Storage no es que sea *caro*, es que **no existe** en el plan
+   gratuito, y su requisito de facturación pasó a ser total y **retroactivo el 03-02-2026**.
+
+**Y sobre todo, responde a la pregunta equivocada.** ADR-001 no elige Firestore ni D1 *hoy*: elige
+**ningún proveedor** hasta F5. En F0–F4 todo corre en la Mac del Ingeniero, así que **no hay superficie
+de control de acceso que proteger** y el argumento del consejo no tiene dónde aplicarse. Diseñó el
+estado final y saltó las fases; y F5 puede no llegar nunca —depende de la respuesta de AFINIA a las
+8 preguntas—, en cuyo caso habríamos pagado la complejidad de Firebase por nada.
+
+> **Condición explícita de reapertura:** si F5 se dispara, este argumento **vuelve a la mesa con todo
+> su peso** y se compara *seguridad declarativa de Firestore* contra *D1 + Workers*, con el coste de
+> Blaze sin techo puesto en la balanza. Queda anotado para no re-litigarlo desde cero.
+
+### REFUTACIÓN 2 (la más importante) — «NO guardes la flecha, el vano viento ni la ampacidad»
+
+El consejo propone que la base sea "tonta": solo mediciones crudas, y que **todo se recalcule en el
+cliente al renderizar**. Su motivo: si mañana cambia el criterio de la catenaria, el histórico sigue
+siendo válido.
+
+**Se refuta, y es la divergencia que más importa del proyecto.**
+
+El Ingeniero **firma los informes con su matrícula profesional**. Si en 2029 alguien pregunta *"¿qué
+certificó usted en 2026?"*, recalcular con el motor de 2029 devuelve **la respuesta de 2029**, no la
+que él firmó. Con el diseño del consejo, **el documento firmado sería irreproducible** — que es
+exactamente el riesgo legal que este sistema existe para cerrar (`ADR-001 §1`).
+
+**Pero su preocupación es legítima**, así que no se descarta: se resuelve con las dos cosas a la vez,
+que no son alternativas sino capas distintas.
+
+| Capa | Qué guarda | Para qué |
+|---|---|---|
+| **Dato crudo** | mediciones tal como se tomaron, jamás derivados | permite **recalcular** con cualquier criterio futuro — el punto del consejo, adoptado |
+| **Dictamen** | el resultado **más la versión del motor y las hipótesis** con que se produjo | permite **reproducir el informe firmado** años después — el punto del comité, conservado |
+
+La regla de `CLAUDE.md §3.1` se mantiene: *todo resultado guardado lleva con qué versión del motor y
+con qué hipótesis se produjo*. Un dictamen es una **foto fechada de un juicio profesional**, no una
+caché del cálculo: por eso no se recalcula al vuelo ni se sobrescribe.
+
+### Consecuencias
+
+- **ADR-001 deja de estar "no revisado externamente".** Su núcleo sale confirmado por una familia de
+  modelos distinta que partió del problema crudo.
+- Entran tres enmiendas al diseño: **canal de sincronización bifurcado**, **OPFS + revisión base con
+  cuarentena**, y **tres guardarraíles de código**. Se reflejan en `CLAUDE.md §1`.
+- Queda anotada una **condición de reapertura** para la elección de base de datos si F5 se dispara.
+- No se convoca desempate con una tercera familia (§0b): comité y consejo **no divergen de frente**;
+  convergen en lo esencial y las diferencias quedaron resueltas con evidencia verificable.
+
+### Crudo de respaldo
+
+`../brain-private/mantenimiento-lineas-at/research-archive/2026-07-29-consejo-externo-respuesta.md`
+(respuesta íntegra, sin editar) · prompt que la originó: `…/2026-07-28-consejo-externo-prompt.md`.
