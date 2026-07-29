@@ -1,3 +1,4 @@
+<!-- brain-template-version: 1.1.0 -->
 # CLAUDE.md — Mantenimiento Líneas AT · 🧠 Tronco Encefálico (Router Neuronal)
 
 > **Auto-cargado en cada sesión.** Es router, NO bitácora: aquí no se documenta historial ni tareas
