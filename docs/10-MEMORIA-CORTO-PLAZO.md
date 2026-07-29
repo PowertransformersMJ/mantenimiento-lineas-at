@@ -20,6 +20,7 @@ de AFINIA que definen el alcance real.
 | **TODO-04** | **Abrir el HTML en el teléfono de la cuadrilla, en modo avión**, y decir si el mapa se ve o es un lienzo gris. | Confirma en vivo el hallazgo de `30 · L-10`. Un sí/no. |
 | **TODO-05** | **Decidir por escrito qué NO se mide de la persona** (tiempos por técnico, rankings, GPS continuo) y decírselo a la cuadrilla. | Sin esto el piloto mide adopción falsa: cooperan el primer día y sabotean el tercero. |
 | **TODO-06** | ¿Existen el **GPX crudo del Garmin** y las **fotos originales** en la Mac? | Si existen, el generador lee la fuente. Si no, hay que extraerlas del HTML (ya hay extractor probado). |
+| **TODO-18** | **Confirmar o corregir 5 apoyos de LN-627**: E022, E04, E06, E20 y E21 son los únicos con deflexión de anclaje. ¿Son realmente de retención/ángulo? | **Es el bloqueo de F1.** Sin función estructural no hay tramos de tensión, y sin tramos no hay cálculo mecánico. Son 5 respuestas, no 26. |
 
 ---
 
@@ -32,7 +33,8 @@ de AFINIA que definen el alcance real.
 | **TODO-13** | **F3:** la capa de datos debe disparar la **invalidación por tramo de tensión** — editar un apoyo recalcula todo su tramo, no solo ese apoyo (ADR-002, enmienda 3). `nucleo/mecanica.js` ya calcula por tramo; falta el disparador. | 🔲 |
 | **TODO-14** | **F4:** implementar el **canal de sincronización bifurcado** (datos primero y solos; fotos en cola asíncrona) y el **`base_revision_id` con cuarentena**, nunca rechazo (ADR-002, enmiendas 1 y 2). | 🔲 |
 | **TODO-15** | **Si F5 se dispara:** reabrir la comparación *seguridad declarativa de Firestore* vs *D1 + Workers*, con el coste de Blaze sin techo en la balanza. Condición de reapertura anotada en ADR-002. | 🔲 condicional |
-| **TODO-09** | Contar cuántos de los **48 campos de ficha** están realmente llenos en LN-627. Decide si el formulario de campo es de 8 campos o de 48. | 🔲 |
+| **TODO-09** | ~~Contar campos de ficha llenos~~ → **CERRADO con un resultado inesperado:** el HTML **no guarda ninguna ficha**. Nacen vacías desde `var DEF`, que solo trae **tensión 66 kV** y el **conductor AAAC Darien** (559,5 MCM · 19 hilos · Ø 21,79 mm · 283,5 mm² · 545 A). Todo lo demás —incluida `p_func`— está en blanco. | ✅ |
+| **TODO-17** | **F1 bloqueado hasta confirmar 5 apoyos.** Sin `p_func` no hay tramos de tensión y no hay cálculo mecánico. Se propusieron por deflexión (ver abajo); faltan los ojos del Ingeniero. | 🔲 espera TODO-18 |
 | **TODO-10** | Leer las 4 funciones de ingeniería restantes: ¿los **2 empalmes** parten vano? ¿contra qué hipótesis se compara el despeje al terreno? | 🔲 |
 | **TODO-11** | **F1 · Nota técnica de LN-627**: una página, 5 números, decisión binaria, para que el Ingeniero la firme. | 🔲 tras TODO-08 |
 | **TODO-12** | Recalcular el margen real de almacenamiento con la **mezcla de tamaños de línea del parque** (no solo con LN-627, que es una línea chica de 26 apoyos). | 🔲 tras TODO-02 |

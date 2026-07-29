@@ -296,6 +296,55 @@ sin referencia externa, y **quien firma es el Ingeniero, no el software**.
 
 ---
 
+## §8.2 — La estructura real de LN-627, derivada de la geometría
+
+El módulo de campo **no guarda ninguna ficha**: nacen vacías, con solo la tensión (66 kV) y el
+conductor (**AAAC Darien** · 559,5 MCM · 19 hilos · Ø 21,79 mm · 283,5 mm² · 545 A). Falta `p_func`
+en los 26 apoyos, y sin ella no hay tramos de tensión ni cálculo mecánico.
+
+Se dedujo por **deflexión**, con el mismo criterio del módulo original (<3° suspensión · <15°
+suspensión angular · <30° ángulo · ≥30° retención):
+
+| Apoyo | Deflexión | Función que impone la geometría |
+|---|---|---|
+| E01 | — | Terminal (origen) |
+| **E022** | **64,7°** | Retención / anclaje |
+| **E04** | **50,2°** | Retención / anclaje |
+| **E06** | **119,3°** | Retención / anclaje — la línea casi se dobla sobre sí misma |
+| **E20** | **76,0°** | Retención / anclaje |
+| **E21** | **58,6°** | Retención / anclaje |
+| E24 | — | Terminal (final) |
+
+Los otros 19 apoyos quedan en suspensión o suspensión angular (máximo 11,2°).
+
+> **Confirmación independiente.** La investigación de falla incrustada en el propio HTML afirma que
+> E20 y E21 tienen deflexiones de **76,03°** y **58,65°** y que *"ninguna de las dos puede ser de
+> suspensión"*. El núcleo recalculó **76,0°** y **58,6°** partiendo solo del GPS. Coincide: el motor
+> reproduce el análisis de falla original sin haberlo visto.
+
+### Los seis tramos de tensión — y por qué un VIR único sería un error
+
+| Tramo | Vanos | Longitud | **VIR** |
+|---|---|---|---|
+| 1 · E01 → E022 | 1 | 100 m | 99,9 m |
+| 2 · E022 → E04 | 2 | 256 m | 128,0 m |
+| 3 · E04 → E06 | 3 | 145 m | **51,4 m** |
+| 4 · E06 → E20 | 15 | 1 678 m | 142,0 m |
+| 5 · E20 → E21 | 1 | 13 m | **13,4 m** |
+| 6 · E21 → E24 | 3 | 737 m | **296,8 m** |
+
+El vano ideal de regulación de la línea **completa** sería 188,78 m, pero por tramo va de **51,4 m a
+296,8 m** — un factor de casi 6. Calcular la línea entera con un solo VIR de 188,78 m daría flechas y
+tiros equivocados en los dos extremos del rango: **sobrestimaría** la tensión en el tramo 3 y la
+**subestimaría** en el tramo 6, que es justo donde están los vanos de 294,8 y 336,7 m. Por eso el
+cálculo se hace **por tramo**, nunca por línea.
+
+⚠️ Estas funciones estructurales son una **propuesta de la geometría**, no un dato de campo
+verificado. Antes de emitir cualquier cálculo con valor de entrega, el Ingeniero confirma los cinco
+apoyos de anclaje (`docs/10 · TODO-18`).
+
+---
+
 ## §9 — El mapa: lo que hoy NO funciona en campo
 
 El módulo actual pide las teselas del mapa a dos servidores de internet:
