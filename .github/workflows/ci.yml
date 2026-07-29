@@ -1,0 +1,42 @@
+name: CI · Cerebro + Tests
+
+on:
+  push:
+    branches: [main, 'claude/**']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verificar:
+    name: Integridad del kernel + suite de dominio
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Instalar dependencias
+        run: npm ci --no-audit --no-fund || npm install --no-audit --no-fund
+
+      # La bóveda ../brain-private NO existe en CI (es local y privada, ADR-059).
+      # brain-check lo detecta y degrada: sigue validando los SHA-256 del kernel
+      # local contra scripts/.kernel-version.json (el sello COMMITEADO), que es
+      # justo la integridad que importa aquí — un kernel forkeado no pasa.
+      - name: Cerebro — integridad del kernel y gates
+        run: npm run brain:check
+
+      - name: Tests del núcleo de cálculo
+        run: npm test

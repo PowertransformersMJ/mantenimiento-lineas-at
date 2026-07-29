@@ -1,0 +1,40 @@
+#!/bin/sh
+# ===========================================================
+# 🧠 pre-commit — guardián determinista del cerebro
+# ===========================================================
+# Corre brain:check cuando el commit toca CLAUDE.md o docs/ y BLOQUEA
+# el commit si el cerebro tiene problemas. Convierte el Reflejo de
+# Auto-auditoría (CLAUDE.md §G.4) de doctrina-que-debo-recordar a
+# garantía determinista (M-10: lo verificable va al linter que falla).
+#
+# Activar (una vez):  git config core.hooksPath githooks
+# Saltar (intencional): git commit --no-verify
+# ===========================================================
+# macOS: las GUIs de git traen PATH mínimo — añadir homebrew/nvm para hallar node
+PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+for d in "$HOME"/.nvm/versions/node/*/bin; do [ -d "$d" ] && PATH="$d:$PATH"; done
+
+staged=$(git diff --cached --name-only)
+echo "$staged" | grep -qE '^(CLAUDE\.md|docs/)' || exit 0   # nada del cerebro staged → no aplica
+
+if ! command -v node >/dev/null 2>&1; then
+  echo "⚠️  pre-commit: 'node' no está en PATH → salto brain:check (commit permitido)."
+  exit 0
+fi
+
+echo "🧠 brain:check (pre-commit)…"
+if ! node scripts/brain-check.mjs; then
+  echo ""
+  echo "❌ COMMIT BLOQUEADO: el cerebro tiene problemas (ver arriba)."
+  echo "   Corrígelos, o usa 'git commit --no-verify' si es intencional."
+  exit 1
+fi
+
+# 🔒 Candado del boot (TODO-28 #2, comité 2026-07-18): always-on > objetivo → NO pasa.
+# Provisional instance-side; cuando el gate suba al kernel (condición §173 ×3) este bloque se BORRA.
+if ! node scripts/boot-gate.mjs; then
+  echo ""
+  echo "❌ COMMIT BLOQUEADO: presupuesto de boot excedido — poda antes de commitear."
+  exit 1
+fi
+exit 0

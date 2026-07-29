@@ -1,0 +1,66 @@
+# Dependencias
+node_modules/
+.npm/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Entornos
+.env
+.env.local
+.env.*.local
+
+# Editores / SO
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Claude Code — worktrees, sesiones y memoria local nunca viajan al repo.
+# EXCEPCIÓN: .claude/settings.json SÍ se commitea — son los hooks del cerebro
+# (brain-check --boot + session-handoff) y deben viajar con el repo.
+.claude/*
+!.claude/settings.json
+.claude/settings.local.json
+
+# Build / caches
+dist/
+build/
+.cache/
+.vite/
+
+# 🧠 Cerebro — sidecars efímeros escritos por los hooks de sesión
+docs/.handoff-auto.md
+docs/.estado-auto.md
+docs/.boot-marker
+# ⚠️ scripts/.kernel-version.json SÍ se commitea: es el sello de integridad del kernel (gate #0).
+
+# Secretos / claves — NUNCA al repo
+*.key
+*.pem
+serviceAccount*.json
+service-account*.json
+*-service-account*.json
+gcp-*.json
+firebase-adminsdk*.json
+.runtimeconfig.json
+
+# Firebase locales
+.firebase/
+*-debug.log
+
+# ⚠️ CONFIDENCIAL — datos reales de cliente (AFINIA / EPM).
+# Nunca al repo: van a almacenamiento privado o a la bóveda ../brain-private.
+# El HTML original del módulo de campo pesa 30 MB y lleva 99 fotos de campo
+# embebidas en base64: es material de cliente, no código.
+/_entrada/
+/datos-cliente/
+*_Modulo_Campo_*.html
+LN-*.html
+*.gpx
+*.kml
+# Fotografías de campo sueltas
+/fotos/
+*.CR2
+*.NEF

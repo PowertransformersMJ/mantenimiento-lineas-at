@@ -1,0 +1,53 @@
+{
+  "brainTemplateVersion": "1.1.0",
+  "repo": "mantenimiento-lineas-at",
+  "_comment": "Config INSTANCE del cerebro (topes/budgets). Los scripts/*.mjs de kernelFiles son KERNEL: NO se editan aqui, se editan en ../brain-private/kernel/ y se reparten con 'npm run brain:pull' (editarlos en el repo = gate #0 'fork prohibido' y pre-commit bloqueado). Estos budgets si son por-repo. chars = unidad real de contexto. NO auto-cargado: solo lo lee el linter.",
+  "bootCharsTarget": 31500,
+  "alwaysOn": [
+    "CLAUDE.md",
+    "docs/05-ESTADO-GLOBAL.md",
+    "docs/10-MEMORIA-CORTO-PLAZO.md"
+  ],
+  "caps": {
+    "CLAUDE.md": { "lines": 320, "chars": 25000 },
+    "docs/05-ESTADO-GLOBAL.md": { "lines": 25, "chars": 4000 },
+    "docs/10-MEMORIA-CORTO-PLAZO.md": { "lines": 110, "chars": 16000 },
+    "docs/20-MEMORIA-ESPACIAL.md": { "lines": 280, "chars": 16000 },
+    "docs/30-LECCIONES.md": { "lines": 350, "chars": 40000 },
+    "docs/00-INDICE.md": { "lines": 450, "chars": 16000 },
+    "docs/60-WORKFLOWS.md": { "lines": 160, "chars": 14000 }
+  },
+  "archiveDir": "../brain-private/mantenimiento-lineas-at/research-archive",
+  "specsDir": "specs",
+  "staleDays": 10,
+  "kernelFiles": [
+    "scripts/brain-check.mjs",
+    "scripts/brain-diff.mjs",
+    "scripts/brain-index.mjs",
+    "scripts/session-handoff.mjs",
+    "scripts/boot-gate.mjs",
+    "scripts/brain-archive.mjs"
+  ],
+  "_kernelFilesRazon": "Los 6 del kernel canonico v1.8.0. Declarar de MENOS es la forma silenciosa de quedarse con medio kernel viejo: pull.mjs copia SOLO lo declarado y el gate #0 solo hashea lo declarado.",
+  "orphanAllowlist": [".handoff-auto.md", ".estado-auto.md", ".boot-marker"],
+  "_orphanAllowlistRazon": "Sidecars escritos por HOOK (session-handoff.mjs --boot-echo), gitignored, efimeros. Su ruta de lectura es el hook SessionStart, no el grafo de neuronas.",
+  "peers": [],
+  "_peersRazon": "Vacio A PROPOSITO: la identidad del kernel la garantiza el gate #0 contra el canonico, no los peers (el gate #11 fue retirado en kernel v1.3).",
+  "lastOffsiteBackup": "NINGUNA",
+  "_lastOffsiteBackupRazon": "Hereda la decision ADR-059 del ecosistema: la boveda ../brain-private es de uso LOCAL, sin repo remoto. El sentinel 'NINGUNA' evita una alarma permanente que nadie atendera.",
+  "ssotFacts": [
+    {
+      "regex": "kernel v1\\.\\d+\\.\\d+",
+      "owner": "scripts/.kernel-version.json",
+      "scan": ["CLAUDE.md", "docs/05-ESTADO-GLOBAL.md", "docs/10-MEMORIA-CORTO-PLAZO.md", "docs/20-MEMORIA-ESPACIAL.md"],
+      "_que": "La version del kernel vive en el stamp que escribe brain:pull. Escribirla a mano en una neurona la convierte en mentira al primer pull. 99 (historia) queda fuera del scan a proposito."
+    }
+  ],
+  "deepAudit": {
+    "last": "2026-07-28",
+    "coveredHeaderCount": 0,
+    "maxAdrGap": 12,
+    "maxDays": 30,
+    "_que": "Auditoria Nivel-2 del cerebro (skill auditoria-cerebro): correrla cuando el linter lo pida (gate #14). Proyecto recien nacido: la primera cobertura real de headers se fija al cerrar la Fase 1."
+  }
+}

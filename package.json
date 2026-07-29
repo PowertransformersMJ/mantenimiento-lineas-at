@@ -1,0 +1,23 @@
+{
+  "name": "mantenimiento-lineas-at",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Mantenimiento Líneas AT — plataforma de gestión del mantenimiento de líneas de alta tensión (Caribe Colombiano).",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/PowertransformersMJ/mantenimiento-lineas-at.git"
+  },
+  "license": "UNLICENSED",
+  "scripts": {
+    "brain:check": "node scripts/brain-check.mjs",
+    "brain:pull": "node ../brain-private/kernel/pull.mjs",
+    "brain:archive": "node scripts/brain-archive.mjs",
+    "brain:diff": "node scripts/brain-diff.mjs",
+    "brain:index": "node scripts/brain-index.mjs",
+    "test": "node --test \"tests/**/*.test.js\""
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
