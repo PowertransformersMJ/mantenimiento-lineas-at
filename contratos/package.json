@@ -1,0 +1,16 @@
+{
+  "name": "@lineas/contratos",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Contrato del sistema — ÚNICA fuente de verdad. De aquí salen los tipos de las dos mitades, el validador del servidor, el esquema que se le impone al modelo y los datos de prueba.",
+  "main": "./src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "verificar": "tsc --noEmit && node --test \"pruebas/**/*.test.js\""
+  },
+  "dependencies": {
+    "zod": "^3.24.1"
+  },
+  "sideEffects": false
+}

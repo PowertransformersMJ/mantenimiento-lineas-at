@@ -10,6 +10,7 @@
   },
   "license": "UNLICENSED",
   "workspaces": [
+    "contratos",
     "nucleo",
     "web"
   ],
@@ -22,7 +23,8 @@
     "brain:archive": "node scripts/brain-archive.mjs",
     "brain:diff": "node scripts/brain-diff.mjs",
     "brain:index": "node scripts/brain-index.mjs",
-    "test": "node --test \"tests/**/*.test.js\""
+    "test": "node --test \"tests/**/*.test.js\"",
+    "contrato:verificar": "tsc -p contratos/tsconfig.json --noEmit"
   },
   "engines": {
     "node": ">=22"

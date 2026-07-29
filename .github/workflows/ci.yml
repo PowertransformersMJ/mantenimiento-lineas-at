@@ -43,3 +43,26 @@ jobs:
 
       - name: Tests del núcleo de cálculo
         run: npm test
+
+      # El contrato es la única fuente de verdad de las dos mitades (ADR-004).
+      # Si deja de compilar, frontend y backend han empezado a separarse.
+      - name: Contrato — tipos coherentes
+        run: npm run contrato:verificar
+
+      - name: Frontend — compila
+        run: npm run build
+
+      # Guardia de ADR-004: el SDK del modelo solo puede vivir en la pasarela.
+      # Es la pieza más barata del diseño y la que más dinero salva, porque a un
+      # asistente le resulta natural importar el SDK en el archivo que tiene delante.
+      - name: Guardia — llamadas al modelo solo desde la pasarela
+        run: |
+          FUERA=$(grep -rl "@anthropic-ai/sdk" --include="*.js" --include="*.ts" \
+                    --exclude-dir=node_modules . 2>/dev/null \
+                  | grep -v "funciones/ia/pasarela" || true)
+          if [ -n "$FUERA" ]; then
+            echo "::error::llamada al modelo fuera de la pasarela: prohibido (ADR-004)"
+            echo "$FUERA"
+            exit 1
+          fi
+          echo "✅ el SDK del modelo no se importa fuera de funciones/ia/pasarela"
