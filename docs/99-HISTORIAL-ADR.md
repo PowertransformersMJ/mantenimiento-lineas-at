@@ -59,7 +59,7 @@ del cliente dentro. El único tope real es no tener plan de pago activo.
 
 | Capa | Decisión | Número que la respalda |
 |---|---|---|
-| **Cálculo** | `nucleo/` — funciones puras, sin DOM ni red, con pruebas de oro | 45 pruebas en verde; desviación 4,5·10⁻⁶ m contra el original |
+| **Cálculo** | `nucleo/` — funciones puras, sin DOM ni red, con pruebas de oro | 53 pruebas en verde; desviación 4,5·10⁻⁶ m contra el original |
 | **Datos** | **SQLite local** (archivo `.sqlite`) → **Cloudflare D1** solo si se dispara F5 | D1: 500 MB/base, 5 M lecturas/día, 100.000 escrituras/día, **no se pausa**, sin tarjeta |
 | **Fotos** | **Disco del Ingeniero + segundo disco**, catalogadas por huella → **R2** solo en F6 | R2: 10 GB-mes y **salida de datos $0 sin límite** (único proveedor así) |
 | **Frontend** | **Vite + TypeScript**, web instalable, sin framework pesado | El Ingeniero no programa: Claude debe poder leer esto en dos años |
@@ -194,7 +194,7 @@ append-only** · **el motor de cálculo como librería pura aislada del framewor
 tramo de tensión modelada explícitamente**. Siete coincidencias desde cero refuerzan ADR-001.
 
 > La tercera de esas coincidencias ya está implementada: `nucleo/` son funciones puras sin DOM, sin
-> red y sin framework, con 45 pruebas. El consejo lo señaló como riesgo a evitar; aquí ya estaba
+> red y sin framework, con 53 pruebas. El consejo lo señaló como riesgo a evitar; aquí ya estaba
 > evitado.
 
 ### ENMIENDA 1 (ADOPTADA) — Sincronización bifurcada: el dato crítico nunca viaja detrás de una foto
@@ -313,3 +313,73 @@ caché del cálculo: por eso no se recalcula al vuelo ni se sobrescribe.
 
 `../brain-private/mantenimiento-lineas-at/research-archive/2026-07-29-consejo-externo-respuesta.md`
 (respuesta íntegra, sin editar) · prompt que la originó: `…/2026-07-28-consejo-externo-prompt.md`.
+
+---
+
+## ADR-003 · 2026-07-29 · El Ingeniero fija alcance y presupuesto
+
+**Estado:** ✅ Decidido por el dueño. Enmienda supuestos de ADR-001 y dispara la condición de
+reapertura de ADR-002.
+
+### Contexto
+
+ADR-001 dejó ocho preguntas para AFINIA con una **regla de default** por si nadie contestaba. Dos de
+esos defaults eran los más caros del documento:
+
+- *Pregunta 2 — ¿AFINIA ya tiene Maximo, SAP PM o ArcGIS?* → default: **"se asume que SÍ"**, y en ese
+  caso el alcance se congelaba en capturador + exportadores, suspendiendo todos los módulos de
+  gestión. El propio ADR decía que esa pregunta *"puede ahorrar el 70 % del alcance"*.
+- *Restricción de presupuesto* → reformulada como **"cero cobro, siempre; y ninguna pieza con gasto
+  ILIMITADO, nunca"**.
+
+### Decisión del Ingeniero (literal, 2026-07-29)
+
+> *"Esta es una herramienta independiente que no tiene nada que ver con las herramientas Maximo o
+> SAP, la idea es que este sistema que vamos a trabajar tenga todo lo que se necesite."*
+>
+> *"Soy consciente de que Firebase y Cloudflare tienen unos límites o techos en los que son gratis,
+> estoy dispuesto a asumirlo si me paso."*
+
+### Qué cambia
+
+**1. El alcance es la plataforma completa.** La pregunta 2 queda **cerrada por decisión del dueño**,
+no por respuesta de AFINIA: da igual lo que AFINIA tenga, este sistema no se integra con ello y debe
+ser autosuficiente. Se retira el default de "congelar en capturador + exportadores" y se retira la
+suspensión de los módulos de gestión. **Quedan 7 preguntas abiertas**, no 8.
+
+**2. F5 deja de ser condicional.** ADR-001 decía que *"F5 puede no construirse nunca, y eso sería un
+éxito"*. Con alcance completo, **la sincronización entre campo y oficina entra en el plan**. Sigue
+siendo la fase 5 —no se adelanta—, pero se diseña sabiendo que llega: el esquema local de F3 nace
+pensado para sincronizar, no como un archivo suelto que después habrá que retorcer.
+
+**3. Se dispara la condición de reapertura de ADR-002.** Aquella condición decía: *"si F5 se dispara,
+vuelve a la mesa la comparación seguridad declarativa de Firestore contra D1 + Workers, con el coste
+de Blaze sin techo en la balanza"*. Ambas premisas cambiaron: F5 es seguro y el coste se acepta.
+**La comparación se rehará antes de empezar F5**, no ahora: F1, F2 y F3 no dependen de ella y
+adelantarla sería decidir sin la información que esas fases van a producir (volumen real de datos,
+número de cuadrillas, respuesta de AFINIA a la pregunta de nube fuera de Colombia).
+
+### Lo que la decisión NO cubre, y queda como guardarraíl operativo
+
+Aceptar un coste **no es lo mismo** que aceptar responsabilidad **ilimitada**, y esa distinción es la
+que motivó el criterio de ADR-001. El plan Blaze de Firebase **no tiene techo de gasto**: su propia
+documentación dice *"you cannot cap your usage"* y que las alertas *"do not cap your usage or
+charges"*. Un bucle mal escrito, un bot o una descarga masiva no producen una factura de 20 dólares:
+producen la factura que salga.
+
+Por eso se conserva, ahora como procedimiento y no como restricción de diseño:
+
+1. **Alerta de presupuesto configurada antes de que el servicio reciba tráfico real**, con umbral
+   acordado con el Ingeniero.
+2. **Se prefiere, a igualdad de prestaciones, el servicio que APAGA sobre el que COBRA** — no por
+   ahorrar, sino porque un corte se arregla y una factura no se deshace.
+3. **Ningún servicio de pago se activa sin decirlo en el mismo turno**, con el número al lado
+   (política git del ecosistema: se informa, no se pide permiso, pero se informa **siempre**).
+
+### Consecuencias
+
+- Se retira del ADR-001 el escenario de "alcance recortado al 70 %".
+- El modelo de datos de F3 se diseña **para sincronizar**, con la columna de organización y el
+  `base_revision_id` de ADR-002 desde el primer día.
+- La elección de backend de F5 se decide **al entrar en F5**, con datos reales en la mano.
+- Presupuesto esperado sin cambios respecto a ADR-001 mientras no llegue F6: **$0**.

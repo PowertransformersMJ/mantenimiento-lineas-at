@@ -248,11 +248,45 @@ AAAC 6300 / 23,0e−6 · ACAR 6500 / 21,5e−6 · ACSS-ACCC 6000 / 19,5e−6.
 | Catenaria vs parábola | vano de 336,70 m con EDS 20 % RTS | diferencia **0,04 %** |
 | Resistencia c.c. | Darien AAAC contra tabla de fabricante | **1,3 %** de desviación |
 | Ampacidad IEEE 738 | monotonía y sensibilidades físicas | coherente (718 A a 90 °C) |
-| Cambio de estado | — | ⬜ **PENDIENTE**: falta contrastar contra un caso resuelto de norma o libro |
-| Vano peso | — | ⬜ **PENDIENTE**: el HTML lo pide como entrada manual, no lo deriva de las catenarias |
+| **Cambio de estado** | identidad física `L₂−L₁ = ΔL_térmico + ΔL_elástico`, con las longitudes por **catenaria** — vía independiente de la ecuación parabólica que usa el solver | ✅ error **0,002 a 0,029 mm** sobre 189 m de cable, de 10 a 90 °C (≈1,5·10⁻⁷ relativo) |
+| **Vano peso** | derivado de la geometría de las catenarias adyacentes + coherencia física en 6 escenarios de relieve | ✅ y **mejora al original**: detecta arrancamiento, que el HTML no podía ver |
 
-> Las dos filas pendientes son deuda técnica declarada, no olvido. Se cierran antes de que el sistema
-> emita un cálculo mecánico con valor de entrega a cliente.
+> **Cómo se validó el cambio de estado sin caer en circularidad.** La ecuación nace de una identidad:
+> al pasar de un estado a otro, el cable cambia de longitud exactamente lo que se dilata por
+> temperatura más lo que se estira por carga. El solver resuelve la forma parabólica; la verificación
+> recalcula ambos lados de esa identidad **por la vía de la catenaria**, que no usa la ecuación en
+> ningún punto. Que las dos vías coincidan en centésimas de milímetro sobre 189 metros de conductor
+> es una comprobación independiente, no una tautología. El residuo crece con la temperatura
+> (0,029 mm a 90 °C) porque ahí la parábola se separa algo más de la catenaria: es la aproximación
+> asomando, y está tres órdenes de magnitud por debajo de cualquier tolerancia de campo.
+
+### §8.1 — Vano peso: lo que aquí se hace mejor que en el módulo original
+
+El HTML pedía el vano peso **escrito a mano** en la ficha. Eso tiene una consecuencia grave: si nadie
+lo calcula bien, **la condición de arrancamiento no se detecta nunca**.
+
+```
+vano_peso = (a₁ + a₂)/2 + (H/w) · (h₁/a₁ − h₂/a₂)
+```
+
+con `h₁ = z_apoyo − z_anterior` y `h₂ = z_siguiente − z_apoyo`, medidos entre **puntos de sujeción**
+del conductor (cota del terreno más altura útil del apoyo), no entre cotas de terreno.
+
+| Situación | Efecto | Verificado |
+|---|---|---|
+| Terreno plano | vano peso **=** vano viento | ✅ exacto |
+| Cima de loma (±15 m) | el apoyo carga **2,8×** más | ✅ |
+| Vaguada suave (−8 m) | el vano peso se desploma a casi cero | ✅ |
+| **Vaguada pronunciada (−25 m)** | **vano peso NEGATIVO → ARRANCAMIENTO** | ✅ se marca solo |
+| Ladera de pendiente constante | apenas se aparta del vano viento | ✅ |
+
+> **Arrancamiento** significa que el conductor tira hacia **arriba** del apoyo. Exige herrajes
+> antiarrancamiento y cambia el criterio de diseño de la estructura. Un apoyo en el fondo de una
+> vaguada entre dos lomas es el caso típico, y en el Caribe hay relieve suficiente para que ocurra.
+>
+> ⚠️ **Requisito de dato:** para que esto sea fiable hacen falta las cotas de los **puntos de
+> sujeción**. El levantamiento GPS da la cota del **terreno** donde se paró el operario. Mientras la
+> ficha no traiga altura útil del apoyo, el resultado es indicativo y debe declararse como tal.
 
 **Advertencia que enmarca toda esta tabla** (la cazó el peer review anónimo del comité, `99 §ADR-001`):
 las pruebas comprueban que el sistema nuevo **reproduce** al módulo original, no que el original

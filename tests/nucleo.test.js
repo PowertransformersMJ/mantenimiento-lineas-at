@@ -24,6 +24,7 @@ import {
   flechaCatenaria, longitudCatenaria, flechaParabola, longitudParabola,
   presionDinamica, cargaViento, cargaResultante, cambioEstado,
   tramosDeTension, esAncla, tiroMaximoAdmisible,
+  vanoPeso, relacionPesoViento,
 } from '../nucleo/mecanica.js';
 import { resistenciaDC, ampacidad, temperaturaLimite, MATERIALES } from '../nucleo/termica.js';
 
@@ -210,6 +211,73 @@ describe('mecánica — ecuación de cambio de estado', () => {
 
   test('el tiro admisible es el 50 % de la carga de rotura', () => {
     cerca(tiroMaximoAdmisible(8528), 4264, 1e-9, 'límite admisible');
+  });
+
+  // ── La validación que cierra la deuda de docs/40 §8 ──────────────────────
+  // El solver se comprueba contra la IDENTIDAD FÍSICA de la que nace la
+  // ecuación: L2 − L1 = alargamiento térmico + alargamiento elástico. Las
+  // longitudes se calculan por CATENARIA, un camino independiente de la
+  // ecuación parabólica que usa el solver. No es circular.
+  test('el H2 devuelto satisface la identidad ΔL = térmico + elástico', () => {
+    const c = { w: 0.776, S: 283.4, E: 6300, alfa: 23.0e-6 };
+    const a = 188.78, H1 = 0.20 * 8528, t1 = 28;
+
+    for (const t2 of [10, 20, 40, 55, 75, 90]) {
+      const H2 = cambioEstado({ H1, w1: c.w, t1, w2: c.w, t2, a, S: c.S, E: c.E, alfa: c.alfa });
+      const L1 = longitudCatenaria(c.w, a, H1);
+      const L2 = longitudCatenaria(c.w, a, H2);
+      const esperado = L1 * c.alfa * (t2 - t1) + (L1 * (H2 - H1)) / (c.E * c.S);
+      // Tolerancia 0,1 mm sobre ~189 m de cable (5·10⁻⁷ relativo).
+      cerca(L2 - L1, esperado, 1e-4, `identidad física a ${t2} °C`);
+    }
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+describe('mecánica — vano peso y arrancamiento', () => {
+  const base = { a1: 180, a2: 200, H: 1706, w: 0.776 };   // vano viento = 190 m
+
+  test('en terreno plano el vano peso iguala al vano viento', () => {
+    const r = vanoPeso({ ...base, zAnterior: 0, zApoyo: 0, zSiguiente: 0 });
+    cerca(r.vanoPeso, r.vanoViento, 1e-12, 'terreno plano');
+    cerca(r.vanoViento, 190, 1e-12, 'vano viento');
+    assert.equal(r.arrancamiento, false);
+  });
+
+  test('en la cima de una loma el apoyo carga MÁS peso', () => {
+    const r = vanoPeso({ ...base, zAnterior: 0, zApoyo: 15, zSiguiente: 0 });
+    assert.ok(r.vanoPeso > r.vanoViento, 'la cima debe aumentar el vano peso');
+    assert.ok(relacionPesoViento(r) > 2, 'con ±15 m el efecto es grande');
+  });
+
+  test('en una vaguada el vano peso se reduce', () => {
+    const r = vanoPeso({ ...base, zAnterior: 0, zApoyo: -8, zSiguiente: 0 });
+    assert.ok(r.vanoPeso < r.vanoViento);
+    assert.ok(r.vanoPeso > 0, 'una vaguada suave todavía no arranca');
+  });
+
+  test('una vaguada pronunciada detecta ARRANCAMIENTO', () => {
+    const r = vanoPeso({ ...base, zAnterior: 0, zApoyo: -25, zSiguiente: 0 });
+    assert.ok(r.vanoPeso < 0, 'vano peso negativo');
+    assert.equal(r.arrancamiento, true, 'debe marcarse la condición de arrancamiento');
+  });
+
+  test('en ladera uniforme se mantiene cerca del vano viento', () => {
+    const r = vanoPeso({ ...base, zAnterior: 0, zApoyo: 10, zSiguiente: 20 });
+    assert.ok(Math.abs(r.vanoPeso - r.vanoViento) < 25, 'pendiente constante casi no afecta');
+  });
+
+  test('en un extremo de línea no hay vano peso definido', () => {
+    const r = vanoPeso({ ...base, a1: null, zAnterior: 0, zApoyo: 0, zSiguiente: 0 });
+    assert.equal(r.vanoPeso, null);
+    assert.equal(relacionPesoViento(r), null);
+  });
+
+  test('más tiro amplifica el efecto del relieve', () => {
+    const flojo  = vanoPeso({ ...base, H: 1000, zAnterior: 0, zApoyo: 15, zSiguiente: 0 });
+    const tenso  = vanoPeso({ ...base, H: 3000, zAnterior: 0, zApoyo: 15, zSiguiente: 0 });
+    assert.ok(tenso.vanoPeso > flojo.vanoPeso,
+      'a mayor tiro, el punto bajo se aleja y el apoyo de cima carga más');
   });
 });
 

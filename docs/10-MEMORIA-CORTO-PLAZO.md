@@ -15,7 +15,7 @@ de AFINIA que definen el alcance real.
 
 | # | Qué | Por qué bloquea |
 |---|---|---|
-| **TODO-02** | **Enviar a AFINIA las 8 preguntas** (`99 §ADR-001 · Anexo`) con fecha límite escrita. | La pregunta 2 (*¿ya tienen Maximo/SAP/ArcGIS?*) decide si esto es una plataforma o un exportador: puede recortar el 70 % del alcance. La 3 (*¿se puede instalar app en sus teléfonos?*) decide si F4 existe. |
+| **TODO-02** | **Enviar a AFINIA las 7 preguntas restantes** (`99 §ADR-001 · Anexo`; la nº 2 la cerró el Ingeniero en ADR-003) con fecha límite escrita. | La nº 3 (*¿se puede instalar app en sus teléfonos?*) decide si F4 existe. La nº 4 (*¿el contrato permite nube fuera de Colombia?*) decide F5 y F6. La nº 1 (*¿en qué formato reciben y firman el informe?*) define el entregable, que es el único criterio de aceptación que le importa a quien paga. |
 | **TODO-03** | **Cronometrar el proceso actual de LN-627** paso a paso (conversación de 20 min). | Sin eso se optimiza un proceso que nadie midió y el ahorro prometido sería inventado. |
 | **TODO-04** | **Abrir el HTML en el teléfono de la cuadrilla, en modo avión**, y decir si el mapa se ve o es un lienzo gris. | Confirma en vivo el hallazgo de `30 · L-10`. Un sí/no. |
 | **TODO-05** | **Decidir por escrito qué NO se mide de la persona** (tiempos por técnico, rankings, GPS continuo) y decírselo a la cuadrilla. | Sin esto el piloto mide adopción falsa: cooperan el primer día y sabotean el tercero. |
@@ -27,7 +27,8 @@ de AFINIA que definen el alcance real.
 
 | # | Qué | Estado |
 |---|---|---|
-| **TODO-08** | **Contrastar la ecuación de cambio de estado y el vano peso contra un caso resuelto de norma o libro.** Cerrar las dos filas ⬜ de `40 §8`. | 🔲 — bloquea emitir cálculo con valor de entrega a cliente |
+| **TODO-15b** | **Al entrar en F5:** rehacer la comparación de backend (*seguridad declarativa de Firestore* vs *D1 + Workers*) con datos reales de volumen y cuadrillas. Condición disparada por ADR-003. | 🔲 al entrar en F5 |
+| **TODO-16** | **Configurar alerta de presupuesto** en el proveedor que se active, ANTES de que reciba tráfico real (guardarraíl de ADR-003). | 🔲 antes de F5 |
 | **TODO-13** | **F3:** la capa de datos debe disparar la **invalidación por tramo de tensión** — editar un apoyo recalcula todo su tramo, no solo ese apoyo (ADR-002, enmienda 3). `nucleo/mecanica.js` ya calcula por tramo; falta el disparador. | 🔲 |
 | **TODO-14** | **F4:** implementar el **canal de sincronización bifurcado** (datos primero y solos; fotos en cola asíncrona) y el **`base_revision_id` con cuarentena**, nunca rechazo (ADR-002, enmiendas 1 y 2). | 🔲 |
 | **TODO-15** | **Si F5 se dispara:** reabrir la comparación *seguridad declarativa de Firestore* vs *D1 + Workers*, con el coste de Blaze sin techo en la balanza. Condición de reapertura anotada en ADR-002. | 🔲 condicional |
@@ -44,7 +45,7 @@ de AFINIA que definen el alcance real.
 - **Cerebro y kernel cableados** — kernel íntegro contra el canónico (versión según `brain:check`),
   gates y hooks activos.
 - **`nucleo/` portado y verificado** — geodesia, mecánica y térmica como funciones puras.
-  **45 pruebas en verde.** Detalle de qué se verificó contra qué → `40 §8`.
+  **53 pruebas en verde.** Detalle de qué se verificó contra qué → `40 §8`.
 - **Comité de Expertos ×3** (29 agentes, 0 fallos, 59 min) → **ADR-001**. Crudo de 477 KB archivado.
 - **Consejo Externo corrido e integrado** (Gemini 3.1 Pro vía Antigravity) → **ADR-002**. Confirmó
   ADR-001 en 7 puntos a los que llegó por su cuenta desde el problema crudo, y lo enmendó en 3:
@@ -57,6 +58,13 @@ de AFINIA que definen el alcance real.
   (9,2 % del original); **14 de 26 apoyos** con foto; 3,8 fotos por apoyo sobre el total.
 - **Extractor del módulo de campo probado** sobre el archivo real: 30 MB → 99 JPEG válidos +
   DOCX de 1,49 MB + geometría en JSON.
+- **TODO-08 CERRADO — el motor de cálculo ya no tiene deuda.** (a) La ecuación de cambio de estado se
+  validó contra la identidad física `ΔL = térmico + elástico` con las longitudes por catenaria (vía
+  independiente): error de **0,002 a 0,029 mm sobre 189 m** entre 10 y 90 °C. (b) El **vano peso** se
+  derivó de la geometría en vez de pedirse a mano, y **detecta arrancamiento** — condición que el
+  módulo original no podía ver. **53 pruebas en verde.**
+- **ADR-003:** el Ingeniero fijó alcance (plataforma completa e independiente, no integración con
+  Maximo/SAP) y presupuesto (asume el coste si se pasa de los límites gratuitos).
 
 ---
 

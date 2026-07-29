@@ -65,6 +65,46 @@ export function cargaViento(diametro, vKmh, { cx = 1.0, rho = 1.2 } = {}) {
 /** Composición vectorial del peso propio con la carga de viento, en kg/m. */
 export const cargaResultante = (wPropio, wViento) => Math.hypot(wPropio, wViento);
 
+// ── Vano peso ───────────────────────────────────────────────────────────────
+
+/**
+ * Vano peso: distancia horizontal entre los puntos MÁS BAJOS de las catenarias
+ * de los dos vanos adyacentes. Define la carga VERTICAL que el apoyo soporta.
+ *
+ *     vano_peso = (a1 + a2)/2 + (H/w) · (h1/a1 − h2/a2)
+ *
+ * donde h1 = z_apoyo − z_anterior  y  h2 = z_siguiente − z_apoyo, medidos entre
+ * los PUNTOS DE SUJECIÓN del conductor (no el terreno).
+ *
+ * En terreno plano se reduce al vano viento. En la cima de una loma crece; en
+ * una vaguada se reduce y **puede volverse NEGATIVO**, que es la condición de
+ * ARRANCAMIENTO: el conductor tira hacia ARRIBA del apoyo y hacen falta herrajes
+ * antiarrancamiento. El módulo de campo original pedía este valor a mano y por
+ * eso no podía detectar esa condición.
+ *
+ * @param zAnterior|zApoyo|zSiguiente cotas del punto de sujeción, en metros
+ * @returns {{vanoPeso:number, arrancamiento:boolean, vanoViento:number}}
+ */
+export function vanoPeso({ a1, a2, zAnterior, zApoyo, zSiguiente, H, w }) {
+  const vanoViento = ((a1 ?? 0) + (a2 ?? 0)) / 2;
+  // En un extremo de línea solo hay un vano: no hay vano peso definido.
+  if (!a1 || !a2) return { vanoPeso: null, arrancamiento: false, vanoViento };
+
+  const h1 = zApoyo - zAnterior;
+  const h2 = zSiguiente - zApoyo;
+  const corr = (H / w) * (h1 / a1 - h2 / a2);
+  const vp = vanoViento + corr;
+  return { vanoPeso: vp, arrancamiento: vp < 0, vanoViento };
+}
+
+/**
+ * Relación vano peso / vano viento. Es el indicador que se vigila: por debajo de
+ * ~0,7 el apoyo está en una vaguada pronunciada y conviene revisar; por debajo
+ * de 0 hay arrancamiento.
+ */
+export const relacionPesoViento = ({ vanoPeso: vp, vanoViento: vv }) =>
+  vv > 0 && vp != null ? vp / vv : null;
+
 // ── Ecuación de cambio de estado ────────────────────────────────────────────
 
 /**

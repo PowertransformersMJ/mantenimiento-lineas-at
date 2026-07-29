@@ -19,7 +19,9 @@ de 30 MB que ya resolvía lo difícil —el cálculo de ingeniería— pero no e
 | Fotos | 99 imágenes en base64 dentro del HTML | almacenamiento de objetos, servidas bajo demanda |
 | Distribución | se envía el archivo por correo | aplicación web con roles y trazabilidad |
 | Cálculo | 115 funciones mezcladas con el DOM | núcleo puro, probado y reutilizable |
-| Trabajo en campo | funciona offline | sigue funcionando offline, y además sincroniza |
+| Datos y cálculo en campo | funcionan sin señal | siguen funcionando, y además sincronizan |
+| **Mapa en campo** | **se cae sin señal** (pide teselas a internet) | mapa vectorial descargado, offline por diseño |
+| Vano peso | se escribe a mano | se deriva de la geometría, y **detecta arrancamiento** |
 
 Lo que **no** cambia: el criterio de ingeniería. Las fórmulas se portaron una a una y están
 verificadas contra el original. Ver [`docs/40-DOMINIO-LINEAS-AT.md`](docs/40-DOMINIO-LINEAS-AT.md).
@@ -50,7 +52,8 @@ npm test
 | Catenaria vs parábola | vano más desfavorable de LN-627 (336,70 m) | diferencia **0,04 %** |
 | Resistencia c.c. | tabla de fabricante, Darien AAAC 283,4 mm² | **1,3 %** de desviación |
 | Ampacidad IEEE 738 | monotonía y sensibilidades físicas | 718 A a 90 °C, coherente |
-| Cambio de estado | comportamiento físico (calentar afloja, enfriar tensa, viento tensa) | monótono y correcto |
+| **Cambio de estado** | la identidad física `ΔL = térmico + elástico`, con las longitudes por **catenaria** — vía independiente del solver | error de **0,002 a 0,029 mm** sobre 189 m de cable |
+| **Vano peso** | coherencia física en 6 escenarios de relieve | correcto, y detecta **arrancamiento** |
 
 ---
 
@@ -81,9 +84,10 @@ los bloquea por patrón, pero eso es la segunda línea de defensa: la primera es
 
 ## Estado
 
-🌱 **Fase 0 — fundación.** Núcleo de cálculo portado y verificado (45 pruebas en verde), cerebro y
-kernel cableados, arquitectura decidida por comité de expertos y pendiente de segunda opinión
-externa. La aplicación aún no existe.
+🌱 **Fase 0 — fundación, cerrada.** Núcleo de cálculo portado y **sin deuda de validación**
+(53 pruebas en verde), cerebro y kernel cableados, arquitectura decidida por comité de expertos ×3
+**y confirmada por revisión externa independiente**. Alcance y presupuesto fijados por el
+responsable. La aplicación aún no existe: es lo siguiente.
 
 Detalle vivo → [`docs/05-ESTADO-GLOBAL.md`](docs/05-ESTADO-GLOBAL.md) ·
 decisiones → [`docs/99-HISTORIAL-ADR.md`](docs/99-HISTORIAL-ADR.md)

@@ -41,7 +41,7 @@ mantenimiento-lineas-at/
 │   └── termica.js               resistencia c.c., ampacidad IEEE 738, derrateo
 │
 ├── tests/
-│   └── nucleo.test.js           45 pruebas de oro — la red de seguridad de la migración
+│   └── nucleo.test.js           53 pruebas de oro — la red de seguridad de la migración
 │
 ├── docs/                        las neuronas (índice en 00-INDICE.md)
 │   ├── .brain-manifest.json     configuración del cerebro: topes, archiveDir, kernelFiles
