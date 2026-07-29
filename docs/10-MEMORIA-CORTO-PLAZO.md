@@ -20,7 +20,7 @@ de AFINIA que definen el alcance real.
 | **TODO-04** | **Abrir el HTML en el teléfono de la cuadrilla, en modo avión**, y decir si el mapa se ve o es un lienzo gris. | Confirma en vivo el hallazgo de `30 · L-10`. Un sí/no. |
 | **TODO-05** | **Decidir por escrito qué NO se mide de la persona** (tiempos por técnico, rankings, GPS continuo) y decírselo a la cuadrilla. | Sin esto el piloto mide adopción falsa: cooperan el primer día y sabotean el tercero. |
 | **TODO-06** | ¿Existen el **GPX crudo del Garmin** y las **fotos originales** en la Mac? | Si existen, el generador lee la fuente. Si no, hay que extraerlas del HTML (ya hay extractor probado). |
-| **TODO-18** | **Confirmar o corregir 5 apoyos de LN-627**: E022, E04, E06, E20 y E21 son los únicos con deflexión de anclaje. ¿Son realmente de retención/ángulo? | **Es el bloqueo de F1.** Sin función estructural no hay tramos de tensión, y sin tramos no hay cálculo mecánico. Son 5 respuestas, no 26. |
+| ~~TODO-18~~ | ✅ **CONFIRMADO por el Ingeniero (2026-07-29):** los 5 apoyos —E022, E04, E06, E20 y E21— son de retención o ángulo. La estructura de LN-627 queda cerrada: 6 tramos de tensión. Guardado en el fixture de la bóveda. | — |
 
 ---
 
