@@ -17,7 +17,20 @@
 // la pestaña — sin avisar, con el técnico en mitad de una inspección.
 // ============================================================================
 import { useSyncExternalStore } from 'react';
-import { repositorio, type EstadoDatos } from './repositorio';
+import { repositorio, usarRepositorio, type EstadoDatos } from './repositorio';
+
+/**
+ * Cambia el repositorio provisional por el real la primera vez que hace falta.
+ * Va por importación diferida a propósito: el SDK de Firebase pesa 725 kB y no
+ * debe descargarse solo por abrir la página.
+ */
+let conectado = false;
+async function conectarBase(): Promise<void> {
+  if (conectado) return;
+  const { repositorioFirestore } = await import('./firestore');
+  usarRepositorio(repositorioFirestore);
+  conectado = true;
+}
 
 type Oyente = () => void;
 
@@ -46,6 +59,7 @@ class Almacen {
   async cargar(): Promise<void> {
     this.poner({ fase: 'cargando' });
     try {
+      await conectarBase();
       const s = await repositorio.sesion();
       if (s.fase !== 'autenticado') return this.poner({ fase: 'sin_sesion' });
 
