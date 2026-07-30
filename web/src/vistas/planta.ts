@@ -105,11 +105,35 @@ export function geometriaSvg(apoyos: Apoyo[], ancho = 640): GeometriaSvg | null 
         titulo: `${nombreDe(p.apoyo)} · ${p.apoyo.funcionEstructural}${def}`,
       } satisfies Marca;
     }),
-    etiquetas: pts.filter((p) => p.esAncla).map((p) => ({
-      id: p.apoyo.id,
-      x: px(p.x) + 9,
-      y: py(p.y) + 4,
-      texto: nombreDe(p.apoyo),
-    })),
+    // Las etiquetas se ESCALONAN cuando dos anclajes caen cerca en pantalla.
+    // En LN-627, E022, E04 y E06 están en los primeros 500 m de una línea de
+    // casi 3 km: sin escalonar, sus nombres se pisan y no se lee ninguno.
+    etiquetas: (() => {
+      // Ancho aproximado del texto a 11 px. No hace falta medirlo de verdad:
+      // basta con no dejar que se pisen.
+      const ancho = (t: string) => t.length * 6.1 + 8;
+      const ocupado: { x1: number; x2: number; y: number }[] = [];
+      // Los puntos de los propios anclajes también estorban: una etiqueta que
+      // termina encima de un punto se lee mal aunque no pise otra etiqueta.
+      const puntos = pts.filter((p) => p.esAncla).map((p) => ({ x: px(p.x), y: py(p.y) }));
+
+      return pts.filter((p) => p.esAncla).map((p) => {
+        const bx = px(p.x), by = py(p.y);
+        const w = ancho(nombreDe(p.apoyo));
+        let dx = 9, dy = 4;
+
+        for (let intento = 0; intento < 6; intento++) {
+          const x1 = bx + dx, x2 = x1 + w, y = by + dy;
+          const pisaEtiqueta = ocupado.some((q) => Math.abs(q.y - y) < 12 && x1 < q.x2 + 6 && x2 + 6 > q.x1);
+          const pisaPunto = puntos.some((q) => Math.abs(q.y - y) < 9 && q.x > x1 - 4 && q.x < x2 + 4 && Math.hypot(q.x - bx, q.y - by) > 1);
+          if (!pisaEtiqueta && !pisaPunto) break;
+          if (intento % 2 === 0) dy += 13;              // baja un renglón
+          else { dx = dx > 0 ? -9 - w : 9; dy -= 13; }  // o se pasa al otro lado
+        }
+
+        ocupado.push({ x1: bx + dx, x2: bx + dx + w, y: by + dy });
+        return { id: p.apoyo.id, x: +(bx + dx).toFixed(1), y: +(by + dy).toFixed(1), texto: nombreDe(p.apoyo) };
+      });
+    })(),
   };
 }
