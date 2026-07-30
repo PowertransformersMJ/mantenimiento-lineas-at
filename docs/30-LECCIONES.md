@@ -120,6 +120,30 @@
 - **Regla general que deja:** una capa opcional nunca puede tener poder de veto sobre una capa
   esencial. Si una optimización puede impedir leer, no es una optimización: es un punto de fallo.
 
+### L-11b · El mismo error volvió: Firebase Auth TAMBIÉN guarda en IndexedDB
+- **Síntoma:** tras quitar la caché persistente de Firestore, reapareció exactamente
+  *"Database is closing/hidden"*.
+- **Causa:** se arregló el síntoma en un sitio y el culpable estaba en otro. **Firebase Auth guarda
+  la sesión en IndexedDB por defecto**, no solo Firestore. Al quitar una de las dos, la otra seguía
+  ahí — y el mensaje de error es idéntico, así que parecía que el arreglo no había funcionado.
+- **Regla:** la autenticación se inicializa con `initializeAuth(app, { persistence: [...] })` usando
+  **`browserLocalPersistence` primero** (que es `localStorage`: síncrono, y no se cierra solo), con
+  sesión y memoria como reserva. Tras el cambio, la única IndexedDB que queda es la de telemetría
+  interna de Firebase.
+- **Lección de método, que vale más que la técnica:** cuando un error reaparece idéntico después de
+  un arreglo, la hipótesis por defecto no es *"el arreglo no sirvió"* — es **"hay una segunda fuente
+  del mismo síntoma"**. Buscar todas las fuentes antes de dar por bueno el diagnóstico.
+
+### L-11c · El HTML no se cachea, o el usuario ve arreglos que ya no existen
+- **Síntoma:** se despliega la corrección y el usuario sigue viendo el fallo viejo.
+- **Causa:** el navegador conserva el `index.html`, que es el que decide **qué paquete de JavaScript
+  cargar**. Con el HTML viejo en caché, se sigue pidiendo el JavaScript viejo aunque el nuevo ya esté
+  publicado. Esto **enmascara diagnósticos**: parece que el arreglo falló cuando ni siquiera se
+  ejecutó.
+- **Regla:** `web/public/_headers` fija `no-cache` para el HTML y caché eterna para `/assets/*`, que
+  llevan huella en el nombre. Y al pedirle a alguien que verifique un arreglo, decirle siempre que
+  recargue forzado.
+
 ### L-12 · Dos trampas de Firebase Auth que rompen el ingreso sin avisar
 - **(a) Dominio no autorizado.** Firebase solo trae de fábrica `localhost` y sus propios dominios
   `*.firebaseapp.com` y `*.web.app`. Sirviendo desde Cloudflare Pages, el botón de entrar **funciona

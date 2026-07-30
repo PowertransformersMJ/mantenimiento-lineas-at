@@ -9,7 +9,8 @@
 // ============================================================================
 import { initializeApp, type FirebaseApp } from 'firebase/app';
 import {
-  getAuth, GoogleAuthProvider, signInWithPopup, signOut as salirDeFirebase,
+  initializeAuth, getAuth, browserLocalPersistence, browserSessionPersistence,
+  inMemoryPersistence, GoogleAuthProvider, signInWithPopup, signOut as salirDeFirebase,
   onAuthStateChanged, type Auth, type User,
 } from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
@@ -50,8 +51,36 @@ export function baseDatos(): Firestore {
   return db!;
 }
 
+let auth: Auth | null = null;
+
+/**
+ * Autenticación SIN IndexedDB, a propósito.
+ *
+ * Por defecto, Firebase Auth guarda la sesión en IndexedDB. Esa base la puede
+ * cerrar el navegador por su cuenta —otra pestaña, poca memoria, o sencillamente
+ * Safari— y entonces todo revienta con "Database is closing/hidden". Ya nos pasó
+ * dos veces, y la segunda después de haber quitado la caché de Firestore
+ * creyendo que el culpable era ése: el error venía de aquí.
+ *
+ * `localStorage` guarda la sesión igual de bien para lo que necesitamos, es
+ * síncrono y no se cierra solo. El orden declarado es una cadena de reserva: si
+ * una capa no está disponible, se usa la siguiente en vez de fallar.
+ *
+ * Es la misma regla que ya nos costó una vez: una capa opcional nunca puede
+ * tener poder de veto sobre una esencial (`docs/30 · L-11`).
+ */
 export function autenticacion(): Auth {
-  return getAuth(iniciarFirebase());
+  if (auth) return auth;
+  const app = iniciarFirebase();
+  try {
+    auth = initializeAuth(app, {
+      persistence: [browserLocalPersistence, browserSessionPersistence, inMemoryPersistence],
+    });
+  } catch {
+    // Ya estaba inicializada (recarga en caliente, doble montaje): se reusa.
+    auth = getAuth(app);
+  }
+  return auth;
 }
 
 export async function entrarConGoogle(): Promise<User> {
