@@ -1,0 +1,159 @@
+rules_version = '2';
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Mantenimiento Líneas AT — reglas de Firestore
+// ───────────────────────────────────────────────────────────────────────────
+// Estas reglas NO son "el backend": son parte del CONTRATO (ADR-004). Lo que
+// el cliente no puede escribir lo impide la base de datos, no la buena voluntad
+// del código — y eso importa el doble aquí, donde el código lo escribe un
+// asistente a alta velocidad y no hay revisor humano.
+//
+// LA REGLA MADRE, ejecutada:
+//   La IA mira y redacta; el núcleo mide; el ingeniero decide.
+//   El modelo escribe SOLO en `sugerencias`. Tiene prohibido `hallazgos`,
+//   `calculos` y `apoyos` — y aunque alguien lo intente, la base lo niega.
+// ═══════════════════════════════════════════════════════════════════════════
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Identidad ──────────────────────────────────────────────────────────
+    function autenticado()  { return request.auth != null; }
+    function claims()       { return request.auth.token; }
+    function miOrg()        { return claims().get('orgId', ''); }
+    function rol()          { return claims().get('rol', 'ninguno'); }
+
+    function deMiOrg(rec)   { return autenticado() && rec.orgId == miOrg() && miOrg() != ''; }
+    function esAdmin()      { return autenticado() && rol() == 'admin'; }
+    function esEditor()     { return esAdmin() || rol() == 'editor'; }
+    function esCuadrilla()  { return esEditor() || rol() == 'cuadrilla'; }
+    function esAuditor()    { return esAdmin() || rol() == 'auditor'; }
+
+    // Lectura: cualquier miembro autenticado de la organización dueña del dato.
+    function puedeLeer()    { return autenticado() && resource.data.orgId == miOrg(); }
+
+    /** Un documento nuevo no puede nacer en otra organización ni suplantar autor. */
+    function altaCoherente() {
+      return request.resource.data.orgId == miOrg()
+          && request.resource.data.creadoPor == request.auth.uid;
+    }
+
+    /** Campos que el cliente NUNCA puede tocar, viva donde viva el documento. */
+    function noTocaReservados() {
+      return !request.resource.data.diff(resource.data).affectedKeys()
+                .hasAny(['orgId', 'creadoPor', 'creadoEn']);
+    }
+
+    // ── ACTIVOS ────────────────────────────────────────────────────────────
+    // Mutan despacio y los edita una persona con criterio.
+
+    match /lineas/{lineaId} {
+      allow read:   if puedeLeer();
+      allow create: if esEditor() && altaCoherente();
+      allow update: if esEditor() && deMiOrg(resource.data) && noTocaReservados();
+      allow delete: if false;   // no se borra: se marca inactiva
+    }
+
+    match /apoyos/{apoyoId} {
+      allow read:   if puedeLeer();
+      allow create: if esEditor() && altaCoherente();
+      allow update: if esEditor() && deMiOrg(resource.data) && noTocaReservados();
+      allow delete: if false;
+    }
+
+    match /hipotesis/{hipotesisId} {
+      allow read:   if puedeLeer();
+      allow create: if esEditor() && altaCoherente();
+      // Una hipótesis CONGELADA ya respalda un informe firmado: es intocable.
+      allow update: if esEditor() && deMiOrg(resource.data)
+                    && resource.data.congelada == false && noTocaReservados();
+      allow delete: if false;
+    }
+
+    // ── EVENTOS ────────────────────────────────────────────────────────────
+    // Inmutables por naturaleza: una inspección de 2027 no pisa la de 2026.
+
+    match /inspecciones/{inspeccionId} {
+      allow read:   if puedeLeer();
+      allow create: if esCuadrilla() && altaCoherente();
+      // Una inspección cerrada no se reabre desde el cliente.
+      allow update: if esCuadrilla() && deMiOrg(resource.data)
+                    && resource.data.cerrada == false && noTocaReservados();
+      allow delete: if false;
+    }
+
+    match /evidencias/{evidenciaId} {
+      allow read:   if puedeLeer();
+      allow create: if esCuadrilla() && altaCoherente();
+      // Solo avanza el estado de subida y el pie. El hash y la ruta no se tocan:
+      // si cambiaran, la evidencia dejaría de probar lo que dice probar.
+      allow update: if esCuadrilla() && deMiOrg(resource.data)
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['subida', 'pie', 'actualizadoEn', 'actualizadoPor', 'revision']);
+      allow delete: if false;
+    }
+
+    // ⛔ HALLAZGOS Y CÁLCULOS — SOLO SERVIDOR.
+    // Son juicio profesional y dictamen fechado. Ni el cliente ni el modelo
+    // escriben aquí: pasan por una función que valida contra el contrato.
+    match /hallazgos/{hallazgoId} {
+      allow read:  if puedeLeer();
+      allow write: if false;
+    }
+
+    match /calculos/{calculoId} {
+      allow read:  if puedeLeer();
+      allow write: if false;
+    }
+
+    // ── SUBSISTEMA DE IA ───────────────────────────────────────────────────
+
+    match /solicitudes_ia/{solicitudId} {
+      allow read: if puedeLeer();
+      // El cliente PIDE, no manda. Fíjese en lo que no está: prompt, modelo,
+      // temperatura, max_tokens. Si pudiera mandarlos habría fuga de
+      // presupuesto y jailbreak gratis (ADR-004).
+      allow create: if esCuadrilla() && altaCoherente()
+                    && request.resource.data.estado == 'pendiente'
+                    && request.resource.data.keys().hasOnly([
+                         'id', 'orgId', 'creadoEn', 'creadoPor', 'revision', 'tipo',
+                         'casoDeUso', 'referencias', 'estado', 'intentos', 'huella'
+                       ]);
+      allow update, delete: if false;   // el ciclo de vida lo lleva el servidor
+    }
+
+    match /sugerencias/{sugerenciaId} {
+      allow read: if puedeLeer();
+      allow create: if false;           // solo el servidor, tras llamar al modelo
+      // La persona SOLO deja su veredicto. El contenido del modelo es intocable:
+      // sin eso no habría forma de auditar qué propuso realmente.
+      allow update: if esCuadrilla() && deMiOrg(resource.data)
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['decision', 'revisadoPor', 'revisadoEn', 'diffHumano',
+                                   'actualizadoEn', 'actualizadoPor', 'revision'])
+                    && request.resource.data.revisadoPor == request.auth.uid;
+      allow delete: if false;
+    }
+
+    // 🔒 BITÁCORA — escritura ÚNICA. Nadie modifica ni borra, ni el admin.
+    // Es lo que hace defendible el sistema el día que pregunten por qué el
+    // modelo dijo lo que dijo.
+    match /llamadas_ia/{llamadaId} {
+      allow read:  if esAuditor();
+      allow write: if false;
+    }
+
+    // ── Configuración operativa ────────────────────────────────────────────
+    // Incluye el interruptor `ia.enabled`, que el Ingeniero baja sin desplegar.
+    match /config/{docId} {
+      allow read:  if autenticado();
+      allow write: if esAdmin();
+    }
+
+    // Todo lo no declarado queda cerrado. Añadir una colección exige añadir su
+    // regla: no hay forma de colar datos por una puerta que nadie pensó.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

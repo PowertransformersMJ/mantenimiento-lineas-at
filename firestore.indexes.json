@@ -1,0 +1,30 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "apoyos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "lineaId", "order": "ASCENDING" },
+        { "fieldPath": "orden", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "inspecciones",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "lineaId", "order": "ASCENDING" },
+        { "fieldPath": "inicioEn", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "hallazgos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "lineaId", "order": "ASCENDING" },
+        { "fieldPath": "estado", "order": "ASCENDING" },
+        { "fieldPath": "severidad", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

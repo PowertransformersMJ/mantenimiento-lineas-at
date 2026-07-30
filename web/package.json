@@ -11,7 +11,8 @@
     "deploy": "wrangler pages deploy dist --project-name=mantenimiento-lineas-at"
   },
   "dependencies": {
-    "@lineas/nucleo": "*"
+    "@lineas/nucleo": "*",
+    "firebase": "^12.17.0"
   },
   "devDependencies": {
     "typescript": "^5.7.2",
