@@ -12,7 +12,10 @@
   },
   "dependencies": {
     "@lineas/nucleo": "*",
+    "@protomaps/basemaps": "^5.7.2",
     "firebase": "^12.17.0",
+    "maplibre-gl": "^6.1.0",
+    "pmtiles": "^4.4.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },

@@ -20,6 +20,26 @@ let cache: Promise<Modulo> | null = null;
 const esperar = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /**
+ * Reintenta una importación diferida ante fallos de red (0,4 s → 1,2 s → 3 s).
+ * Genérica: la usan Firebase y el mapa. Una descarga que tropieza —por señal
+ * mala o porque un despliegue aún se está propagando— no puede matar la
+ * aplicación.
+ */
+export async function conReintentos<T>(importar: () => Promise<T>): Promise<T> {
+  const esperas = [0, 400, 1200, 3000];
+  let ultimo: unknown;
+  for (const ms of esperas) {
+    if (ms) await esperar(ms);
+    try {
+      return await importar();
+    } catch (e) {
+      ultimo = e;
+    }
+  }
+  throw ultimo instanceof Error ? ultimo : new Error('fallo de descarga');
+}
+
+/**
  * Trae el módulo de Firebase, reintentando ante fallos de red.
  * Espera 0,4 s, luego 1,2 s, luego 3 s: da tiempo a que un despliegue termine
  * de propagarse sin dejar al usuario mirando una pantalla muerta.

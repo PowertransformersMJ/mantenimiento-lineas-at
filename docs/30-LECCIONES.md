@@ -175,6 +175,30 @@
   se enlaza por correo y el token nace ya con el rol.
 - **Regla:** ambas se comprueban **antes** de decirle al usuario que entre, no después de que falle.
 
+### L-15 · El worker de MapLibre nace muerto en producción si no se le da su URL
+- **Síntoma:** mapa gris para siempre, sin un solo error. El estilo carga sus 71 capas, el archivo de
+  teselas se descarga… y nada se pinta. Sonda interna: el worker existía como objeto, tenía **7
+  tareas enviadas y 0 respuestas**.
+- **Causa:** el worker autogenerado de MapLibre no arranca en el empaquetado de producción. Y el
+  arreglo tiene su propia trampa: `maplibre-gl-worker.mjs` **importa** `./maplibre-gl-shared.mjs`,
+  así que servirlo con `?url` a secas lo deja cojo (19 kB) y muere igual de mudo.
+- **Regla:** `import urlWorker from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'` +
+  `maplibregl.setWorkerUrl(urlWorker)`. El `?worker&url` hace que Vite lo compile como entrada de
+  worker **empaquetando sus dependencias** (~468 kB, no 19). Verificación rápida de que quedó bien:
+  el tamaño del asset emitido.
+
+### L-16 · Chrome congela el reloj de animación en pestañas ocultas — y eso engaña dos veces
+- **Síntoma:** con el worker ya arreglado, el mapa seguía sin pintar **en la pestaña controlada por
+  herramientas**: estilo cargado, teselas procesadas, glifos descargados… y cero fotogramas.
+- **Causa:** `document.visibilityState === 'hidden'` y `requestAnimationFrame` **no dispara jamás**
+  en una pestaña de fondo. MapLibre pinta con ese reloj, y su evento `load` solo dispara tras el
+  primer fotograma. Engaña dos veces: (1) al que prueba por herramientas en una pestaña oculta, que
+  ve "roto" lo que funciona; (2) al usuario real, si hay un vigilante de tiempo que condena al
+  respaldo a quien abre la página en una pestaña de fondo y cambia a ella después.
+- **Regla:** todo vigilante de carga del mapa cuenta **solo tiempo visible** (acumula entre
+  `visibilitychange`). Y al verificar por herramientas: si nada pinta pero nada da error, comprobar
+  `visibilityState` y la latencia de `requestAnimationFrame` ANTES de diagnosticar el código.
+
 ---
 
 ## Proceso
