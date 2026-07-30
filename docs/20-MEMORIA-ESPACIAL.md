@@ -37,8 +37,9 @@ mantenimiento-lineas-at/
 │
 ├── nucleo/                      ⭐ EL ACTIVO: cálculo de ingeniería, funciones PURAS
 │   ├── geodesia.js              Vincenty, azimuts, deflexiones, progresivas, vano viento, VIR
-│   ├── mecanica.js              catenaria, parábola, viento, cambio de estado, tramos de tensión
-│   └── termica.js               resistencia c.c., ampacidad IEEE 738, derrateo
+│   ├── mecanica.js              catenaria, parábola, viento, cambio de estado, tramos, vano peso
+│   ├── termica.js               resistencia c.c., ampacidad IEEE 738, derrateo
+│   └── estadisticas.js          distribución de vanos (media, mediana, desv. de muestra…)
 │
 ├── tests/
 │   └── nucleo.test.js           53 pruebas de oro — la red de seguridad de la migración

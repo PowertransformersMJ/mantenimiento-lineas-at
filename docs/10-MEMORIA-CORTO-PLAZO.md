@@ -43,6 +43,15 @@ de AFINIA que definen el alcance real.
 
 ## ✅ Cerrado en esta sesión (2026-07-28/29)
 
+- **Réplica de la pantalla del módulo original (2026-07-30):** pestañas como el original (Resumen y
+  Mecánico vivas; el resto deshabilitadas sin fingir contenido) · **mapa real** MapLibre + PMTiles
+  100 % autohospedado (recorte metropolitano de Cartagena de 4,3 MB, descarga completa en memoria
+  porque Pages no honra rangos) con trazado, marcadores por función y popups · **distribución de
+  vanos** idéntica al panel original, respaldada por `nucleo/estadisticas.js` con pruebas que lo
+  reproducen dígito a dígito. **59 pruebas en verde.** Lecciones L-15 (worker de MapLibre) y L-16
+  (pestañas ocultas congelan el reloj de animación).
+
+
 - **Repositorio creado** y público: https://github.com/PowertransformersMJ/mantenimiento-lineas-at
 - **Cerebro y kernel cableados** — kernel íntegro contra el canónico (versión según `brain:check`),
   gates y hooks activos.
