@@ -1,15 +1,17 @@
 // ============================================================================
-// vistas/planta.ts — vista en planta de la línea, en SVG
+// vistas/planta.ts — geometría de la vista en planta
 // ----------------------------------------------------------------------------
-// Dibuja. No calcula: la geometría se la pide al núcleo. Y no inventa: si no
-// hay apoyos, no dibuja nada.
+// Devuelve DATOS, no marcado. React se encarga de pintarlos.
+// Así la geometría se puede probar sin navegador, y cambiar de framework no
+// obliga a reescribir el cálculo de posiciones.
+//
+// No calcula ingeniería: eso se lo pide al núcleo. Y no inventa: sin apoyos,
+// devuelve null.
 // ============================================================================
 import { vincenty, deflexion } from '@lineas/nucleo/geodesia';
 import { FUNCIONES_ANCLA, type Apoyo } from '@lineas/contratos';
 
-/** Forma mínima que necesita el núcleo para calcular geometría. */
 interface PuntoGeo { lat: number; lon: number }
-
 const aGeo = (a: Apoyo): PuntoGeo => ({ lat: a.coordenada.lat, lon: a.coordenada.lon });
 
 export interface PuntoPlanta {
@@ -21,9 +23,9 @@ export interface PuntoPlanta {
 }
 
 /**
- * Proyecta las coordenadas geográficas a un plano local en metros, con origen
- * en el centroide. A la escala de una línea la deformación es despreciable y
- * evita arrastrar una librería de proyecciones.
+ * Proyecta a un plano local en metros con origen en el centroide. A la escala de
+ * una línea la deformación es despreciable y evita arrastrar una librería de
+ * proyecciones entera.
  */
 export function proyectar(apoyos: Apoyo[]): PuntoPlanta[] {
   if (!apoyos.length) return [];
@@ -47,13 +49,22 @@ export function vanos(apoyos: Apoyo[]): number[] {
   return g.slice(1).map((p, i) => vincenty(g[i].lat, g[i].lon, p.lat, p.lon).d);
 }
 
-const esc = (s: string) => s.replace(/[&<>"]/g, (c) =>
-  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c] as string);
+export interface Marca {
+  id: string; x: number; y: number; r: number;
+  clase: string; forma: 'punto' | 'cuadro'; titulo: string;
+}
+export interface Etiqueta { id: string; x: number; y: number; texto: string }
+export interface GeometriaSvg {
+  ancho: number; alto: number; traza: string;
+  marcas: Marca[]; etiquetas: Etiqueta[];
+}
 
-/** SVG de la vista en planta. Norte arriba. Cadena vacía si no hay datos. */
-export function dibujarPlanta(apoyos: Apoyo[], ancho = 640, alto = 420): string {
+const nombreDe = (a: Apoyo) => a.nombreNormalizado ?? a.nombreCampo;
+
+/** Posiciones ya resueltas para pintar. null si no hay línea que dibujar. */
+export function geometriaSvg(apoyos: Apoyo[], ancho = 640, alto = 420): GeometriaSvg | null {
   const pts = proyectar(apoyos);
-  if (pts.length < 2) return '';
+  if (pts.length < 2) return null;
 
   const margen = 46;
   const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y);
@@ -63,33 +74,29 @@ export function dibujarPlanta(apoyos: Apoyo[], ancho = 640, alto = 420): string 
 
   const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
   const cy = (Math.min(...ys) + Math.max(...ys)) / 2;
-  const px = (x: number) => ancho / 2 + (x - cx) * escala;
-  const py = (y: number) => alto / 2 - (y - cy) * escala;   // norte arriba
+  const px = (x: number) => +(ancho / 2 + (x - cx) * escala).toFixed(1);
+  const py = (y: number) => +(alto / 2 - (y - cy) * escala).toFixed(1);   // norte arriba
 
-  const traza = pts.map((p) => `${px(p.x).toFixed(1)},${py(p.y).toFixed(1)}`).join(' ');
-
-  const marcas = pts.map((p) => {
-    const X = px(p.x).toFixed(1), Y = py(p.y).toFixed(1);
-    const nombre = p.apoyo.nombreNormalizado ?? p.apoyo.nombreCampo;
-    const def = p.deflexion === null ? '' : ` · deflexión ${p.deflexion.toFixed(1)}°`;
-    const titulo = `<title>${esc(nombre)} · ${esc(p.apoyo.funcionEstructural)}${def}</title>`;
-
-    if (p.apoyo.funcionEstructural === 'Terminal') {
-      return `<rect x="${(+X - 4).toFixed(1)}" y="${(+Y - 4).toFixed(1)}" width="8" height="8" class="ap-terminal">${titulo}</rect>`;
-    }
-    const cls = p.esAncla ? 'ap-ancla' : 'ap-susp';
-    const r = p.esAncla ? 5.5 : 3;
-    return `<circle cx="${X}" cy="${Y}" r="${r}" class="${cls}">${titulo}</circle>`;
-  }).join('');
-
-  const etiquetas = pts
-    .filter((p) => p.esAncla)
-    .map((p) => `<text x="${(px(p.x) + 9).toFixed(1)}" y="${(py(p.y) + 4).toFixed(1)}" class="ap-lbl">${esc(p.apoyo.nombreNormalizado ?? p.apoyo.nombreCampo)}</text>`)
-    .join('');
-
-  return `<svg viewBox="0 0 ${ancho} ${alto}" role="img" aria-label="Vista en planta de la línea, norte arriba">
-    <polyline points="${traza}" class="traza"/>
-    ${marcas}${etiquetas}
-    <g class="norte"><line x1="${ancho - 30}" y1="42" x2="${ancho - 30}" y2="20"/><text x="${ancho - 26}" y="26">N</text></g>
-  </svg>`;
+  return {
+    ancho, alto,
+    traza: pts.map((p) => `${px(p.x)},${py(p.y)}`).join(' '),
+    marcas: pts.map((p) => {
+      const def = p.deflexion === null ? '' : ` · deflexión ${p.deflexion.toFixed(1)}°`;
+      const esTerminal = p.apoyo.funcionEstructural === 'Terminal';
+      return {
+        id: p.apoyo.id,
+        x: px(p.x), y: py(p.y),
+        r: p.esAncla ? 5.5 : 3,
+        clase: esTerminal ? 'ap-terminal' : p.esAncla ? 'ap-ancla' : 'ap-susp',
+        forma: esTerminal ? 'cuadro' : 'punto',
+        titulo: `${nombreDe(p.apoyo)} · ${p.apoyo.funcionEstructural}${def}`,
+      } satisfies Marca;
+    }),
+    etiquetas: pts.filter((p) => p.esAncla).map((p) => ({
+      id: p.apoyo.id,
+      x: px(p.x) + 9,
+      y: py(p.y) + 4,
+      texto: nombreDe(p.apoyo),
+    })),
+  };
 }

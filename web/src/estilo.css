@@ -118,3 +118,22 @@ body {
 .vacio-c { color: var(--mut); font-size: 14px; max-width: 62ch; margin: 0 auto; line-height: 1.7; }
 .vacio .fine { margin-top: 16px; }
 .ver { display: block; margin-top: 8px; font-size: 11.5px; font-style: normal; opacity: .6; }
+
+/* ── botón ────────────────────────────────────────────────────────────── */
+.boton {
+  display: inline-block; margin-top: 18px; padding: 11px 22px;
+  background: var(--acc); color: #1a1200;
+  border: none; border-radius: var(--radio);
+  font: 500 14.5px/1 inherit; font-family: inherit;
+  cursor: pointer; transition: opacity .15s ease;
+}
+.boton:hover { opacity: .88; }
+.boton:active { opacity: .75; }
+.boton:focus-visible { outline: 2px solid var(--tx); outline-offset: 3px; }
+
+.advertencia {
+  margin: 14px 0 0; padding: 11px 14px; border-radius: var(--radio);
+  background: rgba(240,165,0,.08); border-left: 3px solid var(--acc);
+  color: #f2dcb0; font-size: 13px;
+}
+.tabla-caja { overflow-x: auto; }
