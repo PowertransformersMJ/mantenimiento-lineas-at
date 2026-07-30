@@ -60,6 +60,10 @@ class Almacen {
     this.poner({ fase: 'cargando' });
     try {
       await conectarBase();
+      // Si venimos de vuelta de Google por redirección, hay que recoger el
+      // resultado ANTES de preguntar por la sesión.
+      const { recogerRedireccion } = await import('./firebase');
+      await recogerRedireccion();
       const s = await repositorio.sesion();
       if (s.fase !== 'autenticado') return this.poner({ fase: 'sin_sesion' });
 

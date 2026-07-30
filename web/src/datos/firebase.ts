@@ -10,8 +10,10 @@
 import { initializeApp, type FirebaseApp } from 'firebase/app';
 import {
   initializeAuth, getAuth, browserLocalPersistence, browserSessionPersistence,
-  inMemoryPersistence, GoogleAuthProvider, signInWithPopup, signOut as salirDeFirebase,
-  onAuthStateChanged, type Auth, type User,
+  inMemoryPersistence, browserPopupRedirectResolver, GoogleAuthProvider,
+  signInWithPopup, signInWithRedirect, getRedirectResult,
+  signOut as salirDeFirebase, onAuthStateChanged,
+  type Auth, type User,
 } from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
 
@@ -75,6 +77,11 @@ export function autenticacion(): Auth {
   try {
     auth = initializeAuth(app, {
       persistence: [browserLocalPersistence, browserSessionPersistence, inMemoryPersistence],
+      // ⚠️ OBLIGATORIO y fácil de olvidar: `getAuth()` trae este resolvedor de
+      // serie, pero `initializeAuth()` NO. Sin él, abrir la ventana de Google
+      // falla con `auth/argument-error` — y el error no menciona en ningún
+      // momento que lo que falta es esto.
+      popupRedirectResolver: browserPopupRedirectResolver,
     });
   } catch {
     // Ya estaba inicializada (recarga en caliente, doble montaje): se reusa.
@@ -83,10 +90,51 @@ export function autenticacion(): Auth {
   return auth;
 }
 
-export async function entrarConGoogle(): Promise<User> {
-  const { user } = await signInWithPopup(autenticacion(), new GoogleAuthProvider());
-  olvidarSesion();
-  return user;
+/** Fallos del método de ventana emergente que SÍ tienen salida por redirección. */
+const SIN_VENTANA = new Set([
+  'auth/popup-blocked',
+  'auth/operation-not-supported-in-this-environment',
+  'auth/web-storage-unsupported',
+]);
+
+/**
+ * Entra con Google. Intenta la ventana emergente y, si el navegador la bloquea,
+ * **cae a redirección** en vez de rendirse.
+ *
+ * No es un adorno: los bloqueadores de ventanas emergentes son comunes, y en
+ * varios navegadores de móvil la ventana emergente sencillamente no funciona.
+ * Sin esta salida, la cuadrilla se queda fuera del sistema sin entender por qué.
+ * Con redirección no hay ventana que bloquear: la propia página va a Google y
+ * vuelve.
+ */
+export async function entrarConGoogle(): Promise<User | null> {
+  const a = autenticacion();
+  const proveedor = new GoogleAuthProvider();
+  try {
+    const { user } = await signInWithPopup(a, proveedor);
+    olvidarSesion();
+    return user;
+  } catch (e) {
+    const codigo = (e as { code?: string })?.code ?? '';
+    if (!SIN_VENTANA.has(codigo)) throw e;
+    // La página se va a Google y vuelve; al volver lo recoge `recogerRedireccion`.
+    await signInWithRedirect(a, proveedor);
+    return null;
+  }
+}
+
+/**
+ * Recoge el resultado cuando se volvió de Google por redirección. Se llama al
+ * arrancar; si no hubo redirección, devuelve null sin hacer ruido.
+ */
+export async function recogerRedireccion(): Promise<User | null> {
+  try {
+    const r = await getRedirectResult(autenticacion());
+    if (r?.user) olvidarSesion();
+    return r?.user ?? null;
+  } catch {
+    return null;   // no había redirección pendiente: no es un error
+  }
 }
 
 export async function salir(): Promise<void> {

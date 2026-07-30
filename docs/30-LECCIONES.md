@@ -144,6 +144,27 @@
   llevan huella en el nombre. Y al pedirle a alguien que verifique un arreglo, decirle siempre que
   recargue forzado.
 
+### L-13 · `initializeAuth` no trae el resolvedor de ventanas, y el error no lo dice
+- **Síntoma:** al pulsar *Entrar con Google* salta `auth/argument-error`. El mensaje no menciona en
+  ningún momento qué argumento sobra o falta.
+- **Causa:** `getAuth()` incluye de serie el resolvedor de ventanas emergentes; **`initializeAuth()`
+  no**. En cuanto se pasa a la forma explícita —que es lo que hay que hacer para elegir dónde se
+  guarda la sesión (`L-11b`)— hay que declarar también `popupRedirectResolver`, o `signInWithPopup`
+  falla antes de abrir nada.
+- **Regla:** si se usa `initializeAuth`, se pasan **las dos** cosas: la persistencia y el resolvedor.
+  Un arreglo que introduce otro fallo no está terminado.
+
+### L-14 · La ventana emergente no es un camino fiable: siempre hay que tener redirección
+- **Síntoma:** `auth/popup-blocked`. Apareció al probar el ingreso de forma automatizada, pero le
+  puede pasar a cualquiera: los bloqueadores de ventanas emergentes son comunes y en varios
+  navegadores de móvil la ventana sencillamente no funciona.
+- **Regla:** el ingreso intenta la ventana emergente y, ante `popup-blocked`,
+  `operation-not-supported-in-this-environment` o `web-storage-unsupported`, **cae a redirección**:
+  la propia página va a Google y vuelve, y no hay ventana que bloquear. Al arrancar se recoge el
+  resultado de esa vuelta **antes** de preguntar por la sesión.
+- **Por qué importa aquí:** sin esa salida, una cuadrilla con el navegador restrictivo se queda fuera
+  del sistema sin entender por qué, y en campo nadie va a diagnosticar un bloqueador de ventanas.
+
 ### L-12 · Dos trampas de Firebase Auth que rompen el ingreso sin avisar
 - **(a) Dominio no autorizado.** Firebase solo trae de fábrica `localhost` y sus propios dominios
   `*.firebaseapp.com` y `*.web.app`. Sirviendo desde Cloudflare Pages, el botón de entrar **funciona
