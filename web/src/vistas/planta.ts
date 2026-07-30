@@ -61,8 +61,14 @@ export interface GeometriaSvg {
 
 const nombreDe = (a: Apoyo) => a.nombreNormalizado ?? a.nombreCampo;
 
-/** Posiciones ya resueltas para pintar. null si no hay línea que dibujar. */
-export function geometriaSvg(apoyos: Apoyo[], ancho = 640, alto = 420): GeometriaSvg | null {
+/**
+ * Posiciones ya resueltas para pintar. null si no hay línea que dibujar.
+ *
+ * El lienzo se ADAPTA a la forma de la línea, no al revés. LN-627 corre 2,9 km
+ * de norte a sur en poco más de 1 km de ancho: encajarla en un lienzo apaisado
+ * la deja diminuta y arrinconada. Una línea alta pide un dibujo alto.
+ */
+export function geometriaSvg(apoyos: Apoyo[], ancho = 640): GeometriaSvg | null {
   const pts = proyectar(apoyos);
   if (pts.length < 2) return null;
 
@@ -70,7 +76,14 @@ export function geometriaSvg(apoyos: Apoyo[], ancho = 640, alto = 420): Geometri
   const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y);
   const spanX = Math.max(...xs) - Math.min(...xs) || 1;
   const spanY = Math.max(...ys) - Math.min(...ys) || 1;
-  const escala = Math.min((ancho - 2 * margen) / spanX, (alto - 2 * margen) / spanY);
+
+  // Alto proporcional a la forma real del trazado, con topes para que ni una
+  // línea casi recta quede como una raya ni una muy larga ocupe media pantalla.
+  const util = ancho - 2 * margen;
+  const alto = Math.round(
+    Math.min(900, Math.max(300, (spanY / spanX) * util + 2 * margen)),
+  );
+  const escala = Math.min(util / spanX, (alto - 2 * margen) / spanY);
 
   const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
   const cy = (Math.min(...ys) + Math.max(...ys)) / 2;
