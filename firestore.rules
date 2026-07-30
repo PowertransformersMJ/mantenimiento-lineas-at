@@ -19,9 +19,14 @@ service cloud.firestore {
 
     // ── Identidad ──────────────────────────────────────────────────────────
     function autenticado()  { return request.auth != null; }
-    function claims()       { return request.auth.token; }
-    function miOrg()        { return claims().get('orgId', ''); }
-    function rol()          { return claims().get('rol', 'ninguno'); }
+    // Acceso DIRECTO a la reclamación, no con .get(): en las reglas, un token
+    // sin la clave devuelve indefinido y la comparación da falso — que es
+    // exactamente el comportamiento seguro que queremos. Usar .get() sobre el
+    // token es una fuente conocida de denegaciones silenciosas.
+    function tieneOrg()     { return request.auth != null && 'orgId' in request.auth.token; }
+    function miOrg()        { return tieneOrg() ? request.auth.token.orgId : ''; }
+    function rol()          { return request.auth != null && 'rol' in request.auth.token
+                                     ? request.auth.token.rol : 'ninguno'; }
 
     function deMiOrg(rec)   { return autenticado() && rec.orgId == miOrg() && miOrg() != ''; }
     function esAdmin()      { return autenticado() && rol() == 'admin'; }

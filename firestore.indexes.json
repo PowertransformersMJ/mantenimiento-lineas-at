@@ -4,25 +4,50 @@
       "collectionGroup": "apoyos",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "lineaId", "order": "ASCENDING" },
-        { "fieldPath": "orden", "order": "ASCENDING" }
+        {
+          "fieldPath": "orgId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "lineaId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "orden",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "inspecciones",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "lineaId", "order": "ASCENDING" },
-        { "fieldPath": "inicioEn", "order": "DESCENDING" }
+        {
+          "fieldPath": "lineaId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "inicioEn",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "hallazgos",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "lineaId", "order": "ASCENDING" },
-        { "fieldPath": "estado", "order": "ASCENDING" },
-        { "fieldPath": "severidad", "order": "DESCENDING" }
+        {
+          "fieldPath": "lineaId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "estado",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "severidad",
+          "order": "DESCENDING"
+        }
       ]
     }
   ],

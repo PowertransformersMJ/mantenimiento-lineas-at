@@ -32,14 +32,15 @@ export const repositorioFirestore: Repositorio = {
     const { orgId } = await credenciales(u);
     if (!orgId) return [];   // sin organización en el token no hay nada que ver
 
-    const q = query(
-      collection(baseDatos(), 'lineas'),
-      where('orgId', '==', orgId),
-      where('activa', '==', true),
-      limit(50),
-    );
+    // Se filtra SOLO por organización en la consulta. Lo de "activa" se descarta
+    // aquí, en el cliente: combinar dos filtros de igualdad puede exigir un
+    // índice compuesto, y un índice que falta no da un error claro — deja la
+    // consulta colgada. A esta escala (decenas de líneas) no compensa el riesgo.
+    const q = query(collection(baseDatos(), 'lineas'), where('orgId', '==', orgId), limit(50));
     const s = await getDocs(q);
-    return s.docs.map((d) => validar<Linea>(Linea, d.data())).filter((x): x is Linea => x !== null);
+    return s.docs
+      .map((d) => validar<Linea>(Linea, d.data()))
+      .filter((x): x is Linea => x !== null && x.activa !== false);
   },
 
   async cargarLinea(lineaId: string): Promise<EstadoDatos> {
@@ -58,10 +59,21 @@ export const repositorioFirestore: Repositorio = {
       return { fase: 'error', mensaje: 'La línea no tiene conductor declarado: sin él no hay cálculo mecánico posible.' };
     }
 
+    // ⚠️ EL FILTRO POR `orgId` ES OBLIGATORIO, aunque `lineaId` ya acote el
+    // resultado. En Firestore **las reglas no son filtros**: para una consulta,
+    // la base exige poder DEMOSTRAR de antemano que todo lo devuelto cumple la
+    // regla. La regla pide que el documento sea de mi organización; si la
+    // consulta no lo declara, Firestore no lo puede probar y **niega la consulta
+    // entera** con "Missing or insufficient permissions" — aunque cada documento
+    // individualmente sí fuera legible. Es la trampa clásica, y cuesta una tarde
+    // porque el mensaje de error no menciona la consulta.
+    //
     // Se ordena por `orden`, NUNCA por nombre: en LN-627 conviven "E022",
     // "EMP TUB" y "EMPT", y ordenar por nombre daría vanos equivocados.
+    const { orgId } = await credenciales(u);
     const sApoyos = await getDocs(query(
       collection(db, 'apoyos'),
+      where('orgId', '==', orgId),
       where('lineaId', '==', lineaId),
       orderBy('orden', 'asc'),
     ));

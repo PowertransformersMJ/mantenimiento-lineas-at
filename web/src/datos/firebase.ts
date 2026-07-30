@@ -56,17 +56,66 @@ export function autenticacion(): Auth {
 
 export async function entrarConGoogle(): Promise<User> {
   const { user } = await signInWithPopup(autenticacion(), new GoogleAuthProvider());
+  olvidarSesion();
   return user;
 }
 
-export const salir = () => salirDeFirebase(autenticacion());
-
-/** Espera a que Firebase resuelva si hay sesión. Sin esto se pinta un parpadeo. */
-export function esperarSesion(): Promise<User | null> {
-  return new Promise((resolver) => {
-    const parar = onAuthStateChanged(autenticacion(), (u) => { parar(); resolver(u); });
-  });
+export async function salir(): Promise<void> {
+  await salirDeFirebase(autenticacion());
+  olvidarSesion();
 }
+
+let sesionCache: Promise<User | null> | null = null;
+
+/**
+ * Espera a que Firebase resuelva si hay sesión.
+ *
+ * ⚠️ Tiene dos cuidados que no son adorno, los dos aprendidos a golpes:
+ *
+ * 1. `onAuthStateChanged` PUEDE invocar su callback de forma SÍNCRONA cuando ya
+ *    conoce el estado. Si dentro del callback se llama a la función de baja
+ *    antes de que la asignación haya terminado, revienta con un error que nadie
+ *    atrapa y la promesa **no se resuelve jamás**: la pantalla se queda en
+ *    "Cargando…" para siempre. Por eso se da de baja después, no dentro.
+ * 2. Hay **tope de tiempo**. Colgarse es el peor final posible: un error se ve y
+ *    se reintenta; un giro infinito no dice nada y no ofrece salida.
+ */
+export function esperarSesion(): Promise<User | null> {
+  if (sesionCache) return sesionCache;
+
+  sesionCache = new Promise<User | null>((resolver, rechazar) => {
+    let parar: (() => void) | undefined;
+    let resuelto = false;
+
+    const cerrar = (fn: () => void) => {
+      if (resuelto) return;
+      resuelto = true;
+      queueMicrotask(() => parar?.());
+      fn();
+    };
+
+    const reloj = setTimeout(
+      () => cerrar(() => rechazar(new Error('Firebase no respondió a tiempo. Revise su conexión.'))),
+      15000,
+    );
+
+    parar = onAuthStateChanged(
+      autenticacion(),
+      (u) => { clearTimeout(reloj); cerrar(() => resolver(u)); },
+      (e) => { clearTimeout(reloj); cerrar(() => rechazar(e)); },
+    );
+
+    if (resuelto) parar?.();
+  });
+
+  // Un fallo no debe quedar cacheado para siempre: el reintento tiene que poder
+  // volver a preguntar.
+  sesionCache.catch(() => { sesionCache = null; });
+  return sesionCache;
+}
+
+/** Tras entrar o salir, la sesión cacheada deja de valer. */
+export function olvidarSesion(): void { sesionCache = null; }
 
 /** El rol y la organización viven en el token, no en un documento consultable. */
 export async function credenciales(u: User): Promise<{ orgId: string; rol: string }> {
