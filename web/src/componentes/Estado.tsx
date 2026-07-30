@@ -51,9 +51,13 @@ export function Vacio() {
   );
 }
 
-export function Error_({ mensaje }: { mensaje: string }) {
+export function Error_({ mensaje, onReintentar }: { mensaje: string; onReintentar?: () => void }) {
   return (
-    <Estado titulo="No se pudo cargar" nota="El dato no se perdió: solo no se pudo leer ahora.">
+    <Estado
+      titulo="No se pudo cargar"
+      nota="El dato no se perdió: solo no se pudo leer ahora."
+      accion={onReintentar && <button className="boton" onClick={onReintentar}>Reintentar</button>}
+    >
       {mensaje}
     </Estado>
   );

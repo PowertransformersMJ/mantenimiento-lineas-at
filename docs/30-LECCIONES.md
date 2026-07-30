@@ -106,6 +106,30 @@
   no solo etiquetas `<script src>` y `<link href>`. Y por eso Protomaps/PMTiles no es un lujo del
   sistema nuevo: **tapa un agujero que ya existe hoy en campo**.
 
+### L-11 · La caché persistente de Firestore convierte un problema de caché en un fallo de datos
+- **Síntoma:** la página, ya conectada a la base, muestra *"No se pudo cargar — Database is
+  closing/hidden"*. No es un fallo de permisos ni de red: los datos están y son legibles.
+- **Causa:** se activó `persistentLocalCache` sobre IndexedDB. Basta con una segunda pestaña abierta,
+  o con que el navegador cierre la base por su cuenta, para que la lectura entera falle. Un
+  contratiempo de **caché** —que por definición es prescindible— tumbó el acceso al **dato**, que sí
+  importa y que estaba disponible en el servidor todo el tiempo.
+- **Regla:** en este proyecto la caché de Firestore va **en memoria**. Y no se pierde nada: el trabajo
+  sin señal en campo **no depende** de esa caché — depende de nuestra propia cola con revisión base y
+  cuarentena (`99 §ADR-002`), precisamente porque el último-que-escribe-gana de Firestore es
+  inaceptable cuando dos cuadrillas editan el mismo apoyo tras 14 días sin señal.
+- **Regla general que deja:** una capa opcional nunca puede tener poder de veto sobre una capa
+  esencial. Si una optimización puede impedir leer, no es una optimización: es un punto de fallo.
+
+### L-12 · Dos trampas de Firebase Auth que rompen el ingreso sin avisar
+- **(a) Dominio no autorizado.** Firebase solo trae de fábrica `localhost` y sus propios dominios
+  `*.firebaseapp.com` y `*.web.app`. Sirviendo desde Cloudflare Pages, el botón de entrar **funciona
+  en local y falla en producción** hasta que se añade el dominio a la lista de autorizados.
+- **(b) El rol no viaja hasta el siguiente ingreso.** Los roles viven en el token, así que asignarlos
+  a alguien que ya inició sesión **no surte efecto** hasta que cierra y vuelve a entrar. Se evita
+  **pre-creando el usuario con sus roles antes** del primer ingreso: al entrar con Google, la cuenta
+  se enlaza por correo y el token nace ya con el rol.
+- **Regla:** ambas se comprueban **antes** de decirle al usuario que entre, no después de que falle.
+
 ---
 
 ## Proceso

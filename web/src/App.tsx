@@ -53,7 +53,7 @@ function Contenido() {
     case 'sin_sesion': return <SinSesion onEntrar={entrar} />;
     case 'cargando':   return <Cargando />;
     case 'vacio':      return <Vacio />;
-    case 'error':      return <Error_ mensaje={d.mensaje} />;
+    case 'error':      return <Error_ mensaje={d.mensaje} onReintentar={() => void almacen.cargar()} />;
     case 'listo':      return <VistaLinea {...d} />;
   }
 }

@@ -12,10 +12,7 @@ import {
   getAuth, GoogleAuthProvider, signInWithPopup, signOut as salirDeFirebase,
   onAuthStateChanged, type Auth, type User,
 } from 'firebase/auth';
-import {
-  getFirestore, initializeFirestore, persistentLocalCache,
-  persistentMultipleTabManager, type Firestore,
-} from 'firebase/firestore';
+import { getFirestore, type Firestore } from 'firebase/firestore';
 
 export const CONFIG = {
   apiKey: 'AIzaSyA3_kG3ow6wl847UNar7DXo2_aINxLVP3A',
@@ -32,18 +29,19 @@ let db: Firestore | null = null;
 export function iniciarFirebase(): FirebaseApp {
   if (app) return app;
   app = initializeApp(CONFIG);
-  try {
-    // Caché local persistente: es lo que permite que la oficina siga
-    // funcionando con la conexión intermitente. NO es el mecanismo de captura
-    // de campo — ése es propio, con cola y cuarentena (ADR-002), porque el
-    // último-que-escribe-gana de Firestore es inaceptable cuando dos cuadrillas
-    // editan el mismo apoyo tras 14 días sin señal.
-    db = initializeFirestore(app, {
-      localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
-    });
-  } catch {
-    db = getFirestore(app);
-  }
+  // Caché EN MEMORIA, a propósito.
+  //
+  // Se probó la caché persistente sobre IndexedDB y tumbó la lectura entera con
+  // "Database is closing/hidden": basta una segunda pestaña o que el navegador
+  // cierre la base para que un problema de CACHÉ se convierta en un fallo de
+  // DATOS. Inaceptable — el dato está en el servidor y se puede leer.
+  //
+  // Y no se pierde nada importante: el trabajo sin señal en campo NO depende de
+  // esta caché. Depende de nuestra propia cola con revisión base y cuarentena
+  // (ADR-002), precisamente porque el último-que-escribe-gana de Firestore es
+  // inaceptable cuando dos cuadrillas editan el mismo apoyo tras 14 días sin
+  // señal. Esta caché solo habría suavizado la oficina con red intermitente.
+  db = getFirestore(app);
   return app;
 }
 
