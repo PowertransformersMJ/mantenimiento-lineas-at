@@ -37,6 +37,19 @@ export const TipoApoyo = z.enum([
   'Torre metálica', 'Torreta', 'Otro',
 ]);
 
+/**
+ * ⚠️ NO todo punto levantado con GPS es un apoyo.
+ *
+ * Un **empalme** es una unión del conductor: puede estar a mitad de vano y NO
+ * sostiene nada. Un **punto de referencia** es una marca del levantamiento.
+ * Contarlos como apoyos parte un vano real en dos falsos y **cambia el cálculo
+ * mecánico**: en LN-627, dos empalmes convertían un vano real de 247,8 m en dos
+ * de 84,4 y 163,5 m — y ese vano largo es justo el que gobierna la flecha.
+ *
+ * Solo las `Estructura` entran en vanos, deflexiones y tramos de tensión.
+ */
+export const TipoPunto = z.enum(['Estructura', 'Empalme', 'Punto de referencia']);
+
 export const NivelContaminacion = z.enum(['Muy ligero', 'Ligero', 'Medio', 'Fuerte', 'Muy fuerte']);
 
 export const Condicion = z.enum(['Buena', 'Regular', 'Mala', 'Crítica', 'Sin evaluar']);
@@ -116,9 +129,21 @@ export const Apoyo = Base.extend({
    * "EMP TUB" y "EMPT"), y ordenar por nombre daría vanos equivocados.
    */
   orden: z.number().int().nonnegative(),
+  /**
+   * Qué es este punto. **Decide si entra o no al cálculo.** Por defecto se
+   * asume `Estructura`, pero si el levantamiento trae empalmes hay que
+   * marcarlos: contarlos como apoyos falsea los vanos.
+   */
+  tipoPunto: TipoPunto.default('Estructura'),
+
   /** Como quedó grabado en el GPS. Se conserva tal cual, sin "arreglarlo". */
   nombreCampo: z.string().min(1),
-  /** Nombre normalizado, si alguien lo asignó. Nunca sobrescribe al de campo. */
+  /**
+   * Nombre canónico de la línea. NO sobrescribe al de campo: conviven.
+   * El de campo es la trazabilidad con el levantamiento; el canónico es el que
+   * usa el ingeniero y el que sale en los informes. En LN-627 el GPS grabó
+   * "LN 627 E022" donde la línea tiene su **E02**.
+   */
   nombreNormalizado: z.string().optional(),
   coordenada: Coordenada,
 

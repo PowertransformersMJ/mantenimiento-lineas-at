@@ -43,8 +43,9 @@ LÍNEA  (p.ej. LN-627)
 > El **VIR** es la pieza que hace que el cálculo por tramo funcione: se calcula un solo estado
 > mecánico con el VIR y ese resultado gobierna todos los vanos del tramo.
 
-**Dato real verificado de LN-627:** 26 apoyos · 25 vanos · 2,929 km · vano medio 117,2 m
-(mínimo 13,4 m — el par de retención E20–E21 — máximo 336,7 m) · **VIR = 188,78 m**.
+**Dato real verificado de LN-627:** **24 estructuras** (más 2 empalmes, que NO son apoyos — ver §10)
+· **23 vanos** · 2,929 km · vano medio 127,35 m (mínimo 13,35 m — el par de retención E20–E21 —
+máximo 336,70 m) · **VIR = 198,20 m**.
 
 ---
 
@@ -342,6 +343,56 @@ cálculo se hace **por tramo**, nunca por línea.
 ⚠️ Estas funciones estructurales son una **propuesta de la geometría**, no un dato de campo
 verificado. Antes de emitir cualquier cálculo con valor de entrega, el Ingeniero confirma los cinco
 apoyos de anclaje (`docs/10 · TODO-18`).
+
+---
+
+## §10 — CORRECCIÓN: no todo punto levantado es un apoyo
+
+> **Un empalme no sostiene el conductor.** Puede estar a mitad de vano. Contarlo como apoyo parte un
+> vano real en dos falsos y **cambia el cálculo mecánico**.
+
+El módulo de campo original ya lo resolvía —filtra `tipo === 'Estructura'`— y en el primer análisis
+de este proyecto **se pasó por alto**. Consecuencias de la corrección en LN-627:
+
+| | Antes (mal) | Ahora (correcto) |
+|---|---|---|
+| Puntos levantados | 26 | 26 |
+| **Estructuras** | 26 | **24** (2 son empalmes) |
+| **Vanos** | 25 | **23** |
+| Vano E05→E06 | 43,1 + 39,5 (dos falsos) | **82,6 m** |
+| Vano E06→E07 | 84,4 + 163,5 (dos falsos) | **247,8 m** |
+| VIR de la línea | 188,78 m | **198,20 m** |
+| Reparto de tramos | 1-2-3-15-1-3 | **1-2-2-14-1-3** |
+
+El error escondía un **vano real de 247,8 m** detrás de dos de ~84 y ~164 m. Como la flecha crece
+con el cuadrado del vano, ocultar un vano largo es precisamente el error que más engaña.
+
+### Nombres: el GPS no manda
+
+El levantamiento grabó nombres irregulares. La línea tiene sus nombres canónicos y **conviven los dos**:
+el de campo es la trazabilidad con el levantamiento, el canónico es el que ve el ingeniero.
+
+| Grabado en el GPS | Canónico |
+|---|---|
+| `LN 627 E022` | **LN-627 E02** |
+| `627 EMP TUB` | LN-627 EMP E05-E06 *(empalme)* |
+| `EMPT` | LN-627 EMP E06-E07 *(empalme)* |
+| `E02` | **LN-627 E07** |
+
+> Ese último es el más traicionero: el punto que el GPS llama `E02` **no es** el apoyo E02 de la
+> línea, es el **E07**. Ordenar o identificar por el nombre de campo produce disparates.
+
+### Verificación contra el módulo original
+
+Recalculado sobre 24 estructuras y contrastado con el HTML del Ingeniero: **coinciden** longitud
+(2.929 m), distancia directa entre extremos (2.479 m), vano promedio (127,35 m), máximo (336,70),
+mínimo (13,35), mediana (99,91), relación máx/mín (25,2×), y el par de vanos extremos
+(máx E22→E23, mín E20→E21).
+
+Única diferencia: la **desviación estándar** — 78,74 m en el módulo original contra 77,01 m calculada
+como población. El original usa la fórmula de **muestra** (÷ n−1). Se adopta la del original por
+coherencia con lo que el Ingeniero ya validó, y queda anotado que para una enumeración completa de
+los vanos la de población sería la defendible.
 
 ---
 

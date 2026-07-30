@@ -14,6 +14,22 @@ import { FUNCIONES_ANCLA, type Apoyo } from '@lineas/contratos';
 interface PuntoGeo { lat: number; lon: number }
 const aGeo = (a: Apoyo): PuntoGeo => ({ lat: a.coordenada.lat, lon: a.coordenada.lon });
 
+/**
+ * ⚠️ EL FILTRO QUE DECIDE TODO EL CÁLCULO.
+ *
+ * Solo las estructuras sostienen el conductor. Un empalme puede estar a mitad
+ * de vano y no sostiene nada; un punto de referencia es una marca del
+ * levantamiento. Si se cuentan como apoyos, un vano real se parte en dos falsos
+ * — y en LN-627 eso escondía un vano de 247,8 m detrás de dos de 84 y 164.
+ *
+ * Se filtra AQUÍ, en un solo sitio, para que ninguna vista pueda olvidarlo.
+ */
+export const soloEstructuras = (apoyos: Apoyo[]): Apoyo[] =>
+  apoyos.filter((a) => (a.tipoPunto ?? 'Estructura') === 'Estructura');
+
+/** Nombre que se muestra: el canónico si existe, si no el del GPS. */
+export const nombreVisible = (a: Apoyo): string => a.nombreNormalizado ?? a.nombreCampo;
+
 export interface PuntoPlanta {
   apoyo: Apoyo;
   x: number;
@@ -27,7 +43,8 @@ export interface PuntoPlanta {
  * una línea la deformación es despreciable y evita arrastrar una librería de
  * proyecciones entera.
  */
-export function proyectar(apoyos: Apoyo[]): PuntoPlanta[] {
+export function proyectar(todos: Apoyo[]): PuntoPlanta[] {
+  const apoyos = soloEstructuras(todos);
   if (!apoyos.length) return [];
   const geo = apoyos.map(aGeo);
   const lat0 = geo.reduce((s, p) => s + p.lat, 0) / geo.length;
@@ -44,8 +61,8 @@ export function proyectar(apoyos: Apoyo[]): PuntoPlanta[] {
   }));
 }
 
-export function vanos(apoyos: Apoyo[]): number[] {
-  const g = apoyos.map(aGeo);
+export function vanos(todos: Apoyo[]): number[] {
+  const g = soloEstructuras(todos).map(aGeo);
   return g.slice(1).map((p, i) => vincenty(g[i].lat, g[i].lon, p.lat, p.lon).d);
 }
 
@@ -59,7 +76,7 @@ export interface GeometriaSvg {
   marcas: Marca[]; etiquetas: Etiqueta[];
 }
 
-const nombreDe = (a: Apoyo) => a.nombreNormalizado ?? a.nombreCampo;
+const nombreDe = nombreVisible;
 
 /**
  * Posiciones ya resueltas para pintar. null si no hay línea que dibujar.

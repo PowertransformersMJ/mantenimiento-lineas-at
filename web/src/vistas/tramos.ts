@@ -8,7 +8,7 @@
 import { tramosDeTension, estadosDelTramo, flechaCatenaria, tiroMaximoAdmisible }
   from '@lineas/nucleo/mecanica';
 import type { Apoyo, Conductor, Hipotesis } from '@lineas/contratos';
-import { vanos } from './planta';
+import { vanos, soloEstructuras, nombreVisible } from './planta';
 
 const nf = (v: number, d = 0) =>
   v.toLocaleString('es-CO', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -30,14 +30,17 @@ export interface FilaTramo {
   excede: boolean;
 }
 
-export function calcularTramos(apoyos: Apoyo[], c: Conductor, h: Hipotesis): FilaTramo[] {
+export function calcularTramos(todos: Apoyo[], c: Conductor, h: Hipotesis): FilaTramo[] {
+  // Solo estructuras: un empalme no sostiene el conductor y contarlo partiría
+  // un vano real en dos falsos (ver `soloEstructuras`).
+  const apoyos = soloEstructuras(todos);
   if (apoyos.length < 2) return [];
   const L = vanos(apoyos);
 
   // El núcleo trabaja con nombres neutros: aquí se traduce del contrato a él.
   const paraNucleo = apoyos.map((a) => ({
     funcionEstructural: a.funcionEstructural,
-    nombre: a.nombreNormalizado ?? a.nombreCampo,
+    nombre: nombreVisible(a),
   }));
   const conductor = {
     w: c.masaLineal_kg_m, rts: c.rts_kgf, S: c.seccion_mm2,

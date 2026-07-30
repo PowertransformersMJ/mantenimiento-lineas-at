@@ -40,7 +40,8 @@ function Contenido() {
       // El SDK de Firebase pesa cerca de 1 MB. Se carga SOLO cuando alguien va
       // a entrar, no al abrir la página: la cuadrilla no debe pagar esa
       // descarga con dos rayas de señal para ver una pantalla de acceso.
-      const { entrarConGoogle } = await import('./datos/firebase');
+      const { cargarFirebase } = await import('./datos/cargar');
+      const { entrarConGoogle } = await cargarFirebase();
       await entrarConGoogle();
       await almacen.cargar();
     } catch (e) {

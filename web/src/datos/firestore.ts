@@ -8,10 +8,14 @@
 // la frontera. Un documento que no cumple el esquema no entra al cálculo — y el
 // cálculo es lo que el Ingeniero firma.
 // ============================================================================
-import { collection, doc, getDoc, getDocs, limit, orderBy, query, where } from 'firebase/firestore';
 import { Apoyo, Hipotesis, Linea } from '@lineas/contratos';
-import { baseDatos, esperarSesion, credenciales } from './firebase';
+import { cargarFirebase } from './cargar';
 import type { EstadoDatos, EstadoSesion, Repositorio } from './repositorio';
+
+// El SDK de Firestore viaja DENTRO del trozo diferido de Firebase (ver
+// `cargar.ts`). Este archivo es diminuto y va en el paquete principal: así hay
+// UNA sola frontera de carga, no dos encadenadas.
+const firestore = () => import('firebase/firestore');
 
 /** Convierte lo que venga de la base en algo que el contrato acepte, o lo descarta. */
 function validar<T>(esquema: { safeParse: (x: unknown) => { success: boolean; data?: T } }, crudo: unknown): T | null {
@@ -21,12 +25,15 @@ function validar<T>(esquema: { safeParse: (x: unknown) => { success: boolean; da
 
 export const repositorioFirestore: Repositorio = {
   async sesion(): Promise<EstadoSesion> {
+    const { esperarSesion } = await cargarFirebase();
     const u = await esperarSesion();
     if (!u) return { fase: 'sin_sesion' };
     return { fase: 'autenticado', uid: u.uid, correo: u.email };
   },
 
   async listarLineas(): Promise<Linea[]> {
+    const { esperarSesion, credenciales, baseDatos } = await cargarFirebase();
+    const { collection, getDocs, limit, query, where } = await firestore();
     const u = await esperarSesion();
     if (!u) return [];
     const { orgId } = await credenciales(u);
@@ -44,6 +51,8 @@ export const repositorioFirestore: Repositorio = {
   },
 
   async cargarLinea(lineaId: string): Promise<EstadoDatos> {
+    const { esperarSesion, credenciales, baseDatos } = await cargarFirebase();
+    const { collection, doc, getDoc, getDocs, orderBy, query, where } = await firestore();
     const u = await esperarSesion();
     if (!u) return { fase: 'sin_sesion' };
 

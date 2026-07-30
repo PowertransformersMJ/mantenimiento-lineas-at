@@ -17,7 +17,9 @@
 // la pestaña — sin avisar, con el técnico en mitad de una inspección.
 // ============================================================================
 import { useSyncExternalStore } from 'react';
+import { cargarFirebase } from './cargar';
 import { repositorio, usarRepositorio, type EstadoDatos } from './repositorio';
+import { repositorioFirestore } from './firestore';
 
 /**
  * Cambia el repositorio provisional por el real la primera vez que hace falta.
@@ -25,9 +27,8 @@ import { repositorio, usarRepositorio, type EstadoDatos } from './repositorio';
  * debe descargarse solo por abrir la página.
  */
 let conectado = false;
-async function conectarBase(): Promise<void> {
+function conectarBase(): void {
   if (conectado) return;
-  const { repositorioFirestore } = await import('./firestore');
   usarRepositorio(repositorioFirestore);
   conectado = true;
 }
@@ -59,10 +60,10 @@ class Almacen {
   async cargar(): Promise<void> {
     this.poner({ fase: 'cargando' });
     try {
-      await conectarBase();
+      conectarBase();
       // Si venimos de vuelta de Google por redirección, hay que recoger el
       // resultado ANTES de preguntar por la sesión.
-      const { recogerRedireccion } = await import('./firebase');
+      const { recogerRedireccion } = await cargarFirebase();
       await recogerRedireccion();
       const s = await repositorio.sesion();
       if (s.fase !== 'autenticado') return this.poner({ fase: 'sin_sesion' });

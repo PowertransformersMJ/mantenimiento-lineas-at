@@ -10,7 +10,7 @@ import { useMemo } from 'react';
 import type { Apoyo, Conductor, Hipotesis, Linea as TLinea } from '@lineas/contratos';
 import { vanoIdealRegulacion } from '@lineas/nucleo/geodesia';
 import { ampacidad, temperaturaLimite } from '@lineas/nucleo/termica';
-import { proyectar, vanos, geometriaSvg } from '../vistas/planta';
+import { proyectar, vanos, geometriaSvg, soloEstructuras } from '../vistas/planta';
 import { calcularTramos } from '../vistas/tramos';
 
 const nf = (v: number, d = 0) =>
@@ -128,10 +128,15 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis }:
   { linea: TLinea; apoyos: Apoyo[]; conductor: Conductor; hipotesis: Hipotesis }) {
 
   const resumen = useMemo(() => {
+    // Se cuentan ESTRUCTURAS, no puntos levantados: los empalmes no son apoyos.
+    // Si se mezclan, el contador dice 26 apoyos junto a 23 vanos y nadie
+    // entiende de dónde sale la diferencia.
+    const estructuras = soloEstructuras(apoyos);
+    const empalmes = apoyos.length - estructuras.length;
     const L = vanos(apoyos);
     const longitud = L.reduce((s, v) => s + v, 0);
     return {
-      L, longitud,
+      L, longitud, estructuras: estructuras.length, empalmes,
       vir: vanoIdealRegulacion(L) ?? 0,
       tramos: calcularTramos(apoyos, conductor, hipotesis).length,
       anclas: proyectar(apoyos).filter((p) => p.esAncla).length,
@@ -148,7 +153,11 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis }:
       <section className="panel">
         <h2>{linea.codigo} · {linea.nombre} — {nf(linea.tensionNominal_kV)} kV</h2>
         <div className="kpis">
-          <Kpi valor={nf(apoyos.length)} etiqueta="apoyos" />
+          <Kpi
+          valor={nf(resumen.estructuras)}
+          etiqueta="estructuras"
+          sub={resumen.empalmes ? `+ ${resumen.empalmes} empalme(s), que no son apoyos` : undefined}
+        />
           <Kpi valor={`${nf(resumen.longitud / 1000, 3)} km`} etiqueta="longitud" />
           <Kpi valor={nf(resumen.L.length)} etiqueta="vanos" sub={`medio ${nf(resumen.longitud / resumen.L.length, 1)} m`} />
           <Kpi valor={`${nf(resumen.vir, 1)} m`} etiqueta="VIR de la línea" sub="pero se calcula por tramo" />

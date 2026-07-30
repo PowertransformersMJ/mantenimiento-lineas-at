@@ -132,14 +132,38 @@ const FUNCIONES = {
   'Suspensión': 'Suspensión',
 };
 
+/**
+ * Nombres CANÓNICOS de la línea, en orden de recorrido. Vienen del módulo de
+ * campo original, que ya los tenía resueltos.
+ *
+ * Hacen falta porque el GPS grabó nombres irregulares: donde la línea tiene su
+ * **E02**, el equipo guardó "LN 627 E022"; y los dos empalmes quedaron como
+ * "627 EMP TUB" y "EMPT". El nombre de campo se conserva por trazabilidad, pero
+ * lo que ve el ingeniero y lo que sale en un informe es el canónico.
+ */
+const CANONICOS = {
+  'LN-627': [
+    'LN-627 E01', 'LN-627 E02', 'LN-627 E03', 'LN-627 E04', 'LN-627 E05',
+    'LN-627 EMP E05-E06', 'LN-627 E06', 'LN-627 EMP E06-E07', 'LN-627 E07',
+    'LN-627 E08', 'LN-627 E09', 'LN-627 E10', 'LN-627 E11', 'LN-627 E12',
+    'LN-627 E13', 'LN-627 E14', 'LN-627 E15', 'LN-627 E16', 'LN-627 E17',
+    'LN-627 E18', 'LN-627 E19', 'LN-627 E20', 'LN-627 E21', 'LN-627 E22',
+    'LN-627 E23', 'LN-627 E24',
+  ],
+};
+
 const apoyos = levantamiento.map((p, i) => base(idEstable('apoyo-' + i), {
   tipo: 'apoyo',
   lineaId,
   orden: i,
-  // El nombre se conserva TAL CUAL quedó en el GPS. No se "arregla": en esta
-  // línea conviven E022, EMP TUB y EMPT, y normalizarlo a la ligera destruye
-  // la trazabilidad con el levantamiento original.
+  // ⚠️ NO todo punto levantado es un apoyo. Un empalme puede estar a mitad de
+  // vano y no sostiene nada; contarlo parte un vano real en dos falsos. En esta
+  // línea eso escondía un vano de 247,8 m detrás de dos de 84 y 164 m.
+  tipoPunto: /EMP/i.test(String(p.name)) ? 'Empalme' : 'Estructura',
+  // El nombre de campo se conserva TAL CUAL quedó en el GPS: es la trazabilidad
+  // con el levantamiento. El canónico va aparte y es el que se muestra.
   nombreCampo: String(p.name),
+  nombreNormalizado: (CANONICOS[CODIGO_LINEA] ?? [])[i],
   coordenada: {
     lat: p.lat, lon: p.lon, sistemaReferencia: 'WGS84',
     cotaTerreno_m: p.ele, metodo: 'gps_mano',
