@@ -13,7 +13,10 @@ import type { Apoyo, Conductor, Hipotesis, Linea as TLinea } from '@lineas/contr
 import { vincenty, vanoIdealRegulacion } from '@lineas/nucleo/geodesia';
 import { ampacidad, temperaturaLimite } from '@lineas/nucleo/termica';
 import { estadisticasVanos } from '@lineas/nucleo/estadisticas';
+import { derivarLevantamiento } from '@lineas/exportar/levantamiento';
+import { calidadLevantamiento } from '@lineas/exportar/calidad';
 import { proyectar, vanos, geometriaSvg, soloEstructuras } from '../vistas/planta';
+import { COLORES_TRAMO_CSS } from '../vistas/tramoColores';
 import { calcularTramos } from '../vistas/tramos';
 import { conReintentos } from '../datos/cargar';
 import { Distribucion } from './Distribucion';
@@ -102,7 +105,9 @@ function Resumen({ apoyos }: { apoyos: Apoyo[] }) {
       ? vincenty(E[0].coordenada.lat, E[0].coordenada.lon,
                  E[E.length - 1].coordenada.lat, E[E.length - 1].coordenada.lon).d
       : 0;
-    return { E, L, e, directa, empalmes: apoyos.length - E.length };
+    const lev = derivarLevantamiento(apoyos);
+    return { E, L, e, directa, empalmes: apoyos.length - E.length,
+             tramos: lev.tramos, calidad: calidadLevantamiento(lev) };
   }, [apoyos]);
 
   if (!r.e) return null;
@@ -121,8 +126,18 @@ function Resumen({ apoyos }: { apoyos: Apoyo[] }) {
             <span className="li susp2" /> suspensión
             <span className="li term2" /> terminal
             <span className="li emp" /> empalme (no es apoyo)
-            <span className="fine">— clic en un punto para ver su función y deflexión</span>
+            <span className="fine">— clic en un punto: su ficha completa; clic en el trazado: su tramo</span>
           </p>
+          {r.tramos.length > 0 && (
+            <div className="tramos-leyenda">
+              {r.tramos.map((t, i) => (
+                <span key={t.n} className="tramo-item">
+                  <span className="li" style={{ background: COLORES_TRAMO_CSS[i % COLORES_TRAMO_CSS.length] }} />
+                  T{t.n} · {t.desde.replace('LN-627 ', '')} → {t.hasta.replace('LN-627 ', '')} · {nf(t.longitud_m)} m
+                </span>
+              ))}
+            </div>
+          )}
         </div>
 
         <aside className="resumen-panel">
@@ -137,6 +152,25 @@ function Resumen({ apoyos }: { apoyos: Apoyo[] }) {
           </div>
         </aside>
       </div>
+
+      <section className="panel">
+        <h2>Calidad del levantamiento</h2>
+        <p className="fine">
+          Observaciones <b>calculadas</b> de los datos — no redactadas a mano. Si el dato se
+          corrige, el hallazgo desaparece solo.
+        </p>
+        {r.calidad.length === 0 ? (
+          <p className="ok">Sin hallazgos: la serie está completa y sin anomalías geométricas.</p>
+        ) : (
+          <ul className="calidad-lista">
+            {r.calidad.map((c, i) => (
+              <li key={i} className={`calidad-item ${c.severidad}`}>
+                <b>{c.titulo}.</b> {c.detalle}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <Distribucion apoyos={apoyos} />
     </>

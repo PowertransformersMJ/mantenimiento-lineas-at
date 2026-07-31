@@ -23,6 +23,7 @@ import { derivarLevantamiento, horaLocalBogota } from '../exportar/levantamiento
 import { generarGpx } from '../exportar/gpx.js';
 import { generarKml } from '../exportar/kml.js';
 import { generarCsv, COLUMNAS_CSV } from '../exportar/csv.js';
+import { calidadLevantamiento } from '../exportar/calidad.js';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
 const fixture = join(AQUI, '..', '..', 'brain-private', 'mantenimiento-lineas-at',
@@ -235,6 +236,43 @@ describe('exportadores — contra la tabla del módulo original', () => {
     assert.ok(kml.includes('<SimpleData name="funcion_estructural">Terminal</SimpleData>'));
     assert.ok(kml.includes('NO apta para verificar distancias de seguridad'));
     assert.ok(!kml.includes('undefined') && !kml.includes('NaN'));
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+describe('calidad del levantamiento — las observaciones se CALCULAN', () => {
+  const crudo = existsSync(fixture) ? JSON.parse(readFileSync(fixture, 'utf-8')) : [];
+
+  test('sobre la línea real: quiebre >90°, vanos anómalos, altimetría GPS', { skip: SIN_BOVEDA }, () => {
+    const hallazgos = calidadLevantamiento(derivarLevantamiento(apoyosDesdeFixture(crudo)));
+    const titulos = hallazgos.map((x) => x.titulo).join(' || ');
+    // 118,2° sobre ESTRUCTURAS (el original decía 119,3° porque metía los
+    // empalmes en el ángulo — mismo error de dominio ya corregido).
+    assert.ok(/Quiebre de 118\.\d° en LN-627 E06/.test(titulos), 'el quiebre de E06 (~118°) se detecta');
+    assert.ok(titulos.includes('±8 m'), 'la altimetría GPS queda advertida');
+    assert.ok(hallazgos.some((x) => /2\.\d× el promedio/.test(x.titulo)), 'vanos >2× el promedio detectados');
+    assert.ok(hallazgos.some((x) => x.titulo.includes('nombre canónico distinto')), 'el renombrado queda trazado');
+    // La serie canónica E01..E24 está completa: NO debe inventarse un hueco.
+    assert.ok(!titulos.includes('Huecos en la serie'), 'sin falsos huecos con la serie completa');
+    const ordenSev = hallazgos.map((x) => x.severidad);
+    assert.deepEqual([...ordenSev].sort((a, b) =>
+      ({ atencion: 0, aviso: 1, info: 2 })[a] - ({ atencion: 0, aviso: 1, info: 2 })[b]), ordenSev,
+      'ordenados de mayor a menor severidad');
+  });
+
+  test('estado cero: sin puntos no hay hallazgos ni explosión', () => {
+    assert.deepEqual(calidadLevantamiento(derivarLevantamiento([])), []);
+  });
+
+  test('detecta numeración duplicada y huecos cuando existen', () => {
+    const lev = derivarLevantamiento([
+      { id: 'a', orden: 0, tipoPunto: 'Estructura', nombreCampo: 'E01', coordenada: { lat: 10.5, lon: -75.5 }, funcionEstructural: 'Terminal' },
+      { id: 'b', orden: 1, tipoPunto: 'Estructura', nombreCampo: 'E01 bis', nombreNormalizado: 'E01', coordenada: { lat: 10.51, lon: -75.51 }, funcionEstructural: 'Suspensión' },
+      { id: 'c', orden: 2, tipoPunto: 'Estructura', nombreCampo: 'E04', coordenada: { lat: 10.52, lon: -75.52 }, funcionEstructural: 'Terminal' },
+    ]);
+    const titulos = calidadLevantamiento(lev).map((x) => x.titulo).join(' || ');
+    assert.ok(titulos.includes('Numeración duplicada'), 'dos E01 se detectan');
+    assert.ok(/falta\(n\) 2, 3/.test(titulos), 'el hueco E02-E03 se detecta');
   });
 });
 

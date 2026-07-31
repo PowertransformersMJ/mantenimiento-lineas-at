@@ -6,6 +6,7 @@
   "description": "Exportadores puros de la plataforma — de los datos al archivo (GPX/KML/CSV), sin DOM ni framework (ADR-005/ADR-006). La versión de este paquete viaja dentro de cada archivo generado.",
   "exports": {
     "./levantamiento": "./levantamiento.js",
+    "./calidad": "./calidad.js",
     "./gpx": "./gpx.js",
     "./kml": "./kml.js",
     "./csv": "./csv.js",

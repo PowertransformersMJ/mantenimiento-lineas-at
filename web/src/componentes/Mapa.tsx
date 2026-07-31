@@ -28,9 +28,9 @@ import { FileSource, PMTiles, Protocol } from 'pmtiles';
 // cojo y moriría igual de mudo).
 import urlWorker from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import { layers, namedFlavor } from '@protomaps/basemaps';
-import { deflexion } from '@lineas/nucleo/geodesia';
-import type { Apoyo } from '@lineas/contratos';
-import { soloEstructuras, nombreVisible } from '../vistas/planta';
+import { FUNCIONES_ANCLA, type Apoyo } from '@lineas/contratos';
+import { derivarLevantamiento } from '@lineas/exportar/levantamiento';
+import { COLORES_TRAMO_CSS } from '../vistas/tramoColores';
 
 // ⚠️ Cloudflare Pages NO honra las peticiones de rango en estos archivos
 // (verificado: pide 1 KB y responde 200 con los 4,5 MB) — y el lector de
@@ -88,13 +88,39 @@ const COLORES: Record<string, string> = {
   empalme: '#8b98a5',
 };
 
-const ANCLA = /retenci|terminal|ángulo|angulo|derivaci/i;
-
+// La lista de funciones que anclan tiene UN dueño (el contrato). La regex que
+// vivía aquí era una tercera definición de "anclaje" esperando a divergir.
 function claseDe(a: Apoyo): keyof typeof COLORES {
   if (a.tipoPunto === 'Empalme') return 'empalme';
   if (a.funcionEstructural === 'Terminal') return 'terminal';
-  if (ANCLA.test(a.funcionEstructural)) return 'ancla';
+  if (FUNCIONES_ANCLA.includes(a.funcionEstructural)) return 'ancla';
   return 'suspension';
+}
+
+const escHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+/**
+ * La ficha del popup, con los MISMOS campos que mostraba el módulo original al
+ * hacer clic en un punto: GMS, decimal, cota con su advertencia, hora local,
+ * vano anterior, azimut y progresiva. El gesto más repetido en campo no puede
+ * devolver menos que el CSV.
+ */
+function fichaPopup(p: ReturnType<typeof derivarLevantamiento>['puntos'][number], nTotal: number, nEstructuras: number): string {
+  const filas: string[] = [];
+  const esE = p.tipo === 'Estructura';
+  filas.push(`<b>${escHtml(p.nombre)}</b> — punto ${p.n}/${nTotal}${esE && p.indiceEstructura != null ? ` · estructura ${p.indiceEstructura} de ${nEstructuras}` : ''}`);
+  if (esE && p.funcionEstructural) {
+    filas.push(`${escHtml(p.funcionEstructural)}${p.esAncla ? ' — corta tramo de tensión' : ''}${p.deflexion_grados != null ? ` · deflexión ${p.deflexion_grados.toFixed(2)}°` : ''}`);
+  }
+  if (!esE) filas.push(`<b>${escHtml(p.tipo)} — no es apoyo</b>${p.enVano ? ` · dentro del vano ${escHtml(p.enVano)}` : ''}`);
+  filas.push(`Lat ${p.latGMS} · ${p.lat.toFixed(6)}`);
+  filas.push(`Lon ${p.lonGMS} · ${p.lon.toFixed(6)}`);
+  if (p.cota_m != null) filas.push(`Cota GPS ${p.cota_m.toFixed(2)} m (referencial${p.precision_m != null ? ` ±${p.precision_m} m` : ''})`);
+  if (p.local) filas.push(`Hora local ${p.local}`);
+  if (p.vanoAnterior_m != null) filas.push(`Vano anterior ${p.vanoAnterior_m.toFixed(2)} m desde ${escHtml(p.vanoDesde ?? '')} · Az ${p.azimut_deg!.toFixed(2)}°`);
+  if (p.progresiva_m != null) filas.push(`Progresiva ${p.progresiva_m.toFixed(2)} m`);
+  if (p.nombre !== p.nombreCampo) filas.push(`<i>Nombre GPX original: ${escHtml(p.nombreCampo)}</i>`);
+  return `<div class="pop-ficha">${filas.join('<br>')}</div>`;
 }
 
 export default function Mapa({ apoyos, respaldo }: { apoyos: Apoyo[]; respaldo?: ReactNode }) {
@@ -221,12 +247,11 @@ function crearMapa(
     m.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left');
 
     // ── Datos de la línea ───────────────────────────────────────────────────
-    // El TRAZADO pasa por TODOS los puntos en orden (el conductor pasa por los
-    // empalmes); el CÁLCULO de deflexiones usa solo estructuras (docs/40 §10).
+    // La MISMA derivación que alimenta los exportes y las demás pestañas
+    // (ADR-006): el popup del mapa no puede contradecir al CSV. El trazado pasa
+    // por TODOS los puntos en orden; el cálculo usa solo estructuras (40 §10).
     const ordenados = [...apoyos].sort((a, b) => a.orden - b.orden);
-    const estructuras = soloEstructuras(ordenados);
-    const geoEstructuras = estructuras.map((a) => ({ lat: a.coordenada.lat, lon: a.coordenada.lon }));
-    const defPorId = new Map(estructuras.map((a, i) => [a.id, deflexion(geoEstructuras, i)]));
+    const lev = derivarLevantamiento(ordenados);
 
     const trazado: GeoJSON.Feature = {
       type: 'Feature',
@@ -237,39 +262,63 @@ function crearMapa(
       },
     };
 
+    // Un rasgo de línea por TRAMO DE TENSIÓN, con su color — el mismo corte
+    // que muestran Mecánico, Fichas y el KML.
+    const tramos: GeoJSON.FeatureCollection = {
+      type: 'FeatureCollection',
+      features: lev.tramos.map((t, i) => ({
+        type: 'Feature',
+        properties: {
+          color: COLORES_TRAMO_CSS[i % COLORES_TRAMO_CSS.length],
+          ficha: `<div class="pop-ficha"><b>Tramo ${t.n}</b> · ${escHtml(t.desde)} → ${escHtml(t.hasta)}<br>` +
+                 `${t.nVanos} vano(s) reales · ${t.longitud_m.toFixed(1)} m</div>`,
+        },
+        geometry: {
+          type: 'LineString',
+          coordinates: t.puntos.map((p) => [p.lon, p.lat]),
+        },
+      })),
+    };
+
     const puntos: GeoJSON.FeatureCollection = {
       type: 'FeatureCollection',
-      features: ordenados.map((a) => {
-        const d = defPorId.get(a.id);
-        return {
-          type: 'Feature',
-          properties: {
-            nombre: nombreVisible(a),
-            clase: claseDe(a),
-            funcion: a.tipoPunto === 'Empalme' ? 'Empalme (no es apoyo)' : a.funcionEstructural,
-            deflexion: d == null ? '' : `deflexión ${d.toFixed(1)}°`,
-            esEmpalme: a.tipoPunto === 'Empalme' ? 1 : 0,
-          },
-          geometry: { type: 'Point', coordinates: [a.coordenada.lon, a.coordenada.lat] },
-        };
-      }),
+      // `ordenados` y `lev.puntos` comparten orden (ambos por `orden`).
+      features: ordenados.map((a, i) => ({
+        type: 'Feature',
+        properties: {
+          nombre: lev.puntos[i].nombre,
+          clase: claseDe(a),
+          ficha: fichaPopup(lev.puntos[i], lev.puntos.length, lev.nEstructuras),
+          esEmpalme: a.tipoPunto === 'Empalme' ? 1 : 0,
+        },
+        geometry: { type: 'Point', coordinates: [a.coordenada.lon, a.coordenada.lat] },
+      })),
     };
 
     m.on('load', () => {
       m.addSource('trazado', { type: 'geojson', data: trazado });
+      m.addSource('tramos', { type: 'geojson', data: tramos });
       m.addSource('puntos', { type: 'geojson', data: puntos });
 
       m.addLayer({
         id: 'linea-halo',
         type: 'line',
         source: 'trazado',
-        paint: { 'line-color': '#ffffff', 'line-width': 6, 'line-opacity': 0.7 },
+        paint: { 'line-color': '#ffffff', 'line-width': 7, 'line-opacity': 0.7 },
       });
+      // El trazado completo queda debajo como respaldo fino; encima, cada tramo
+      // de tensión con su color (clic → nombre, vanos y longitud del tramo).
       m.addLayer({
         id: 'linea',
         type: 'line',
         source: 'trazado',
-        paint: { 'line-color': '#d97706', 'line-width': 2.5 },
+        paint: { 'line-color': '#d97706', 'line-width': 1 },
+      });
+      m.addLayer({
+        id: 'tramos',
+        type: 'line',
+        source: 'tramos',
+        paint: { 'line-color': ['get', 'color'], 'line-width': 3.5, 'line-opacity': 0.95 },
       });
 
       m.addLayer({
@@ -312,14 +361,25 @@ function crearMapa(
       m.on('click', 'apoyos', (ev: maplibregl.MapLayerMouseEvent) => {
         const f = ev.features?.[0];
         if (!f) return;
-        const p = f.properties as Record<string, string>;
-        new maplibregl.Popup({ offset: 10, closeButton: false })
+        new maplibregl.Popup({ offset: 10, closeButton: false, maxWidth: '340px' })
           .setLngLat(ev.lngLat)
-          .setHTML(`<b>${p.nombre}</b><br>${p.funcion}${p.deflexion ? '<br>' + p.deflexion : ''}`)
+          .setHTML((f.properties as Record<string, string>).ficha)
           .addTo(m);
       });
-      m.on('mouseenter', 'apoyos', () => { m.getCanvas().style.cursor = 'pointer'; });
-      m.on('mouseleave', 'apoyos', () => { m.getCanvas().style.cursor = ''; });
+      // El clic en un tramo solo responde si no cayó sobre un punto.
+      m.on('click', 'tramos', (ev: maplibregl.MapLayerMouseEvent) => {
+        const sobrePunto = m.queryRenderedFeatures(ev.point, { layers: ['apoyos'] }).length > 0;
+        const f = ev.features?.[0];
+        if (!f || sobrePunto) return;
+        new maplibregl.Popup({ offset: 10, closeButton: false })
+          .setLngLat(ev.lngLat)
+          .setHTML((f.properties as Record<string, string>).ficha)
+          .addTo(m);
+      });
+      for (const capa of ['apoyos', 'tramos']) {
+        m.on('mouseenter', capa, () => { m.getCanvas().style.cursor = 'pointer'; });
+        m.on('mouseleave', capa, () => { m.getCanvas().style.cursor = ''; });
+      }
 
       // Encuadre a la línea completa, con aire.
       const lons = ordenados.map((a) => a.coordenada.lon);
