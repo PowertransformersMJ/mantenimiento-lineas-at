@@ -13,11 +13,15 @@ import type { Apoyo, Conductor, Hipotesis, Investigacion, Linea as TLinea } from
 import { vincenty, vanoIdealRegulacion } from '@lineas/nucleo/geodesia';
 import { ampacidad, temperaturaLimite } from '@lineas/nucleo/termica';
 import { estadisticasVanos } from '@lineas/nucleo/estadisticas';
+import { tramosDeTension, estadosDelTramo } from '@lineas/nucleo/mecanica';
+import { detalleVanos, controlParabola, resumenConductor } from '@lineas/nucleo/vanos';
+import { coherenciaFuncionDeflexion } from '@lineas/nucleo/coherencia';
 import { derivarLevantamiento } from '@lineas/exportar/levantamiento';
 import { calidadLevantamiento } from '@lineas/exportar/calidad';
 import { proyectar, vanos, geometriaSvg, soloEstructuras } from '../vistas/planta';
 import { COLORES_TRAMO_CSS } from '../vistas/tramoColores';
-import { calcularTramos } from '../vistas/tramos';
+import { calcularTramos, conductorParaNucleo, paramsParaNucleo } from '../vistas/tramos';
+import { nombreVisible } from '../vistas/planta';
 import { conReintentos } from '../datos/cargar';
 import { Distribucion } from './Distribucion';
 import { Distancias } from './Distancias';
@@ -25,6 +29,8 @@ import { Fichas } from './Fichas';
 import { Exportar } from './Exportar';
 import { Fundamentos } from './Fundamentos';
 import { Falla } from './Falla';
+import { Umbrales } from './Umbrales';
+import { Cantidades } from './Cantidades';
 import { Sello } from './Sello';
 
 const nf = (v: number, d = 0) =>
@@ -91,7 +97,7 @@ const PESTANAS = [
   { id: 'falla', rotulo: 'Falla', lista: true, roja: true },
   { id: 'fundamentos', rotulo: 'Fundamentos', lista: true },
   { id: 'mecanico', rotulo: 'Mecánico', lista: true },
-  { id: 'cantidades', rotulo: 'Cantidades', lista: false },
+  { id: 'cantidades', rotulo: 'Cantidades', lista: true },
   { id: 'exportar', rotulo: 'Exportar', lista: true },
 ] as const;
 
@@ -164,8 +170,19 @@ function Resumen({ apoyos, investigaciones, alVerEvento, hipotesis, conductor }:
                  E[E.length - 1].coordenada.lat, E[E.length - 1].coordenada.lon).d
       : 0;
     const lev = derivarLevantamiento(apoyos);
+    // Criterio recuperado del módulo original: la función DECLARADA de cada
+    // apoyo tiene que concordar con la deflexión MEDIDA. Un desajuste en un
+    // sentido es riesgo estructural; en el otro, sobrecosto.
+    const coherencia = coherenciaFuncionDeflexion(
+      lev.puntos.filter((p) => p.tipo === 'Estructura').map((p) => ({
+        nombre: p.nombre,
+        funcionEstructural: p.funcionEstructural ?? undefined,
+        deflexion_grados: p.deflexion_grados,
+      })),
+    ) as { apoyo: string; severidad: 'critica' | 'advertencia' | 'info'; mensaje: string; criterio: string }[];
+
     return { E, L, e, directa, empalmes: apoyos.length - E.length,
-             tramos: lev.tramos, calidad: calidadLevantamiento(lev) };
+             tramos: lev.tramos, calidad: calidadLevantamiento(lev), coherencia };
   }, [apoyos]);
 
   if (!r.e) return null;
@@ -250,6 +267,26 @@ function Resumen({ apoyos, investigaciones, alVerEvento, hipotesis, conductor }:
               </button>
             );
           })}
+        </section>
+      )}
+
+      {r.coherencia.length > 0 && (
+        <section className="panel">
+          <h2>Coherencia entre función declarada y deflexión medida</h2>
+          <p className="fine">
+            Criterio de diseño <b>sin norma citada</b>, recuperado del módulo de campo: hasta ~3°
+            basta suspensión; de 3° a 15°, suspensión angular; por encima de 15° debería ser ángulo
+            o retención; por encima de 30°, retención obligada. Un anclaje de más también se avisa:
+            es sobrecosto.
+          </p>
+          <ul className="calidad-lista">
+            {r.coherencia.map((c, i) => (
+              <li key={i} className={`calidad-item ${c.severidad === 'critica' ? 'atencion'
+                : c.severidad === 'advertencia' ? 'aviso' : 'info'}`}>
+                <b>{c.apoyo}.</b> {c.mensaje} <span className="umbral-fuente">{c.criterio}</span>
+              </li>
+            ))}
+          </ul>
         </section>
       )}
 
@@ -367,7 +404,126 @@ function Mecanico({ apoyos, conductor, hipotesis }:
           contra la ficha del proveedor real del conductor.
         </p>
       </section>
+
+      <DetalleVanos apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} />
+      <Umbrales apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} />
     </>
+  );
+}
+
+// ── Vano a vano: el detalle que pide un revisor externo ─────────────────────
+
+interface FilaVano {
+  n: number; a_m: number; relVir: number | null;
+  flechaEds_m: number; flechaTMax_m: number; flechaTMin_m: number;
+  longitudConductor_m: number; parametroC_m: number; fueraDeRango: boolean | null;
+}
+
+function DetalleVanos({ apoyos, conductor, hipotesis }:
+  { apoyos: Apoyo[]; conductor: Conductor; hipotesis: Hipotesis }) {
+
+  const r = useMemo(() => {
+    const E = soloEstructuras(apoyos);
+    if (E.length < 2) return null;
+    const L = vanos(apoyos);
+    const c = conductorParaNucleo(conductor);
+    const p = paramsParaNucleo(hipotesis);
+    const cortes = tramosDeTension(
+      E.map((a) => ({ funcionEstructural: a.funcionEstructural, nombre: nombreVisible(a) })), L);
+
+    // Se numera de forma CORRIDA sobre toda la línea: `detalleVanos` numera
+    // dentro de cada tramo, y dos vanos con el mismo número confundirían al
+    // que lee la tabla buscando "el vano 3".
+    let corrido = 0;
+    const filas: (FilaVano & { tramo: number })[] = [];
+    cortes.forEach((t: { vanos: number[] }, i: number) => {
+      const e = estadosDelTramo(t, c, p);
+      for (const f of detalleVanos(t, c, e) as FilaVano[]) {
+        filas.push({ ...f, n: ++corrido, tramo: i + 1 });
+      }
+    });
+
+    const res = resumenConductor(filas) as { longitudTotal_m: number | null; factorCatenaria_pct: number | null };
+    // Control de la simplificación parabólica en el vano MÁS LARGO, que es
+    // donde el error es mayor: si ahí es admisible, lo es en toda la línea.
+    const peor = filas.reduce((m, f) => (f.a_m > m.a_m ? f : m), filas[0]);
+    const ctrl = peor ? controlParabola(peor.a_m, peor.parametroC_m) as
+      { flechaCatenaria_m: number; flechaParabola_m: number; error_pct: number; aceptable: boolean } : null;
+
+    return { filas, res, ctrl, peor };
+  }, [apoyos, conductor, hipotesis]);
+
+  if (!r || !r.filas.length) return null;
+  const fuera = r.filas.filter((f) => f.fueraDeRango);
+
+  return (
+    <section className="panel">
+      <h2>Vano a vano</h2>
+      <p className="fine">
+        La tabla por tramo da el vano que gobierna; ésta da <b>cada vano</b>: su relación con el VIR
+        del tramo, sus tres flechas y la longitud real de conductor que se lleva.
+      </p>
+      <Sello hipotesis={hipotesis} conductor={conductor} />
+
+      <div className="tabla-caja">
+        <table className="tabla">
+          <caption>
+            Detalle por vano. La longitud de conductor es por catenaria: siempre mayor que el vano.
+          </caption>
+          <thead>
+            <tr>
+              <th>#</th><th>Tramo</th><th>Vano (m)</th><th>a / VIR</th>
+              <th>Flecha EDS</th><th>Flecha {hipotesis.tempMax_C} °C</th><th>Flecha {hipotesis.tempMin_C} °C</th>
+              <th>Conductor (m)</th><th>C (m)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {r.filas.map((f) => (
+              <tr key={f.n} className={f.fueraDeRango ? 'excede' : undefined}>
+                <td className="num">{f.n}</td>
+                <td className="num">{f.tramo}</td>
+                <td className="num">{nf(f.a_m, 1)}</td>
+                <td className="num destaca">{f.relVir == null ? '—' : nf(f.relVir, 2)}</td>
+                <td className="num">{nf(f.flechaEds_m, 2)}</td>
+                <td className="num">{nf(f.flechaTMax_m, 2)}</td>
+                <td className="num">{nf(f.flechaTMin_m, 2)}</td>
+                <td className="num">{nf(f.longitudConductor_m, 2)}</td>
+                <td className="num">{nf(f.parametroC_m)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {fuera.length ? (
+        <p className="alerta">
+          <b>{nf(fuera.length)} vano(s) fuera de la banda 0,7–1,3 respecto al VIR de su tramo:</b>{' '}
+          {fuera.map((f) => `#${f.n}`).join(', ')}. Fuera de esa banda la hipótesis del vano ideal
+          de regulación pierde validez y el tramo debería subdividirse.
+        </p>
+      ) : (
+        <p className="ok">Todos los vanos caen dentro de la banda 0,7–1,3 respecto al VIR de su tramo.</p>
+      )}
+
+      {r.res.longitudTotal_m != null && (
+        <p className="fine">
+          Conductor por fase: <b>{nf(r.res.longitudTotal_m, 1)} m</b> — un{' '}
+          <b>{nf(r.res.factorCatenaria_pct ?? 0, 2)} %</b> más que la suma de los vanos rectos. Esa
+          diferencia es cable real que hay que comprar.
+        </p>
+      )}
+
+      {r.ctrl && (
+        <p className={r.ctrl.aceptable ? 'ok' : 'alerta'}>
+          <b>Control catenaria contra parábola</b> en el vano más largo ({nf(r.peor.a_m, 1)} m,
+          C = {nf(r.peor.parametroC_m)} m): catenaria {nf(r.ctrl.flechaCatenaria_m, 3)} m frente a
+          parábola {nf(r.ctrl.flechaParabola_m, 3)} m — error {nf(r.ctrl.error_pct, 3)} %.{' '}
+          {r.ctrl.aceptable
+            ? 'Por debajo del 0,5 % adoptado: la simplificación parabólica es admisible en esta línea.'
+            : 'Por encima del 0,5 % adoptado: aquí hay que usar catenaria exacta, no parábola.'}
+        </p>
+      )}
+    </section>
   );
 }
 
@@ -425,6 +581,7 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
         {activa === 'fichas' && <Fichas apoyos={apoyos} />}
         {activa === 'mecanico' && <Mecanico apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} />}
         {activa === 'fundamentos' && <Fundamentos apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} />}
+        {activa === 'cantidades' && <Cantidades linea={linea} apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} />}
         {activa === 'exportar' && <Exportar linea={linea} apoyos={apoyos} hipotesis={hipotesis} />}
       </div>
     </>

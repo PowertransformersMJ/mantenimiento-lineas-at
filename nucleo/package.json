@@ -9,6 +9,10 @@
     "./mecanica": "./mecanica.js",
     "./termica": "./termica.js",
     "./estadisticas": "./estadisticas.js",
+    "./vanos": "./vanos.js",
+    "./umbrales": "./umbrales.js",
+    "./cantidades": "./cantidades.js",
+    "./coherencia": "./coherencia.js",
     "./package.json": "./package.json"
   },
   "sideEffects": false

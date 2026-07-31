@@ -130,8 +130,12 @@ describe('exportadores — contra la tabla del módulo original', () => {
     const iCab = filas.findIndex((f) => f === COLUMNAS_CSV.join(';'));
     assert.ok(iCab > 0, 'cabecera presente tras la procedencia');
     assert.equal(filas.length - iCab - 1, 26, 'una fila por punto');
-    // La divergencia que arregla al original: 10,351170 y no 10.351170.
-    assert.ok(filas[iCab + 1].includes('10,351170'), 'coma decimal para Excel es-CO');
+    // La divergencia que arregla al original: coma decimal, no punto.
+    // ⚠️ El valor esperado se DERIVA del fixture de la bóveda, nunca se escribe
+    // aquí: este repositorio es público y una latitud real es dato de cliente.
+    const latEsperada = crudo[0].lat.toFixed(6).replace('.', ',');
+    assert.ok(filas[iCab + 1].includes(latEsperada), 'coma decimal para Excel es-CO');
+    assert.ok(!filas[iCab + 1].includes(crudo[0].lat.toFixed(6)), 'y NO el punto decimal');
     assert.ok(!csv.includes('undefined') && !csv.includes('NaN'));
   });
 
@@ -142,7 +146,8 @@ describe('exportadores — contra la tabla del módulo original', () => {
     const filas = csv.split('\r\n');
     assert.equal(filas[0], COLUMNAS_CSV.join(','), 'cabecera RFC');
     assert.equal(filas.length, 1 + 26, 'sin renglones extra: datos limpios');
-    assert.ok(filas[1].includes('10.351170'), 'punto decimal para máquinas');
+    // Igual que arriba: el valor sale del fixture privado, no del código.
+    assert.ok(filas[1].includes(crudo[0].lat.toFixed(6)), 'punto decimal para máquinas');
   });
 
   test('el dialecto de datos NO lleva cabecera de procedencia, y eso es deliberado', { skip: SIN_BOVEDA }, () => {

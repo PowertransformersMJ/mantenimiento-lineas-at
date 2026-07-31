@@ -20,6 +20,7 @@ import { ampacidad, temperaturaLimite } from '@lineas/nucleo/termica';
 import { derivarLevantamiento } from '@lineas/exportar/levantamiento';
 import { TARJETAS, MARCO_NORMATIVO, INTRO_FUNDAMENTOS } from '../contenido/fundamentos';
 import { conductorParaNucleo, paramsParaNucleo, calcularTramos } from '../vistas/tramos';
+import { diagrama, type IdDiagrama, type DatosDiagrama } from '../vistas/diagramas';
 import { vanos, soloEstructuras, nombreVisible } from '../vistas/planta';
 import { nf } from '../vistas/formato';
 import { Sello } from './Sello';
@@ -29,6 +30,8 @@ const html = (s: string) => <span dangerouslySetInnerHTML={{ __html: s }} />;
 interface Ctx {
   filas: ReturnType<typeof calcularTramos>;
   lev: ReturnType<typeof derivarLevantamiento>;
+  /** Lo que hace que las figuras sean de ESTA línea y no de un libro. */
+  datosDiagrama: DatosDiagrama;
   /** Estados mecánicos del tramo que contiene el vano MÁXIMO (gobierna la flecha). */
   gob: { estados: ReturnType<typeof estadosDelTramo>; vanoMax: number; nombre: string } | null;
   vientoPorApoyo: { nombre: string; m: number }[];
@@ -139,7 +142,25 @@ export function Fundamentos({ apoyos, conductor, hipotesis }:
       m: vanoViento(i > 0 ? L[i - 1] : null, i < L.length ? L[i] : null),
     })).filter((_, i) => i > 0 && i < E.length - 1);
 
-    return { filas, lev, gob, vientoPorApoyo, c: conductor, h: hipotesis };
+    // Datos reales para las figuras. Lo que no se pueda calcular se deja fuera:
+    // el diagrama cae al caso genérico en vez de dibujar una cifra inventada.
+    const mayorDeflexion = lev.puntos.reduce<number | undefined>(
+      (m, p) => (p.deflexion_grados != null && (m == null || p.deflexion_grados > m) ? p.deflexion_grados : m),
+      undefined);
+    const datosDiagrama: DatosDiagrama = {
+      vano_m: gob?.vanoMax,
+      flechaMax_m: gob ? flechaCatenaria(conductor.masaLineal_kg_m, gob.vanoMax, gob.estados.tMax.H) : undefined,
+      flechaMin_m: gob ? flechaCatenaria(conductor.masaLineal_kg_m, gob.vanoMax, gob.estados.tMin.H) : undefined,
+      pctEds: gob ? (gob.estados.eds.H / conductor.rts_kgf) * 100 : undefined,
+      pctViento: gob ? (gob.estados.viento.H / conductor.rts_kgf) * 100 : undefined,
+      pctTope: (hipotesis as { tiroAdmisible_pct?: number }).tiroAdmisible_pct ?? 50,
+      deflexion_grados: mayorDeflexion,
+      vanos_m: filas[0]?.nVanos ? L.slice(0, 4) : undefined,
+      tMax_C: hipotesis.tempMax_C,
+      tMin_C: hipotesis.tempMin_C,
+    };
+
+    return { filas, lev, gob, vientoPorApoyo, datosDiagrama, c: conductor, h: hipotesis };
   }, [apoyos, conductor, hipotesis]);
 
   return (
@@ -159,6 +180,11 @@ export function Fundamentos({ apoyos, conductor, hipotesis }:
         <section key={t.id} className="panel fund-tarjeta" id={`fund-${t.id}`}>
           <h2>{t.titulo}</h2>
           <p>{html(t.concepto)}</p>
+          {/* La FIGURA va entre el concepto y la fórmula: es el orden de lectura del
+              módulo original, y es lo que hacía entendible cada concepto en campo.
+              Cinco de las nueve se dibujan con los datos REALES de esta línea. */}
+          <div className="fund-figura-caja"
+               dangerouslySetInnerHTML={{ __html: diagrama(t.id as IdDiagrama, ctx.datosDiagrama) }} />
           <div className="fund-formula" dangerouslySetInnerHTML={{ __html: t.formulaMathML }} />
           <div className="ficha-grilla">
             <div className="ficha-bloque">

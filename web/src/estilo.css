@@ -551,3 +551,14 @@ p.fund-vivo + .sello-calculo { margin-top: 5px; }
   .falla-titulo, .falla-rotulo { color: #000 !important; }
   .banda-estado { break-inside: avoid; }
 }
+
+/* ── Figuras de Fundamentos ───────────────────────────────────────────────
+   El diagrama va entre el concepto y la fórmula: ese orden de lectura es lo
+   que hacía entendible cada parámetro en campo. */
+.fund-figura-caja {
+  background: #12181e; border: 1px solid var(--bd); border-radius: var(--radio);
+  padding: 12px 16px; margin: 11px 0 0; overflow-x: auto;
+}
+.fund-figura-caja svg { display: block; margin: 0 auto; max-width: 640px; }
+.umbral-criterio { color: #9fb3c4; font-size: 11px; line-height: 1.5; white-space: normal; }
+.umbral-fuente { display: block; margin-top: 2px; color: var(--mut); font-size: 10px; text-transform: uppercase; letter-spacing: .5px; }
