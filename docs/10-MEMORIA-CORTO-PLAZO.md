@@ -43,6 +43,12 @@ de AFINIA que definen el alcance real.
 
 ## ✅ Cerrado en esta sesión (2026-07-28/29)
 
+- **Pestañas Distancias y Fichas (2026-07-31):** calculadora con directa/por-línea/azimut/rumbo y
+  matriz 24×24 clicable (verificada: E01→E24 = 2.478,6 m directa vs 2.479 del módulo original) ·
+  fichas por punto con identidad (canónico + GPS crudo), tramo, procedencia, GMS **idéntico al
+  original** (`10° 21' 01.29" N`), geometría derivada y advertencia de precisión GPS. Los empalmes
+  tienen ficha propia que dice en qué vano viven. **Sin fingir un solo campo**: los ~48 de campo
+  llegan en F4.
 - **Réplica de la pantalla del módulo original (2026-07-30):** pestañas como el original (Resumen y
   Mecánico vivas; el resto deshabilitadas sin fingir contenido) · **mapa real** MapLibre + PMTiles
   100 % autohospedado (recorte metropolitano de Cartagena de 4,3 MB, descarga completa en memoria

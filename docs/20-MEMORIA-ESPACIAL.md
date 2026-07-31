@@ -59,6 +59,12 @@ mantenimiento-lineas-at/
 │   └── *.mjs                    brain-check, brain-diff, brain-index, session-handoff,
 │                                boot-gate, brain-archive
 │
+├── web/src/componentes/         React SOLO pinta (ADR-005): Linea (pestañas), Mapa (MapLibre+PMTiles),
+│                                Distribucion, Distancias (matriz), Fichas, Estado (los 5 estados)
+├── web/src/vistas/              geometría/estadística ya resuelta para pintar + formato (GMS)
+├── web/src/datos/               repositorio, enlace (useSyncExternalStore), firebase, cargar (reintentos)
+├── web/public/mapas/            recorte PMTiles metropolitano (4,3 MB, autohospedado)
+├── web/public/basemaps-assets/  fuentes y sprites del mapa (autohospedados)
 ├── githooks/pre-commit          corre los gates y BLOQUEA el commit si el cerebro está mal
 ├── .claude/settings.json        hooks de sesión (SÍ se commitea; el resto de .claude/ no)
 └── .github/workflows/ci.yml     integridad del kernel + suite de pruebas

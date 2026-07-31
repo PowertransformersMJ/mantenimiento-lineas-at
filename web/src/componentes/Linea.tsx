@@ -17,6 +17,8 @@ import { proyectar, vanos, geometriaSvg, soloEstructuras } from '../vistas/plant
 import { calcularTramos } from '../vistas/tramos';
 import { conReintentos } from '../datos/cargar';
 import { Distribucion } from './Distribucion';
+import { Distancias } from './Distancias';
+import { Fichas } from './Fichas';
 
 const nf = (v: number, d = 0) =>
   v.toLocaleString('es-CO', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -77,8 +79,8 @@ class RespaldoMapa extends Component<{ apoyos: Apoyo[]; children: ReactNode }, {
 
 const PESTANAS = [
   { id: 'resumen', rotulo: 'Resumen', lista: true },
-  { id: 'distancias', rotulo: 'Distancias', lista: false },
-  { id: 'fichas', rotulo: 'Fichas', lista: false },
+  { id: 'distancias', rotulo: 'Distancias', lista: true },
+  { id: 'fichas', rotulo: 'Fichas', lista: true },
   { id: 'falla', rotulo: 'Falla', lista: false, roja: true },
   { id: 'fundamentos', rotulo: 'Fundamentos', lista: false },
   { id: 'mecanico', rotulo: 'Mecánico', lista: true },
@@ -260,6 +262,8 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis }:
       </div>
 
       {activa === 'resumen' && <Resumen apoyos={apoyos} />}
+      {activa === 'distancias' && <Distancias apoyos={apoyos} />}
+      {activa === 'fichas' && <Fichas apoyos={apoyos} />}
       {activa === 'mecanico' && <Mecanico apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} />}
     </>
   );
