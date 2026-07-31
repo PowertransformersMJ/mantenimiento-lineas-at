@@ -300,3 +300,16 @@
 - **Lo que salvó la vista:** la lectura de expedientes va en su propio `try/catch` y devuelve lista
   vacía. Entre el despliegue del código y el de las reglas, la línea **siguió viéndose completa**.
   *Una capa opcional jamás puede tener poder de veto sobre una esencial* (misma regla que `L-11`).
+
+### L-23 · Una coordenada real dentro de una PRUEBA es una fuga igual que en el código
+- **Síntoma:** `tests/exportar.test.js` afirmaba `filas[1].includes('10.351170')` — la latitud real
+  de una estructura de la LN-627, escrita en un repositorio **público**. Pasó mi propia auditoría
+  de fugas dos veces porque yo buscaba en `web/src` y en el paquete publicado, no en `tests/`.
+- **Por qué se cuela:** al escribir una prueba de formato uno copia el valor observado de la
+  salida real para que la aserción sea concreta. Es el gesto natural, y es justo el que filtra.
+- **Regla:** en las pruebas, el valor esperado se **DERIVA del fixture de la bóveda**
+  (`crudo[0].lat.toFixed(6)`), nunca se escribe literal. Y la auditoría previa al commit incluye
+  `tests/`, `herramientas/` y `docs/`, no solo el código de la aplicación:
+  `grep -rnE '\b10\.3[45][0-9]{4}\b|\b-?75\.4[89][0-9]{4}\b' --include='*.js' --include='*.ts' .`
+- **Alcance:** la historia de git es permanente (`L-07`), así que el valor sigue en los commits
+  antiguos. Se corrigió hacia adelante; si algún día importa de verdad, exige reescribir historia.

@@ -869,3 +869,56 @@ en el propio `COLECCIONES` con su justificación, no colándolo en silencio.
 
 El objeto `FALLA` del módulo de campo v11 (idéntico byte a byte al v10, verificado por SHA-256),
 extraído a la bóveda. Evidencia de funcionamiento: `docs/30 · L-22`.
+
+---
+
+## ADR-009 · 2026-07-31 · Inventario de brechas y primera tanda de cierre (P0)
+
+**Estado:** ✅ Inventario cerrado (8 auditores) · ✅ 5 módulos construidos y desplegados ·
+⏳ 2 decisiones abiertas del Ingeniero.
+
+### Contexto
+
+El Ingeniero señaló que «aún no está toda la información condensada que existe en el html ni los
+mismos criterios», con dos ejemplos: los diagramas y el paso a paso de Fundamentos, y las fotos y
+descripciones de Falla. Se auditó segmento por segmento contra el paquete PUBLICADO.
+
+**Paridad medida:** Falla 10 % · Cantidades 15 % · Fichas 25 % · Fundamentos 30 % · Mecánico 30 % ·
+Exportar 40 % · Criterios 45 % · Resumen 72 %. **79 faltantes, 31 de prioridad P0.**
+
+### Decisión
+
+> Cerrar primero lo que **no depende de nadie más**: cinco módulos PUROS nuevos, construidos en
+> paralelo por cinco agentes con los archivos particionados para que no colisionaran, e integrados
+> a mano. Lo bloqueado por datos o por decisiones se declara, no se rellena.
+
+`web/src/vistas/diagramas.ts` (9 figuras, cinco alimentadas con datos reales de la línea) ·
+`nucleo/umbrales.js` (8 indicadores con semáforo y fuente) · `nucleo/vanos.js` (detalle vano a vano
+y control catenaria-vs-parábola) · `nucleo/cantidades.js` (BOM geométrico) ·
+`nucleo/coherencia.js` (función declarada contra deflexión medida, fuga específica, puesta a tierra).
+
+### Consecuencias verificadas en producción
+
+- Los 9 diagramas se dibujan con los datos de la línea: la catenaria con su vano de 336,7 m y su
+  flecha de 9,23 m; la vista en planta con la deflexión real de 118,1°.
+- El control catenaria-vs-parábola da **error −0,100 %** en el vano peor: por debajo del 0,5 %
+  adoptado, o sea que la simplificación parabólica **es admisible en esta línea** — y ahora está
+  demostrado con su número, que es lo que pide un revisor externo.
+- **14 de 23 vanos caen fuera de la banda 0,7–1,3 respecto al VIR de su tramo.** Es un hallazgo
+  real y nuevo: donde más pesa es el tramo 4, con 14 vanos. La hipótesis del VIR pierde validez
+  ahí y el tramo debería subdividirse. No estaba visible antes.
+- Ningún estado del semáforo se llama «incumple»: el sistema señala, dictamina quien firma.
+
+### Lo que queda abierto (decisión del Ingeniero, no del código)
+
+1. **Almacenamiento de las 103 fotos** (18 MB, ya extraídas a la bóveda). Cloudflare R2 sobra
+   —10 GB gratis, egreso gratis— pero está SIN HABILITAR: la API responde *«Please enable R2
+   through the Cloudflare Dashboard»*. Sin eso, la galería del expediente y el informe fotográfico
+   no se pueden construir. Firebase Storage sigue descartado (exige plan de pago, ADR-001).
+2. **El tope de tiro: 50 % clásico o 25 % del RETIE sin carga externa.** El umbral salió del código
+   a las hipótesis (`tiroAdmisible_pct`) y la tabla muestra AMBOS criterios; el segundo queda en
+   «no evaluable» hasta que se declare cuál rige. **Los números no cambiaron.**
+
+### Crudo de respaldo
+
+`../brain-private/mantenimiento-lineas-at/research-archive/2026-07-31-brecha-original-vs-web-8-segmentos.json`
