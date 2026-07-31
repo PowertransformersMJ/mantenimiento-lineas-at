@@ -9,7 +9,6 @@
 // Aquí NO hay ni una fórmula. Todo el cálculo se le pide a @lineas/nucleo.
 // ============================================================================
 import { Component, Suspense, lazy, useMemo, useState, type KeyboardEvent, type ReactNode } from 'react';
-import nucleoPkg from '@lineas/nucleo/package.json';
 import type { Apoyo, Conductor, Hipotesis, Linea as TLinea } from '@lineas/contratos';
 import { vincenty, vanoIdealRegulacion } from '@lineas/nucleo/geodesia';
 import { ampacidad, temperaturaLimite } from '@lineas/nucleo/termica';
@@ -25,6 +24,7 @@ import { Distancias } from './Distancias';
 import { Fichas } from './Fichas';
 import { Exportar } from './Exportar';
 import { Fundamentos } from './Fundamentos';
+import { Sello } from './Sello';
 
 const nf = (v: number, d = 0) =>
   v.toLocaleString('es-CO', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -223,10 +223,7 @@ function Mecanico({ apoyos, conductor, hipotesis }:
             <caption>
               Estados mecánicos por tramo · conductor {conductor.material} {conductor.codigo} ·
               RTS {nf(conductor.rts_kgf)} kgf · EDS {hipotesis.eds_pct} % a {hipotesis.tempEds_C} °C
-              <span className="sello-calculo">
-                Motor @lineas/nucleo v{nucleoPkg.version} · hipótesis «{hipotesis.nombre}» ({hipotesis.procedencia})
-                · conductor: {conductor.procedencia === 'catalogo_fabricante' ? 'catálogo — pendiente ficha del proveedor' : conductor.procedencia}
-              </span>
+              <Sello hipotesis={hipotesis} conductor={conductor} />
             </caption>
             <thead>
               <tr>

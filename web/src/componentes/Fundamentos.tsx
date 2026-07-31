@@ -22,6 +22,7 @@ import { TARJETAS, MARCO_NORMATIVO, INTRO_FUNDAMENTOS } from '../contenido/funda
 import { conductorParaNucleo, paramsParaNucleo, calcularTramos } from '../vistas/tramos';
 import { vanos, soloEstructuras, nombreVisible } from '../vistas/planta';
 import { nf } from '../vistas/formato';
+import { Sello } from './Sello';
 
 const html = (s: string) => <span dangerouslySetInnerHTML={{ __html: s }} />;
 
@@ -170,6 +171,7 @@ export function Fundamentos({ apoyos, conductor, hipotesis }:
             </div>
           </div>
           <p className="fund-vivo"><b>En esta línea, hoy:</b> {valorVivo(t.id, ctx) ?? 'sin datos suficientes.'}</p>
+          <Sello hipotesis={hipotesis} conductor={conductor} />
         </section>
       ))}
 

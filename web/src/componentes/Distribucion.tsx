@@ -10,6 +10,7 @@ import { useMemo } from 'react';
 import type { Apoyo } from '@lineas/contratos';
 import { estadisticasVanos } from '@lineas/nucleo/estadisticas';
 import { vanos, soloEstructuras, nombreVisible } from '../vistas/planta';
+import { Sello } from './Sello';
 
 const nf = (v: number, d = 2) =>
   v.toLocaleString('es-CO', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -34,6 +35,7 @@ export function Distribucion({ apoyos }: { apoyos: Apoyo[] }) {
   return (
     <section className="panel">
       <h2>Distribución de vanos</h2>
+      <Sello origen="estadística de muestra (n−1) sobre los vanos reales entre estructuras" />
 
       <div className="dist-kpis">
         <div className="kpi"><div className="kpi-v rojo">{nf(e.maximo)}</div><div className="kpi-l">vano máximo (m)</div></div>

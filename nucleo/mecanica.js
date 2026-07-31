@@ -142,11 +142,26 @@ export function cambioEstado({ H1, w1, t1, w2, t2, a, S, E, alfa }) {
 
 // ── Tramos de tensión ───────────────────────────────────────────────────────
 
-/** Funciones estructurales que ANCLAN el conductor y por tanto cortan el tramo. */
-const FUNCIONES_ANCLA = /retenci|terminal|ángulo|angulo|derivaci/i;
+/**
+ * Funciones estructurales que ANCLAN el conductor y por tanto cortan el tramo.
+ *
+ * Es una LISTA CERRADA, no una expresión regular. La regex que vivía aquí
+ * («retenci|terminal|ángulo|…») aceptaba cualquier texto que contuviera esas
+ * sílabas —incluida una función futura como «Suspensión angular reforzada»—
+ * y decidía en silencio dónde se corta un tramo de tensión, que es lo que
+ * gobierna TODO el cálculo mecánico.
+ *
+ * ⚠️ Esta lista debe ser IDÉNTICA a `FUNCIONES_ANCLA` de `contratos/`. El
+ * núcleo no importa nada (ni siquiera el contrato) para seguir siendo puro y
+ * portable, así que la coincidencia NO se confía a la memoria: la vigila una
+ * prueba de oro que compara ambas listas y se pone roja si divergen.
+ */
+export const FUNCIONES_ANCLA = Object.freeze([
+  'Ángulo', 'Retención / anclaje', 'Terminal', 'Derivación',
+]);
 
 /** ¿Este apoyo corta el tramo de tensión? */
-export const esAncla = (apoyo) => FUNCIONES_ANCLA.test(apoyo?.funcionEstructural ?? '');
+export const esAncla = (apoyo) => FUNCIONES_ANCLA.includes(apoyo?.funcionEstructural ?? '');
 
 /**
  * Parte la línea en tramos de tensión. Un tramo va de un anclaje al siguiente;

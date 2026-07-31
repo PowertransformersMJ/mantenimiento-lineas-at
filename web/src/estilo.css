@@ -327,3 +327,5 @@ a.chip { text-decoration: none; }
   .kpi-v, .fund-tarjeta h2, .linea-titulo { color: #000 !important; }
   .ok { color: #1a5c1a; } .alerta, .advertencia { color: #7a1f1f; }
 }
+.sello-calculo + .matriz-caja, .sello-calculo + .dist-kpis { margin-top: 10px; }
+p.fund-vivo + .sello-calculo { margin-top: 6px; }

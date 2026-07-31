@@ -12,6 +12,7 @@ import type { Apoyo } from '@lineas/contratos';
 import { vincenty, rumbo } from '@lineas/nucleo/geodesia';
 import { soloEstructuras, nombreVisible, vanos } from '../vistas/planta';
 import { nf } from '../vistas/formato';
+import { Sello } from './Sello';
 
 export function Distancias({ apoyos }: { apoyos: Apoyo[] }) {
   const datos = useMemo(() => {
@@ -90,7 +91,8 @@ export function Distancias({ apoyos }: { apoyos: Apoyo[] }) {
 
       <section className="panel">
         <h2>Matriz de distancias directas (m)</h2>
-        <div className="matriz-caja">
+        <Sello origen="geodesia Vincenty sobre WGS84 · levantamiento GPS de mano" />
+        <div className="matriz-caja" tabIndex={0} role="region" aria-label="Matriz de distancias, desplazable">
           <table className="matriz">
             <thead>
               <tr>

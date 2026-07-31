@@ -23,7 +23,7 @@ import { vincenty, rumbo, deflexion, recorrer, vanoViento, vanoIdealRegulacion }
 import {
   flechaCatenaria, longitudCatenaria, flechaParabola, longitudParabola,
   presionDinamica, cargaViento, cargaResultante, cambioEstado,
-  tramosDeTension, esAncla, tiroMaximoAdmisible,
+  tramosDeTension, esAncla, FUNCIONES_ANCLA, tiroMaximoAdmisible,
   vanoPeso, relacionPesoViento,
 } from '../nucleo/mecanica.js';
 import { resistenciaDC, ampacidad, temperaturaLimite, MATERIALES } from '../nucleo/termica.js';
@@ -287,19 +287,43 @@ describe('mecánica — tramos de tensión', () => {
     { n: 1, funcionEstructural: 'Terminal' },
     { n: 2, funcionEstructural: 'Suspensión' },
     { n: 3, funcionEstructural: 'Suspensión' },
-    { n: 4, funcionEstructural: 'Retención' },
+    { n: 4, funcionEstructural: 'Retención / anclaje' },
     { n: 5, funcionEstructural: 'Suspensión' },
     { n: 6, funcionEstructural: 'Terminal' },
   ];
   const vanos = [100, 150, 200, 120, 180];
 
-  test('reconoce los anclajes por su función estructural', () => {
-    assert.ok(esAncla({ funcionEstructural: 'Retención' }));
+  test('reconoce los anclajes por su función estructural — con los valores CANÓNICOS', () => {
+    // Los cuatro valores del contrato que cortan tramo, tal cual se escriben.
+    assert.ok(esAncla({ funcionEstructural: 'Retención / anclaje' }));
     assert.ok(esAncla({ funcionEstructural: 'Ángulo' }));
     assert.ok(esAncla({ funcionEstructural: 'Terminal' }));
     assert.ok(esAncla({ funcionEstructural: 'Derivación' }));
+    // Los que NO cortan.
     assert.ok(!esAncla({ funcionEstructural: 'Suspensión' }));
+    assert.ok(!esAncla({ funcionEstructural: 'Suspensión angular' }),
+      'una suspensión angular sigue siendo suspensión: no corta el tramo');
     assert.ok(!esAncla({}), 'sin función declarada no es ancla');
+    // Antes esto era una expresión regular y aceptaba CUALQUIER texto que
+    // contuviera la sílaba. Ahora es una lista cerrada: un valor que no está
+    // en el contrato no puede decidir en silencio dónde se corta un tramo.
+    assert.ok(!esAncla({ funcionEstructural: 'Retención' }),
+      'un valor fuera del contrato NO se acepta a la ligera');
+    assert.ok(!esAncla({ funcionEstructural: 'poste terminal viejo' }),
+      'un texto libre que contiene la sílaba tampoco');
+  });
+
+  test('la lista de anclajes del núcleo es IDÉNTICA a la del contrato', () => {
+    // El núcleo no importa el contrato (debe seguir puro y sin dependencias),
+    // así que la coincidencia no se confía a la memoria: se comprueba leyendo
+    // el contrato como texto. Si alguien añade una función que ancla en un
+    // sitio y no en el otro, esta prueba se pone roja.
+    const fuente = readFileSync(join(AQUI, '..', 'contratos', 'src', 'activos.ts'), 'utf-8');
+    const bloque = /FUNCIONES_ANCLA[^=]*=\s*Object\.freeze\(\[([\s\S]*?)\]\)/.exec(fuente);
+    assert.ok(bloque, 'no se encontró FUNCIONES_ANCLA en contratos/src/activos.ts');
+    const delContrato = [...bloque[1].matchAll(/'([^']+)'/g)].map((m) => m[1]);
+    assert.deepEqual([...FUNCIONES_ANCLA].sort(), delContrato.sort(),
+      'la lista del núcleo y la del contrato divergieron');
   });
 
   test('parte la línea en los anclajes', () => {
