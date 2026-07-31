@@ -4,15 +4,14 @@
 > **Relevo de sesión 2026-07-31**: la conversación fundadora llegó al tope de contexto y el
 > Ingeniero pidió continuar en una nueva. Este nodo ES el relevo — léelo entero antes de tocar nada.
 
-## 🎯 Foco actual — CONTINUAR LAS PESTAÑAS + AUDITORÍA PREMIUM
+## 🎯 Foco actual — OLA 2 DE LA AUDITORÍA PREMIUM (ADR-007)
 
-**5 de 8 pestañas vivas y verificadas** contra el módulo original: Resumen, Distancias,
-Fichas, Mecánico y **Exportar** (✅ 2026-07-30, ADR-006: GPX 1.1/KML/CSV desde los datos,
-14 pruebas golden contra el fixture; divergencia deliberada de empalmes documentada).
-**Orden del Ingeniero 2026-07-30:** auditoría comparativa de FONDO del original completo
-contra la web + llevar el proyecto a nivel premium para presentarlo a la compañía — comité
-de 7 agentes Opus corrió (crudo en la bóveda); sus hallazgos alimentan lo que sigue.
-Después: Cantidades (BOM), Fundamentos, Falla.
+**6 de 8 pestañas vivas**: Resumen (premium: popup completo, tramos coloreados, calidad
+calculada), Distancias, Fichas (inventario con huecos declarados), Mecánico (con sello de
+trazabilidad), **Fundamentos** (✅ 07-30: 9 tarjetas + MathML + valores vivos + marco
+normativo) y **Exportar** (✅ ADR-006: 4 archivos con procedencia adentro, CSV dual).
+La auditoría de 7 auditores Opus (ADR-007, crudo en bóveda) dejó la Ola 2 en TODO-26…31;
+faltan Cantidades y Falla. Producción al día; 78 pruebas.
 
 ## 🧭 Cómo retomar (para la sesión nueva)
 
@@ -49,9 +48,13 @@ Después: Cantidades (BOM), Fundamentos, Falla.
 
 | # | Qué | Estado |
 |---|---|---|
-| **TODO-20** | Pestañas Cantidades (BOM) → Fundamentos → Falla | 🔜 SIGUIENTE (con el inventario del comité auditor) |
-| **TODO-24** | Aplicar hallazgos P0/P1 de la auditoría original-vs-web (crudo en bóveda) | 🔲 |
-| **TODO-25** | Que el Ingeniero pruebe el clic de descarga de Exportar con su sesión real (el clasificador bloquea el usuario de prueba, `30 · L-17`) | 🔲 Ingeniero |
+| **TODO-25** | Que el Ingeniero pruebe con su sesión real: descarga de los 4 exportes, Fundamentos, popup del mapa, Salir (el clasificador bloquea el usuario de prueba, `30 · L-17`) | 🔲 Ingeniero |
+| **TODO-26** | **Mecánico premium** (auditoría, ADR-007): `nucleo/umbrales.js` como datos con fuente + `hallazgos.js` (alertas puras) + tabla vano a vano + control catenaria/parábola + cargas/utilización + tablero de ampacidad con derrateo + usar `tempMaxOperacion_C` declarada | 🔜 SIGUIENTE |
+| **TODO-27** | Pestaña **Cantidades (BOM)**: extender `Apoyo` ADITIVO (herrajes/equipos), validaciones como funciones puras, resumen técnico; inventario completo en el crudo de ADR-007 | 🔲 |
+| **TODO-28** | Pestaña **Falla**: contratos nuevos (evento, hipótesis causales con verosimilitud, checklist de verificaciones) — decisión de modelo con el Ingeniero | 🔲 |
+| **TODO-29** | `exportar/informe.js` (registro imprimible por punto) + `exportar/mecanica.js` (CSV de verificación mecánica) | 🔲 |
+| **TODO-30** | CI: validación XSD real de GPX/KML (xmllint + esquemas en el repo) + snapshots de archivo completo | 🔲 |
+| **TODO-31** | Diagramas SVG de las 9 tarjetas de Fundamentos (helpers puros; inventario en `fundamentos-notas` del crudo) | 🔲 |
 | **TODO-11** | **F1 · Nota técnica LN-627** — con las correcciones de la auditoría (`99`): viento 130 km/h región 5, límite RETIE 25 % sin carga, fluencia, gálibos por categoría | 🔲 |
 | **TODO-10** | Confirmar contra qué hipótesis compara el despeje el módulo original | 🔲 |
 | **TODO-12** | Margen real de almacenamiento con la mezcla del parque | 🔲 tras TODO-02 |

@@ -61,12 +61,15 @@ mantenimiento-lineas-at/
 │   └── *.mjs                    brain-check, brain-diff, brain-index, session-handoff,
 │                                boot-gate, brain-archive
 │
-├── web/src/componentes/         React SOLO pinta (ADR-005): Linea (pestañas), Mapa (MapLibre+PMTiles),
-│                                Distribucion, Distancias (matriz), Fichas, Exportar, Estado (los 5 estados)
-├── web/src/exportar/            GPX/KML/CSV — JS PURO sin React (ADR-006): levantamiento.js es la
-│                                única derivación; gpx/kml/csv generan texto; descargar.js toca el DOM
-├── web/src/vistas/              geometría/estadística ya resuelta para pintar + formato (GMS en gms.js,
-│                                JS puro compartido con los exportadores y las pruebas de Node)
+├── exportar/                    ⭐ WORKSPACE @lineas/exportar, HERMANO de nucleo (ADR-005/006/007):
+│                                levantamiento.js (LA derivación única) · gpx/kml/csv · calidad.js
+│                                (observaciones calculadas) · procedencia.js · gms.js · version.js
+├── web/src/componentes/         React SOLO pinta (ADR-005): Linea (pestañas ARIA), Mapa (popup completo
+│                                + tramos coloreados), Distribucion, Distancias, Fichas (huecos F4
+│                                declarados), Fundamentos, Exportar, Estado
+├── web/src/contenido/           doctrina SIN datos de cliente (fundamentos.ts: 9 tarjetas + normas)
+├── web/src/exportar/            SOLO descargar.js (Blob/DOM) — el resto vive en el workspace
+├── web/src/vistas/              geometría/estadística para pintar + formato + tramoColores
 ├── web/src/datos/               repositorio, enlace (useSyncExternalStore), firebase, cargar (reintentos)
 ├── web/public/mapas/            recorte PMTiles metropolitano (4,3 MB, autohospedado)
 ├── web/public/basemaps-assets/  fuentes y sprites del mapa (autohospedados)

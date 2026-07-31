@@ -762,3 +762,62 @@ Contratos de formato conservados del original: GPX topografix 1.1 con `wpt` (lat
 
 Los propios tests (`tests/exportar.test.js`) son la evidencia reproducible; los exportadores del
 original están citados línea a línea en el commit `3c480d1`.
+
+---
+
+## ADR-007 · 2026-07-30 · Auditoría comparativa original-vs-web (7 dimensiones) y Ola 1 de nivel premium
+
+**Estado:** ✅ Ola 1 ejecutada y en producción. Ola 2 → `10 · TODO-26…31`.
+
+### Contexto
+
+Orden del Ingeniero: análisis de fondo del módulo HTML original contra la web, parámetro por
+parámetro, y llevar el proyecto a nivel premium para presentarlo a la compañía. Se corrió un comité
+de **7 auditores Opus** (Resumen/mapa · Distancias · Fichas · Mecánico/parámetros · pestañas
+faltantes · Exportar · transversal), ~1,1M tokens, 0 errores.
+
+### Veredicto global del comité
+
+**La aritmética está migrada sin una sola desviación** (KPIs, distribución, conductor e hipótesis
+dígito a dígito; verificado ejecutando `nucleo/` contra el fixture). Lo perdido era CONTEXTO
+OPERATIVO (popup pobre, observaciones de calidad, tramos invisibles en el mapa, Fundamentos/
+Cantidades/Falla apagadas) y lo ganado es real: cartografía autohospedada, modelo de empalmes
+corregido, honestidad técnica superior al original.
+
+### Decisión (Ola 1 — ejecutada)
+
+1. **`@lineas/exportar` como workspace hermano de `nucleo/`** (manda ADR-005): la versión del
+   paquete viaja dentro de cada archivo. CSV en DOS dialectos (Excel es-CO con coma decimal — el
+   original entregaba punto y Excel lo leía como texto — y RFC 4180). Procedencia dentro de los 3
+   formatos. GPX con bounds/jornadas/tipo por punto; KML con Schema+ExtendedData (QGIS recibe
+   atributos).
+2. **Resumen premium:** popup con la ficha completa del original desde la MISMA derivación que los
+   exportes; trazado coloreado por tramo de tensión con leyenda; panel **Calidad del levantamiento
+   CALCULADO** (el original lo tenía redactado a mano). El quiebre de E06 es 118,2° sobre
+   estructuras (los 119,3° del original metían empalmes en el ángulo).
+3. **Fundamentos completa:** 9 tarjetas como DATO público + MathML nativo + valores vivos del
+   núcleo con procedencia + marco normativo. El tope «50 % RTS» se presenta como criterio clásico
+   PENDIENTE de cierre (RETIE fija 25 % sin carga, TODO-11); la contradicción de resoluciones
+   RETIE del original queda visible como pendiente.
+4. **Transversal:** sesión visible + Salir · ARIA de pestañas · impresión · contraste · favicon/
+   manifiesto · sello motor+hipótesis en las tablas · Fichas con inventario del contrato y huecos
+   DECLARADOS («pendiente — F4») · Firestore fuera del arranque (−660 kB para quien no entra) ·
+   `FUNCIONES_ANCLA` como único dueño del corte (fuera las regex del mapa y de Fichas).
+
+### Alternativas descartadas
+
+- Replicar el original tal cual (reintroduce el error de empalmes y el CSV ilegible en Excel).
+- Resolver en silencio las contradicciones del original (50 %/25 %, resoluciones RETIE, 90/75 °C
+  en ampacidad): se DECLARAN, no se maquillan.
+- Ejecutar todo el backlog de una vez: la Ola 2 exige decisiones de contrato (BOM, EventoFalla) y
+  datos que aún no existen (cota de sujeción para gálibo) — va con su propio análisis.
+
+### Consecuencias
+
+78 pruebas (14+3 nuevas golden de exportes y calidad) · producción desplegada · verificación visual
+con arnés de datos sintéticos (la verificación con sesión real queda en el Ingeniero, `30 · L-17`).
+
+### Crudo de respaldo
+
+`../brain-private/mantenimiento-lineas-at/research-archive/2026-07-30-auditoria-original-vs-web-7-dimensiones.json`
+(250 KB: las 7 dimensiones con evidencia archivo:línea de ambos lados).
