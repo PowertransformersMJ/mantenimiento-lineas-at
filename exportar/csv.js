@@ -12,6 +12,14 @@
 //   · 'datos'  → RFC 4180 puro para QGIS/pandas/R: coma de columna, PUNTO
 //                decimal, UTF-8 sin BOM, sin `sep=;`, sin renglones extra.
 //
+// ⚠️ CONSECUENCIA DECLARADA del dialecto 'datos': NO lleva la cabecera de
+// procedencia. No es un olvido — una cabecera de comentarios rompe el formato
+// que esperan pandas y QGIS. A cambio, ese archivo declara su procedencia
+// COLUMNA POR COLUMNA (`Precision_m`, `Metodo`, `Sistema_referencia`) y la
+// fecha de generación viaja en el nombre del archivo. Si algún día se necesita
+// reproducibilidad completa en el crudo, la salida correcta es un archivo
+// hermano de metadatos, nunca ensuciar el CSV.
+//
 // Divergencia deliberada frente al original (ADR-006): `Dist_punto_anterior_m`
 // conserva la medición GPS entre puntos consecutivos y `Vano_anterior_m` es el
 // vano REAL entre estructuras — un empalme no es apoyo y no corta vanos.

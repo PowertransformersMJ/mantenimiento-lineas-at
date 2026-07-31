@@ -62,8 +62,15 @@ export function Exportar({ linea, apoyos, hipotesis }:
         Cada archivo se genera desde los <b>datos</b> de la línea — nunca desde la pantalla — con la
         misma geometría que ven las demás pestañas: {nf(lev.nEstructuras)} estructuras,{' '}
         {nf(lev.nEmpalmes)} empalmes (que no son apoyos), {nf(sinDatos ? 0 : lev.nEstructuras - 1)} vanos
-        reales y {nf(lev.tramos.length)} tramos de tensión. Todos llevan su procedencia adentro:
-        versión del exportador, hipótesis, sistema de referencia y precisión del GPS.
+        reales y {nf(lev.tramos.length)} tramos de tensión.
+      </p>
+      <p className="fine">
+        <b>Procedencia:</b> el GPX, el KML y el CSV de Excel llevan una cabecera con la versión del
+        exportador, la hipótesis, el sistema de referencia y la precisión del GPS. El CSV de datos
+        crudos <b>no la lleva</b>, a propósito: una cabecera rompe el formato RFC 4180 que esperan
+        QGIS, pandas y R. Ese archivo declara su procedencia <b>columna por columna</b>
+        (<code>Precision_m</code>, <code>Metodo</code>, <code>Sistema_referencia</code>), y el nombre
+        del archivo lleva la fecha y hora de generación.
       </p>
       <p className="fine">
         Completitud del dato: {nf(completitud.conCota)} de {nf(completitud.n)} puntos con cota GPS ·{' '}

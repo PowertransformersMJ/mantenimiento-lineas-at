@@ -145,6 +145,25 @@ describe('exportadores — contra la tabla del módulo original', () => {
     assert.ok(filas[1].includes('10.351170'), 'punto decimal para máquinas');
   });
 
+  test('el dialecto de datos NO lleva cabecera de procedencia, y eso es deliberado', { skip: SIN_BOVEDA }, () => {
+    // Una cabecera de comentarios rompe el formato que esperan pandas y QGIS.
+    // La prueba fija la decisión para que nadie la "arregle" sin pensarlo, y
+    // para que la pantalla no vuelva a prometer lo contrario (lo prometió una
+    // vez y era falso — lo cazó la verificación adversarial, `30 · L-20`).
+    const crudo = generarCsv(lev, { dialecto: 'datos', linea: LINEA, ...META });
+    assert.ok(!crudo.includes('# Línea'), 'ni con linea y meta el crudo lleva cabecera');
+    assert.ok(!crudo.includes('@lineas/exportar'), 'ni la versión del exportador');
+    // Pero la procedencia SÍ viaja: columna por columna.
+    for (const col of ['Precision_m', 'Metodo', 'Sistema_referencia']) {
+      assert.ok(COLUMNAS_CSV.includes(col), `el crudo declara ${col} por fila`);
+    }
+    const filas = filasDatos(lev);
+    assert.equal(filas[1][COLUMNAS_CSV.indexOf('Sistema_referencia')], '"WGS84"');
+    assert.equal(filas[1][COLUMNAS_CSV.indexOf('Metodo')], '"gps_mano"');
+    // Y el de Excel sí la lleva: los dos comportamientos quedan fijados juntos.
+    assert.ok(generarCsv(lev, { dialecto: 'excel', linea: LINEA, ...META }).includes('@lineas/exportar'));
+  });
+
   test('CSV: la distancia GPS entre puntos consecutivos es LA DEL ORIGINAL', { skip: SIN_BOVEDA }, () => {
     const filas = filasDatos(lev);
     const col = COLUMNAS_CSV.indexOf('Dist_punto_anterior_m');

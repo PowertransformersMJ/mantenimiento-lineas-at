@@ -227,3 +227,47 @@
   verificación con sesión se cubre así: pruebas golden en Node (sin navegador) + smoke de los
   módulos en el navegador con datos SINTÉTICOS + revisión visual del estado sin sesión. No insistir
   con variantes del mismo comando: el bloqueo es intencional.
+
+### L-18 · "Deployment complete" NO significa que el dominio raíz ya sirva lo nuevo
+- **Síntoma:** `npm run deploy` imprime *"✨ Deployment complete"* con una URL por hash, el
+  despliegue aparece como **Production/main** en `wrangler pages deployment list`, esa URL por hash
+  ya sirve el paquete nuevo… y `https://mantenimiento-lineas-at.pages.dev` sigue entregando el
+  bundle ANTERIOR durante un rato. El Ingeniero recarga, no ve nada nuevo, y concluye —con razón—
+  que no se hizo el trabajo.
+- **Causa:** el alias del dominio raíz propaga por el borde de Cloudflare con retraso propio, aunque
+  el HTML se sirva con `cache-control: no-cache, must-revalidate`.
+- **Regla:** *no declarar un despliegue como vivo por lo que imprime el comando.* Verificar así, y
+  citar la evidencia: `ls web/dist/assets/ | grep index-` (hash local) contra
+  `curl -s https://…pages.dev/ | grep -o 'assets/index-[^"]*\.js'` (hash servido). Si difieren,
+  esperar con `until curl … | grep -q '<hash>'; do sleep 5; done` ANTES de decirle nada al
+  Ingeniero. Es la aplicación literal de §3.2 (*verifica, no asumas*) al despliegue.
+
+### L-19 · Una regex que decide una regla de dominio es una bomba de tiempo (y se disfrazó de lista)
+- **Síntoma:** `nucleo/mecanica.js` decidía qué apoyo corta un tramo de tensión con
+  `/retenci|terminal|ángulo|angulo|derivaci/i` — y la constante se llamaba `FUNCIONES_ANCLA`,
+  **el mismo nombre** que la lista cerrada del contrato. Dos cosas distintas con el mismo nombre.
+- **Por qué importa:** el corte de tramo gobierna TODO el cálculo mecánico. La regex aceptaba
+  cualquier texto que contuviera la sílaba (`'poste terminal viejo'`), y tres pruebas de oro usaban
+  `'Retención'` a secas — que **no es un valor del contrato** (`'Retención / anclaje'`). Pasaban por
+  casualidad, no por corrección.
+- **Regla:** las reglas de dominio se expresan como **listas cerradas**, nunca como coincidencia de
+  texto. Y cuando la misma lista debe existir en dos sitios porque `nucleo/` no puede importar nada,
+  la coincidencia **la vigila una prueba** que lee el otro archivo y compara — no la memoria.
+- **Cómo se cazó:** el Ingeniero desconfió del reporte y pidió verificación adversarial. Un
+  escéptico encontró la regex viva en el paquete PUBLICADO. *Reportar "hecho" sin verificar contra
+  producción es cómo se cuela esto.*
+
+### L-20 · La pantalla no puede prometer lo que el archivo no cumple
+- **Síntoma:** la pestaña Exportar afirmaba *"Todos llevan su procedencia adentro: versión del
+  exportador, hipótesis, sistema de referencia y precisión del GPS"*. Era falso para uno de los
+  cuatro: el CSV **de datos crudos** no la lleva, porque una cabecera de comentarios rompe el
+  RFC 4180 que esperan pandas y QGIS — omisión correcta, pero la frase decía lo contrario.
+- **Por qué importa más que un texto:** es exactamente el tipo de afirmación que un cliente
+  comprueba abriendo el archivo. Una promesa incumplida en la interfaz destruye la confianza en
+  TODAS las demás cifras, incluidas las que sí son correctas.
+- **Regla:** cuando una decisión de diseño crea una excepción, **la excepción se dice en la misma
+  frase**, con su motivo, y se **fija con una prueba** que falle si alguien la "arregla" sin
+  pensarlo. Aquí: el crudo declara su procedencia columna por columna (`Precision_m`, `Metodo`,
+  `Sistema_referencia`) y su fecha en el nombre del archivo; eso es lo que dice ahora la pantalla.
+- **Cómo se cazó:** un escéptico GENERÓ los cuatro archivos de verdad con node y los leyó, en vez
+  de leer el código. *Verificar un entregable es producirlo y abrirlo, no releer la función.*
