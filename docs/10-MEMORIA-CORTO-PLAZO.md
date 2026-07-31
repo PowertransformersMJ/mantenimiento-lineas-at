@@ -1,95 +1,88 @@
 # 📝 10 — MEMORIA DE CORTO PLAZO (pizarra del trabajo vivo)
 
-> Se **AUTO-CARGA**. Es pizarra, no bitácora: cuando algo cierra del todo, se convierte en ADR en
-> `99` y se retira de aquí (§G.3). Tope ~110 líneas / 16k chars.
+> Se **AUTO-CARGA**. Es pizarra, no bitácora (§G.3). Tope ~110 líneas / 16k chars.
+> **Relevo de sesión 2026-07-31**: la conversación fundadora llegó al tope de contexto y el
+> Ingeniero pidió continuar en una nueva. Este nodo ES el relevo — léelo entero antes de tocar nada.
 
-## 🎯 Foco actual
+## 🎯 Foco actual — CONTINUAR LAS PESTAÑAS
 
-**F0 · Verificación.** El proyecto nació el 2026-07-28/29. Antes de escribir una línea de aplicación
-hay que cerrar tres cosas: el Consejo Externo, la validación del motor de cálculo, y las respuestas
-de AFINIA que definen el alcance real.
+**4 de 8 pestañas vivas y verificadas** contra el módulo original: Resumen (mapa real +
+distribución), Distancias (calculadora + matriz 24×24), Fichas (por punto, GMS idéntico al
+original), Mecánico (tramos). **La siguiente es EXPORTAR** (decidido con el Ingeniero):
+GPX 1.1, KML y CSV generados **desde los datos, jamás desde la pantalla** (ADR-005) y
+verificados contra los exportadores del HTML original. Después: Cantidades (BOM),
+Fundamentos, Falla.
 
----
+## 🧭 Cómo retomar (para la sesión nueva)
 
-## 🔲 Pendientes del INGENIERO (los que bloquean)
+1. **Abrir Claude Code DENTRO de `~/Desktop/GitHub-MJ/mantenimiento-lineas-at/`** — así corren
+   los hooks del cerebro. Boot: `CLAUDE.md` + `05` + `10` + `brain:check`.
+2. Producción: **https://mantenimiento-lineas-at.pages.dev** · repo
+   `PowertransformersMJ/mantenimiento-lineas-at` (público → cero bytes de cliente, L-07).
+3. Sesiones YA autenticadas en esta Mac: `gh` (GitHub) · `wrangler` (Cloudflare, cuenta
+   ajimenezp99) · `firebase` (proyecto `mantenimiento-lineas-at`, Firestore en
+   southamerica-east1). Desplegar: `npm run build && npm run deploy --workspace web`.
+4. La llave de administrador de Firebase está en la carpeta de Descargas del Ingeniero (nombre
+   exacto → nota operativa en la bóveda `../brain-private/mantenimiento-lineas-at/`). Sirve
+   para sembrar datos y usuarios de prueba (patrón: `pruebaN@mantenimiento-lineas-at.test`
+   con claims `{orgId:'transpower', rol:'admin'}` vía token custom, **verificar en el panel de
+   vista previa —visible— y BORRARLO al terminar**; queda solo ajimenezp99@gmail.com admin).
+5. Verificación visual: el panel de vista previa SÍ pinta; la pestaña de Chrome controlada por
+   herramientas puede estar oculta y **congela el mapa** (L-16) — no diagnosticar ahí.
+6. Antes de CADA push: auditoría de coordenadas/secretos + `npm test` (59) +
+   `contrato:verificar` + `brain:check`. Documentar TODO fallo en `30` ANTES de commitear —
+   orden expresa del Ingeniero: *"nunca olvides documentar todo, sobre todo los errores o
+   fallos, para que no se repitan nunca más"*. Y: *"vamos a darle un máximo nivel"*.
+
+## 🔲 Pendientes del INGENIERO
 
 | # | Qué | Por qué bloquea |
 |---|---|---|
-| **TODO-02** | **Enviar a AFINIA las 7 preguntas restantes** (`99 §ADR-001 · Anexo`; la nº 2 la cerró el Ingeniero en ADR-003) con fecha límite escrita. | La nº 3 (*¿se puede instalar app en sus teléfonos?*) decide si F4 existe. La nº 4 (*¿el contrato permite nube fuera de Colombia?*) decide F5 y F6. La nº 1 (*¿en qué formato reciben y firman el informe?*) define el entregable, que es el único criterio de aceptación que le importa a quien paga. |
-| **TODO-03** | **Cronometrar el proceso actual de LN-627** paso a paso (conversación de 20 min). | Sin eso se optimiza un proceso que nadie midió y el ahorro prometido sería inventado. |
-| **TODO-04** | **Abrir el HTML en el teléfono de la cuadrilla, en modo avión**, y decir si el mapa se ve o es un lienzo gris. | Confirma en vivo el hallazgo de `30 · L-10`. Un sí/no. |
-| **TODO-05** | **Decidir por escrito qué NO se mide de la persona** (tiempos por técnico, rankings, GPS continuo) y decírselo a la cuadrilla. | Sin esto el piloto mide adopción falsa: cooperan el primer día y sabotean el tercero. |
-| **TODO-06** | ¿Existen el **GPX crudo del Garmin** y las **fotos originales** en la Mac? | Si existen, el generador lee la fuente. Si no, hay que extraerlas del HTML (ya hay extractor probado). |
-| ~~TODO-18~~ | ✅ **CONFIRMADO por el Ingeniero (2026-07-29):** los 5 apoyos —E022, E04, E06, E20 y E21— son de retención o ángulo. La estructura de LN-627 queda cerrada: 6 tramos de tensión. Guardado en el fixture de la bóveda. | — |
-
----
+| **TODO-02** | Enviar a AFINIA las **7 preguntas** (`99 §ADR-001`; la nº 2 la cerró ADR-003) | La 3 decide si F4 existe; la 4 decide F5/F6; la 1 define el entregable |
+| **TODO-03** | Cronometrar el proceso actual de LN-627 (20 min) | Sin eso el ahorro prometido es inventado |
+| **TODO-04** | Abrir el HTML en el teléfono de cuadrilla en modo avión: ¿mapa gris? | Confirma L-10 en vivo |
+| **TODO-05** | Decidir por escrito qué NO se mide de la persona | Sin eso el piloto mide adopción falsa |
+| **TODO-06** | ¿Existen el GPX crudo del Garmin y las fotos originales en la Mac? | Definen la fuente del generador |
 
 ## 🔲 Pendientes de CLAUDE
 
 | # | Qué | Estado |
 |---|---|---|
-| **TODO-15b** | **Al entrar en F5:** rehacer la comparación de backend (*seguridad declarativa de Firestore* vs *D1 + Workers*) con datos reales de volumen y cuadrillas. Condición disparada por ADR-003. | 🔲 al entrar en F5 |
-| **TODO-16** | **Configurar alerta de presupuesto** en el proveedor que se active, ANTES de que reciba tráfico real (guardarraíl de ADR-003). | 🔲 antes de F5 |
-| **TODO-13** | **F3:** la capa de datos debe disparar la **invalidación por tramo de tensión** — editar un apoyo recalcula todo su tramo, no solo ese apoyo (ADR-002, enmienda 3). `nucleo/mecanica.js` ya calcula por tramo; falta el disparador. | 🔲 |
-| **TODO-14** | **F4:** implementar el **canal de sincronización bifurcado** (datos primero y solos; fotos en cola asíncrona) y el **`base_revision_id` con cuarentena**, nunca rechazo (ADR-002, enmiendas 1 y 2). | 🔲 |
-| **TODO-15** | **Si F5 se dispara:** reabrir la comparación *seguridad declarativa de Firestore* vs *D1 + Workers*, con el coste de Blaze sin techo en la balanza. Condición de reapertura anotada en ADR-002. | 🔲 condicional |
-| **TODO-09** | ~~Contar campos de ficha llenos~~ → **CERRADO con un resultado inesperado:** el HTML **no guarda ninguna ficha**. Nacen vacías desde `var DEF`, que solo trae **tensión 66 kV** y el **conductor AAAC Darien** (559,5 MCM · 19 hilos · Ø 21,79 mm · 283,5 mm² · 545 A). Todo lo demás —incluida `p_func`— está en blanco. | ✅ |
-| **TODO-17** | **F1 bloqueado hasta confirmar 5 apoyos.** Sin `p_func` no hay tramos de tensión y no hay cálculo mecánico. Se propusieron por deflexión (ver abajo); faltan los ojos del Ingeniero. | 🔲 espera TODO-18 |
-| **TODO-10** | Leer las 4 funciones de ingeniería restantes: ¿los **2 empalmes** parten vano? ¿contra qué hipótesis se compara el despeje al terreno? | 🔲 |
-| **TODO-11** | **F1 · Nota técnica de LN-627**: una página, 5 números, decisión binaria, para que el Ingeniero la firme. | 🔲 tras TODO-08 |
-| **TODO-12** | Recalcular el margen real de almacenamiento con la **mezcla de tamaños de línea del parque** (no solo con LN-627, que es una línea chica de 26 apoyos). | 🔲 tras TODO-02 |
+| **TODO-19** | **Pestaña EXPORTAR**: GPX 1.1/KML/CSV desde datos, verificados contra los del módulo original (formatos en el propio HTML: `dl()`, cabeceras `sep=;`) | 🔜 SIGUIENTE |
+| **TODO-20** | Pestañas Cantidades (BOM) → Fundamentos → Falla | 🔲 en ese orden |
+| **TODO-11** | **F1 · Nota técnica LN-627** — con las correcciones de la auditoría (`99`): viento 130 km/h región 5, límite RETIE 25 % sin carga, fluencia, gálibos por categoría | 🔲 |
+| **TODO-10** | Confirmar contra qué hipótesis compara el despeje el módulo original | 🔲 |
+| **TODO-12** | Margen real de almacenamiento con la mezcla del parque | 🔲 tras TODO-02 |
+| **TODO-13** | F3: invalidación por tramo al editar un apoyo (ADR-002 e.3) | 🔲 |
+| **TODO-14** | F4: sincronización bifurcada + `base_revision_id` con cuarentena (ADR-002 e.1-2) | 🔲 |
+| **TODO-15** | Al entrar en F5: reabrir Firestore vs D1 con datos reales (ADR-002/003) | 🔲 condicional |
+| **TODO-16** | Alerta de presupuesto ANTES de tráfico real (ADR-003) | 🔲 antes de F5 |
+| **TODO-21** | Semana 2 de ADR-004: flujo de IA completo con `ProveedorFalso` (0 tokens, sin papeles) | 🔲 tras pestañas |
+| **TODO-22** | Prueba de navegador con captura vs referencia (el "revisor que no tenemos", ADR-005) | 🔲 |
+| **TODO-23** | Secretos `CLOUDFLARE_API_TOKEN`/`ACCOUNT_ID` en GitHub → despliegue automático | 🔲 con el Ingeniero |
 
----
+## ✅ Estado consolidado (detalle → ADR-001…005 y los commits)
 
-## ✅ Cerrado en esta sesión (2026-07-28/29)
+- **Producción viva** con datos reales de LN-627 leídos tras login Google (popup + redirección).
+- **Modelo corregido**: 24 estructuras + 2 empalmes (NO son apoyos), 23 vanos, VIR 198,20 m,
+  tramos 1-2-2-14-1-3, nombres canónicos ↔ GPS crudo conviviendo (`40 §10`).
+- **Motor sin deuda**: cambio de estado validado por identidad física; vano peso derivado con
+  detección de arrancamiento; estadísticas que reproducen el panel original. **59 pruebas.**
+- **Mapa**: MapLibre + PMTiles 100 % autohospedado (Cartagena metro, 4,3 MB, archivo completo
+  en memoria porque Pages no honra rangos). Satelital deshabilitada: licencia por verificar.
+- **Auditoría adversarial de la nota técnica** (crudos en la bóveda): viento real 130 km/h
+  (región 5), límite RETIE = 25 % de rotura sin carga (el 50 % no existe en RETIE), sin
+  fluencia la flecha real es 10,4–11,2 m, los 7,0 m de despeje no corresponden a 66 kV, el GPS
+  de mano no es firmable, y el tramo crítico es el 5 (13,4 m), no el 6. **Nada de esto está
+  resuelto: está DOCUMENTADO y espera la ficha del proveedor + topografía real.**
+- **Cerebro**: 16 lecciones (L-01…L-16) — LEERLAS antes de tocar Firebase, mapas o despliegues.
 
-- **Pestañas Distancias y Fichas (2026-07-31):** calculadora con directa/por-línea/azimut/rumbo y
-  matriz 24×24 clicable (verificada: E01→E24 = 2.478,6 m directa vs 2.479 del módulo original) ·
-  fichas por punto con identidad (canónico + GPS crudo), tramo, procedencia, GMS **idéntico al
-  original** (`10° 21' 01.29" N`), geometría derivada y advertencia de precisión GPS. Los empalmes
-  tienen ficha propia que dice en qué vano viven. **Sin fingir un solo campo**: los ~48 de campo
-  llegan en F4.
-- **Réplica de la pantalla del módulo original (2026-07-30):** pestañas como el original (Resumen y
-  Mecánico vivas; el resto deshabilitadas sin fingir contenido) · **mapa real** MapLibre + PMTiles
-  100 % autohospedado (recorte metropolitano de Cartagena de 4,3 MB, descarga completa en memoria
-  porque Pages no honra rangos) con trazado, marcadores por función y popups · **distribución de
-  vanos** idéntica al panel original, respaldada por `nucleo/estadisticas.js` con pruebas que lo
-  reproducen dígito a dígito. **59 pruebas en verde.** Lecciones L-15 (worker de MapLibre) y L-16
-  (pestañas ocultas congelan el reloj de animación).
+## 🚫 Callejones ya probados (no repetir — detalle en `30`)
 
-
-- **Repositorio creado** y público: https://github.com/PowertransformersMJ/mantenimiento-lineas-at
-- **Cerebro y kernel cableados** — kernel íntegro contra el canónico (versión según `brain:check`),
-  gates y hooks activos.
-- **`nucleo/` portado y verificado** — geodesia, mecánica y térmica como funciones puras.
-  **53 pruebas en verde.** Detalle de qué se verificó contra qué → `40 §8`.
-- **Comité de Expertos ×3** (29 agentes, 0 fallos, 59 min) → **ADR-001**. Crudo de 477 KB archivado.
-- **Consejo Externo corrido e integrado** (Gemini 3.1 Pro vía Antigravity) → **ADR-002**. Confirmó
-  ADR-001 en 7 puntos a los que llegó por su cuenta desde el problema crudo, y lo enmendó en 3:
-  canal de sincronización bifurcado, OPFS + revisión base con cuarentena, y tres guardarraíles de
-  código. Se le **refutaron con evidencia** dos puntos: reusar Firebase (sus Functions no existen en
-  plan gratuito, y las 699 líneas de reglas del proyecto hermano son de dominio de transformadores,
-  no transferibles) y no guardar los valores calculados (haría irreproducible un informe firmado).
-- **Mediciones de F0 ya ejecutadas** (el comité las dejaba pendientes; se hicieron en la misma
-  sesión): 99 fotos de trabajo · 17,97 MB · **177 KB de media**; 99 miniaturas · 1,65 MB · **16 KB**
-  (9,2 % del original); **14 de 26 apoyos** con foto; 3,8 fotos por apoyo sobre el total.
-- **Extractor del módulo de campo probado** sobre el archivo real: 30 MB → 99 JPEG válidos +
-  DOCX de 1,49 MB + geometría en JSON.
-- **TODO-08 CERRADO — el motor de cálculo ya no tiene deuda.** (a) La ecuación de cambio de estado se
-  validó contra la identidad física `ΔL = térmico + elástico` con las longitudes por catenaria (vía
-  independiente): error de **0,002 a 0,029 mm sobre 189 m** entre 10 y 90 °C. (b) El **vano peso** se
-  derivó de la geometría en vez de pedirse a mano, y **detecta arrancamiento** — condición que el
-  módulo original no podía ver. **53 pruebas en verde.**
-- **ADR-003:** el Ingeniero fijó alcance (plataforma completa e independiente, no integración con
-  Maximo/SAP) y presupuesto (asume el coste si se pasa de los límites gratuitos).
-
----
-
-## 🚫 Callejones ya probados (no repetir)
-
-- **`node --test tests/`** falla en Node 24: interpreta la carpeta como módulo. Va con patrón
-  entrecomillado: `node --test "tests/**/*.test.js"` — y entrecomillado de verdad, porque `sh` no
-  expande `**` y dejaría la suite sin correr **sin avisar**.
-- **Leer la credencial de GitHub del llavero** para llamar a la API: lo bloquea el clasificador de
-  permisos. El camino limpio es `gh auth login` una sola vez (ya hecho).
-- **Suponer que el HTML es 100 % offline**: es falso para el mapa (`30 · L-10`).
+- `node --test tests/` sin patrón entrecomillado → suite sin correr, sin aviso.
+- Leer credenciales del llavero → bloqueado por el clasificador; `gh auth login` fue el camino.
+- Caché persistente de Firestore/Auth en IndexedDB → "Database is closing/hidden" (L-11/L-11b).
+- `initializeAuth` sin `popupRedirectResolver` → `auth/argument-error` (L-13).
+- Worker de MapLibre por defecto en producción → mudo; `?worker&url` + `setWorkerUrl` (L-15).
+- Diagnosticar el mapa en pestaña oculta → RAF congelado, todo parece roto (L-16).
+- PMTiles por rangos contra Pages → responde 200 completo; va el archivo entero a memoria.
