@@ -271,3 +271,20 @@
   `Sistema_referencia`) y su fecha en el nombre del archivo; eso es lo que dice ahora la pantalla.
 - **Cómo se cazó:** un escéptico GENERÓ los cuatro archivos de verdad con node y los leyó, en vez
   de leer el código. *Verificar un entregable es producirlo y abrirlo, no releer la función.*
+
+### L-21 · "Se ve muy oscuro / no se ve de alto nivel" casi nunca es la paleta
+- **Síntoma:** el Ingeniero pidió *"un entorno igual al archivo html, el que tenemos es muy oscuro y
+  no se ve de alto nivel"*. La reacción fácil era aclarar el tema.
+- **Qué se encontró al ABRIR el original al lado** (servido en localhost desde el área temporal,
+  nunca desde `web/public/` — eso habría publicado datos de cliente): **el original es igual de
+  oscuro y usa la misma paleta exacta** (`--bg:#0f1419`, `--acc:#f0a500`). Aclararlo habría
+  empeorado el problema sin tocar la causa.
+- **La causa real era la DENSIDAD y el uso del espacio:** el original es un tablero a pantalla
+  completa (`grid-template-columns:1fr 420px; height:calc(100vh - 74px)`), con base de 14 px,
+  títulos de sección de 11,5 px en mayúsculas con filete, y avisos con fondo tintado. El nuestro
+  era una columna centrada de 1080 px con letra de 15 px y medio monitor vacío: leía como un blog.
+- **Regla:** ante una queja de aspecto, **abrir la referencia y medirla** (paleta, anchos, tamaños
+  de fuente, alturas) antes de tocar un color. La percepción de "alto nivel" en una herramienta de
+  ingeniería viene de densidad de información, alineación y jerarquía tipográfica — no de la
+  luminosidad. Y el tablero usa toda la pantalla, pero **la prosa se acota** (110ch): un párrafo de
+  200 caracteres de ancho no se lee.

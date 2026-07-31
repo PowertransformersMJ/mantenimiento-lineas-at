@@ -4,6 +4,11 @@
 > **Relevo de sesión 2026-07-31**: la conversación fundadora llegó al tope de contexto y el
 > Ingeniero pidió continuar en una nueva. Este nodo ES el relevo — léelo entero antes de tocar nada.
 
+> **Identidad visual (2026-07-31):** la interfaz es un **TABLERO a ancho completo** con el lenguaje
+> del módulo original (misma paleta oscura, cabecera con degradado, densidad de 14 px, títulos de
+> sección de 11,5 px en mayúsculas, avisos tintados). NO aclarar el tema: el original también es
+> oscuro; lo que faltaba era densidad (`30 · L-21`).
+
 ## 🎯 Foco actual — OLA 2 DE LA AUDITORÍA PREMIUM (ADR-007)
 
 **6 de 8 pestañas vivas**: Resumen (premium: popup completo, tramos coloreados, calidad
