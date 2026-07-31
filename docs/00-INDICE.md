@@ -64,6 +64,7 @@ Guarda `research-archive/` (crudos de deliberación: comités, consejos externos
 | `ADR-005` | 2026-07-29 | Framework del frontend: React 19 como aplicación de una sola página, sin meta-framework | `research-archive/2026-07-29-comite-framework-frontend.md` |
 | `ADR-006` | 2026-07-30 | Exportadores GPX/KML/CSV: paridad de formato con el original, verdad del modelo corregido | `tests/exportar.test.js` (evidencia reproducible) |
 | `ADR-007` | 2026-07-30 | Auditoría original-vs-web (7 auditores Opus) y Ola 1 premium ejecutada | `research-archive/2026-07-30-auditoria-original-vs-web-7-dimensiones.json` |
+| `ADR-008` | 2026-07-31 | Décima colección `investigaciones`: el expediente de falla es un tipo propio | bóveda `fixtures/LN-627-falla.json` |
 
 > Toda decisión cara de revertir entra aquí con su ADR y su crudo enlazado. Si hubo comité o consejo
 > externo y el crudo no está archivado, la tarea **no está cerrada** (`CLAUDE.md §G.4`).

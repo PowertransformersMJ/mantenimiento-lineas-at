@@ -821,3 +821,51 @@ con arnés de datos sintéticos (la verificación con sesión real queda en el I
 
 `../brain-private/mantenimiento-lineas-at/research-archive/2026-07-30-auditoria-original-vs-web-7-dimensiones.json`
 (250 KB: las 7 dimensiones con evidencia archivo:línea de ambos lados).
+
+---
+
+## ADR-008 · 2026-07-31 · Décima colección `investigaciones`: el expediente de falla es un tipo de documento propio
+
+**Estado:** ✅ Implementado (contrato + reglas desplegadas + pestaña Falla viva con el evento real de la E02).
+
+### Contexto
+
+El Ingeniero señaló que **no se apreciaba el evento de la E02** en la web. Era cierto y era peor de
+lo que parecía: la aplicación no tenía nada del evento — ni marcador en el mapa, ni pestaña (estaba
+deshabilitada). El módulo original sí lo tenía: un objeto `FALLA` con cronología, observaciones,
+hipótesis jerarquizadas y verificaciones pendientes, más un marcador `⚠` sobre el mapa.
+
+`contratos/` declaraba **«nueve tipos de documento, ni uno más en v1»**. Había que decidir si el
+expediente cabía en los nueve o si el número sube a diez.
+
+### Decisión
+
+> **Sube a diez.** Un expediente de falla NO cabe en `hallazgos` sin borrar la distinción que lo
+> hace defendible: **lo que se VE** (observaciones sobre la evidencia física) frente a **lo que se
+> CONCLUYE** (hipótesis con verosimilitud declarada). Un hallazgo es un defecto observado en un
+> apoyo; una investigación es un razonamiento fechado sobre un evento, con grados de certeza.
+
+El tope de nueve era un guardarraíl contra la proliferación, no un dogma: se sube **declarándolo**
+en el propio `COLECCIONES` con su justificación, no colándolo en silencio.
+
+### Consecuencias
+
+- **El dato real vive en la bóveda** (`fixtures/LN-627-falla.json`), jamás en el repositorio
+  público. `sembrar.mjs` lo carga si está y lo dice si no; no inventa un evento.
+- **Enlace por `apoyoId` inmutable**, nunca por número de estructura: renumerar la línea no puede
+  mover el evento a otro apoyo (regla de identidad de `CLAUDE.md §3.1`).
+- **Las reglas de Firestore funcionaron como se prometió:** la lectura falló con *«Missing or
+  insufficient permissions»* hasta que se añadió la regla, porque el `match /{document=**}` final
+  niega todo lo no declarado. Quedó demostrado en producción que *«añadir una colección exige
+  añadir su regla»* no es un comentario decorativo. El cliente solo LEE lo de su organización;
+  un expediente `cerrada: true` ya no se actualiza, y no se borra nunca.
+- **La lectura es defensiva:** va en su propio `try/catch`. Un fallo leyendo expedientes no puede
+  tumbar la vista de la línea — el cálculo mecánico no depende de ellos (fue justo lo que pasó
+  entre el despliegue del código y el de las reglas, y la línea siguió viéndose).
+- Camino doble para enterarse del evento: marcador que late en el mapa **y** aviso en el Resumen.
+  El mapa no puede ser el único camino: se descarga aparte y puede fallar.
+
+### Crudo de respaldo
+
+El objeto `FALLA` del módulo de campo v11 (idéntico byte a byte al v10, verificado por SHA-256),
+extraído a la bóveda. Evidencia de funcionamiento: `docs/30 · L-22`.

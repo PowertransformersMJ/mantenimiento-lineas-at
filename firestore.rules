@@ -98,6 +98,19 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // ── INVESTIGACIONES DE FALLA ───────────────────────────────────────────
+    // El expediente de un evento: cronología, lo que se VE, lo que se CONCLUYE
+    // con su verosimilitud, y lo que falta por verificar. Lo escribe el
+    // ingeniero que investiga, no el modelo.
+    match /investigaciones/{investigacionId} {
+      allow read:   if puedeLeer();
+      allow create: if esEditor() && altaCoherente();
+      // Un expediente CERRADO respalda un informe entregado: ya no se toca.
+      allow update: if esEditor() && deMiOrg(resource.data)
+                    && resource.data.cerrada == false && noTocaReservados();
+      allow delete: if false;   // un evento ocurrido no se borra jamás
+    }
+
     // ⛔ HALLAZGOS Y CÁLCULOS — SOLO SERVIDOR.
     // Son juicio profesional y dictamen fechado. Ni el cliente ni el modelo
     // escriben aquí: pasan por una función que valida contra el contrato.

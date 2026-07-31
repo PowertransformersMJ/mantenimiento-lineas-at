@@ -288,3 +288,15 @@
   ingeniería viene de densidad de información, alineación y jerarquía tipográfica — no de la
   luminosidad. Y el tablero usa toda la pantalla, pero **la prosa se acota** (110ch): un párrafo de
   200 caracteres de ancho no se lee.
+
+### L-22 · Desplegar el código sin desplegar las reglas de Firestore: el dato existe y no llega
+- **Síntoma:** la colección `investigaciones` sembrada correctamente en Firestore, el código nuevo
+  en producción… y la web sin el evento. En la consola: *«Missing or insufficient permissions»*.
+- **Causa:** `firestore.rules` termina con `match /{document=**} { allow read, write: if false; }`.
+  Toda colección no declarada queda cerrada — **es el diseño funcionando**, no un fallo.
+- **Regla:** una colección nueva son **TRES** despliegues, no uno: (1) el código, (2) `firebase
+  deploy --only firestore:rules`, (3) la siembra del dato. Si falta el (2), el síntoma no dice
+  «faltan reglas»: dice «no hay datos», que es lo que hace perder la tarde.
+- **Lo que salvó la vista:** la lectura de expedientes va en su propio `try/catch` y devuelve lista
+  vacía. Entre el despliegue del código y el de las reglas, la línea **siguió viéndose completa**.
+  *Una capa opcional jamás puede tener poder de veto sobre una esencial* (misma regla que `L-11`).
