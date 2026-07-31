@@ -9,7 +9,8 @@
 export const nf = (v: number, d = 0): string =>
   v.toLocaleString('es-CO', { minimumFractionDigits: d, maximumFractionDigits: d });
 
-// La conversión a GMS vive en gms.js (JavaScript puro) porque también la usan
-// los exportadores de web/src/exportar/ y las pruebas de Node. Se re-exporta
-// aquí para que las pantallas sigan importando de un solo sitio.
-export { aGMS } from './gms.js';
+// La conversión a GMS vive en el paquete puro de exportadores (@lineas/exportar,
+// hermano de nucleo/ según ADR-005) porque también la usan los archivos GPX/KML/CSV
+// y las pruebas de Node. Se re-exporta aquí para que las pantallas sigan
+// importando de un solo sitio.
+export { aGMS } from '@lineas/exportar/gms';

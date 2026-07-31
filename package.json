@@ -12,6 +12,7 @@
   "workspaces": [
     "contratos",
     "nucleo",
+    "exportar",
     "web"
   ],
   "scripts": {

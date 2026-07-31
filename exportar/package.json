@@ -1,0 +1,20 @@
+{
+  "name": "@lineas/exportar",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Exportadores puros de la plataforma — de los datos al archivo (GPX/KML/CSV), sin DOM ni framework (ADR-005/ADR-006). La versión de este paquete viaja dentro de cada archivo generado.",
+  "exports": {
+    "./levantamiento": "./levantamiento.js",
+    "./gpx": "./gpx.js",
+    "./kml": "./kml.js",
+    "./csv": "./csv.js",
+    "./gms": "./gms.js",
+    "./procedencia": "./procedencia.js",
+    "./package.json": "./package.json"
+  },
+  "dependencies": {
+    "@lineas/nucleo": "*"
+  },
+  "sideEffects": false
+}

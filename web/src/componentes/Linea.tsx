@@ -266,7 +266,7 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis }:
       {activa === 'distancias' && <Distancias apoyos={apoyos} />}
       {activa === 'fichas' && <Fichas apoyos={apoyos} />}
       {activa === 'mecanico' && <Mecanico apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} />}
-      {activa === 'exportar' && <Exportar linea={linea} apoyos={apoyos} />}
+      {activa === 'exportar' && <Exportar linea={linea} apoyos={apoyos} hipotesis={hipotesis} />}
     </>
   );
 }

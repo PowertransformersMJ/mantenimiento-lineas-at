@@ -20,9 +20,9 @@
 //   · `vanoAnterior_m` — el vano REAL, de estructura a estructura, que es el
 //     que usa el cálculo mecánico y el que ven las demás pestañas.
 // ============================================================================
-import { vincenty } from '@lineas/nucleo/geodesia';
-import { tramosDeTension } from '@lineas/nucleo/mecanica';
-import { aGMS } from '../vistas/gms.js';
+import { vincenty, deflexion } from '@lineas/nucleo/geodesia';
+import { tramosDeTension, esAncla } from '@lineas/nucleo/mecanica';
+import { aGMS } from './gms.js';
 
 /** @typedef {import('@lineas/contratos').Apoyo} Apoyo */
 
@@ -46,6 +46,13 @@ import { aGMS } from '../vistas/gms.js';
  * @property {number|null} progresiva_m         acumulado de vanos reales hasta aquí (solo estructuras)
  * @property {number|null} indiceEstructura     1..nE si es estructura
  * @property {string|null} enVano               para empalmes: "A → B", el vano real donde viven
+ * @property {string|null} funcionEstructural   Terminal / Retención / Suspensión… (solo estructuras)
+ * @property {string|null} funcionProcedencia   de dónde salió esa clasificación
+ * @property {boolean} esAncla                  true si la función corta el tramo de tensión
+ * @property {number|null} deflexion_grados     RECALCULADA sobre las estructuras (no la almacenada)
+ * @property {number|null} precision_m          precisión declarada del levantamiento
+ * @property {string|null} metodo               gps_mano / gnss_diferencial / …
+ * @property {string} sistemaReferencia         WGS84 / MAGNA-SIRGAS
  */
 
 /**
@@ -97,6 +104,10 @@ export function derivarLevantamiento(apoyos) {
     return acc;
   }, [0]);
 
+  // Geometría de las estructuras, para recalcular la deflexión REAL (sobre
+  // estructuras, nunca sobre la serie con empalmes: partiría los ángulos).
+  const geoE = E.map((a) => ({ lat: a.coordenada.lat, lon: a.coordenada.lon }));
+
   /** @type {PuntoExportacion[]} */
   const puntos = orden.map((a, i) => {
     const c = a.coordenada;
@@ -133,6 +144,13 @@ export function derivarLevantamiento(apoyos) {
       progresiva_m: iE >= 0 ? progresivas[iE] : null,
       indiceEstructura: iE >= 0 ? iE + 1 : null,
       enVano,
+      funcionEstructural: iE >= 0 ? (a.funcionEstructural ?? null) : null,
+      funcionProcedencia: iE >= 0 ? (a.funcionProcedencia ?? null) : null,
+      esAncla: iE >= 0 && a.funcionEstructural != null && esAncla(a),
+      deflexion_grados: iE >= 0 ? deflexion(geoE, iE) : null,
+      precision_m: c.precision_m ?? null,
+      metodo: c.metodo ?? null,
+      sistemaReferencia: c.sistemaReferencia ?? 'WGS84',
     };
   });
 
