@@ -15,7 +15,11 @@ import {
   signOut as salirDeFirebase, onAuthStateChanged,
   type Auth, type User,
 } from 'firebase/auth';
-import { getFirestore, type Firestore } from 'firebase/firestore';
+// ⚠️ Firestore NO se importa estáticamente: comprobar si hay sesión solo
+// necesita Auth, y quien abre la página sin entrar no debe descargar el motor
+// de base de datos entero (hallazgo P0 de la auditoría 2026-07-30). El tipo
+// viaja solo (se borra al compilar); el módulo real llega en `baseDatos()`.
+import type { Firestore } from 'firebase/firestore';
 
 export const CONFIG = {
   apiKey: 'AIzaSyA3_kG3ow6wl847UNar7DXo2_aINxLVP3A',
@@ -32,25 +36,31 @@ let db: Firestore | null = null;
 export function iniciarFirebase(): FirebaseApp {
   if (app) return app;
   app = initializeApp(CONFIG);
-  // Caché EN MEMORIA, a propósito.
-  //
-  // Se probó la caché persistente sobre IndexedDB y tumbó la lectura entera con
-  // "Database is closing/hidden": basta una segunda pestaña o que el navegador
-  // cierre la base para que un problema de CACHÉ se convierta en un fallo de
-  // DATOS. Inaceptable — el dato está en el servidor y se puede leer.
-  //
-  // Y no se pierde nada importante: el trabajo sin señal en campo NO depende de
-  // esta caché. Depende de nuestra propia cola con revisión base y cuarentena
-  // (ADR-002), precisamente porque el último-que-escribe-gana de Firestore es
-  // inaceptable cuando dos cuadrillas editan el mismo apoyo tras 14 días sin
-  // señal. Esta caché solo habría suavizado la oficina con red intermitente.
-  db = getFirestore(app);
   return app;
 }
 
-export function baseDatos(): Firestore {
-  if (!db) iniciarFirebase();
-  return db!;
+/**
+ * Caché EN MEMORIA, a propósito.
+ *
+ * Se probó la caché persistente sobre IndexedDB y tumbó la lectura entera con
+ * "Database is closing/hidden": basta una segunda pestaña o que el navegador
+ * cierre la base para que un problema de CACHÉ se convierta en un fallo de
+ * DATOS. Inaceptable — el dato está en el servidor y se puede leer.
+ *
+ * Y no se pierde nada importante: el trabajo sin señal en campo NO depende de
+ * esta caché. Depende de nuestra propia cola con revisión base y cuarentena
+ * (ADR-002), precisamente porque el último-que-escribe-gana de Firestore es
+ * inaceptable cuando dos cuadrillas editan el mismo apoyo tras 14 días sin
+ * señal. Esta caché solo habría suavizado la oficina con red intermitente.
+ *
+ * Es ASÍNCRONA porque el módulo de Firestore llega por importación diferida:
+ * quien no ha iniciado sesión nunca lo descarga.
+ */
+export async function baseDatos(): Promise<Firestore> {
+  if (db) return db;
+  const { getFirestore } = await import('firebase/firestore');
+  db = getFirestore(iniciarFirebase());
+  return db;
 }
 
 let auth: Auth | null = null;

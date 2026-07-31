@@ -1,0 +1,13 @@
+{
+  "name": "Mantenimiento Líneas AT",
+  "short_name": "Líneas AT",
+  "description": "Gestión del mantenimiento de líneas de alta tensión — inventario georreferenciado, cálculo mecánico y térmico, exportes con procedencia.",
+  "lang": "es",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#10151a",
+  "theme_color": "#10151a",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

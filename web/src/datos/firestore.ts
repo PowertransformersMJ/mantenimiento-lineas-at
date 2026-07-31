@@ -43,7 +43,7 @@ export const repositorioFirestore: Repositorio = {
     // aquí, en el cliente: combinar dos filtros de igualdad puede exigir un
     // índice compuesto, y un índice que falta no da un error claro — deja la
     // consulta colgada. A esta escala (decenas de líneas) no compensa el riesgo.
-    const q = query(collection(baseDatos(), 'lineas'), where('orgId', '==', orgId), limit(50));
+    const q = query(collection(await baseDatos(), 'lineas'), where('orgId', '==', orgId), limit(50));
     const s = await getDocs(q);
     return s.docs
       .map((d) => validar<Linea>(Linea, d.data()))
@@ -56,7 +56,7 @@ export const repositorioFirestore: Repositorio = {
     const u = await esperarSesion();
     if (!u) return { fase: 'sin_sesion' };
 
-    const db = baseDatos();
+    const db = await baseDatos();
     const dLinea = await getDoc(doc(db, 'lineas', lineaId));
     if (!dLinea.exists()) return { fase: 'vacio' };
 

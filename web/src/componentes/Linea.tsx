@@ -8,7 +8,8 @@
 //
 // Aquí NO hay ni una fórmula. Todo el cálculo se le pide a @lineas/nucleo.
 // ============================================================================
-import { Component, Suspense, lazy, useMemo, useState, type ReactNode } from 'react';
+import { Component, Suspense, lazy, useMemo, useState, type KeyboardEvent, type ReactNode } from 'react';
+import nucleoPkg from '@lineas/nucleo/package.json';
 import type { Apoyo, Conductor, Hipotesis, Linea as TLinea } from '@lineas/contratos';
 import { vincenty, vanoIdealRegulacion } from '@lineas/nucleo/geodesia';
 import { ampacidad, temperaturaLimite } from '@lineas/nucleo/termica';
@@ -222,6 +223,10 @@ function Mecanico({ apoyos, conductor, hipotesis }:
             <caption>
               Estados mecánicos por tramo · conductor {conductor.material} {conductor.codigo} ·
               RTS {nf(conductor.rts_kgf)} kgf · EDS {hipotesis.eds_pct} % a {hipotesis.tempEds_C} °C
+              <span className="sello-calculo">
+                Motor @lineas/nucleo v{nucleoPkg.version} · hipótesis «{hipotesis.nombre}» ({hipotesis.procedencia})
+                · conductor: {conductor.procedencia === 'catalogo_fabricante' ? 'catálogo — pendiente ficha del proveedor' : conductor.procedencia}
+              </span>
             </caption>
             <thead>
               <tr>
@@ -278,14 +283,30 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis }:
 
   const [activa, setActiva] = useState<IdPestana>('resumen');
 
+  // Patrón ARIA de pestañas: flechas ←/→ recorren solo las pestañas LISTAS.
+  const conFlechas = (e: KeyboardEvent<HTMLElement>) => {
+    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+    const listas = PESTANAS.filter((p) => p.lista);
+    const i = listas.findIndex((p) => p.id === activa);
+    const j = (i + (e.key === 'ArrowRight' ? 1 : listas.length - 1)) % listas.length;
+    setActiva(listas[j].id);
+    document.getElementById(`pestana-${listas[j].id}`)?.focus();
+    e.preventDefault();
+  };
+
   return (
     <>
       <div className="linea-cab">
         <h2 className="linea-titulo">{linea.codigo} — {nf(linea.tensionNominal_kV)} kV</h2>
-        <nav className="pestanas" aria-label="Secciones de la línea">
+        <nav className="pestanas" role="tablist" aria-label="Secciones de la línea" onKeyDown={conFlechas}>
           {PESTANAS.map((p) => (
             <button
               key={p.id}
+              id={`pestana-${p.id}`}
+              role="tab"
+              aria-selected={activa === p.id}
+              aria-controls="panel-linea"
+              tabIndex={activa === p.id ? 0 : -1}
               className={'pestana' + (activa === p.id ? ' activa' : '') + ('roja' in p && p.roja ? ' roja' : '')}
               disabled={!p.lista}
               title={p.lista ? undefined : 'En construcción'}
@@ -297,12 +318,14 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis }:
         </nav>
       </div>
 
-      {activa === 'resumen' && <Resumen apoyos={apoyos} />}
-      {activa === 'distancias' && <Distancias apoyos={apoyos} />}
-      {activa === 'fichas' && <Fichas apoyos={apoyos} />}
-      {activa === 'mecanico' && <Mecanico apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} />}
-      {activa === 'fundamentos' && <Fundamentos apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} />}
-      {activa === 'exportar' && <Exportar linea={linea} apoyos={apoyos} hipotesis={hipotesis} />}
+      <div id="panel-linea" role="tabpanel" aria-labelledby={`pestana-${activa}`}>
+        {activa === 'resumen' && <Resumen apoyos={apoyos} />}
+        {activa === 'distancias' && <Distancias apoyos={apoyos} />}
+        {activa === 'fichas' && <Fichas apoyos={apoyos} />}
+        {activa === 'mecanico' && <Mecanico apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} />}
+        {activa === 'fundamentos' && <Fundamentos apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} />}
+        {activa === 'exportar' && <Exportar linea={linea} apoyos={apoyos} hipotesis={hipotesis} />}
+      </div>
     </>
   );
 }

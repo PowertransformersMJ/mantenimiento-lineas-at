@@ -6,14 +6,21 @@
 // y procedencia de cada dato). La ficha completa de ~48 campos llega con la
 // captura de campo (F4) — aquí no se finge nada (regla: no fabricar datos).
 // ============================================================================
-import { useMemo, useState } from 'react';
-import type { Apoyo } from '@lineas/contratos';
+import { useMemo, useState, type ReactNode } from 'react';
+import { FUNCIONES_ANCLA, type Apoyo } from '@lineas/contratos';
 import { vincenty, deflexion, vanoViento } from '@lineas/nucleo/geodesia';
 import { tramosDeTension } from '@lineas/nucleo/mecanica';
 import { soloEstructuras, nombreVisible, vanos } from '../vistas/planta';
 import { nf, aGMS } from '../vistas/formato';
 
-const ANCLA = /retenci|terminal|ángulo|angulo|derivaci/i;
+// Un hecho, un dueño: la lista de funciones que anclan vive en el contrato.
+const esAnclaF = (f: string) => FUNCIONES_ANCLA.includes(f);
+
+/** Un dato del inventario: su valor real, o el hueco DECLARADO (no se finge). */
+function Dato({ v, unidad }: { v: string | number | null | undefined; unidad?: string }): ReactNode {
+  if (v == null || v === '') return <span className="pendiente-f4">pendiente — se captura en campo (F4)</span>;
+  return <>{typeof v === 'number' ? nf(v, unidad === 'm' ? 1 : 0) : v}{unidad ? ` ${unidad}` : ''}</>;
+}
 
 interface FichaPunto {
   apoyo: Apoyo;
@@ -85,7 +92,7 @@ export function Fichas({ apoyos }: { apoyos: Apoyo[] }) {
   const claseChip = (x: FichaPunto) =>
     !x.esEstructura ? 'chip emp'
       : x.apoyo.funcionEstructural === 'Terminal' ? 'chip term'
-      : ANCLA.test(x.apoyo.funcionEstructural) ? 'chip ancla'
+      : esAnclaF(x.apoyo.funcionEstructural) ? 'chip ancla'
       : 'chip';
 
   return (
@@ -106,7 +113,7 @@ export function Fichas({ apoyos }: { apoyos: Apoyo[] }) {
       <section className="panel">
         <div className="ficha-cab">
           <h2>{nombreVisible(a)}</h2>
-          <span className={'sello ' + (f.esEstructura ? (ANCLA.test(a.funcionEstructural) ? 'ambar' : 'azul') : 'gris')}>
+          <span className={'sello ' + (f.esEstructura ? (esAnclaF(a.funcionEstructural) ? 'ambar' : 'azul') : 'gris')}>
             {f.esEstructura ? a.funcionEstructural : 'Empalme — no es apoyo'}
           </span>
         </div>
@@ -155,12 +162,41 @@ export function Fichas({ apoyos }: { apoyos: Apoyo[] }) {
               </dl>
             </div>
           )}
+
+          {f.esEstructura && (
+            <div className="ficha-bloque">
+              <h3>Inventario del apoyo</h3>
+              <dl>
+                <dt>Tipo de apoyo</dt><dd><Dato v={a.tipoApoyo} /></dd>
+                <dt>Altura</dt><dd><Dato v={a.altura_m} unidad="m" /></dd>
+                <dt>Cota de sujeción</dt><dd><Dato v={a.cotaSujecion_m} unidad="m" /></dd>
+                <dt>Carga de rotura</dt><dd><Dato v={a.cargaRotura_kgf} unidad="kgf" /></dd>
+                <dt>Año de instalación</dt><dd><Dato v={a.anioInstalacion} /></dd>
+                <dt>Código de inventario</dt><dd><Dato v={a.codigoInventario} /></dd>
+              </dl>
+            </div>
+          )}
+
+          {f.esEstructura && (
+            <div className="ficha-bloque">
+              <h3>Aislamiento y puesta a tierra</h3>
+              <dl>
+                <dt>Modelo de aislador</dt><dd><Dato v={a.aislamiento?.modelo} /></dd>
+                <dt>Unidades por cadena</dt><dd><Dato v={a.aislamiento?.unidadesPorCadena} /></dd>
+                <dt>Fuga por unidad</dt><dd><Dato v={a.aislamiento?.fugaPorUnidad_mm} unidad="mm" /></dd>
+                <dt>Nivel de contaminación</dt><dd><Dato v={a.aislamiento?.nivelContaminacion} /></dd>
+                <dt>Puesta a tierra</dt><dd><Dato v={a.puestaTierra?.tipo} /></dd>
+                <dt>Resistencia</dt><dd><Dato v={a.puestaTierra?.resistencia_ohm} unidad="Ω" /></dd>
+              </dl>
+            </div>
+          )}
         </div>
 
         <p className="advertencia">
-          <b>Esta ficha muestra solo lo levantado y lo derivado de la geometría.</b> Los ~48 campos de
-          la ficha completa (conductor por apoyo, aislamiento, puesta a tierra, crucetas, retenidas…)
-          se capturan en campo en la fase F4 — aquí no se inventa ninguno.
+          <b>Esta ficha muestra lo levantado, lo derivado de la geometría, y los huecos del
+          inventario DECLARADOS como tales.</b> Los campos «pendiente — F4» existen en el contrato
+          desde el día uno y se llenan en la captura de campo — aquí no se inventa ninguno, pero el
+          hueco es visible y contable.
         </p>
       </section>
     </>

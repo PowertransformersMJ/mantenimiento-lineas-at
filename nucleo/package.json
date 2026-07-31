@@ -8,7 +8,8 @@
     "./geodesia": "./geodesia.js",
     "./mecanica": "./mecanica.js",
     "./termica": "./termica.js",
-    "./estadisticas": "./estadisticas.js"
+    "./estadisticas": "./estadisticas.js",
+    "./package.json": "./package.json"
   },
   "sideEffects": false
 }
