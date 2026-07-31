@@ -4,8 +4,9 @@
 // React se usa ÚNICAMENTE para pintar (ADR-005). Aquí no hay lógica de negocio:
 // se lee el estado del almacén, se elige qué pantalla toca, y ya.
 // ============================================================================
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { VERSION_CONTRATO } from '@lineas/contratos';
+import { derivarLevantamiento } from '@lineas/exportar/levantamiento';
 import { useDatos, almacen } from './datos/enlace';
 import { SinSesion, Cargando, Vacio, Error_ } from './componentes/Estado';
 import { VistaLinea } from './componentes/Linea';
@@ -51,15 +52,55 @@ function Sesion() {
   );
 }
 
+const nf = (v: number, d = 0) =>
+  v.toLocaleString('es-CO', { minimumFractionDigits: d, maximumFractionDigits: d });
+
+/**
+ * Barra de instrumento, no portada. Réplica de la cabecera del módulo
+ * original: identidad a la izquierda, procedencia del levantamiento debajo con
+ * su filete ámbar, y las cifras de la línea alineadas a la derecha. Cuando no
+ * hay línea cargada, esa parte sencillamente no se pinta — no se inventa.
+ */
 function Cabecera() {
+  const d = useDatos();
+
+  const resumen = useMemo(() => {
+    if (d.fase !== 'listo') return null;
+    const lev = derivarLevantamiento(d.apoyos);
+    return {
+      codigo: d.linea.codigo,
+      kV: d.linea.tensionNominal_kV,
+      estructuras: lev.nEstructuras,
+      empalmes: lev.nEmpalmes,
+      longitud: lev.longitud_m,
+      metodo: lev.puntos.find((p) => p.metodo)?.metodo,
+      sistema: lev.puntos[0]?.sistemaReferencia,
+      jornadas: [...new Set(lev.puntos.map((p) => p.local?.slice(0, 10)).filter(Boolean))],
+    };
+  }, [d]);
+
   return (
     <header className="cab">
       <div>
         <h1>Mantenimiento Líneas AT</h1>
         <p className="sub">Gestión del mantenimiento de líneas de alta tensión · Caribe colombiano</p>
+        {resumen && (
+          <p className="resp">
+            <b>{resumen.codigo}</b> — levantamiento
+            {resumen.metodo === 'gps_mano' ? ' con GPS de mano' : ''}
+            {resumen.jornadas.length ? ` · ${resumen.jornadas.join(' y ')}` : ''}
+            {resumen.sistema ? ` · datum ${resumen.sistema}` : ''}
+          </p>
+        )}
       </div>
       <div className="cab-der">
         <Sesion />
+        {resumen && (
+          <p className="stat">
+            <b>{nf(resumen.estructuras)}</b> estructuras · <b>{nf(resumen.empalmes)}</b> empalmes ·{' '}
+            <b>{nf(resumen.longitud)} m</b> · <b>{nf(resumen.kV)} kV</b>
+          </p>
+        )}
         <span className="fase">Fase 0 · fundación</span>
       </div>
     </header>
@@ -109,7 +150,7 @@ export function App() {
   return (
     <>
       <Cabecera />
-      <Contenido />
+      <main className="contenido"><Contenido /></main>
       <Pie />
     </>
   );
