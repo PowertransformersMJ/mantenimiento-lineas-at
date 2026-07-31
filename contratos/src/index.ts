@@ -64,13 +64,20 @@ export const FUNCIONES = Object.freeze({
 // ── Colecciones ─────────────────────────────────────────────────────────────
 
 /**
- * Nueve tipos de documento, ni uno más en v1. La columna `escribeCliente` es
+ * Diez tipos de documento, ni uno más en v1. La columna `escribeCliente` es
  * el contrato de seguridad: lo que el cliente NO puede tocar lo hace cumplir la
  * base de datos, no la buena voluntad del código.
+ *
+ * El décimo —`investigaciones`— entró el 2026-07-31 con su justificación
+ * escrita: un expediente de falla (cronología, observaciones, hipótesis con
+ * verosimilitud y verificaciones pendientes) no cabe en `hallazgos` sin borrar
+ * la distinción entre lo que se VE y lo que se CONCLUYE, que es justo lo que
+ * hace defendible el informe. Se declara aquí en vez de colarse en silencio.
  */
 export const COLECCIONES = Object.freeze({
   lineas:        { escribeCliente: 'rol_editor' },
   apoyos:        { escribeCliente: 'rol_editor' },
+  investigaciones: { escribeCliente: 'rol_editor' },
   inspecciones:  { escribeCliente: 'rol_cuadrilla' },
   evidencias:    { escribeCliente: 'rol_cuadrilla' },
   hallazgos:     { escribeCliente: 'solo_servidor' },  // ⛔ el modelo NUNCA

@@ -9,7 +9,7 @@
 // Aquí NO hay ni una fórmula. Todo el cálculo se le pide a @lineas/nucleo.
 // ============================================================================
 import { Component, Suspense, lazy, useMemo, useState, type KeyboardEvent, type ReactNode } from 'react';
-import type { Apoyo, Conductor, Hipotesis, Linea as TLinea } from '@lineas/contratos';
+import type { Apoyo, Conductor, Hipotesis, Investigacion, Linea as TLinea } from '@lineas/contratos';
 import { vincenty, vanoIdealRegulacion } from '@lineas/nucleo/geodesia';
 import { ampacidad, temperaturaLimite } from '@lineas/nucleo/termica';
 import { estadisticasVanos } from '@lineas/nucleo/estadisticas';
@@ -24,6 +24,7 @@ import { Distancias } from './Distancias';
 import { Fichas } from './Fichas';
 import { Exportar } from './Exportar';
 import { Fundamentos } from './Fundamentos';
+import { Falla } from './Falla';
 import { Sello } from './Sello';
 
 const nf = (v: number, d = 0) =>
@@ -87,7 +88,7 @@ const PESTANAS = [
   { id: 'resumen', rotulo: 'Resumen', lista: true },
   { id: 'distancias', rotulo: 'Distancias', lista: true },
   { id: 'fichas', rotulo: 'Fichas', lista: true },
-  { id: 'falla', rotulo: 'Falla', lista: false, roja: true },
+  { id: 'falla', rotulo: 'Falla', lista: true, roja: true },
   { id: 'fundamentos', rotulo: 'Fundamentos', lista: true },
   { id: 'mecanico', rotulo: 'Mecánico', lista: true },
   { id: 'cantidades', rotulo: 'Cantidades', lista: false },
@@ -98,7 +99,62 @@ type IdPestana = (typeof PESTANAS)[number]['id'];
 
 // ── Pestaña RESUMEN: mapa + tarjetas como la pantalla del módulo original ───
 
-function Resumen({ apoyos }: { apoyos: Apoyo[] }) {
+/**
+ * La capa de GERENCIAMIENTO: cómo está la línea, en una línea por asunto y sin
+ * jerga. Es lo primero que se ve, antes de cualquier tabla — quien dirige el
+ * mantenimiento necesita saber a qué atender, no leer 23 vanos.
+ *
+ * Los tres semáforos salen de los datos, no de un texto: si mañana la línea
+ * está sana, la banda lo dice sola.
+ */
+function BandaEstado({ eventos, calidad, filasMecanico, hipotesis }: {
+  eventos: number; calidad: { atencion: number; aviso: number };
+  filasMecanico: number; hipotesis: Hipotesis;
+}) {
+  const excedidos = 0;   // lo calcula Mecánico; aquí solo se informa el alcance
+  const fichas = [
+    {
+      t: 'Eventos de falla',
+      v: eventos ? `${nf(eventos)} expediente${eventos > 1 ? 's' : ''} abierto${eventos > 1 ? 's' : ''}` : 'sin eventos registrados',
+      tono: eventos ? 'critico' : 'bien',
+    },
+    {
+      t: 'Calidad del levantamiento',
+      v: calidad.atencion ? `${nf(calidad.atencion)} punto(s) de atención`
+        : calidad.aviso ? `${nf(calidad.aviso)} aviso(s) a revisar`
+        : 'sin anomalías detectadas',
+      tono: calidad.atencion ? 'critico' : calidad.aviso ? 'atender' : 'bien',
+    },
+    {
+      t: 'Cálculo mecánico',
+      v: filasMecanico ? `${nf(filasMecanico)} tramos calculados${excedidos ? ` · ${excedidos} excedidos` : ''}` : 'sin tramos',
+      tono: 'bien',
+    },
+    {
+      t: 'Hipótesis de cálculo',
+      v: hipotesis.congelada ? 'congeladas — informe firmado' : 'sin validar — pendientes de cierre',
+      tono: hipotesis.congelada ? 'bien' : 'atender',
+    },
+  ];
+
+  return (
+    <div className="banda-estado" role="group" aria-label="Estado de la línea">
+      {fichas.map((f) => (
+        <div key={f.t} className={`estado-ficha ${f.tono}`}>
+          <span className="estado-punto" aria-hidden="true" />
+          <span>
+            <span className="estado-t">{f.t}</span>
+            <span className="estado-v">{f.v}</span>
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Resumen({ apoyos, investigaciones, alVerEvento, hipotesis, conductor }:
+  { apoyos: Apoyo[]; investigaciones: Investigacion[]; alVerEvento: () => void;
+    hipotesis: Hipotesis; conductor: Conductor }) {
   const r = useMemo(() => {
     const E = soloEstructuras(apoyos);
     const L = vanos(apoyos);
@@ -116,11 +172,27 @@ function Resumen({ apoyos }: { apoyos: Apoyo[] }) {
 
   return (
     <>
+      <BandaEstado
+        eventos={investigaciones.length}
+        calidad={{
+          atencion: r.calidad.filter((c) => c.severidad === 'atencion').length,
+          aviso: r.calidad.filter((c) => c.severidad === 'aviso').length,
+        }}
+        filasMecanico={r.tramos.length}
+        hipotesis={hipotesis}
+      />
+      <p className="saludo">
+        Línea <b>{nf(r.E.length)} estructuras</b> · {nf(r.e.suma)} m · conductor{' '}
+        <b>{conductor.material} {conductor.codigo}</b>. Toque un punto del mapa para ver su ficha,
+        o el trazado para ver su tramo de tensión.
+      </p>
+
       <div className="resumen-grilla">
         <div className="resumen-mapa">
           <RespaldoMapa apoyos={apoyos}>
             <Suspense fallback={<PlantaSvg apoyos={apoyos} nota="Descargando el mapa…" />}>
-              <Mapa apoyos={apoyos} respaldo={<PlantaSvg apoyos={apoyos} nota="El mapa no se pudo descargar; se muestra el esquema geométrico (funciona sin conexión)." />} />
+              <Mapa apoyos={apoyos} eventos={investigaciones} alVerEvento={alVerEvento}
+                respaldo={<PlantaSvg apoyos={apoyos} nota="El mapa no se pudo descargar; se muestra el esquema geométrico (funciona sin conexión)." />} />
             </Suspense>
           </RespaldoMapa>
           <p className="leyenda">
@@ -154,6 +226,32 @@ function Resumen({ apoyos }: { apoyos: Apoyo[] }) {
           </div>
         </aside>
       </div>
+
+      {investigaciones.length > 0 && (
+        <section className="panel falla-alerta">
+          <h2>Evento de falla registrado en esta línea</h2>
+          {investigaciones.map((ev) => {
+            const i = apoyos.findIndex((a) => a.id === ev.apoyoId);
+            const nombre = i >= 0
+              ? (apoyos[i].nombreNormalizado ?? apoyos[i].nombreCampo)
+              : 'estructura no identificada';
+            return (
+              <button key={ev.id} type="button" className="falla-tarjeta" onClick={alVerEvento}>
+                <span className="falla-icono" aria-hidden="true">⚠</span>
+                <span>
+                  <b>{nombre}</b>{ev.placa ? ` · placa ${ev.placa}` : ''} — {ev.componenteAfectado}
+                  <span className="falla-tarjeta-sub">
+                    {ev.fechaTexto ?? new Date(ev.ocurrioEn).toLocaleDateString('es-CO')} ·{' '}
+                    {nf(ev.hipotesis.length)} hipótesis ·{' '}
+                    {nf(ev.verificacionesPendientes.filter((v) => v.estado === 'pendiente').length)} verificaciones pendientes
+                    <span className="falla-tarjeta-ir"> — abrir el expediente →</span>
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+        </section>
+      )}
 
       <section className="panel">
         <h2>Calidad del levantamiento</h2>
@@ -275,8 +373,9 @@ function Mecanico({ apoyos, conductor, hipotesis }:
 
 // ── Vista principal ─────────────────────────────────────────────────────────
 
-export function VistaLinea({ linea, apoyos, conductor, hipotesis }:
-  { linea: TLinea; apoyos: Apoyo[]; conductor: Conductor; hipotesis: Hipotesis }) {
+export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigaciones = [] }:
+  { linea: TLinea; apoyos: Apoyo[]; conductor: Conductor; hipotesis: Hipotesis;
+    investigaciones?: Investigacion[] }) {
 
   const [activa, setActiva] = useState<IdPestana>('resumen');
 
@@ -316,7 +415,12 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis }:
       </div>
 
       <div id="panel-linea" role="tabpanel" aria-labelledby={`pestana-${activa}`}>
-        {activa === 'resumen' && <Resumen apoyos={apoyos} />}
+        {activa === 'resumen' && (
+          <Resumen apoyos={apoyos} investigaciones={investigaciones}
+            alVerEvento={() => setActiva('falla')}
+            hipotesis={hipotesis} conductor={conductor} />
+        )}
+        {activa === 'falla' && <Falla investigaciones={investigaciones} apoyos={apoyos} />}
         {activa === 'distancias' && <Distancias apoyos={apoyos} />}
         {activa === 'fichas' && <Fichas apoyos={apoyos} />}
         {activa === 'mecanico' && <Mecanico apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} />}

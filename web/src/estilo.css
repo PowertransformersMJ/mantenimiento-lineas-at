@@ -26,13 +26,23 @@
   --gr:   #7fc96a;
   --rd:   #e05252;
   --az:   #5b8dd9;
-  --radio: 8px;
+  --radio: 10px;
   /* Superficies tintadas del original: dan riqueza sin aclarar el tema. */
   --t-ambar: #2a2113;
   --t-rojo:  #2a1616;
   --t-verde: #16240f;
   --t-azul:  #12202c;
   --b-azul:  #24455e;
+
+  /* ── Profundidad ────────────────────────────────────────────────────────
+     Lo que separa un oscuro barato de uno de nivel no es el color: es que las
+     superficies tengan CUERPO. Cada tarjeta lleva un filete de luz arriba
+     (como si la iluminara algo por encima) y una sombra suave debajo. Plano y
+     oscuro se lee como apagado; con capas se lee como instrumento cuidado. */
+  --luz-arriba: inset 0 1px 0 rgba(255,255,255,.045);
+  --sombra-1: 0 1px 2px rgba(0,0,0,.35);
+  --sombra-2: 0 6px 20px -6px rgba(0,0,0,.55);
+  --curva: cubic-bezier(.2,.7,.3,1);
 }
 
 * { box-sizing: border-box; }
@@ -102,7 +112,9 @@ body {
 /* ── paneles y títulos de sección ──────────────────────────────────────── */
 .panel {
   margin: 14px 0; padding: 14px 16px 18px;
-  background: var(--pnl); border: 1px solid var(--bd); border-radius: var(--radio);
+  background: linear-gradient(180deg, #1a212a 0%, var(--pnl) 62%);
+  border: 1px solid var(--bd); border-radius: var(--radio);
+  box-shadow: var(--luz-arriba), var(--sombra-1);
 }
 .panel h2 {
   margin: 0 0 10px; font-size: 11.5px; font-weight: 600;
@@ -113,8 +125,9 @@ body {
 /* ── indicadores ──────────────────────────────────────────────────────── */
 .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
 .kpi {
-  background: var(--t-azul); border: 1px solid var(--b-azul);
-  border-radius: var(--radio); padding: 10px 12px;
+  background: linear-gradient(180deg, #16283a 0%, var(--t-azul) 70%);
+  border: 1px solid var(--b-azul); border-radius: var(--radio); padding: 11px 13px;
+  box-shadow: var(--luz-arriba), var(--sombra-1);
 }
 .kpi-v { font-size: 21px; font-weight: 600; color: var(--acc); font-variant-numeric: tabular-nums; line-height: 1.15; }
 .kpi-l { margin-top: 2px; font-size: 10px; color: var(--mut); text-transform: uppercase; letter-spacing: .7px; }
@@ -208,7 +221,10 @@ body {
 .resumen-panel { position: sticky; top: 12px; }
 .kpis.dos { grid-template-columns: 1fr 1fr; }
 
-.mapa-real { position: relative; border: 1px solid var(--bd); border-radius: var(--radio); overflow: hidden; }
+.mapa-real {
+  position: relative; border: 1px solid var(--bd); border-radius: var(--radio);
+  overflow: hidden; box-shadow: var(--sombra-2);
+}
 .mapa-lienzo { height: calc(100vh - 250px); min-height: 460px; }
 .mapa-capas {
   position: absolute; top: 10px; right: 10px; z-index: 5;
@@ -405,4 +421,133 @@ p.fund-vivo + .sello-calculo { margin-top: 5px; }
   .kpi-v, .fund-tarjeta h2, .linea-titulo, .resp b, .stat b { color: #000 !important; }
   .ok { color: #1a5c1a; } .alerta, .advertencia, .aviso { color: #7a1f1f; }
   .tabla th { background: #eee !important; color: #000 !important; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   EVENTO DE FALLA — lo que el Ingeniero no alcanzaba a apreciar en la E02
+   ──────────────────────────────────────────────────────────────────────────
+   El punto donde se abrió la línea no puede parecerse a un apoyo más. Lleva
+   marcador propio, late, y está por encima de todo lo demás del mapa.
+   ═══════════════════════════════════════════════════════════════════════ */
+.marca-falla {
+  appearance: none; border: 0; background: none; padding: 0;
+  width: 34px; height: 34px; cursor: pointer;
+  display: grid; place-items: center; position: relative;
+}
+.marca-falla-cuerpo {
+  position: relative; z-index: 2;
+  width: 30px; height: 30px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #ff6b6b, #d64545 70%);
+  border: 2px solid #0f1419; color: #fff; font-size: 15px; line-height: 1;
+  display: grid; place-items: center;
+  box-shadow: 0 2px 10px rgba(214,69,69,.55);
+}
+/* El halo late por FUERA del cuerpo: así el pulso no deforma el icono. */
+.marca-falla-halo {
+  position: absolute; inset: 2px; border-radius: 50%;
+  background: rgba(214,69,69,.35); animation: latido-falla 1.9s var(--curva) infinite;
+}
+@keyframes latido-falla {
+  0%, 100% { transform: scale(1);    opacity: .55; }
+  50%      { transform: scale(1.85); opacity: 0; }
+}
+.marca-falla:hover .marca-falla-cuerpo { transform: scale(1.08); }
+.marca-falla:focus-visible { outline: 2px solid var(--acc); outline-offset: 3px; border-radius: 50%; }
+.pop-falla b { color: #ff8b8b; }
+
+/* Aviso del evento en el Resumen: el mapa no puede ser el único camino. */
+.falla-alerta { border-color: #6b2b2b; background: linear-gradient(180deg, #241618 0%, var(--pnl) 62%); }
+.falla-alerta h2 { color: #ff8b8b; border-bottom-color: rgba(255,107,107,.25); }
+.falla-tarjeta {
+  appearance: none; width: 100%; text-align: left; cursor: pointer;
+  display: flex; align-items: flex-start; gap: 12px;
+  font: 400 12.5px/1.55 inherit; font-family: inherit; color: var(--tx);
+  background: linear-gradient(135deg, #2a1616, #3a1f10);
+  border: 1px solid #6b2b2b; border-left: 4px solid #ff6b6b;
+  border-radius: 0 var(--radio) var(--radio) 0; padding: 12px 14px;
+  transition: border-color .18s var(--curva), transform .18s var(--curva);
+}
+.falla-tarjeta:hover { border-color: #ff6b6b; transform: translateX(2px); }
+.falla-tarjeta b { color: #fff; font-size: 13.5px; }
+.falla-icono {
+  flex: none; width: 26px; height: 26px; border-radius: 50%;
+  background: #d64545; color: #fff; display: grid; place-items: center; font-size: 14px;
+  box-shadow: 0 0 0 3px rgba(214,69,69,.22);
+}
+.falla-tarjeta-sub { display: block; margin-top: 3px; font-size: 11.4px; color: #e8c9c9; }
+.falla-tarjeta-ir { color: var(--acc); font-weight: 600; }
+
+/* Cabecera del expediente, con el degradado del original */
+.falla-banda {
+  margin: 14px 0; padding: 15px 18px;
+  background: linear-gradient(135deg, #2a1616, #3a1f10);
+  border: 1px solid #6b2b2b; border-left: 4px solid #ff6b6b;
+  border-radius: var(--radio); box-shadow: var(--luz-arriba), var(--sombra-1);
+}
+.falla-rotulo { font-size: 9.5px; letter-spacing: 1.4px; color: #ff6b6b; font-weight: 700; text-transform: uppercase; }
+.falla-titulo { margin: 3px 0 0; font-size: 19px; font-weight: 600; color: #fff; border: 0; padding: 0; text-transform: none; letter-spacing: 0; }
+.falla-sub { margin: 4px 0 0; font-size: 11.5px; color: #e8c9c9; }
+.falla-geo { margin: 7px 0 0; font-size: 11px; color: #c9b3b3; font-variant-numeric: tabular-nums; }
+.falla-cuando { white-space: nowrap; color: var(--acc); font-weight: 600; }
+.falla-porque { color: #9fb3c4; font-size: 11.2px; }
+
+/* Hipótesis: la jerarquía se ve antes de leer */
+.hip-lista { display: grid; gap: 9px; margin-top: 11px; }
+.hip {
+  background: var(--pnl2); border: 1px solid var(--bd); border-left: 3px solid var(--bd);
+  border-radius: 0 var(--radio) var(--radio) 0; padding: 12px 14px;
+  box-shadow: var(--luz-arriba);
+}
+.hip-alta { border-left-color: #ff6b6b; background: linear-gradient(180deg, #241a1a 0%, var(--pnl2) 70%); }
+.hip-media { border-left-color: var(--acc); }
+.hip-baja { border-left-color: #4a5560; }
+.hip-cab { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 7px; }
+.hip-cab h3 { margin: 0; font-size: 13px; font-weight: 600; color: var(--tx); flex: 1; min-width: 200px; }
+.hip-orden {
+  flex: none; width: 21px; height: 21px; border-radius: 50%; display: grid; place-items: center;
+  background: #243039; border: 1px solid var(--bd); color: var(--mut);
+  font-size: 10.5px; font-weight: 700; font-variant-numeric: tabular-nums;
+}
+.hip-alta .hip-orden { background: #d64545; border-color: #d64545; color: #fff; }
+.hip-sello-alta { background: #3a1414; color: #ff8b8b; border: 1px solid #6b2b2b; }
+.hip-sello-media { background: #3a2c0c; color: var(--acc); border: 1px solid rgba(240,165,0,.5); }
+.hip-sello-baja { background: #232c35; color: var(--mut); border: 1px solid var(--bd); }
+.sello.verde { background: var(--t-verde); color: #bfe6b0; border: 1px solid #33502c; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   BANDA DE GERENCIAMIENTO — el estado de la línea de un vistazo
+   ═══════════════════════════════════════════════════════════════════════ */
+.banda-estado {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(215px, 1fr));
+  gap: 9px; margin: 14px 0 0;
+}
+.estado-ficha {
+  display: flex; align-items: center; gap: 11px;
+  background: linear-gradient(180deg, #1a212a 0%, var(--pnl) 62%);
+  border: 1px solid var(--bd); border-radius: var(--radio); padding: 11px 13px;
+  box-shadow: var(--luz-arriba), var(--sombra-1);
+}
+.estado-punto {
+  flex: none; width: 9px; height: 9px; border-radius: 50%; background: var(--mut);
+  box-shadow: 0 0 0 3px rgba(139,152,165,.16);
+}
+.estado-ficha.bien .estado-punto { background: var(--gr); box-shadow: 0 0 0 3px rgba(127,201,106,.16); }
+.estado-ficha.atender .estado-punto { background: var(--acc); box-shadow: 0 0 0 3px rgba(240,165,0,.18); }
+.estado-ficha.critico .estado-punto { background: var(--rd); box-shadow: 0 0 0 3px rgba(224,82,82,.2); }
+.estado-ficha.critico { border-color: #6b2b2b; }
+.estado-t { display: block; font-size: 9.6px; text-transform: uppercase; letter-spacing: .8px; color: var(--mut); }
+.estado-v { display: block; font-size: 13px; font-weight: 600; color: var(--tx); margin-top: 2px; line-height: 1.35; }
+.estado-ficha.critico .estado-v { color: #ff8b8b; }
+.estado-ficha.atender .estado-v { color: var(--acc); }
+.estado-ficha.bien .estado-v { color: #bfe6b0; }
+
+/* Trato humano: la app saluda y orienta antes de soltar cifras. */
+.saludo { margin: 14px 0 0; font-size: 13px; color: #c6d3de; }
+.saludo b { color: var(--tx); }
+
+@media print {
+  .marca-falla, .falla-tarjeta-ir { display: none !important; }
+  .falla-banda, .falla-tarjeta, .hip-alta { background: #fff !important; }
+  .falla-titulo, .falla-rotulo { color: #000 !important; }
+  .banda-estado { break-inside: avoid; }
 }

@@ -8,7 +8,7 @@
 // la frontera. Un documento que no cumple el esquema no entra al cálculo — y el
 // cálculo es lo que el Ingeniero firma.
 // ============================================================================
-import { Apoyo, Hipotesis, Linea } from '@lineas/contratos';
+import { Apoyo, Hipotesis, Investigacion, Linea } from '@lineas/contratos';
 import { cargarFirebase } from './cargar';
 import type { EstadoDatos, EstadoSesion, Repositorio } from './repositorio';
 
@@ -101,6 +101,23 @@ export const repositorioFirestore: Repositorio = {
       return { fase: 'error', mensaje: 'No se pudieron leer las hipótesis de cálculo de esta línea.' };
     }
 
-    return { fase: 'listo', linea, apoyos, conductor: linea.conductor, hipotesis };
+    // Los expedientes de falla son OPCIONALES: una línea sin eventos es lo
+    // normal, y un fallo leyéndolos no puede tumbar la vista entera de la
+    // línea — el cálculo mecánico no depende de ellos.
+    let investigaciones: Investigacion[] = [];
+    try {
+      const sInv = await getDocs(query(
+        collection(db, 'investigaciones'),
+        where('orgId', '==', orgId),
+        where('lineaId', '==', lineaId),
+      ));
+      investigaciones = sInv.docs
+        .map((d) => validar<Investigacion>(Investigacion, d.data()))
+        .filter((x): x is Investigacion => x !== null);
+    } catch (e) {
+      console.warn('[datos] no se pudieron leer los expedientes de falla:', e);
+    }
+
+    return { fase: 'listo', linea, apoyos, conductor: linea.conductor, hipotesis, investigaciones };
   },
 };

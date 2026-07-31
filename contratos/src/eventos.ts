@@ -143,9 +143,71 @@ export const Calculo = Base.extend({
   congelado: z.boolean().default(false),
 });
 
+// ── Investigación de falla ──────────────────────────────────────────────────
+
+/**
+ * Cuando una línea se abre, lo que queda no es un hallazgo suelto: es un
+ * EXPEDIENTE. Tiene una cronología de lo que se hizo, observaciones sobre la
+ * evidencia física, hipótesis causales jerarquizadas y —lo que más vale— la
+ * lista de lo que TODAVÍA no se puede afirmar y con qué se cerraría.
+ *
+ * Se modela aparte de `Hallazgo` a propósito: un hallazgo es un defecto
+ * observado en un apoyo; una investigación es un razonamiento fechado sobre un
+ * evento, con grados de certeza declarados. Mezclarlos borraría justo la
+ * distinción que hace defendible el informe: **qué se vio** frente a **qué se
+ * concluye**.
+ */
+export const Verosimilitud = z.enum(['alta', 'media', 'baja']);
+export const SeveridadObservacion = z.enum(['critica', 'advertencia', 'contexto']);
+
+export const Investigacion = Base.extend({
+  tipo: z.literal('investigacion'),
+  lineaId: Id,
+  /** El apoyo donde ocurrió. Por id inmutable, nunca por número de estructura. */
+  apoyoId: Id,
+  ocurrioEn: Instante,
+  /** Cómo lo escribe el ingeniero en el informe («14 de marzo de 2027»). */
+  fechaTexto: z.string().optional(),
+  placa: z.string().optional(),
+  componenteAfectado: z.string().min(1),
+
+  cronologia: z.array(z.object({
+    cuando: z.string().min(1),
+    que: z.string().min(1),
+  })).default([]),
+
+  /** Lo que se VE en la evidencia. No son conclusiones. */
+  observaciones: z.array(z.object({
+    titulo: z.string().min(1),
+    detalle: z.string().min(1),
+    severidad: SeveridadObservacion,
+  })).default([]),
+
+  /** Lo que se CONCLUYE, con su grado de certeza y su sustento. */
+  hipotesis: z.array(z.object({
+    enunciado: z.string().min(1),
+    verosimilitud: Verosimilitud,
+    sustento: z.string().min(1),
+  })).default([]),
+
+  /**
+   * ⚠️ La parte más honesta del expediente: lo que NO se puede afirmar todavía.
+   * Un informe que omite esto parece más fuerte y es más frágil.
+   */
+  verificacionesPendientes: z.array(z.object({
+    que: z.string().min(1),
+    porQue: z.string().min(1),
+    estado: z.enum(['pendiente', 'solicitado', 'recibido', 'no_disponible']).default('pendiente'),
+  })).default([]),
+
+  cerrada: z.boolean().default(false),
+});
+
 export type Inspeccion = z.infer<typeof Inspeccion>;
 export type Evidencia = z.infer<typeof Evidencia>;
 export type Hallazgo = z.infer<typeof Hallazgo>;
 export type Calculo = z.infer<typeof Calculo>;
 export type TramoCalculado = z.infer<typeof TramoCalculado>;
 export type Severidad = z.infer<typeof Severidad>;
+export type Investigacion = z.infer<typeof Investigacion>;
+export type Verosimilitud = z.infer<typeof Verosimilitud>;

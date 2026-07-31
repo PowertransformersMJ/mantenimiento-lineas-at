@@ -179,12 +179,45 @@ const apoyos = levantamiento.map((p, i) => base(idEstable('apoyo-' + i), {
   activo: true,
 }));
 
+// ── Investigación de falla (opcional: solo si está en la bóveda) ────────────
+//
+// El expediente del evento es dato REAL de cliente: vive en la bóveda, nunca
+// en el repositorio. Si el archivo no está, se siembra la línea igual y se
+// avisa — no se inventa un evento.
+const FIXTURE_FALLA = join(RAIZ, '..', 'brain-private', 'mantenimiento-lineas-at', 'fixtures', `${CODIGO_LINEA}-falla.json`);
+let investigacion = null;
+if (existsSync(FIXTURE_FALLA)) {
+  const f = JSON.parse(readFileSync(FIXTURE_FALLA, 'utf-8'));
+  const apoyo = apoyos[f.estructuraOrden];
+  if (!apoyo) {
+    console.error(`❌ La falla apunta a la estructura de orden ${f.estructuraOrden}, que no existe en el levantamiento.`);
+    process.exit(1);
+  }
+  investigacion = base(idEstable('investigacion-falla'), {
+    tipo: 'investigacion',
+    lineaId,
+    // Por id INMUTABLE del apoyo, nunca por número de estructura: renumerar la
+    // línea no puede mover el evento a otro apoyo.
+    apoyoId: apoyo.id,
+    ocurrioEn: f.ocurrioEn,
+    fechaTexto: f.fechaTexto,
+    placa: f.placa,
+    componenteAfectado: f.componenteAfectado,
+    cronologia: f.cronologia,
+    observaciones: f.observaciones,
+    hipotesis: f.hipotesis,
+    verificacionesPendientes: (f.verificacionesPendientes ?? []).map((v) => ({ ...v, estado: v.estado ?? 'pendiente' })),
+    cerrada: false,
+  });
+}
+
 // ── Escritura ───────────────────────────────────────────────────────────────
 async function sembrar() {
   const lote = db.batch();
   lote.set(db.collection('lineas').doc(lineaId), linea, { merge: true });
   lote.set(db.collection('hipotesis').doc(hipotesisId), hipotesis, { merge: true });
   for (const a of apoyos) lote.set(db.collection('apoyos').doc(a.id), a, { merge: true });
+  if (investigacion) lote.set(db.collection('investigaciones').doc(investigacion.id), investigacion, { merge: true });
   lote.set(db.collection('config').doc('ia'), {
     enabled: false, actualizadoEn: FieldValue.serverTimestamp(),
     nota: 'Apagado hasta que existan los papeles de tratamiento de datos con el cliente (ADR-004).',
@@ -196,6 +229,9 @@ async function sembrar() {
   console.log(`   apoyos     : ${apoyos.length}`);
   console.log(`   anclajes   : ${apoyos.filter((a) => /Retención|Terminal|Ángulo/.test(a.funcionEstructural)).length}`);
   console.log(`   hipótesis  : SIN VALIDAR (así queda marcada, a propósito)`);
+  console.log(investigacion
+    ? `   falla      : ${investigacion.componenteAfectado} · ${investigacion.fechaTexto} · ${investigacion.hipotesis.length} hipótesis · ${investigacion.verificacionesPendientes.length} verificaciones pendientes`
+    : `   falla      : sin expediente en la bóveda — no se inventa ninguno`);
 
   if (CORREO_ADMIN) {
     const u = await getAuth().getUserByEmail(CORREO_ADMIN).catch(() => null);

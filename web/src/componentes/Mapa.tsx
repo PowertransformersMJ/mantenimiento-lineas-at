@@ -28,7 +28,7 @@ import { FileSource, PMTiles, Protocol } from 'pmtiles';
 // cojo y moriría igual de mudo).
 import urlWorker from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import { layers, namedFlavor } from '@protomaps/basemaps';
-import { FUNCIONES_ANCLA, type Apoyo } from '@lineas/contratos';
+import { FUNCIONES_ANCLA, type Apoyo, type Investigacion } from '@lineas/contratos';
 import { derivarLevantamiento } from '@lineas/exportar/levantamiento';
 import { COLORES_TRAMO_CSS } from '../vistas/tramoColores';
 
@@ -123,7 +123,12 @@ function fichaPopup(p: ReturnType<typeof derivarLevantamiento>['puntos'][number]
   return `<div class="pop-ficha">${filas.join('<br>')}</div>`;
 }
 
-export default function Mapa({ apoyos, respaldo }: { apoyos: Apoyo[]; respaldo?: ReactNode }) {
+export default function Mapa({ apoyos, respaldo, eventos, alVerEvento }:
+  { apoyos: Apoyo[]; respaldo?: ReactNode;
+    /** Expedientes de falla a señalar sobre el mapa. Vacío = línea sin eventos. */
+    eventos?: Investigacion[];
+    /** Qué hacer al pulsar el marcador (abrir la pestaña Falla). */
+    alVerEvento?: (id: string) => void }) {
   const caja = useRef<HTMLDivElement>(null);
   const mapa = useRef<maplibregl.Map | null>(null);
   const [estado, setEstado] = useState<'cargando' | 'listo' | 'fallo'>('cargando');
@@ -143,7 +148,7 @@ export default function Mapa({ apoyos, respaldo }: { apoyos: Apoyo[]; respaldo?:
       }
       if (cancelado || !caja.current) return;
       setEstado('listo');
-      creado = crearMapa(caja.current, apoyos, meta);
+      creado = crearMapa(caja.current, apoyos, meta, eventos ?? [], alVerEvento);
       mapa.current = creado;
 
       // Vigilante: si en 15 s VISIBLES el mapa no terminó de cargar, algo se
@@ -201,6 +206,8 @@ function crearMapa(
   contenedor: HTMLDivElement,
   apoyos: Apoyo[],
   meta: { limites: [number, number, number, number]; zMin: number; zMax: number },
+  eventos: Investigacion[],
+  alVerEvento?: (id: string) => void,
 ): maplibregl.Map {
     const origen = location.origin;
     // Centro inicial en la propia línea: aunque algo más fallara, la cámara
@@ -379,6 +386,34 @@ function crearMapa(
       for (const capa of ['apoyos', 'tramos']) {
         m.on('mouseenter', capa, () => { m.getCanvas().style.cursor = 'pointer'; });
         m.on('mouseleave', capa, () => { m.getCanvas().style.cursor = ''; });
+      }
+
+      // ── EVENTOS DE FALLA ───────────────────────────────────────────────
+      // Van como marcador HTML (no como capa) para que puedan latir y estar
+      // SIEMPRE por encima de todo: el punto donde se abrió la línea no puede
+      // quedar tapado por una etiqueta ni confundirse con un apoyo más.
+      for (const ev of eventos) {
+        const apoyo = ordenados.find((a) => a.id === ev.apoyoId);
+        if (!apoyo) continue;
+        const el = document.createElement('button');
+        el.type = 'button';
+        el.className = 'marca-falla';
+        el.innerHTML = '<span class="marca-falla-halo"></span><span class="marca-falla-cuerpo">⚠</span>';
+        el.setAttribute('aria-label',
+          `Evento de falla en ${lev.puntos.find((p) => p.n === ordenados.indexOf(apoyo) + 1)?.nombre ?? 'la línea'}. Abrir el expediente.`);
+        el.title = `Punto de falla · ${ev.fechaTexto ?? ''}`;
+        el.addEventListener('click', (e) => { e.stopPropagation(); alVerEvento?.(ev.id); });
+
+        new maplibregl.Marker({ element: el, anchor: 'center' })
+          .setLngLat([apoyo.coordenada.lon, apoyo.coordenada.lat])
+          .setPopup(new maplibregl.Popup({ offset: 22, closeButton: false, maxWidth: '320px' })
+            .setHTML(
+              '<div class="pop-ficha pop-falla">' +
+              `<b>⚠ Punto de falla</b><br>${escHtml(lev.puntos.find((p) => p.n === ordenados.indexOf(apoyo) + 1)?.nombre ?? '')}` +
+              (ev.fechaTexto ? `<br>${escHtml(ev.fechaTexto)}` : '') +
+              `<br>${escHtml(ev.componenteAfectado)}` +
+              '<br><i>Pulse el marcador para abrir el expediente.</i></div>'))
+          .addTo(m);
       }
 
       // Encuadre a la línea completa, con aire.
