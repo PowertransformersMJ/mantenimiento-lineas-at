@@ -284,3 +284,15 @@ body {
 .calidad-item.atencion { border-left-color: var(--rd); background: rgba(224,82,82,.08); }
 .calidad-item.aviso { border-left-color: var(--acc); background: rgba(240,165,0,.07); }
 .calidad-item.info { color: var(--mut); }
+
+/* ── Pestaña Fundamentos ───────────────────────────────────────────────────── */
+.fund-tarjeta h2 { color: var(--acc); }
+.fund-formula { background: var(--pnl2); border: 1px solid var(--bd); border-radius: var(--radio);
+  padding: 14px 18px; margin: 14px 0; overflow-x: auto; text-align: center; }
+.fund-formula math { font-size: 18px; }
+.fund-texto { margin: 0; font-size: 13.5px; line-height: 1.6; }
+.fund-vivo { margin: 14px 0 0; padding: 11px 14px; border-radius: var(--radio); font-size: 13.5px;
+  background: rgba(91,141,217,.10); border-left: 3px solid #5b8dd9; }
+.fund-vir { display: block; font-variant-numeric: tabular-nums; }
+.fund-norma { white-space: nowrap; font-weight: 600; }
+a.chip { text-decoration: none; }

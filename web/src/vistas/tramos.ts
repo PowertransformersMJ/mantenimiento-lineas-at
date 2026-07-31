@@ -30,6 +30,17 @@ export interface FilaTramo {
   excede: boolean;
 }
 
+// El núcleo trabaja con nombres neutros: estas dos traducciones del contrato
+// hacia él tienen UN solo dueño (también las usa Fundamentos).
+export const conductorParaNucleo = (c: Conductor) => ({
+  w: c.masaLineal_kg_m, rts: c.rts_kgf, S: c.seccion_mm2,
+  E: c.moduloElastico_kg_mm2, alfa: c.dilatacion_1_C, diametro: c.diametro_m,
+});
+export const paramsParaNucleo = (h: Hipotesis) => ({
+  eds: h.eds_pct, tEds: h.tempEds_C, tMax: h.tempMax_C, tMin: h.tempMin_C,
+  vViento: h.vientoMax_kmh, tViento: h.tempViento_C, cx: h.cx, rho: h.densidadAire_kg_m3,
+});
+
 export function calcularTramos(todos: Apoyo[], c: Conductor, h: Hipotesis): FilaTramo[] {
   // Solo estructuras: un empalme no sostiene el conductor y contarlo partiría
   // un vano real en dos falsos (ver `soloEstructuras`).
@@ -37,19 +48,12 @@ export function calcularTramos(todos: Apoyo[], c: Conductor, h: Hipotesis): Fila
   if (apoyos.length < 2) return [];
   const L = vanos(apoyos);
 
-  // El núcleo trabaja con nombres neutros: aquí se traduce del contrato a él.
   const paraNucleo = apoyos.map((a) => ({
     funcionEstructural: a.funcionEstructural,
     nombre: nombreVisible(a),
   }));
-  const conductor = {
-    w: c.masaLineal_kg_m, rts: c.rts_kgf, S: c.seccion_mm2,
-    E: c.moduloElastico_kg_mm2, alfa: c.dilatacion_1_C, diametro: c.diametro_m,
-  };
-  const params = {
-    eds: h.eds_pct, tEds: h.tempEds_C, tMax: h.tempMax_C, tMin: h.tempMin_C,
-    vViento: h.vientoMax_kmh, tViento: h.tempViento_C, cx: h.cx, rho: h.densidadAire_kg_m3,
-  };
+  const conductor = conductorParaNucleo(c);
+  const params = paramsParaNucleo(h);
   const admisible = tiroMaximoAdmisible(c.rts_kgf);
 
   return tramosDeTension(paraNucleo, L).map((t: any, i: number) => {

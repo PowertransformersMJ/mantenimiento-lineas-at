@@ -23,6 +23,7 @@ import { Distribucion } from './Distribucion';
 import { Distancias } from './Distancias';
 import { Fichas } from './Fichas';
 import { Exportar } from './Exportar';
+import { Fundamentos } from './Fundamentos';
 
 const nf = (v: number, d = 0) =>
   v.toLocaleString('es-CO', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -86,7 +87,7 @@ const PESTANAS = [
   { id: 'distancias', rotulo: 'Distancias', lista: true },
   { id: 'fichas', rotulo: 'Fichas', lista: true },
   { id: 'falla', rotulo: 'Falla', lista: false, roja: true },
-  { id: 'fundamentos', rotulo: 'Fundamentos', lista: false },
+  { id: 'fundamentos', rotulo: 'Fundamentos', lista: true },
   { id: 'mecanico', rotulo: 'Mecánico', lista: true },
   { id: 'cantidades', rotulo: 'Cantidades', lista: false },
   { id: 'exportar', rotulo: 'Exportar', lista: true },
@@ -300,6 +301,7 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis }:
       {activa === 'distancias' && <Distancias apoyos={apoyos} />}
       {activa === 'fichas' && <Fichas apoyos={apoyos} />}
       {activa === 'mecanico' && <Mecanico apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} />}
+      {activa === 'fundamentos' && <Fundamentos apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} />}
       {activa === 'exportar' && <Exportar linea={linea} apoyos={apoyos} hipotesis={hipotesis} />}
     </>
   );
