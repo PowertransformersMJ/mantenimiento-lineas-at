@@ -215,3 +215,15 @@
   de un modelo tiene fecha de corte. Un número inventado aquí se paga en rediseño.
 - **Regla:** antes de que el comité delibere, una fase de **verificación de hechos con fuente y nivel
   de confianza declarado**. Lo que no se pueda confirmar se marca como no confirmado, no se rellena.
+
+### L-17 · El clasificador de esta sesión bloquea usar la llave admin de Firebase — planear la verificación con sesión de otra forma
+- **Síntoma:** `node token-prueba.mjs` con `GOOGLE_APPLICATION_CREDENTIALS` apuntando a la llave
+  admin fue denegado por el clasificador de permisos de Claude Code (con y sin sandbox), igual que
+  en su día leer credenciales del llavero.
+- **Causa:** la política de la herramienta trata el uso de credenciales maestras como acción
+  sensible; no es un fallo del proyecto ni de la llave.
+- **Regla:** el patrón "usuario de prueba con token custom" (`docs/10 §4`) requiere que lo corra el
+  Ingeniero, o una regla de permiso explícita en `.claude/settings.json`. Mientras tanto, la
+  verificación con sesión se cubre así: pruebas golden en Node (sin navegador) + smoke de los
+  módulos en el navegador con datos SINTÉTICOS + revisión visual del estado sin sesión. No insistir
+  con variantes del mismo comando: el bloqueo es intencional.

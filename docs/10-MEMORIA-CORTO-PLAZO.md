@@ -4,14 +4,15 @@
 > **Relevo de sesión 2026-07-31**: la conversación fundadora llegó al tope de contexto y el
 > Ingeniero pidió continuar en una nueva. Este nodo ES el relevo — léelo entero antes de tocar nada.
 
-## 🎯 Foco actual — CONTINUAR LAS PESTAÑAS
+## 🎯 Foco actual — CONTINUAR LAS PESTAÑAS + AUDITORÍA PREMIUM
 
-**4 de 8 pestañas vivas y verificadas** contra el módulo original: Resumen (mapa real +
-distribución), Distancias (calculadora + matriz 24×24), Fichas (por punto, GMS idéntico al
-original), Mecánico (tramos). **La siguiente es EXPORTAR** (decidido con el Ingeniero):
-GPX 1.1, KML y CSV generados **desde los datos, jamás desde la pantalla** (ADR-005) y
-verificados contra los exportadores del HTML original. Después: Cantidades (BOM),
-Fundamentos, Falla.
+**5 de 8 pestañas vivas y verificadas** contra el módulo original: Resumen, Distancias,
+Fichas, Mecánico y **Exportar** (✅ 2026-07-30, ADR-006: GPX 1.1/KML/CSV desde los datos,
+14 pruebas golden contra el fixture; divergencia deliberada de empalmes documentada).
+**Orden del Ingeniero 2026-07-30:** auditoría comparativa de FONDO del original completo
+contra la web + llevar el proyecto a nivel premium para presentarlo a la compañía — comité
+de 7 agentes Opus corrió (crudo en la bóveda); sus hallazgos alimentan lo que sigue.
+Después: Cantidades (BOM), Fundamentos, Falla.
 
 ## 🧭 Cómo retomar (para la sesión nueva)
 
@@ -48,8 +49,9 @@ Fundamentos, Falla.
 
 | # | Qué | Estado |
 |---|---|---|
-| **TODO-19** | **Pestaña EXPORTAR**: GPX 1.1/KML/CSV desde datos, verificados contra los del módulo original (formatos en el propio HTML: `dl()`, cabeceras `sep=;`) | 🔜 SIGUIENTE |
-| **TODO-20** | Pestañas Cantidades (BOM) → Fundamentos → Falla | 🔲 en ese orden |
+| **TODO-20** | Pestañas Cantidades (BOM) → Fundamentos → Falla | 🔜 SIGUIENTE (con el inventario del comité auditor) |
+| **TODO-24** | Aplicar hallazgos P0/P1 de la auditoría original-vs-web (crudo en bóveda) | 🔲 |
+| **TODO-25** | Que el Ingeniero pruebe el clic de descarga de Exportar con su sesión real (el clasificador bloquea el usuario de prueba, `30 · L-17`) | 🔲 Ingeniero |
 | **TODO-11** | **F1 · Nota técnica LN-627** — con las correcciones de la auditoría (`99`): viento 130 km/h región 5, límite RETIE 25 % sin carga, fluencia, gálibos por categoría | 🔲 |
 | **TODO-10** | Confirmar contra qué hipótesis compara el despeje el módulo original | 🔲 |
 | **TODO-12** | Margen real de almacenamiento con la mezcla del parque | 🔲 tras TODO-02 |

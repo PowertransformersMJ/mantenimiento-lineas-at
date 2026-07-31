@@ -709,3 +709,56 @@ MapLibre, la premisa se cayó.
 `../brain-private/mantenimiento-lineas-at/research-archive/2026-07-29-comite-framework-frontend.md`
 (76 KB: hechos verificados con fuente y fecha, los cuatro aportes, el peer review anónimo y el
 veredicto íntegro).
+
+---
+
+## ADR-006 · 2026-07-30 · Exportadores GPX/KML/CSV: paridad de formato con el módulo original, verdad del modelo corregido
+
+**Estado:** ✅ Implementado (pestaña Exportar viva; 14 pruebas golden en `tests/exportar.test.js`).
+
+### Contexto
+
+La pestaña Exportar del módulo original generaba GPX 1.1, KML y CSV desde su tabla interna `S` de 26
+puntos, donde **"vano anterior" era la distancia entre puntos GPS consecutivos, empalmes incluidos**
+— la misma confusión de dominio que este sistema ya corrigió (un empalme no es apoyo; partía el vano
+real E06→E07 de 247,8 m en dos falsos de 84,4 y 163,5). Había que decidir: ¿paridad ciega con el
+original, o paridad de formato con la verdad del modelo corregido?
+
+### Decisión
+
+> **Paridad de FORMATO, verdad de MODELO.** Una única derivación pura
+> (`web/src/exportar/levantamiento.js`, JS sin React) alimenta los tres generadores; los archivos
+> salen de los datos, jamás de la pantalla (ADR-005). El CSV conserva el número del original como
+> `Dist_punto_anterior_m` (trazabilidad del levantamiento) y `Vano_anterior_m` pasa a ser el vano
+> real entre estructuras — el mismo que usan Mecánico, Fichas y Resumen. Los empalmes se exportan
+> SIEMPRE (visibilidad íntegra) pero rotulados como lo que son, con su carpeta propia en KML.
+
+Contratos de formato conservados del original: GPX topografix 1.1 con `wpt` (lat/lon a 6, cota a 3,
+`sym` Flag Blue) + `trk`; KML con estilos `aabbggrr` y colores de tramo rotando
+(`ff3b3bd6/fff5b04b/ff6fc45b/ff1f7ad6`, morado `#b06bd6` para empalmes); CSV con BOM UTF-8 +
+`sep=;` + CRLF + punto decimal. Hora local América/Bogotá con el formato exacto del original.
+
+### Alternativas descartadas
+
+- **Replicar el original tal cual** (vano = distancia entre puntos consecutivos): reintroduce el
+  error de dominio que costó detectar; los archivos contradirían a las demás pestañas del sistema.
+- **Omitir los empalmes de los exportes**: pérdida de información del levantamiento real; viola la
+  regla de no introducir regresiones de visibilidad.
+- **Exportar "captando" la pantalla**: prohibido por ADR-005; irreproducible y no verificable.
+- **Informe fotográfico y proyecto .json del original**: pospuestos a F4 — dependen de fotos y
+  notas que el sistema aún no tiene, y aquí no se finge nada.
+
+### Consecuencias
+
+- Verificación de oro contra el fixture de la bóveda: GMS y horas locales idénticos al original en
+  los 26 puntos; distancias GPS consecutivas conservadas ±1 cm; la divergencia E06→E07 = 247,8 m
+  probada explícitamente; tramos 1-2-2-14-1-3. Las pruebas se saltan solas sin bóveda (CI).
+- `aGMS` se movió a `web/src/vistas/gms.js` (JS puro) para que Node lo pruebe sin compilador;
+  `vistas/formato.ts` lo re-exporta y las pantallas no cambiaron.
+- La verificación con sesión viva quedó bloqueada por el clasificador (`30 · L-17`): pendiente de
+  que el Ingeniero pruebe el clic de descarga con su sesión real.
+
+### Crudo de respaldo
+
+Los propios tests (`tests/exportar.test.js`) son la evidencia reproducible; los exportadores del
+original están citados línea a línea en el commit `3c480d1`.

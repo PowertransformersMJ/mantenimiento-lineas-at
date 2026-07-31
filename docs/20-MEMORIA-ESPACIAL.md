@@ -42,7 +42,9 @@ mantenimiento-lineas-at/
 │   └── estadisticas.js          distribución de vanos (media, mediana, desv. de muestra…)
 │
 ├── tests/
-│   └── nucleo.test.js           53 pruebas de oro — la red de seguridad de la migración
+│   ├── nucleo.test.js           pruebas de oro del núcleo — la red de seguridad de la migración
+│   ├── estadisticas.test.js     estadísticas de vanos contra el panel original
+│   └── exportar.test.js         GPX/KML/CSV contra la tabla del módulo original (golden, ADR-006)
 │
 ├── docs/                        las neuronas (índice en 00-INDICE.md)
 │   ├── .brain-manifest.json     configuración del cerebro: topes, archiveDir, kernelFiles
@@ -60,8 +62,11 @@ mantenimiento-lineas-at/
 │                                boot-gate, brain-archive
 │
 ├── web/src/componentes/         React SOLO pinta (ADR-005): Linea (pestañas), Mapa (MapLibre+PMTiles),
-│                                Distribucion, Distancias (matriz), Fichas, Estado (los 5 estados)
-├── web/src/vistas/              geometría/estadística ya resuelta para pintar + formato (GMS)
+│                                Distribucion, Distancias (matriz), Fichas, Exportar, Estado (los 5 estados)
+├── web/src/exportar/            GPX/KML/CSV — JS PURO sin React (ADR-006): levantamiento.js es la
+│                                única derivación; gpx/kml/csv generan texto; descargar.js toca el DOM
+├── web/src/vistas/              geometría/estadística ya resuelta para pintar + formato (GMS en gms.js,
+│                                JS puro compartido con los exportadores y las pruebas de Node)
 ├── web/src/datos/               repositorio, enlace (useSyncExternalStore), firebase, cargar (reintentos)
 ├── web/public/mapas/            recorte PMTiles metropolitano (4,3 MB, autohospedado)
 ├── web/public/basemaps-assets/  fuentes y sprites del mapa (autohospedados)

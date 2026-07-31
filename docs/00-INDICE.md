@@ -62,6 +62,7 @@ Guarda `research-archive/` (crudos de deliberación: comités, consejos externos
 | `ADR-003` | 2026-07-29 | El Ingeniero fija alcance (plataforma completa e independiente) y presupuesto (asume el coste al pasarse) | — (decisión directa del dueño) |
 | `ADR-004` | 2026-07-29 | Subsistema de IA (API de Anthropic) y contrato para trabajar frontend y backend en paralelo | `research-archive/2026-07-29-arquitectura-ia-y-paralelo.md` |
 | `ADR-005` | 2026-07-29 | Framework del frontend: React 19 como aplicación de una sola página, sin meta-framework | `research-archive/2026-07-29-comite-framework-frontend.md` |
+| `ADR-006` | 2026-07-30 | Exportadores GPX/KML/CSV: paridad de formato con el original, verdad del modelo corregido | `tests/exportar.test.js` (evidencia reproducible) |
 
 > Toda decisión cara de revertir entra aquí con su ADR y su crudo enlazado. Si hubo comité o consejo
 > externo y el crudo no está archivado, la tarea **no está cerrada** (`CLAUDE.md §G.4`).
