@@ -39,12 +39,19 @@ mantenimiento-lineas-at/
 │   ├── geodesia.js              Vincenty, azimuts, deflexiones, progresivas, vano viento, VIR
 │   ├── mecanica.js              catenaria, parábola, viento, cambio de estado, tramos, vano peso
 │   ├── termica.js               resistencia c.c., ampacidad IEEE 738, derrateo
-│   └── estadisticas.js          distribución de vanos (media, mediana, desv. de muestra…)
+│   ├── estadisticas.js          distribución de vanos (media, mediana, desv. de muestra…)
+│   ├── vanos.js                 detalle vano a vano + control catenaria vs parábola
+│   ├── umbrales.js              los 8 indicadores con semáforo y FUENTE (ADR-009)
+│   ├── cantidades.js            BOM geométrico; lo no capturable va a `avisos`
+│   ├── coherencia.js            función declarada vs deflexión, fuga específica, tierra
+│   └── cargas.js                carga transversal y utilización del apoyo (sin vista aún)
 │
 ├── tests/
 │   ├── nucleo.test.js           pruebas de oro del núcleo — la red de seguridad de la migración
 │   ├── estadisticas.test.js     estadísticas de vanos contra el panel original
-│   └── exportar.test.js         GPX/KML/CSV contra la tabla del módulo original (golden, ADR-006)
+│   ├── exportar.test.js         GPX/KML/CSV contra la tabla del módulo original (golden, ADR-006)
+│   └── vanos · umbrales · cantidades · coherencia · cargas · diagramas · termica-vista ·
+│       viento · exportar-calculo · informe · criterios-apoyo   (445 pruebas en total)
 │
 ├── docs/                        las neuronas (índice en 00-INDICE.md)
 │   ├── .brain-manifest.json     configuración del cerebro: topes, archiveDir, kernelFiles
@@ -64,12 +71,20 @@ mantenimiento-lineas-at/
 ├── exportar/                    ⭐ WORKSPACE @lineas/exportar, HERMANO de nucleo (ADR-005/006/007):
 │                                levantamiento.js (LA derivación única) · gpx/kml/csv · calidad.js
 │                                (observaciones calculadas) · procedencia.js · gms.js · version.js
-├── web/src/componentes/         React SOLO pinta (ADR-005): Linea (pestañas ARIA), Mapa (popup completo
-│                                + tramos coloreados), Distribucion, Distancias, Fichas (huecos F4
-│                                declarados), Fundamentos, Exportar, Estado
+│                                · mecanica.js y bom.js (CSV de cálculo) · informe.js (documento
+│                                imprimible, autocontenido: cero JS y cero recursos externos)
+├── evidencias/                  🚪 EL PORTERO (Cloudflare Worker, ADR-010): verifica la FIRMA del
+│                                token de Firebase contra las llaves de Google y sirve las fotos
+│                                del depósito privado. No escribe, no borra, no lista.
+├── herramientas/                sembrar.mjs (línea + expediente) · subir-evidencias.mjs (fotos)
+├── web/src/componentes/         React SOLO pinta (ADR-005): Linea (10 pestañas ARIA), Mapa (popup
+│                                completo + tramos + marcador de falla), Distribucion, Distancias,
+│                                Fichas, Falla + Galeria, Fundamentos, Umbrales, Termica, Viento,
+│                                Cantidades, Exportar, Sello, Estado
 ├── web/src/contenido/           doctrina SIN datos de cliente (fundamentos.ts: 9 tarjetas + normas)
 ├── web/src/exportar/            SOLO descargar.js (Blob/DOM) — el resto vive en el workspace
-├── web/src/vistas/              geometría/estadística para pintar + formato + tramoColores
+├── web/src/vistas/              geometría para pintar + formato + tramoColores + diagramas.ts (las
+│                                9 figuras de Fundamentos) + termicaDatos/vientoDatos/criteriosApoyo
 ├── web/src/datos/               repositorio, enlace (useSyncExternalStore), firebase, cargar (reintentos)
 ├── web/public/mapas/            recorte PMTiles metropolitano (4,3 MB, autohospedado)
 ├── web/public/basemaps-assets/  fuentes y sprites del mapa (autohospedados)

@@ -1,98 +1,99 @@
 # 📝 10 — MEMORIA DE CORTO PLAZO (pizarra del trabajo vivo)
 
 > Se **AUTO-CARGA**. Es pizarra, no bitácora (§G.3). Tope ~110 líneas / 16k chars.
-> **Relevo de sesión 2026-07-31**: la conversación fundadora llegó al tope de contexto y el
-> Ingeniero pidió continuar en una nueva. Este nodo ES el relevo — léelo entero antes de tocar nada.
+> **RELEVO DE SESIÓN 2026-08-01** — la conversación anterior llegó al tope de contexto.
+> Este nodo ES el relevo: léelo entero antes de tocar nada.
 
-> **Identidad visual (2026-07-31):** la interfaz es un **TABLERO a ancho completo** con el lenguaje
-> del módulo original (misma paleta oscura, cabecera con degradado, densidad de 14 px, títulos de
-> sección de 11,5 px en mayúsculas, avisos tintados). NO aclarar el tema: el original también es
-> oscuro; lo que faltaba era densidad (`30 · L-21`).
+## 🎯 Dónde estamos
 
-## 🎯 Foco actual — OLA 2 DE LA AUDITORÍA PREMIUM (ADR-007)
+**10 pestañas vivas**: Resumen · Distancias · Fichas · **Falla** · Fundamentos · Mecánico ·
+**Térmica** · **Viento** · **Cantidades** · Exportar. **445 pruebas** en verde. Producción al día.
 
-**6 de 8 pestañas vivas**: Resumen (premium: popup completo, tramos coloreados, calidad
-calculada), Distancias, Fichas (inventario con huecos declarados), Mecánico (con sello de
-trazabilidad), **Fundamentos** (✅ 07-30: 9 tarjetas + MathML + valores vivos + marco
-normativo) y **Exportar** (✅ ADR-006: 4 archivos con procedencia adentro, CSV dual).
-La auditoría de 7 auditores Opus (ADR-007, crudo en bóveda) dejó la Ola 2 en TODO-26…31;
-faltan Cantidades y Falla. Producción al día; 78 pruebas.
+La migración del módulo de campo original está cerrada en sus P0. El inventario de brechas
+(ADR-009, 8 auditores) contaba 79 faltantes; quedan ~48 de prioridad P1/P2 con receta escrita
+en el crudo de la bóveda.
 
-## 🧭 Cómo retomar (para la sesión nueva)
+## 🛑 LO PRIMERO AL RETOMAR: dos cosas están a medias y son del Ingeniero
 
-1. **Abrir Claude Code DENTRO de `~/Desktop/GitHub-MJ/mantenimiento-lineas-at/`** — así corren
-   los hooks del cerebro. Boot: `CLAUDE.md` + `05` + `10` + `brain:check`.
-2. Producción: **https://mantenimiento-lineas-at.pages.dev** · repo
-   `PowertransformersMJ/mantenimiento-lineas-at` (público → cero bytes de cliente, L-07).
-3. Sesiones YA autenticadas en esta Mac: `gh` (GitHub) · `wrangler` (Cloudflare, cuenta
-   ajimenezp99) · `firebase` (proyecto `mantenimiento-lineas-at`, Firestore en
-   southamerica-east1). Desplegar: `npm run build && npm run deploy --workspace web`.
-4. La llave de administrador de Firebase está en la carpeta de Descargas del Ingeniero (nombre
-   exacto → nota operativa en la bóveda `../brain-private/mantenimiento-lineas-at/`). Sirve
-   para sembrar datos y usuarios de prueba (patrón: `pruebaN@mantenimiento-lineas-at.test`
-   con claims `{orgId:'transpower', rol:'admin'}` vía token custom, **verificar en el panel de
-   vista previa —visible— y BORRARLO al terminar**; queda solo ajimenezp99@gmail.com admin).
-5. Verificación visual: el panel de vista previa SÍ pinta; la pestaña de Chrome controlada por
-   herramientas puede estar oculta y **congela el mapa** (L-16) — no diagnosticar ahí.
-6. Antes de CADA push: auditoría de coordenadas/secretos + `npm test` (59) +
-   `contrato:verificar` + `brain:check`. Documentar TODO fallo en `30` ANTES de commitear —
-   orden expresa del Ingeniero: *"nunca olvides documentar todo, sobre todo los errores o
-   fallos, para que no se repitan nunca más"*. Y: *"vamos a darle un máximo nivel"*.
+1. **R2 sin habilitar.** Se pulsó «Add R2 subscription» y el paso siguiente pide **tarjeta y
+   dirección de facturación** — Claude NO rellena datos de pago, ni autorizado (`30 · L-25`).
+   Comprobar con `npx wrangler r2 bucket list`. **Cuando responda**, en este orden:
+   ```
+   npx wrangler r2 bucket create lineas-at-evidencias
+   cd evidencias && npx wrangler deploy          # el portero; anota su URL
+   # añadir VITE_EVIDENCIAS_URL=<url del worker> al build de web/ y redesplegar
+   GOOGLE_APPLICATION_CREDENTIALS=~/Downloads/mantenimiento-lineas-at-firebase-adminsdk-fbsvc-6f767a0725.json \
+     node herramientas/subir-evidencias.mjs --linea LN-627 --origen falla
+   ```
+   Todo lo demás del pipeline ya está construido y probado (ADR-010).
+2. **El tope de tiro: 50 % clásico o 25 % del RETIE sin carga externa.** El umbral salió del
+   código a las hipótesis (`hipotesis.tiroAdmisible_pct`); la tabla de Umbrales muestra AMBOS y
+   el segundo queda «no evaluable» hasta que el Ingeniero declare `criterioTiroQueRige`.
+   **Los números NO han cambiado.** Ojo: `vistas/tramos.ts` sigue leyendo `tiroMaximoAdmisible()`
+   = 0,5·RTS de `mecanica.js` — unificarlo al cerrar la decisión.
+
+## 🧭 Cómo retomar
+
+1. **Abrir Claude Code DENTRO de `~/Desktop/GitHub-MJ/mantenimiento-lineas-at/`** (si no, el
+   gate del cerebro bloquea el commit por canario de boot; remedio:
+   `node scripts/session-handoff.mjs --boot-echo`). Boot: `CLAUDE.md` + `05` + `10` + `brain:check`.
+2. Producción **https://mantenimiento-lineas-at.pages.dev** · repo público
+   `PowertransformersMJ/mantenimiento-lineas-at` → **cero bytes de cliente, incluidas las
+   pruebas** (`L-23`). Desplegar: `npm run build && npm run deploy --workspace web`, y **esperar
+   propagación comparando el hash del bundle** (`L-18`) antes de decir que está vivo.
+3. Autenticado en esta Mac: `gh`, `wrangler` (cuenta ajimenezp99), `firebase`. Llave admin de
+   Firebase en Descargas (nombre en la nota operativa de la bóveda).
+4. **Verificar contra PRODUCCIÓN con el Chrome del Ingeniero**, no con arneses locales: el
+   sitio exige login y el arnés de inyección en el almacén rompe el árbol de React. Si el panel
+   de vista previa está oculto, el mapa se congela y todo parece roto (`L-16`).
+5. Antes de CADA push: auditoría de coordenadas (`grep -rnE '\b10\.3[45][0-9]{4}\b|\b-?75\.4[89][0-9]{4}\b'`)
+   + `npm test` (445) + `contrato:verificar` + `brain:check`. Documentar TODO fallo en `30`
+   ANTES de commitear — orden expresa: *"que no se repitan nunca más"*. Y: *"máximo nivel"*.
 
 ## 🔲 Pendientes del INGENIERO
 
-| # | Qué | Por qué bloquea |
+| # | Qué | Por qué importa |
 |---|---|---|
-| **TODO-02** | Enviar a AFINIA las **7 preguntas** (`99 §ADR-001`; la nº 2 la cerró ADR-003) | La 3 decide si F4 existe; la 4 decide F5/F6; la 1 define el entregable |
+| **TODO-32** | **Completar el alta de R2** (tarjeta + dirección + 2 casillas) | Desbloquea las 103 fotos y el informe fotográfico |
+| **TODO-33** | **Decidir 50 % o 25 % de RTS** como tope de tiro | Hoy el motor calcula con 50 % y la doctrina dice 25 % |
+| **TODO-34** | **Respaldo de la bóveda**: no tiene remoto. 337 MB, con un archivo de 110 MB (`sgm-transpower/confidencial-retirado/*.bundle`) que **GitHub rechaza** (tope 100 MB/archivo). Opciones: repo privado excluyendo ese bundle · copia a disco externo (no había ninguno montado) · dejarlo solo en la Mac | Ahí viven las 103 fotos, los fixtures y todos los crudos |
+| **TODO-02** | Enviar a AFINIA las **7 preguntas** (`99 §ADR-001`) | La 3 decide si F4 existe; la 4 decide F5/F6 |
 | **TODO-03** | Cronometrar el proceso actual de LN-627 (20 min) | Sin eso el ahorro prometido es inventado |
-| **TODO-04** | Abrir el HTML en el teléfono de cuadrilla en modo avión: ¿mapa gris? | Confirma L-10 en vivo |
-| **TODO-05** | Decidir por escrito qué NO se mide de la persona | Sin eso el piloto mide adopción falsa |
-| **TODO-06** | ¿Existen el GPX crudo del Garmin y las fotos originales en la Mac? | Definen la fuente del generador |
+| **TODO-25** | Probar con su sesión: descargas, Fundamentos, popup, Salir | El clasificador bloquea el usuario de prueba (`L-17`) |
 
-## 🔲 Pendientes de CLAUDE
+## 🔲 Pendientes de CLAUDE (ola 3)
 
 | # | Qué | Estado |
 |---|---|---|
-| **TODO-25** | Que el Ingeniero pruebe con su sesión real: descarga de los 4 exportes, Fundamentos, popup del mapa, Salir (el clasificador bloquea el usuario de prueba, `30 · L-17`) | 🔲 Ingeniero |
-| **TODO-26** | **Mecánico premium** (auditoría, ADR-007): `nucleo/umbrales.js` como datos con fuente + `hallazgos.js` (alertas puras) + tabla vano a vano + control catenaria/parábola + cargas/utilización + tablero de ampacidad con derrateo + usar `tempMaxOperacion_C` declarada | 🔜 SIGUIENTE |
-| **TODO-27** | Pestaña **Cantidades (BOM)**: extender `Apoyo` ADITIVO (herrajes/equipos), validaciones como funciones puras, resumen técnico; inventario completo en el crudo de ADR-007 | 🔲 |
-| **TODO-28** | Pestaña **Falla**: contratos nuevos (evento, hipótesis causales con verosimilitud, checklist de verificaciones) — decisión de modelo con el Ingeniero | 🔲 |
-| **TODO-29** | `exportar/informe.js` (registro imprimible por punto) + `exportar/mecanica.js` (CSV de verificación mecánica) | 🔲 |
-| **TODO-30** | CI: validación XSD real de GPX/KML (xmllint + esquemas en el repo) + snapshots de archivo completo | 🔲 |
-| **TODO-31** | Diagramas SVG de las 9 tarjetas de Fundamentos (helpers puros; inventario en `fundamentos-notas` del crudo) | 🔲 |
-| **TODO-11** | **F1 · Nota técnica LN-627** — con las correcciones de la auditoría (`99`): viento 130 km/h región 5, límite RETIE 25 % sin carga, fluencia, gálibos por categoría | 🔲 |
-| **TODO-10** | Confirmar contra qué hipótesis compara el despeje el módulo original | 🔲 |
-| **TODO-12** | Margen real de almacenamiento con la mezcla del parque | 🔲 tras TODO-02 |
-| **TODO-13** | F3: invalidación por tramo al editar un apoyo (ADR-002 e.3) | 🔲 |
-| **TODO-14** | F4: sincronización bifurcada + `base_revision_id` con cuarentena (ADR-002 e.1-2) | 🔲 |
-| **TODO-15** | Al entrar en F5: reabrir Firestore vs D1 con datos reales (ADR-002/003) | 🔲 condicional |
-| **TODO-16** | Alerta de presupuesto ANTES de tráfico real (ADR-003) | 🔲 antes de F5 |
-| **TODO-21** | Semana 2 de ADR-004: flujo de IA completo con `ProveedorFalso` (0 tokens, sin papeles) | 🔲 tras pestañas |
-| **TODO-22** | Prueba de navegador con captura vs referencia (el "revisor que no tenemos", ADR-005) | 🔲 |
-| **TODO-23** | Secretos `CLOUDFLARE_API_TOKEN`/`ACCOUNT_ID` en GitHub → despliegue automático | 🔲 con el Ingeniero |
+| **TODO-35** | Al habilitarse R2: depósito + desplegar `evidencias/` + `VITE_EVIDENCIAS_URL` + subir fotos + verificar la galería en producción | 🔜 en cuanto TODO-32 |
+| **TODO-36** | **Fichas editable** (hecho fechado, no sobrescritura) + las 99 fotos por estructura + los ~26 campos del contrato que aún no se pintan | 🔲 el mayor hueco restante (paridad 25 %) |
+| **TODO-37** | **Informe gerencial** del expediente (control documental, riesgo residual, recomendaciones) — inventariado en el crudo de ADR-009 | 🔲 |
+| **TODO-38** | Cargas sobre estructuras EN PANTALLA: `nucleo/cargas.js` existe y está probado, pero ninguna vista lo llama | 🔲 bajo esfuerzo, alto valor |
+| **TODO-30** | CI: validación XSD real de GPX/KML (xmllint + esquemas en el repo) | 🔲 |
+| **TODO-11** | F1 · Nota técnica LN-627 con las correcciones de la auditoría | 🔲 |
+| **TODO-13/14/15/16/21/22/23** | F3-F5: invalidación por tramo · sincronización bifurcada · Firestore vs D1 · alerta de presupuesto · flujo IA con `ProveedorFalso` · prueba de navegador · secretos para despliegue automático | 🔲 |
 
-## ✅ Estado consolidado (detalle → ADR-001…005 y los commits)
+## ✅ Consolidado (detalle → ADR-001…010)
 
-- **Producción viva** con datos reales de LN-627 leídos tras login Google (popup + redirección).
-- **Modelo corregido**: 24 estructuras + 2 empalmes (NO son apoyos), 23 vanos, VIR 198,20 m,
-  tramos 1-2-2-14-1-3, nombres canónicos ↔ GPS crudo conviviendo (`40 §10`).
-- **Motor sin deuda**: cambio de estado validado por identidad física; vano peso derivado con
-  detección de arrancamiento; estadísticas que reproducen el panel original. **59 pruebas.**
-- **Mapa**: MapLibre + PMTiles 100 % autohospedado (Cartagena metro, 4,3 MB, archivo completo
-  en memoria porque Pages no honra rangos). Satelital deshabilitada: licencia por verificar.
-- **Auditoría adversarial de la nota técnica** (crudos en la bóveda): viento real 130 km/h
-  (región 5), límite RETIE = 25 % de rotura sin carga (el 50 % no existe en RETIE), sin
-  fluencia la flecha real es 10,4–11,2 m, los 7,0 m de despeje no corresponden a 66 kV, el GPS
-  de mano no es firmable, y el tramo crítico es el 5 (13,4 m), no el 6. **Nada de esto está
-  resuelto: está DOCUMENTADO y espera la ficha del proveedor + topografía real.**
-- **Cerebro**: 16 lecciones (L-01…L-16) — LEERLAS antes de tocar Firebase, mapas o despliegues.
+- **Modelo**: 24 estructuras + 2 empalmes (NO son apoyos), 23 vanos, tramos 1-2-2-14-1-3 (`40 §10`).
+- **Workspaces**: `nucleo/` (geodesia, mecánica, térmica, estadísticas, vanos, umbrales,
+  cantidades, coherencia, cargas) · `contratos/` (10 colecciones) · `exportar/` (levantamiento,
+  gpx, kml, csv, calidad, procedencia, mecanica, bom, informe) · `web/` · `evidencias/` (Worker).
+- **Hallazgos de ingeniería nuevos, reales**: 14 de 23 vanos fuera de la banda 0,7–1,3 del VIR
+  (sobre todo el tramo 4) · control catenaria/parábola −0,100 % en el vano peor → la parábola
+  ES admisible aquí · un apoyo con 118° de deflexión (factor 1,72: recibe más carga que la
+  propia tensión).
+- **Deuda declarada, no resuelta**: fluencia, vano peso (falta cota de sujeción), despeje al
+  terreno, ficha real del proveedor del conductor.
+- **Cerebro**: 25 lecciones (L-01…L-25). Leer antes de tocar Firebase, mapas, despliegues o
+  workflows con agentes.
 
 ## 🚫 Callejones ya probados (no repetir — detalle en `30`)
 
+- Desplegar código sin desplegar `firestore.rules` → el dato existe y no llega (`L-22`).
+- Creer que un `npm test` verde prueba que hay pruebas: un agente caído deja módulos sin
+  validar y el contador sube igual (`L-24`).
+- Aclarar el tema por «se ve oscuro»: el original TAMBIÉN es oscuro; era densidad (`L-21`).
+- Arneses que inyectan en el almacén y montan un segundo React → «Invalid hook call».
+- Diagnosticar el mapa en pestaña oculta → reloj congelado (`L-16`).
 - `node --test tests/` sin patrón entrecomillado → suite sin correr, sin aviso.
-- Leer credenciales del llavero → bloqueado por el clasificador; `gh auth login` fue el camino.
-- Caché persistente de Firestore/Auth en IndexedDB → "Database is closing/hidden" (L-11/L-11b).
-- `initializeAuth` sin `popupRedirectResolver` → `auth/argument-error` (L-13).
-- Worker de MapLibre por defecto en producción → mudo; `?worker&url` + `setWorkerUrl` (L-15).
-- Diagnosticar el mapa en pestaña oculta → RAF congelado, todo parece roto (L-16).
-- PMTiles por rangos contra Pages → responde 200 completo; va el archivo entero a memoria.

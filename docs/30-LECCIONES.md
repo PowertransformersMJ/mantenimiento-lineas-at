@@ -328,3 +328,19 @@
   módulos eran correctos. La única corrección fue de MI prueba, que buscaba el escapado en un campo
   que el informe no imprime. *Escribir la prueba después también sirve para descubrir qué hace de
   verdad el módulo.*
+
+### L-25 · Un alta «gratuita» puede esconder un formulario de pago — y ahí Claude se detiene
+- **Síntoma:** el Ingeniero autorizó pulsar «Add R2 subscription to my account» (0,00 USD, 10 GB
+  gratis). El botón no cobraba nada… pero abría un **checkout con campos de tarjeta y dirección de
+  facturación**, más una casilla de *«autorizo a Cloudflare a cobrar a esta tarjeta el consumo que
+  exceda los límites»*.
+- **Regla:** Claude puede pulsar un botón que el dueño autorizó explícitamente **tras enseñarle el
+  texto legal exacto**, pero **NUNCA escribe datos de tarjeta ni dirección de facturación**, con
+  autorización o sin ella. Se para, deja el formulario abierto en la pestaña del dueño y le dice
+  exactamente qué falta.
+- **Cómo se hace bien:** (1) abrir la página y LEERLA antes de tocar nada; (2) citar el texto legal
+  literal (renovación automática, cargo al medio de pago, términos); (3) señalar el choque con las
+  reglas del propio proyecto —aquí, *«se prefiere el servicio que APAGA al que COBRA»*, y R2 cobra;
+  (4) pedir confirmación explícita para ESE clic; (5) detenerse en el primer campo de pago.
+- **Lección general:** «gratis» describe el precio, no el flujo. Antes de prometer que un alta es
+  inocua, hay que ver el formulario — el importe puede ser 0,00 y aun así exigir tarjeta.
