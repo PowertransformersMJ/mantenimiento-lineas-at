@@ -313,3 +313,18 @@
   `grep -rnE '\b10\.3[45][0-9]{4}\b|\b-?75\.4[89][0-9]{4}\b' --include='*.js' --include='*.ts' .`
 - **Alcance:** la historia de git es permanente (`L-07`), así que el valor sigue en los commits
   antiguos. Se corrigió hacia adelante; si algún día importa de verdad, exige reescribir historia.
+
+### L-24 · Un agente que muere deja código SIN VALIDAR, no código roto
+- **Síntoma:** 4 de 6 constructores cayeron con *«API Error: Connection closed mid-response»*. Sus
+  módulos estaban escritos y la suite pasaba **418/418 en verde** — porque las pruebas que faltaban
+  eran justo las de esos módulos. Verde total, cobertura cero en lo nuevo.
+- **Por qué engaña:** el número de pruebas que pasan sube igual (los otros agentes sí las
+  escribieron), así que el tablero dice «todo bien» mientras dos módulos entran a producción sin
+  que nadie los haya ejercitado.
+- **Regla:** cuando un agente muere, **inventariar sus archivos entregables uno a uno** —
+  especialmente `tests/` — y escribir a mano lo que falte ANTES de integrar. Un `npm test` verde no
+  prueba que exista prueba: prueba que las que existen pasan.
+- **Resultado aquí:** las dos suites escritas a mano (15 + 12 pruebas) encontraron que ambos
+  módulos eran correctos. La única corrección fue de MI prueba, que buscaba el escapado en un campo
+  que el informe no imprime. *Escribir la prueba después también sirve para descubrir qué hace de
+  verdad el módulo.*
