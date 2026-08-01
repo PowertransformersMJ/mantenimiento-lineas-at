@@ -12,6 +12,17 @@ import { vincenty, deflexion, vanoViento } from '@lineas/nucleo/geodesia';
 import { tramosDeTension } from '@lineas/nucleo/mecanica';
 import { soloEstructuras, nombreVisible, vanos } from '../vistas/planta';
 import { nf, aGMS } from '../vistas/formato';
+import { FichaCriterios } from './FichaCriterios';
+
+/**
+ * Un instante ISO, en fecha legible. Se corta a la fecha a propósito: en
+ * mantenimiento la hora exacta de una medición rara vez importa, y el día sí.
+ */
+const fecha = (iso: string | undefined | null): string | null => {
+  if (!iso) return null;
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString('es-CO');
+};
 
 // Un hecho, un dueño: la lista de funciones que anclan vive en el contrato.
 const esAnclaF = (f: string) => FUNCIONES_ANCLA.includes(f);
@@ -34,7 +45,8 @@ interface FichaPunto {
   enVano: string | null;             // para empalmes: dentro de qué vano viven
 }
 
-export function Fichas({ apoyos }: { apoyos: Apoyo[] }) {
+export function Fichas({ apoyos, linea }:
+  { apoyos: Apoyo[]; linea?: { tensionMaxima_kV?: number; tensionNominal_kV?: number } }) {
   const fichas = useMemo<FichaPunto[]>(() => {
     const orden = [...apoyos].sort((x, y) => x.orden - y.orden);
     const E = soloEstructuras(orden);
@@ -171,9 +183,25 @@ export function Fichas({ apoyos }: { apoyos: Apoyo[] }) {
                 <dt>Altura</dt><dd><Dato v={a.altura_m} unidad="m" /></dd>
                 <dt>Cota de sujeción</dt><dd><Dato v={a.cotaSujecion_m} unidad="m" /></dd>
                 <dt>Carga de rotura</dt><dd><Dato v={a.cargaRotura_kgf} unidad="kgf" /></dd>
+                {/* Las dos alturas que la pestaña Cargas reclama en cada fila: sin
+                    ellas la utilización del apoyo queda no evaluable para siempre.
+                    Aquí el hueco se ve y se cuenta, que es el paso previo a llenarlo. */}
+                <dt>Altura libre sobre el terreno</dt><dd><Dato v={a.alturaLibre_m} unidad="m" /></dd>
+                <dt>Altura del punto de sujeción</dt><dd><Dato v={a.alturaAplicacion_m} unidad="m" /></dd>
                 <dt>Año de instalación</dt><dd><Dato v={a.anioInstalacion} /></dd>
                 <dt>Código de inventario</dt><dd><Dato v={a.codigoInventario} /></dd>
+                <dt>En servicio</dt><dd>{a.activo === false ? 'NO — retirado' : 'sí'}</dd>
               </dl>
+              {a.alturaLibre_m != null && a.alturaAplicacion_m != null
+                && a.alturaAplicacion_m > a.alturaLibre_m && (
+                <p className="alerta">
+                  <b>Geometría imposible:</b> el punto de sujeción ({nf(a.alturaAplicacion_m, 2)} m)
+                  queda por encima de la punta del apoyo ({nf(a.alturaLibre_m, 2)} m). El contrato no
+                  lo impide —la regla vive en su comentario, no en el esquema—, así que el dato entra
+                  y el cálculo de momentos que salga de él no significaría nada. Hay que corregirlo
+                  en el inventario.
+                </p>
+              )}
             </div>
           )}
 
@@ -186,11 +214,56 @@ export function Fichas({ apoyos }: { apoyos: Apoyo[] }) {
                 <dt>Fuga por unidad</dt><dd><Dato v={a.aislamiento?.fugaPorUnidad_mm} unidad="mm" /></dd>
                 <dt>Nivel de contaminación</dt><dd><Dato v={a.aislamiento?.nivelContaminacion} /></dd>
                 <dt>Puesta a tierra</dt><dd><Dato v={a.puestaTierra?.tipo} /></dd>
+                <dt>Varillas</dt><dd><Dato v={a.puestaTierra?.numeroVarillas} /></dd>
                 <dt>Resistencia</dt><dd><Dato v={a.puestaTierra?.resistencia_ohm} unidad="Ω" /></dd>
+                {/* Una resistencia SIN fecha no es un dato: 8 Ω medidos en la seca y
+                    8 Ω medidos en plena lluvia dicen cosas opuestas sobre el terreno. */}
+                <dt>Medida el</dt><dd><Dato v={fecha(a.puestaTierra?.medidaEn)} /></dd>
               </dl>
+              {a.puestaTierra?.resistencia_ohm != null && !a.puestaTierra?.medidaEn && (
+                <p className="fine">
+                  <b>La resistencia no trae fecha de medición.</b> Ocho ohmios medidos en época seca
+                  y ocho medidos en plena lluvia dicen cosas opuestas sobre la puesta a tierra: sin
+                  la fecha, el número no se puede defender ante el cliente.
+                </p>
+              )}
             </div>
           )}
+          <div className="ficha-bloque">
+            <h3>Trazabilidad del dato</h3>
+            <dl>
+              {/* La identidad NO es el número «E07»: es un UUID inmutable (ADR-001).
+                  Renumerar o corregir una coordenada son hechos fechados, no
+                  sobrescrituras — y esto es lo único que permite demostrarlo. */}
+              <dt>Identidad (UUID)</dt><dd className="mono">{a.id ?? '—'}</dd>
+              <dt>Revisión</dt><dd><Dato v={a.revision} /></dd>
+              <dt>Cargado el</dt><dd><Dato v={fecha(a.creadoEn)} /></dd>
+              <dt>Cargado por</dt><dd><Dato v={a.creadoPor} /></dd>
+              <dt>Última modificación</dt><dd><Dato v={fecha(a.actualizadoEn)} /></dd>
+              <dt>Modificado por</dt><dd><Dato v={a.actualizadoPor} /></dd>
+            </dl>
+            <p className="fine">
+              Cuando un número se discute, la conversación empieza por <b>a quién preguntarle</b> y
+              por <b>de cuándo es el dato</b>. Un apoyo con muchas revisiones es una señal barata de
+              que ahí ha habido discusión.
+            </p>
+          </div>
         </div>
+
+        {/* El semáforo del apoyo: qué de lo que hay CUADRA. Estaba construido y
+            probado desde la ola anterior y no lo montaba ninguna pantalla. */}
+        {f.esEstructura && (
+          <FichaCriterios apoyo={a} contexto={{
+            deflexion_grados: f.deflexion ?? null,
+            vanoAnterior_m: f.vanoAnterior?.m ?? null,
+            vanoSiguiente_m: f.vanoSiguiente?.m ?? null,
+            // La fuga del aislamiento se juzga contra la tensión MÁXIMA de
+            // operación, no la nominal. Si la línea no la declara, el criterio
+            // sale «no evaluable» — no se sustituye por la nominal, que daría un
+            // veredicto más benévolo que el real.
+            tensionMaxima_kV: linea?.tensionMaxima_kV ?? null,
+          }} />
+        )}
 
         <p className="advertencia">
           <b>Esta ficha muestra lo levantado, lo derivado de la geometría, y los huecos del

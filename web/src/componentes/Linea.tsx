@@ -593,7 +593,7 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
         )}
         {activa === 'falla' && <Falla investigaciones={investigaciones} apoyos={apoyos} evidencias={evidencias} />}
         {activa === 'distancias' && <Distancias apoyos={apoyos} />}
-        {activa === 'fichas' && <Fichas apoyos={apoyos} />}
+        {activa === 'fichas' && <Fichas apoyos={apoyos} linea={linea} />}
         {activa === 'mecanico' && <Mecanico apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} />}
         {activa === 'fundamentos' && <Fundamentos apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} />}
         {activa === 'termica' && <Termica linea={linea} conductor={conductor} hipotesis={hipotesis} />}
