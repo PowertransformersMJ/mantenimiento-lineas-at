@@ -14,7 +14,8 @@
     "./cantidades": "./cantidades.js",
     "./coherencia": "./coherencia.js",
     "./package.json": "./package.json",
-    "./cargas": "./cargas.js"
+    "./cargas": "./cargas.js",
+    "./longitudinal": "./longitudinal.js"
   },
   "sideEffects": false
 }

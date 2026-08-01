@@ -3,8 +3,14 @@
 // ----------------------------------------------------------------------------
 // Las pestañas Mecánico y Viento hablan del CABLE: cuánto tira, cuánto lo
 // empuja el aire. Ésta habla de la ESTRUCTURA, que es de lo que responde el que
-// firma un mantenimiento: cuánta carga transversal recibe cada apoyo y cuánta le
-// queda antes de tocar su capacidad declarada.
+// firma un mantenimiento: cuánta carga recibe cada apoyo y cuánta le queda antes
+// de tocar su capacidad declarada.
+//
+// DOS EJES, DOS TABLAS, Y NUNCA UNA SUMA. Arriba la carga TRANSVERSAL (quiebre +
+// viento: empuja de lado). Abajo la LONGITUDINAL (a lo largo de la línea: es el
+// eje del que cuelga la retención). Son cargas sobre ejes distintos: sumarlas
+// sería sumar peras con manzanas, y por eso ni una cifra de esta pantalla
+// combina las dos.
 //
 // El número que cambia la conversación es el FACTOR DEL QUIEBRE. Un apoyo en
 // una línea recta recibe cero carga de ángulo; uno con 120° de deflexión recibe
@@ -24,6 +30,10 @@ import { useMemo } from 'react';
 import type { Apoyo, Conductor, Hipotesis, Linea } from '@lineas/contratos';
 import { calcularTramos } from '../vistas/tramos';
 import { cargasParaPantalla, agruparNotas } from '../vistas/cargasDatos';
+import { longitudinalParaPantalla } from '../vistas/longitudinalDatos';
+import { tramosDeTension, estadosDelTramo } from '@lineas/nucleo/mecanica';
+import { vanos, soloEstructuras, nombreVisible } from '../vistas/planta';
+import { conductorParaNucleo, paramsParaNucleo } from '../vistas/tramos';
 import { nf, textoNucleo } from '../vistas/formato';
 import { Sello } from './Sello';
 
@@ -32,6 +42,14 @@ const val = (v: number | null, dec = 0, unidad = ''): string =>
   v === null ? '—' : `${nf(v, dec)}${unidad ? ' ' + unidad : ''}`;
 
 const ROTULO = { cumple: 'cumple', revisar: 'revisar', no_evaluable: 'no evaluable' } as const;
+
+/** Cómo se nombra cada caso longitudinal en la tabla, sin jerga. */
+const CASO = {
+  terminal: 'terminal — tiro entero',
+  desequilibrio: 'anclaje — diferencia',
+  suspension: 'suspensión — cero del modelo',
+  no_evaluable: 'no evaluable',
+} as const;
 
 function Tarjeta({ valor, etiqueta, explica, tono }:
   { valor: string; etiqueta: string; explica: string; tono?: string }) {
@@ -56,6 +74,21 @@ export function Cargas({ linea, apoyos, conductor, hipotesis }:
     ),
     [apoyos, conductor, hipotesis, linea.circuitos],
   );
+
+  // El eje longitudinal necesita los tramos con sus estados RICOS (temperatura y
+  // carga unitaria incluidas): el núcleo rechaza la forma aplanada porque para
+  // RESTAR el tiro de dos tramos hay que poder comprobar que son comparables.
+  const lg = useMemo(() => {
+    const E = soloEstructuras(apoyos);
+    if (E.length < 2) return null;
+    const L = vanos(apoyos);
+    const c = conductorParaNucleo(conductor);
+    const p = paramsParaNucleo(hipotesis);
+    const ricos = tramosDeTension(
+      E.map((a) => ({ funcionEstructural: a.funcionEstructural, nombre: nombreVisible(a) })), L,
+    ).map((t: { vanos: number[] }) => ({ ...t, estados: estadosDelTramo(t, c, p) }));
+    return longitudinalParaPantalla(apoyos, ricos, conductor);
+  }, [apoyos, conductor, hipotesis]);
 
   if (!r.filas.length) {
     return (
@@ -207,6 +240,117 @@ export function Cargas({ linea, apoyos, conductor, hipotesis }:
             ))}
           </ul>
         </section>
+      )}
+
+      {lg && lg.filas.length > 0 && (
+        <>
+          <section className="panel">
+            <h2>El otro eje: cuánto tira a lo LARGO de la línea</h2>
+            <p className="fine">
+              Todo lo de arriba es carga <b>transversal</b>: empuja al apoyo de lado. Falta el eje
+              del que cuelga la retención — <b>a lo largo</b> de la línea. En un apoyo de suspensión
+              vale cero porque la tensión es la misma a los dos lados; en un <b>anclaje</b> es la{' '}
+              <b>diferencia</b> de los dos tiros, y en un <b>terminal</b> es el tiro entero, porque
+              no hay nada al otro lado que lo compense.
+            </p>
+
+            <div className="kpis">
+              <Tarjeta
+                valor={lg.peor ? `${nf(Math.abs(lg.peor.fl_kgf))} kgf` : '—'}
+                etiqueta="mayor carga longitudinal"
+                tono={lg.peor ? 'rojo' : undefined}
+                explica={lg.peor
+                  ? `en ${lg.peor.apoyo}, hacia ${lg.peor.sentido === 'adelante' ? 'adelante' : 'atrás'}, por conductor`
+                  : 'ningún apoyo con carga longitudinal calculable'} />
+              <Tarjeta
+                valor={nf(lg.cuantosInvierten)}
+                etiqueta="apoyos que tiran hacia LOS DOS lados"
+                tono={lg.cuantosInvierten ? 'rojo' : undefined}
+                explica="el sentido se invierte con la temperatura: decide si hace falta retención a un lado o a dos" />
+              <Tarjeta
+                valor={lg.filas[0]?.sensibilidadTendido_kgf !== null && lg.filas[0]?.sensibilidadTendido_kgf !== undefined
+                  ? `${nf(lg.filas[0].sensibilidadTendido_kgf)} kgf` : '—'}
+                etiqueta="lo que pesa el tendido de obra"
+                explica="una diferencia de tendido del 1 % de la rotura; por debajo de eso, el sentido no es concluyente" />
+              <Tarjeta
+                valor={nf(lg.cuantosSentidoDudoso)}
+                etiqueta="apoyos con sentido NO concluyente"
+                explica="el número sale, pero en el terreno podría apuntar al otro lado" />
+            </div>
+          </section>
+
+          <section className="panel">
+            <h2>Eje longitudinal, apoyo por apoyo</h2>
+            <div className="tabla-caja">
+              <table className="tabla">
+                <caption>
+                  Carga <b>longitudinal</b> por conductor, con SIGNO: «adelante» es hacia el apoyo
+                  siguiente. Los dos sentidos van en columnas separadas a propósito — un apoyo puede
+                  tirar hacia los dos según el estado, y publicar solo la magnitud lo escondería.
+                  La rotura es <b>caso accidental</b> y NO se suma al permanente.
+                  <Sello hipotesis={hipotesis} conductor={conductor} />
+                </caption>
+                <thead>
+                  <tr>
+                    <th>#</th><th>Apoyo</th><th>Caso</th>
+                    <th>Deflexión</th><th>cos(α/2)</th>
+                    <th>Hacia adelante (kgf)</th><th>Hacia atrás (kgf)</th>
+                    <th>Sentido</th><th>Rotura, lado atrás (kgf)</th><th>Rotura, lado adelante (kgf)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lg.filas.map((f) => (
+                    <tr key={f.n} className={f.caso === 'terminal' ? 'excede' : undefined}>
+                      <td className="num">{f.n}</td>
+                      <td><b>{f.apoyo}</b></td>
+                      <td>{CASO[f.caso]}</td>
+                      <td className="num">{val(f.deflexion_grados, 1, '°')}</td>
+                      <td className="num">
+                        {f.factorLongitudinal === null ? '—' : nf(f.factorLongitudinal, 3)}
+                      </td>
+                      <td className="num destaca">{val(f.flAdelanteMax_kgf)}</td>
+                      <td className="num destaca">{val(f.flAtrasMax_kgf)}</td>
+                      <td>
+                        {f.sentidoResoluble === false
+                          ? <span className="sello ambar">no concluyente</span>
+                          : f.flAdelanteMax_kgf !== null && f.flAtrasMax_kgf !== null
+                            ? <span className="sello ambar">los dos</span>
+                            : f.caso === 'suspension'
+                              ? <span className="sello gris">nulo</span>
+                              : <span className="sello verde">definido</span>}
+                      </td>
+                      <td className="num">{val(f.roturaAtras_kgf)}</td>
+                      <td className="num">{val(f.roturaAdelante_kgf)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="fine">
+              <b>cos(α/2)</b> es cuánto de la diferencia de tiros llega al eje de la línea: vale 1 en
+              recta y se anula cuando la línea se dobla del todo. Es el compañero del factor del
+              quiebre de la tabla de arriba — <b>el mismo ángulo, los dos ejes</b>. Ninguna de las
+              dos cifras se suma con la otra.
+            </p>
+            <p className="advertencia">
+              <b>El mayor desequilibrio NO está en el estado de mayor tiro.</b> Comprobado con el
+              motor: el tiro máximo ocurre a mínima temperatura, pero la mayor diferencia entre
+              tramos ocurre a <b>máxima</b>, cuando los tramos cortos se aflojan y los largos
+              aguantan. Por eso esta tabla recorre los cuatro estados y no solo el peor tiro.
+            </p>
+          </section>
+
+          <section className="panel">
+            <h2>Lo que el eje longitudinal NO dice</h2>
+            <ul className="calidad-lista">
+              {lg.avisos.map((a) => (
+                <li key={a.concepto} className={`calidad-item ${a.severidad}`}>
+                  <b>{textoNucleo(a.concepto)}.</b> {textoNucleo(a.motivo)}
+                </li>
+              ))}
+            </ul>
+          </section>
+        </>
       )}
 
       <section className="panel">
