@@ -314,7 +314,10 @@ function Resumen({ apoyos, investigaciones, alVerEvento, hipotesis, conductor }:
           <ul className="calidad-lista">
             {r.calidad.map((c, i) => (
               <li key={i} className={`calidad-item ${c.severidad}`}>
-                <b>{c.titulo}.</b> {textoNucleo(c.detalle)}
+                {/* El TÍTULO también lleva cifras («Quiebre de 118.2°», «Vano de
+                    256.9 m»): pasar solo el detalle deja el número mal escrito
+                    justo en el renglón que se lee primero. */}
+                <b>{textoNucleo(c.titulo)}.</b> {textoNucleo(c.detalle)}
               </li>
             ))}
           </ul>

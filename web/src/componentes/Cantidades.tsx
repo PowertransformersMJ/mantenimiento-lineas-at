@@ -123,7 +123,7 @@ export function Cantidades({ linea, apoyos, conductor, hipotesis }:
             <ul className="calidad-lista">
               {r.avisos.map((a) => (
                 <li key={a.concepto} className="calidad-item aviso">
-                  <b>{a.concepto}.</b> {textoNucleo(a.motivo)}
+                  <b>{textoNucleo(a.concepto)}.</b> {textoNucleo(a.motivo)}
                 </li>
               ))}
             </ul>
