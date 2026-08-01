@@ -33,6 +33,7 @@ import { Umbrales } from './Umbrales';
 import { Cantidades } from './Cantidades';
 import { Termica } from './Termica';
 import { Viento } from './Viento';
+import { Cargas } from './Cargas';
 import { Sello } from './Sello';
 
 const nf = (v: number, d = 0) =>
@@ -101,6 +102,11 @@ const PESTANAS = [
   { id: 'mecanico', rotulo: 'Mecánico', lista: true },
   { id: 'termica', rotulo: 'Térmica', lista: true },
   { id: 'viento', rotulo: 'Viento', lista: true },
+  // Va DESPUÉS de Viento a propósito: la carga sobre el apoyo se compone con el
+  // empuje que la pestaña anterior acaba de caracterizar. Y va aparte de
+  // Mecánico porque habla de otra cosa — aquélla del conductor, ésta de la
+  // estructura, que es de lo que responde quien firma el mantenimiento.
+  { id: 'cargas', rotulo: 'Cargas', lista: true },
   { id: 'cantidades', rotulo: 'Cantidades', lista: true },
   { id: 'exportar', rotulo: 'Exportar', lista: true },
 ] as const;
@@ -587,6 +593,7 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
         {activa === 'fundamentos' && <Fundamentos apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} />}
         {activa === 'termica' && <Termica linea={linea} conductor={conductor} hipotesis={hipotesis} />}
         {activa === 'viento' && <Viento apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} />}
+        {activa === 'cargas' && <Cargas linea={linea} apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} />}
         {activa === 'cantidades' && <Cantidades linea={linea} apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} />}
         {activa === 'exportar' && <Exportar linea={linea} apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} investigaciones={investigaciones} />}
       </div>

@@ -351,7 +351,24 @@ export function utilizacionApoyo(entrada) {
  * @property {number|null} ftViento_kgf
  * @property {number|null} ftTotal_kgf
  * @property {number|null} ftAnguloTiroMaximo_kgf  quiebre solo, con el tiro máximo (sin viento)
- * @property {Object}  componentes
+ *
+ * `componentes` se describe entero y no como `Object` a secas: TypeScript lee
+ * este JSDoc desde las vistas (web/ compila con `allowJs`), y un `Object` sin
+ * forma obliga a cada pantalla a redeclararla por su cuenta — que es como una
+ * columna se queda vacía en producción tras renombrar un campo aquí, sin que
+ * nada avise al compilar.
+ * @property {{
+ *   factorAngulo: number|null,
+ *   amplificaTension: boolean|null,
+ *   nConductores: number|null,
+ *   tiro_kgf: number|null,
+ *   vanoViento_m: number|null,
+ *   cargaViento_kg_m: number|null,
+ *   hipotesisComposicion: string,
+ *   ftTotalAlineado_kgf: number|null,
+ *   ftTotalPerpendicular_kgf: number|null,
+ *   faltan: string[],
+ * }} componentes
  * @property {ReturnType<typeof utilizacionApoyo>} utilizacion  null si no hay capacidad declarada
  * @property {string[]} notas                supuestos y avisos, escritos
  * @property {string|null} noEvaluable       motivo, cuando no se pudo calcular la carga
