@@ -31,6 +31,7 @@ import { cantidadesGeometricas } from '@lineas/nucleo/cantidades';
 import { estadisticasVanos } from '@lineas/nucleo/estadisticas';
 import { vanos, soloEstructuras, nombreVisible } from '../vistas/planta';
 import { conductorParaNucleo, paramsParaNucleo, calcularTramos } from '../vistas/tramos';
+import { cargasParaPantalla } from '../vistas/cargasDatos';
 import { descargar, selloFecha } from '../exportar/descargar';
 import { nf } from '../vistas/formato';
 
@@ -73,8 +74,14 @@ export function Exportar({ linea, apoyos, conductor, hipotesis, investigaciones 
       longitudConductor_m: f.longitudConductor_m as number,
     }));
 
+    // Los tramos se calculan UNA vez y se reusan para las cargas: si el exporte
+    // pidiera los suyos por separado, el informe firmado podría discrepar de la
+    // pestaña Cargas por un cambio en una sola de las dos rutas.
+    const tramos = calcularTramos(apoyos, conductor, hipotesis);
+
     return {
-      tramos: calcularTramos(apoyos, conductor, hipotesis),
+      tramos,
+      cargas: cargasParaPantalla(apoyos, tramos, conductor, hipotesis, linea.circuitos).filas,
       vanos: filasVano,
       indicadores: evaluarUmbrales({
         tramos: conEstados, conductor: c, hipotesis,
@@ -172,7 +179,7 @@ export function Exportar({ linea, apoyos, conductor, hipotesis, investigaciones 
             (m) => csvVerificacionMecanica(
               { ...calc!, linea, conductor, hipotesis, levantamiento: lev },
               { dialecto: 'excel', ...m }))}>
-          ⬇ Verificación mecánica (CSV) — tramos, vano a vano y umbrales
+          ⬇ Verificación mecánica (CSV) — tramos, vano a vano, cargas y umbrales
         </button>
         <button type="button" disabled={sinCalculo}
           onClick={() => bajar('cantidades', 'csv', 'text/csv',
@@ -186,7 +193,7 @@ export function Exportar({ linea, apoyos, conductor, hipotesis, investigaciones 
             (m) => informeHtml({
               linea, conductor, hipotesis, lev,
               tramos: calc!.tramos, vanos: calc!.vanos, indicadores: calc!.indicadores,
-              cantidades: calc!.cantidades, investigaciones, meta: m,
+              cargas: calc!.cargas, cantidades: calc!.cantidades, investigaciones, meta: m,
             }))}>
           ⬇ Informe completo (HTML imprimible) — se abre sin internet
         </button>

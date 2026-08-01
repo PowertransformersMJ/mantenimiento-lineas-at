@@ -1,8 +1,8 @@
 // ============================================================================
 // tests/exportar-calculo.test.js — pruebas de los exportes de CÁLCULO
 // ----------------------------------------------------------------------------
-// Cubre exportar/mecanica.js (verificación mecánica: tramos + vanos + umbrales)
-// y exportar/bom.js (memoria de cantidades).
+// Cubre exportar/mecanica.js (verificación mecánica: tramos, vanos, carga sobre
+// las estructuras y umbrales) y exportar/bom.js (memoria de cantidades).
 //
 // CÓMO SE MIDE AQUÍ
 // Un exportador no inventa cifras: las escribe. Así que hay dos preguntas
@@ -19,7 +19,7 @@
 //
 //   2. ¿La CELDA es correcta? Que el dialecto Excel lleve coma decimal y el de
 //      datos punto, que la procedencia solo viaje en el de Excel, que estén las
-//      tres secciones, y que con entradas vacías no se escape ni un «NaN» ni un
+//      cuatro secciones, y que con entradas vacías no se escape ni un «NaN» ni un
 //      «undefined» — que en una memoria de cálculo se leen como si fueran datos.
 //
 // ⚠️ TODOS los datos de estas pruebas son SINTÉTICOS. Ni una coordenada ni un
@@ -34,7 +34,7 @@ import { cantidadesGeometricas } from '../nucleo/cantidades.js';
 import { evaluarUmbrales } from '../nucleo/umbrales.js';
 import {
   csvVerificacionMecanica, SECCIONES_MECANICA,
-  COLUMNAS_TRAMOS, COLUMNAS_VANOS, COLUMNAS_UMBRALES,
+  COLUMNAS_TRAMOS, COLUMNAS_VANOS, COLUMNAS_CARGAS, COLUMNAS_UMBRALES,
 } from '../exportar/mecanica.js';
 import {
   csvCantidades, SECCIONES_BOM,
@@ -172,12 +172,44 @@ const INDICADORES = [
     fuente: 'IEEE 738' },
 ];
 
+/**
+ * Filas de carga como las produce `cargasDeLaLinea` (y las pasa la vista).
+ * Se escriben a mano y no se calculan aquí a propósito: lo que esta suite mide
+ * es el ESCRITOR del archivo, no la física — ésa ya tiene sus 31 pruebas en
+ * `cargas.test.js` y `cargas-vista.test.js`. Los tres casos que importan al
+ * escritor son: un apoyo completo, uno sin capacidad declarada y un extremo sin
+ * carga ninguna.
+ */
+const FILAS_CARGA = [
+  { n: 1, apoyo: 'A', funcionEstructural: 'Terminal', esExtremo: true, tramos_n: [1],
+    deflexion_grados: null, factorAngulo: null, amplifica: null,
+    nConductores: 3, vanoViento_m: 100, tiro_kgf: 3100, estadoTiro: 'Máximo viento',
+    ftAngulo_kgf: null, ftViento_kgf: 45, ftTotal_kgf: null,
+    utilizacion_pct: null, margen_kgf: null, estadoUtilizacion: 'no_evaluable',
+    notas: ['Sin utilización: primero falta la carga total.'],
+    noEvaluable: 'apoyo extremo: la deflexión no está definida. Un extremo trabaja a carga LONGITUDINAL.' },
+  { n: 2, apoyo: 'B', funcionEstructural: 'Retención / anclaje', esExtremo: false, tramos_n: [1, 2],
+    deflexion_grados: 120, factorAngulo: Math.sqrt(3), amplifica: true,
+    nConductores: 3, vanoViento_m: 200, tiro_kgf: 3100, estadoTiro: 'Máximo viento',
+    ftAngulo_kgf: 16108.4, ftViento_kgf: 91.8, ftTotal_kgf: 16200.2,
+    utilizacion_pct: 45, margen_kgf: 1800, estadoUtilizacion: 'cumple',
+    notas: ['El quiebre de 120.0° multiplica la tensión por 1.732.'], noEvaluable: null },
+  { n: 3, apoyo: 'C', funcionEstructural: 'Suspensión', esExtremo: false, tramos_n: [2],
+    deflexion_grados: 2, factorAngulo: 0.0349, amplifica: false,
+    nConductores: 3, vanoViento_m: 200, tiro_kgf: 3100, estadoTiro: 'Máximo viento',
+    ftAngulo_kgf: 324.6, ftViento_kgf: 91.8, ftTotal_kgf: 416.4,
+    utilizacion_pct: null, margen_kgf: null, estadoUtilizacion: 'no_evaluable',
+    notas: ['Sin utilización: falta carga de rotura del apoyo, altura libre sobre el terreno.'],
+    noEvaluable: null },
+];
+
 const ENTRADA_MECANICA = {
   linea: LINEA,
   conductor: { codigo: 'CX-240' },
   hipotesis: { nombre: 'Hipótesis sintética de prueba' },
   tramos: FILAS_TRAMO,
   vanos: FILAS_VANO,
+  cargas: FILAS_CARGA,
   indicadores: INDICADORES,
   levantamiento: LEVANTAMIENTO,
 };
@@ -305,21 +337,23 @@ describe('exportar/mecanica.js — los dos dialectos', () => {
 });
 
 // ════════════════════════════════════════════════════════════════════════════
-describe('exportar/mecanica.js — las tres secciones', () => {
+describe('exportar/mecanica.js — las cuatro secciones', () => {
   const excel = csvVerificacionMecanica(ENTRADA_MECANICA, { dialecto: 'excel', ...META });
   const datos = csvVerificacionMecanica(ENTRADA_MECANICA, { dialecto: 'datos', ...META });
 
-  test('TRAMOS, VANOS y UMBRALES están en los dos dialectos, con sus cabeceras', () => {
+  test('las cuatro secciones están en los dos dialectos, con sus cabeceras', () => {
     for (const texto of [excel, datos]) {
       const sep = texto === excel ? ';' : ',';
-      assert.ok(texto.includes(SECCIONES_MECANICA.tramos));
-      assert.ok(texto.includes(SECCIONES_MECANICA.vanos));
-      assert.ok(texto.includes(SECCIONES_MECANICA.umbrales));
+      for (const seccion of Object.values(SECCIONES_MECANICA)) {
+        assert.ok(texto.includes(seccion), `falta la sección ${seccion}`);
+      }
 
       assert.deepEqual(celdas(cabeceraDeSeccion(texto, SECCIONES_MECANICA.tramos), sep),
         COLUMNAS_TRAMOS);
       assert.deepEqual(celdas(cabeceraDeSeccion(texto, SECCIONES_MECANICA.vanos), sep),
         COLUMNAS_VANOS);
+      assert.deepEqual(celdas(cabeceraDeSeccion(texto, SECCIONES_MECANICA.cargas), sep),
+        COLUMNAS_CARGAS);
       assert.deepEqual(celdas(cabeceraDeSeccion(texto, SECCIONES_MECANICA.umbrales), sep),
         COLUMNAS_UMBRALES);
     }
@@ -328,6 +362,7 @@ describe('exportar/mecanica.js — las tres secciones', () => {
   test('cada sección trae tantas filas como le entraron', () => {
     assert.equal(filasDeSeccion(datos, SECCIONES_MECANICA.tramos).length, FILAS_TRAMO.length);
     assert.equal(filasDeSeccion(datos, SECCIONES_MECANICA.vanos).length, 3);
+    assert.equal(filasDeSeccion(datos, SECCIONES_MECANICA.cargas).length, FILAS_CARGA.length);
     assert.equal(filasDeSeccion(datos, SECCIONES_MECANICA.umbrales).length, INDICADORES.length);
   });
 
@@ -347,6 +382,69 @@ describe('exportar/mecanica.js — las tres secciones', () => {
     assert.equal(col(F[2], 'Estado'), 'no_evaluable');
     assert.equal(col(F[2], 'Valor'), '');
     assert.match(col(F[2], 'Criterio'), /corriente máxima/);
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+describe('exportar/mecanica.js — la sección de CARGAS sobre las estructuras', () => {
+  const datos = csvVerificacionMecanica(ENTRADA_MECANICA, { dialecto: 'datos', ...META });
+  const excel = csvVerificacionMecanica(ENTRADA_MECANICA, { dialecto: 'excel', ...META });
+  const F = filasDeSeccion(datos, SECCIONES_MECANICA.cargas).map((f) => celdas(f, ','));
+  const col = (fila, nombre) => fila[COLUMNAS_CARGAS.indexOf(nombre)];
+
+  test('el factor del quiebre tiene columna propia y tres decimales', () => {
+    // Es el número que cambia la conversación: en una hoja se ordena por él.
+    assert.equal(col(F[1], 'Factor_quiebre'), Math.sqrt(3).toFixed(3));
+    assert.equal(col(F[1], 'Amplifica_tension'), 'si');
+    assert.equal(col(F[2], 'Amplifica_tension'), 'no');
+  });
+
+  test('sin ángulo, `Amplifica_tension` es «no evaluable» y NO «no»', () => {
+    // Escribir «no» donde nadie pudo medirlo afirma que el apoyo está holgado,
+    // que es justo lo contrario de lo que se sabe de un extremo.
+    assert.equal(col(F[0], 'Amplifica_tension'), 'no evaluable');
+    assert.equal(col(F[0], 'Factor_quiebre'), '', 'sin ángulo, celda vacía');
+    assert.equal(col(F[0], 'Ft_total_kgf'), '');
+  });
+
+  test('sin capacidad declarada, utilización y margen quedan VACÍOS con su estado', () => {
+    assert.equal(col(F[2], 'Utilizacion_pct'), '');
+    assert.equal(col(F[2], 'Margen_kgf'), '');
+    assert.equal(col(F[2], 'Estado_utilizacion'), 'no_evaluable');
+    // Y con capacidad, el número sale.
+    assert.equal(col(F[1], 'Utilizacion_pct'), '45.00');
+    assert.equal(col(F[1], 'Estado_utilizacion'), 'cumple');
+  });
+
+  test('el estado se escribe CRUDO, que es la llave con la que se filtra la hoja', () => {
+    for (const f of F) {
+      assert.match(col(f, 'Estado_utilizacion'), /^(cumple|revisar|no_evaluable)$/);
+    }
+  });
+
+  test('el motivo y las notas viajan en la celda de la fila, no en un anexo', () => {
+    assert.match(col(F[0], 'Motivo'), /LONGITUDINAL/);
+    assert.match(col(F[2], 'Motivo'), /falta carga de rotura/);
+    // Quien lea la fila tiene que ver por qué falta el número sin salir de ella.
+    assert.ok(col(F[0], 'Motivo').includes(' · '), 'motivo y notas se juntan con separador propio');
+  });
+
+  test('los tramos del apoyo NO usan el separador de columnas', () => {
+    // Un '1;2' partiría la fila en Excel y correría todas las columnas.
+    const fExcel = celdas(filasDeSeccion(excel, SECCIONES_MECANICA.cargas)[1], ';');
+    assert.equal(fExcel[COLUMNAS_CARGAS.indexOf('Tramos')], '1+2');
+    assert.equal(fExcel.length, COLUMNAS_CARGAS.length, 'la fila conserva sus columnas');
+  });
+
+  test('el dialecto Excel escribe coma decimal también aquí', () => {
+    const fExcel = celdas(filasDeSeccion(excel, SECCIONES_MECANICA.cargas)[1], ';');
+    assert.equal(fExcel[COLUMNAS_CARGAS.indexOf('Factor_quiebre')],
+      Math.sqrt(3).toFixed(3).replace('.', ','));
+    assert.equal(fExcel[COLUMNAS_CARGAS.indexOf('Utilizacion_pct')], '45,00');
+  });
+
+  test('la cabecera del archivo anuncia las cuatro secciones', () => {
+    assert.match(excel, /Cuatro secciones en un archivo: TRAMOS, VANOS, CARGAS y UMBRALES/);
   });
 });
 

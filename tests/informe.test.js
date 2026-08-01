@@ -67,11 +67,37 @@ const INDICADORES = [
   { id: 'tierra', etiqueta: 'Puesta a tierra', valor: null, unidad: 'Ω', umbral: 10,
     comparador: '<=', estado: 'no_evaluable', criterio: 'sin medición', fuente: 'RETIE' },
 ];
+/**
+ * Carga sobre las estructuras: un extremo sin carga, un apoyo que amplifica la
+ * tensión y con capacidad declarada, y uno normal sin capacidad. Son los tres
+ * casos que el informe tiene que saber contar de forma distinta.
+ */
+const CARGAS = [
+  { n: 1, apoyo: 'P-01', funcionEstructural: 'Terminal', esExtremo: true, tramos_n: [1],
+    deflexion_grados: null, factorAngulo: null, amplifica: null, nConductores: 3,
+    vanoViento_m: 150, tiro_kgf: 2200, estadoTiro: 'Máximo viento',
+    ftAngulo_kgf: null, ftViento_kgf: 60, ftTotal_kgf: null,
+    utilizacion_pct: null, margen_kgf: null, estadoUtilizacion: 'no_evaluable',
+    notas: [], noEvaluable: 'apoyo extremo: la deflexión no está definida.' },
+  { n: 2, apoyo: 'P-02', funcionEstructural: 'Retención / anclaje', esExtremo: false, tramos_n: [1],
+    deflexion_grados: 120, factorAngulo: 1.732, amplifica: true, nConductores: 3,
+    vanoViento_m: 150, tiro_kgf: 2200, estadoTiro: 'Máximo viento',
+    ftAngulo_kgf: 11431, ftViento_kgf: 60, ftTotal_kgf: 11491,
+    utilizacion_pct: 62, margen_kgf: -2200, estadoUtilizacion: 'revisar',
+    notas: [], noEvaluable: null },
+  { n: 3, apoyo: 'P-03', funcionEstructural: 'Suspensión', esExtremo: false, tramos_n: [1],
+    deflexion_grados: 2, factorAngulo: 0.035, amplifica: false, nConductores: 3,
+    vanoViento_m: 150, tiro_kgf: 2200, estadoTiro: 'Máximo viento',
+    ftAngulo_kgf: 231, ftViento_kgf: 60, ftTotal_kgf: 291,
+    utilizacion_pct: null, margen_kgf: null, estadoUtilizacion: 'no_evaluable',
+    notas: [], noEvaluable: null },
+];
+
 const META = { generadoEn: '2026-08-01T09:00:00-05:00', generadoPor: 'pruebas' };
 
 const base = (extra = {}) => ({
   linea: LINEA, conductor: CONDUCTOR, hipotesis: HIPOTESIS, lev: LEV,
-  tramos: TRAMOS, vanos: VANOS, indicadores: INDICADORES,
+  tramos: TRAMOS, vanos: VANOS, indicadores: INDICADORES, cargas: CARGAS,
   cantidades: null, investigaciones: [], meta: META, ...extra,
 });
 
@@ -160,6 +186,69 @@ describe('informe — lo que NO puede faltar', () => {
 });
 
 // ════════════════════════════════════════════════════════════════════════════
+describe('informe — la carga sobre las estructuras', () => {
+  const html = informeHtml(base());
+
+  test('la sección existe, está en el índice y va entre los vanos y los umbrales', () => {
+    assert.match(html, /Carga sobre las estructuras/);
+    // El índice de la portada se ARMA del cuerpo: si la sección no saliera en
+    // los dos sitios, el documento tendría un índice que miente.
+    const enIndice = (html.match(/Carga sobre las estructuras/g) ?? []).length;
+    assert.ok(enIndice >= 2, 'tiene que aparecer en el índice y en el cuerpo');
+    assert.ok(html.indexOf('Detalle vano a vano') < html.indexOf('Carga sobre las estructuras'));
+    assert.ok(html.indexOf('Carga sobre las estructuras') < html.indexOf('Umbrales y criterios'));
+  });
+
+  test('el hallazgo va en PROSA antes de la tabla, con el nombre del apoyo', () => {
+    // Quien hojea el informe en una reunión no va a ordenar una columna de
+    // veinticuatro filas para encontrar el apoyo comprometido.
+    assert.match(html, /reciben MÁS carga transversal que la propia tensión/);
+    assert.match(html, /P-02/);
+    assert.match(html, /carga permanente, no depende del viento/);
+  });
+
+  test('con capacidad declarada dice cuántos tienen veredicto y cuántos piden revisión', () => {
+    assert.match(html, /1 de 3 apoyos<\/b> tienen capacidad declarada/);
+    assert.match(html, /1 pide\(n\) revisión/);
+  });
+
+  test('sin ninguna capacidad declarada, lo dice y NO estima', () => {
+    const sinCapacidad = CARGAS.map((c) => ({ ...c, utilizacion_pct: null, margen_kgf: null,
+      estadoUtilizacion: 'no_evaluable' }));
+    const h = informeHtml(base({ cargas: sinCapacidad }));
+    assert.match(h, /Ningún apoyo declara su capacidad/);
+    assert.match(h, /informe firmado sobre una suposición/);
+    assert.doesNotMatch(h, /todos cumplen/);
+  });
+
+  test('sin la tabla de cargas, el informe lo declara en vez de callarlo', () => {
+    const h = informeHtml(base({ cargas: [] }));
+    assert.match(h, /No evaluable:<\/b> no llegó la carga sobre las estructuras/);
+    // Y la limitación sube a la sección final, que es la que se lee al firmar.
+    const lim = limitacionesDeclaradas(base({ cargas: [] }));
+    assert.ok(lim.some((l) => /No se evaluó la carga sobre las estructuras/.test(l.titulo)));
+  });
+
+  test('las limitaciones nombran los apoyos sin capacidad, los extremos y el eje que falta', () => {
+    const lim = limitacionesDeclaradas(base());
+    const titulos = lim.map((l) => l.titulo).join(' | ');
+    // P-03 es el único con carga calculada y sin capacidad: P-01 no tiene carga
+    // (es extremo) y P-02 sí declara la suya.
+    assert.match(titulos, /1 apoyo\(s\) tienen su carga calculada pero NO su capacidad declarada/);
+    assert.match(titulos, /El apoyo extremo no está verificado/);
+    assert.match(titulos, /Solo se evaluó la carga TRANSVERSAL/);
+
+    const transversal = lim.find((l) => /Solo se evaluó la carga TRANSVERSAL/.test(l.titulo));
+    assert.match(transversal.detalle, /vano peso/);
+    assert.match(transversal.detalle, /longitudinal/);
+    assert.equal(transversal.origen, 'carga sobre las estructuras');
+  });
+
+  test('un apoyo que pide revisión sale marcado en la fila, no solo en el texto', () => {
+    assert.match(html, /<tr class="revisar">[\s\S]*?P-02/);
+  });
+});
+
 describe('informe — el texto de los datos va escapado', () => {
 
   test('un nombre con < > & " no deforma el documento', () => {

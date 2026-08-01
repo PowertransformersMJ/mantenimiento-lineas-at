@@ -528,7 +528,73 @@ function seccionVanos(grupos) {
   return bloques.join('') + cierre;
 }
 
-// ── 6 · Umbrales ────────────────────────────────────────────────────────────
+// ── 6 · Carga sobre las estructuras ─────────────────────────────────────────
+//
+// Las tres secciones anteriores hablan del CONDUCTOR: cuánto tira, cuánto cuelga
+// y en qué vano. Ésta habla del APOYO, que es de lo que responde quien firma un
+// mantenimiento. Se separa a propósito y no se mete en la tabla de tramos: son
+// dos preguntas distintas y mezclarlas obliga al lector a separarlas él.
+
+function seccionCargas(cargas) {
+  if (!cargas.length) {
+    return parrafo('<b>No evaluable:</b> no llegó la carga sobre las estructuras. '
+      + 'Este documento dice entonces cuánto tira el conductor, pero no qué recibe el apoyo — '
+      + 'y un apoyo con el conductor dentro de umbral puede estar igualmente comprometido.');
+  }
+
+  const amplifican = cargas.filter((c) => c?.amplifica === true);
+  const conUtil = cargas.filter((c) => Number.isFinite(c?.utilizacion_pct));
+  const revisar = cargas.filter((c) => c?.estadoUtilizacion === 'revisar');
+
+  const filas = cargas.map((c) => `<tr${c?.estadoUtilizacion === 'revisar' ? ' class="revisar"' : ''}>
+    <td class="num">${n(c?.n)}</td>
+    <td><b>${esc(c?.apoyo)}</b></td>
+    <td>${esc(c?.funcionEstructural ?? SIN_DATO)}</td>
+    <td class="num">${Number.isFinite(c?.deflexion_grados) ? `${n(c.deflexion_grados, 1)}°` : SIN_DATO}</td>
+    <td class="num">${Number.isFinite(c?.factorAngulo) ? `${n(c.factorAngulo, 3)} ×` : SIN_DATO}</td>
+    <td class="num">${Number.isFinite(c?.ftAngulo_kgf) ? n(c.ftAngulo_kgf) : SIN_DATO}</td>
+    <td class="num">${Number.isFinite(c?.ftViento_kgf) ? n(c.ftViento_kgf) : SIN_DATO}</td>
+    <td class="num">${Number.isFinite(c?.ftTotal_kgf) ? n(c.ftTotal_kgf) : SIN_DATO}</td>
+    <td class="num">${Number.isFinite(c?.utilizacion_pct) ? `${n(c.utilizacion_pct, 1)} %` : SIN_DATO}</td>
+    <td>${sello(c?.estadoUtilizacion ?? 'no_evaluable')}</td></tr>`);
+
+  // El hallazgo va ANTES de la tabla, en prosa: quien hojea el informe en una
+  // reunión no va a ordenar una columna de veinticuatro filas para encontrarlo.
+  const titular = amplifican.length
+    ? `<b>${n(amplifican.length)} estructura(s) reciben MÁS carga transversal que la propia tensión `
+      + `del conductor</b> (${amplifican.map((c) => esc(c?.apoyo)).join(', ')}). Ocurre por encima de `
+      + '60° de quiebre, y ocurre SIEMPRE: es carga permanente, no depende del viento. Un apoyo así, '
+      + 'dimensionado «por el tiro», está dimensionado por poco más de la mitad de lo que se le pide.'
+    : 'Ninguna estructura supera el factor 1: en toda la línea el quiebre deja sobre el apoyo menos '
+      + 'carga transversal que la propia tensión del conductor.';
+
+  const capacidad = conUtil.length
+    ? `<b>${n(conUtil.length)} de ${n(cargas.length)} apoyos</b> tienen capacidad declarada y por `
+      + `tanto veredicto${revisar.length ? `; ${n(revisar.length)} pide(n) revisión` : ', y todos cumplen'}.`
+    : `<b>Ningún apoyo declara su capacidad</b>, así que ninguna fila lleva veredicto. La tabla dice `
+      + 'cuánto se les está pidiendo; no puede decir cuánto aguantan. Falta inventario —carga de '
+      + 'rotura, altura libre y altura del punto de sujeción—, y hasta que llegue el estado correcto '
+      + 'es «no evaluable». No se estima: un apoyo que «cumple» contra una capacidad supuesta es un '
+      + 'informe firmado sobre una suposición.';
+
+  return parrafo('En cada quiebre el conductor deja sobre el apoyo una resultante que vale '
+    + '<b>2 · tiro · sen(ángulo/2)</b> por conductor; a 60° iguala la tensión y por encima la supera. '
+    + 'A eso se suma el empuje del viento sobre el medio vano de cada lado.')
+    + parrafo(titular)
+    + parrafo(capacidad)
+    + tabla({
+      leyenda: 'Carga TRANSVERSAL sobre cada estructura. Los apoyos extremos no llevan fila '
+        + 'calculada: su caso de carga dominante es el longitudinal, que este cálculo no evalúa.',
+      cabecera: '<th class="num">#</th><th>Apoyo</th><th>Función</th><th class="num">Deflexión</th>'
+        + '<th class="num">Factor</th><th class="num">Quiebre (kgf)</th><th class="num">Viento (kgf)</th>'
+        + '<th class="num">Total (kgf)</th><th class="num">Utilización</th><th>Estado</th>',
+      filas,
+      pie: 'La utilización compara MOMENTOS, no fuerzas: la carga por la altura a la que actúa contra '
+        + `la rotura por la altura a la que se ensayó. ${NOTA_HUECO}`,
+    });
+}
+
+// ── 7 · Umbrales ────────────────────────────────────────────────────────────
 
 function seccionUmbrales(indicadores) {
   if (!indicadores.length) {
@@ -561,7 +627,7 @@ function seccionUmbrales(indicadores) {
     });
 }
 
-// ── 7 · Cantidades ──────────────────────────────────────────────────────────
+// ── 8 · Cantidades ──────────────────────────────────────────────────────────
 
 function seccionCantidades(cantidades) {
   const continuas = lista(cantidades.continuas);
@@ -604,7 +670,7 @@ function seccionCantidades(cantidades) {
     + tContinuas + tDiscretas + tAvisos;
 }
 
-// ── 8 · Expediente de falla ─────────────────────────────────────────────────
+// ── 9 · Expediente de falla ─────────────────────────────────────────────────
 
 function seccionExpediente(investigaciones, lev) {
   const nombreDelApoyo = (ev) => {
@@ -664,7 +730,7 @@ function seccionExpediente(investigaciones, lev) {
   }).join('');
 }
 
-// ── 9 · Lo que este informe no demuestra ────────────────────────────────────
+// ── 10 · Lo que este informe no demuestra ────────────────────────────────────
 
 /** El título exacto de la sección. Se exporta para que nadie lo reescriba a mano. */
 export const TITULO_LIMITACIONES = 'Lo que este informe NO demuestra';
@@ -799,7 +865,58 @@ export function limitacionesDeclaradas(entrada) {
       + 'el lado inseguro: la flecha real del vano largo sale MAYOR que la calculada.', 'cálculo mecánico');
   }
 
-  // 10 · Lo que un expediente de falla todavía no puede afirmar.
+  // 10 · La estructura. Es la limitación más grande que hoy arrastra el informe,
+  // y la que menos se ve: las tablas de arriba pueden estar todas en verde y no
+  // haber dicho una palabra sobre si el apoyo aguanta lo que se le está pidiendo.
+  const cargas = lista(e.cargas);
+  if (!cargas.length) {
+    add('No se evaluó la carga sobre las estructuras',
+      'Este documento verifica el CONDUCTOR —tiro, flecha, vano—, no el APOYO. Un conductor dentro '
+      + 'de umbral puede estar colgado de una estructura comprometida, y este informe no lo diría.',
+      'carga sobre las estructuras');
+  } else {
+    const sinCapacidad = cargas.filter((c) => Number.isFinite(c?.ftTotal_kgf)
+      && !Number.isFinite(c?.utilizacion_pct));
+    if (sinCapacidad.length) {
+      add(`${n(sinCapacidad.length)} apoyo(s) tienen su carga calculada pero NO su capacidad declarada`,
+        'Se sabe cuánto se les está pidiendo; no se sabe cuánto aguantan, así que este informe no '
+        + 'dictamina sobre ellos. Faltan tres datos de inventario por apoyo: carga de rotura, altura '
+        + 'libre sobre el terreno y altura del punto de sujeción. No se estiman — un apoyo que '
+        + '«cumple» contra una capacidad supuesta es exactamente el error que este sistema existe '
+        + 'para no cometer.', 'carga sobre las estructuras');
+    }
+
+    const sinCarga = cargas.filter((c) => !Number.isFinite(c?.ftTotal_kgf) && c?.esExtremo !== true);
+    if (sinCarga.length) {
+      add(`${n(sinCarga.length)} estructura(s) intermedias sin carga calculable`,
+        `${sinCarga.map((c) => String(c?.apoyo ?? '')).filter(Boolean).join(', ')}. El motivo va en `
+        + 'su fila de la tabla: sin el ingrediente que falta, el número saldría inventado con '
+        + 'unidades correctas, que es la peor clase de error porque no se ve.',
+        'carga sobre las estructuras');
+    }
+
+    const extremos = cargas.filter((c) => c?.esExtremo === true);
+    if (extremos.length) {
+      add(extremos.length === 1
+        ? 'El apoyo extremo no está verificado'
+        : `Los ${n(extremos.length)} apoyos extremos no están verificados`,
+        `${extremos.map((c) => String(c?.apoyo ?? '')).filter(Boolean).join(' y ')}: un extremo no `
+        + 'tiene deflexión definida y su caso de carga dominante es el LONGITUDINAL —el conductor '
+        + 'tirando en la dirección de la línea sin nada que lo compense al otro lado—, que es otro '
+        + 'eje. Que no tengan fila no significa que estén holgados: significa que su verificación '
+        + 'es otra y está pendiente.', 'carga sobre las estructuras');
+    }
+
+    // Va SIEMPRE que haya tabla de cargas, aunque todo lo demás esté completo:
+    // es el límite del método, no un problema de estos datos.
+    add('Solo se evaluó la carga TRANSVERSAL',
+      'La vertical (vano peso) depende de la cota del punto de sujeción, que no está levantada; la '
+      + 'longitudinal es el desequilibrio de tiros entre tramos contiguos y la rotura de conductor. '
+      + 'Son otros ejes y no se suman a estas cifras. Un apoyo con la transversal holgada puede '
+      + 'estar comprometido en cualquiera de los dos.', 'carga sobre las estructuras');
+  }
+
+  // 11 · Lo que un expediente de falla todavía no puede afirmar.
   for (const ev of lista(e.investigaciones)) {
     for (const v of lista(objeto(ev).verificacionesPendientes)) {
       if (v?.estado === 'recibido') continue;
@@ -866,6 +983,7 @@ function seccionLimites(entrada) {
  * @param {Array}  [entrada.tramos]          salida de `calcularTramos(...)` — una fila por tramo
  * @param {Array}  [entrada.vanos]           salida de `detalleVanos(...)`, plana o agrupada por tramo
  * @param {Array}  [entrada.indicadores]     salida de `evaluarUmbrales(...)`
+ * @param {Array}  [entrada.cargas]          filas de `cargasDeLaLinea(...)` — una por estructura
  * @param {Object} [entrada.cantidades]      salida de `cantidadesGeometricas(...)`
  * @param {Array}  [entrada.investigaciones] documentos `Investigacion` de la línea
  * @param {Array}  [entrada.calidad]         salida de `calidadLevantamiento(lev)`; si no llega, se deriva
@@ -884,6 +1002,7 @@ export function informeHtml(entrada) {
   const tramos = lista(e.tramos);
   const grupos = gruposDeVanos(e.vanos);
   const indicadores = lista(e.indicadores);
+  const cargas = lista(e.cargas);
   const cantidades = objeto(e.cantidades);
   const investigaciones = lista(e.investigaciones);
   const calidad = lista(e.calidad ?? calidadLevantamiento(lev));
@@ -895,6 +1014,9 @@ export function informeHtml(entrada) {
     { titulo: 'Calidad del levantamiento', html: seccionCalidad(calidad) },
     { titulo: 'Cálculo mecánico por tramo de tensión', html: seccionMecanica(tramos, conductor, hipotesis) },
     { titulo: 'Detalle vano a vano', html: seccionVanos(grupos) },
+    // Va tras los vanos y antes de los umbrales: las tres tablas de cálculo
+    // seguidas (tramo → vano → apoyo), y después la de criterios, que cierra.
+    { titulo: 'Carga sobre las estructuras', html: seccionCargas(cargas) },
     { titulo: 'Umbrales y criterios de evaluación', html: seccionUmbrales(indicadores) },
     { titulo: 'Memoria de cantidades (geométrica)', html: seccionCantidades(cantidades) },
   ];

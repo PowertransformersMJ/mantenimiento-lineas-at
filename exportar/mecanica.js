@@ -1,13 +1,14 @@
 // ============================================================================
-// exportar/mecanica.js — la verificación mecánica en UNA hoja de tres secciones
+// exportar/mecanica.js — la verificación mecánica en UNA hoja
 // ----------------------------------------------------------------------------
 // POR QUÉ EXISTE
-// El ingeniero que revisa una línea no quiere tres archivos: quiere UNA hoja
-// donde el tramo, el vano y el criterio se miren entre sí. La pregunta que
-// siempre acaba haciéndose es «el tramo 4 va al 47 % de la RTS… ¿en cuál de sus
-// vanos?», y para contestarla con dos archivos hay que cuadrarlos a mano, que
-// es exactamente el momento en que se cuela el error. Por eso este exporte
-// junta TRAMOS + VANOS + UMBRALES en un solo CSV con tres secciones.
+// El ingeniero que revisa una línea no quiere cuatro archivos: quiere UNA hoja
+// donde el tramo, el vano, el apoyo y el criterio se miren entre sí. La pregunta
+// que siempre acaba haciéndose es «el tramo 4 va al 47 % de la RTS… ¿en cuál de
+// sus vanos, y qué le llega al apoyo del final?», y para contestarla con
+// archivos sueltos hay que cuadrarlos a mano, que es exactamente el momento en
+// que se cuela el error. Por eso este exporte
+// junta TRAMOS + VANOS + CARGAS + UMBRALES en un solo CSV.
 //
 // DOS DIALECTOS, igual que exportar/csv.js (y por el mismo hallazgo de la
 // auditoría 2026-07-30):
@@ -19,7 +20,7 @@
 // a Excel es-CO como TEXTO: se ve bien, no suma, y nadie se entera hasta que un
 // total sale en cero.
 //
-// ⚠️ CONSECUENCIA DECLARADA, y hay que decirla fuerte: este archivo tiene TRES
+// ⚠️ CONSECUENCIA DECLARADA, y hay que decirla fuerte: este archivo tiene CUATRO
 // SECCIONES, así que NI SIQUIERA el dialecto 'datos' es una tabla única.
 // `pandas.read_csv()` a secas va a fallar sobre él — y es preferible que falle
 // ruidosamente a que el ingeniero tenga que cuadrar tres archivos a mano para
@@ -53,6 +54,7 @@ import { VERSION_EXPORTADOR } from './version.js';
 export const SECCIONES_MECANICA = Object.freeze({
   tramos:   '== TRAMOS DE TENSIÓN ==',
   vanos:    '== VANOS ==',
+  cargas:   '== CARGA SOBRE LAS ESTRUCTURAS ==',
   umbrales: '== UMBRALES Y CRITERIOS ==',
 });
 
@@ -75,6 +77,31 @@ export const COLUMNAS_VANOS = [
   'N', 'Tramo', 'Vano_m', 'Rel_VIR', 'Fuera_de_rango',
   'Flecha_EDS_m', 'Flecha_Tmax_m', 'Flecha_Tmin_m',
   'Longitud_conductor_m', 'Parametro_C_m',
+];
+
+/**
+ * La carga que recibe cada ESTRUCTURA. Las tres secciones anteriores hablan del
+ * conductor; ésta del apoyo, que es de lo que responde quien firma.
+ *
+ * `Factor_quiebre` va con TRES decimales y columna propia —y no escondido dentro
+ * de la carga— porque es el número que cambia la conversación: por encima de 1
+ * la estructura recibe MÁS carga transversal que la propia tensión del cable, y
+ * la recibe siempre, haya viento o no. En una hoja se ordena por esa columna y
+ * los apoyos comprometidos salen arriba solos.
+ *
+ * `Utilizacion_pct` y `Margen_kgf` salen VACÍOS mientras el apoyo no declare su
+ * carga de rotura y sus dos alturas: `Estado_utilizacion` dice entonces
+ * «no_evaluable», que es un hecho sobre los datos y no un fallo. `Motivo` lleva
+ * escrito qué falta, para que la hoja sea a la vez el diagnóstico y la lista de
+ * lo que hay que ir a capturar.
+ */
+export const COLUMNAS_CARGAS = [
+  'N', 'Apoyo', 'Funcion_estructural', 'Es_extremo', 'Tramos',
+  'Deflexion_grados', 'Factor_quiebre', 'Amplifica_tension',
+  'N_conductores', 'Vano_viento_m',
+  'Tiro_kgf', 'Estado_tiro',
+  'Ft_angulo_kgf', 'Ft_viento_kgf', 'Ft_total_kgf',
+  'Utilizacion_pct', 'Margen_kgf', 'Estado_utilizacion', 'Motivo',
 ];
 
 /**
@@ -233,6 +260,7 @@ export function csvVerificacionMecanica(entrada, opciones = {}) {
   const linea = e.linea ?? {};
   const tramos = Array.isArray(e.tramos) ? e.tramos : [];
   const vanos = Array.isArray(e.vanos) ? e.vanos : [];
+  const cargas = Array.isArray(e.cargas) ? e.cargas : [];
   const indicadores = Array.isArray(e.indicadores) ? e.indicadores : [];
   const lev = e.levantamiento ?? opciones.levantamiento ?? null;
 
@@ -248,8 +276,8 @@ export function csvVerificacionMecanica(entrada, opciones = {}) {
   if (excel) {
     r.push('sep=;');
     for (const l of renglonesProcedencia(linea, lev, opciones)) r.push(q('# ' + l));
-    r.push(q('# Tres secciones en un archivo: TRAMOS, VANOS y UMBRALES. Los renglones que'
-      + ' empiezan por «==» separan las secciones.'));
+    r.push(q('# Cuatro secciones en un archivo: TRAMOS, VANOS, CARGAS y UMBRALES. Los renglones'
+      + ' que empiezan por «==» separan las secciones.'));
     // Aquí NO va un renglón en blanco: lo pone `abrirSeccion` al abrir la
     // primera sección. Ponerlo en los dos sitios deja dos filas vacías seguidas
     // en la hoja, y Excel las cuenta como parte del rango al seleccionar.
@@ -306,7 +334,43 @@ export function csvVerificacionMecanica(entrada, opciones = {}) {
     });
   }
 
-  // ══ 3 · UMBRALES Y CRITERIOS ═════════════════════════════════════════════
+  // ══ 3 · CARGA SOBRE LAS ESTRUCTURAS ══════════════════════════════════════
+  abrirSeccion(SECCIONES_MECANICA.cargas, COLUMNAS_CARGAS);
+  if (!cargas.length) {
+    seccionVacia('(sin filas) — no llegó la carga sobre los apoyos. Las secciones de arriba dicen'
+      + ' cuánto TIRA el conductor; sin ésta el archivo no dice qué recibe la estructura, que es la'
+      + ' pregunta de la que responde quien firma.');
+  } else {
+    cargas.forEach((c, i) => {
+      r.push(fila([
+        ent(Number.isFinite(c?.n) ? c.n : i + 1),
+        q(c?.apoyo ?? ''), q(c?.funcionEstructural ?? ''),
+        q(siNo(c?.esExtremo ?? null)),
+        // Los tramos que cuelgan de este apoyo, separados por '+' y NO por el
+        // separador de columnas: un '1;2' partiría la fila en Excel.
+        q(Array.isArray(c?.tramos_n) ? c.tramos_n.join('+') : ''),
+        num(c?.deflexion_grados, 2), num(c?.factorAngulo, 3),
+        // Tres estados, igual que en la pantalla: sin ángulo no hay veredicto,
+        // y escribir «no» donde nadie pudo medirlo afirma que el apoyo está
+        // holgado — que es justo lo contrario de lo que se sabe.
+        q(siNo(c?.amplifica ?? null)),
+        ent(c?.nConductores), num(c?.vanoViento_m, 2),
+        num(c?.tiro_kgf, 1), q(c?.estadoTiro ?? ''),
+        num(c?.ftAngulo_kgf, 1), num(c?.ftViento_kgf, 1), num(c?.ftTotal_kgf, 1),
+        num(c?.utilizacion_pct, 2), num(c?.margen_kgf, 1),
+        // Valor CRUDO ('no_evaluable'), igual que en la sección de umbrales: es
+        // la llave con la que se filtra la hoja.
+        q(c?.estadoUtilizacion ?? 'no_evaluable'),
+        // El motivo de no evaluable y los supuestos, en una sola celda: quien
+        // lea la fila tiene que poder ver por qué falta el número sin salir de
+        // ella. Se juntan con ' · ' porque el salto de línea rompe la celda.
+        q([c?.noEvaluable, ...(Array.isArray(c?.notas) ? c.notas : [])]
+          .filter(Boolean).join(' · ')),
+      ]));
+    });
+  }
+
+  // ══ 4 · UMBRALES Y CRITERIOS ═════════════════════════════════════════════
   abrirSeccion(SECCIONES_MECANICA.umbrales, COLUMNAS_UMBRALES);
   if (!indicadores.length) {
     seccionVacia('(sin filas) — no llegó ningún indicador. Un exporte de verificación sin la tabla'
