@@ -39,7 +39,17 @@ export const Inspeccion = Base.extend({
  */
 export const Evidencia = Base.extend({
   tipo: z.literal('evidencia'),
-  inspeccionId: Id,
+  /**
+   * De QUÉ cuelga esta evidencia. Eran obligatoriamente de una inspección; hoy
+   * también pueden serlo de una investigación de falla, que es un expediente y
+   * no una campaña de inspección (ADR-008).
+   *
+   * Ambos son opcionales por separado pero **uno de los dos es obligatorio**:
+   * lo hace cumplir el `refine` de abajo. Una foto huérfana no es evidencia de
+   * nada — es un archivo, y nadie sabría por qué se guardó ni con qué compararla.
+   */
+  inspeccionId: Id.optional(),
+  investigacionId: Id.optional(),
   apoyoId: Id.optional(),
   /** Ruta en el almacenamiento de objetos. El binario nunca entra a la base. */
   rutaObjeto: z.string().min(1),
@@ -57,7 +67,10 @@ export const Evidencia = Base.extend({
    * pendientes: es un estado VÁLIDO, no un error (ADR-002, enmienda 1).
    */
   subida: z.enum(['pendiente', 'subiendo', 'completa', 'fallida']).default('pendiente'),
-});
+}).refine(
+  (e) => Boolean(e.inspeccionId) || Boolean(e.investigacionId),
+  { message: 'Toda evidencia cuelga de una inspección o de una investigación: una foto sin dueño no prueba nada.' },
+);
 
 // ── Hallazgo (lo que una PERSONA confirmó) ──────────────────────────────────
 

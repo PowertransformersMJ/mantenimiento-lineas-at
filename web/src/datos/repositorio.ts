@@ -15,7 +15,7 @@
 // Este módulo es AGNÓSTICO a la interfaz: no toca el DOM. Si mañana cambia el
 // framework de pantallas, esto sobrevive intacto.
 // ============================================================================
-import type { Apoyo, Conductor, Hipotesis, Investigacion, Linea } from '@lineas/contratos';
+import type { Apoyo, Conductor, Evidencia, Hipotesis, Investigacion, Linea } from '@lineas/contratos';
 
 export type EstadoSesion =
   | { fase: 'comprobando' }
@@ -27,7 +27,7 @@ export type EstadoDatos =
   | { fase: 'cargando' }
   | { fase: 'vacio' }
   /** `investigaciones` puede venir vacío: una línea sin eventos es lo normal. */
-  | { fase: 'listo'; linea: Linea; apoyos: Apoyo[]; conductor: Conductor; hipotesis: Hipotesis; investigaciones: Investigacion[] }
+  | { fase: 'listo'; linea: Linea; apoyos: Apoyo[]; conductor: Conductor; hipotesis: Hipotesis; investigaciones: Investigacion[]; evidencias: Evidencia[] }
   | { fase: 'error'; mensaje: string };
 
 /**

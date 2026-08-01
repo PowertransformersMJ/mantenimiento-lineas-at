@@ -564,3 +564,27 @@ p.fund-vivo + .sello-calculo { margin-top: 5px; }
 .umbral-fuente { display: block; margin-top: 2px; color: var(--mut); font-size: 10px; text-transform: uppercase; letter-spacing: .5px; }
 .exportar-titulo { margin: 20px 0 0; font-size: 11.5px; font-weight: 600; color: var(--mut);
   text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid var(--bd); padding-bottom: 6px; }
+
+/* ── Evidencia fotográfica del expediente ─────────────────────────────────
+   Las fotos se piden con la sesión del usuario; el hueco gris es el estado
+   mientras llegan, no un error. */
+.galeria { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; margin-top: 12px; }
+.galeria-item { margin: 0; }
+.galeria-lupa { appearance: none; padding: 0; border: 0; background: none; cursor: zoom-in; display: block; width: 100%; }
+.galeria-lupa img, .galeria-hueco {
+  width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block;
+  border: 1px solid var(--bd); border-radius: var(--radio); box-shadow: var(--sombra-1);
+}
+.galeria-hueco { background: var(--pnl2); }
+.galeria-lupa:hover img { border-color: var(--acc); }
+.galeria-lupa:focus-visible { outline: 2px solid var(--acc); outline-offset: 3px; }
+.galeria-item figcaption { margin-top: 6px; font-size: 11.2px; line-height: 1.5; color: #9fb3c4; }
+
+.visor {
+  position: fixed; inset: 0; z-index: 9999; background: rgba(6,9,12,.94);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 24px; cursor: zoom-out;
+}
+.visor img { max-width: 94vw; max-height: 86vh; border-radius: var(--radio); border: 1px solid var(--bd); }
+.visor-pie { margin: 12px 0 0; font-size: 11.5px; color: var(--mut); }
+@media print { .visor { display: none !important; } .galeria-lupa { cursor: default; } }

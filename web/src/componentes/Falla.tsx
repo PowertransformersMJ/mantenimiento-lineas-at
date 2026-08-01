@@ -12,7 +12,8 @@
 // Todo sale del documento `Investigacion` leído de la base. Aquí no hay ni un
 // dato escrito a mano.
 // ============================================================================
-import type { Apoyo, Investigacion } from '@lineas/contratos';
+import type { Apoyo, Evidencia, Investigacion } from '@lineas/contratos';
+import { Galeria } from './Galeria';
 import { derivarLevantamiento } from '@lineas/exportar/levantamiento';
 import { useMemo } from 'react';
 import { nf } from '../vistas/formato';
@@ -31,8 +32,8 @@ const ROTULO_VEROSIMILITUD: Record<string, string> = {
   baja: 'Verosimilitud baja',
 };
 
-export function Falla({ investigaciones, apoyos }:
-  { investigaciones: Investigacion[]; apoyos: Apoyo[] }) {
+export function Falla({ investigaciones, apoyos, evidencias = [] }:
+  { investigaciones: Investigacion[]; apoyos: Apoyo[]; evidencias?: Evidencia[] }) {
 
   const lev = useMemo(() => derivarLevantamiento(apoyos), [apoyos]);
 
@@ -75,6 +76,8 @@ export function Falla({ investigaciones, apoyos }:
                 </p>
               )}
             </section>
+
+            <Galeria evidencias={evidencias.filter((x) => x.investigacionId === ev.id)} />
 
             {ev.cronologia.length > 0 && (
               <section className="panel">

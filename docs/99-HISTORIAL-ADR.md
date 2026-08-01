@@ -922,3 +922,51 @@ y control catenaria-vs-parábola) · `nucleo/cantidades.js` (BOM geométrico) ·
 ### Crudo de respaldo
 
 `../brain-private/mantenimiento-lineas-at/research-archive/2026-07-31-brecha-original-vs-web-8-segmentos.json`
+
+---
+
+## ADR-010 · 2026-08-01 · Cómo se sirven las fotos: un portero delante del almacenamiento
+
+**Estado:** ✅ Construido y probado · ⏳ Sin desplegar: espera a que R2 esté habilitado.
+
+### Contexto
+
+Las 103 fotos del expediente (18 MB) no pueden ir en el repositorio —es público— ni dentro de un
+documento de Firestore (límite de 1 MiB, y el guardarraíl de ADR-002 lo prohíbe). Van a
+almacenamiento de objetos. Pero **subirlas es fácil y SERVIRLAS no**: el depósito nace privado y la
+aplicación no tiene servidor que firme una URL temporal ni valide la sesión.
+
+### Alternativas y por qué se descartaron
+
+| Descartada | Motivo |
+|---|---|
+| **Depósito público** (`r2.dev`) | Trivial y gratis, y deja las fotos de infraestructura de un cliente accesibles en internet para cualquiera con el enlace. Rompe la regla nº 1 del proyecto. |
+| **Dejar las fotos fuera de la web** | Es lo que había. El expediente sin evidencia fotográfica es justo lo que el Ingeniero señaló que faltaba. |
+| **URL firmadas desde el cliente** | Exigiría la llave del depósito en el navegador: la llave sería pública de facto. |
+
+### Decisión
+
+> **Un trabajador (Worker) en `evidencias/` delante del depósito.** Verifica la FIRMA del token de
+> Firebase contra las llaves públicas de Google —no se fía de que el token "tenga pinta" de token—,
+> comprueba proyecto, emisor, caducidad y la organización del token, y solo entonces entrega el
+> objeto. No escribe, no borra, no lista.
+
+Se sirve con `cache-control: private`: son datos de cliente, y ninguna caché intermedia debe quedarse
+una copia.
+
+### Consecuencias
+
+- **Adelanta cómputo en servidor**, que ADR-001 aplazaba hasta F5. Se acepta a conciencia: es la
+  única alternativa que no expone material de cliente. El trabajador se apaga solo si no se usa y
+  cabe de sobra en el plan gratuito.
+- **R2 no APAGA, COBRA** — 0,015 USD/GB extra. Choca con *«se prefiere el servicio que apaga al que
+  cobra»* (`05`). Con 18 MB contra 10 GB gratis el margen es de 500×, pero queda declarado.
+- El alta de R2 exige **aceptar términos y registrar tarjeta** en el panel. Lo hizo el Ingeniero:
+  Claude no introduce datos de pago en ningún formulario, ni con autorización.
+- La galería degrada con honestidad: sin portero desplegado o sin sesión, dice qué falta en vez de
+  dejar cuadros rotos.
+
+### Pendiente
+
+Desplegar el trabajador y sembrar las fichas, en cuanto R2 responda. Comandos en
+`herramientas/subir-evidencias.mjs`.

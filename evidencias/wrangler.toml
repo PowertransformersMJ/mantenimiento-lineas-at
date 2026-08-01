@@ -1,0 +1,28 @@
+# ============================================================================
+# evidencias — configuración del portero de las fotos
+# ----------------------------------------------------------------------------
+# Ninguno de estos valores es secreto: el identificador del proyecto de Firebase
+# y el origen permitido son públicos por diseño. La seguridad NO viene de
+# esconderlos, viene de que la firma del token se verifica contra las llaves de
+# Google y de que el depósito jamás se expone directamente.
+# ============================================================================
+name = "lineas-at-evidencias"
+main = "src/index.js"
+compatibility_date = "2026-07-01"
+
+# Sin observabilidad de pago ni reintentos: este trabajador o responde o falla,
+# y si falla la galería lo dice en pantalla.
+workers_dev = true
+
+[vars]
+PROYECTO_FIREBASE = "mantenimiento-lineas-at"
+# Solo la aplicación publicada puede pedir evidencias desde el navegador.
+ORIGEN_PERMITIDO = "https://mantenimiento-lineas-at.pages.dev"
+# La organización dueña del dato. Una sesión válida de otra empresa no pasa.
+ORG_PERMITIDA = "transpower"
+
+# El depósito se enlaza por binding: el trabajador puede LEER de él, y el
+# depósito nunca queda accesible desde internet por su cuenta.
+[[r2_buckets]]
+binding = "EVIDENCIAS"
+bucket_name = "lineas-at-evidencias"

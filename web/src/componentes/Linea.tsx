@@ -9,7 +9,7 @@
 // Aquí NO hay ni una fórmula. Todo el cálculo se le pide a @lineas/nucleo.
 // ============================================================================
 import { Component, Suspense, lazy, useMemo, useState, type KeyboardEvent, type ReactNode } from 'react';
-import type { Apoyo, Conductor, Hipotesis, Investigacion, Linea as TLinea } from '@lineas/contratos';
+import type { Apoyo, Conductor, Evidencia, Hipotesis, Investigacion, Linea as TLinea } from '@lineas/contratos';
 import { vincenty, vanoIdealRegulacion } from '@lineas/nucleo/geodesia';
 import { ampacidad, temperaturaLimite } from '@lineas/nucleo/termica';
 import { estadisticasVanos } from '@lineas/nucleo/estadisticas';
@@ -533,9 +533,9 @@ function DetalleVanos({ apoyos, conductor, hipotesis }:
 
 // ── Vista principal ─────────────────────────────────────────────────────────
 
-export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigaciones = [] }:
+export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigaciones = [], evidencias = [] }:
   { linea: TLinea; apoyos: Apoyo[]; conductor: Conductor; hipotesis: Hipotesis;
-    investigaciones?: Investigacion[] }) {
+    investigaciones?: Investigacion[]; evidencias?: Evidencia[] }) {
 
   const [activa, setActiva] = useState<IdPestana>('resumen');
 
@@ -580,7 +580,7 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
             alVerEvento={() => setActiva('falla')}
             hipotesis={hipotesis} conductor={conductor} />
         )}
-        {activa === 'falla' && <Falla investigaciones={investigaciones} apoyos={apoyos} />}
+        {activa === 'falla' && <Falla investigaciones={investigaciones} apoyos={apoyos} evidencias={evidencias} />}
         {activa === 'distancias' && <Distancias apoyos={apoyos} />}
         {activa === 'fichas' && <Fichas apoyos={apoyos} />}
         {activa === 'mecanico' && <Mecanico apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} />}

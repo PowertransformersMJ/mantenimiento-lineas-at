@@ -8,7 +8,7 @@
 // la frontera. Un documento que no cumple el esquema no entra al cálculo — y el
 // cálculo es lo que el Ingeniero firma.
 // ============================================================================
-import { Apoyo, Hipotesis, Investigacion, Linea } from '@lineas/contratos';
+import { Apoyo, Evidencia, Hipotesis, Investigacion, Linea } from '@lineas/contratos';
 import { cargarFirebase } from './cargar';
 import type { EstadoDatos, EstadoSesion, Repositorio } from './repositorio';
 
@@ -118,6 +118,25 @@ export const repositorioFirestore: Repositorio = {
       console.warn('[datos] no se pudieron leer los expedientes de falla:', e);
     }
 
-    return { fase: 'listo', linea, apoyos, conductor: linea.conductor, hipotesis, investigaciones };
+    // Fichas de evidencia (NUNCA los binarios: la foto vive en almacenamiento
+    // de objetos y se sirve aparte). Igual que arriba, en su propio try: sin
+    // fotos la línea se ve completa, y el cálculo no depende de ellas.
+    let evidencias: Evidencia[] = [];
+    if (investigaciones.length) {
+      try {
+        const sEv = await getDocs(query(
+          collection(db, 'evidencias'),
+          where('orgId', '==', orgId),
+          where('lineaId', '==', lineaId),
+        ));
+        evidencias = sEv.docs
+          .map((d) => validar<Evidencia>(Evidencia, d.data()))
+          .filter((x): x is Evidencia => x !== null);
+      } catch (e) {
+        console.warn('[datos] no se pudieron leer las fichas de evidencia:', e);
+      }
+    }
+
+    return { fase: 'listo', linea, apoyos, conductor: linea.conductor, hipotesis, investigaciones, evidencias };
   },
 };
