@@ -970,3 +970,58 @@ una copia.
 
 Desplegar el trabajador y sembrar las fichas, en cuanto R2 responda. Comandos en
 `herramientas/subir-evidencias.mjs`.
+
+---
+
+## ADR-011 · 2026-08-01 · La carga sobre la estructura: pestaña propia, y el contrato que le faltaba
+
+**Estado:** ✅ Construido, probado y **en producción** (verificado contra el sitio, no en local).
+
+### Contexto
+
+`nucleo/cargas.js` estaba escrito, comentado y probado desde la tanda de ADR-009 — y **ninguna vista
+lo llamaba**. El sistema sabía decir cuánto TIRA el conductor (pestaña Mecánico) y cuánto lo empuja
+el aire (pestaña Viento): las dos hablan del cable. La pregunta de la que responde quien firma un
+mantenimiento es otra —**¿y el apoyo aguanta?**— y no salía por ninguna pantalla.
+
+El dato escondido era el **factor del quiebre**, `2·sen(α/2)`: vale 0 en recta, 1 exacto a 60° y
+1,73 a 120°. En LN-627 hay tres estructuras por encima de 60°, y una (E06, 119,3°) recibe un **73 %
+más** de carga transversal que la propia tensión del conductor — siempre, haya viento o no. Un apoyo
+así, dimensionado «por el tiro», está dimensionado por poco más de la mitad.
+
+### Alternativas y por qué se descartaron
+
+| Descartada | Motivo |
+|---|---|
+| **Meterlo dentro de Mecánico** | Mecánico habla del CONDUCTOR (tramos, tiros, flechas). La carga habla de la ESTRUCTURA. Mezclarlas obliga al lector a separar dos preguntas distintas en la misma tabla, y Mecánico ya arrastra cuatro secciones. |
+| **Estimar la capacidad del apoyo** para poder dar un veredicto | Es el error que este sistema no puede cometer. Un apoyo que "cumple" contra una rotura supuesta es un informe firmado sobre una suposición. Se declara `no evaluable`, que es un hecho sobre los datos. |
+| **Deducir la altura libre de `altura_m`** | El empotramiento depende del terreno y no se ve desde un escritorio. |
+
+### Decisión
+
+> **Pestaña «Cargas», la undécima, después de Viento** —porque compone con el empuje que aquélla
+> caracteriza— con su capa pura `web/src/vistas/cargasDatos.ts` (36 pruebas) y su componente. Ni una
+> fórmula fuera del núcleo.
+>
+> **Contrato a v0.2.0** (cambio MENOR: solo campos opcionales): `Apoyo.alturaLibre_m` y
+> `Apoyo.alturaAplicacion_m`. Eran los dos datos que le faltaban a `utilizacionApoyo()` — sin ellos
+> la pregunta «cuánto le queda» era código inalcanzable para siempre.
+
+La pantalla declara con esas palabras lo que NO hace: no dimensiona apoyos, no evalúa carga vertical
+(vano peso) ni longitudinal, y no cubre los dos apoyos extremos, cuyo caso de carga dominante es
+otro.
+
+### Consecuencias
+
+- **Hallazgo de ingeniería nuevo y real:** tres estructuras (E02, E06, E20) amplifican la tensión.
+  Es material para la nota técnica de LN-627 y para la conversación con AFINIA.
+- **El hueco que queda es de CAPTURA, no de desarrollo:** 22 apoyos tienen su carga calculada y
+  ninguno su capacidad declarada. En cuanto el inventario traiga rotura y las dos alturas, la tabla
+  pasa de «cuánto empuja» a «cuánto le queda», sin tocar código.
+- **Deuda que se hereda:** el desequilibrio longitudinal entre tramos contiguos aparece declarado en
+  cinco apoyos (los que anclan tramos con tiros distintos) y sigue sin evaluarse.
+
+### Crudo de respaldo
+
+— (implementación directa sobre `nucleo/cargas.js`, que ya traía su propia deliberación en el crudo
+de ADR-009). Evidencia reproducible: `tests/cargas-vista.test.js`.

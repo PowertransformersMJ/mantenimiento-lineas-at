@@ -77,14 +77,20 @@ mantenimiento-lineas-at/
 │                                token de Firebase contra las llaves de Google y sirve las fotos
 │                                del depósito privado. No escribe, no borra, no lista.
 ├── herramientas/                sembrar.mjs (línea + expediente) · subir-evidencias.mjs (fotos)
-├── web/src/componentes/         React SOLO pinta (ADR-005): Linea (10 pestañas ARIA), Mapa (popup
+├── web/src/componentes/         React SOLO pinta (ADR-005): Linea (11 pestañas ARIA), Mapa (popup
 │                                completo + tramos + marcador de falla), Distribucion, Distancias,
 │                                Fichas, Falla + Galeria, Fundamentos, Umbrales, Termica, Viento,
-│                                Cantidades, Exportar, Sello, Estado
+│                                Cargas (carga sobre el apoyo, ADR-011), Cantidades, Exportar,
+│                                Sello, Estado
 ├── web/src/contenido/           doctrina SIN datos de cliente (fundamentos.ts: 9 tarjetas + normas)
 ├── web/src/exportar/            SOLO descargar.js (Blob/DOM) — el resto vive en el workspace
-├── web/src/vistas/              geometría para pintar + formato + tramoColores + diagramas.ts (las
-│                                9 figuras de Fundamentos) + termicaDatos/vientoDatos/criteriosApoyo
+├── web/src/vistas/              geometría para pintar + formato (nf + textoNucleo: coma decimal en
+│                                la prosa del núcleo, L-26) + tramoColores + diagramas.ts (las 9
+│                                figuras de Fundamentos) + termicaDatos / vientoDatos /
+│                                criteriosApoyo / cargasDatos. ⚠️ Las vistas que se PRUEBAN no
+│                                pueden importar `./planta` ni `./tramos` en ejecución: arrastran
+│                                `@lineas/contratos` (TypeScript sin compilar) y `node --test` no
+│                                lo resuelve. Solo `@lineas/nucleo/*` y tipos.
 ├── web/src/datos/               repositorio, enlace (useSyncExternalStore), firebase, cargar (reintentos)
 ├── web/public/mapas/            recorte PMTiles metropolitano (4,3 MB, autohospedado)
 ├── web/public/basemaps-assets/  fuentes y sprites del mapa (autohospedados)

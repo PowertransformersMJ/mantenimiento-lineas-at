@@ -67,6 +67,7 @@ Guarda `research-archive/` (crudos de deliberación: comités, consejos externos
 | `ADR-008` | 2026-07-31 | Décima colección `investigaciones`: el expediente de falla es un tipo propio | bóveda `fixtures/LN-627-falla.json` |
 | `ADR-009` | 2026-07-31 | Inventario de brechas (79, 31 P0) y primera tanda de cierre: diagramas, umbrales, vano a vano, cantidades, coherencia | `research-archive/2026-07-31-brecha-original-vs-web-8-segmentos.json` |
 | `ADR-010` | 2026-08-01 | Cómo se sirven las fotos: un portero (Worker) que verifica la firma del token delante del depósito privado | — (decisión de arquitectura, sin comité) |
+| `ADR-011` | 2026-08-01 | La carga sobre la estructura: pestaña «Cargas» (la 11ª) y contrato v0.2.0 con las dos alturas del apoyo | `tests/cargas-vista.test.js` (evidencia reproducible) |
 
 > Toda decisión cara de revertir entra aquí con su ADR y su crudo enlazado. Si hubo comité o consejo
 > externo y el crudo no está archivado, la tarea **no está cerrada** (`CLAUDE.md §G.4`).

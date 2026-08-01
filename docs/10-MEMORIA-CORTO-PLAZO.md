@@ -1,13 +1,14 @@
 # 📝 10 — MEMORIA DE CORTO PLAZO (pizarra del trabajo vivo)
 
 > Se **AUTO-CARGA**. Es pizarra, no bitácora (§G.3). Tope ~110 líneas / 16k chars.
-> **RELEVO DE SESIÓN 2026-08-01** — la conversación anterior llegó al tope de contexto.
-> Este nodo ES el relevo: léelo entero antes de tocar nada.
+> **Última sesión: 2026-08-01 (tarde).** Se cerró TODO-38 (pestaña Cargas, ADR-011) y se cazaron
+> tres defectos verificando en producción. Los dos bloqueos del Ingeniero siguen igual.
 
 ## 🎯 Dónde estamos
 
-**10 pestañas vivas**: Resumen · Distancias · Fichas · **Falla** · Fundamentos · Mecánico ·
-**Térmica** · **Viento** · **Cantidades** · Exportar. **445 pruebas** en verde. Producción al día.
+**11 pestañas vivas**: Resumen · Distancias · Fichas · **Falla** · Fundamentos · Mecánico ·
+**Térmica** · **Viento** · **Cargas** · **Cantidades** · Exportar. **488 pruebas** en verde.
+Producción al día (verificada en el navegador, no solo por hash — ver `L-18`, segundo punto ciego).
 
 La migración del módulo de campo original está cerrada en sus P0. El inventario de brechas
 (ADR-009, 8 auditores) contaba 79 faltantes; quedan ~48 de prioridad P1/P2 con receta escrita
@@ -68,7 +69,8 @@ en el crudo de la bóveda.
 | **TODO-35** | Al habilitarse R2: depósito + desplegar `evidencias/` + `VITE_EVIDENCIAS_URL` + subir fotos + verificar la galería en producción | 🔜 en cuanto TODO-32 |
 | **TODO-36** | **Fichas editable** (hecho fechado, no sobrescritura) + las 99 fotos por estructura + los ~26 campos del contrato que aún no se pintan | 🔲 el mayor hueco restante (paridad 25 %) |
 | **TODO-37** | **Informe gerencial** del expediente (control documental, riesgo residual, recomendaciones) — inventariado en el crudo de ADR-009 | 🔲 |
-| **TODO-38** | Cargas sobre estructuras EN PANTALLA: `nucleo/cargas.js` existe y está probado, pero ninguna vista lo llama | 🔲 bajo esfuerzo, alto valor |
+| **TODO-39** | Llevar la carga de los apoyos al **informe imprimible y a los exportes** (`exportar/`): hoy solo vive en pantalla | 🔲 sigue a ADR-011 |
+| **TODO-40** | **Carga LONGITUDINAL**: los 2 extremos y los 5 apoyos que anclan tramos con tiros distintos quedan declarados «no evaluados». Es el siguiente eje | 🔲 |
 | **TODO-30** | CI: validación XSD real de GPX/KML (xmllint + esquemas en el repo) | 🔲 |
 | **TODO-11** | F1 · Nota técnica LN-627 con las correcciones de la auditoría | 🔲 |
 | **TODO-13/14/15/16/21/22/23** | F3-F5: invalidación por tramo · sincronización bifurcada · Firestore vs D1 · alerta de presupuesto · flujo IA con `ProveedorFalso` · prueba de navegador · secretos para despliegue automático | 🔲 |
@@ -81,11 +83,11 @@ en el crudo de la bóveda.
   gpx, kml, csv, calidad, procedencia, mecanica, bom, informe) · `web/` · `evidencias/` (Worker).
 - **Hallazgos de ingeniería nuevos, reales**: 14 de 23 vanos fuera de la banda 0,7–1,3 del VIR
   (sobre todo el tramo 4) · control catenaria/parábola −0,100 % en el vano peor → la parábola
-  ES admisible aquí · un apoyo con 118° de deflexión (factor 1,72: recibe más carga que la
-  propia tensión).
+  ES admisible aquí · **tres apoyos amplifican la tensión** (E02 ×1,070 · E20 ×1,232 · **E06 ×1,726,
+  o sea 73 % más carga transversal que el propio tiro, siempre**) → pestaña Cargas, ADR-011.
 - **Deuda declarada, no resuelta**: fluencia, vano peso (falta cota de sujeción), despeje al
   terreno, ficha real del proveedor del conductor.
-- **Cerebro**: 25 lecciones (L-01…L-25). Leer antes de tocar Firebase, mapas, despliegues o
+- **Cerebro**: 27 lecciones (L-01…L-27). Leer antes de tocar Firebase, mapas, despliegues o
   workflows con agentes.
 
 ## 🚫 Callejones ya probados (no repetir — detalle en `30`)
@@ -97,3 +99,6 @@ en el crudo de la bóveda.
 - Arneses que inyectan en el almacén y montan un segundo React → «Invalid hook call».
 - Diagnosticar el mapa en pestaña oculta → reloj congelado (`L-16`).
 - `node --test tests/` sin patrón entrecomillado → suite sin correr, sin aviso.
+- Dar por verificada una pantalla porque `curl` ve el hash nuevo: el NAVEGADOR sirve su propia
+  caché y `?recarga=N` no la rompe (`L-18`). Preguntarle a la pestaña qué cargó.
+- Pintar tal cual una nota que el núcleo escribe por fila → 24 párrafos idénticos (`L-27`).

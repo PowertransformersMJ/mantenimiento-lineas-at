@@ -9,52 +9,33 @@
 ## Plataforma y proveedores
 
 ### L-01 · GitHub Pages no puede servir este proyecto
-- **Síntoma:** parece la opción obvia y gratis para publicar el frontend, y el proyecto hermano ya la usa.
-- **Causa (verificado contra la documentación oficial, 2026-07-29):** tres bloqueos independientes.
-  (a) Publicar desde **repositorio privado** exige GitHub Pro como mínimo; con cuenta Free el repo
-  tiene que ser público — cita literal: *"If the account that owns the repository uses GitHub Free…
-  the repository must be public."*
-  (b) Aun pagando Pro, **el sitio publicado sigue siendo público** en internet; restringir quién lo ve
-  exige Enterprise Cloud a nivel de organización.
-  (c) Los términos **prohíben el uso comercial**: *"not intended for or allowed to be used as a free
-  web-hosting service to run your online business… or providing commercial software as a service"*,
-  y añaden que no debe usarse para transacciones sensibles como envío de contraseñas.
-- **Regla:** este proyecto maneja datos de cliente y necesita repo privado → **GitHub Pages queda
-  descartado como hosting**. GitHub se usa para el código y el CI, no para servir la aplicación.
+- **Causa (verificado contra la documentación oficial, 2026-07-29):** con cuenta Free el repo tendría
+  que ser público; aun pagando Pro el SITIO sigue siendo público (restringirlo exige Enterprise
+  Cloud); y sus términos **prohíben el uso comercial** en cualquier plan.
+- **Regla:** GitHub sirve el código y el CI, **nunca la aplicación**. Detalle y citas → `99 §ADR-001`.
 
-### L-02 · "Gratis" y "sin tarjeta" no son lo mismo — y aquí la tarjeta ya está puesta
-- **Síntoma:** se arranca con la premisa "presupuesto cero = no dar tarjeta" y eso descarta opciones
-  buenas por un motivo que resultó falso.
-- **Causa:** dos hechos verificados. (1) En Firebase, **Cloud Storage y Cloud Functions no existen en
-  el plan gratuito Spark**: la tabla de precios marca literalmente *Not applicable* y exigen el plan
-  **Blaze** con método de pago (Storage desde el 30/10/2024; Functions desde antes). Dentro de Blaze
-  sí hay cuota sin costo. (2) El proyecto hermano `lordpowertransformersmj` **ya tiene Blaze activo
-  desde el 2026-07-23**, con alerta de facturación en 5 USD/mes.
-- **Regla:** la restricción real no es *"sin tarjeta"* sino **"sin factura sorpresa"**. Se evalúan las
-  opciones por su **cuota gratuita y su curva de coste**, no por si piden método de pago. Toda opción
-  que se adopte lleva alerta de presupuesto configurada antes de recibir tráfico real.
+### L-02 · "Gratis" y "sin tarjeta" no son lo mismo
+- **Causa:** en Firebase, Storage y Functions marcan literalmente *Not applicable* en el plan Spark y
+  exigen Blaze con método de pago (dentro de Blaze sí hay cuota sin costo). El proyecto hermano ya
+  tiene Blaze activo desde el 2026-07-23, con alerta en 5 USD/mes.
+- **Regla:** la restricción real no es *"sin tarjeta"* sino **"sin factura sorpresa"**. Se evalúa por
+  cuota gratuita y curva de coste, y toda opción adoptada lleva alerta de presupuesto ANTES de recibir
+  tráfico. Ver también `L-25` (un alta «gratuita» puede pedir tarjeta igualmente).
 
 ### L-03 · MapTiler gratis prohíbe el uso comercial; Protomaps no
-- **Síntoma:** el plan Free de MapTiler parece suficiente (5.000 sesiones/mes) y es fácil de integrar.
-- **Causa:** su licencia limita el plan Free a *"non-commercial use and research & development"*, y
-  además **prohíbe el caché de servidor** y la descarga masiva de teselas — que es exactamente lo que
-  hace falta para tener mapa offline en campo. El primer plan que permite uso comercial cuesta 30
-  USD/mes. Las teselas públicas de OpenStreetMap tampoco están pensadas para producción.
-- **Regla:** el mapa se sirve con **Protomaps / PMTiles** desde almacenamiento de objetos: un solo
-  archivo servido por HTTP Range Requests, licencia BSD, datos ODbL con atribución a OpenStreetMap,
-  sin cuota, sin contrato y **funciona offline por diseño**. Es la única opción que satisface a la vez
-  "legalmente segura para una empresa" y "sirve sin señal".
+- **Causa:** el plan Free de MapTiler se limita a *"non-commercial use and research & development"* y
+  **prohíbe el caché de servidor** — que es justo lo que exige el mapa offline. Las teselas públicas
+  de OpenStreetMap tampoco son para producción, y su política prohíbe el uso offline (`L-10`).
+- **Regla:** el mapa va con **Protomaps / PMTiles**: un archivo por HTTP Range, licencia BSD, datos
+  ODbL con atribución, sin cuota y **offline por diseño**. Es lo único que cumple a la vez "legal para
+  una empresa" y "sirve sin señal".
 
 ### L-04 · A esta escala, el coste de almacenamiento NO es el criterio de decisión
-- **Síntoma:** el instinto dice que las fotos van a disparar la factura y que hay que optimizar por
-  precio de almacenamiento y de tráfico de salida.
-- **Causa:** se hicieron los números con la medida real (LN-627: **99 fotos, 17,97 MB, 182 KB por
-  foto**). Incluso con **400 líneas inspeccionadas dos veces al año durante cinco años** el acumulado
-  son **70 GB ≈ 1,35 USD/mes**. Y el tráfico de salida con 25 usuarios revisando 200 fotos diarias son
-  19 GB/mes, muy por debajo de los 100 GB/mes gratuitos de Firebase.
-- **Regla:** no se elige el stack por el precio del gigabyte, porque durante años será calderilla en
-  cualquiera de las opciones. Se elige por **capacidad offline** y **mantenibilidad**. Cuando alguien
-  argumente "es más barato", pedirle el número: casi siempre está optimizando lo que no duele.
+- **Causa:** con la medida real (LN-627: 99 fotos, 17,97 MB), **400 líneas × 2 veces al año × 5 años**
+  son 70 GB ≈ **1,35 USD/mes**; el tráfico de salida se queda muy por debajo de la cuota gratuita.
+- **Regla:** el stack no se elige por el precio del gigabyte —será calderilla durante años— sino por
+  **capacidad offline** y **mantenibilidad**. A quien diga "es más barato", pedirle el número: casi
+  siempre está optimizando lo que no duele.
 
 ---
 
@@ -69,14 +50,12 @@
   puras sin DOM ni red, y toda migración se valida contra la suite de `tests/`.
 
 ### L-06 · El núcleo se extrae sin pérdida — está verificado, no supuesto
-- **Causa:** se reimplementó la geodesia y se comparó contra los 25 vanos que el HTML ya tenía
-  calculados: desviación máxima **4,5e−6 m** en distancia y **3,6e−9°** en azimut. La geodesia también
-  reproduce las constantes WGS84 publicadas al milímetro (1° de latitud en el ecuador = 110 574,389 m;
-  cuarto de meridiano = 10 001 965,7 m). La resistencia del Darien AAAC queda a **1,3 %** de la tabla
-  del fabricante.
-- **Regla:** cualquier cambio en `nucleo/` que rompa `npm test` es una regresión, no una mejora.
-  La prueba de no regresión contra la línea real usa un fixture que vive en la **bóveda privada**
-  (son coordenadas de infraestructura de cliente) y se salta sola en CI, avisando.
+- **Causa:** la geodesia reimplementada se comparó contra los 25 vanos que el HTML ya traía
+  calculados y contra las constantes WGS84 publicadas. **La tabla completa de qué está verificado y
+  qué no vive en `40 §8`, que es su dueño**; aquí solo la consecuencia.
+- **Regla:** cualquier cambio en `nucleo/` que ponga `npm test` en rojo es una regresión, no una
+  mejora. La prueba de no regresión contra la línea real usa un fixture de la **bóveda privada** (son
+  coordenadas de cliente) y se salta sola en CI, avisando.
 
 ### L-07 · Los datos de cliente no entran en git, ni en repo privado
 - **Causa:** la historia de git es permanente y se propaga a cada clon. Sacar después un archivo que
@@ -93,11 +72,7 @@
 - **Síntoma:** el HTML no tiene ni una dependencia remota de **código** (Leaflet va embebido, cero
   `<script src>` externos), y de ahí se concluyó —y se afirmó— que funcionaba entero sin conexión.
 - **Causa:** el código de **código** es offline, pero los **datos del mapa** no. Verificado leyendo
-  el archivo:
-  ```js
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', …)
-  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/…')
-  ```
+  el archivo: dos `L.tileLayer` remotos (`tile.openstreetmap.org` y `server.arcgisonline.com`).
   En el vano 14, sin señal, el mapa es un lienzo gris. Lo que sí funciona offline son los datos, el
   cálculo y el esquema geométrico — el propio HTML lo dice en ese título: *"funciona sin conexión"*,
   aplicado al esquema, **no** al mapa. Y como agravante, la política de uso de
@@ -241,6 +216,12 @@
   `curl -s https://…pages.dev/ | grep -o 'assets/index-[^"]*\.js'` (hash servido). Si difieren,
   esperar con `until curl … | grep -q '<hash>'; do sleep 5; done` ANTES de decirle nada al
   Ingeniero. Es la aplicación literal de §3.2 (*verifica, no asumas*) al despliegue.
+- **Segundo punto ciego (2026-08-01): que `curl` vea el hash nuevo NO significa que el NAVEGADOR lo
+  vea.** Chrome sirvió el `index.html` de su caché tres veces seguidas —incluso navegando con
+  `?recarga=N`, que cambia la URL pero no lo que ya tiene guardado—, así que la pantalla verificada
+  era la ANTERIOR y dos defectos reales pasaron por buenos. `curl` prueba el borde; el navegador es
+  otra caché. **Preguntarle a la pestaña qué cargó**, y recargar en duro si no coincide:
+  `[...document.querySelectorAll('script[src]')].map(s => s.src)` · `cmd+shift+r`.
 
 ### L-19 · Una regex que decide una regla de dominio es una bomba de tiempo (y se disfrazó de lista)
 - **Síntoma:** `nucleo/mecanica.js` decidía qué apoyo corta un tramo de tensión con
@@ -273,21 +254,18 @@
   de leer el código. *Verificar un entregable es producirlo y abrirlo, no releer la función.*
 
 ### L-21 · "Se ve muy oscuro / no se ve de alto nivel" casi nunca es la paleta
-- **Síntoma:** el Ingeniero pidió *"un entorno igual al archivo html, el que tenemos es muy oscuro y
-  no se ve de alto nivel"*. La reacción fácil era aclarar el tema.
-- **Qué se encontró al ABRIR el original al lado** (servido en localhost desde el área temporal,
-  nunca desde `web/public/` — eso habría publicado datos de cliente): **el original es igual de
-  oscuro y usa la misma paleta exacta** (`--bg:#0f1419`, `--acc:#f0a500`). Aclararlo habría
-  empeorado el problema sin tocar la causa.
-- **La causa real era la DENSIDAD y el uso del espacio:** el original es un tablero a pantalla
-  completa (`grid-template-columns:1fr 420px; height:calc(100vh - 74px)`), con base de 14 px,
-  títulos de sección de 11,5 px en mayúsculas con filete, y avisos con fondo tintado. El nuestro
-  era una columna centrada de 1080 px con letra de 15 px y medio monitor vacío: leía como un blog.
-- **Regla:** ante una queja de aspecto, **abrir la referencia y medirla** (paleta, anchos, tamaños
-  de fuente, alturas) antes de tocar un color. La percepción de "alto nivel" en una herramienta de
-  ingeniería viene de densidad de información, alineación y jerarquía tipográfica — no de la
-  luminosidad. Y el tablero usa toda la pantalla, pero **la prosa se acota** (110ch): un párrafo de
-  200 caracteres de ancho no se lee.
+- **Síntoma:** el Ingeniero pidió *"un entorno igual al archivo html, el que tenemos es muy oscuro"*.
+  La reacción fácil era aclarar el tema.
+- **Qué se encontró al ABRIR el original al lado** (en localhost desde el área temporal, nunca desde
+  `web/public/`, que habría publicado datos de cliente): **el original es igual de oscuro y usa la
+  misma paleta exacta** (`--bg:#0f1419`, `--acc:#f0a500`). Aclararlo habría empeorado el problema.
+- **La causa real era la DENSIDAD:** el original es un tablero a pantalla completa
+  (`grid-template-columns:1fr 420px; height:calc(100vh - 74px)`), base 14 px, títulos de 11,5 px en
+  mayúsculas con filete. El nuestro era una columna de 1080 px con letra de 15 px: leía como un blog.
+- **Regla:** ante una queja de aspecto, **abrir la referencia y medirla** (paleta, anchos, tamaños)
+  antes de tocar un color. El "alto nivel" en una herramienta de ingeniería viene de densidad,
+  alineación y jerarquía — no de luminosidad. El tablero usa toda la pantalla; **la prosa se acota**
+  (110ch).
 
 ### L-22 · Desplegar el código sin desplegar las reglas de Firestore: el dato existe y no llega
 - **Síntoma:** la colección `investigaciones` sembrada correctamente en Firestore, el código nuevo
@@ -305,11 +283,9 @@
 - **Síntoma:** `tests/exportar.test.js` afirmaba `filas[1].includes('10.35••••')` — la latitud real
   de una estructura de la LN-627, escrita en un repositorio **público**. Pasó mi propia auditoría
   de fugas dos veces porque yo buscaba en `web/src` y en el paquete publicado, no en `tests/`.
-- **Recaída, 2026-08-01:** al corregir el código se copió la coordenada **a esta misma lección**, y
-  ahí sobrevivió a la auditoría porque `docs/` no se estaba grepeando de verdad. Una lección que
-  enseña a no filtrar coordenadas no puede llevar una dentro: por eso ahora va enmascarada. El
-  ejemplo se entiende igual sin los seis decimales — **si un dato no es necesario para explicar, no
-  se escribe**.
+- **Recaída, 2026-08-01:** al corregir el código la coordenada se copió **a esta misma lección** y
+  sobrevivió porque `docs/` no se grepeaba de verdad. Si un dato no hace falta para explicar, no se
+  escribe: el ejemplo se entiende igual enmascarado.
 - **Por qué se cuela:** al escribir una prueba de formato uno copia el valor observado de la
   salida real para que la aserción sea concreta. Es el gesto natural, y es justo el que filtra.
 - **Regla:** en las pruebas, el valor esperado se **DERIVA del fixture de la bóveda**
@@ -349,3 +325,27 @@
   (4) pedir confirmación explícita para ESE clic; (5) detenerse en el primer campo de pago.
 - **Lección general:** «gratis» describe el precio, no el flujo. Antes de prometer que un alta es
   inocua, hay que ver el formulario — el importe puede ser 0,00 y aun así exigir tarjeta.
+
+### L-26 · El núcleo escribe con PUNTO decimal, y en Colombia el punto son miles
+- **Síntoma:** la frase estrella de la pestaña Cargas decía *"multiplica la tensión por 1.726"*. En
+  es-CO eso se lee **mil setecientos veintiséis**. Igual en Resumen (*"Quiebre de 118.2°"*), en
+  Cantidades y en el semáforo de cada ficha: cuatro pantallas, el mismo defecto, desde antes.
+- **Por qué existe y por qué NO se arregla en el núcleo:** el núcleo arma su prosa con `toFixed` y
+  jamás con `toLocaleString`, a propósito — el formateo regional depende del ICU de la máquina y un
+  veredicto no puede decir una cosa en la Mac del Ingeniero y otra en el CI. La decisión es correcta;
+  lo que faltaba era traducir **al pintar**.
+- **Regla:** toda prosa que venga de `nucleo/` o `exportar/` pasa por `vistas/formato.ts ·
+  textoNucleo()` antes de llegar a pantalla — y **también el TÍTULO**, no solo el detalle: los
+  hallazgos llevan la cifra en el renglón que se lee de un vistazo. Sustituye solo el punto con
+  dígito a los dos lados, así que «2.929 m» (miles, ya formateado con `nf`) y `docs/40 §8` no se
+  tocan. Corolario: **no escribir números de versión dentro de la prosa** — «v0.2.0» sale «v0,2.0».
+
+### L-27 · Una nota que el núcleo escribe POR FILA no se pinta por fila
+- **Síntoma:** la sección «apoyo por apoyo» de Cargas imprimía 24 párrafos, 22 de ellos idénticos.
+  Las TRES filas que decían algo distinto —los apoyos que amplifican la tensión— quedaban enterradas.
+- **Por qué el núcleo tiene razón igualmente:** cada fila debe poder imprimirse SOLA en un informe,
+  así que su nota tiene que viajar completa dentro de ella. El error era de la pantalla, no del dato.
+- **Regla:** al listar observaciones de muchas entidades, **agrupar por texto idéntico** y ordenar de
+  lo específico a lo general (lo que le pasa a un apoyo es un hallazgo; lo que les pasa a los 24 es
+  contexto). Y la agrupación vive en la capa pura, no en el componente: es una decisión de lectura,
+  y se prueba.
