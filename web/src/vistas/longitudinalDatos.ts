@@ -42,6 +42,8 @@ export interface FilaLongitudinal {
   sensibilidadTendido_kgf: number | null;
   /** false = el número sale, pero el SENTIDO no aguanta esa incertidumbre. */
   sentidoResoluble: boolean | null;
+  /** true = los DOS sentidos superan el ruido de obra: la inversión es afirmable. */
+  inversionResoluble: boolean | null;
   /** Rotura de conductor: fuerza y sus dos componentes, por lado roto. */
   roturaAtras_kgf: number | null;
   roturaAdelante_kgf: number | null;
@@ -103,6 +105,7 @@ export function longitudinalParaPantalla(
     estadoAtras: r.permanente?.estadoAtras ?? null,
     sensibilidadTendido_kgf: r.sensibilidadTendido_kgf,
     sentidoResoluble: r.sentidoResoluble,
+    inversionResoluble: r.inversionResoluble,
     roturaAtras_kgf: r.accidental?.atras?.fuerza_kgf ?? null,
     roturaAdelante_kgf: r.accidental?.adelante?.fuerza_kgf ?? null,
     notas: r.notas ?? [],
@@ -133,7 +136,9 @@ function resumir(filas: FilaLongitudinal[]) {
     peor: peorFila && v !== null
       ? { apoyo: peorFila.apoyo, fl_kgf: v, sentido: (v > 0 ? 'adelante' : 'atras') as 'adelante' | 'atras' }
       : null,
-    cuantosInvierten: filas.filter((r) => r.flAdelanteMax_kgf !== null && r.flAtrasMax_kgf !== null).length,
+    // Solo las AFIRMABLES: un segundo sentido por debajo del ruido de obra no es
+    // una inversión, es una diferencia de tendido que el modelo no puede ver.
+    cuantosInvierten: filas.filter((r) => r.inversionResoluble === true).length,
     cuantosSentidoDudoso: filas.filter((r) => r.sentidoResoluble === false).length,
     conCarga: conCargaFilas.length,
     total: filas.length,
@@ -169,7 +174,7 @@ function redactarAvisos(filas: FilaLongitudinal[]): AvisoCarga[] {
     });
   }
 
-  const invierten = filas.filter((r) => r.flAdelanteMax_kgf !== null && r.flAtrasMax_kgf !== null);
+  const invierten = filas.filter((r) => r.inversionResoluble === true);
   if (invierten.length) {
     avisos.push({
       severidad: 'atencion',
@@ -271,6 +276,7 @@ interface CrudaLongitudinal {
   accidental: { atras?: { fuerza_kgf: number | null }; adelante?: { fuerza_kgf: number | null } } | null;
   sensibilidadTendido_kgf: number | null;
   sentidoResoluble: boolean | null;
+  inversionResoluble: boolean | null;
   notas: string[];
   noEvaluable: string | null;
 }

@@ -365,6 +365,34 @@ describe('la línea entera: identidad, no conteo', () => {
     assert.ok(c.notas.some((n) => /SE INVIERTE/.test(n)));
   });
 
+  test('la INVERSIÓN solo se afirma si LOS DOS sentidos superan el ruido de obra', () => {
+    // Cazado verificando la línea real en producción: un anclaje daba +173 kgf
+    // hacia adelante y −27 hacia atrás con un ruido de tendido de 85 kgf, y la
+    // pantalla afirmaba «tira hacia los dos lados». Ese segundo sentido es
+    // indistinguible de una diferencia de tendido de obra.
+    const conRuidoAlto = longitudinalDeLaLinea(APOYOS, TRAMOS, { rts_kgf: 25000 });
+    const c = de(conRuidoAlto, 'C');
+    // sensibilidad = 1 % de 25 000 = 250 kgf. Adelante ≈ 282 (pasa), atrás ≈ 197 (no).
+    assert.ok(c.permanente.flAdelanteMax_kgf !== null && c.permanente.flAtrasMax_kgf !== null,
+      'el cálculo sigue dando los dos sentidos');
+    assert.equal(c.sentidoResoluble, true, 'el sentido DOMINANTE sí supera el ruido');
+    assert.equal(c.inversionResoluble, false, 'pero la INVERSIÓN no se puede afirmar');
+    assert.ok(!c.notas.some((n) => /SE INVIERTE/.test(n)),
+      'no se afirma una inversión que el ruido de obra podría explicar');
+    assert.ok(c.notas.some((n) => /indistinguible del ruido/.test(n)),
+      'y se dice por qué no se afirma');
+  });
+
+  test('con los dos sentidos por encima del ruido, la inversión SÍ se afirma', () => {
+    const c = de(correr(), 'C');   // RTS 6000 → ruido 60 kgf; 282 y 197 lo pasan
+    assert.equal(c.inversionResoluble, true);
+    assert.ok(c.notas.some((n) => /SE INVIERTE/.test(n) && /los DOS sentidos pesan/.test(n)));
+  });
+
+  test('un terminal nunca «invierte»: tiene un solo lado', () => {
+    assert.equal(de(correr(), 'A').inversionResoluble, false);
+  });
+
   test('el mayor desequilibrio NO está en el estado de mayor tiro', () => {
     // Verificado con el motor real y reproducido aquí: el mayor tiro es a T mín
     // (1500 kgf) y el mayor desequilibrio a T máx. Tomar el de mayor tiro —lo

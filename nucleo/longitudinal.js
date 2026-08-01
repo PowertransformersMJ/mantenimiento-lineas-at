@@ -525,7 +525,9 @@ export function utilizacionLongitudinal(entrada) {
  * @property {Object|null} permanente     envolvente POR SENTIDO del caso permanente
  * @property {Object|null} accidental     rotura, por lado, sin veredicto
  * @property {number|null} sensibilidadTendido_kgf
- * @property {boolean|null} sentidoResoluble
+ * @property {boolean|null} sentidoResoluble   ¿el sentido DOMINANTE supera el ruido de obra?
+ * @property {boolean|null} inversionResoluble ¿lo superan LOS DOS sentidos? Solo entonces se
+ *   puede afirmar que el apoyo tira de verdad hacia ambos lados.
  * @property {Object|null} utilizacion
  * @property {string[]} notas
  * @property {string|null} noEvaluable
@@ -605,6 +607,7 @@ export function longitudinalDeLaLinea(apoyos, tramos, opciones = {}) {
       accidental: null,
       sensibilidadTendido_kgf: sensibilidad,
       sentidoResoluble: null,
+      inversionResoluble: null,
       utilizacion: null,
       notas,
       noEvaluable: null,
@@ -663,8 +666,10 @@ export function longitudinalDeLaLinea(apoyos, tramos, opciones = {}) {
           + 'transversal, que cuenta 3·circuitos con el cable de guarda declaradamente fuera');
       }
       return { ...base, caso: 'terminal', permanente: env,
-        // El sentido de un terminal no lo discute el tendido: hay un solo lado.
+        // El sentido de un terminal no lo discute el tendido: hay un solo lado,
+        // y el tiro entero está órdenes de magnitud por encima del ruido de obra.
         sentidoResoluble: env.flAdelanteMax_kgf !== null || env.flAtrasMax_kgf !== null,
+        inversionResoluble: false,
         noEvaluable: motivos.length ? motivos.join(' · ') : null };
     }
 
@@ -726,21 +731,40 @@ export function longitudinalDeLaLinea(apoyos, tramos, opciones = {}) {
     }
 
     // ¿El sentido aguanta la incertidumbre del tendido real?
-    const mayor = Math.max(
-      env.flAdelanteMax_kgf === null ? 0 : Math.abs(env.flAdelanteMax_kgf),
-      env.flAtrasMax_kgf === null ? 0 : Math.abs(env.flAtrasMax_kgf),
-    );
+    //
+    // ⚠️ Se mide POR SENTIDO, no sobre el mayor de los dos. Cazado verificando la
+    // línea real en producción: un anclaje daba +173 kgf hacia adelante y −27
+    // hacia atrás con un ruido de tendido de 85 kgf. Mirando solo el mayor, la
+    // pantalla afirmaba «tira hacia los dos lados» — y ese segundo sentido es
+    // indistinguible de una diferencia de tendido de obra. La afirmación que
+    // decide si hace falta retención a los DOS lados exige que los DOS sentidos
+    // superen el ruido, no solo el dominante.
+    const magAdelante = env.flAdelanteMax_kgf === null ? null : Math.abs(env.flAdelanteMax_kgf);
+    const magAtras = env.flAtrasMax_kgf === null ? null : Math.abs(env.flAtrasMax_kgf);
+    const mayor = Math.max(magAdelante ?? 0, magAtras ?? 0);
+
     const sentidoResoluble = sensibilidad === null ? null : mayor > sensibilidad;
+    // Solo se afirma la inversión si los DOS sentidos existen Y los dos pesan.
+    const inversionResoluble = magAdelante === null || magAtras === null ? false
+      : sensibilidad === null ? null
+      : magAdelante > sensibilidad && magAtras > sensibilidad;
+
     if (sentidoResoluble === false) {
       notas.push(`El mayor desequilibrio calculado (${f(mayor)} kgf) queda por DEBAJO de lo que `
         + `pesaría una diferencia de tendido de obra del ${DESAJUSTE_TENDIDO_PCT_RTS} % de la `
         + `carga de rotura (${f(sensibilidad)} kgf). El número sale, pero el SENTIDO no es `
         + 'concluyente: en el terreno podría apuntar al otro lado.');
     }
-    if (env.flAdelanteMax_kgf !== null && env.flAtrasMax_kgf !== null) {
-      notas.push('El sentido SE INVIERTE entre estados: este apoyo tira hacia los dos lados según '
-        + 'la temperatura. Publicar solo la magnitud lo habría escondido, y es lo que decide si '
-        + 'hace falta retención a un lado o a los dos.');
+    if (inversionResoluble === true) {
+      notas.push('El sentido SE INVIERTE entre estados, y los DOS sentidos pesan más que el ruido '
+        + 'del tendido: este apoyo tira de verdad hacia los dos lados según la temperatura. '
+        + 'Publicar solo la magnitud lo habría escondido, y es lo que decide si hace falta '
+        + 'retención a un lado o a los dos.');
+    } else if (magAdelante !== null && magAtras !== null && inversionResoluble === false) {
+      const menor = Math.min(magAdelante, magAtras);
+      notas.push(`El cálculo da los dos sentidos, pero el menor (${f(menor)} kgf) NO supera lo que `
+        + `pesaría una diferencia de tendido de obra (${f(sensibilidad)} kgf): ese segundo sentido `
+        + 'es indistinguible del ruido de obra y NO se afirma. Manda el sentido dominante.');
     }
 
     // ── C4 · rotura, en el mismo apoyo, en estructura APARTE ────────────────
@@ -766,6 +790,7 @@ export function longitudinalDeLaLinea(apoyos, tramos, opciones = {}) {
       permanente: env,
       accidental,
       sentidoResoluble,
+      inversionResoluble,
       notas,
       noEvaluable: motivos.length ? motivos.join(' · ') : null,
     };
