@@ -17,7 +17,7 @@ import { cantidadesGeometricas } from '@lineas/nucleo/cantidades';
 import { tramosDeTension, estadosDelTramo, longitudCatenaria } from '@lineas/nucleo/mecanica';
 import { conductorParaNucleo, paramsParaNucleo } from '../vistas/tramos';
 import { vanos, soloEstructuras, nombreVisible } from '../vistas/planta';
-import { nf } from '../vistas/formato';
+import { nf, textoNucleo } from '../vistas/formato';
 import { Sello } from './Sello';
 
 interface Fila { concepto: string; cantidad: number; unidad: string; base?: string; procedencia?: string }
@@ -123,7 +123,7 @@ export function Cantidades({ linea, apoyos, conductor, hipotesis }:
             <ul className="calidad-lista">
               {r.avisos.map((a) => (
                 <li key={a.concepto} className="calidad-item aviso">
-                  <b>{a.concepto}.</b> {a.motivo}
+                  <b>{a.concepto}.</b> {textoNucleo(a.motivo)}
                 </li>
               ))}
             </ul>

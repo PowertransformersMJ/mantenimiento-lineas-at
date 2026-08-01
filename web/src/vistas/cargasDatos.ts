@@ -328,8 +328,11 @@ function redactarAvisos(filas: FilaCargaApoyo[], crudas: CrudaDelNucleo[]): Avis
       concepto: `${sinCapacidad.length} apoyo(s) con la carga calculada pero SIN capacidad declarada`,
       motivo: 'Se sabe cuánto se les está pidiendo; no se sabe cuánto aguantan, así que no se '
         + 'dictamina. Faltan datos de inventario: carga de rotura del apoyo, altura libre sobre '
+        // ⚠️ Sin número de versión en la prosa: al pintar se convierte el punto
+        // decimal en coma, y «v0.2.0» saldría como «v0,2.0». La versión del
+        // contrato ya se publica en el pie de la aplicación, que es su sitio.
         + 'el terreno y altura del punto de sujeción. Los tres tienen ya su campo en el contrato '
-        + '(v0.2.0) — es captura, no desarrollo. Con ellos esta tabla pasa de «cuánto empuja» a '
+        + 'del sistema — es captura, no desarrollo. Con ellos esta tabla pasa de «cuánto empuja» a '
         + '«cuánto le queda». El desglose de qué falta en cada apoyo va escrito en su propia fila.',
     });
   }

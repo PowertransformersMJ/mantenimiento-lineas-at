@@ -23,6 +23,7 @@
 // ============================================================================
 import { useMemo } from 'react';
 import type { Apoyo } from '@lineas/contratos';
+import { textoNucleo } from '../vistas/formato';
 import { criteriosDeApoyo, type Criterio, type ContextoApoyo, type Veredicto }
   from '../vistas/criteriosApoyo';
 import { Sello } from './Sello';
@@ -100,11 +101,11 @@ export function FichaCriterios({ apoyo, contexto }:
         {criterios.map((c) => (
           <li key={c.id} className={`calidad-item ${FONDO[c.veredicto]}`}>
             <span className={`sello ${SELLO[c.veredicto]}`}>{ROTULO[c.veredicto]}</span>{' '}
-            <b>{c.etiqueta}:</b> {c.valor}. {c.detalle}
+            <b>{c.etiqueta}:</b> {c.valor}. {textoNucleo(c.detalle)}
             {/* El criterio viaja PEGADO a su veredicto, no en una nota al pie ni
                 en un tooltip. Un semáforo sin fuente es una opinión con colores,
                 y esto se imprime: en papel no hay dónde pasar el ratón. */}
-            <span className="umbral-fuente">{c.criterio}</span>
+            <span className="umbral-fuente">{textoNucleo(c.criterio)}</span>
           </li>
         ))}
       </ul>

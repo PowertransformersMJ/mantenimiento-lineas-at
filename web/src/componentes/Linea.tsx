@@ -22,6 +22,7 @@ import { proyectar, vanos, geometriaSvg, soloEstructuras } from '../vistas/plant
 import { COLORES_TRAMO_CSS } from '../vistas/tramoColores';
 import { calcularTramos, conductorParaNucleo, paramsParaNucleo } from '../vistas/tramos';
 import { nombreVisible } from '../vistas/planta';
+import { textoNucleo } from '../vistas/formato';
 import { conReintentos } from '../datos/cargar';
 import { Distribucion } from './Distribucion';
 import { Distancias } from './Distancias';
@@ -293,7 +294,8 @@ function Resumen({ apoyos, investigaciones, alVerEvento, hipotesis, conductor }:
             {r.coherencia.map((c, i) => (
               <li key={i} className={`calidad-item ${c.severidad === 'critica' ? 'atencion'
                 : c.severidad === 'advertencia' ? 'aviso' : 'info'}`}>
-                <b>{c.apoyo}.</b> {c.mensaje} <span className="umbral-fuente">{c.criterio}</span>
+                <b>{c.apoyo}.</b> {textoNucleo(c.mensaje)}{' '}
+                <span className="umbral-fuente">{textoNucleo(c.criterio)}</span>
               </li>
             ))}
           </ul>
@@ -312,7 +314,7 @@ function Resumen({ apoyos, investigaciones, alVerEvento, hipotesis, conductor }:
           <ul className="calidad-lista">
             {r.calidad.map((c, i) => (
               <li key={i} className={`calidad-item ${c.severidad}`}>
-                <b>{c.titulo}.</b> {c.detalle}
+                <b>{c.titulo}.</b> {textoNucleo(c.detalle)}
               </li>
             ))}
           </ul>

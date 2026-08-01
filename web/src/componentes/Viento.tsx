@@ -19,7 +19,7 @@ import { useMemo } from 'react';
 import type { Apoyo, Conductor, Hipotesis } from '@lineas/contratos';
 import { calcularTramos } from '../vistas/tramos';
 import { caracterizacionViento } from '../vistas/vientoDatos';
-import { nf } from '../vistas/formato';
+import { nf, textoNucleo } from '../vistas/formato';
 import { Sello } from './Sello';
 
 /** Un número que puede no existir. El hueco se pinta como hueco, nunca como 0. */
@@ -164,7 +164,7 @@ export function Viento({ apoyos, conductor, hipotesis }:
         <ul className="calidad-lista">
           {v.avisos.map((a) => (
             <li key={a.concepto} className={`calidad-item ${a.severidad}`}>
-              <b>{a.concepto}.</b> {a.motivo}
+              <b>{a.concepto}.</b> {textoNucleo(a.motivo)}
             </li>
           ))}
         </ul>
