@@ -111,6 +111,22 @@ export interface CargasEnPantalla {
   avisos: AvisoCarga[];
 }
 
+/**
+ * Una observación y los apoyos a los que afecta.
+ *
+ * El núcleo escribe las notas POR FILA, y eso es correcto: cada fila tiene que
+ * poder imprimirse sola en un informe. Pero en pantalla, veinticuatro filas con
+ * el mismo párrafo no informan de nada — tapan las tres que sí dicen algo
+ * distinto. Se agrupan por texto idéntico: cada observación aparece una vez, con
+ * la lista de apoyos que la comparten.
+ */
+export interface NotaAgrupada {
+  texto: string;
+  apoyos: string[];
+  /** true si es el motivo de que NO haya carga, y no un supuesto del cálculo. */
+  esNoEvaluable: boolean;
+}
+
 const RANGO: Record<AvisoCarga['severidad'], number> = { atencion: 0, aviso: 1, info: 2 };
 
 /** Formato estable para la prosa de los avisos: `toFixed`, nunca `toLocaleString`. */
@@ -195,6 +211,37 @@ export function cargasParaPantalla(
     criterioUtilizacion: CRITERIO_UTILIZACION,
     avisos: redactarAvisos(filas, crudas).sort((a, b) => RANGO[a.severidad] - RANGO[b.severidad]),
   };
+}
+
+/**
+ * Agrupa las observaciones de todas las filas por texto idéntico.
+ *
+ * Orden: primero los motivos de NO EVALUABLE (que es lo que impide leer un
+ * número), y dentro de cada clase, de MENOS apoyos a más. Lo que le pasa a un
+ * apoyo solo es un hallazgo; lo que les pasa a los veinticuatro es el contexto
+ * de la línea, y va después.
+ */
+export function agruparNotas(filas: FilaCargaApoyo[]): NotaAgrupada[] {
+  const mapa = new Map<string, NotaAgrupada>();
+
+  const anotar = (texto: string, apoyo: string, esNoEvaluable: boolean) => {
+    const limpio = texto.trim();
+    if (!limpio) return;
+    // La clave lleva la clase además del texto: el mismo párrafo puede aparecer
+    // como motivo en una fila y como supuesto en otra, y son cosas distintas.
+    const clave = `${esNoEvaluable ? 'X' : 'N'}·${limpio}`;
+    const ya = mapa.get(clave);
+    if (ya) ya.apoyos.push(apoyo);
+    else mapa.set(clave, { texto: limpio, apoyos: [apoyo], esNoEvaluable });
+  };
+
+  for (const f of filas) {
+    if (f.noEvaluable) anotar(f.noEvaluable, f.apoyo, true);
+    for (const n of f.notas) anotar(n, f.apoyo, false);
+  }
+
+  return [...mapa.values()].sort((a, b) =>
+    Number(b.esNoEvaluable) - Number(a.esNoEvaluable) || a.apoyos.length - b.apoyos.length);
 }
 
 // ── Resumen: los cuatro números de cabecera ─────────────────────────────────

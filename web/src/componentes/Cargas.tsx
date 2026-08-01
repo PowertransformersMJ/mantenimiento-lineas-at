@@ -23,7 +23,7 @@
 import { useMemo } from 'react';
 import type { Apoyo, Conductor, Hipotesis, Linea } from '@lineas/contratos';
 import { calcularTramos } from '../vistas/tramos';
-import { cargasParaPantalla } from '../vistas/cargasDatos';
+import { cargasParaPantalla, agruparNotas } from '../vistas/cargasDatos';
 import { nf } from '../vistas/formato';
 import { Sello } from './Sello';
 
@@ -68,8 +68,16 @@ export function Cargas({ linea, apoyos, conductor, hipotesis }:
     );
   }
 
-  const conNotas = r.filas.filter((f) => f.noEvaluable || f.notas.length);
+  // Agrupadas por texto: una observación repetida en las 24 filas no informa,
+  // tapa a las tres que dicen algo distinto.
+  const notas = agruparNotas(r.filas);
   const nCond = r.filas.find((f) => f.nConductores !== null)?.nConductores ?? null;
+
+  /** «LN-627 E02 y LN-627 E06» si son pocos; «22 apoyos» si son multitud. */
+  const aQuienes = (apoyos: string[]): string =>
+    apoyos.length > 4 ? `${nf(apoyos.length)} apoyos`
+      : apoyos.length === 1 ? apoyos[0]
+      : `${apoyos.slice(0, -1).join(', ')} y ${apoyos[apoyos.length - 1]}`;
 
   return (
     <>
@@ -180,19 +188,21 @@ export function Cargas({ linea, apoyos, conductor, hipotesis }:
         )}
       </section>
 
-      {conNotas.length > 0 && (
+      {notas.length > 0 && (
         <section className="panel">
-          <h2>Lo que falta o se supuso, apoyo por apoyo</h2>
+          <h2>Lo que falta o se supuso, y en qué apoyos</h2>
           <p className="fine">
             Escrito por el cálculo, no redactado a mano: si el dato se captura, la observación
-            desaparece sola.
+            desaparece sola. Lo que le pasa a un apoyo solo va primero; lo que les pasa a todos es
+            el contexto de la línea y va al final.
           </p>
           <ul className="calidad-lista">
-            {conNotas.map((f) => (
-              <li key={f.n} className={`calidad-item ${f.noEvaluable ? 'aviso' : 'info'}`}>
-                <b>{f.apoyo}.</b>{' '}
-                {f.noEvaluable && <>Sin carga calculada: {f.noEvaluable}{' '}</>}
-                {f.notas.join(' ')}
+            {notas.map((n) => (
+              <li key={`${n.esNoEvaluable}-${n.texto}`}
+                  className={`calidad-item ${n.esNoEvaluable ? 'aviso' : 'info'}`}>
+                <b>{aQuienes(n.apoyos)}.</b>{' '}
+                {n.esNoEvaluable && <b>Sin carga calculada: </b>}
+                {n.texto}
               </li>
             ))}
           </ul>

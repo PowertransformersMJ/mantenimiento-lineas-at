@@ -28,7 +28,7 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { cargasParaPantalla } from '../web/src/vistas/cargasDatos.ts';
+import { cargasParaPantalla, agruparNotas } from '../web/src/vistas/cargasDatos.ts';
 import { vincenty } from '../nucleo/geodesia.js';
 
 const cerca = (real, esperado, tol, msg) =>
@@ -392,6 +392,49 @@ describe('hallazgos, huecos y límites: qué se le cuenta al que firma', () => {
     assert.equal(r.umbralUtilizacion_pct, 50);
     assert.match(r.criterioUtilizacion, /CRITERIO ADOPTADO/);
     assert.match(r.criterioUtilizacion, /NUNCA se estima/);
+  });
+});
+
+describe('agrupar las observaciones: una vez cada una, no una por apoyo', () => {
+  test('el mismo párrafo en varias filas sale UNA vez, con todos sus apoyos', () => {
+    const r = correr();
+    const notas = agruparNotas(r.filas);
+    const textos = notas.map((n) => n.texto);
+    assert.equal(new Set(textos).size, textos.length, 'no puede haber dos grupos con el mismo texto');
+
+    // La nota de los conductores la escribe el núcleo en TODAS las filas: tiene
+    // que salir una sola vez y nombrar a las cinco estructuras.
+    const g = notas.find((n) => /guarda/.test(n.texto));
+    assert.ok(g, 'la nota de los cables de guarda tiene que estar');
+    assert.equal(g.apoyos.length, r.filas.length);
+  });
+
+  test('lo específico de un apoyo va ANTES que lo común a todos', () => {
+    const notas = agruparNotas(correr().filas);
+    const cuentas = notas.filter((n) => !n.esNoEvaluable).map((n) => n.apoyos.length);
+    assert.deepEqual(cuentas, [...cuentas].sort((a, b) => a - b),
+      'dentro de cada clase, de menos apoyos a más');
+    // Y los motivos de «no evaluable» van los primeros de todos.
+    const i = notas.findIndex((n) => !n.esNoEvaluable);
+    assert.ok(notas.slice(0, i).every((n) => n.esNoEvaluable));
+  });
+
+  test('el motivo de no evaluable no se mezcla con los supuestos', () => {
+    const notas = agruparNotas(correr().filas);
+    const extremos = notas.find((n) => n.esNoEvaluable && /longitudinal/i.test(n.texto));
+    assert.ok(extremos, 'los dos extremos comparten motivo: un solo grupo');
+    assert.equal(extremos.apoyos.length, 2);
+    assert.deepEqual(extremos.apoyos, ['S0', 'S4']);
+  });
+
+  test('la nota del quiebre solo aparece en el apoyo que amplifica', () => {
+    const g = agruparNotas(correr().filas).find((n) => /multiplica la tensión/i.test(n.texto));
+    assert.ok(g, 'el apoyo que amplifica tiene que traer su nota propia');
+    assert.deepEqual(g.apoyos, ['S3']);
+  });
+
+  test('sin filas no devuelve nada', () => {
+    assert.deepEqual(agruparNotas([]), []);
   });
 });
 
