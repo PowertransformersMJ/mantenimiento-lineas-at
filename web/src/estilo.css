@@ -562,3 +562,5 @@ p.fund-vivo + .sello-calculo { margin-top: 5px; }
 .fund-figura-caja svg { display: block; margin: 0 auto; max-width: 640px; }
 .umbral-criterio { color: #9fb3c4; font-size: 11px; line-height: 1.5; white-space: normal; }
 .umbral-fuente { display: block; margin-top: 2px; color: var(--mut); font-size: 10px; text-transform: uppercase; letter-spacing: .5px; }
+.exportar-titulo { margin: 20px 0 0; font-size: 11.5px; font-weight: 600; color: var(--mut);
+  text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid var(--bd); padding-bottom: 6px; }

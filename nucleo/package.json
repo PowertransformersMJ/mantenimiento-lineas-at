@@ -13,7 +13,8 @@
     "./umbrales": "./umbrales.js",
     "./cantidades": "./cantidades.js",
     "./coherencia": "./coherencia.js",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./cargas": "./cargas.js"
   },
   "sideEffects": false
 }

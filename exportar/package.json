@@ -12,7 +12,10 @@
     "./csv": "./csv.js",
     "./gms": "./gms.js",
     "./procedencia": "./procedencia.js",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./mecanica": "./mecanica.js",
+    "./bom": "./bom.js",
+    "./informe": "./informe.js"
   },
   "dependencies": {
     "@lineas/nucleo": "*"

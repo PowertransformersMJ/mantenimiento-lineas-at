@@ -16,18 +16,81 @@
 // tiene, y aquí no se finge nada.
 // ============================================================================
 import { useMemo, useState } from 'react';
-import type { Apoyo, Hipotesis, Linea as TLinea } from '@lineas/contratos';
+import type { Apoyo, Conductor, Hipotesis, Investigacion, Linea as TLinea } from '@lineas/contratos';
 import { derivarLevantamiento } from '@lineas/exportar/levantamiento';
 import { generarGpx } from '@lineas/exportar/gpx';
 import { generarKml } from '@lineas/exportar/kml';
 import { generarCsv } from '@lineas/exportar/csv';
+import { csvVerificacionMecanica } from '@lineas/exportar/mecanica';
+import { csvCantidades } from '@lineas/exportar/bom';
+import { informeHtml } from '@lineas/exportar/informe';
+import { tramosDeTension, estadosDelTramo } from '@lineas/nucleo/mecanica';
+import { detalleVanos } from '@lineas/nucleo/vanos';
+import { evaluarUmbrales } from '@lineas/nucleo/umbrales';
+import { cantidadesGeometricas } from '@lineas/nucleo/cantidades';
+import { estadisticasVanos } from '@lineas/nucleo/estadisticas';
+import { vanos, soloEstructuras, nombreVisible } from '../vistas/planta';
+import { conductorParaNucleo, paramsParaNucleo, calcularTramos } from '../vistas/tramos';
 import { descargar, selloFecha } from '../exportar/descargar';
 import { nf } from '../vistas/formato';
 
-export function Exportar({ linea, apoyos, hipotesis }:
-  { linea: TLinea; apoyos: Apoyo[]; hipotesis?: Hipotesis }) {
+export function Exportar({ linea, apoyos, conductor, hipotesis, investigaciones = [] }:
+  { linea: TLinea; apoyos: Apoyo[]; conductor?: Conductor; hipotesis?: Hipotesis;
+    investigaciones?: Investigacion[] }) {
 
   const lev = useMemo(() => derivarLevantamiento(apoyos), [apoyos]);
+
+  /**
+   * Todo el cálculo del que salen los tres entregables nuevos, resuelto UNA
+   * vez. Es el mismo que pinta Mecánico: si se recalculara aquí con otra
+   * hipótesis, el informe firmado y la pantalla dirían cosas distintas.
+   */
+  const calc = useMemo(() => {
+    if (!conductor || !hipotesis) return null;
+    const E = soloEstructuras(apoyos);
+    if (E.length < 2) return null;
+    const L = vanos(apoyos);
+    const c = conductorParaNucleo(conductor);
+    const p = paramsParaNucleo(hipotesis);
+    const cortes = tramosDeTension(
+      E.map((a) => ({ funcionEstructural: a.funcionEstructural, nombre: nombreVisible(a) })), L);
+
+    // Vanos numerados de forma CORRIDA sobre toda la línea: `detalleVanos`
+    // numera dentro de cada tramo, y tres "vano 1" en un archivo firmado son
+    // una llamada del cliente preguntando cuál es cuál.
+    let corrido = 0;
+    const filasVano: Record<string, unknown>[] = [];
+    const conEstados = cortes.map((t: { vanos: number[] }, i: number) => {
+      const e = estadosDelTramo(t, c, p);
+      for (const f of detalleVanos(t, c, e) as Record<string, unknown>[]) {
+        filasVano.push({ ...f, n: ++corrido, tramo: i + 1 });
+      }
+      return { ...t, estados: e };
+    });
+
+    const vanosConLongitud = filasVano.map((f) => ({
+      vano_m: f.a_m as number,
+      longitudConductor_m: f.longitudConductor_m as number,
+    }));
+
+    return {
+      tramos: calcularTramos(apoyos, conductor, hipotesis),
+      vanos: filasVano,
+      indicadores: evaluarUmbrales({
+        tramos: conEstados, conductor: c, hipotesis,
+        estadisticas: estadisticasVanos(L) ?? undefined, apoyos,
+      }),
+      cantidades: cantidadesGeometricas({
+        vanos_m: vanosConLongitud,
+        apoyos: apoyos.map((a) => ({
+          funcionEstructural: a.funcionEstructural,
+          tipoPunto: a.tipoPunto ?? 'Estructura',
+        })),
+        conductor: { codigo: conductor.codigo },
+        circuitos: linea.circuitos ?? 1,
+      }),
+    };
+  }, [linea, apoyos, conductor, hipotesis]);
   const [info, setInfo] = useState<string | null>(null);
   const [fallo, setFallo] = useState<string | null>(null);
 
@@ -54,6 +117,7 @@ export function Exportar({ linea, apoyos, hipotesis }:
   };
 
   const sinDatos = lev.puntos.length === 0;
+  const sinCalculo = calc === null;
 
   return (
     <section className="panel">
@@ -94,6 +158,37 @@ export function Exportar({ linea, apoyos, hipotesis }:
         <button type="button" disabled={sinDatos}
           onClick={() => bajar('levantamiento_datos', 'csv', 'text/csv', () => generarCsv(lev, { dialecto: 'datos' }))}>
           ⬇ CSV de datos crudos (RFC 4180) — QGIS, pandas, R
+        </button>
+      </div>
+
+      <h2 className="exportar-titulo">Cálculo y entregables</h2>
+      <p className="fine">
+        Estos salen del <b>mismo motor</b> que pinta las pestañas: un número del informe y el de la
+        pantalla no pueden discrepar, porque los produce la misma función.
+      </p>
+      <div className="exportar-botones">
+        <button type="button" disabled={sinCalculo}
+          onClick={() => bajar('verificacion_mecanica', 'csv', 'text/csv',
+            (m) => csvVerificacionMecanica(
+              { ...calc!, linea, conductor, hipotesis, levantamiento: lev },
+              { dialecto: 'excel', ...m }))}>
+          ⬇ Verificación mecánica (CSV) — tramos, vano a vano y umbrales
+        </button>
+        <button type="button" disabled={sinCalculo}
+          onClick={() => bajar('cantidades', 'csv', 'text/csv',
+            (m) => csvCantidades(
+              { linea, cantidades: calc!.cantidades, levantamiento: lev },
+              { dialecto: 'excel', ...m }))}>
+          ⬇ Memoria de cantidades (CSV) — con lo que NO se puede cuantificar
+        </button>
+        <button type="button" disabled={sinCalculo}
+          onClick={() => bajar('informe', 'html', 'text/html',
+            (m) => informeHtml({
+              linea, conductor, hipotesis, lev,
+              tramos: calc!.tramos, vanos: calc!.vanos, indicadores: calc!.indicadores,
+              cantidades: calc!.cantidades, investigaciones, meta: m,
+            }))}>
+          ⬇ Informe completo (HTML imprimible) — se abre sin internet
         </button>
       </div>
 

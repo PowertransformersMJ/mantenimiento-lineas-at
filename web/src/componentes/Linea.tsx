@@ -31,6 +31,8 @@ import { Fundamentos } from './Fundamentos';
 import { Falla } from './Falla';
 import { Umbrales } from './Umbrales';
 import { Cantidades } from './Cantidades';
+import { Termica } from './Termica';
+import { Viento } from './Viento';
 import { Sello } from './Sello';
 
 const nf = (v: number, d = 0) =>
@@ -97,6 +99,8 @@ const PESTANAS = [
   { id: 'falla', rotulo: 'Falla', lista: true, roja: true },
   { id: 'fundamentos', rotulo: 'Fundamentos', lista: true },
   { id: 'mecanico', rotulo: 'Mecánico', lista: true },
+  { id: 'termica', rotulo: 'Térmica', lista: true },
+  { id: 'viento', rotulo: 'Viento', lista: true },
   { id: 'cantidades', rotulo: 'Cantidades', lista: true },
   { id: 'exportar', rotulo: 'Exportar', lista: true },
 ] as const;
@@ -581,8 +585,10 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
         {activa === 'fichas' && <Fichas apoyos={apoyos} />}
         {activa === 'mecanico' && <Mecanico apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} />}
         {activa === 'fundamentos' && <Fundamentos apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} />}
+        {activa === 'termica' && <Termica linea={linea} conductor={conductor} hipotesis={hipotesis} />}
+        {activa === 'viento' && <Viento apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} />}
         {activa === 'cantidades' && <Cantidades linea={linea} apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} />}
-        {activa === 'exportar' && <Exportar linea={linea} apoyos={apoyos} hipotesis={hipotesis} />}
+        {activa === 'exportar' && <Exportar linea={linea} apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} investigaciones={investigaciones} />}
       </div>
     </>
   );
