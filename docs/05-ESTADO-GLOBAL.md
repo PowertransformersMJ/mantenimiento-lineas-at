@@ -5,7 +5,7 @@
 | Señal | Valor (al **2026-07-29**) |
 |---|---|
 | **Misión ahora** | **F0 · Verificación.** Repo creado, cerebro cableado, `nucleo/` portado y verificado. Arquitectura **decidida y revisada externamente**: comité ×3 (ADR-001) + Consejo Externo Gemini 3.1 Pro (ADR-002, confirma en 7 puntos y enmienda 3). Pendientes → `10`. |
-| **Build** | 🟢 `npm test` **488 pass / 0 fail** (núcleo + exportes + vistas puras). · verificado-vivo: 2026-08-01 |
+| **Build** | 🟢 `npm test` **503 pass / 0 fail** (núcleo + exportes + vistas puras). · verificado-vivo: 2026-08-01 |
 | **Repo** | `main` · https://github.com/PowertransformersMJ/mantenimiento-lineas-at · **PÚBLICO** (decisión del Ingeniero 2026-07-29) |
 | **Producción** | 🟢 **https://mantenimiento-lineas-at.pages.dev** — Cloudflare Pages, cuenta `ajimenezp99@gmail.com`. Caparazón con línea de demostración: **cero datos de cliente**. Despliegue a mano (`npm run deploy --workspace web`); el automático espera los 2 secretos del repo. · verificado-vivo: 2026-07-29 |
 | **Backend** | ⬜ **Ninguno, a propósito.** F0–F4 corren en la Mac: cero cuentas, cero tarjetas, cero proveedores que puedan cobrar o apagar. |

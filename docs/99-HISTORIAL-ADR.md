@@ -1021,6 +1021,14 @@ otro.
 - **Deuda que se hereda:** el desequilibrio longitudinal entre tramos contiguos aparece declarado en
   cinco apoyos (los que anclan tramos con tiros distintos) y sigue sin evaluarse.
 
+**Cerrado el 2026-08-01 (TODO-39): sale del edificio.** La carga ya no vive solo en pantalla — entra
+como cuarta sección del CSV de verificación mecánica (19 columnas, con `Factor_quiebre` a la vista
+para poder ordenar la hoja por él) y como sección 6 del informe imprimible, entre los vanos y los
+umbrales. Y sube a «Lo que este informe NO demuestra», que es la que se lee al firmar: los apoyos sin
+capacidad declarada, los extremos sin verificar y —siempre— que solo se evaluó el eje TRANSVERSAL.
+Verificado interceptando los archivos que genera PRODUCCIÓN: 24 filas en los dos, sin `NaN`, y el
+informe sigue sin un solo `<script>` ni recurso externo.
+
 ### Crudo de respaldo
 
 — (implementación directa sobre `nucleo/cargas.js`, que ya traía su propia deliberación en el crudo

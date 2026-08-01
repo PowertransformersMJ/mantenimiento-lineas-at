@@ -1,13 +1,14 @@
 # 📝 10 — MEMORIA DE CORTO PLAZO (pizarra del trabajo vivo)
 
 > Se **AUTO-CARGA**. Es pizarra, no bitácora (§G.3). Tope ~110 líneas / 16k chars.
-> **Última sesión: 2026-08-01 (tarde).** Se cerró TODO-38 (pestaña Cargas, ADR-011) y se cazaron
-> tres defectos verificando en producción. Los dos bloqueos del Ingeniero siguen igual.
+> **Última sesión: 2026-08-01 (tarde).** Se cerraron TODO-38 y TODO-39 (pestaña Cargas + su salida
+> al informe y a los exportes, ADR-011) y se cazaron tres defectos verificando en producción. Los
+> dos bloqueos del Ingeniero siguen igual.
 
 ## 🎯 Dónde estamos
 
 **11 pestañas vivas**: Resumen · Distancias · Fichas · **Falla** · Fundamentos · Mecánico ·
-**Térmica** · **Viento** · **Cargas** · **Cantidades** · Exportar. **488 pruebas** en verde.
+**Térmica** · **Viento** · **Cargas** · **Cantidades** · Exportar. **503 pruebas** en verde.
 Producción al día (verificada en el navegador, no solo por hash — ver `L-18`, segundo punto ciego).
 
 La migración del módulo de campo original está cerrada en sus P0. El inventario de brechas
@@ -69,7 +70,6 @@ en el crudo de la bóveda.
 | **TODO-35** | Al habilitarse R2: depósito + desplegar `evidencias/` + `VITE_EVIDENCIAS_URL` + subir fotos + verificar la galería en producción | 🔜 en cuanto TODO-32 |
 | **TODO-36** | **Fichas editable** (hecho fechado, no sobrescritura) + las 99 fotos por estructura + los ~26 campos del contrato que aún no se pintan | 🔲 el mayor hueco restante (paridad 25 %) |
 | **TODO-37** | **Informe gerencial** del expediente (control documental, riesgo residual, recomendaciones) — inventariado en el crudo de ADR-009 | 🔲 |
-| **TODO-39** | Llevar la carga de los apoyos al **informe imprimible y a los exportes** (`exportar/`): hoy solo vive en pantalla | 🔲 sigue a ADR-011 |
 | **TODO-40** | **Carga LONGITUDINAL**: los 2 extremos y los 5 apoyos que anclan tramos con tiros distintos quedan declarados «no evaluados». Es el siguiente eje | 🔲 |
 | **TODO-30** | CI: validación XSD real de GPX/KML (xmllint + esquemas en el repo) | 🔲 |
 | **TODO-11** | F1 · Nota técnica LN-627 con las correcciones de la auditoría | 🔲 |
