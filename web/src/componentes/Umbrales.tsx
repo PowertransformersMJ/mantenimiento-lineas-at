@@ -18,7 +18,7 @@ import { tramosDeTension, estadosDelTramo } from '@lineas/nucleo/mecanica';
 import { estadisticasVanos } from '@lineas/nucleo/estadisticas';
 import { conductorParaNucleo, paramsParaNucleo } from '../vistas/tramos';
 import { vanos, soloEstructuras, nombreVisible } from '../vistas/planta';
-import { nf } from '../vistas/formato';
+import { nf, textoNucleo } from '../vistas/formato';
 import { Sello } from './Sello';
 
 interface Indicador {
@@ -104,7 +104,9 @@ export function Umbrales({ apoyos, conductor, hipotesis }:
                   </span>
                 </td>
                 <td className="umbral-criterio">
-                  {i.criterio}
+                  {/* El núcleo escribe con punto decimal por determinismo; en
+                      es-CO el punto es separador de MILES. Se corrige al pintar. */}
+                  {textoNucleo(i.criterio)}
                   <span className="umbral-fuente">{i.fuente}</span>
                 </td>
               </tr>

@@ -24,7 +24,7 @@ import { useMemo } from 'react';
 import type { Apoyo, Conductor, Hipotesis, Linea } from '@lineas/contratos';
 import { calcularTramos } from '../vistas/tramos';
 import { cargasParaPantalla, agruparNotas } from '../vistas/cargasDatos';
-import { nf } from '../vistas/formato';
+import { nf, textoNucleo } from '../vistas/formato';
 import { Sello } from './Sello';
 
 /** Un número que puede no existir. El hueco se pinta como hueco, nunca como 0. */
@@ -202,7 +202,7 @@ export function Cargas({ linea, apoyos, conductor, hipotesis }:
                   className={`calidad-item ${n.esNoEvaluable ? 'aviso' : 'info'}`}>
                 <b>{aQuienes(n.apoyos)}.</b>{' '}
                 {n.esNoEvaluable && <b>Sin carga calculada: </b>}
-                {n.texto}
+                {textoNucleo(n.texto)}
               </li>
             ))}
           </ul>
@@ -218,7 +218,7 @@ export function Cargas({ linea, apoyos, conductor, hipotesis }:
         <ul className="calidad-lista">
           {r.avisos.map((a) => (
             <li key={a.concepto} className={`calidad-item ${a.severidad}`}>
-              <b>{a.concepto}.</b> {a.motivo}
+              <b>{textoNucleo(a.concepto)}.</b> {textoNucleo(a.motivo)}
             </li>
           ))}
         </ul>
