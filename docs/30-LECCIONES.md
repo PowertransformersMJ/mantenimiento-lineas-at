@@ -302,9 +302,14 @@
   *Una capa opcional jamás puede tener poder de veto sobre una esencial* (misma regla que `L-11`).
 
 ### L-23 · Una coordenada real dentro de una PRUEBA es una fuga igual que en el código
-- **Síntoma:** `tests/exportar.test.js` afirmaba `filas[1].includes('10.351170')` — la latitud real
+- **Síntoma:** `tests/exportar.test.js` afirmaba `filas[1].includes('10.35••••')` — la latitud real
   de una estructura de la LN-627, escrita en un repositorio **público**. Pasó mi propia auditoría
   de fugas dos veces porque yo buscaba en `web/src` y en el paquete publicado, no en `tests/`.
+- **Recaída, 2026-08-01:** al corregir el código se copió la coordenada **a esta misma lección**, y
+  ahí sobrevivió a la auditoría porque `docs/` no se estaba grepeando de verdad. Una lección que
+  enseña a no filtrar coordenadas no puede llevar una dentro: por eso ahora va enmascarada. El
+  ejemplo se entiende igual sin los seis decimales — **si un dato no es necesario para explicar, no
+  se escribe**.
 - **Por qué se cuela:** al escribir una prueba de formato uno copia el valor observado de la
   salida real para que la aserción sea concreta. Es el gesto natural, y es justo el que filtra.
 - **Regla:** en las pruebas, el valor esperado se **DERIVA del fixture de la bóveda**
