@@ -157,6 +157,32 @@ export const Apoyo = Base.extend({
   /** Cota del PUNTO DE SUJECIÓN del conductor. Es la que necesita el vano peso. */
   cotaSujecion_m: z.number().optional(),
   cargaRotura_kgf: z.number().positive().optional(),
+  /**
+   * Altura LIBRE del apoyo sobre el terreno, en metros: la parte que sobresale
+   * del empotramiento, que es la misma a la que el fabricante ensayó la carga de
+   * rotura.
+   *
+   * ⚠️ NO es `altura_m` (longitud total del poste) ni se deduce de ella: el
+   * empotramiento depende del terreno y no se ve desde un escritorio. Se captura
+   * en campo o viene del acta de montaje. Sin ella, `nucleo/cargas.js` deja la
+   * utilización del apoyo en NO EVALUABLE, que es lo correcto — un apoyo que
+   * "cumple" contra una capacidad supuesta es un informe firmado sobre un
+   * supuesto.
+   */
+  alturaLibre_m: z.number().positive().optional(),
+  /**
+   * Altura sobre el terreno del punto donde el conductor amarra, en metros.
+   *
+   * Lo que rompe un poste no es la fuerza sino el MOMENTO en el empotramiento,
+   * así que comparar kgf contra kgf solo vale si las dos fuerzas actúan a la
+   * misma altura. Con el conductor amarrado por debajo de la punta el mismo kgf
+   * hace menos daño. Tiene que ser ≤ `alturaLibre_m`: por encima de la punta la
+   * geometría es imposible y el cálculo del momento no significaría nada.
+   *
+   * Es una ALTURA sobre el terreno, no una cota sobre el nivel del mar — no
+   * confundir con `cotaSujecion_m`, que es la del vano peso.
+   */
+  alturaAplicacion_m: z.number().positive().optional(),
   anioInstalacion: z.number().int().min(1900).max(2200).optional(),
   codigoInventario: z.string().optional(),
 

@@ -11,8 +11,15 @@
 // ============================================================================
 import { z } from 'zod';
 
-/** Versión del contrato. Un cambio mayor obliga a desplegar las dos mitades a la vez. */
-export const VERSION_CONTRATO = '0.1.0';
+/**
+ * Versión del contrato. Un cambio mayor obliga a desplegar las dos mitades a la vez.
+ *
+ * 0.2.0 — MENOR (solo campos opcionales añadidos, nada renombrado ni cambiado de
+ * tipo): `Apoyo.alturaLibre_m` y `Apoyo.alturaAplicacion_m`, que son los dos
+ * datos que le faltaban a `nucleo/cargas.js` para poder decir si un apoyo
+ * aguanta. Un documento escrito con 0.1.0 sigue validando sin tocarlo.
+ */
+export const VERSION_CONTRATO = '0.2.0';
 
 // ── Identificadores ─────────────────────────────────────────────────────────
 
