@@ -8,7 +8,7 @@
 // sus vanos, y qué le llega al apoyo del final?», y para contestarla con
 // archivos sueltos hay que cuadrarlos a mano, que es exactamente el momento en
 // que se cuela el error. Por eso este exporte
-// junta TRAMOS + VANOS + CARGAS + UMBRALES en un solo CSV.
+// junta TRAMOS + VANOS + CARGAS (los dos ejes) + UMBRALES en un solo CSV.
 //
 // DOS DIALECTOS, igual que exportar/csv.js (y por el mismo hallazgo de la
 // auditoría 2026-07-30):
@@ -20,7 +20,7 @@
 // a Excel es-CO como TEXTO: se ve bien, no suma, y nadie se entera hasta que un
 // total sale en cero.
 //
-// ⚠️ CONSECUENCIA DECLARADA, y hay que decirla fuerte: este archivo tiene CUATRO
+// ⚠️ CONSECUENCIA DECLARADA, y hay que decirla fuerte: este archivo tiene CINCO
 // SECCIONES, así que NI SIQUIERA el dialecto 'datos' es una tabla única.
 // `pandas.read_csv()` a secas va a fallar sobre él — y es preferible que falle
 // ruidosamente a que el ingeniero tenga que cuadrar tres archivos a mano para
@@ -55,6 +55,7 @@ export const SECCIONES_MECANICA = Object.freeze({
   tramos:   '== TRAMOS DE TENSIÓN ==',
   vanos:    '== VANOS ==',
   cargas:   '== CARGA SOBRE LAS ESTRUCTURAS ==',
+  longitudinal: '== CARGA LONGITUDINAL (EJE DE LA LÍNEA) ==',
   umbrales: '== UMBRALES Y CRITERIOS ==',
 });
 
@@ -111,6 +112,27 @@ export const COLUMNAS_CARGAS = [
  * dice `Comparador`: con '<=' o '>=' el número está en `Umbral_1` y `Umbral_2`
  * va vacío; con 'entre' son el mínimo y el máximo, en ese orden.
  */
+/**
+ * El OTRO eje. Va en sección aparte y NO como columnas más de la tabla anterior:
+ * son cargas sobre ejes distintos y ninguna hoja debe invitar a sumarlas.
+ *
+ * Los dos sentidos ocupan DOS columnas y no una con signo, porque un apoyo puede
+ * tirar hacia los dos según la temperatura: una sola columna obligaría a elegir
+ * cuál publicar, y esa elección es justo la que decide si hace falta retención a
+ * un lado o a los dos. `Inversion_afirmable` dice si el segundo sentido pesa más
+ * que el ruido de tendido de obra — si no, no se afirma.
+ *
+ * `Rotura_*` es el caso ACCIDENTAL, sin veredicto: este proyecto no ha adoptado
+ * criterio de aceptación para él. No se suma con las columnas permanentes.
+ */
+export const COLUMNAS_LONGITUDINAL = [
+  'N', 'Apoyo', 'Funcion_estructural', 'Caso',
+  'Deflexion_grados', 'Factor_cos_mitad',
+  'FL_adelante_kgf', 'Estado_adelante', 'FL_atras_kgf', 'Estado_atras',
+  'Sensibilidad_tendido_kgf', 'Sentido_resoluble', 'Inversion_afirmable',
+  'Rotura_lado_atras_kgf', 'Rotura_lado_adelante_kgf', 'Motivo',
+];
+
 export const COLUMNAS_UMBRALES = [
   'Id', 'Indicador', 'Valor', 'Unidad',
   'Umbral_1', 'Umbral_2', 'Comparador', 'Estado', 'Criterio', 'Fuente',
@@ -261,6 +283,7 @@ export function csvVerificacionMecanica(entrada, opciones = {}) {
   const tramos = Array.isArray(e.tramos) ? e.tramos : [];
   const vanos = Array.isArray(e.vanos) ? e.vanos : [];
   const cargas = Array.isArray(e.cargas) ? e.cargas : [];
+  const longitudinal = Array.isArray(e.longitudinal) ? e.longitudinal : [];
   const indicadores = Array.isArray(e.indicadores) ? e.indicadores : [];
   const lev = e.levantamiento ?? opciones.levantamiento ?? null;
 
@@ -276,8 +299,9 @@ export function csvVerificacionMecanica(entrada, opciones = {}) {
   if (excel) {
     r.push('sep=;');
     for (const l of renglonesProcedencia(linea, lev, opciones)) r.push(q('# ' + l));
-    r.push(q('# Cuatro secciones en un archivo: TRAMOS, VANOS, CARGAS y UMBRALES. Los renglones'
-      + ' que empiezan por «==» separan las secciones.'));
+    r.push(q('# Cinco secciones en un archivo: TRAMOS, VANOS, CARGA TRANSVERSAL, CARGA'
+      + ' LONGITUDINAL y UMBRALES. Los renglones que empiezan por «==» separan las secciones.'
+      + ' Los dos ejes de carga NO se suman entre sí.'));
     // Aquí NO va un renglón en blanco: lo pone `abrirSeccion` al abrir la
     // primera sección. Ponerlo en los dos sitios deja dos filas vacías seguidas
     // en la hoja, y Excel las cuenta como parte del rango al seleccionar.
@@ -370,7 +394,29 @@ export function csvVerificacionMecanica(entrada, opciones = {}) {
     });
   }
 
-  // ══ 4 · UMBRALES Y CRITERIOS ═════════════════════════════════════════════
+  // ══ 4 · CARGA LONGITUDINAL ═══════════════════════════════════════════════
+  abrirSeccion(SECCIONES_MECANICA.longitudinal, COLUMNAS_LONGITUDINAL);
+  if (!longitudinal.length) {
+    seccionVacia('(sin filas) — no llegó la carga longitudinal. La sección anterior dice cuánto'
+      + ' empuja el apoyo de LADO; sin ésta el archivo no dice cuánto tira a lo LARGO de la línea,'
+      + ' que es el eje del que cuelga la retención y el que gobierna un terminal.');
+  } else {
+    longitudinal.forEach((c, i) => {
+      r.push(fila([
+        ent(Number.isFinite(c?.n) ? c.n : i + 1),
+        q(c?.apoyo ?? ''), q(c?.funcionEstructural ?? ''), q(c?.caso ?? ''),
+        num(c?.deflexion_grados, 2), num(c?.factorLongitudinal, 3),
+        num(c?.flAdelanteMax_kgf, 1), q(c?.estadoAdelante ?? ''),
+        num(c?.flAtrasMax_kgf, 1), q(c?.estadoAtras ?? ''),
+        num(c?.sensibilidadTendido_kgf, 1),
+        q(siNo(c?.sentidoResoluble ?? null)), q(siNo(c?.inversionResoluble ?? null)),
+        num(c?.roturaAtras_kgf, 1), num(c?.roturaAdelante_kgf, 1),
+        q([c?.noEvaluable, ...(Array.isArray(c?.notas) ? c.notas : [])].filter(Boolean).join(' · ')),
+      ]));
+    });
+  }
+
+  // ══ 5 · UMBRALES Y CRITERIOS ═════════════════════════════════════════════
   abrirSeccion(SECCIONES_MECANICA.umbrales, COLUMNAS_UMBRALES);
   if (!indicadores.length) {
     seccionVacia('(sin filas) — no llegó ningún indicador. Un exporte de verificación sin la tabla'

@@ -32,6 +32,7 @@ import { estadisticasVanos } from '@lineas/nucleo/estadisticas';
 import { vanos, soloEstructuras, nombreVisible } from '../vistas/planta';
 import { conductorParaNucleo, paramsParaNucleo, calcularTramos } from '../vistas/tramos';
 import { cargasParaPantalla } from '../vistas/cargasDatos';
+import { longitudinalParaPantalla } from '../vistas/longitudinalDatos';
 import { descargar, selloFecha } from '../exportar/descargar';
 import { nf } from '../vistas/formato';
 
@@ -82,6 +83,9 @@ export function Exportar({ linea, apoyos, conductor, hipotesis, investigaciones 
     return {
       tramos,
       cargas: cargasParaPantalla(apoyos, tramos, conductor, hipotesis, linea.circuitos).filas,
+      // El otro eje. Reusa `conEstados`, que ya trae los estados RICOS que el
+      // núcleo longitudinal exige (la forma aplanada la rechaza a propósito).
+      longitudinal: longitudinalParaPantalla(apoyos, conEstados, conductor).filas,
       vanos: filasVano,
       indicadores: evaluarUmbrales({
         tramos: conEstados, conductor: c, hipotesis,
@@ -179,7 +183,7 @@ export function Exportar({ linea, apoyos, conductor, hipotesis, investigaciones 
             (m) => csvVerificacionMecanica(
               { ...calc!, linea, conductor, hipotesis, levantamiento: lev },
               { dialecto: 'excel', ...m }))}>
-          ⬇ Verificación mecánica (CSV) — tramos, vano a vano, cargas y umbrales
+          ⬇ Verificación mecánica (CSV) — tramos, vanos, los dos ejes de carga y umbrales
         </button>
         <button type="button" disabled={sinCalculo}
           onClick={() => bajar('cantidades', 'csv', 'text/csv',
@@ -193,7 +197,8 @@ export function Exportar({ linea, apoyos, conductor, hipotesis, investigaciones 
             (m) => informeHtml({
               linea, conductor, hipotesis, lev,
               tramos: calc!.tramos, vanos: calc!.vanos, indicadores: calc!.indicadores,
-              cargas: calc!.cargas, cantidades: calc!.cantidades, investigaciones, meta: m,
+              cargas: calc!.cargas, longitudinal: calc!.longitudinal,
+              cantidades: calc!.cantidades, investigaciones, meta: m,
             }))}>
           ⬇ Informe completo (HTML imprimible) — se abre sin internet
         </button>

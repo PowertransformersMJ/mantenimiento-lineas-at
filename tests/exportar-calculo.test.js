@@ -34,7 +34,7 @@ import { cantidadesGeometricas } from '../nucleo/cantidades.js';
 import { evaluarUmbrales } from '../nucleo/umbrales.js';
 import {
   csvVerificacionMecanica, SECCIONES_MECANICA,
-  COLUMNAS_TRAMOS, COLUMNAS_VANOS, COLUMNAS_CARGAS, COLUMNAS_UMBRALES,
+  COLUMNAS_TRAMOS, COLUMNAS_VANOS, COLUMNAS_CARGAS, COLUMNAS_LONGITUDINAL, COLUMNAS_UMBRALES,
 } from '../exportar/mecanica.js';
 import {
   csvCantidades, SECCIONES_BOM,
@@ -337,11 +337,11 @@ describe('exportar/mecanica.js — los dos dialectos', () => {
 });
 
 // ════════════════════════════════════════════════════════════════════════════
-describe('exportar/mecanica.js — las cuatro secciones', () => {
+describe('exportar/mecanica.js — las cinco secciones', () => {
   const excel = csvVerificacionMecanica(ENTRADA_MECANICA, { dialecto: 'excel', ...META });
   const datos = csvVerificacionMecanica(ENTRADA_MECANICA, { dialecto: 'datos', ...META });
 
-  test('las cuatro secciones están en los dos dialectos, con sus cabeceras', () => {
+  test('las cinco secciones están en los dos dialectos, con sus cabeceras', () => {
     for (const texto of [excel, datos]) {
       const sep = texto === excel ? ';' : ',';
       for (const seccion of Object.values(SECCIONES_MECANICA)) {
@@ -354,6 +354,8 @@ describe('exportar/mecanica.js — las cuatro secciones', () => {
         COLUMNAS_VANOS);
       assert.deepEqual(celdas(cabeceraDeSeccion(texto, SECCIONES_MECANICA.cargas), sep),
         COLUMNAS_CARGAS);
+      assert.deepEqual(celdas(cabeceraDeSeccion(texto, SECCIONES_MECANICA.longitudinal), sep),
+        COLUMNAS_LONGITUDINAL);
       assert.deepEqual(celdas(cabeceraDeSeccion(texto, SECCIONES_MECANICA.umbrales), sep),
         COLUMNAS_UMBRALES);
     }
@@ -443,8 +445,11 @@ describe('exportar/mecanica.js — la sección de CARGAS sobre las estructuras',
     assert.equal(fExcel[COLUMNAS_CARGAS.indexOf('Utilizacion_pct')], '45,00');
   });
 
-  test('la cabecera del archivo anuncia las cuatro secciones', () => {
-    assert.match(excel, /Cuatro secciones en un archivo: TRAMOS, VANOS, CARGAS y UMBRALES/);
+  test('la cabecera del archivo anuncia las cinco secciones y que los ejes NO se suman', () => {
+    assert.match(excel, /Cinco secciones en un archivo/);
+    assert.match(excel, /CARGA TRANSVERSAL/);
+    assert.match(excel, /CARGA[\s\S]{0,20}LONGITUDINAL/);
+    assert.match(excel, /Los dos ejes de carga NO se suman entre sí/);
   });
 });
 

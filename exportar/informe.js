@@ -594,7 +594,79 @@ function seccionCargas(cargas) {
     });
 }
 
-// ── 7 · Umbrales ────────────────────────────────────────────────────────────
+// ── 7 · Carga longitudinal ──────────────────────────────────────────────────
+//
+// El OTRO eje. Va en sección propia y no como columnas de la anterior: son
+// cargas sobre ejes distintos, y ninguna página de este informe debe invitar a
+// sumarlas.
+
+function seccionLongitudinal(filas) {
+  if (!filas.length) {
+    return parrafo('<b>No evaluable:</b> no llegó la carga longitudinal. La sección anterior dice '
+      + 'cuánto empuja el apoyo de LADO; sin ésta el documento no dice cuánto tira a lo LARGO de '
+      + 'la línea, que es el eje del que cuelga la retención y el que gobierna un terminal.');
+  }
+
+  const terminales = filas.filter((c) => c?.caso === 'terminal');
+  const invierten = filas.filter((c) => c?.inversionResoluble === true);
+  const dudosos = filas.filter((c) => c?.sentidoResoluble === false);
+
+  const cuerpo = filas.map((c) => `<tr${c?.caso === 'terminal' ? ' class="revisar"' : ''}>
+    <td class="num">${n(c?.n)}</td>
+    <td><b>${esc(c?.apoyo)}</b></td>
+    <td>${esc(CASO_LONGITUDINAL[c?.caso] ?? c?.caso ?? SIN_DATO)}</td>
+    <td class="num">${Number.isFinite(c?.deflexion_grados) ? `${n(c.deflexion_grados, 1)}°` : SIN_DATO}</td>
+    <td class="num">${Number.isFinite(c?.factorLongitudinal) ? n(c.factorLongitudinal, 3) : SIN_DATO}</td>
+    <td class="num">${Number.isFinite(c?.flAdelanteMax_kgf) ? n(c.flAdelanteMax_kgf) : SIN_DATO}</td>
+    <td class="num">${Number.isFinite(c?.flAtrasMax_kgf) ? n(c.flAtrasMax_kgf) : SIN_DATO}</td>
+    <td class="num">${Number.isFinite(c?.roturaAtras_kgf) ? n(c.roturaAtras_kgf) : SIN_DATO}</td>
+    <td class="num">${Number.isFinite(c?.roturaAdelante_kgf) ? n(c.roturaAdelante_kgf) : SIN_DATO}</td></tr>`);
+
+  const titular = terminales.length
+    ? `<b>Los ${n(terminales.length)} apoyos terminales soportan el tiro ENTERO del conductor</b> `
+      + `(${terminales.map((c) => esc(c.apoyo)).join(', ')}). En un terminal no hay nada al otro `
+      + 'lado que compense: es el caso más severo de este eje, y no depende de ninguna diferencia '
+      + 'entre tramos.'
+    : 'Ningún apoyo de esta línea trabaja como terminal en el modelo recibido.';
+
+  const inversion = invierten.length
+    ? `<b>${n(invierten.length)} apoyo(s) tiran hacia LOS DOS LADOS</b> seg\u00fan la temperatura `
+      + `(${invierten.map((c) => esc(c.apoyo)).join(', ')}): el sentido del desequilibrio se `
+      + 'invierte entre estados, y los dos sentidos pesan más que el ruido del tendido de obra. Es '
+      + 'lo que decide si un apoyo necesita retención a un lado o a los dos.'
+    : 'Ningún apoyo invierte su sentido de forma afirmable: donde el cálculo da los dos sentidos, '
+      + 'el menor no supera lo que pesaría una diferencia de tendido de obra.';
+
+  return parrafo('El desequilibrio de un anclaje es la <b>diferencia</b> de los tiros de sus dos '
+    + 'tramos, proyectada sobre el eje de la línea; en un apoyo de suspensión vale cero porque la '
+    + 'tensión es común a los dos lados. <b>Estas cifras NO se suman con las de la sección '
+    + 'anterior:</b> son cargas sobre ejes distintos.')
+    + parrafo(titular)
+    + parrafo(inversion)
+    + (dudosos.length ? parrafo(`<b>Aviso:</b> en ${n(dudosos.length)} apoyo(s) el número sale pero `
+      + 'el SENTIDO no es concluyente — queda por debajo de lo que pesaría una diferencia de '
+      + 'tendido de obra, así que en el terreno podría apuntar al lado contrario.') : '')
+    + tabla({
+      leyenda: 'Carga longitudinal por conductor, CON SIGNO: «adelante» es hacia el apoyo siguiente. '
+        + 'La rotura de conductor es caso ACCIDENTAL y se publica SIN veredicto: este proyecto no ha '
+        + 'adoptado criterio de aceptación para ella.',
+      cabecera: '<th class="num">#</th><th>Apoyo</th><th>Caso</th><th class="num">Deflexión</th>'
+        + '<th class="num">cos(α/2)</th><th class="num">Adelante (kgf)</th><th class="num">Atrás (kgf)</th>'
+        + '<th class="num">Rotura atrás (kgf)</th><th class="num">Rotura adelante (kgf)</th>',
+      filas: cuerpo,
+      pie: `El mayor desequilibrio NO ocurre en el estado de mayor tiro: el tiro máximo es a mínima `
+        + `temperatura, pero la mayor diferencia entre tramos es a MÁXIMA. ${NOTA_HUECO}`,
+    });
+}
+
+const CASO_LONGITUDINAL = {
+  terminal: 'terminal — tiro entero',
+  desequilibrio: 'anclaje — diferencia',
+  suspension: 'suspensión — cero del modelo',
+  no_evaluable: 'no evaluable',
+};
+
+// ── 8 · Umbrales ────────────────────────────────────────────────────────────
 
 function seccionUmbrales(indicadores) {
   if (!indicadores.length) {
@@ -627,7 +699,7 @@ function seccionUmbrales(indicadores) {
     });
 }
 
-// ── 8 · Cantidades ──────────────────────────────────────────────────────────
+// ── 9 · Cantidades ──────────────────────────────────────────────────────────
 
 function seccionCantidades(cantidades) {
   const continuas = lista(cantidades.continuas);
@@ -670,7 +742,7 @@ function seccionCantidades(cantidades) {
     + tContinuas + tDiscretas + tAvisos;
 }
 
-// ── 9 · Expediente de falla ─────────────────────────────────────────────────
+// ── 10 · Expediente de falla ─────────────────────────────────────────────────
 
 function seccionExpediente(investigaciones, lev) {
   const nombreDelApoyo = (ev) => {
@@ -730,7 +802,7 @@ function seccionExpediente(investigaciones, lev) {
   }).join('');
 }
 
-// ── 10 · Lo que este informe no demuestra ────────────────────────────────────
+// ── 11 · Lo que este informe no demuestra ────────────────────────────────────
 
 /** El título exacto de la sección. Se exporta para que nadie lo reescriba a mano. */
 export const TITULO_LIMITACIONES = 'Lo que este informe NO demuestra';
@@ -869,6 +941,7 @@ export function limitacionesDeclaradas(entrada) {
   // y la que menos se ve: las tablas de arriba pueden estar todas en verde y no
   // haber dicho una palabra sobre si el apoyo aguanta lo que se le está pidiendo.
   const cargas = lista(e.cargas);
+  const longitudinal = lista(e.longitudinal);
   if (!cargas.length) {
     add('No se evaluó la carga sobre las estructuras',
       'Este documento verifica el CONDUCTOR —tiro, flecha, vano—, no el APOYO. Un conductor dentro '
@@ -909,11 +982,41 @@ export function limitacionesDeclaradas(entrada) {
 
     // Va SIEMPRE que haya tabla de cargas, aunque todo lo demás esté completo:
     // es el límite del método, no un problema de estos datos.
-    add('Solo se evaluó la carga TRANSVERSAL',
+    add(longitudinal.length
+      ? 'La carga VERTICAL (vano peso) sigue sin evaluarse'
+      : 'Solo se evaluó la carga TRANSVERSAL',
       'La vertical (vano peso) depende de la cota del punto de sujeción, que no está levantada; la '
       + 'longitudinal es el desequilibrio de tiros entre tramos contiguos y la rotura de conductor. '
       + 'Son otros ejes y no se suman a estas cifras. Un apoyo con la transversal holgada puede '
       + 'estar comprometido en cualquiera de los dos.', 'carga sobre las estructuras');
+  }
+
+  // 10b · El eje longitudinal, cuando se evaluó: lo que ese eje TAMPOCO demuestra.
+  if (longitudinal.length) {
+    const dudosos = longitudinal.filter((c) => c?.sentidoResoluble === false);
+    if (dudosos.length) {
+      add(`${n(dudosos.length)} apoyo(s) con carga longitudinal cuyo SENTIDO no es concluyente`,
+        'Su desequilibrio calculado queda por debajo de lo que pesaría una diferencia de tendido '
+        + 'de obra del 1 % de la carga de rotura. El valor se publica; el sentido no se afirma, '
+        + 'porque en el terreno podría apuntar al lado contrario.', 'carga longitudinal');
+    }
+    add('El desequilibrio longitudinal supone que todos los tramos se tensaron IGUAL',
+      'La hipótesis de la línea declara un solo porcentaje de tendido, así que el modelo tensa '
+      + 'todos los tramos al mismo valor a la misma temperatura. Lo que sale es el desequilibrio '
+      + 'que produce la GEOMETRÍA, no el que dejó el tendido real de obra: en el estado de cada '
+      + 'día vale cero exacto por construcción, y eso es un cero del modelo, no una medición.',
+      'carga longitudinal');
+    add('Ningún apoyo tiene veredicto en el eje longitudinal',
+      'La utilización exige una capacidad DECLARADA para el eje de la línea, con su tipo y la '
+      + 'altura a la que está referida. La carga de rotura del inventario no sirve: es ensayo '
+      + 'TRANSVERSAL en punta, y su validez en el eje longitudinal depende de la sección del apoyo '
+      + 'y de si hay retenida — ninguna de las dos está declarada.', 'carga longitudinal');
+    add('La rotura de conductor se publica SIN criterio de aceptación',
+      'Es caso ACCIDENTAL: se da la fuerza y sus dos componentes, pero este proyecto no ha '
+      + 'adoptado ningún tope contra el que compararla, y las normas que lo tratan aplican '
+      + 'factores de carga propios que no se pueden inventar. Además solo se resuelve en apoyos '
+      + 'que ANCLAN: en los de suspensión depende de la cadena y de los apoyos vecinos, que este '
+      + 'sistema no captura.', 'carga longitudinal');
   }
 
   // 11 · Lo que un expediente de falla todavía no puede afirmar.
@@ -984,6 +1087,7 @@ function seccionLimites(entrada) {
  * @param {Array}  [entrada.vanos]           salida de `detalleVanos(...)`, plana o agrupada por tramo
  * @param {Array}  [entrada.indicadores]     salida de `evaluarUmbrales(...)`
  * @param {Array}  [entrada.cargas]          filas de `cargasDeLaLinea(...)` — una por estructura
+ * @param {Array}  [entrada.longitudinal]    filas de `longitudinalDeLaLinea(...)` — el otro eje
  * @param {Object} [entrada.cantidades]      salida de `cantidadesGeometricas(...)`
  * @param {Array}  [entrada.investigaciones] documentos `Investigacion` de la línea
  * @param {Array}  [entrada.calidad]         salida de `calidadLevantamiento(lev)`; si no llega, se deriva
@@ -1003,6 +1107,7 @@ export function informeHtml(entrada) {
   const grupos = gruposDeVanos(e.vanos);
   const indicadores = lista(e.indicadores);
   const cargas = lista(e.cargas);
+  const longitudinal = lista(e.longitudinal);
   const cantidades = objeto(e.cantidades);
   const investigaciones = lista(e.investigaciones);
   const calidad = lista(e.calidad ?? calidadLevantamiento(lev));
@@ -1017,6 +1122,7 @@ export function informeHtml(entrada) {
     // Va tras los vanos y antes de los umbrales: las tres tablas de cálculo
     // seguidas (tramo → vano → apoyo), y después la de criterios, que cierra.
     { titulo: 'Carga sobre las estructuras', html: seccionCargas(cargas) },
+    { titulo: 'Carga longitudinal sobre las estructuras', html: seccionLongitudinal(longitudinal) },
     { titulo: 'Umbrales y criterios de evaluación', html: seccionUmbrales(indicadores) },
     { titulo: 'Memoria de cantidades (geométrica)', html: seccionCantidades(cantidades) },
   ];
