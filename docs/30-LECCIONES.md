@@ -81,64 +81,39 @@
   no solo etiquetas `<script src>` y `<link href>`. Y por eso Protomaps/PMTiles no es un lujo del
   sistema nuevo: **tapa un agujero que ya existe hoy en campo**.
 
-### L-11 · La caché persistente de Firestore convierte un problema de caché en un fallo de datos
+### L-11 · IndexedDB: una capa opcional tumbó el acceso al dato, y lo hizo DOS veces
 - **Síntoma:** la página, ya conectada a la base, muestra *"No se pudo cargar — Database is
-  closing/hidden"*. No es un fallo de permisos ni de red: los datos están y son legibles.
-- **Causa:** se activó `persistentLocalCache` sobre IndexedDB. Basta con una segunda pestaña abierta,
-  o con que el navegador cierre la base por su cuenta, para que la lectura entera falle. Un
-  contratiempo de **caché** —que por definición es prescindible— tumbó el acceso al **dato**, que sí
-  importa y que estaba disponible en el servidor todo el tiempo.
-- **Regla:** en este proyecto la caché de Firestore va **en memoria**. Y no se pierde nada: el trabajo
-  sin señal en campo **no depende** de esa caché — depende de nuestra propia cola con revisión base y
-  cuarentena (`99 §ADR-002`), precisamente porque el último-que-escribe-gana de Firestore es
-  inaceptable cuando dos cuadrillas editan el mismo apoyo tras 14 días sin señal.
-- **Regla general que deja:** una capa opcional nunca puede tener poder de veto sobre una capa
-  esencial. Si una optimización puede impedir leer, no es una optimización: es un punto de fallo.
+  closing/hidden"*. No es permisos ni red: los datos están y son legibles. Y **reapareció idéntico**
+  después del primer arreglo.
+- **Causa, en dos sitios distintos:** (a) `persistentLocalCache` de Firestore sobre IndexedDB —
+  basta una segunda pestaña, o que el navegador cierre la base, para que la lectura entera falle;
+  (b) **Firebase Auth guarda la sesión en IndexedDB por defecto**, así que quitar solo (a) dejaba
+  viva la otra fuente del MISMO mensaje.
+- **Regla técnica:** la caché de Firestore va **en memoria**, y la autenticación se inicializa con
+  `initializeAuth(app, { persistence: [browserLocalPersistence, ...] })` — `localStorage` es
+  síncrono y no se cierra solo. No se pierde nada: el trabajo sin señal NO depende de esa caché,
+  depende de nuestra cola con revisión base y cuarentena (`99 §ADR-002`).
+- **Regla general, que vale más que la técnica:** una capa OPCIONAL nunca puede tener poder de veto
+  sobre una ESENCIAL. Si una optimización puede impedir leer, no es una optimización: es un punto
+  de fallo. Y cuando un error reaparece idéntico tras un arreglo, la hipótesis por defecto no es
+  *«el arreglo no sirvió»* sino **«hay una segunda fuente del mismo síntoma»**.
 
-### L-11b · El mismo error volvió: Firebase Auth TAMBIÉN guarda en IndexedDB
-- **Síntoma:** tras quitar la caché persistente de Firestore, reapareció exactamente
-  *"Database is closing/hidden"*.
-- **Causa:** se arregló el síntoma en un sitio y el culpable estaba en otro. **Firebase Auth guarda
-  la sesión en IndexedDB por defecto**, no solo Firestore. Al quitar una de las dos, la otra seguía
-  ahí — y el mensaje de error es idéntico, así que parecía que el arreglo no había funcionado.
-- **Regla:** la autenticación se inicializa con `initializeAuth(app, { persistence: [...] })` usando
-  **`browserLocalPersistence` primero** (que es `localStorage`: síncrono, y no se cierra solo), con
-  sesión y memoria como reserva. Tras el cambio, la única IndexedDB que queda es la de telemetría
-  interna de Firebase.
-- **Lección de método, que vale más que la técnica:** cuando un error reaparece idéntico después de
-  un arreglo, la hipótesis por defecto no es *"el arreglo no sirvió"* — es **"hay una segunda fuente
-  del mismo síntoma"**. Buscar todas las fuentes antes de dar por bueno el diagnóstico.
-
-### L-11c · El HTML no se cachea, o el usuario ve arreglos que ya no existen
-- **Síntoma:** se despliega la corrección y el usuario sigue viendo el fallo viejo.
-- **Causa:** el navegador conserva el `index.html`, que es el que decide **qué paquete de JavaScript
-  cargar**. Con el HTML viejo en caché, se sigue pidiendo el JavaScript viejo aunque el nuevo ya esté
-  publicado. Esto **enmascara diagnósticos**: parece que el arreglo falló cuando ni siquiera se
-  ejecutó.
-- **Regla:** `web/public/_headers` fija `no-cache` para el HTML y caché eterna para `/assets/*`, que
-  llevan huella en el nombre. Y al pedirle a alguien que verifique un arreglo, decirle siempre que
-  recargue forzado.
-
-### L-13 · `initializeAuth` no trae el resolvedor de ventanas, y el error no lo dice
-- **Síntoma:** al pulsar *Entrar con Google* salta `auth/argument-error`. El mensaje no menciona en
-  ningún momento qué argumento sobra o falta.
-- **Causa:** `getAuth()` incluye de serie el resolvedor de ventanas emergentes; **`initializeAuth()`
-  no**. En cuanto se pasa a la forma explícita —que es lo que hay que hacer para elegir dónde se
-  guarda la sesión (`L-11b`)— hay que declarar también `popupRedirectResolver`, o `signInWithPopup`
-  falla antes de abrir nada.
-- **Regla:** si se usa `initializeAuth`, se pasan **las dos** cosas: la persistencia y el resolvedor.
-  Un arreglo que introduce otro fallo no está terminado.
-
-### L-14 · La ventana emergente no es un camino fiable: siempre hay que tener redirección
-- **Síntoma:** `auth/popup-blocked`. Apareció al probar el ingreso de forma automatizada, pero le
-  puede pasar a cualquiera: los bloqueadores de ventanas emergentes son comunes y en varios
-  navegadores de móvil la ventana sencillamente no funciona.
-- **Regla:** el ingreso intenta la ventana emergente y, ante `popup-blocked`,
-  `operation-not-supported-in-this-environment` o `web-storage-unsupported`, **cae a redirección**:
-  la propia página va a Google y vuelve, y no hay ventana que bloquear. Al arrancar se recoge el
-  resultado de esa vuelta **antes** de preguntar por la sesión.
-- **Por qué importa aquí:** sin esa salida, una cuadrilla con el navegador restrictivo se queda fuera
-  del sistema sin entender por qué, y en campo nadie va a diagnosticar un bloqueador de ventanas.
+### L-13 · El ingreso explícito exige TRES piezas, y ninguna avisa de que falta
+> Funde la antigua lección de la ventana emergente: eran causa y consecuencia, no dos gotchas.
+- **Síntoma:** al pulsar *Entrar con Google*, `auth/argument-error` — que no dice qué argumento
+  falta. Y después, `auth/popup-blocked` al probarlo de forma automatizada.
+- **Causa:** `getAuth()` trae de serie el resolvedor de ventanas emergentes; **`initializeAuth()`
+  no**. En cuanto se pasa a la forma explícita —obligatorio para elegir dónde se guarda la sesión
+  (`L-11`)— hay que declarar TAMBIÉN `popupRedirectResolver`. Y aun con él, la ventana emergente no
+  es un camino fiable: los bloqueadores son comunes y en varios navegadores de móvil sencillamente
+  no funciona.
+- **Regla:** con `initializeAuth` van las tres cosas juntas — persistencia, `popupRedirectResolver`,
+  y **caída a REDIRECCIÓN** ante `popup-blocked`, `operation-not-supported-in-this-environment` o
+  `web-storage-unsupported`. Al arrancar se recoge el resultado de la vuelta ANTES de preguntar por
+  la sesión. Un arreglo que introduce otro fallo no está terminado.
+- **Por qué importa aquí:** sin la redirección, una cuadrilla con el navegador restrictivo se queda
+  fuera del sistema sin entender por qué — y en campo nadie va a diagnosticar un bloqueador de
+  ventanas emergentes.
 
 ### L-12 · Dos trampas de Firebase Auth que rompen el ingreso sin avisar
 - **(a) Dominio no autorizado.** Firebase solo trae de fábrica `localhost` y sus propios dominios
@@ -165,11 +140,10 @@
 ### L-16 · Chrome congela el reloj de animación en pestañas ocultas — y eso engaña dos veces
 - **Síntoma:** con el worker ya arreglado, el mapa seguía sin pintar **en la pestaña controlada por
   herramientas**: estilo cargado, teselas procesadas, glifos descargados… y cero fotogramas.
-- **Causa:** `document.visibilityState === 'hidden'` y `requestAnimationFrame` **no dispara jamás**
-  en una pestaña de fondo. MapLibre pinta con ese reloj, y su evento `load` solo dispara tras el
-  primer fotograma. Engaña dos veces: (1) al que prueba por herramientas en una pestaña oculta, que
-  ve "roto" lo que funciona; (2) al usuario real, si hay un vigilante de tiempo que condena al
-  respaldo a quien abre la página en una pestaña de fondo y cambia a ella después.
+- **Causa:** con `visibilityState === 'hidden'`, `requestAnimationFrame` **no dispara jamás**.
+  MapLibre pinta con ese reloj y su evento `load` solo llega tras el primer fotograma. Engaña al que
+  prueba por herramientas (ve «roto» lo que funciona) y al usuario real, si un vigilante de tiempo
+  condena al respaldo a quien abre la página en una pestaña de fondo.
 - **Regla:** todo vigilante de carga del mapa cuenta **solo tiempo visible** (acumula entre
   `visibilitychange`). Y al verificar por herramientas: si nada pinta pero nada da error, comprobar
   `visibilityState` y la latencia de `requestAnimationFrame` ANTES de diagnosticar el código.
@@ -222,6 +196,12 @@
   era la ANTERIOR y dos defectos reales pasaron por buenos. `curl` prueba el borde; el navegador es
   otra caché. **Preguntarle a la pestaña qué cargó**, y recargar en duro si no coincide:
   `[...document.querySelectorAll('script[src]')].map(s => s.src)` · `cmd+shift+r`.
+- **Por qué el HTML es el que manda (antes `L-11c`):** el `index.html` decide QUÉ paquete de
+  JavaScript se pide, y lleva huella en el nombre. Con el HTML viejo en caché se sigue pidiendo el
+  JavaScript viejo aunque el nuevo esté publicado — y eso **enmascara diagnósticos**: parece que el
+  arreglo falló cuando ni siquiera se ejecutó. `web/public/_headers` fija `no-cache` para el HTML y
+  caché eterna para `/assets/*`. Al pedirle a alguien que verifique un arreglo, decirle SIEMPRE que
+  recargue forzado.
 
 ### L-19 · Una regex que decide una regla de dominio es una bomba de tiempo (y se disfrazó de lista)
 - **Síntoma:** `nucleo/mecanica.js` decidía qué apoyo corta un tramo de tensión con
@@ -349,3 +329,31 @@
   lo específico a lo general (lo que le pasa a un apoyo es un hallazgo; lo que les pasa a los 24 es
   contexto). Y la agrupación vive en la capa pura, no en el componente: es una decisión de lectura,
   y se prueba.
+
+### L-28 · Un módulo construido y probado que ninguna pantalla llama es INVISIBLE
+- **Síntoma, dos veces en dos semanas:** `nucleo/cargas.js` (carga transversal, con sus pruebas de
+  oro) y `web/src/componentes/FichaCriterios.tsx` (el semáforo por apoyo, con su capa pura y sus
+  pruebas) estaban terminados y **no los llamaba nadie**. Grep en todo el repositorio:
+  `FichaCriterios` solo se referenciaba a sí mismo.
+- **Por qué se cuela:** `npm test` sale verde —las pruebas del módulo pasan— y el inventario de
+  tareas lo da por hecho. El módulo *existe*; lo que no existe es su camino hasta el usuario. Es el
+  primo hermano de `L-24`: allí el agente muere y el código queda sin validar; aquí el código está
+  validado y queda sin conectar.
+- **Regla:** una tarea de construcción no está cerrada hasta que **algo que el usuario ve** lo
+  llama. Antes de marcar hecho: `grep -rn "<nombreDelModulo>" web/src exportar nucleo` y comprobar
+  que aparece **fuera de sí mismo y de sus pruebas**. Si el único importador es su test, está
+  muerto.
+- **Barrido preventivo:** el gate `anti-codigo-muerto` cubre exportaciones sin uso dentro de un
+  archivo, no módulos enteros huérfanos. Merece una comprobación propia en CI.
+
+### L-29 · Para afirmar que algo va en los DOS sentidos, mira el MENOR, no el mayor
+- **Síntoma:** la pestaña Cargas anunciaba «5 apoyos tiran hacia LOS DOS lados» y en tres de ellos
+  el sentido secundario valía −15, −27 y +28 kgf contra un ruido de tendido de obra de 85 kgf.
+  Indistinguible de que la cuadrilla tensara un tramo un pelo distinto.
+- **Causa:** la bandera se calculaba comparando el ruido contra el MAYOR de los dos sentidos. Pero
+  la afirmación no era «hay carga»: era «hay carga **en ambos**», y esa la sostiene el menor.
+- **Regla, general y barata de aplicar:** cuando una conclusión necesita que **varias** cantidades
+  superen un umbral, la comprobación va sobre el **mínimo**, nunca sobre el máximo ni sobre la
+  suma. Y conviene separar las dos preguntas en dos banderas con nombre distinto
+  (`sentidoResoluble` / `inversionResoluble`) en vez de reutilizar una: reutilizarla es justo lo
+  que hizo que el error no se viera.

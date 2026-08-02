@@ -1033,3 +1033,67 @@ informe sigue sin un solo `<script>` ni recurso externo.
 
 — (implementación directa sobre `nucleo/cargas.js`, que ya traía su propia deliberación en el crudo
 de ADR-009). Evidencia reproducible: `tests/cargas-vista.test.js`.
+
+---
+
+## ADR-012 · 2026-08-01 · El eje longitudinal: cerrar la deuda que `cargas.js` declaraba
+
+**Estado:** ✅ Construido, probado y **en producción**. Diseñado con workflow de 7 agentes Opus
+(3 diseñan · 3 refutan con lentes distintas · 1 sintetiza) y con sus afirmaciones empíricas
+**verificadas a mano contra el motor** antes de escribir código.
+
+### Contexto
+
+`nucleo/cargas.js` decía en su cabecera, con esas palabras, que NO evalúa la carga longitudinal:
+terminales, rotura de conductor y desequilibrio de tiros entre tramos contiguos. Esa deuda dejaba
+sin cubrir el eje del que cuelga la retención — y el que gobierna por completo un apoyo terminal.
+
+### Lo que la verificación previa cambió del diseño
+
+Tres hechos medidos con el motor real, ninguno obvio, y los tres habrían sido el bug natural:
+
+| Hecho verificado | Qué habría pasado sin verificarlo |
+|---|---|
+| El mayor desequilibrio ocurre a **T MÁXIMA**, no en el estado de mayor tiro (que es T mín) | `cargas.js` toma `maximo`; imitarlo daba el número equivocado en toda la línea |
+| **El sentido se invierte** entre estados (+894 a T máx, −444 a T mín en la misma frontera) | Publicar `|ΔH|` borra el dato que decide si hace falta retención a UN lado o a los DOS |
+| ΔH en el estado EDS es **cero exacto** en todas las fronteras | Se leería como «no hay desequilibrio» cuando es un cero del MODELO (un solo `eds_pct` por línea) |
+| Un tramo de vano ideal corto cae al 12 % de su EDS a T máx y **domina** la tabla | Un hueco que entra por un número CALCULADO pasa la guardia de los `null` sin avisar |
+
+### Decisión
+
+> **`nucleo/longitudinal.js`**, hermano de `cargas.js`: mismo ángulo, dos ejes —
+> `cos(α/2)` frente a `2·sen(α/2)`— y **nunca una suma entre ellos**.
+>
+> Se construyen cuatro casos: terminal (tiro entero), desequilibrio en anclaje
+> `(H₂−H₁)·cos(α/2)`, rotura de conductor en anclaje (magnitud **y** sus dos componentes) y el
+> cero declarado de la suspensión. La envolvente es **POR SENTIDO**, nunca por magnitud.
+>
+> Cada fila lleva `sensibilidadTendido_kgf` —lo que pesaría una diferencia de tendido de obra del
+> 1 % de la rotura— y dos banderas separadas: `sentidoResoluble` (¿el sentido dominante supera ese
+> ruido?) e `inversionResoluble` (¿lo superan **los dos**?). Solo con la segunda se afirma que un
+> apoyo tira hacia ambos lados.
+
+### Alternativas y por qué se descartaron
+
+| Descartada | Motivo |
+|---|---|
+| Reusar la forma aplanada de la vista (`hEds`/`hTMax`/…), como hace `cargas.js` | No trae temperatura ni carga unitaria, así que no permite comprobar que los dos lados sean comparables. Restar sin comprobarlo da un desequilibrio que puede ser varias veces el real, con unidades correctas. |
+| Emparejar los estados por su NOMBRE | Los cuatro nombres son literales fijos de `estadosDelTramo`: salen idénticos con cualquier hipótesis y cualquier conductor, así que comparar nombres no comprueba nada. Se compara la TERNA (clave, temperatura, carga unitaria). |
+| Resolver el terminal como un desequilibrio contra cero | Un tramo que no se pudo calcular también valdría 0 y se leería como terminal, devolviendo la carga máxima posible del apoyo como si fuera un hecho. Función aparte. |
+| Estimar `kRes` en apoyos de suspensión («el 0,5 típico») | Convertiría 17 filas honestamente vacías en 17 números que nadie puede defender. |
+| Usar `cargaRotura_kgf` como capacidad longitudinal | Es ensayo TRANSVERSAL en punta; su validez en este eje depende de la sección del apoyo y de si hay retenida, y ninguna está declarada. |
+
+### Consecuencias
+
+- **Hallazgo real:** los apoyos terminales soportan el tiro entero (2.339 kgf por conductor en
+  LN-627), que es un orden por encima de cualquier desequilibrio de la línea.
+- **Deuda que se hereda:** ningún apoyo tiene veredicto en este eje. Exige un campo nuevo,
+  `capacidadLongitudinal {valor_kgf, tipo, alturaReferencia_m, fuente}`, que **no** se añadió: es
+  alta de contrato y se propone, no se decide desde aquí.
+- Sale al informe (sección 7) y al CSV (quinta sección), con la advertencia explícita de que los
+  dos ejes **no se suman**.
+
+### Crudo de respaldo
+
+`research-archive/2026-08-01-workflow-eje-longitudinal.json` · evidencia reproducible:
+`tests/longitudinal.test.js` (52 pruebas).

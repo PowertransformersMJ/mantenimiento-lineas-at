@@ -1,14 +1,15 @@
 # 📝 10 — MEMORIA DE CORTO PLAZO (pizarra del trabajo vivo)
 
 > Se **AUTO-CARGA**. Es pizarra, no bitácora (§G.3). Tope ~110 líneas / 16k chars.
-> **Última sesión: 2026-08-01 (tarde).** Se cerraron TODO-38 y TODO-39 (pestaña Cargas + su salida
-> al informe y a los exportes, ADR-011) y se cazaron tres defectos verificando en producción. Los
-> dos bloqueos del Ingeniero siguen igual.
+> **Última sesión: 2026-08-01 (tarde).** Cerrados TODO-38, TODO-39, TODO-40 y la parte ejecutable
+> de TODO-36: la pestaña Cargas con sus DOS ejes (ADR-011/012), su salida al informe y a los
+> exportes, y la ficha del apoyo ampliada. Cinco defectos cazados verificando en PRODUCCIÓN, no en
+> local. Los dos bloqueos del Ingeniero siguen igual.
 
 ## 🎯 Dónde estamos
 
 **11 pestañas vivas**: Resumen · Distancias · Fichas · **Falla** · Fundamentos · Mecánico ·
-**Térmica** · **Viento** · **Cargas** · **Cantidades** · Exportar. **503 pruebas** en verde.
+**Térmica** · **Viento** · **Cargas** · **Cantidades** · Exportar. **555 pruebas** en verde.
 Producción al día (verificada en el navegador, no solo por hash — ver `L-18`, segundo punto ciego).
 
 La migración del módulo de campo original está cerrada en sus P0. El inventario de brechas
@@ -68,9 +69,10 @@ en el crudo de la bóveda.
 | # | Qué | Estado |
 |---|---|---|
 | **TODO-35** | Al habilitarse R2: depósito + desplegar `evidencias/` + `VITE_EVIDENCIAS_URL` + subir fotos + verificar la galería en producción | 🔜 en cuanto TODO-32 |
-| **TODO-36** | **Fichas editable** (hecho fechado, no sobrescritura) + las 99 fotos por estructura + los ~26 campos del contrato que aún no se pintan | 🔲 el mayor hueco restante (paridad 25 %) |
+| **TODO-36** | **Fichas editable** (hecho fechado, no sobrescritura) — es DECISIÓN FUERTE: modelo de datos + escritura a Firestore + reglas. Se propone como ADR, no se implementa a ciegas. Las 99 fotos siguen tras R2 | 🔲 espera decisión del Ingeniero |
+| **TODO-41** | Alta ADITIVA en el contrato de `capacidadLongitudinal {valor_kgf, tipo, alturaReferencia_m, fuente}`: sin ella NINGÚN apoyo tiene veredicto en el eje longitudinal | 🔲 sigue a ADR-012 |
+| **TODO-42** | **Informe gerencial** — el workflow dejó su especificación (10 secciones) en el crudo de ADR-012 | 🔲 |
 | **TODO-37** | **Informe gerencial** del expediente (control documental, riesgo residual, recomendaciones) — inventariado en el crudo de ADR-009 | 🔲 |
-| **TODO-40** | **Carga LONGITUDINAL**: los 2 extremos y los 5 apoyos que anclan tramos con tiros distintos quedan declarados «no evaluados». Es el siguiente eje | 🔲 |
 | **TODO-30** | CI: validación XSD real de GPX/KML (xmllint + esquemas en el repo) | 🔲 |
 | **TODO-11** | F1 · Nota técnica LN-627 con las correcciones de la auditoría | 🔲 |
 | **TODO-13/14/15/16/21/22/23** | F3-F5: invalidación por tramo · sincronización bifurcada · Firestore vs D1 · alerta de presupuesto · flujo IA con `ProveedorFalso` · prueba de navegador · secretos para despliegue automático | 🔲 |
@@ -87,7 +89,7 @@ en el crudo de la bóveda.
   o sea 73 % más carga transversal que el propio tiro, siempre**) → pestaña Cargas, ADR-011.
 - **Deuda declarada, no resuelta**: fluencia, vano peso (falta cota de sujeción), despeje al
   terreno, ficha real del proveedor del conductor.
-- **Cerebro**: 27 lecciones (L-01…L-27). Leer antes de tocar Firebase, mapas, despliegues o
+- **Cerebro**: 29 lecciones (L-01…L-29). Leer antes de tocar Firebase, mapas, despliegues o
   workflows con agentes.
 
 ## 🚫 Callejones ya probados (no repetir — detalle en `30`)
