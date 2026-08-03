@@ -122,11 +122,31 @@ if (SECO) {
 // falla aquí con un mensaje claro y NO se escribe ninguna ficha: una ficha que
 // apunta a un objeto inexistente es peor que no tener ficha.
 console.log('\n⬆️  Subiendo…');
+
+/**
+ * La bandera que dice «al depósito de VERDAD, no al simulado del disco».
+ *
+ * Cambió de nombre entre versiones de wrangler y no da un error legible: la 4
+ * exige `--remote` (por defecto escribe en un simulacro local), y la 3 no
+ * conoce esa bandera y aborta con «Unknown argument: remote» — escribiendo cero
+ * bytes. Se resuelve preguntándole a wrangler qué versión es, en vez de fijar
+ * una: este script tiene que seguir funcionando el día que la Mac actualice.
+ */
+const banderaRemota = (() => {
+  try {
+    const v = execFileSync('npx', ['wrangler', '--version'], { cwd: RAIZ, stdio: 'pipe' })
+      .toString().match(/(\d+)\.\d+\.\d+/);
+    return v && Number(v[1]) >= 4 ? ['--remote'] : [];
+  } catch {
+    return [];   // sin versión legible, la forma antigua: en la 3 remoto es el defecto
+  }
+})();
+
 for (const x of lote) {
   try {
     execFileSync('npx', [
       'wrangler', 'r2', 'object', 'put', `${DEPOSITO}/${x.clave}`,
-      '--file', x.ruta, '--content-type', x.mime, '--remote',
+      '--file', x.ruta, '--content-type', x.mime, ...banderaRemota,
     ], { cwd: RAIZ, stdio: 'pipe' });
     console.log(`   ✅ ${x.archivo}`);
   } catch (e) {
