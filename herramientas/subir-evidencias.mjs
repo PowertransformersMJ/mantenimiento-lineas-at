@@ -54,11 +54,32 @@ if (!existsSync(DIR)) {
   process.exit(1);
 }
 
-/** Pies de foto, si el extractor los dejó. Sin ellos se sube igual, sin pie. */
-const PIES = existsSync(join(DIR, 'pies.json'))
-  ? JSON.parse(readFileSync(join(DIR, 'pies.json'), 'utf-8'))
-  : [];
-const pieDe = (archivo) => PIES.find((p) => p.archivo === archivo)?.pie ?? undefined;
+/**
+ * El índice que dejó el extractor. Las DOS carpetas lo traen, pero con nombre
+ * distinto: `falla/` lo llama `pies.json` y `estructuras/` lo llama
+ * `indice.json`. Este script solo buscaba el primero, así que con las fotos de
+ * estructura `pieDe()` devolvía `undefined` para las 99 y los pies se perdían
+ * sin un solo aviso (§ADR-013, plan de TODO-43). Se aceptan los dos nombres.
+ */
+const NOMBRES_INDICE = ['indice.json', 'pies.json'];
+const RUTA_INDICE = NOMBRES_INDICE.map((n) => join(DIR, n)).find((r) => existsSync(r)) ?? null;
+const INDICE = RUTA_INDICE ? JSON.parse(readFileSync(RUTA_INDICE, 'utf-8')) : [];
+const entradaDe = (archivo) => INDICE.find((p) => p.archivo === archivo);
+const pieDe = (archivo) => entradaDe(archivo)?.pie ?? undefined;
+
+/**
+ * ⚠️ Cuando el origen exige asignar cada foto a un apoyo, el índice NO es
+ * opcional: es la única fuente del número de punto. Sin él no se sube nada —
+ * mal asignadas son peores que ausentes, porque una foto colgada del apoyo
+ * equivocado se lee como evidencia de algo que no ocurrió ahí.
+ */
+const EXIGE_APOYO = ORIGEN === 'estructuras';
+if (EXIGE_APOYO && !RUTA_INDICE) {
+  console.error(`❌ El origen «${ORIGEN}» asigna cada foto a un apoyo y no hay índice en la bóveda.`);
+  console.error(`   Se buscó: ${NOMBRES_INDICE.map((n) => join(DIR, n)).join('\n             ')}`);
+  console.error('   Sin índice no se puede saber a qué punto pertenece cada archivo. No se sube nada.');
+  process.exit(1);
+}
 
 const MIME = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp', '.pdf': 'application/pdf' };
 
@@ -89,6 +110,13 @@ const idEstable = (semilla) =>
   createHash('sha256').update(`${ORG}|${CODIGO_LINEA}|${semilla}`).digest('hex').slice(0, 32)
     .replace(/^(.{8})(.{4})(.{4})(.{4})(.{12})$/, '$1-$2-$3-$4-$5');
 
+/**
+ * La conexión a la base. Se abre ANTES de subir cuando hay que resolver apoyos
+ * —para poder abortar sin haber gastado un byte de R2— y si no, justo antes de
+ * escribir las fichas. Una sola vez: `initializeApp` no es idempotente.
+ */
+let db = null;
+
 // ── Preparar el lote ───────────────────────────────────────────────────────
 const lote = archivos.map((archivo) => {
   const ruta = join(DIR, archivo);
@@ -112,9 +140,99 @@ for (const x of lote) {
   if (x.pie) console.log(`      pie: ${x.pie.slice(0, 90)}${x.pie.length > 90 ? '…' : ''}`);
 }
 
+// ── A QUÉ APOYO va cada foto, y que lo vea una persona ─────────────────────
+//
+// LA TRAMPA, y por qué esta tabla existe. El número del archivo (`eNN`) NO es
+// el número de estructura: es el número de PUNTO del levantamiento, y ahí
+// dentro van también los empalmes. En LN-627 hay empalmes en los puntos 6 y 8,
+// así que a partir de ahí todo se corre dos posiciones:
+//
+//     e06 → EMPALME E05-E06   ·   e07 → estructura E06   ·   e09 → E07 …
+//
+// Leer «e07 = E07» desplazaría 9 de los 14 grupos —54 de las 99 fotos— a un
+// apoyo equivocado. Sería creíble y estaría mal, y nadie lo notaría hasta que
+// alguien fuera al sitio. Por eso la asignación se IMPRIME antes de tocar nada:
+// es la única oportunidad barata de que el Ingeniero la revise con sus ojos.
+// El sistema no certifica; certifica quien firma.
+if (EXIGE_APOYO) {
+  if (!clave) {
+    console.error('\n❌ Para asignar cada foto a su apoyo hay que LEER la base (no se recalculan ids).');
+    console.error('   Añada GOOGLE_APPLICATION_CREDENTIALS, también en modo seco.\n');
+    process.exit(1);
+  }
+  initializeApp({ credential: cert(JSON.parse(readFileSync(clave, 'utf-8'))) });
+  db = getFirestore();
+  db.settings({ ignoreUndefinedProperties: true });
+
+  const snap = await db.collection('apoyos')
+    .where('orgId', '==', ORG).where('lineaId', '==', idEstable('linea')).get();
+  // ⚠️ Se LEE el documento y se usa SU id; no se re-deriva con la fórmula del
+  // sembrador. Copiar la fórmula haría que el día que el sembrador cambie de
+  // semilla las fotos apunten a documentos inexistentes, sin un solo error.
+  const porOrden = new Map(snap.docs.map((d) => [d.data().orden, d.data()]));
+  if (!porOrden.size) {
+    console.error('\n❌ No hay apoyos de esta línea en la base. Corra antes el sembrador.\n');
+    process.exit(1);
+  }
+
+  const sinResolver = [];
+  for (const x of lote) {
+    const n = entradaDe(x.archivo)?.estructuraPunto;
+    const apoyo = Number.isInteger(n) ? porOrden.get(n - 1) : undefined;
+    if (!apoyo) { sinResolver.push(`${x.archivo} (punto ${n ?? '—'})`); continue; }
+    x.punto = n;
+    x.apoyoId = apoyo.id;
+    x.apoyoNombre = apoyo.nombreNormalizado ?? apoyo.nombreCampo;
+    x.apoyoCampo = apoyo.nombreCampo;
+    x.esEmpalme = (apoyo.tipoPunto ?? 'Estructura') === 'Empalme';
+  }
+
+  // TODO o NADA. La mitad de las fotos bien colgadas y la otra mitad en el limbo
+  // es peor que ninguna: deja el expediente en un estado que nadie audita.
+  if (sinResolver.length) {
+    console.error(`\n❌ ${sinResolver.length} archivo(s) no resuelven apoyo. NO se sube ninguno:`);
+    for (const s of sinResolver.slice(0, 10)) console.error(`   · ${s}`);
+    process.exit(1);
+  }
+
+  const grupos = new Map();
+  for (const x of lote) {
+    const g = grupos.get(x.punto) ?? { ...x, n: 0 };
+    grupos.set(x.punto, { ...g, n: g.n + 1 });
+  }
+  console.log('\n🎯 ASIGNACIÓN — revísela ANTES de que se suba nada\n');
+  console.log(`   ${'archivos'.padEnd(10)} ${'punto'.padStart(5)}  ${'nombre en el GPS'.padEnd(18)} ${'a qué apoyo va'.padEnd(22)} fotos`);
+  console.log(`   ${'─'.repeat(76)}`);
+  for (const [n, g] of [...grupos.entries()].sort((a, b) => a[0] - b[0])) {
+    const marca = g.esEmpalme ? '  ⚠️ EMPALME (no es un apoyo)' : '';
+    console.log(`   e${String(n).padStart(2, '0')}-*${' '.repeat(5)} ${String(n).padStart(5)}  ${String(g.apoyoCampo).padEnd(18)} ${String(g.apoyoNombre).padEnd(22)} ${String(g.n).padStart(4)}${marca}`);
+  }
+  const enEmpalmes = lote.filter((x) => x.esEmpalme).length;
+  console.log(`   ${'─'.repeat(76)}`);
+  console.log(`   ${lote.length} fotos · ${enEmpalmes} de ellas en EMPALMES, que en este sistema NO son apoyos`);
+  console.log('   (colgarlas de la estructura vecina «para no perderlas» sería inventar procedencia)\n');
+}
+
 if (SECO) {
   console.log('\n🌵 Modo seco: no se subió ni se escribió nada.\n');
   process.exit(0);
+}
+
+// ⛔ PUERTA CERRADA mientras el contrato no admita una evidencia que cuelgue de
+// un APOYO. Hoy `Evidencia` exige `inspeccionId` o `investigacionId`, y una
+// foto de estructura no tiene ninguno de los dos: la aplicación la leería,
+// `safeParse` fallaría por ese `refine` y el filtro la descartaría EN SILENCIO.
+// Resultado: 99 objetos ocupando y facturando en R2, 99 fichas en la base y
+// CERO fotos en pantalla, sin un solo error donde mirar. Es el fallo más caro
+// de diagnosticar de todo el subsistema, así que se para antes, no después.
+// Cómo se abre: decisión del Ingeniero documentada como ADR (TODO-43).
+if (EXIGE_APOYO) {
+  console.error('\n⛔ Falta la DECISIÓN sobre cómo cuelga una foto de estructura.');
+  console.error('   Hoy el contrato exige que toda evidencia tenga inspección o investigación');
+  console.error('   (contratos/src/eventos.ts, el `refine` del final). Una foto de apoyo no tiene');
+  console.error('   ninguna de las dos, así que la aplicación la descartaría sin avisar.');
+  console.error('   La asignación de arriba ya está verificada: lo único que falta es esa decisión.\n');
+  process.exit(1);
 }
 
 // ── Subir a R2 ─────────────────────────────────────────────────────────────
@@ -170,9 +288,11 @@ for (const x of lote) {
 }
 
 // ── Escribir las fichas ────────────────────────────────────────────────────
-initializeApp({ credential: cert(JSON.parse(readFileSync(clave, 'utf-8'))) });
-const db = getFirestore();
-db.settings({ ignoreUndefinedProperties: true });
+if (!db) {
+  initializeApp({ credential: cert(JSON.parse(readFileSync(clave, 'utf-8'))) });
+  db = getFirestore();
+  db.settings({ ignoreUndefinedProperties: true });
+}
 
 // De qué cuelga cada evidencia. Para el origen "falla", del expediente.
 const lineaId = idEstable('linea');
@@ -194,6 +314,9 @@ for (const x of lote) {
     id, orgId: ORG, creadoEn: AHORA, creadoPor: 'subidor', revision: 0,
     tipo: 'evidencia',
     investigacionId,
+    // De qué APOYO es la foto, cuando el origen lo asigna. El campo ya existía
+    // en el contrato; lo que faltaba era llenarlo.
+    apoyoId: x.apoyoId,
     lineaId,
     rutaObjeto: x.clave,
     sha256: x.sha256,

@@ -121,20 +121,24 @@ export const repositorioFirestore: Repositorio = {
     // Fichas de evidencia (NUNCA los binarios: la foto vive en almacenamiento
     // de objetos y se sirve aparte). Igual que arriba, en su propio try: sin
     // fotos la línea se ve completa, y el cálculo no depende de ellas.
+    //
+    // ⚠️ Esta lectura NO se condiciona a que la línea tenga expediente de falla.
+    // Lo estaba, y funcionaba por CASUALIDAD: LN-627 tiene expediente, así que
+    // sus fotos se leían. Una línea con fotos de estructura y sin falla —el caso
+    // normal— habría mostrado cero fotos sin un solo error, y el fallo no
+    // aparecería hasta la segunda línea (plan de TODO-43, paso 7).
     let evidencias: Evidencia[] = [];
-    if (investigaciones.length) {
-      try {
-        const sEv = await getDocs(query(
-          collection(db, 'evidencias'),
-          where('orgId', '==', orgId),
-          where('lineaId', '==', lineaId),
-        ));
-        evidencias = sEv.docs
-          .map((d) => validar<Evidencia>(Evidencia, d.data()))
-          .filter((x): x is Evidencia => x !== null);
-      } catch (e) {
-        console.warn('[datos] no se pudieron leer las fichas de evidencia:', e);
-      }
+    try {
+      const sEv = await getDocs(query(
+        collection(db, 'evidencias'),
+        where('orgId', '==', orgId),
+        where('lineaId', '==', lineaId),
+      ));
+      evidencias = sEv.docs
+        .map((d) => validar<Evidencia>(Evidencia, d.data()))
+        .filter((x): x is Evidencia => x !== null);
+    } catch (e) {
+      console.warn('[datos] no se pudieron leer las fichas de evidencia:', e);
     }
 
     return { fase: 'listo', linea, apoyos, conductor: linea.conductor, hipotesis, investigaciones, evidencias };

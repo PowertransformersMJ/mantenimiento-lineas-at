@@ -48,7 +48,33 @@ async function traerFotos(evidencias: Evidencia[]): Promise<Map<string, string>>
   return urls;
 }
 
-export function Galeria({ evidencias }: { evidencias: Evidencia[] }) {
+/**
+ * De qué son las fotos que muestra esta galería.
+ *
+ * ADITIVO a propósito: los valores por defecto son los textos que la pestaña
+ * Falla ya enseña bien, así que quien no pase nada no ve ningún cambio. Existe
+ * porque en la ficha de un apoyo la redacción del expediente es FALSA — un pie
+ * que dice «del evento» bajo la foto de una estructura sana afirma que hubo un
+ * evento ahí, y eso acaba dentro de un informe firmable (plan de TODO-43).
+ */
+export interface RotulosGaleria {
+  /** Encabezado de la sección. */
+  titulo?: string;
+  /** De qué son: «del evento», «de la estructura E06»… Va en la frase de arriba. */
+  deQue?: string;
+  /** Qué se dice cuando no hay ni una foto. */
+  vacio?: string;
+  /** Texto alternativo de cada imagen, para lector de pantalla. */
+  alt?: string;
+}
+
+export function Galeria({ evidencias, rotulos = {} }:
+  { evidencias: Evidencia[]; rotulos?: RotulosGaleria }) {
+  const titulo = rotulos.titulo ?? 'Evidencia fotográfica';
+  const deQue = rotulos.deQue ?? 'del evento';
+  const alt = rotulos.alt ?? 'Fotografía del evento';
+  const vacio = rotulos.vacio
+    ?? 'Este expediente no tiene fotografías cargadas. Las imágenes del evento se suben aparte';
   const [estado, setEstado] = useState<Estado>({ fase: 'inactivo' });
   const [ampliada, setAmpliada] = useState<string | null>(null);
 
@@ -74,11 +100,10 @@ export function Galeria({ evidencias }: { evidencias: Evidencia[] }) {
   if (evidencias.length === 0) {
     return (
       <section className="panel">
-        <h2>Evidencia fotográfica</h2>
+        <h2>{titulo}</h2>
         <p className="fine">
-          Este expediente no tiene fotografías cargadas. Las imágenes del evento se suben aparte
-          (<code>herramientas/subir-evidencias.mjs</code>): no viajan dentro de la aplicación ni
-          dentro de la base, porque son material del cliente.
+          {vacio} (<code>herramientas/subir-evidencias.mjs</code>): no viajan dentro de la
+          aplicación ni dentro de la base, porque son material del cliente.
         </p>
       </section>
     );
@@ -86,9 +111,9 @@ export function Galeria({ evidencias }: { evidencias: Evidencia[] }) {
 
   return (
     <section className="panel">
-      <h2>Evidencia fotográfica</h2>
+      <h2>{titulo}</h2>
       <p className="fine">
-        {evidencias.length} fotografía(s) del evento. Cada una se pide con <b>su sesión</b>: el
+        {evidencias.length} fotografía(s) {deQue}. Cada una se pide con <b>su sesión</b>: el
         almacenamiento es privado y nadie sin autorizar las ve, ni con el enlace.
       </p>
 
@@ -110,7 +135,7 @@ export function Galeria({ evidencias }: { evidencias: Evidencia[] }) {
             <figure key={e.id} className="galeria-item">
               {url ? (
                 <button type="button" className="galeria-lupa" onClick={() => setAmpliada(url)}
-                  aria-label={`Ampliar: ${e.pie ?? 'fotografía del evento'}`}>
+                  aria-label={`Ampliar: ${e.pie ?? alt.toLowerCase()}`}>
                   {/* ⚠️ SIN `loading="lazy"`. Cazado con las fotos reales ya en R2:
                       el navegador NUNCA seleccionaba la fuente de estas imágenes
                       —`currentSrc` vacío y `complete: false` aun estando a la vista—
@@ -121,7 +146,7 @@ export function Galeria({ evidencias }: { evidencias: Evidencia[] }) {
                       además no aporta nada: cuando este elemento se pinta, el binario
                       YA se bajó del portero (por eso hay un blob). Diferir la pintura
                       de algo que ya está en memoria no ahorra ni una petición. */}
-                  <img src={url} alt={e.pie ?? 'Fotografía del evento'} />
+                  <img src={url} alt={e.pie ?? alt} />
                 </button>
               ) : (
                 <div className="galeria-hueco" aria-hidden="true" />

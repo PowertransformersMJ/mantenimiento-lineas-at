@@ -7,12 +7,13 @@
 // captura de campo (F4) — aquí no se finge nada (regla: no fabricar datos).
 // ============================================================================
 import { useMemo, useState, type ReactNode } from 'react';
-import { FUNCIONES_ANCLA, type Apoyo } from '@lineas/contratos';
+import { FUNCIONES_ANCLA, type Apoyo, type Evidencia } from '@lineas/contratos';
 import { vincenty, deflexion, vanoViento } from '@lineas/nucleo/geodesia';
 import { tramosDeTension } from '@lineas/nucleo/mecanica';
 import { soloEstructuras, nombreVisible, vanos } from '../vistas/planta';
 import { nf, aGMS } from '../vistas/formato';
 import { FichaCriterios } from './FichaCriterios';
+import { Galeria } from './Galeria';
 
 /**
  * Un instante ISO, en fecha legible. Se corta a la fecha a propósito: en
@@ -45,8 +46,9 @@ interface FichaPunto {
   enVano: string | null;             // para empalmes: dentro de qué vano viven
 }
 
-export function Fichas({ apoyos, linea }:
-  { apoyos: Apoyo[]; linea?: { tensionMaxima_kV?: number; tensionNominal_kV?: number } }) {
+export function Fichas({ apoyos, linea, evidencias = [] }:
+  { apoyos: Apoyo[]; linea?: { tensionMaxima_kV?: number; tensionNominal_kV?: number };
+    evidencias?: Evidencia[] }) {
   const fichas = useMemo<FichaPunto[]>(() => {
     const orden = [...apoyos].sort((x, y) => x.orden - y.orden);
     const E = soloEstructuras(orden);
@@ -96,6 +98,28 @@ export function Fichas({ apoyos, linea }:
   }, [apoyos]);
 
   const [sel, setSel] = useState(0);
+  const apoyoId = fichas[sel]?.apoyo.id;
+
+  /**
+   * Las fotos de este punto, y solo de este punto.
+   *
+   * ⚠️ `useMemo`, NO un `.filter()` en línea. `Galeria` descarga los binarios en
+   * un `useEffect` que depende de la IDENTIDAD del array que recibe, y un filtro
+   * en línea crea un array nuevo en CADA render. Con la selección del chip como
+   * estado, eso significa volver a descargar todas las fotos del apoyo en cada
+   * clic: E02 tiene 20, y en 3G rural eso es la pestaña inutilizable justo
+   * cuando la cuadrilla la necesita (plan de TODO-43, riesgo verificado).
+   *
+   * El filtro va EN MEMORIA y no como un tercer `where` en la consulta: combinar
+   * filtros de igualdad en Firestore puede exigir un índice compuesto, y un
+   * índice que falta no da un error claro — deja la consulta colgada. Con 99
+   * documentos no compensa el riesgo.
+   */
+  const fotosDelPunto = useMemo(
+    () => evidencias.filter((e) => e.apoyoId === apoyoId),
+    [evidencias, apoyoId],
+  );
+
   const f = fichas[sel];
   if (!f) return null;
   const a = f.apoyo;
@@ -264,6 +288,18 @@ export function Fichas({ apoyos, linea }:
             tensionMaxima_kV: linea?.tensionMaxima_kV ?? null,
           }} />
         )}
+
+        {/* Las fotos de ESTE punto. Va fuera del `f.esEstructura` a propósito:
+            5 de las 99 fotos de LN-627 son de los dos empalmes, y condicionar la
+            galería a que el punto sea estructura las dejaría invisibles para
+            siempre — subidas, pagadas y sin poder verse. Un empalme tiene su
+            propio UUID y su propia ficha; sus fotos son suyas. */}
+        <Galeria evidencias={fotosDelPunto} rotulos={{
+          titulo: 'Fotografías de este punto',
+          deQue: `de ${nombreVisible(a)}`,
+          alt: `Fotografía de ${nombreVisible(a)}`,
+          vacio: `No hay fotografías cargadas de ${nombreVisible(a)}. Las imágenes de campo se suben aparte`,
+        }} />
 
         <p className="advertencia">
           <b>Esta ficha muestra lo levantado, lo derivado de la geometría, y los huecos del
