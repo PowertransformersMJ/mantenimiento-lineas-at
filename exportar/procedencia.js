@@ -28,11 +28,20 @@ export function bloqueProcedencia(linea, lev, meta = {}) {
   if (linea.propietario) cab.push(linea.propietario);
   r.push(cab.join(' · '));
 
+  // La longitud puede NO existir (un levantamiento a medias, o un informe
+  // generado antes de tener el eje). Se escribe «longitud no declarada» en vez
+  // de un `0,00 m` que se lee como dato: este bloque encabeza el informe firmado
+  // y una línea de cero metros con vanos reales debajo no es una cifra, es un
+  // hueco disfrazado (§ADR-013, hallazgo 20).
+  const longitud = Number.isFinite(lev.longitud_m)
+    ? `${lev.longitud_m.toFixed(2)} m de línea`
+    : 'longitud no declarada';
+
   r.push(
     `Levantamiento: ${lev.nEstructuras} estructuras + ${lev.nEmpalmes} empalmes` +
     ` · ${Math.max(0, lev.nEstructuras - 1)} vanos reales` +
     ` · ${lev.tramos.length} tramos de tensión` +
-    ` · ${lev.longitud_m.toFixed(2)} m de línea`,
+    ` · ${longitud}`,
   );
 
   // Sistema de referencia, método y precisión: lo que decide si una cifra es

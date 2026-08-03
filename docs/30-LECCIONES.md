@@ -375,3 +375,10 @@
   de refutar, no el mismo que lo escribió — y sus hallazgos se **reproducen ejecutando** antes de
   aceptarlos (§3.2). Barato de comprobar: si al fixture le cambias un valor y ninguna prueba se pone
   roja, esa prueba no estaba midiendo lo que crees.
+
+### L-34 · Un fixture que DECLARA a mano lo que producción DERIVA ensaya otro camino
+- **Síntoma:** al unificar las dos políticas opuestas de la deflexión cayeron 10 pruebas: su fixture
+  ponía las estructuras en RECTA y declaraba 60° y 120° a mano, así que nunca ejerció la geodesia.
+- **Regla:** el fixture aporta el ORIGEN del dato, no el resultado; y una coordenada resuelta se fija
+  con sus 17 cifras (a 15, el factor de 60° cruzó de 0,999…9 a 1,000…096 y el apoyo pasó a contarse
+  como amplificador: en un criterio con forma `> 1`, el último bit ES el criterio).

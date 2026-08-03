@@ -437,6 +437,34 @@ describe('la línea entera: identidad, no conteo', () => {
     assert.equal(de(correr(), 'A').inversionResoluble, false);
   });
 
+  test('un terminal cuyo tramo no trae tiro NO dice «el sentido no es concluyente»', () => {
+    // El hallazgo (§ADR-013): con el tramo sin `H`, la fila salía `caso:
+    // 'terminal'` con los seis campos en null y `sentidoResoluble: false`. En la
+    // rama del terminal ese `false` quería decir «no se pudo calcular nada»; en
+    // la del anclaje quiere decir «el número salió pero pesa menos que el ruido
+    // de obra». Los tres consumidores leen el segundo significado, así que la
+    // pantalla lo contaba en el KPI «sentido dudoso», el informe firmable
+    // imprimía «el número sale pero el SENTIDO no es concluyente» y el CSV
+    // escribía `Sentido_resoluble = no` — todo sobre un apoyo del que no se
+    // calculó ni un número. En esta columna `false` es una AFIRMACIÓN; la
+    // ausencia de dato es `null`, y una fila sin número es `no_evaluable`.
+    const sinTiro = {
+      desde: { nombre: 'A' }, hasta: { nombre: 'C' },
+      estados: {
+        eds: estado('EDS / cada día', null), tMax: estado('Máxima temperatura', null),
+        viento: estado('Máximo viento', null), tMin: estado('Mínima temperatura', null),
+      },
+    };
+    const a = de(longitudinalDeLaLinea(APOYOS, [sinTiro, TRAMOS[1]], { rts_kgf: 6000 }), 'A');
+
+    assert.equal(a.caso, 'no_evaluable', 'sin un solo tiro no hay caso «terminal» que publicar');
+    assert.notEqual(a.sentidoResoluble, false,
+      '`false` significaría que el número salió y no supera el ruido de obra: aquí no salió ninguno');
+    assert.equal(a.sentidoResoluble, null);
+    assert.ok(a.noEvaluable, 'y tiene que decir por qué no hay número');
+    assert.equal(a.permanente, null, 'sin envolvente no se publica una envolvente vacía');
+  });
+
   test('el mayor desequilibrio NO está en el estado de mayor tiro', () => {
     // Verificado con el motor real y reproducido aquí: el mayor tiro es a T mín
     // (1500 kgf) y el mayor desequilibrio a T máx. Tomar el de mayor tiro —lo

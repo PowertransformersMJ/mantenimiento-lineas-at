@@ -40,6 +40,7 @@ import {
   csvCantidades, SECCIONES_BOM,
   COLUMNAS_CONTINUAS, COLUMNAS_CONTEOS, COLUMNAS_NO_CUANTIFICABLE,
 } from '../exportar/bom.js';
+import { dialectoCsv } from '../exportar/dialecto.js';
 
 // ════════════════════════════════════════════════════════════════════════════
 // Caso sintético: w = 2 kg/m, H = 2500 kgf → C = H/w = 1250 m; vanos de 200 m.
@@ -319,6 +320,33 @@ describe('exportar/mecanica.js — los dos dialectos', () => {
       assert.ok(texto.includes('\r\n'));
       assert.equal(texto.replace(/\r\n/g, '').includes('\n'), false, 'no debe haber \\n suelto');
     }
+  });
+
+  test('una celda de texto que empiece por = + - @ NO se le entrega a Excel como fórmula', () => {
+    // §ADR-013, hallazgo 18. Las comillas del CSV no protegen: se las come el
+    // analizador del formato y lo que llega a la hoja es el contenido. Un apoyo
+    // que la cuadrilla grabó en el GPS como `=1+1` deja la columna mostrando un
+    // `2` o un `#NAME?`, y la hoja archivada junto al expediente ya no dice a
+    // qué estructura pertenece la fila. Los nombres vienen de datos de campo.
+    for (const malo of ['=1+1', '+E07', '-E07', '@apoyo', '\tE07']) {
+      const { q, num } = dialectoCsv({ dialecto: 'excel' });
+      assert.equal(q(malo), `"'${malo}"`,
+        `la celda «${malo}» tiene que salir con apóstrofo delante`);
+    }
+  });
+
+  test('pero los NÚMEROS negativos siguen siendo números, no texto', () => {
+    // El apóstrofo es solo para TEXTO. Un tiro de −340 kgf empieza por `-`:
+    // prefijarlo lo convertiría en texto y la columna dejaría de sumar, que es
+    // exactamente el defecto que esta protección existe para no cometer.
+    const { num } = dialectoCsv({ dialecto: 'excel' });
+    assert.equal(num(-339.9, 1), '-339,9');
+    assert.ok(!num(-339.9, 1).startsWith("'"), 'un número negativo no lleva apóstrofo');
+  });
+
+  test('la comilla doble se sigue doblando después de neutralizar', () => {
+    const { q } = dialectoCsv({ dialecto: 'excel' });
+    assert.equal(q('=SUM("A")'), `"'=SUM(""A"")"`);
   });
 
   test('un solo renglón en blanco entre bloques, nunca dos seguidos', () => {

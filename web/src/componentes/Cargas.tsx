@@ -51,6 +51,51 @@ const CASO = {
   no_evaluable: 'no evaluable',
 } as const;
 
+/**
+ * Qué se puede AFIRMAR sobre el sentido de la carga longitudinal de un apoyo.
+ *
+ * ⚠️ La celda tiene que consultar `inversionResoluble`, que existe exactamente
+ * para esto. Antes solo miraba que las dos columnas trajeran número y escribía
+ * «los dos» — justo cuando el núcleo se niega a afirmarlo. Reproducido en el
+ * motor: un anclaje con +70,4 kgf adelante, −122,6 atrás y un ruido de tendido
+ * de 85,3 da `sentidoResoluble: true` pero `inversionResoluble: false`, y el
+ * núcleo escribe una nota diciendo que ese segundo sentido NO se afirma. La
+ * celda lo afirmaba igual, contradiciendo a la tarjeta «apoyos que tiran hacia
+ * LOS DOS lados» de esta misma pantalla y al informe firmable. Y esa afirmación
+ * es la que decide si hace falta retenida a un lado o a los dos (§ADR-013,
+ * hallazgo 10). Es la regresión que el propio núcleo dice haber cazado en
+ * producción: se arregló el cálculo y el KPI, y quedó la celda vieja.
+ */
+function selloSentido(f: {
+  caso: string;
+  sentidoResoluble: boolean | null;
+  inversionResoluble: boolean | null;
+  flAdelanteMax_kgf: number | null;
+  flAtrasMax_kgf: number | null;
+}) {
+  if (f.caso === 'suspension') return <span className="sello gris">nulo</span>;
+  if (f.caso === 'no_evaluable') return <span className="sello gris">sin número</span>;
+
+  // El número no pesa más que una diferencia de tendido de obra: hay cifra, no
+  // hay sentido. Se dice antes que nada, porque invalida todo lo demás.
+  if (f.sentidoResoluble === false) return <span className="sello ambar">no concluyente</span>;
+  // Nadie declaró la carga de rotura: sin ella no se sabe cuánto pesa el ruido
+  // de obra, así que no se puede afirmar NI negar el sentido.
+  if (f.sentidoResoluble === null) return <span className="sello gris">sin medir el ruido</span>;
+
+  if (f.inversionResoluble === true) return <span className="sello ambar">los dos</span>;
+
+  // Los dos sentidos salieron del cálculo, pero el menor es indistinguible del
+  // ruido de obra: manda el dominante y el segundo NO se afirma.
+  if (f.inversionResoluble === false && f.flAdelanteMax_kgf !== null && f.flAtrasMax_kgf !== null) {
+    const dominante = Math.abs(f.flAdelanteMax_kgf) >= Math.abs(f.flAtrasMax_kgf) ? 'adelante' : 'atrás';
+    return <span className="sello verde">dominante hacia {dominante}</span>;
+  }
+  if (f.inversionResoluble === null) return <span className="sello gris">sin medir el ruido</span>;
+
+  return <span className="sello verde">definido</span>;
+}
+
 function Tarjeta({ valor, etiqueta, explica, tono }:
   { valor: string; etiqueta: string; explica: string; tono?: string }) {
   return (
@@ -104,6 +149,9 @@ export function Cargas({ linea, apoyos, conductor, hipotesis }:
   // Agrupadas por texto: una observación repetida en las 24 filas no informa,
   // tapa a las tres que dicen algo distinto.
   const notas = agruparNotas(r.filas);
+  // Las del OTRO eje, que hasta §ADR-013 no se pintaban en ninguna parte de la
+  // pantalla: el núcleo las escribía y solo las veía quien abriera el CSV.
+  const notasLong = lg ? agruparNotas(lg.filas) : [];
   const nCond = r.filas.find((f) => f.nConductores !== null)?.nConductores ?? null;
 
   /** «LN-627 E02 y LN-627 E06» si son pocos; «22 apoyos» si son multitud. */
@@ -310,15 +358,7 @@ export function Cargas({ linea, apoyos, conductor, hipotesis }:
                       </td>
                       <td className="num destaca">{val(f.flAdelanteMax_kgf)}</td>
                       <td className="num destaca">{val(f.flAtrasMax_kgf)}</td>
-                      <td>
-                        {f.sentidoResoluble === false
-                          ? <span className="sello ambar">no concluyente</span>
-                          : f.flAdelanteMax_kgf !== null && f.flAtrasMax_kgf !== null
-                            ? <span className="sello ambar">los dos</span>
-                            : f.caso === 'suspension'
-                              ? <span className="sello gris">nulo</span>
-                              : <span className="sello verde">definido</span>}
-                      </td>
+                      <td>{selloSentido(f)}</td>
                       <td className="num">{val(f.roturaAtras_kgf)}</td>
                       <td className="num">{val(f.roturaAdelante_kgf)}</td>
                     </tr>
@@ -339,6 +379,28 @@ export function Cargas({ linea, apoyos, conductor, hipotesis }:
               aguantan. Por eso esta tabla recorre los cuatro estados y no solo el peor tiro.
             </p>
           </section>
+
+          {notasLong.length > 0 && (
+            <section className="panel">
+              <h2>Lo que falta o se supuso en el eje longitudinal, y en qué apoyos</h2>
+              <p className="fine">
+                Lo escribe el propio cálculo, fila por fila. Aquí vive el aviso que más pesa y que
+                antes solo llegaba al CSV: cuando uno de los dos tramos contiguos cae por debajo
+                del 25 % de su propio EDS, el desequilibrio lo domina un tramo que está flojo
+                <b> en el modelo</b>, no en el terreno — la cifra sale limpia y no se sostiene sola.
+              </p>
+              <ul className="calidad-lista">
+                {notasLong.map((nota) => (
+                  <li key={`${nota.esNoEvaluable}-${nota.texto}`}
+                      className={`calidad-item ${nota.esNoEvaluable ? 'aviso' : 'info'}`}>
+                    <b>{aQuienes(nota.apoyos)}.</b>{' '}
+                    {nota.esNoEvaluable && <b>Sin carga calculada: </b>}
+                    {textoNucleo(nota.texto)}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           <section className="panel">
             <h2>Lo que el eje longitudinal NO dice</h2>

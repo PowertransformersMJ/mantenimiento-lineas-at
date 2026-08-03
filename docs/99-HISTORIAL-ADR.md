@@ -1110,7 +1110,7 @@ Tres hechos medidos con el motor real, ninguno obvio, y los tres habrían sido e
 
 ## ADR-013 · 2026-08-03 · Auditoría adversarial de la ola 4: lo que 564 pruebas en verde no veían
 
-**Estado:** ✅ Nueve hallazgos arreglados y en producción · 🔲 once menores en `TODO-45`.
+**Estado:** ✅ Nueve hallazgos arreglados y en producción · ✅ los once menores, cerrados en `ADR-014`.
 
 ### Contexto
 
@@ -1155,3 +1155,70 @@ entregables · seguridad) y dos de investigación.
 ### Crudo de respaldo
 
 `research-archive/2026-08-03-auditoria-ola-4.json` (20 hallazgos, 5 descartados con motivo).
+
+---
+
+## ADR-014 · 2026-08-03 · Cerrar los once menores de la auditoría: dueños únicos y frases verdaderas
+
+**Estado:** ✅ Cerrado · `TODO-45` completo · 597 pruebas en verde (+24)
+
+### Contexto
+
+`ADR-013` dejó nueve hallazgos arreglados y once menores en `TODO-45`. «Menor» era la gravedad del
+número, no la del daño: ninguno de los once inventaba una cifra, pero **cinco de ellos hacían que el
+informe firmable afirmara algo que el propio sistema desmentía dos páginas después**, y ese es
+exactamente el tipo de contradicción que se descubre delante del cliente. Los once se reprodujeron
+en el código antes de tocar nada (§3.2); uno —la caché de las fotos sin `Vary: Authorization`— ya
+estaba arreglado en `0a44024` y el crudo lo listaba pendiente por error.
+
+### Lo que apareció al arreglarlos, y que no estaba en el encargo
+
+| Hallazgo | Lo que había DEBAJO |
+|---|---|
+| La deflexión tenía **dos políticas opuestas**, las dos documentadas como la correcta | Nadie era el dueño: el núcleo prefería el ángulo guardado, el levantamiento y la ficha lo recalculaban |
+| El informe atribuía el tope de tiro «a la hipótesis» | El campo `tiroAdmisible_pct` **no existía en el contrato**: la rama «declarada» de `umbrales.js` era inalcanzable y el tope valía 50 % pasara lo que pasara |
+| El CSV no neutralizaba `= + - @` | La regla de escritura estaba **copiada en tres exportadores**: arreglarla en uno la dejaba abierta en los otros dos |
+| La celda «Sentido» afirmaba «los dos» donde el núcleo se niega | El cálculo y el KPI ya se habían corregido; quedó la celda vieja, y esa celda decide si hace falta retenida a uno o a los dos lados |
+
+### Decisión
+
+> **Un dato con dos dueños no tiene dueño.** La deflexión la resuelve `geodesia.resolverDeflexion`,
+> y manda la GEOMETRÍA — el `deflexion_grados` guardado existe para AUDITAR lo que se calculó aquel
+> día (así lo dice el contrato), no para pintar hoy. Si la geometría no puede resolverlo se usa el
+> guardado, pero la fila lo DECLARA; y si los dos existen y discrepan más de 0,5°, también.
+> Comprobado sobre LN-627: los 24 ángulos guardados coinciden con los geodésicos dentro de 0,005°,
+> así que **el cambio no mueve un solo número de la línea real** — cierra una trampa futura.
+
+> **Una frase del informe firmable se DERIVA de su dueño, no se escribe a mano.** El tope de tiro
+> sale del indicador de `evaluarUmbrales` (que ahora publica `procedenciaUmbral` como campo, no
+> dentro de un párrafo); el criterio de utilización y su umbral se importan del núcleo y se imprimen
+> al pie de la tabla y en la cabecera de la sección del CSV. Un semáforo sin fuente es una opinión
+> con colores, y eso lo dice el propio informe en su sección 8.
+
+> **`tiroAdmisible_pct` y `criterioTiroQueRige` entran al contrato — y eso NO decide `TODO-33`.**
+> Son opcionales y aditivos. Hasta que el Ingeniero declare cuál rige, el sistema sigue mostrando
+> los dos criterios y sin elegir. Lo que se arregla es que su decisión ya tiene dónde entrar.
+
+> **En seguridad, una barrera imaginaria es peor que ninguna.** Se corrigieron tres afirmaciones
+> falsas: CORS no rechaza por `Origin`, el binding de R2 no es de solo lectura, y con token válido
+> el portero SÍ revela si un objeto existe. Esa última se sostiene hoy sobre un invariante que ahora
+> está escrito: **un depósito, una organización**. `PREFIJO_EVIDENCIAS` queda listo para el día que
+> deje de ser cierto, apagado y declarado como apagado.
+
+### Consecuencias
+
+- **+24 pruebas** (573 → 597), entre ellas las primeras del **portero**, que estaba en producción
+  sirviendo material de cliente sin una sola. Cubren lo que decide antes de la firma: configuración
+  ausente, método, ruta, clave mal codificada y falta de token.
+- `exportar/dialecto.js` nace como dueño único de cómo se escribe una celda; `mecanica.js` lo
+  re-exporta para no romper a quien lo importaba (cambios aditivos, `CLAUDE.md §3.1`).
+- La pantalla de Cargas publica por fin las notas por fila del eje longitudinal, que solo llegaban
+  al CSV — incluido el aviso del piso de validez, que el núcleo llama «el mismo fallo que un hueco
+  convertido en cero, pero que entra por un número calculado».
+- **Deuda que este ADR deja escrita:** el nodo `30` quedó a 385 líneas de 350. `L-34` entró
+  destilada al límite; la próxima lección **no cabe** sin el shard de `TODO-46`.
+
+### Crudo de respaldo
+
+`research-archive/2026-08-03-auditoria-ola-4.json` — mismos veinte hallazgos; éste cierra los once
+que `ADR-013` dejó abiertos.

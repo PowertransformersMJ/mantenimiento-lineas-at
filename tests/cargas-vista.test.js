@@ -30,6 +30,7 @@ import assert from 'node:assert/strict';
 
 import { cargasParaPantalla, agruparNotas } from '../web/src/vistas/cargasDatos.ts';
 import { vincenty } from '../nucleo/geodesia.js';
+import { derivarLevantamiento } from '../exportar/levantamiento.js';
 
 const cerca = (real, esperado, tol, msg) =>
   assert.ok(Number.isFinite(real) && Math.abs(real - esperado) <= tol,
@@ -80,11 +81,38 @@ const tramo = (nVanos, hViento = 1000) => ({
 });
 
 /**
- * Estructuras sobre el meridiano, separadas 0,001° de latitud. Van en línea
- * recta a propósito: la deflexión se DECLARA en cada una, que es lo que hace el
- * núcleo cuando existe, y así el ángulo del ensayo es exacto en vez de depender
- * de la geodesia. Lo que sí sale de las coordenadas son los vanos.
+ * La poligonal del ensayo. El quiebre lo pone la GEOMETRÍA, no una declaración:
+ * desde §ADR-013 la deflexión tiene un solo dueño —`geodesia.resolverDeflexion`—
+ * y es la que sale de las coordenadas. Un fixture que declarase el ángulo a mano
+ * ensayaría un camino que producción ya no recorre.
+ *
+ * Las coordenadas no están inventadas a ojo: se resolvieron numéricamente para
+ * que el azimut inicial de cada vano sea EXACTO — 0°, 0°, 60° y 180° — de modo
+ * que las tres deflexiones salgan 0°, 60° y 120° con residuo NULO en doble
+ * precisión. Verificado ejecutando `geodesia.deflexion` sobre estos cinco
+ * puntos: `d(S1)−0`, `d(S2)−60` y `d(S3)−120` dan exactamente 0. Por eso las
+ * pruebas de trigonometría siguen midiendo con tolerancia de máquina.
+ *
+ * ⚠️ Los decimales se escriben ENTEROS (17 cifras significativas), no
+ * redondeados a la vista. Recortarlos a 15 mete un error de 6·10⁻¹² grados en
+ * el ángulo, y eso basta para que el factor de S2 pase de 0,999999999999999 a
+ * 1,000000000000096: cruza el criterio `factor > 1` y el apoyo del quiebre de
+ * 60° empieza a contarse como amplificador. El último bit importa justo aquí
+ * porque 60° es el punto donde el factor vale 1 EXACTO.
+ *
+ * Ecuador y meridiano de Greenwich: coordenadas sintéticas, este repo es
+ * público (L-23). Los vanos rondan los 111 m y NO son todos iguales: sobre el
+ * elipsoide el arco crece con la latitud, y el vano que sale hacia el nordeste
+ * se fijó en 111 m redondos.
  */
+const POLIGONAL = Object.freeze([
+  { lat: 0,                     lon: 0 },                      // S0 · extremo
+  { lat: 0.001,                 lon: 0 },                      // S1 · recta (az 0° → 0°)
+  { lat: 0.002,                 lon: 0 },                      // S2 · quiebre de 60°
+  { lat: 0.0025019250736479622, lon: 0.00086353990613171304 }, // S3 · quiebre de 120°
+  { lat: 0.0014980759816127351, lon: 0.00086353990613171304 }, // S4 · extremo
+]);
+
 const apoyo = (i, extra = {}) => ({
   id: `ap-${i}`,
   tipo: 'apoyo',
@@ -93,7 +121,7 @@ const apoyo = (i, extra = {}) => ({
   tipoPunto: 'Estructura',
   nombreCampo: `S${i}`,
   nombreNormalizado: `S${i}`,
-  coordenada: { lat: 0.001 * i, lon: 0 },
+  coordenada: POLIGONAL[i],
   funcionEstructural: 'Suspensión',
   funcionProcedencia: 'supuesto',
   condicion: 'Sin evaluar',
@@ -101,14 +129,8 @@ const apoyo = (i, extra = {}) => ({
   ...extra,
 });
 
-/** Cinco estructuras: dos extremos y tres intermedias con quiebre declarado. */
-const LINEA = Object.freeze([
-  apoyo(0),
-  apoyo(1, { deflexion_grados: 0 }),      // recta: el quiebre no carga nada
-  apoyo(2, { deflexion_grados: 60 }),     // factor exactamente 1
-  apoyo(3, { deflexion_grados: 120 }),    // factor exactamente √3
-  apoyo(4),
-]);
+/** Cinco estructuras: dos extremos y tres intermedias con quiebre geométrico. */
+const LINEA = Object.freeze([apoyo(0), apoyo(1), apoyo(2), apoyo(3), apoyo(4)]);
 
 const correr = (apoyos = LINEA, h = HIPOTESIS, tramos = [tramo(apoyos.filter((a) => (a.tipoPunto ?? 'Estructura') === 'Estructura').length - 1)], circuitos = 1) =>
   cargasParaPantalla(apoyos, tramos, CONDUCTOR, h, circuitos);
@@ -249,11 +271,7 @@ describe('lo que NO se puede calcular se declara — nunca se rellena', () => {
 describe('utilización: cociente de MOMENTOS, no de fuerzas', () => {
   /** La misma línea, pero con el apoyo del quiebre de 60° ya inventariado. */
   const conCapacidad = (extra) => [
-    apoyo(0),
-    apoyo(1, { deflexion_grados: 0 }),
-    apoyo(2, { deflexion_grados: 60, ...extra }),
-    apoyo(3, { deflexion_grados: 120 }),
-    apoyo(4),
+    apoyo(0), apoyo(1), apoyo(2, extra), apoyo(3), apoyo(4),
   ];
 
   test('con el conductor amarrado en la punta: 3000 de 12000 son el 25 %', () => {
@@ -307,10 +325,10 @@ describe('utilización: cociente de MOMENTOS, no de fuerzas', () => {
 describe('los empalmes no son apoyos', () => {
   const CON_EMPALME = [
     apoyo(0),
-    apoyo(1, { deflexion_grados: 0 }),
-    { ...apoyo(15, { tipoPunto: 'Empalme' }), coordenada: { lat: 0.0015, lon: 0 }, nombreCampo: 'EMP', nombreNormalizado: 'EMP' },
-    apoyo(2, { deflexion_grados: 60 }),
-    apoyo(3, { deflexion_grados: 120 }),
+    apoyo(1),
+    { ...apoyo(0), tipoPunto: 'Empalme', id: 'emp-1', orden: 15, coordenada: { lat: 0.0015, lon: 0 }, nombreCampo: 'EMP', nombreNormalizado: 'EMP' },
+    apoyo(2),
+    apoyo(3),
     apoyo(4),
   ];
 
@@ -435,6 +453,77 @@ describe('agrupar las observaciones: una vez cada una, no una por apoyo', () => 
 
   test('sin filas no devuelve nada', () => {
     assert.deepEqual(agruparNotas([]), []);
+  });
+});
+
+describe('la deflexión tiene UN dueño: la geometría (§ADR-013)', () => {
+  // El hallazgo que estas pruebas impiden que vuelva: `nucleo/cargas.js` y
+  // `nucleo/longitudinal.js` PREFERÍAN el ángulo guardado en el apoyo mientras
+  // el resto del sistema —el exporte del levantamiento, la ficha y los
+  // criterios— lo recalculaba sobre las coordenadas. Bastaba con corregir una
+  // coordenada después de haber guardado el ángulo para que el mismo apoyo
+  // saliera con un valor en la ficha y con OTRO en la tabla de cargas, y con
+  // ese segundo se calculaban el factor 2·sen(α/2), la carga de quiebre y la
+  // utilización. Las dos políticas estaban documentadas como la correcta.
+
+  test('un ángulo guardado que contradice a las coordenadas NO manda: manda la geometría', () => {
+    // S3 tiene 120° por geometría. Se le guarda 12° a mano —un dedazo, o un
+    // ángulo viejo de antes de corregir la coordenada— y no debe cambiar nada.
+    const conViejo = [apoyo(0), apoyo(1), apoyo(2), apoyo(3, { deflexion_grados: 12 }), apoyo(4)];
+    const f = porNombre(correr(conViejo), 'S3');
+    cerca(f.deflexion_grados, 120, 1e-9, 'manda la deflexión geodésica');
+    assert.ok(Math.abs(f.factorAngulo - Math.sqrt(3)) < 1e-12,
+      'con 12° el factor habría sido 0,209 en vez de 1,732: ocho veces menos carga de quiebre');
+  });
+
+  test('y la discrepancia se DECLARA en la fila, no se resuelve en silencio', () => {
+    const conViejo = [apoyo(0), apoyo(1), apoyo(2), apoyo(3, { deflexion_grados: 12 }), apoyo(4)];
+    const f = porNombre(correr(conViejo), 'S3');
+    assert.ok(f.notas.some((n) => /guardada en el apoyo/i.test(n) && /coordenadas/i.test(n)),
+      'si los dos ángulos difieren, la fila tiene que decirlo: es un síntoma de datos, no un detalle');
+  });
+
+  test('una diferencia por debajo de la tolerancia no ensucia la fila con avisos', () => {
+    // 120,2° contra 120,0°: dos décimas son redondeo, no un dato distinto.
+    const casiIgual = [apoyo(0), apoyo(1), apoyo(2), apoyo(3, { deflexion_grados: 120.2 }), apoyo(4)];
+    const f = porNombre(correr(casiIgual), 'S3');
+    assert.ok(!f.notas.some((n) => /guardada en el apoyo/i.test(n)),
+      'avisar de dos décimas sería ruido, y el ruido entrena a no leer los avisos');
+  });
+
+  test('sin coordenadas se usa el ángulo guardado, pero DICIENDO que no se recalculó', () => {
+    // Un apoyo al que le falta la coordenada: la geometría no puede resolver el
+    // ángulo. Se usa el guardado —negarse perdería la fila entera— y se declara
+    // que ese ángulo vale lo que valía el día que se guardó.
+    const sinCoord = [
+      apoyo(0), apoyo(1),
+      { ...apoyo(2), coordenada: { lat: null, lon: null }, deflexion_grados: 47 },
+      apoyo(3), apoyo(4),
+    ];
+    const f = porNombre(correr(sinCoord), 'S2');
+    assert.equal(f.deflexion_grados, 47);
+    assert.ok(f.notas.some((n) => /no se pudo recalcular/i.test(n)),
+      'un ángulo que no se recalcula es un dato con fecha, y la fila tiene que decirlo');
+  });
+
+  test('la deflexión de la tabla de cargas coincide con la del exporte del levantamiento', () => {
+    // El guardián de fondo: dos módulos distintos que publican el MISMO ángulo
+    // del MISMO apoyo. El día que alguien vuelva a cambiar la precedencia en uno
+    // solo de los dos, esta prueba se pone roja antes de que el informe firmado
+    // muestre dos ángulos para la misma estructura.
+    const lev = derivarLevantamiento(LINEA.map((a) => ({ ...a })));
+    const filas = correr().filas;
+    for (const p of lev.puntos.filter((x) => x.tipo === 'Estructura')) {
+      const f = filas.find((x) => x.apoyo === p.nombre);
+      assert.ok(f, `${p.nombre}: sin fila de carga que comparar`);
+      if (p.deflexion_grados === null) {
+        assert.equal(f.deflexion_grados, null,
+          `${p.nombre}: el levantamiento no tiene ángulo y la tabla de cargas sí`);
+      } else {
+        cerca(f.deflexion_grados, p.deflexion_grados, 1e-9,
+          `${p.nombre}: dos módulos publican deflexiones distintas del mismo apoyo`);
+      }
+    }
   });
 });
 

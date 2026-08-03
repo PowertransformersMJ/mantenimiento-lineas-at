@@ -42,7 +42,7 @@
 // Ver docs/40-DOMINIO-LINEAS-AT.md §3.3 (carga de viento) y §3.4 (admisibles).
 // ============================================================================
 
-import { vanoViento, vincenty, deflexion } from './geodesia.js';
+import { vanoViento, vincenty, resolverDeflexion } from './geodesia.js';
 import { cargaViento, presionDinamica } from './mecanica.js';
 
 const GRADOS_A_RAD = Math.PI / 180;
@@ -378,9 +378,9 @@ export function utilizacionApoyo(entrada) {
  * Carga transversal de TODA la línea, una fila por estructura.
  *
  * Reúne lo que ya calculan otros módulos y no recalcula ninguno de ellos:
- * `geodesia.vanoViento` para el reparto de vanos, `geodesia.deflexion` cuando el
- * ángulo no viene dado, `mecanica.presionDinamica` y `mecanica.cargaViento` para
- * el empuje. El tiro llega YA CALCULADO en los tramos: si este archivo lo
+ * `geodesia.vanoViento` para el reparto de vanos, `geodesia.resolverDeflexion`
+ * para el ángulo de quiebre, `mecanica.presionDinamica` y `mecanica.cargaViento`
+ * para el empuje. El tiro llega YA CALCULADO en los tramos: si este archivo lo
  * recalculara habría dos dueños del mismo número y el día que difieran en el
  * tercer decimal nadie sabrá cuál mandó en el informe firmado.
  *
@@ -389,8 +389,10 @@ export function utilizacionApoyo(entrada) {
  * que cruzar por nombre, no por número, o acabará atribuyéndole a un apoyo la
  * carga de otro.
  *
- * @param apoyos    en orden. De cada uno se usa lo que traiga: `deflexion_grados`
- *                  o coordenadas para calcularla, `vanoAnterior_m` o coordenadas,
+ * @param apoyos    en orden. De cada uno se usa lo que traiga: coordenadas para
+ *                  calcular la deflexión (manda la geodésica; el
+ *                  `deflexion_grados` guardado solo si no hay coordenadas, y
+ *                  entonces se declara), `vanoAnterior_m` o coordenadas,
  *                  y —si existen— `cargaRotura_kgf`, `alturaLibre_m`,
  *                  `alturaAplicacion_m`, `nConductores`.
  * @param tramos    los de `tramosDeTension`, con sus estados de `estadosDelTramo`
@@ -418,13 +420,16 @@ export function cargasDeLaLinea(apoyos, tramos, conductor, hipotesis) {
     const motivos = [];
     const esExtremo = i === 0 || i === E.length - 1;
 
-    // ── Deflexión: la declarada manda; si no, se calcula con la geometría ────
-    // Se prefiere la declarada porque puede venir corregida a mano tras una
-    // visita; la geodésica es el respaldo cuando no hay nada declarado.
-    let deflexion_grados = numero(a?.deflexion_grados);
-    if (deflexion_grados === null && !esExtremo && [i - 1, i, i + 1].every(hayCoordenada(geo))) {
-      deflexion_grados = numero(deflexion(geo, i));
-    }
+    // ── Deflexión: manda la GEOMETRÍA, y la política vive en un solo sitio ───
+    // `resolverDeflexion` (geodesia.js) es el único dueño de esta decisión. Aquí
+    // no se elige nada: se usa lo que devuelve y se publica su nota. Antes este
+    // archivo prefería la declarada y el resto del sistema prefería la
+    // geodésica, así que el mismo apoyo salía con un ángulo en la ficha y con
+    // otro en esta tabla — y con ese segundo se calculaban el factor 2·sen(α/2),
+    // la carga de quiebre y la utilización (auditoría de la ola 4, §ADR-013).
+    const defl = resolverDeflexion(geo, i, a?.deflexion_grados);
+    const deflexion_grados = defl.valor;
+    if (defl.nota) notas.push(defl.nota);
     if (deflexion_grados === null) {
       motivos.push(esExtremo
         ? 'apoyo extremo: la deflexión no está definida en el primer ni en el último apoyo. Un extremo trabaja a carga LONGITUDINAL (H por conductor, tirando en la dirección de la línea), que es otro caso de carga y este módulo no lo evalúa'

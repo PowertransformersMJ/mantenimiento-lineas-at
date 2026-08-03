@@ -226,6 +226,29 @@ export const Hipotesis = Base.extend({
   cx: z.number().positive().default(1.0),
   densidadAire_kg_m3: z.number().positive().default(1.2),
 
+  /**
+   * Tope de tiro que el Ingeniero ADOPTA para esta línea, en % de la carga de
+   * rotura del conductor. Si no se declara, `nucleo/umbrales.js` usa 50 % y lo
+   * dice con esas palabras: «criterio clásico, no una norma citada».
+   *
+   * ⚠️ El campo se añade ADITIVO y OPCIONAL. Que exista NO decide nada: la
+   * elección entre el 50 % clásico y el 25 % del RETIE sigue pendiente del
+   * Ingeniero (TODO-33), y hasta que la declare aquí —y declare también
+   * `criterioTiroQueRige`— el sistema muestra los dos criterios y no elige.
+   * Antes de §ADR-013 `umbrales.js` ya leía este campo y el esquema no lo
+   * admitía, así que la rama «declarado» era inalcanzable: pasara lo que
+   * pasara, el tope valía 50 % y el informe lo atribuía a una hipótesis que no
+   * lo había declarado.
+   */
+  tiroAdmisible_pct: z.number().positive().max(100).optional(),
+
+  /**
+   * Cuál de los dos criterios de tiro RIGE. Sin esto, la fila del RETIE sale
+   * «no evaluable»: no falta el número, falta la DECISIÓN, y el sistema no la
+   * toma por nadie.
+   */
+  criterioTiroQueRige: z.enum(['adoptado', 'retie_25']).optional(),
+
   /** Distancia mínima al terreno EXIGIDA, por categoría de terreno. Un valor único no es defendible. */
   despejeMinimo_m: z.record(z.string(), z.number().positive()).optional(),
   normaReferencia: z.string().optional(),

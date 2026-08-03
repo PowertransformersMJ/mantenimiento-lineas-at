@@ -46,6 +46,9 @@
 // ============================================================================
 import { bloqueProcedencia } from './procedencia.js';
 import { VERSION_EXPORTADOR } from './version.js';
+// El criterio de utilización tiene UN dueño: el núcleo. Copiarlo aquí sería
+// tener dos textos que algún día dicen cosas distintas sobre el mismo semáforo.
+import { CRITERIO_UTILIZACION } from '@lineas/nucleo/cargas';
 
 // ── Rótulos de sección ──────────────────────────────────────────────────────
 // Se exportan como constantes para que la interfaz y las pruebas no tengan que
@@ -141,48 +144,15 @@ export const COLUMNAS_UMBRALES = [
 // ── El dialecto, en un solo sitio ───────────────────────────────────────────
 
 /**
- * Herramientas de escritura del dialecto elegido. Se exporta porque
- * exportar/bom.js escribe con las MISMAS reglas y una regla copiada en dos
- * archivos es una regla que algún día se corrige en uno solo: el día que eso
- * pase, el CSV de cálculo saldría con coma decimal y el de cantidades con
- * punto, y solo uno de los dos sumaría en Excel.
- *
- * Vive aquí y no en un `exportar/dialecto.js` compartido (que sería su sitio
- * natural, con csv.js usándolo también) porque ese refactor toca archivos de
- * otros; queda anotado para la integración.
- *
- * @param {{dialecto?: 'excel'|'datos'}} [opciones]
+ * El dialecto ya no vive aquí: vive en `exportar/dialecto.js`, que es el único
+ * dueño de cómo se escribe una celda (separador, decimal, tres estados y la
+ * neutralización de las celdas que Excel evaluaría como fórmula). Se
+ * RE-EXPORTA para no romper a quien ya lo importaba de este archivo — el
+ * proyecto no renombra funciones exportadas sin migración (CLAUDE.md §3.1).
  */
-export function dialectoCsv(opciones = {}) {
-  const excel = (opciones.dialecto ?? 'excel') === 'excel';
-  const sep = excel ? ';' : ',';
+import { dialectoCsv } from './dialecto.js';
 
-  /** Texto: comillas dobladas (RFC 4180 en ambos dialectos). */
-  const q = (s) => `"${String(s ?? '').replace(/"/g, '""')}"`;
-
-  /**
-   * Número con `d` decimales, o celda VACÍA si no hay número que escribir.
-   * `null`, `undefined`, `NaN` e `Infinity` caen todos aquí: un «NaN» impreso en
-   * una memoria de cálculo se lee como una cifra rara, y un «Infinity» se lee
-   * como un tiro enorme. Ninguno de los dos es un dato; la celda vacía sí dice
-   * la verdad, que es que ese valor no se pudo calcular.
-   */
-  const num = (v, d = 2) =>
-    (Number.isFinite(v) ? (excel ? v.toFixed(d).replace('.', ',') : v.toFixed(d)) : '');
-
-  /** Conteos: enteros sin decimales (un «3,00» en la columna de vanos chirría). */
-  const ent = (v) => (Number.isFinite(v) ? String(Math.trunc(v)) : '');
-
-  /**
-   * Booleano de TRES estados. `null` no es `false`: decir «no» donde nadie pudo
-   * medir es afirmar que se cumple. Se escribe «no evaluable», con esas palabras.
-   */
-  const siNo = (v) => (v === true ? 'si' : v === false ? 'no' : 'no evaluable');
-
-  const fila = (celdas) => celdas.join(sep);
-
-  return { excel, sep, q, num, ent, siNo, fila };
-}
+export { dialectoCsv };
 
 // ── Ayudas de rotulado (echan lo que llegó; nunca inventan un nombre) ───────
 
@@ -359,7 +329,17 @@ export function csvVerificacionMecanica(entrada, opciones = {}) {
   }
 
   // ══ 3 · CARGA SOBRE LAS ESTRUCTURAS ══════════════════════════════════════
-  abrirSeccion(SECCIONES_MECANICA.cargas, COLUMNAS_CARGAS);
+  //
+  // La columna `Estado_utilizacion` emite un veredicto, y hasta §ADR-013 no
+  // decía contra QUÉ: ni el umbral ni su procedencia aparecían en el archivo.
+  // La regla de la casa es que todo criterio sin norma se declara ADOPTADO con
+  // esas palabras, y aquí el texto viene del núcleo —un solo dueño— igual que
+  // en la tabla de umbrales de más abajo.
+  //
+  // Va PEGADO al renglón del título y no en uno propio: la estructura de cada
+  // bloque es «título · cabecera · filas», y meter un renglón en medio rompería
+  // a cualquiera que lea el archivo contando renglones.
+  abrirSeccion(`${SECCIONES_MECANICA.cargas} — ${CRITERIO_UTILIZACION}`, COLUMNAS_CARGAS);
   if (!cargas.length) {
     seccionVacia('(sin filas) — no llegó la carga sobre los apoyos. Las secciones de arriba dicen'
       + ' cuánto TIRA el conductor; sin ésta el archivo no dice qué recibe la estructura, que es la'

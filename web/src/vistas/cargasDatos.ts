@@ -112,6 +112,17 @@ export interface CargasEnPantalla {
 }
 
 /**
+ * Lo mínimo que `agruparNotas` necesita de una fila. Se declara estructural —y
+ * no como «la fila de carga transversal»— porque las filas del eje longitudinal
+ * traen exactamente los mismos tres campos y merecen el mismo tratamiento.
+ */
+export interface FilaConObservaciones {
+  apoyo: string;
+  notas: string[];
+  noEvaluable: string | null;
+}
+
+/**
  * Una observación y los apoyos a los que afecta.
  *
  * El núcleo escribe las notas POR FILA, y eso es correcto: cada fila tiene que
@@ -220,8 +231,13 @@ export function cargasParaPantalla(
  * número), y dentro de cada clase, de MENOS apoyos a más. Lo que le pasa a un
  * apoyo solo es un hallazgo; lo que les pasa a los veinticuatro es el contexto
  * de la línea, y va después.
+ *
+ * Sirve a las DOS tablas de la pestaña —la transversal y la longitudinal—, y por
+ * eso pide lo mínimo que necesita en vez de una fila concreta: el eje
+ * longitudinal escribía sus notas por fila y no se pintaban en ninguna parte de
+ * la pantalla, solo llegaban al CSV (§ADR-013, hallazgo 10).
  */
-export function agruparNotas(filas: FilaCargaApoyo[]): NotaAgrupada[] {
+export function agruparNotas(filas: FilaConObservaciones[]): NotaAgrupada[] {
   const mapa = new Map<string, NotaAgrupada>();
 
   const anotar = (texto: string, apoyo: string, esNoEvaluable: boolean) => {

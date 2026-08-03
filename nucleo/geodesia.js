@@ -89,6 +89,80 @@ export function deflexion(apoyos, i) {
 }
 
 /**
+ * Diferencia a partir de la cual se avisa de que el ángulo GUARDADO en el apoyo
+ * y el que sale de las coordenadas ya no dicen lo mismo. CRITERIO ADOPTADO (sin
+ * norma citada): medio grado. A 118° de quiebre, medio grado mueve el factor
+ * 2·sen(α/2) un 0,4 % — por debajo de eso la diferencia es redondeo y avisar
+ * sería ruido; por encima, alguien corrigió una coordenada o tecleó otro ángulo,
+ * y eso hay que verlo.
+ */
+export const TOLERANCIA_DEFLEXION_GRADOS = 0.5;
+
+/**
+ * LA DEFLEXIÓN TIENE UN SOLO DUEÑO: LA GEOMETRÍA. Esta función es ese dueño, y
+ * es el ÚNICO sitio donde la política está escrita.
+ *
+ * Por qué manda la geodésica sobre el `deflexion_grados` guardado en el apoyo:
+ * el campo guardado existe para AUDITAR lo que se calculó aquel día
+ * (`contratos/activos.ts`), no para pintar hoy. Si se prefiriera, una coordenada
+ * corregida esta mañana seguiría mostrando el ángulo viejo —con veredicto y
+ * todo— y nadie tendría forma de notarlo. Es la misma regla que ya aplican
+ * `exportar/levantamiento.js`, `web/src/vistas/criteriosApoyo.ts` y la ficha del
+ * apoyo; antes `nucleo/cargas.js` y `nucleo/longitudinal.js` hacían lo contrario
+ * y el mismo apoyo salía con un ángulo en la ficha y con otro en la tabla de
+ * cargas, los dos documentados como el correcto (auditoría de la ola 4, §ADR-013).
+ *
+ * El valor guardado NO se tira: se usa cuando la geometría no puede resolverse
+ * —faltan coordenadas de alguno de los tres apoyos— y entonces se DECLARA, con
+ * su nota, que ese ángulo no se enteraría de una corrección de coordenadas.
+ * Negarse del todo perdería filas que hoy sí se publican, y una fila que
+ * desaparece no explica nada; una fila que se publica declarando de dónde salió
+ * su ángulo, sí.
+ *
+ * @param geo        `[{lat, lon}]` de las ESTRUCTURAS en orden; `null` donde falte.
+ * @param i          índice del apoyo dentro de `geo`.
+ * @param declarada  el `deflexion_grados` que traiga el apoyo, si trae alguno.
+ * @returns {{valor: number|null, procedencia: 'geodesica'|'declarada'|null, nota: string|null}}
+ */
+export function resolverDeflexion(geo, i, declarada) {
+  const G = Array.isArray(geo) ? geo : [];
+  const num = (x) => (typeof x === 'number' && Number.isFinite(x) ? x : null);
+  const dec = num(declarada);
+
+  const hay = (k) => num(G[k]?.lat) !== null && num(G[k]?.lon) !== null;
+  const geodesica = i > 0 && i < G.length - 1 && hay(i - 1) && hay(i) && hay(i + 1)
+    ? num(deflexion(G, i))
+    : null;
+
+  if (geodesica !== null) {
+    const discrepa = dec !== null && Math.abs(dec - geodesica) > TOLERANCIA_DEFLEXION_GRADOS;
+    return {
+      valor: geodesica,
+      procedencia: 'geodesica',
+      nota: discrepa
+        ? `La deflexión guardada en el apoyo (${dec.toFixed(1)}°) NO coincide con la que sale de `
+          + `las coordenadas (${geodesica.toFixed(1)}°). Manda la geodésica, que es la que se `
+          + 'recalcula con cada corrección del levantamiento; el valor guardado se conserva para '
+          + 'auditar qué se calculó aquel día. Si el bueno fuera el guardado, lo que hay que '
+          + 'corregir son las coordenadas, no el ángulo.'
+        : null,
+    };
+  }
+
+  if (dec !== null) {
+    return {
+      valor: dec,
+      procedencia: 'declarada',
+      nota: 'La deflexión NO se pudo recalcular sobre las coordenadas (faltan las de alguno de los '
+        + 'tres apoyos): se usa la declarada en el apoyo. Ese ángulo no se entera si mañana se '
+        + 'corrige una coordenada, así que vale lo que valía el día que se guardó.',
+    };
+  }
+
+  return { valor: null, procedencia: null, nota: null };
+}
+
+/**
  * Recorre la línea y devuelve, por apoyo, el vano anterior, el azimut de
  * llegada y la progresiva acumulada desde el origen. Todo en metros/grados.
  */

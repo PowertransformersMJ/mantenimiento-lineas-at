@@ -27,6 +27,7 @@
 // JavaScript puro: sin DOM. Devuelve el texto del archivo.
 // ============================================================================
 import { bloqueProcedencia } from './procedencia.js';
+import { dialectoCsv } from './dialecto.js';
 
 /** @typedef {import('./levantamiento.js').PuntoExportacion} PuntoExportacion */
 
@@ -47,14 +48,11 @@ export const COLUMNAS_CSV = [
  * @returns {string}
  */
 export function generarCsv(lev, opciones = {}) {
-  const dialecto = opciones.dialecto ?? 'excel';
-  const excel = dialecto === 'excel';
-  const sep = excel ? ';' : ',';
-
-  /** Texto: comillas dobladas (RFC 4180 en ambos dialectos). */
-  const q = (s) => `"${String(s ?? '').replace(/"/g, '""')}"`;
-  /** Número: toFixed; en el dialecto Excel el decimal es la COMA. */
-  const num = (v, d) => (v == null ? '' : (excel ? v.toFixed(d).replace('.', ',') : v.toFixed(d)));
+  // Las reglas de escritura vienen del dialecto compartido: separador, decimal
+  // y —desde §ADR-013— la neutralización de las celdas que Excel evaluaría como
+  // fórmula. Este archivo tenía su propia copia de `q` y de `num`, así que
+  // arreglar el agujero en un exportador lo dejaba abierto en los otros dos.
+  const { excel, sep, q, num } = dialectoCsv(opciones);
 
   const r = [];
   if (excel) {

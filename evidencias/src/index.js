@@ -8,7 +8,21 @@
 //
 // Este trabajador es ese algo en medio, y hace UNA cosa: comprueba que quien
 // pide una foto trae una sesión válida de la organización dueña del dato, y
-// solo entonces la entrega. Ni escribe, ni borra, ni lista.
+// solo entonces la entrega. No escribe, no borra y no lista — pero eso es una
+// COSTUMBRE de este archivo, no un permiso: el binding de R2 expone el depósito
+// entero, con `put`, `delete` y `list`. Se dice porque una barrera imaginaria
+// es peor que ninguna: el día que alguien relaje la de verdad, la decisión se
+// tomará contando con una protección que no existe (§ADR-013, hallazgo 19).
+//
+// EL INVARIANTE QUE HAY QUE MANTENER — un depósito, una organización
+//   Con un token válido, este portero responde 404 si el objeto no existe y 200
+//   si existe, o sea que quien pasa puede tantear qué hay en el depósito. Hoy
+//   eso no filtra nada, porque el depósito guarda los datos de UNA sola
+//   organización y quien pasa pertenece a ella y puede ver todas sus fotos. Deja
+//   de ser cierto en el momento en que entre una segunda: entonces hay que
+//   prefijar las claves por organización (`<orgId>/<línea>/…`) y exigir el
+//   prefijo aquí. `PREFIJO_EVIDENCIAS` existe justo para eso y está preparado
+//   más abajo; hoy va vacío, y eso también se dice en vez de suponerlo.
 //
 // POR QUÉ VERIFICA LA FIRMA Y NO SE FÍA DEL TOKEN
 //   Un token es un papel que cualquiera puede escribir. Lo que no puede
@@ -81,10 +95,19 @@ async function verificarToken(token, proyecto) {
   if (cuerpo.aud !== proyecto) throw new Error('el token es de otro proyecto');
   if (cuerpo.iss !== `https://securetoken.google.com/${proyecto}`) throw new Error('emisor inesperado');
   if (!cuerpo.sub) throw new Error('token sin sujeto');
-  // 60 s de holgura por relojes desfasados: sin ella, un móvil con la hora un
-  // poco adelantada no puede ver ninguna foto y nadie entiende por qué.
-  if (cuerpo.exp <= ahora - 60) throw new Error('token caducado');
-  if (cuerpo.iat > ahora + 60) throw new Error('token emitido en el futuro');
+  // ⚠️ Se comprueba que la marca de tiempo EXISTA y sea un número, no solo que
+  // esté dentro de rango. Con `exp` ausente, `undefined <= n` vale `false` y el
+  // token pasaba: un token sin caducidad no caducaba nunca. Este mismo archivo
+  // ya sabía hacerlo —tres líneas más arriba comprueba la presencia de `sub`— y
+  // no lo hacía ni para `exp` ni para `iat`. Hoy no es explotable (solo Google
+  // firma con esa llave, y Firebase siempre emite `exp`), pero una comprobación
+  // que depende de lo que el emisor tenga a bien incluir no es una comprobación
+  // (§ADR-013, hallazgo 17).
+  //
+  // Los 60 s de holgura cubren el desfase entre el reloj de ESTE trabajador y el
+  // de Google, NO el del móvil: la comparación es contra el reloj propio.
+  if (typeof cuerpo.exp !== 'number' || cuerpo.exp <= ahora - 60) throw new Error('token caducado');
+  if (typeof cuerpo.iat !== 'number' || cuerpo.iat > ahora + 60) throw new Error('token emitido en el futuro');
   return cuerpo;
 }
 
@@ -132,10 +155,33 @@ export default {
 
     // Rutas: /e/<clave del objeto>. Nada más existe.
     if (!url.pathname.startsWith('/e/')) return noPasa('ruta desconocida', 404, cors);
-    const clave = decodeURIComponent(url.pathname.slice(3));
+
+    // ⚠️ `decodeURIComponent` LANZA con un porcentaje suelto (`/e/%`), y estaba
+    // fuera de todo try/catch: Cloudflare respondía su 500 interno, sin
+    // `Access-Control-Allow-Origin`, y la galería mostraba «HTTP 500» en vez del
+    // motivo. La línea siguiente ya devolvía un 400 limpio para `..`; ésta no
+    // (§ADR-013, hallazgo 17).
+    let clave;
+    try {
+      clave = decodeURIComponent(url.pathname.slice(3));
+    } catch {
+      return noPasa('clave inválida: la ruta no está bien codificada', 400, cors);
+    }
     // Una clave con ".." podría salirse del prefijo previsto. No debería poder,
     // pero el coste de comprobarlo es cero y el de equivocarse no.
     if (!clave || clave.includes('..')) return noPasa('clave inválida', 400, cors);
+
+    // Acotar el depósito por prefijo. OPCIONAL a propósito, y su ausencia se
+    // declara arriba en vez de disimularse: hoy el depósito guarda una sola
+    // organización y las claves son `<línea>/<origen>/<huella>-<archivo>`, sin
+    // sitio donde meter el `orgId`. El día que entre una segunda organización,
+    // esto deja de ser opcional: se migran las claves a `<orgId>/…` y se pone
+    // esta variable. Cuando ESTÁ puesta, se exige — nunca se ignora en silencio.
+    const prefijo = typeof entorno.PREFIJO_EVIDENCIAS === 'string'
+      ? entorno.PREFIJO_EVIDENCIAS.trim() : '';
+    if (prefijo && !clave.startsWith(prefijo)) {
+      return noPasa('esa evidencia queda fuera del alcance de esta sesión', 403, cors);
+    }
 
     const cabecera = peticion.headers.get('Authorization') ?? '';
     const token = cabecera.startsWith('Bearer ') ? cabecera.slice(7) : null;

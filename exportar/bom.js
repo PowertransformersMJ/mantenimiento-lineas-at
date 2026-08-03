@@ -34,7 +34,7 @@
 //
 // JavaScript puro: sin DOM, sin red. Devuelve el texto del archivo.
 // ============================================================================
-import { dialectoCsv } from './mecanica.js';
+import { dialectoCsv } from './dialecto.js';
 import { bloqueProcedencia } from './procedencia.js';
 import { VERSION_EXPORTADOR } from './version.js';
 

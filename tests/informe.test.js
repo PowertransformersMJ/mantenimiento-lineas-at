@@ -62,7 +62,11 @@ const VANOS = [{
   longitudConductor_m: 300.6, parametroC_m: 2000, fueraDeRango: false,
 }];
 const INDICADORES = [
-  { id: 'tiro', etiqueta: 'Tiro máximo', valor: 27.5, unidad: '%', umbral: 50,
+  // El `id` y `procedenciaUmbral` son los que emite de verdad `evaluarUmbrales`.
+  // El informe DERIVA de aquí la frase del tope de tiro en vez de escribirla a
+  // mano, así que un fixture con un id inventado ensayaría otra cosa.
+  { id: 'tiro_maximo_pct_rts', etiqueta: 'Tiro máximo', valor: 27.5, unidad: '%', umbral: 50,
+    procedenciaUmbral: 'criterio_clasico',
     comparador: '<=', estado: 'cumple', criterio: 'tope adoptado', fuente: 'criterio de diseño' },
   { id: 'tierra', etiqueta: 'Puesta a tierra', valor: null, unidad: 'Ω', umbral: 10,
     comparador: '<=', estado: 'no_evaluable', criterio: 'sin medición', fuente: 'RETIE' },
@@ -278,6 +282,117 @@ describe('informe — los huecos NO se convierten en aprobados', () => {
     assert.match(h, /supuso o no pudo resolver/);
     assert.match(h, /8,3 % de su propio EDS/);
     assert.match(h, /Sin carga calculada:/, 'y distingue el motivo del supuesto');
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// Los hallazgos de la auditoría de la ola 4 (§ADR-013) que vivían en este
+// archivo. Ninguno rompía la suite: los 564 tests estaban en verde con los seis
+// dentro. Por eso cada uno deja aquí su prueba — un informe que se puede firmar
+// no se defiende con que «no falla nada», se defiende con que lo que afirma es
+// comprobable (L-33).
+// ════════════════════════════════════════════════════════════════════════════
+describe('informe — lo que la auditoría encontró y no puede volver', () => {
+
+  test('#4 · la carga se puede reproducir con una calculadora: tiro y nº de conductores a la vista', () => {
+    // El informe publicaba Quiebre/Viento/Total ya multiplicados por los tres
+    // conductores JUNTO a la fórmula que dice «por conductor», sin decir por
+    // cuántos. Quien lo revisara con una calculadora obtenía un tercio.
+    const h = informeHtml(base());
+    assert.match(h, /<th class="num">Tiro \(kgf\)<\/th>/, 'la columna del tiro tiene que existir');
+    assert.match(h, /<th class="num">Cond\.<\/th>/, 'y la del número de conductores');
+    assert.match(h, /Quiebre = Factor × Tiro × Cond/,
+      'y la leyenda tiene que decir cómo se reproduce la cifra');
+    assert.match(h, /son los de TODOS los conductores del apoyo/);
+  });
+
+  test('#4 · la nota de los cables de guarda llega al papel firmado', () => {
+    // El núcleo la escribe, la pantalla la muestra y el CSV la lleva; el informe
+    // la tiraba. Y la cifra impresa va CORTA precisamente por eso.
+    const conGuarda = CARGAS.map((c) => ({ ...c,
+      notas: ['Se cuentan 3 conductores (3 fases × 1 circuito(s)). Los cables de guarda NO están contados.'] }));
+    const h = informeHtml(base({ cargas: conGuarda }));
+    assert.match(h, /cables de guarda NO están contados/);
+    assert.match(h, /supuso o no pudo resolver/, 'agrupadas bajo su propia tabla');
+  });
+
+  test('#11 · el semáforo de utilización NO se imprime sin decir contra qué', () => {
+    // «Cada criterio declara SU FUENTE. Un semáforo sin fuente es una opinión
+    // con colores», dice la sección 8 de este mismo documento.
+    const h = informeHtml(base());
+    assert.match(h, /CRITERIO ADOPTADO \(sin norma citada\)/,
+      'el texto del criterio viene del núcleo y tiene que estar impreso');
+    assert.match(h, /50 % adoptado/, 'y el umbral contra el que se compara');
+    assert.match(h, /La rotura NUNCA se estima/, 'con las palabras del núcleo, no reescritas');
+  });
+
+  test('#9 · el tope de tiro NO se atribuye a una hipótesis que no lo declara', () => {
+    // La bandera `excede` sale de `0,5 · RTS` fijo en el motor. El informe decía
+    // «el tope adoptado en la hipótesis» mientras su propia tabla de umbrales,
+    // dos páginas después, decía que la hipótesis no lo declara.
+    const h = informeHtml(base());
+    assert.doesNotMatch(h, /tope adoptado en la hipótesis/,
+      'esa frase inventa una decisión versionada donde solo hay una costumbre');
+    assert.match(h, /criterio clásico sin norma citada: la hipótesis no lo declara/);
+  });
+
+  test('#9 · y cuando la hipótesis SÍ lo declara, el informe lo dice así', () => {
+    const declarado = INDICADORES.map((i) => (i.id === 'tiro_maximo_pct_rts'
+      ? { ...i, umbral: 25, procedenciaUmbral: 'hipotesis_declarada' }
+      : i));
+    const h = informeHtml(base({ indicadores: declarado }));
+    assert.match(h, /tope de tiro declarado en la hipótesis de la línea \(25 % de la carga de rotura\)/);
+  });
+
+  test('#9 · el tope sale del indicador del núcleo, no de un 50 escrito a mano', () => {
+    const otro = INDICADORES.map((i) => (i.id === 'tiro_maximo_pct_rts'
+      ? { ...i, umbral: 25, procedenciaUmbral: 'criterio_clasico' }
+      : i));
+    const h = informeHtml(base({ indicadores: otro }));
+    assert.match(h, /25 % de la carga de rotura/);
+    assert.doesNotMatch(h, /Ningún tramo supera el tope de tiro adoptado por defecto \(50 %/);
+  });
+
+  test('#16 · con sección longitudinal, los límites NO la enumeran entre lo no evaluado', () => {
+    // Al añadir la sección longitudinal se bifurcó el TÍTULO del límite y el
+    // cuerpo se quedó igual, diciendo que ese eje no se evalúa — en la misma
+    // página en que ya venía publicado.
+    const lim = limitacionesDeclaradas(base({ longitudinal: CARGAS }));
+    const vertical = lim.find((l) => /carga VERTICAL/.test(l.titulo));
+    assert.ok(vertical, 'el límite de la carga vertical tiene que seguir estando');
+    assert.match(vertical.detalle, /La LONGITUDINAL sí se calculó y se publica en la sección 7/);
+    assert.match(vertical.detalle, /sin veredicto/);
+
+    const extremo = lim.find((l) => /apoyo extremo/i.test(l.titulo));
+    assert.match(extremo.detalle, /sección 7/,
+      'el límite de los extremos tampoco puede decir que ese eje «está pendiente»');
+    assert.doesNotMatch(extremo.detalle, /su verificación es otra y está pendiente/);
+  });
+
+  test('#16 · y SIN sección longitudinal el texto vuelve a ser el correcto', () => {
+    const lim = limitacionesDeclaradas(base({ longitudinal: [] }));
+    const transversal = lim.find((l) => /Solo se evaluó la carga TRANSVERSAL/.test(l.titulo));
+    assert.ok(transversal);
+    assert.match(transversal.detalle, /Son otros ejes y no se suman a estas cifras/);
+    assert.doesNotMatch(transversal.detalle, /sí se calculó/);
+  });
+
+  test('#20 · una longitud de línea que no llegó se imprime como HUECO, no como 0,00 m', () => {
+    // El propio informe defiende en cada tabla que «el guion (—) no es un cero»,
+    // y aquí fabricaba uno: salía «0,00 m de línea» en la portada y «Longitud de
+    // línea (eje): 0,00 m» en el resumen, con «Vano medio: —» al lado.
+    const h = informeHtml(base({ lev: { ...LEV, longitud_m: undefined } }));
+    assert.doesNotMatch(h, /0\.00 m de línea/, 'la portada no puede inventar una línea de cero metros');
+    assert.doesNotMatch(h, /Longitud de línea \(eje\)<\/td><td class="num">0,00 m/);
+    assert.match(h, /longitud no declarada/, 'se dice que falta, con esas palabras');
+    assert.match(h, /Longitud de línea \(eje\)<\/td><td class="num">—/,
+      'y en el resumen sale el guion, que es lo que este informe defiende en cada tabla');
+  });
+
+  test('#20 · y con la longitud declarada se imprime el número, como siempre', () => {
+    const h = informeHtml(base());
+    assert.match(h, /300\.00 m de línea/);
+    assert.doesNotMatch(h, /longitud no declarada/);
   });
 });
 

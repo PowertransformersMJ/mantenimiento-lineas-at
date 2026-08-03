@@ -54,7 +54,7 @@
 // Ver docs/40-DOMINIO-LINEAS-AT.md §8 (deuda declarada) y `nucleo/cargas.js`.
 // ============================================================================
 
-import { deflexion } from './geodesia.js';
+import { resolverDeflexion } from './geodesia.js';
 
 const GRADOS_A_RAD = Math.PI / 180;
 
@@ -568,6 +568,12 @@ export function longitudinalDeLaLinea(apoyos, tramos, opciones = {}) {
 
   const lista = Array.isArray(tramos) ? tramos : [];
   const nombres = E.map((a, i) => nombreDe(a, i));
+  // Se arma UNA vez para toda la línea: la deflexión de cada apoyo se resuelve
+  // sobre esta misma geometría, igual que en cargas.js.
+  const geoLinea = E.map((x) => ({
+    lat: numero(x?.coordenada?.lat ?? x?.lat),
+    lon: numero(x?.coordenada?.lon ?? x?.lon),
+  }));
   const rts = positivo(opciones?.rts_kgf);
   const nFases = enteroPositivo(opciones?.nFasesAmarradas);
 
@@ -615,17 +621,15 @@ export function longitudinalDeLaLinea(apoyos, tramos, opciones = {}) {
     const adelante = bAdelante.tramo;
     const nombreAmbiguo = bAtras.cuantos > 1 || bAdelante.cuantos > 1;
 
-    // ── Deflexión: la declarada manda; si no, la geometría ──────────────────
-    let deflexion_grados = numero(a?.deflexion_grados);
-    if (deflexion_grados === null && !esExtremoArray) {
-      const geo = E.map((x) => ({
-        lat: numero(x?.coordenada?.lat ?? x?.lat),
-        lon: numero(x?.coordenada?.lon ?? x?.lon),
-      }));
-      if ([i - 1, i, i + 1].every((k) => geo[k]?.lat !== null && geo[k]?.lon !== null)) {
-        deflexion_grados = numero(deflexion(geo, i));
-      }
-    }
+    // ── Deflexión: manda la GEOMETRÍA; la política vive en geodesia.js ──────
+    // Un solo dueño para todo el sistema (`resolverDeflexion`). Aquí no se
+    // elige: se usa lo que devuelve y se publica su nota. Importa más de lo que
+    // parece en este eje: con el ángulo se calcula el cos(α/2) que proyecta el
+    // desequilibrio sobre la línea, así que un ángulo viejo mueve la cifra
+    // entera sin que nada avise (auditoría de la ola 4, §ADR-013).
+    const defl = resolverDeflexion(geoLinea, i, a?.deflexion_grados);
+    const deflexion_grados = defl.valor;
+    if (defl.nota) notas.push(defl.nota);
 
     const base = {
       n: i + 1,
@@ -705,6 +709,21 @@ export function longitudinalDeLaLinea(apoyos, tramos, opciones = {}) {
           : terminalLongitudinal({ tiro_kgf: s.H, estadoTiro: s.nombre, lado, nFasesAmarradas: nFases });
       }).filter(Boolean));
 
+      // ⚠️ Si el único tramo contiguo no trajo tiro en NINGÚN estado, aquí no hay
+      // número: la fila entera es no evaluable. Antes se seguía adelante y se
+      // publicaba `sentidoResoluble: false`, y ese `false` significa OTRA COSA en
+      // el resto de la tabla —«el número salió pero pesa menos que el ruido de
+      // obra»—, de modo que los tres consumidores lo leían al revés: la pantalla
+      // lo contaba en el KPI «sentido dudoso», el informe imprimía «el número
+      // sale pero el SENTIDO no es concluyente» y el CSV escribía
+      // `Sentido_resoluble = no`, todo sobre un apoyo del que no se calculó nada.
+      // En esta columna `false` es una afirmación; la ausencia de dato es `null`.
+      if (env.flAdelanteMax_kgf === null && env.flAtrasMax_kgf === null) {
+        return { ...base, caso: 'no_evaluable',
+          noEvaluable: unico.motivo ?? 'el único tramo contiguo no trajo tiro horizontal en ninguno '
+            + 'de los cuatro estados: sin tiro no hay carga longitudinal que publicar' };
+      }
+
       notas.push('Un terminal soporta el tiro ENTERO del conductor sobre el eje de la línea: es el '
         + 'caso más severo del eje y no depende de ninguna diferencia entre tramos.');
       notas.push('NO se verifica contra lo que haya más allá del último apoyo: si la bajante o el '
@@ -718,7 +737,9 @@ export function longitudinalDeLaLinea(apoyos, tramos, opciones = {}) {
       return { ...base, caso: 'terminal', permanente: env,
         // El sentido de un terminal no lo discute el tendido: hay un solo lado,
         // y el tiro entero está órdenes de magnitud por encima del ruido de obra.
-        sentidoResoluble: env.flAdelanteMax_kgf !== null || env.flAtrasMax_kgf !== null,
+        // Llegados aquí hay número por construcción (el guardián de arriba), así
+        // que esto es `true` de verdad y nunca un `false` que signifique «falta».
+        sentidoResoluble: true,
         inversionResoluble: false,
         noEvaluable: motivos.length ? motivos.join(' · ') : null };
     }

@@ -46,6 +46,10 @@
 // ============================================================================
 import { bloqueProcedencia } from './procedencia.js';
 import { calidadLevantamiento } from './calidad.js';
+// El texto del criterio y su umbral tienen UN dueño: el núcleo. Aquí no se
+// reescriben a mano — un criterio copiado es un criterio que algún día dice una
+// cosa en la pantalla y otra en el papel firmado.
+import { CRITERIO_UTILIZACION, UMBRAL_UTILIZACION_PCT } from '@lineas/nucleo/cargas';
 
 // ── Escapado ────────────────────────────────────────────────────────────────
 
@@ -131,7 +135,15 @@ function levSeguro(lev) {
     tramos: lista(L.tramos),
     nEstructuras: Number.isFinite(L.nEstructuras) ? L.nEstructuras : lista(L.puntos).filter((p) => p?.tipo !== 'Empalme' && p?.tipo !== 'Punto de referencia').length,
     nEmpalmes: Number.isFinite(L.nEmpalmes) ? L.nEmpalmes : lista(L.puntos).filter((p) => p?.tipo === 'Empalme').length,
-    longitud_m: Number.isFinite(L.longitud_m) ? L.longitud_m : 0,
+    // ⚠️ `null`, NUNCA 0. Este archivo defiende en cada tabla que «el guion (—)
+    // no es un cero», y aquí fabricaba uno: ese 0 se imprimía dos veces como si
+    // fuera dato —en la portada («0,00 m de línea») y en el resumen ejecutivo
+    // («Longitud de línea (eje): 0,00 m»)— mientras el mismo informe mostraba
+    // «Vano medio: —» porque ese cálculo sí exige `longitud_m > 0`. Una línea de
+    // longitud cero con vanos reales, en el renglón que este archivo defiende
+    // con NOTA_HUECO (§ADR-013, hallazgo 20). `n()` y `nu()` ya imprimen el
+    // guion solos cuando les llega un hueco.
+    longitud_m: Number.isFinite(L.longitud_m) ? L.longitud_m : null,
   };
 }
 
@@ -391,7 +403,7 @@ function resumenEjecutivo(lev, tramos, indicadores, conductor) {
       'Porcentaje de la carga de rotura del conductor en el peor estado de todos los tramos.'),
     fila('Tramos sobre el umbral adoptado', n(excedidos),
       excedidos ? '<b>Requieren revisión del ingeniero antes de firmar.</b>'
-        : 'Ninguno supera el tope adoptado en la hipótesis.'),
+        : `Ninguno supera ${topeDeTiro(indicadores)}.`),
     fila('Criterios que cumplen', n(cuenta('cumple')), 'Del total de criterios evaluados en la sección de umbrales.'),
     fila('Criterios a revisar', n(cuenta('revisar')), 'El sistema señala; dictamina quien firma.'),
     fila('Criterios no evaluables', n(cuenta('no_evaluable')),
@@ -437,9 +449,38 @@ function seccionCalidad(hallazgos) {
     });
 }
 
+// ── El tope de tiro: de dónde sale, dicho con las palabras verdaderas ───────
+//
+// La bandera `excede` de cada tramo la calcula hoy la vista con
+// `nucleo/mecanica.tiroMaximoAdmisible()`, que es `0,5 · RTS` FIJO EN CÓDIGO.
+// El informe lo atribuía «al tope adoptado en la hipótesis» en dos sitios, y en
+// el mismo documento, dos páginas después, la tabla de umbrales imprimía lo
+// contrario: «Umbral del 50 % adoptado por defecto (procedencia:
+// criterio_clasico): la hipótesis no declara `tiroAdmisible_pct`. Es la
+// práctica clásica, no una norma citada». Un criterio sin norma se declara
+// ADOPTADO; no se viste de decisión versionada del ingeniero (§ADR-013,
+// hallazgo 9).
+//
+// El dueño del criterio es `evaluarUmbrales`, así que la frase se DERIVA de su
+// indicador en vez de escribirse a mano. Sin indicadores —un informe generado
+// sin tabla de umbrales— se dice lo que es verdad hoy sin adornarlo.
+function topeDeTiro(indicadores) {
+  const ind = lista(indicadores).find((i) => i?.id === 'tiro_maximo_pct_rts');
+  const pct = Number.isFinite(ind?.umbral) ? ind.umbral : null;
+
+  if (pct === null) {
+    return 'el tope de tiro adoptado por defecto (50 % de la carga de rotura, criterio clásico sin '
+      + 'norma citada, fijado hoy en el motor de cálculo)';
+  }
+  return ind.procedenciaUmbral === 'hipotesis_declarada'
+    ? `el tope de tiro declarado en la hipótesis de la línea (${n(pct, 0)} % de la carga de rotura)`
+    : `el tope de tiro adoptado por defecto (${n(pct, 0)} % de la carga de rotura, criterio clásico `
+      + 'sin norma citada: la hipótesis no lo declara)';
+}
+
 // ── 4 · Cálculo mecánico por tramo ──────────────────────────────────────────
 
-function seccionMecanica(tramos, conductor, hipotesis) {
+function seccionMecanica(tramos, conductor, hipotesis, indicadores) {
   const C = objeto(conductor);
   const H = objeto(hipotesis);
   if (!tramos.length) {
@@ -465,11 +506,12 @@ function seccionMecanica(tramos, conductor, hipotesis) {
     <td class="num">${n(t?.flechaMax, 2)}</td></tr>`);
 
   const excedidos = tramos.filter((t) => t?.excede === true);
+  const tope = topeDeTiro(indicadores);
   const veredicto = excedidos.length
-    ? `<p class="aviso"><b>Atención:</b> ${n(excedidos.length)} tramo(s) superan el tope de tiro adoptado: `
+    ? `<p class="aviso"><b>Atención:</b> ${n(excedidos.length)} tramo(s) superan ${tope}: `
       + `${excedidos.map((t, i) => esc(String(t?.n ?? i + 1))).join(', ')}. `
       + 'El sistema señala el hecho; la decisión de aceptarlo, retensar o recalcular es del ingeniero.</p>'
-    : parrafo('Ningún tramo supera el tope de tiro adoptado en la hipótesis.');
+    : parrafo(`Ningún tramo supera ${tope}.`);
 
   return parrafo('Cada tramo de tensión se calcula con SU vano ideal de regulación (VIR = √(Σa³/Σa)), '
     + 'nunca con uno único para toda la línea: el tiro es común dentro del tramo y cambia entre tramos.')
@@ -567,12 +609,20 @@ function seccionCargas(cargas) {
   const conUtil = cargas.filter((c) => Number.isFinite(c?.utilizacion_pct));
   const revisar = cargas.filter((c) => c?.estadoUtilizacion === 'revisar');
 
+  // ⚠️ Las tres columnas de kgf salen del núcleo YA MULTIPLICADAS por el número
+  // de conductores (`ftAngulo = 2·sen(α/2) · H · n`), mientras el párrafo de
+  // arriba enuncia la fórmula POR CONDUCTOR. Sin el tiro y sin `n` a la vista,
+  // quien revisara el informe con una calculadora obtenía un TERCIO de la cifra
+  // impresa y no podía saber por qué (§ADR-013, hallazgo 4). Las dos columnas
+  // ya existían en el CSV; faltaban justo en el documento que se firma.
   const filas = cargas.map((c) => `<tr${c?.estadoUtilizacion === 'revisar' ? ' class="revisar"' : ''}>
     <td class="num">${n(c?.n)}</td>
     <td><b>${esc(c?.apoyo)}</b></td>
     <td>${esc(c?.funcionEstructural ?? SIN_DATO)}</td>
     <td class="num">${Number.isFinite(c?.deflexion_grados) ? `${n(c.deflexion_grados, 1)}°` : SIN_DATO}</td>
     <td class="num">${Number.isFinite(c?.factorAngulo) ? `${n(c.factorAngulo, 3)} ×` : SIN_DATO}</td>
+    <td class="num">${Number.isFinite(c?.tiro_kgf) ? n(c.tiro_kgf) : SIN_DATO}</td>
+    <td class="num">${Number.isFinite(c?.nConductores) ? n(c.nConductores) : SIN_DATO}</td>
     <td class="num">${Number.isFinite(c?.ftAngulo_kgf) ? n(c.ftAngulo_kgf) : SIN_DATO}</td>
     <td class="num">${Number.isFinite(c?.ftViento_kgf) ? n(c.ftViento_kgf) : SIN_DATO}</td>
     <td class="num">${Number.isFinite(c?.ftTotal_kgf) ? n(c.ftTotal_kgf) : SIN_DATO}</td>
@@ -591,7 +641,10 @@ function seccionCargas(cargas) {
 
   const capacidad = conUtil.length
     ? `<b>${n(conUtil.length)} de ${n(cargas.length)} apoyos</b> tienen capacidad declarada y por `
-      + `tanto veredicto${revisar.length ? `; ${n(revisar.length)} pide(n) revisión` : ', y todos cumplen'}.`
+      + `tanto veredicto${revisar.length ? `; ${n(revisar.length)} pide(n) revisión` : ', y todos cumplen'}. `
+      + `El semáforo de la última columna compara la utilización contra el <b>${n(UMBRAL_UTILIZACION_PCT)} % `
+      + 'adoptado</b>, que no es una norma citada sino un criterio de este proyecto: va escrito al pie '
+      + 'de la tabla, porque un semáforo sin fuente es una opinión con colores.'
     : `<b>Ningún apoyo declara su capacidad</b>, así que ninguna fila lleva veredicto. La tabla dice `
       + 'cuánto se les está pidiendo; no puede decir cuánto aguantan. Falta inventario —carga de '
       + 'rotura, altura libre y altura del punto de sujeción—, y hasta que llegue el estado correcto '
@@ -604,15 +657,27 @@ function seccionCargas(cargas) {
     + parrafo(titular)
     + parrafo(capacidad)
     + tabla({
-      leyenda: 'Carga TRANSVERSAL sobre cada estructura. Los apoyos extremos no llevan fila '
-        + 'calculada: su caso de carga dominante es el longitudinal, que este cálculo no evalúa.',
+      leyenda: 'Carga TRANSVERSAL sobre cada estructura. <b>Los kgf de las columnas Quiebre, Viento '
+        + 'y Total son los de TODOS los conductores del apoyo</b> —la fórmula de arriba es por '
+        + 'conductor, y la columna «Cond.» dice por cuántos se multiplicó—, de modo que la cifra se '
+        + 'puede reproducir con una calculadora: Quiebre = Factor × Tiro × Cond. Los apoyos extremos '
+        + 'no llevan fila calculada: su caso de carga dominante es el longitudinal, que este cálculo '
+        + 'no evalúa.',
       cabecera: '<th class="num">#</th><th>Apoyo</th><th>Función</th><th class="num">Deflexión</th>'
-        + '<th class="num">Factor</th><th class="num">Quiebre (kgf)</th><th class="num">Viento (kgf)</th>'
+        + '<th class="num">Factor</th><th class="num">Tiro (kgf)</th><th class="num">Cond.</th>'
+        + '<th class="num">Quiebre (kgf)</th><th class="num">Viento (kgf)</th>'
         + '<th class="num">Total (kgf)</th><th class="num">Utilización</th><th>Estado</th>',
       filas,
       pie: 'La utilización compara MOMENTOS, no fuerzas: la carga por la altura a la que actúa contra '
-        + `la rotura por la altura a la que se ensayó. ${NOTA_HUECO}`,
-    });
+        + `la rotura por la altura a la que se ensayó. ${CRITERIO_UTILIZACION} ${NOTA_HUECO}`,
+    })
+    // Lo que el motor supuso o no pudo resolver, agrupado y con sus apoyos. Sin
+    // esto, el semáforo de la última columna salía sin decir contra qué se
+    // comparó y la nota del núcleo «los cables de guarda NO están contados»
+    // —que sí llega a la pantalla y al CSV— no aparecía en el papel firmado
+    // (§ADR-013, hallazgos 4 y 11). El texto es del núcleo: no se reescribe.
+    + observacionesDeFilas(cargas, 'Lo que el cálculo de la carga transversal supuso o no pudo '
+      + 'resolver, y en qué apoyos. Escrito por el propio motor, no redactado a mano.');
 }
 
 // ── 7 · Carga longitudinal ──────────────────────────────────────────────────
@@ -678,23 +743,31 @@ function seccionLongitudinal(filas) {
       pie: `El mayor desequilibrio NO ocurre en el estado de mayor tiro: el tiro máximo es a mínima `
         + `temperatura, pero la mayor diferencia entre tramos es a MÁXIMA. ${NOTA_HUECO}`,
     })
-    + motivosLongitudinal(filas);
+    + observacionesDeFilas(filas, 'Lo que el cálculo del eje longitudinal supuso o no pudo resolver, '
+      + 'y en qué apoyos. Escrito por el propio motor, no redactado a mano.');
 }
 
 /**
- * Los motivos y supuestos que el núcleo escribió POR FILA.
+ * Los motivos y supuestos que el núcleo escribió POR FILA. La usan las DOS
+ * secciones de carga —la transversal y la longitudinal—, porque el agujero era
+ * el mismo en las dos: la tabla pinta columnas de números y ninguna es el
+ * motivo, así que el papel firmado se quedaba sin lo que el propio motor había
+ * escrito. Dos ejemplos reales de lo que se perdía:
  *
- * Se perdían: la tabla pinta nueve columnas y ninguna es el motivo, así que el
- * papel firmado se quedaba sin el aviso del PISO DE VALIDEZ — cuando un tramo
- * contiguo cae por debajo del 25 % de su propio EDS, el desequilibrio lo domina
- * un tramo prácticamente flojo EN EL MODELO, y el propio núcleo lo llama
- * «numéricamente el mismo fallo que un hueco convertido en cero, pero que entra
- * por un número calculado». Eso llegaba al CSV y a la pantalla, y no al informe.
+ * · en el eje LONGITUDINAL, el aviso del PISO DE VALIDEZ — cuando un tramo
+ *   contiguo cae por debajo del 25 % de su propio EDS, el desequilibrio lo
+ *   domina un tramo prácticamente flojo EN EL MODELO, y el propio núcleo lo
+ *   llama «numéricamente el mismo fallo que un hueco convertido en cero, pero
+ *   que entra por un número calculado»;
+ * · en el TRANSVERSAL, «los cables de guarda NO están contados», que deja la
+ *   carga corta justo en los apoyos más cargados.
+ *
+ * Los dos llegaban al CSV y a la pantalla, y ninguno al informe (§ADR-013).
  *
  * Se agrupan por texto idéntico, igual que en la pantalla: veinticuatro veces el
  * mismo párrafo tapa a las tres filas que dicen algo distinto.
  */
-function motivosLongitudinal(filas) {
+function observacionesDeFilas(filas, leyenda) {
   const grupos = new Map();
   for (const f of filas) {
     for (const [texto, esMotivo] of [
@@ -714,8 +787,7 @@ function motivosLongitudinal(filas) {
     .sort((a, b) => Number(b.esMotivo) - Number(a.esMotivo) || a.apoyos.length - b.apoyos.length);
 
   return tabla({
-    leyenda: 'Lo que el cálculo del eje longitudinal supuso o no pudo resolver, y en qué apoyos. '
-      + 'Escrito por el propio motor, no redactado a mano.',
+    leyenda,
     cabecera: '<th>Apoyos</th><th>Observación</th>',
     filas: orden.map((g) => `<tr><td>${esc(g.apoyos.length > 4
       ? `${n(g.apoyos.length)} apoyos` : g.apoyos.join(', '))}</td>
@@ -1043,16 +1115,29 @@ export function limitacionesDeclaradas(entrada) {
         'carga sobre las estructuras');
     }
 
+    // ⚠️ El TÍTULO y el CUERPO de estos dos límites se bifurcan JUNTOS. Cuando
+    // se añadió la sección longitudinal se bifurcó solo el título y el cuerpo
+    // se quedó enumerando el eje longitudinal entre los no evaluados —en la
+    // misma página en que ese eje ya venía publicado, dos secciones antes—; y
+    // el límite de los extremos seguía diciendo que su verificación «está
+    // pendiente». No falsea ninguna cifra, pero desafina justo en la única
+    // sección cuyo valor entero es ser exacta sobre el alcance (§ADR-013,
+    // hallazgo 16).
     const extremos = cargas.filter((c) => c?.esExtremo === true);
     if (extremos.length) {
+      const nombresExtremos = extremos.map((c) => String(c?.apoyo ?? '')).filter(Boolean).join(' y ');
       add(extremos.length === 1
-        ? 'El apoyo extremo no está verificado'
-        : `Los ${n(extremos.length)} apoyos extremos no están verificados`,
-        `${extremos.map((c) => String(c?.apoyo ?? '')).filter(Boolean).join(' y ')}: un extremo no `
-        + 'tiene deflexión definida y su caso de carga dominante es el LONGITUDINAL —el conductor '
-        + 'tirando en la dirección de la línea sin nada que lo compense al otro lado—, que es otro '
-        + 'eje. Que no tengan fila no significa que estén holgados: significa que su verificación '
-        + 'es otra y está pendiente.', 'carga sobre las estructuras');
+        ? 'El apoyo extremo no está verificado en la carga transversal'
+        : `Los ${n(extremos.length)} apoyos extremos no están verificados en la carga transversal`,
+        `${nombresExtremos}: un extremo no tiene deflexión definida y su caso de carga dominante es `
+        + 'el LONGITUDINAL —el conductor tirando en la dirección de la línea sin nada que lo '
+        + 'compense al otro lado—, que es otro eje. ' + (longitudinal.length
+          ? 'Esa carga longitudinal SÍ se calcula y se publica en la sección 7 de este informe, pero '
+            + 'SIN veredicto: falta la capacidad declarada para ese eje. Que no tengan fila en esta '
+            + 'tabla no significa que estén holgados.'
+          : 'Que no tengan fila no significa que estén holgados: significa que su verificación es '
+            + 'otra y está pendiente.'),
+        'carga sobre las estructuras');
     }
 
     // Va SIEMPRE que haya tabla de cargas, aunque todo lo demás esté completo:
@@ -1060,10 +1145,17 @@ export function limitacionesDeclaradas(entrada) {
     add(longitudinal.length
       ? 'La carga VERTICAL (vano peso) sigue sin evaluarse'
       : 'Solo se evaluó la carga TRANSVERSAL',
-      'La vertical (vano peso) depende de la cota del punto de sujeción, que no está levantada; la '
-      + 'longitudinal es el desequilibrio de tiros entre tramos contiguos y la rotura de conductor. '
-      + 'Son otros ejes y no se suman a estas cifras. Un apoyo con la transversal holgada puede '
-      + 'estar comprometido en cualquiera de los dos.', 'carga sobre las estructuras');
+      longitudinal.length
+        ? 'La vertical (vano peso) depende de la cota del punto de sujeción, que no está levantada, '
+          + 'así que este informe no dice nada de ella. La LONGITUDINAL sí se calculó y se publica '
+          + 'en la sección 7, pero sin veredicto: hay cifras, no dictamen. Los tres ejes no se '
+          + 'suman entre sí, y un apoyo con la transversal holgada puede estar comprometido en '
+          + 'cualquiera de los otros dos.'
+        : 'La vertical (vano peso) depende de la cota del punto de sujeción, que no está levantada; '
+          + 'la longitudinal es el desequilibrio de tiros entre tramos contiguos y la rotura de '
+          + 'conductor. Son otros ejes y no se suman a estas cifras. Un apoyo con la transversal '
+          + 'holgada puede estar comprometido en cualquiera de los dos.',
+      'carga sobre las estructuras');
   }
 
   // 10b · El eje longitudinal, cuando se evaluó: lo que ese eje TAMPOCO demuestra.
@@ -1074,6 +1166,35 @@ export function limitacionesDeclaradas(entrada) {
         'Su desequilibrio calculado queda por debajo de lo que pesaría una diferencia de tendido '
         + 'de obra del 1 % de la carga de rotura. El valor se publica; el sentido no se afirma, '
         + 'porque en el terreno podría apuntar al lado contrario.', 'carga longitudinal');
+    }
+
+    // El PISO DE VALIDEZ. El núcleo lo escribe en la nota de la fila y él mismo
+    // lo llama «numéricamente el mismo fallo que un hueco convertido en cero,
+    // pero que entra por un número CALCULADO»: la cifra sale limpia y lo que la
+    // domina es un tramo que en el MODELO está prácticamente flojo. Un límite
+    // así pertenece a esta sección, no solo al pie de una tabla.
+    const flojos = longitudinal.filter((c) =>
+      lista(c?.notas).some((x) => /prácticamente flojo EN EL MODELO/i.test(String(x))));
+    if (flojos.length) {
+      add(`${n(flojos.length)} apoyo(s) con un lado que se derrumba EN EL MODELO`,
+        `${flojos.map((c) => String(c?.apoyo ?? '')).filter(Boolean).join(', ')}: en alguno de los `
+        + 'estados evaluados, uno de sus dos tramos baja por debajo del 25 % de su propio EDS. Por '
+        + 'debajo de ese piso el modelo de cambio de estado y el supuesto de tensión común dejan de '
+        + 'ser fiables, así que ese desequilibrio lo domina un tramo flojo en el modelo, no en el '
+        + 'terreno. La cifra se publica; sostenerla exige comprobar el tendido real.',
+        'carga longitudinal');
+    }
+
+    // Y las filas que no dieron número: el informe muestra guiones y la
+    // etiqueta, pero el POR QUÉ solo estaba en la tabla — mientras que para la
+    // carga transversal sí se cuenta y se nombra unas líneas más arriba.
+    const sinNumero = longitudinal.filter((c) => c?.caso === 'no_evaluable' || c?.noEvaluable);
+    if (sinNumero.length) {
+      add(`${n(sinNumero.length)} fila(s) del eje longitudinal sin número`,
+        `${sinNumero.map((c) => String(c?.apoyo ?? '')).filter(Boolean).join(', ')}. El motivo de `
+        + 'cada una va escrito bajo la tabla de la sección 7, con las palabras del propio motor. '
+        + 'Un guion ahí no es un cero: es un apoyo del que este informe no afirma nada en ese eje.',
+        'carga longitudinal');
     }
     add('El desequilibrio longitudinal supone que todos los tramos se tensaron IGUAL',
       'La hipótesis de la línea declara un solo porcentaje de tendido, así que el modelo tensa '
@@ -1192,7 +1313,7 @@ export function informeHtml(entrada) {
   const cuerpo = [
     { titulo: 'Resumen ejecutivo', html: resumenEjecutivo(lev, tramos, indicadores, conductor) },
     { titulo: 'Calidad del levantamiento', html: seccionCalidad(calidad) },
-    { titulo: 'Cálculo mecánico por tramo de tensión', html: seccionMecanica(tramos, conductor, hipotesis) },
+    { titulo: 'Cálculo mecánico por tramo de tensión', html: seccionMecanica(tramos, conductor, hipotesis, indicadores) },
     { titulo: 'Detalle vano a vano', html: seccionVanos(grupos) },
     // Va tras los vanos y antes de los umbrales: las tres tablas de cálculo
     // seguidas (tramo → vano → apoyo), y después la de criterios, que cierra.

@@ -16,13 +16,30 @@ workers_dev = true
 
 [vars]
 PROYECTO_FIREBASE = "mantenimiento-lineas-at"
-# Solo la aplicación publicada puede pedir evidencias desde el navegador.
+# Origen que se devuelve en la cabecera CORS.
+#
+# ⚠️ NO es un control de acceso, y antes este renglón decía que lo era («solo la
+# aplicación publicada puede pedir evidencias desde el navegador»). CORS impide
+# que OTRA página LEA la respuesta; no impide pedirla, y no impide absolutamente
+# nada fuera de un navegador — un `curl` con un token válido pasa igual. Lo
+# único que decide quién entra es la firma del token y el reclamo `orgId`
+# (§ADR-013, hallazgo 19).
 ORIGEN_PERMITIDO = "https://mantenimiento-lineas-at.pages.dev"
-# La organización dueña del dato. Una sesión válida de otra empresa no pasa.
+# La organización dueña del dato. Una sesión válida de otra empresa no pasa, y
+# si esta variable falta el portero se APAGA en vez de abrirse (503).
 ORG_PERMITIDA = "transpower"
 
-# El depósito se enlaza por binding: el trabajador puede LEER de él, y el
-# depósito nunca queda accesible desde internet por su cuenta.
+# El depósito se enlaza por binding.
+#
+# ⚠️ Un `[[r2_buckets]]` NO tiene modo de solo lectura: el binding expone el
+# `R2Bucket` completo, con `put`, `delete` y `list`. Que este trabajador solo
+# llame a `.get()` es una COSTUMBRE del código, no un permiso de la plataforma,
+# y antes estaba escrito aquí como si fuera lo segundo. Si algún día hace falta
+# que sea un permiso de verdad: versionado de objetos en el depósito, o servirlo
+# por la API S3 con una llave de alcance solo-lectura (§ADR-013, hallazgo 19).
+#
+# Lo que sí es cierto: el depósito nunca queda accesible desde internet por su
+# cuenta — nace privado y no se publica.
 [[r2_buckets]]
 binding = "EVIDENCIAS"
 bucket_name = "lineas-at-evidencias"

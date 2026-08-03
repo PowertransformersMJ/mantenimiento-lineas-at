@@ -232,6 +232,12 @@ function indicadorTiroAdoptado(tramos, tiros, rts_kgf, hipotesis) {
     etiqueta: 'Tiro máximo (peor estado) frente al tope adoptado',
     unidad: '% RTS',
     umbral,
+    // ADITIVO (§ADR-013, hallazgo 9): de dónde salió el umbral, como CAMPO y no
+    // solo dentro de la prosa de `criterio`. El informe firmable atribuía el
+    // tope «a la hipótesis» cuando la hipótesis no lo declaraba, y quien quiera
+    // repetir esa frase correctamente no debería tener que leerse un párrafo
+    // con una expresión regular. Un dato que otro módulo necesita es un campo.
+    procedenciaUmbral: procedencia,
     comparador: '<=',
     fuente: declarado != null
       ? (hipotesis.normaReferencia || 'hipótesis de cálculo de la línea')
