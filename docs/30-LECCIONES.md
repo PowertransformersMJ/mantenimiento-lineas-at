@@ -177,61 +177,45 @@
   módulos en el navegador con datos SINTÉTICOS + revisión visual del estado sin sesión. No insistir
   con variantes del mismo comando: el bloqueo es intencional.
 
-### L-18 · "Deployment complete" NO significa que el dominio raíz ya sirva lo nuevo
-- **Síntoma:** `npm run deploy` imprime *"✨ Deployment complete"* con una URL por hash, el
-  despliegue aparece como **Production/main** en `wrangler pages deployment list`, esa URL por hash
-  ya sirve el paquete nuevo… y `https://mantenimiento-lineas-at.pages.dev` sigue entregando el
-  bundle ANTERIOR durante un rato. El Ingeniero recarga, no ve nada nuevo, y concluye —con razón—
-  que no se hizo el trabajo.
-- **Causa:** el alias del dominio raíz propaga por el borde de Cloudflare con retraso propio, aunque
-  el HTML se sirva con `cache-control: no-cache, must-revalidate`.
-- **Regla:** *no declarar un despliegue como vivo por lo que imprime el comando.* Verificar así, y
-  citar la evidencia: `ls web/dist/assets/ | grep index-` (hash local) contra
-  `curl -s https://…pages.dev/ | grep -o 'assets/index-[^"]*\.js'` (hash servido). Si difieren,
-  esperar con `until curl … | grep -q '<hash>'; do sleep 5; done` ANTES de decirle nada al
-  Ingeniero. Es la aplicación literal de §3.2 (*verifica, no asumas*) al despliegue.
-- **Segundo punto ciego (2026-08-01): que `curl` vea el hash nuevo NO significa que el NAVEGADOR lo
-  vea.** Chrome sirvió el `index.html` de su caché tres veces seguidas —incluso navegando con
-  `?recarga=N`, que cambia la URL pero no lo que ya tiene guardado—, así que la pantalla verificada
-  era la ANTERIOR y dos defectos reales pasaron por buenos. `curl` prueba el borde; el navegador es
-  otra caché. **Preguntarle a la pestaña qué cargó**, y recargar en duro si no coincide:
-  `[...document.querySelectorAll('script[src]')].map(s => s.src)` · `cmd+shift+r`.
-- **Por qué el HTML es el que manda (antes `L-11c`):** el `index.html` decide QUÉ paquete de
-  JavaScript se pide, y lleva huella en el nombre. Con el HTML viejo en caché se sigue pidiendo el
-  JavaScript viejo aunque el nuevo esté publicado — y eso **enmascara diagnósticos**: parece que el
-  arreglo falló cuando ni siquiera se ejecutó. `web/public/_headers` fija `no-cache` para el HTML y
-  caché eterna para `/assets/*`. Al pedirle a alguien que verifique un arreglo, decirle SIEMPRE que
-  recargue forzado.
+### L-18 · Un despliegue no está vivo hasta que lo ves EN LA PESTAÑA
+- **Tres cachés en serie, y cada una engañó una vez:**
+  1. **El comando miente.** `npm run deploy` imprime *"Deployment complete"* y el dominio raíz sigue
+     sirviendo el paquete ANTERIOR un rato: el alias propaga por el borde con retraso propio.
+  2. **El HTML manda.** `index.html` decide QUÉ paquete se pide; con el HTML viejo en caché se sigue
+     pidiendo el JavaScript viejo aunque el nuevo esté publicado. `web/public/_headers` fija
+     `no-cache` para el HTML y caché eterna para `/assets/*`, que llevan huella en el nombre.
+  3. **El navegador tiene la suya.** Que `curl` vea el hash nuevo NO significa que Chrome lo vea:
+     sirvió su HTML cacheado tres veces seguidas —incluso con `?recarga=N`, que cambia la URL pero
+     no lo guardado—, así que la pantalla verificada era la ANTERIOR y dos defectos pasaron por
+     buenos.
+- **Regla, en dos comprobaciones:** contra el borde, `curl -s https://…/ | grep -o
+  'assets/index-[^"]*\.js'` frente a `ls web/dist/assets/`; contra el navegador, **preguntarle a la
+  pestaña qué cargó** (`[...document.querySelectorAll('script[src]')].map(s => s.src)`) y recargar
+  en duro. Y a quien verifique, decirle siempre que recargue forzado. Es §3.2 aplicado al despliegue.
 
-### L-19 · Una regex que decide una regla de dominio es una bomba de tiempo (y se disfrazó de lista)
-- **Síntoma:** `nucleo/mecanica.js` decidía qué apoyo corta un tramo de tensión con
-  `/retenci|terminal|ángulo|angulo|derivaci/i` — y la constante se llamaba `FUNCIONES_ANCLA`,
-  **el mismo nombre** que la lista cerrada del contrato. Dos cosas distintas con el mismo nombre.
-- **Por qué importa:** el corte de tramo gobierna TODO el cálculo mecánico. La regex aceptaba
-  cualquier texto que contuviera la sílaba (`'poste terminal viejo'`), y tres pruebas de oro usaban
-  `'Retención'` a secas — que **no es un valor del contrato** (`'Retención / anclaje'`). Pasaban por
-  casualidad, no por corrección.
-- **Regla:** las reglas de dominio se expresan como **listas cerradas**, nunca como coincidencia de
-  texto. Y cuando la misma lista debe existir en dos sitios porque `nucleo/` no puede importar nada,
-  la coincidencia **la vigila una prueba** que lee el otro archivo y compara — no la memoria.
-- **Cómo se cazó:** el Ingeniero desconfió del reporte y pidió verificación adversarial. Un
-  escéptico encontró la regex viva en el paquete PUBLICADO. *Reportar "hecho" sin verificar contra
-  producción es cómo se cuela esto.*
+### L-19 · Una regla de dominio se expresa como LISTA CERRADA, y la lista lleva guardián
+- **Síntoma (1):** `nucleo/mecanica.js` decidía qué apoyo corta un tramo con una **regex**
+  (`/retenci|terminal|ángulo|.../i`) llamada igual que la lista cerrada del contrato. Aceptaba
+  cualquier texto que contuviera la sílaba, y tres pruebas de oro usaban `'Retención'` a secas —que
+  **no es un valor del contrato**— pasando por casualidad.
+- **Síntoma (2), meses después:** `nucleo/longitudinal.js` duplicó esa lista y le faltó
+  `'Derivación'`. Un apoyo de derivación publicaba **cero** carga longitudinal en el informe
+  firmable, y las 555 pruebas seguían verdes (`99 §ADR-013`).
+- **Regla, las dos mitades:** las reglas de dominio son **listas cerradas**, nunca coincidencia de
+  texto; y cuando la misma lista debe existir en dos sitios porque `nucleo/` no puede importar
+  nada, **la coincidencia la vigila una prueba** que lee el otro archivo y compara. Sin guardián la
+  lista diverge, y el día que lo haga nadie se entera. Cazado por revisión adversarial: *reportar
+  «hecho» sin verificar contra producción es cómo se cuela esto.*
 
 ### L-20 · La pantalla no puede prometer lo que el archivo no cumple
-- **Síntoma:** la pestaña Exportar afirmaba *"Todos llevan su procedencia adentro: versión del
-  exportador, hipótesis, sistema de referencia y precisión del GPS"*. Era falso para uno de los
-  cuatro: el CSV **de datos crudos** no la lleva, porque una cabecera de comentarios rompe el
-  RFC 4180 que esperan pandas y QGIS — omisión correcta, pero la frase decía lo contrario.
-- **Por qué importa más que un texto:** es exactamente el tipo de afirmación que un cliente
-  comprueba abriendo el archivo. Una promesa incumplida en la interfaz destruye la confianza en
-  TODAS las demás cifras, incluidas las que sí son correctas.
-- **Regla:** cuando una decisión de diseño crea una excepción, **la excepción se dice en la misma
-  frase**, con su motivo, y se **fija con una prueba** que falle si alguien la "arregla" sin
-  pensarlo. Aquí: el crudo declara su procedencia columna por columna (`Precision_m`, `Metodo`,
-  `Sistema_referencia`) y su fecha en el nombre del archivo; eso es lo que dice ahora la pantalla.
-- **Cómo se cazó:** un escéptico GENERÓ los cuatro archivos de verdad con node y los leyó, en vez
-  de leer el código. *Verificar un entregable es producirlo y abrirlo, no releer la función.*
+- **Síntoma:** la pestaña Exportar afirmaba *"Todos llevan su procedencia adentro"*. Era falso para
+  uno de los cuatro: el CSV de datos crudos NO la lleva, porque una cabecera de comentarios rompe el
+  formato RFC 4180 que esperan QGIS, pandas y R.
+- **Regla:** toda promesa de la interfaz sobre un entregable se comprueba contra el entregable
+  GENERADO, no contra la intención. Si un formato no puede cumplirla, la pantalla dice **cuál** y
+  **por qué** — aquí, que ese archivo declara su procedencia columna por columna en vez de en
+  cabecera. Una promesa general que falla en un caso es peor que una promesa con su excepción
+  escrita: la primera se descubre delante del cliente.
 
 ### L-21 · "Se ve muy oscuro / no se ve de alto nivel" casi nunca es la paleta
 - **Síntoma:** el Ingeniero pidió *"un entorno igual al archivo html, el que tenemos es muy oscuro"*.
@@ -261,50 +245,36 @@
 
 ### L-23 · Una coordenada real dentro de una PRUEBA es una fuga igual que en el código
 - **Síntoma:** `tests/exportar.test.js` afirmaba `filas[1].includes('10.35••••')` — la latitud real
-  de una estructura de la LN-627, escrita en un repositorio **público**. Pasó mi propia auditoría
-  de fugas dos veces porque yo buscaba en `web/src` y en el paquete publicado, no en `tests/`.
-- **Recaída, 2026-08-01:** al corregir el código la coordenada se copió **a esta misma lección** y
-  sobrevivió porque `docs/` no se grepeaba de verdad. Si un dato no hace falta para explicar, no se
-  escribe: el ejemplo se entiende igual enmascarado.
-- **Por qué se cuela:** al escribir una prueba de formato uno copia el valor observado de la
-  salida real para que la aserción sea concreta. Es el gesto natural, y es justo el que filtra.
-- **Regla:** en las pruebas, el valor esperado se **DERIVA del fixture de la bóveda**
-  (`crudo[0].lat.toFixed(6)`), nunca se escribe literal. Y la auditoría previa al commit incluye
-  `tests/`, `herramientas/` y `docs/`, no solo el código de la aplicación:
-  `grep -rnE '\b10\.3[45][0-9]{4}\b|\b-?75\.4[89][0-9]{4}\b' --include='*.js' --include='*.ts' .`
-- **Alcance:** la historia de git es permanente (`L-07`), así que el valor sigue en los commits
-  antiguos. Se corrigió hacia adelante; si algún día importa de verdad, exige reescribir historia.
+  de una estructura, en un repositorio **público**. Pasó la auditoría de fugas dos veces porque se
+  buscaba en `web/src` y en el paquete publicado, no en `tests/`.
+- **Recaída (2026-08-01):** al corregirlo, la coordenada se copió **a esta misma lección** y
+  sobrevivió porque `docs/` no se grepeaba de verdad.
+- **Regla:** en las pruebas el valor esperado se **DERIVA del fixture de la bóveda**
+  (`crudo[0].lat.toFixed(6)`), nunca se escribe literal. La auditoría previa al commit cubre
+  `tests/`, `herramientas/` y `docs/`:
+  `grep -rnE '\b10\.3[45][0-9]{4}\b|\b-?75\.4[89][0-9]{4}\b' .`
+  Y si un dato no hace falta para explicar, no se escribe. **Alcance:** la historia de git es
+  permanente (`L-07`): se corrige hacia adelante.
 
 ### L-24 · Un agente que muere deja código SIN VALIDAR, no código roto
-- **Síntoma:** 4 de 6 constructores cayeron con *«API Error: Connection closed mid-response»*. Sus
-  módulos estaban escritos y la suite pasaba **418/418 en verde** — porque las pruebas que faltaban
-  eran justo las de esos módulos. Verde total, cobertura cero en lo nuevo.
-- **Por qué engaña:** el número de pruebas que pasan sube igual (los otros agentes sí las
-  escribieron), así que el tablero dice «todo bien» mientras dos módulos entran a producción sin
-  que nadie los haya ejercitado.
-- **Regla:** cuando un agente muere, **inventariar sus archivos entregables uno a uno** —
-  especialmente `tests/` — y escribir a mano lo que falte ANTES de integrar. Un `npm test` verde no
-  prueba que exista prueba: prueba que las que existen pasan.
-- **Resultado aquí:** las dos suites escritas a mano (15 + 12 pruebas) encontraron que ambos
-  módulos eran correctos. La única corrección fue de MI prueba, que buscaba el escapado en un campo
-  que el informe no imprime. *Escribir la prueba después también sirve para descubrir qué hace de
-  verdad el módulo.*
+- **Síntoma:** 4 de 6 constructores cayeron con *«Connection closed mid-response»*. Sus módulos
+  estaban escritos y la suite pasaba **418/418 en verde** — porque las pruebas que faltaban eran
+  justo las de esos módulos. Verde total, cobertura cero en lo nuevo.
+- **Por qué engaña:** el contador de pruebas que pasan SUBE igual (los otros agentes sí las
+  escribieron), así que el tablero dice «todo bien» mientras dos módulos entran a producción sin que
+  nadie los haya ejercitado.
+- **Regla:** cuando un agente muere, **inventariar sus entregables uno a uno** —sobre todo
+  `tests/`— y escribir a mano lo que falte ANTES de integrar. Un `npm test` verde no prueba que
+  exista prueba. Emparenta con `L-28` y con `L-33`.
 
-### L-25 · Un alta «gratuita» puede esconder un formulario de pago — y ahí Claude se detiene
-- **Síntoma:** el Ingeniero autorizó pulsar «Add R2 subscription to my account» (0,00 USD, 10 GB
-  gratis). El botón no cobraba nada… pero abría un **checkout con campos de tarjeta y dirección de
-  facturación**, más una casilla de *«autorizo a Cloudflare a cobrar a esta tarjeta el consumo que
-  exceda los límites»*.
-- **Regla:** Claude puede pulsar un botón que el dueño autorizó explícitamente **tras enseñarle el
-  texto legal exacto**, pero **NUNCA escribe datos de tarjeta ni dirección de facturación**, con
-  autorización o sin ella. Se para, deja el formulario abierto en la pestaña del dueño y le dice
-  exactamente qué falta.
-- **Cómo se hace bien:** (1) abrir la página y LEERLA antes de tocar nada; (2) citar el texto legal
-  literal (renovación automática, cargo al medio de pago, términos); (3) señalar el choque con las
-  reglas del propio proyecto —aquí, *«se prefiere el servicio que APAGA al que COBRA»*, y R2 cobra;
-  (4) pedir confirmación explícita para ESE clic; (5) detenerse en el primer campo de pago.
-- **Lección general:** «gratis» describe el precio, no el flujo. Antes de prometer que un alta es
-  inocua, hay que ver el formulario — el importe puede ser 0,00 y aun así exigir tarjeta.
+### L-25 · Un alta «gratuita» puede esconder un formulario de pago, y ahí Claude se detiene
+- **Hecho:** el alta de R2 costaba 0,00 USD/mes y aun así exigía **tarjeta y dirección de
+  facturación** antes de activar nada. «Gratis» describe el precio, no el flujo.
+- **Regla, y es un límite duro, no una preferencia:** Claude NO rellena datos de pago, ni con
+  autorización explícita, ni si se los dictan. Lo que sí hace: llegar al formulario y parar; leer y
+  resumir lo que se firma (importe, renovación, qué se cobra al pasarse); contrastarlo con la regla
+  del proyecto (*se prefiere el servicio que APAGA al que COBRA*, y R2 **cobra**); dar el enlace
+  directo diciendo qué escribir; y proponer la alerta de presupuesto al terminar. Ver `L-02`.
 
 ### L-26 · El núcleo escribe con PUNTO decimal, y en Colombia el punto son miles
 - **Síntoma:** la frase estrella de la pestaña Cargas decía *"multiplica la tensión por 1.726"*. En
@@ -331,20 +301,16 @@
   y se prueba.
 
 ### L-28 · Un módulo construido y probado que ninguna pantalla llama es INVISIBLE
-- **Síntoma, dos veces en dos semanas:** `nucleo/cargas.js` (carga transversal, con sus pruebas de
-  oro) y `web/src/componentes/FichaCriterios.tsx` (el semáforo por apoyo, con su capa pura y sus
-  pruebas) estaban terminados y **no los llamaba nadie**. Grep en todo el repositorio:
+- **Síntoma, dos veces en dos semanas:** `nucleo/cargas.js` y `web/src/componentes/FichaCriterios.tsx`
+  estaban terminados, con sus pruebas, y **no los llamaba nadie**. Grep en todo el repositorio:
   `FichaCriterios` solo se referenciaba a sí mismo.
 - **Por qué se cuela:** `npm test` sale verde —las pruebas del módulo pasan— y el inventario de
-  tareas lo da por hecho. El módulo *existe*; lo que no existe es su camino hasta el usuario. Es el
-  primo hermano de `L-24`: allí el agente muere y el código queda sin validar; aquí el código está
-  validado y queda sin conectar.
+  tareas lo da por hecho. El módulo *existe*; lo que no existe es su camino hasta el usuario.
 - **Regla:** una tarea de construcción no está cerrada hasta que **algo que el usuario ve** lo
   llama. Antes de marcar hecho: `grep -rn "<nombreDelModulo>" web/src exportar nucleo` y comprobar
   que aparece **fuera de sí mismo y de sus pruebas**. Si el único importador es su test, está
-  muerto.
-- **Barrido preventivo:** el gate `anti-codigo-muerto` cubre exportaciones sin uso dentro de un
-  archivo, no módulos enteros huérfanos. Merece una comprobación propia en CI.
+  muerto. El gate `anti-codigo-muerto` cubre exportaciones sin uso dentro de un archivo, no módulos
+  enteros huérfanos.
 
 ### L-29 · Para afirmar que algo va en los DOS sentidos, mira el MENOR, no el mayor
 - **Síntoma:** la pestaña Cargas anunciaba «5 apoyos tiran hacia LOS DOS lados» y en tres de ellos
@@ -372,3 +338,40 @@
   `new Image()` con el mismo `src`. Si la copia carga y el original no, el problema es del ELEMENTO
   (atributos, estilos, ciclo de vida), no del dato ni de la red. Aquí ese contraste separó «no
   llegan las fotos» de «llegaron y no se pintan», que son dos investigaciones distintas.
+
+### L-31 · La seguridad que depende de que una variable ESTÉ no es seguridad
+- **Síntoma:** el portero de fotos comprobaba la organización con
+  `if (ORG_PERMITIDA && sesion.orgId !== ORG_PERMITIDA)`. Con la variable puesta funcionaba; sin
+  ella **la comprobación entera se saltaba** y cualquier sesión válida del proyecto —o sea,
+  cualquiera con una cuenta de Google, porque el alta es abierta— bajaba fotos de cliente. Nada
+  fallaba y nada avisaba.
+- **La asimetría que lo delata:** su hermano `PROYECTO_FIREBASE` sí cierra la puerta al faltar,
+  porque la comparación lanza. Dos variables igual de críticas, comportamientos opuestos ante la
+  misma ausencia. **Si dos comprobaciones del mismo módulo fallan en sentidos distintos, una está
+  mal.**
+- **Regla:** toda variable de la que dependa una decisión de acceso se valida al ENTRAR, y su
+  ausencia APAGA el servicio con un motivo ruidoso (503), nunca lo abre. Un 503 se arregla en un
+  minuto; una fuga silenciosa no se descubre hasta que ya pasó.
+
+### L-32 · Un guardián que cuenta INTENTOS no cuenta nada
+- **Síntoma:** `if (!porEstado.length) return no_evaluable` parecía blindar la fila. Pero
+  `porEstado` recoge un objeto por cada estado PROCESADO, y esos objetos pueden traer
+  `flPorConductor_kgf: null`. Con el ángulo sin resolver, el array tenía cuatro entradas y ninguna
+  cifra: el guardián no disparaba, y aguas abajo `Math.max(null ?? 0, null ?? 0)` convertía el hueco
+  en un cero que se publicó **en prosa** dentro del informe firmable.
+- **Regla:** el guardián se pone sobre el RESULTADO que se va a publicar, no sobre la colección
+  intermedia. Y el patrón `x ?? 0` merece sospecha permanente en este proyecto: es la forma más
+  corta de convertir «no se sabe» en «vale cero».
+
+### L-33 · Escribir la prueba y auditar el resultado son dos trabajos distintos
+- **Síntoma:** 555 pruebas en verde, escritas con cuidado, ancladas a identidades físicas… y una
+  auditoría adversarial de cuatro lentes encontró nueve fallos, cuatro de ellos capaces de meter un
+  número falso en un informe firmado. Ninguna prueba estaba mal: **medían lo que yo pensé medir**.
+- **Los tres puntos ciegos que se repitieron:** (a) el fixture escondía el caso — los dos tramos
+  picaban en el mismo estado, así que tomar el pico del lado equivocado daba igual; (b) el tercer
+  estado (`null`) no tenía prueba, solo `true` y `false`; (c) nadie ejercía el módulo SIN su
+  configuración.
+- **Regla:** tras construir algo con consecuencias, la revisión la hace una lente AJENA con encargo
+  de refutar, no el mismo que lo escribió — y sus hallazgos se **reproducen ejecutando** antes de
+  aceptarlos (§3.2). Barato de comprobar: si al fixture le cambias un valor y ninguna prueba se pone
+  roja, esa prueba no estaba midiendo lo que crees.

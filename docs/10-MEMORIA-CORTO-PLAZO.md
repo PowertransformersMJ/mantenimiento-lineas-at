@@ -9,7 +9,7 @@
 ## 🎯 Dónde estamos
 
 **11 pestañas vivas**: Resumen · Distancias · Fichas · **Falla** · Fundamentos · Mecánico ·
-**Térmica** · **Viento** · **Cargas** · **Cantidades** · Exportar. **555 pruebas** en verde.
+**Térmica** · **Viento** · **Cargas** · **Cantidades** · Exportar. **564 pruebas** en verde.
 Producción al día (verificada en el navegador, no solo por hash — ver `L-18`, segundo punto ciego).
 
 La migración del módulo de campo original está cerrada en sus P0. El inventario de brechas
@@ -73,7 +73,9 @@ en el crudo de la bóveda.
 | **TODO-41** | Alta ADITIVA en el contrato de `capacidadLongitudinal {valor_kgf, tipo, alturaReferencia_m, fuente}`: sin ella NINGÚN apoyo tiene veredicto en el eje longitudinal | 🔲 sigue a ADR-012 |
 | **TODO-42** | **Informe gerencial** — el workflow dejó su especificación (10 secciones) en el crudo de ADR-012 | 🔲 |
 | **TODO-37** | **Informe gerencial** del expediente (control documental, riesgo residual, recomendaciones) — inventariado en el crudo de ADR-009 | 🔲 |
-| **TODO-30** | CI: validación XSD real de GPX/KML (xmllint + esquemas en el repo) | 🔲 |
+| **TODO-46** | **Shard del nodo 30**: 33 lecciones, 378 líneas sobre un tope de 350. Se ha destilado ~75 líneas en dos sesiones y sigue creciendo. Partirlo por tema (proveedores · dominio · proceso) toca `CLAUDE.md §0`, el manifiesto y el índice: es cambio de arquitectura del cerebro, no poda | 🔲 |
+| **TODO-45** | **11 hallazgos MENORES de la auditoría** (ADR-013): el informe publica la carga ya multiplicada junto a la fórmula «por conductor» · el semáforo de utilización sin umbral ni fuente · celdas CSV que Excel evalúa como fórmula · `levSeguro` fabrica `longitud_m: 0`. Detalle en el crudo | 🔲 |
+| **TODO-30** | CI: validación XSD real de GPX/KML (xmllint + esquemas en el repo) — el plan está en el crudo de ADR-013 | 🔲 |
 | **TODO-11** | F1 · Nota técnica LN-627 con las correcciones de la auditoría | 🔲 |
 | **TODO-13/14/15/16/21/22/23** | F3-F5: invalidación por tramo · sincronización bifurcada · Firestore vs D1 · alerta de presupuesto · flujo IA con `ProveedorFalso` · prueba de navegador · secretos para despliegue automático | 🔲 |
 
@@ -89,7 +91,7 @@ en el crudo de la bóveda.
   o sea 73 % más carga transversal que el propio tiro, siempre**) → pestaña Cargas, ADR-011.
 - **Deuda declarada, no resuelta**: fluencia, vano peso (falta cota de sujeción), despeje al
   terreno, ficha real del proveedor del conductor.
-- **Cerebro**: 30 lecciones (L-01…L-30). Leer antes de tocar Firebase, mapas, despliegues o
+- **Cerebro**: 33 lecciones (L-01…L-33). Leer antes de tocar Firebase, mapas, despliegues o
   workflows con agentes.
 
 ## 🚫 Callejones ya probados (no repetir — detalle en `30`)

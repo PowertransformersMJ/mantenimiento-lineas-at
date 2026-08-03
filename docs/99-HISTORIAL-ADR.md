@@ -1105,3 +1105,53 @@ Tres hechos medidos con el motor real, ninguno obvio, y los tres habrían sido e
 
 `research-archive/2026-08-01-workflow-eje-longitudinal.json` · evidencia reproducible:
 `tests/longitudinal.test.js` (52 pruebas).
+
+---
+
+## ADR-013 · 2026-08-03 · Auditoría adversarial de la ola 4: lo que 564 pruebas en verde no veían
+
+**Estado:** ✅ Nueve hallazgos arreglados y en producción · 🔲 once menores en `TODO-45`.
+
+### Contexto
+
+En una sola jornada entraron dos módulos de ingeniería nuevos (los dos ejes de carga), su salida al
+informe y a los exportes, la ficha ampliada y —lo más serio— el portero de fotos **sirviendo
+material real de cliente por primera vez**. La suite pasaba 555/555. Se lanzó un workflow de 7
+agentes Opus con cuatro lentes adversariales (eje longitudinal · coherencia entre pantallas ·
+entregables · seguridad) y dos de investigación.
+
+### Lo que apareció, y que la suite verde no veía
+
+| Hallazgo | Por qué las pruebas no lo cazaban |
+|---|---|
+| El portero fallaba **ABIERTO**: `if (ORG_PERMITIDA && ...)` — sin la variable, cualquier sesión del proyecto bajaba fotos de cliente | Ninguna prueba ejerce el módulo sin su configuración |
+| `ANCLAN` omitía `'Derivación'`: un apoyo de derivación publicaba **cero** carga longitudinal (eran ~560 kgf) con una nota físicamente falsa | La lista estaba mal desde el primer commit y **no tenía guardián** |
+| Un anclaje sin ángulo publicaba *«el mayor desequilibrio calculado (0,0 kgf)»* | El guardián contaba INTENTOS (`porEstado.length`), no resultados |
+| La rotura tomaba el pico del tramo **roto** en vez del **sano**: −32 %, lado inseguro | El fixture hacía picar los dos tramos en el mismo estado |
+| Un nombre de apoyo repetido volteaba magnitud **y lado** | `find()` devuelve el primero; ninguna prueba usaba nombres duplicados |
+| El informe cerraba con «todos los vanos dentro de la banda» contando solo los `=== true` | El tercer estado (`null`) no tenía prueba |
+
+### Decisión
+
+> **Lo que no se puede calcular se DECLARA — y eso incluye la configuración.** El portero pasa a
+> fallar CERRADO: sin `ORG_PERMITIDA` o `PROYECTO_FIREBASE` devuelve 503 y no sirve nada. Una
+> seguridad que depende de que un valor ESTÉ no es seguridad.
+>
+> **Toda lista de dominio duplicada lleva su guardián** (`L-19`), sin excepción. `ANCLAN` era la
+> única de las tres sin él, y por eso fue la única que divergió.
+>
+> **Los guardianes se ponen sobre RESULTADOS, no sobre intentos.** Contar entradas de un array cuyo
+> contenido puede ser `null` es no contar nada.
+
+### Consecuencias
+
+- Nueve arreglos en producción, cada uno con su prueba de regresión (564 pruebas, +9).
+- Se endurecieron las reglas de Firestore y se desplegaron, verificando que la línea sigue cargando:
+  endurecer y dejar fuera al dueño habría sido peor que el agujero.
+- **Lo que esto enseña del método:** las 555 pruebas eran verdes y correctas; medían lo que yo pensé
+  medir. Lo que faltaba era una lente ajena buscando lo que yo NO pensé. Escribir la prueba y
+  auditar el resultado son dos trabajos distintos, y el segundo no se puede hacer solo.
+
+### Crudo de respaldo
+
+`research-archive/2026-08-03-auditoria-ola-4.json` (20 hallazgos, 5 descartados con motivo).

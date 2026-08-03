@@ -69,6 +69,7 @@ Guarda `research-archive/` (crudos de deliberación: comités, consejos externos
 | `ADR-010` | 2026-08-01 | Cómo se sirven las fotos: un portero (Worker) que verifica la firma del token delante del depósito privado | — (decisión de arquitectura, sin comité) |
 | `ADR-011` | 2026-08-01 | La carga sobre la estructura: pestaña «Cargas» (la 11ª) y contrato v0.2.0 con las dos alturas del apoyo | `tests/cargas-vista.test.js` (evidencia reproducible) |
 | `ADR-012` | 2026-08-01 | El eje longitudinal (terminal · desequilibrio · rotura), diseñado con workflow de 7 agentes y verificado a mano contra el motor | `research-archive/2026-08-01-workflow-eje-longitudinal.json` |
+| `ADR-013` | 2026-08-03 | Auditoría adversarial de la ola 4: 9 fallos que 564 pruebas en verde no veían, incluido un portero que fallaba ABIERTO | `research-archive/2026-08-03-auditoria-ola-4.json` |
 
 > Toda decisión cara de revertir entra aquí con su ADR y su crudo enlazado. Si hubo comité o consejo
 > externo y el crudo no está archivado, la tarea **no está cerrada** (`CLAUDE.md §G.4`).
