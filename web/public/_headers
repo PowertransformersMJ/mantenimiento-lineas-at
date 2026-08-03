@@ -1,7 +1,7 @@
 # El HTML nunca se cachea: es el que dice qué paquete de JavaScript cargar.
 # Si el navegador lo guarda, el usuario sigue viendo la versión vieja aunque ya
 # esté desplegada la corregida — que es justo lo que enmascaró el fallo de
-# IndexedDB (docs/30 · L-11).
+# IndexedDB (docs/31 · L-11).
 /
   Cache-Control: no-cache, must-revalidate
 /index.html

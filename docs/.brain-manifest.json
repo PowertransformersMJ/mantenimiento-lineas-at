@@ -14,9 +14,13 @@
     "docs/10-MEMORIA-CORTO-PLAZO.md": { "lines": 110, "chars": 16000 },
     "docs/20-MEMORIA-ESPACIAL.md": { "lines": 280, "chars": 16000 },
     "docs/30-LECCIONES.md": { "lines": 350, "chars": 40000 },
+    "docs/31-LECCIONES-PROVEEDORES.md": { "lines": 260, "chars": 20000 },
+    "docs/32-LECCIONES-PANTALLA.md": { "lines": 260, "chars": 20000 },
+    "docs/33-LECCIONES-NUCLEO-Y-DATO.md": { "lines": 260, "chars": 20000 },
     "docs/00-INDICE.md": { "lines": 450, "chars": 16000 },
     "docs/60-WORKFLOWS.md": { "lines": 160, "chars": 14000 }
   },
+  "_capsLeccionesRazon": "30 se shardeo en 3 hijas por tema (madre = indice + lecciones de metodo). Cada hija arranca en ~110-130 lineas: el tope de 260L/20000c le deja sitio para ~13 lecciones mas, y el aviso pre-shard (>=90%) salta a las 234 lineas, con margen para partirla sin prisa. Los L-NN NO se renumeran al mover: los cita el codigo fuente, que el linter no mira.",
   "archiveDir": "../brain-private/mantenimiento-lineas-at/research-archive",
   "specsDir": "specs",
   "staleDays": 10,

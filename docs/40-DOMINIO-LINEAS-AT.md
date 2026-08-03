@@ -421,4 +421,4 @@ primera carga.
 **Camino decidido:** Protomaps / PMTiles servido desde almacenamiento de objetos, con **recortes por
 línea** y MapLibre. Un solo archivo, servido por peticiones de rango HTTP, licencia BSD, datos ODbL
 con atribución visible a OpenStreetMap. Sin cuota, sin contrato y **offline por diseño**.
-Detalle → `30 · L-03` y `L-10`.
+Detalle → `31 · L-03` y `L-10`.

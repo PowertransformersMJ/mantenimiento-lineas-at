@@ -157,7 +157,7 @@ const nombreDe = (a, i) =>
 /**
  * Funciones que ANCLAN el conductor: a los dos lados la tensión es
  * independiente, y por eso puede haber desequilibrio. Lista CERRADA, nunca una
- * coincidencia de texto (`30 · L-19`).
+ * coincidencia de texto (`33 · L-19`).
  *
  * ⚠️ TIENE QUE COINCIDIR CON `FUNCIONES_ANCLA` de `mecanica.js` (y con la del
  * contrato). Nació sin 'Derivación' y el fallo era grave y silencioso: un apoyo

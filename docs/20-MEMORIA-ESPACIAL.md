@@ -59,7 +59,10 @@ mantenimiento-lineas-at/
 │   ├── 05-ESTADO-GLOBAL.md      signos vitales (auto-cargado)
 │   ├── 10-MEMORIA-CORTO-PLAZO.md pizarra del WIP (auto-cargado)
 │   ├── 20-MEMORIA-ESPACIAL.md   este archivo
-│   ├── 30-LECCIONES.md          gotchas ya pagados
+│   ├── 30-LECCIONES.md          MADRE: índice de los 33 L-NN + las de método
+│   ├── 31-LECCIONES-PROVEEDORES.md  ↳ factura, licencia o SDK de un tercero
+│   ├── 32-LECCIONES-PANTALLA.md     ↳ lo que se ve o se abre ≠ lo que el núcleo produjo
+│   ├── 33-LECCIONES-NUCLEO-Y-DATO.md ↳ el número que se firma · el dato que no sale
 │   ├── 40-DOMINIO-LINEAS-AT.md  ingeniería de líneas AT
 │   └── 99-HISTORIAL-ADR.md      por qué se decidió cada cosa
 │
@@ -130,4 +133,4 @@ mantenimiento-lineas-at/
 El módulo de campo original (`LN-627_Modulo_Campo_10.html`, 30 MB) **no vive en el repo**. Es la
 fuente de la que se portó `nucleo/` y de la que salen los fixtures de la bóveda. Su inventario
 —qué contenía y qué se extrajo de él— está en `docs/40-DOMINIO-LINEAS-AT.md` y en
-`docs/30-LECCIONES.md · L-05`.
+`docs/33-LECCIONES-NUCLEO-Y-DATO.md · L-05`.

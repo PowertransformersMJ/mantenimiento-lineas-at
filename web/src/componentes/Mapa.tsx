@@ -5,14 +5,14 @@
 // completa a propósito: un mapa base de "Cartagena y alrededores" no delata el
 // corredor de ninguna línea. Fuentes y sprites también viajan con el sitio: el
 // mapa no le pide nada a ningún servidor de terceros (ADR-001; la política de
-// tile.openstreetmap.org prohíbe usarla en producción, docs/30 · L-03/L-10).
+// tile.openstreetmap.org prohíbe usarla en producción, docs/31 · L-03/L-10).
 //
 // REGLA ADR-005 para librerías imperativas: el mapa se crea UNA vez dentro de
 // useEffect y React no vuelve a tocarlo. Nada de re-render sobre el lienzo.
 //
 // Este componente es OPCIONAL por diseño: si su descarga o sus datos fallan,
 // la vista cae al esquema SVG. Una capa opcional jamás veta a una esencial
-// (docs/30 · L-11).
+// (docs/31 · L-11).
 // ============================================================================
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import * as maplibregl from 'maplibre-gl';
@@ -194,7 +194,7 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento }:
       <div ref={caja} className="mapa-lienzo" />
       <div className="mapa-capas" role="note">
         <label><input type="radio" name="capa" checked readOnly /> Callejero (OSM)</label>
-        <label className="capa-off" title="La capa satelital exige verificar la licencia del proveedor antes de usarla en un entregable (docs/30 · L-03).">
+        <label className="capa-off" title="La capa satelital exige verificar la licencia del proveedor antes de usarla en un entregable (docs/31 · L-03).">
           <input type="radio" name="capa" disabled /> Satelital — licencia por verificar
         </label>
       </div>

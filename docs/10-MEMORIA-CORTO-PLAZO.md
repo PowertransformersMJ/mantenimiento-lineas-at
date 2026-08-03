@@ -77,7 +77,6 @@ de Descargas, **sin respaldo** (TODO-34). Detalle en `99 §ADR-015`.
 | **TODO-41** | Alta ADITIVA en el contrato: `capacidadLongitudinal {valor_kgf, tipo, alturaReferencia_m, fuente}`. Sin ella NINGÚN apoyo tiene veredicto en el eje longitudinal | **ADR-012** |
 | **TODO-42/37** | **Informe gerencial** del expediente (10 secciones especificadas) | crudo de **ADR-012** |
 | **TODO-30** | CI: validación XSD real de GPX/KML (xmllint + esquemas versionados en el repo) | crudo de **ADR-013** |
-| **TODO-46** | **Shard del nodo 30 — ya BLOQUEA**: 34 lecciones, **385 líneas de 350**, y el tope duro está en 385. `L-34` entró destilada al límite; **la próxima lección no cabe** y pondrá `brain:check` en rojo, que bloquea el commit. Partirlo por tema toca `CLAUDE.md §0`, el manifiesto y el índice: es arquitectura del cerebro, no poda | — |
 | **TODO-11** | F1 · Nota técnica LN-627 con las correcciones de la auditoría | — |
 | **TODO-13/14/15/16/21/22/23** | F3-F5: invalidación por tramo · sincronización bifurcada · Firestore vs D1 · flujo IA con `ProveedorFalso` · prueba de navegador · secretos para despliegue automático | — |
 
@@ -93,7 +92,8 @@ de Descargas, **sin respaldo** (TODO-34). Detalle en `99 §ADR-015`.
   cualquier desequilibrio.
 - **Deuda declarada**: fluencia · vano peso (falta cota de sujeción) · despeje al terreno · ficha
   real del proveedor · **ningún apoyo tiene veredicto en el eje longitudinal** (falta TODO-41).
-- **Cerebro**: 34 lecciones (L-01…L-34). El nodo 30 está EN el tope duro: ver TODO-46.
+- **Cerebro**: **33 lecciones** (los ids llegan a 34; el 14 se fusionó en el 13). Madre `30` = índice
+  + 7 de método; hijos `31` proveedores · `32` pantalla · `33` núcleo y dato. Ya hay sitio (ADR-016).
 
 ## 🚫 Callejones ya probados (no repetir — detalle en `30`)
 

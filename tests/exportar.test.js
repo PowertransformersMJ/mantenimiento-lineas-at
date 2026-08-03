@@ -154,7 +154,7 @@ describe('exportadores — contra la tabla del módulo original', () => {
     // Una cabecera de comentarios rompe el formato que esperan pandas y QGIS.
     // La prueba fija la decisión para que nadie la "arregle" sin pensarlo, y
     // para que la pantalla no vuelva a prometer lo contrario (lo prometió una
-    // vez y era falso — lo cazó la verificación adversarial, `30 · L-20`).
+    // vez y era falso — lo cazó la verificación adversarial, `32 · L-20`).
     const crudo = generarCsv(lev, { dialecto: 'datos', linea: LINEA, ...META });
     assert.ok(!crudo.includes('# Línea'), 'ni con linea y meta el crudo lleva cabecera');
     assert.ok(!crudo.includes('@lineas/exportar'), 'ni la versión del exportador');

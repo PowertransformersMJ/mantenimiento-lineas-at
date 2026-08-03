@@ -121,7 +121,7 @@ L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/
 Sin señal el mapa es un lienzo gris. Lo que sí funciona offline son los **datos**, el **cálculo** y el
 **esquema geométrico** (el propio HTML lo declara en ese título). Consecuencia: Protomaps/PMTiles no
 es una mejora opcional, **tapa un agujero que ya existe hoy en campo** — y de paso retira una
-dependencia de dos servidores de teselas cuyos términos no permiten este uso. → `30 · L-10`.
+dependencia de dos servidores de teselas cuyos términos no permiten este uso. → `31 · L-10`.
 
 ### Puntos ciegos que cazó el peer review anónimo (y que el propio comité no vio)
 
@@ -868,7 +868,7 @@ en el propio `COLECCIONES` con su justificación, no colándolo en silencio.
 ### Crudo de respaldo
 
 El objeto `FALLA` del módulo de campo v11 (idéntico byte a byte al v10, verificado por SHA-256),
-extraído a la bóveda. Evidencia de funcionamiento: `docs/30 · L-22`.
+extraído a la bóveda. Evidencia de funcionamiento: `docs/31 · L-22`.
 
 ---
 
@@ -1313,3 +1313,81 @@ clave — idéntico, grupo a grupo, a los archivos de la bóveda.
 ### Crudo de respaldo
 
 `research-archive/2026-08-03-auditoria-ola-4.json` → `plan43` (12 pasos, 9 riesgos, 7 huecos).
+
+---
+
+## ADR-016 · 2026-08-03 · Partir el nodo de lecciones en una madre-índice y tres hijos por tema
+
+**Estado:** ✅ Cerrado · `TODO-46` completo · 33 lecciones, ninguna perdida ni alterada
+
+### Contexto
+
+`ADR-014` dejó escrita la deuda: el nodo `30` quedó a 385 líneas de un tope de 350, y el tope DURO
+del linter está en 385. **La lección siguiente no cabía**, y una lección que no cabe pone
+`brain:check` en rojo, que bloquea el commit por hook. El nodo llevaba meses creciendo y su propia
+salida ya lo pedía: *«leve exceso — destilar»*.
+
+Se abordó con un workflow de **10 agentes Opus** (2 propuestas de reparto con lentes opuestas + 1
+juez + 3 constructores + 1 registrador + 3 auditores adversariales), acotado como manda el
+Ingeniero. Antes de lanzarlo se guardó una copia exacta del nodo con el **hash de cada lección**,
+para poder demostrar después que no se perdió ni se deformó ninguna.
+
+### La decisión de reparto, y por qué esa y no la otra
+
+Compitieron dos criterios. **Por SÍNTOMA** (agrupar por lo que está viviendo quien busca ayuda) y
+**por SUBSISTEMA** (agrupar por qué pieza falló). Ganó el segundo, y el argumento que lo decidió es
+comprobable: **el nodo no se consulta solo cuando algo se rompe.** Su propia cabecera dice que se
+consulta *«antes de una operación riesgosa»*, y el índice lo enruta con dos preguntas, no una. Al
+ir a dar de alta un servicio o a tocar el motor **todavía no hay síntoma** que mirar — pero la
+pieza que estás tocando la sabes siempre. La lente del síntoma solo servía a la mitad del tráfico.
+
+> **Madre `30`** — índice de las 33 + las **7 de MÉTODO** completas (deliberar, verificar, cerrar).
+> Se quedan porque no son de ninguna pieza: valen para las tres y son las más citadas.
+> **`31-LECCIONES-PROVEEDORES`** — lo que depende de un tercero: su factura, su licencia o su SDK.
+> **`32-LECCIONES-PANTALLA`** — lo que se VE o se ABRE no es lo que el núcleo produjo (incluido el
+> CSV que Excel abre mal: un archivo entregado también es «lo que el usuario ve»).
+> **`33-LECCIONES-NUCLEO-Y-DATO`** — el número que se firma y el dato que no puede salir del repo.
+
+### Las dos reglas que hicieron esto seguro
+
+> **Los `L-NN` NO se renumeran, jamás.** Los cita `CLAUDE.md`, la pizarra, el `20`, el `99` **y los
+> comentarios del código fuente** — y el código el linter no lo mira. Se mueven los cuerpos; los
+> números se quedan quietos. El nombre de los hijos tampoco es libre: el kernel los descubre por el
+> patrón `3[1-9]-LECCIONES*.md` (gate 5, desde v1.7). Con otro nombre, cada lección movida se
+> convierte en referencia colgante.
+
+> **Los cuerpos se mueven VERBATIM y se demuestra con hashes.** Ni una palabra reescrita, ni una
+> ortografía «mejorada». Verificado por dos vías independientes: los tres auditores del workflow y
+> un diff propio hash a hash contra la copia previa. Resultado: **33 antes, 33 después, ninguna
+> ausente, ninguna duplicada, ninguna alterada.**
+
+### Lo que los auditores cazaron, y que el linter NO ve
+
+El guardián dio verde y aun así había trabajo mal hecho — la misma lección que `L-33` (escribir la
+prueba y auditar el resultado son dos trabajos distintos):
+
+| Hallazgo | Por qué el linter no lo veía |
+|---|---|
+| **9 punteros `30 · L-NN`** apuntando al archivo que ya no guarda esa lección — 6 en CÓDIGO FUENTE y uno **visible en producción**, dentro del globo de ayuda del mapa | El gate 5 solo comprueba que el ID exista en ALGUNO de los cuatro archivos. La ruta que lo acompaña no la mira nadie |
+| El nodo `20` —cuyo único trabajo es «dónde vive cada cosa»— no listaba los tres hijos | El gate 10 busca el registro en `CLAUDE.md`, no en el árbol del `20` |
+| Encabezados heredados que MENTÍAN: `## El módulo de campo original` sobre dos lecciones del mapa, `## Proceso` sobre seis de pantalla | Ningún gate lee lo que un encabezado agrupa |
+| El trigger 🧪 decía «`30` (índice) y de ahí al hijo», pero **7 lecciones viven solo en la madre**: quien lo obedeciera al pie de la letra nunca llegaría a ellas | Ningún gate valida que la doctrina siga siendo cierta |
+| El rótulo del `32` («pantalla») mandaba al hijo equivocado ante «Excel no me suma»: un CSV no es una pantalla | Ninguno: eso solo lo caza alguien intentando navegar de verdad |
+
+Los cinco, corregidos. La deuda que queda escrita: **el linter no vigila la RUTA que acompaña a un
+`L-NN`**; el arreglo natural es un gate que compruebe `3X · L-NN` contra dónde vive de verdad la
+lección, y eso se edita en el kernel (`../brain-private/kernel/`), nunca aquí.
+
+### Consecuencias
+
+- Madre en **136 líneas de 350**; hijos en 126, 128 y 116 de 260. Espacio real para ~13 lecciones
+  más por hijo antes de volver a plantearse nada.
+- El arranque de sesión no se movió: el nodo `30` nunca fue always-on. `BOOT = 26,8k de 31,5k`.
+- **Corregido de paso un dato que llevaba tiempo mal:** eran «34 lecciones» en la pizarra. Son
+  **33** — el número 14 se fusionó en `L-13` y no existe, aunque la numeración llegue a 34.
+  (Y ojo al escribirlo: citar esa etiqueta con su formato normal crea una referencia COLGANTE y
+  pone el linter en rojo. Cazado al redactar este mismo ADR.)
+
+### Crudo de respaldo
+
+`research-archive/2026-08-03-workflow-shard-nodo-30.json`

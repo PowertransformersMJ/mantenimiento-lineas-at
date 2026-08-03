@@ -79,7 +79,7 @@ let auth: Auth | null = null;
  * una capa no está disponible, se usa la siguiente en vez de fallar.
  *
  * Es la misma regla que ya nos costó una vez: una capa opcional nunca puede
- * tener poder de veto sobre una esencial (`docs/30 · L-11`).
+ * tener poder de veto sobre una esencial (`docs/31 · L-11`).
  */
 export function autenticacion(): Auth {
   if (auth) return auth;

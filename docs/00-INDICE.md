@@ -14,7 +14,10 @@
 | `docs/05-ESTADO-GLOBAL.md` | Signos vitales: en qué estado está el sistema AHORA | **siempre** |
 | `docs/10-MEMORIA-CORTO-PLAZO.md` | Pizarra del trabajo vivo (WIP) y pendientes `TODO-NN` | **siempre** |
 | `docs/20-MEMORIA-ESPACIAL.md` | Dónde vive cada cosa: mapa de carpetas, módulos y flujos | bajo trigger 🟡 |
-| `docs/30-LECCIONES.md` | Memoria procedimental: gotchas ya pagados (`L-NN`) | bajo trigger 🧪 |
+| `docs/30-LECCIONES.md` | Memoria procedimental (madre): índice de los 33 `L-NN` + las lecciones de método | bajo trigger 🧪 |
+| `docs/31-LECCIONES-PROVEEDORES.md` | Hija de `30`: lo que depende de un tercero — su factura, su licencia o su SDK | bajo trigger 🧪 |
+| `docs/32-LECCIONES-PANTALLA.md` | Hija de `30`: el cálculo salió bien y el usuario ve otra cosa | bajo trigger 🧪 |
+| `docs/33-LECCIONES-NUCLEO-Y-DATO.md` | Hija de `30`: el número que se firma y el dato que no puede salir del repo | bajo trigger 🧪 |
 | `docs/40-DOMINIO-LINEAS-AT.md` | Lóbulo de dominio: ingeniería de líneas AT, fórmulas y su procedencia | bajo trigger 🔵 |
 | `docs/99-HISTORIAL-ADR.md` | Largo plazo: por qué se decidió cada cosa (`ADR-NNN`) | bajo trigger 🟢 |
 
@@ -31,13 +34,16 @@ Guarda `research-archive/` (crudos de deliberación: comités, consejos externos
 | «¿en qué estado está el proyecto?» | `05` |
 | «¿qué estaba haciendo?, ¿qué quedó pendiente?» | `10` |
 | «¿dónde vive este módulo / esta función / este flujo?» | `20` |
-| «esto ya lo intenté y falló», «¿esta operación tiene truco?» | `30` |
+| «esto ya lo intenté y falló», «¿esta operación tiene truco?» | `30` (índice) y de ahí al hijo |
+| «entra en local y falla en producción», «no me deja entrar / leer» | `31` |
+| «desplegué y la pantalla sigue igual», «el mapa es un rectángulo gris» | `32` |
+| «este número del informe firmable no cuadra» | `33` |
 | «¿qué es el vano ideal de regulación?», «¿de dónde sale esta fórmula?» | `40` |
 | «¿por qué se eligió este stack y no el otro?» | `99` |
 | «¿por qué la prueba espera exactamente este número?» | `40 §8` y `tests/nucleo.test.js` |
 | «voy a tomar una decisión cara de revertir» | `CLAUDE.md §G.2` 🛰️ + comité + consejo externo |
-| «¿puedo commitear este archivo?» | `30 · L-07` y `.gitignore` |
-| «¿esto cuesta dinero?» | `30 · L-02`, `L-04` y `99` |
+| «¿puedo commitear este archivo?» | `33 · L-07`, `L-23` y `.gitignore` |
+| «¿esto cuesta dinero?» | `31 · L-02`, `L-04` y `99` |
 
 ---
 
@@ -72,6 +78,7 @@ Guarda `research-archive/` (crudos de deliberación: comités, consejos externos
 | `ADR-013` | 2026-08-03 | Auditoría adversarial de la ola 4: 9 fallos que 564 pruebas en verde no veían, incluido un portero que fallaba ABIERTO | `research-archive/2026-08-03-auditoria-ola-4.json` |
 | `ADR-014` | 2026-08-03 | Los once menores cerrados: un dueño único para la deflexión y para el dialecto CSV, el tope de tiro con su procedencia verdadera, y las barreras imaginarias del portero corregidas | `research-archive/2026-08-03-auditoria-ola-4.json` |
 | `ADR-015` | 2026-08-03 | Una foto puede colgar de un APOYO; y el número del archivo es el del PUNTO del levantamiento, no el de la estructura: `e07` es E06 | `research-archive/2026-08-03-auditoria-ola-4.json` |
+| `ADR-016` | 2026-08-03 | El nodo de lecciones partido en madre-índice + 3 hijos por tema; los `L-NN` no se renumeran porque los cita el código fuente | `research-archive/2026-08-03-workflow-shard-nodo-30.json` |
 
 > Toda decisión cara de revertir entra aquí con su ADR y su crudo enlazado. Si hubo comité o consejo
 > externo y el crudo no está archivado, la tarea **no está cerrada** (`CLAUDE.md §G.4`).

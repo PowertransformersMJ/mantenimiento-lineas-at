@@ -15,9 +15,9 @@
 | **Deuda crítica** | 🔴 **7 preguntas a AFINIA sin enviar**: la nº 3 decide si F4 (captura en campo) existe; la nº 4 decide F5 y F6. (✅ motor de cálculo sin deuda desde 07-29, `40 §8` · ✅ Consejo Externo cerrado, ADR-002 · ✅ alcance y presupuesto fijados, ADR-003.) |
 
 ## ⚠️ Flags de riesgo activos
-- **Repo PÚBLICO** → cero bytes de cliente en git, jamás. La historia de git es permanente (`30 · L-07`). Ya cazó una fuga real esta sesión.
+- **Repo PÚBLICO** → cero bytes de cliente en git, jamás. La historia de git es permanente (`33 · L-07`). Ya cazó una fuga real esta sesión.
 - **El motor puede estar mal y el sistema no fallaría: certificaría.** Riesgo nº 1. Por eso `40 §8` declara qué está verificado y qué no, y **firma el Ingeniero, no el software**.
-- **Free-tier con criterio de seguridad:** se prefiere el servicio que APAGA al que COBRA. Una tarjeta prepago no es un tope de gasto (`30 · L-02`).
+- **Free-tier con criterio de seguridad:** se prefiere el servicio que APAGA al que COBRA. Una tarjeta prepago no es un tope de gasto (`31 · L-02`).
 - **Workflows y subagentes:** siempre acotados y con `model: 'opus'` (orden del Ingeniero).
 
 ## 🧩 Sub-sistemas
