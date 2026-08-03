@@ -158,8 +158,21 @@ const nombreDe = (a, i) =>
  * Funciones que ANCLAN el conductor: a los dos lados la tensión es
  * independiente, y por eso puede haber desequilibrio. Lista CERRADA, nunca una
  * coincidencia de texto (`30 · L-19`).
+ *
+ * ⚠️ TIENE QUE COINCIDIR CON `FUNCIONES_ANCLA` de `mecanica.js` (y con la del
+ * contrato). Nació sin 'Derivación' y el fallo era grave y silencioso: un apoyo
+ * de derivación caía en la rama de suspensión, publicaba CERO carga longitudinal
+ * —cuando en realidad recibía cientos de kgf— y encima adjuntaba la nota «dentro
+ * de un tramo la tensión es común», que es FALSA ahí: `mecanica.js` corta el
+ * tramo en una derivación. Ese cero llegaba al CSV y al informe firmable.
+ *
+ * La lista no se puede importar de `mecanica.js` sin acoplar dos módulos que hoy
+ * son independientes, así que la coincidencia **la vigila una prueba** que lee
+ * el otro archivo y compara (mismo patrón que ya protege la de `mecanica.js`).
+ * Eso es lo que faltaba: la lista estaba mal desde el primer commit y las 555
+ * pruebas pasaban en verde.
  */
-const ANCLAN = Object.freeze(['Terminal', 'Retención / anclaje', 'Ángulo']);
+const ANCLAN = Object.freeze(['Terminal', 'Retención / anclaje', 'Ángulo', 'Derivación']);
 const ancla = (fn) => ANCLAN.includes(fn);
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -570,8 +583,24 @@ export function longitudinalDeLaLinea(apoyos, tramos, opciones = {}) {
     const { estados, motivo } = normalizarEstados(t);
     porNombre.set(k, { n: k + 1, desde: de ?? null, hasta: a ?? null, estados, motivo });
   });
-  const tramoQueLlega = (nombre) => [...porNombre.values()].find((t) => t.hasta === nombre) ?? null;
-  const tramoQueSale = (nombre) => [...porNombre.values()].find((t) => t.desde === nombre) ?? null;
+  // ⚠️ La llave es un NOMBRE, y `find()` devuelve el primero que encaje. Si dos
+  // apoyos se llaman igual —cosa que pasa: `exportar/calidad.js` ya tiene un
+  // chequeo dedicado a la numeración duplicada— el emparejamiento cogería el
+  // tramo de OTRO apoyo y publicaría magnitud y LADO equivocados, sin una sola
+  // nota. Es exactamente el error que la cabecera de este archivo declara como
+  // el único que ninguna comprobación de conteo detecta.
+  //
+  // Por eso se CUENTA en vez de tomar el primero: con más de uno, la fila queda
+  // no evaluable con el motivo escrito. La solución de fondo es emparejar por el
+  // UUID inmutable que el proyecto declara como identidad (CLAUDE.md §3.1) en
+  // vez de por «E07», pero eso exige que los tramos lo transporten; hasta
+  // entonces, negarse es mejor que acertar por casualidad.
+  const buscar = (campo, nombre) => {
+    const hallados = [...porNombre.values()].filter((t) => t[campo] === nombre);
+    return { tramo: hallados.length === 1 ? hallados[0] : null, cuantos: hallados.length };
+  };
+  const tramoQueLlega = (nombre) => buscar('hasta', nombre);
+  const tramoQueSale = (nombre) => buscar('desde', nombre);
 
   return E.map((a, i) => {
     const nombre = nombres[i];
@@ -580,8 +609,11 @@ export function longitudinalDeLaLinea(apoyos, tramos, opciones = {}) {
     const fn = a?.funcionEstructural ?? null;
     const esExtremoArray = i === 0 || i === E.length - 1;
 
-    const atras = tramoQueLlega(nombre);
-    const adelante = tramoQueSale(nombre);
+    const bAtras = tramoQueLlega(nombre);
+    const bAdelante = tramoQueSale(nombre);
+    const atras = bAtras.tramo;
+    const adelante = bAdelante.tramo;
+    const nombreAmbiguo = bAtras.cuantos > 1 || bAdelante.cuantos > 1;
 
     // ── Deflexión: la declarada manda; si no, la geometría ──────────────────
     let deflexion_grados = numero(a?.deflexion_grados);
@@ -613,7 +645,15 @@ export function longitudinalDeLaLinea(apoyos, tramos, opciones = {}) {
       noEvaluable: null,
     };
 
-    // ── C9 · precedencia 0: sin función declarada no se decide nada ─────────
+    // ── C9 · precedencia 0: un nombre que identifica a más de uno no identifica ──
+    if (nombreAmbiguo) {
+      return { ...base, caso: 'no_evaluable',
+        noEvaluable: `hay más de un tramo que dice llegar o salir de «${nombre}»: el nombre no `
+          + 'identifica a un solo apoyo. Emparejar con el primero que encaja publicaría el tiro de '
+          + 'OTRO apoyo con su lado invertido, y ninguna comprobación de conteo lo detectaría. '
+          + 'Corrija la numeración duplicada del levantamiento.' };
+    }
+
     if (!fn) {
       return { ...base, caso: 'no_evaluable',
         noEvaluable: 'el apoyo no declara `funcionEstructural`. Sin ella no se sabe si el '
@@ -642,6 +682,16 @@ export function longitudinalDeLaLinea(apoyos, tramos, opciones = {}) {
           noEvaluable: 'declarado «Terminal» en mitad de la línea. Este módulo solo ve la cadena '
             + 'de apoyos que recibe: si de aquí sale un ramal o una bajante, su tiro no lo ve '
             + 'nadie, y publicar el de un solo lado sería afirmar que el otro no existe.' };
+      }
+      // Un terminal con vano a los DOS lados no es un terminal: el sistema no ve
+      // qué hay más allá y publicar el tiro de uno descartando el otro en
+      // silencio afirma que el segundo no existe.
+      if (atras && adelante) {
+        return { ...base, caso: 'no_evaluable',
+          noEvaluable: 'declarado «Terminal» pero con tramo a los DOS lados. Si de verdad ancla a '
+            + 'ambos, no es un terminal sino un anclaje; y si uno de los dos es una bajante o un '
+            + 'puente, el sistema no lo ve. Publicar el tiro de un solo lado afirmaría que el otro '
+            + 'no existe.' };
       }
       const unico = atras ?? adelante;
       if (!unico || !unico.estados) {
@@ -723,6 +773,22 @@ export function longitudinalDeLaLinea(apoyos, tramos, opciones = {}) {
     }
 
     const env = envolventePorSentido(porEstado);
+
+    // ⚠️ El guardián de arriba mira `porEstado.length`, que cuenta INTENTOS, no
+    // resultados: con el ángulo sin resolver los cuatro estados devuelven
+    // `flPorConductor_kgf: null` y el array sigue teniendo cuatro entradas. Sin
+    // esta segunda puerta, `Math.max(null ?? 0, null ?? 0)` convertía el hueco en
+    // 0 y la fila llegaba a publicar, EN PROSA y en el informe firmable, «el
+    // mayor desequilibrio calculado (0,0 kgf) queda por debajo del ruido de
+    // tendido». No se calculó ningún desequilibrio: se comparó un hueco.
+    if (env.flAdelanteMax_kgf === null && env.flAtrasMax_kgf === null) {
+      return { ...base, caso: 'no_evaluable',
+        noEvaluable: deflexion_grados === null
+          ? 'no se pudo resolver el ángulo de quiebre: sin él no hay proyección sobre el eje de la '
+            + 'línea, y ninguno de los cuatro estados produjo un número'
+          : 'ninguno de los cuatro estados produjo un desequilibrio calculable' };
+    }
+
     const cero = porEstado.find((r) => r.flPorConductor_kgf === 0);
     if (cero) {
       notas.push(`El desequilibrio en «${cero.estadoTiro}» vale CERO EXACTO. No es una medición: `
@@ -768,15 +834,32 @@ export function longitudinalDeLaLinea(apoyos, tramos, opciones = {}) {
     }
 
     // ── C4 · rotura, en el mismo apoyo, en estructura APARTE ────────────────
-    const estadoPico = CLAVES_ESTADO
-      .map((k) => atras.estados[k])
+    //
+    // ⚠️ EL PICO SE BUSCA POR LADO. Al romperse el conductor de ATRÁS, el que
+    // queda sano es el de ADELANTE: hay que tomar la envolvente del tramo de
+    // adelante, no la del roto. La primera versión elegía el estado pico mirando
+    // SOLO `atras.estados` y luego pedía al otro tramo su tiro EN ESA MISMA
+    // CLAVE. Verificado ejecutando: con atrás picando a mínima temperatura y
+    // adelante a viento, publicaba 1.290 kgf donde la envolvente real del tramo
+    // sano son 1.900 — un 32 % por debajo, POR EL LADO INSEGURO, y con la
+    // etiqueta del estado del otro tramo. Las pruebas no lo veían porque su
+    // fixture hacía picar los dos tramos en el mismo estado.
+    const picoDe = (tr) => CLAVES_ESTADO
+      .map((k) => tr.estados[k])
       .filter((s) => s && s.H !== null)
       .reduce((m, s) => (m === null || s.H > m.H ? s : m), null);
-    const accidental = estadoPico ? {
-      atras: roturaEnAnclaje({ tiroSano_kgf: adelante.estados[estadoPico.clave]?.H,
-        deflexion_grados, ladoRoto: 'atras', kRes: opciones?.kRes, estadoTiro: estadoPico.nombre }),
-      adelante: roturaEnAnclaje({ tiroSano_kgf: estadoPico.H,
-        deflexion_grados, ladoRoto: 'adelante', kRes: opciones?.kRes, estadoTiro: estadoPico.nombre }),
+
+    const picoAtras = picoDe(atras);
+    const picoAdelante = picoDe(adelante);
+    const accidental = (picoAtras || picoAdelante) ? {
+      // Se rompe ATRÁS → sobrevive el de ADELANTE, con SU pico y SU estado.
+      atras: picoAdelante ? roturaEnAnclaje({ tiroSano_kgf: picoAdelante.H,
+        deflexion_grados, ladoRoto: 'atras', kRes: opciones?.kRes,
+        estadoTiro: picoAdelante.nombre }) : null,
+      // Se rompe ADELANTE → sobrevive el de ATRÁS.
+      adelante: picoAtras ? roturaEnAnclaje({ tiroSano_kgf: picoAtras.H,
+        deflexion_grados, ladoRoto: 'adelante', kRes: opciones?.kRes,
+        estadoTiro: picoAtras.nombre }) : null,
     } : null;
 
     if (nFases === null) {

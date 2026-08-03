@@ -110,6 +110,26 @@ export default {
     if (peticion.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
     if (peticion.method !== 'GET') return noPasa('solo se puede leer', 405, cors);
 
+    // ⚠️ FALLAR CERRADO. Antes la comprobación de organización era
+    // `if (ORG_PERMITIDA && sesion.orgId !== ORG_PERMITIDA)`: si la variable
+    // faltaba, la comprobación entera se saltaba y CUALQUIER sesión válida del
+    // proyecto —o sea, cualquiera con una cuenta de Google— bajaba fotos de
+    // cliente. Nada fallaba y nada avisaba: la puerta quedaba abierta en
+    // silencio. Una seguridad que depende de que una variable esté PUESTA no es
+    // seguridad; es una casualidad de configuración.
+    //
+    // Ahora la ausencia de configuración APAGA el servicio en vez de abrirlo.
+    // Un 503 con su motivo es ruidoso y se arregla en un minuto; una fuga
+    // silenciosa no se descubre hasta que ya pasó.
+    for (const [nombre, valor] of Object.entries({
+      PROYECTO_FIREBASE: entorno.PROYECTO_FIREBASE,
+      ORG_PERMITIDA: entorno.ORG_PERMITIDA,
+    })) {
+      if (typeof valor !== 'string' || !valor.trim()) {
+        return noPasa(`el portero no está configurado (falta ${nombre}): no se sirve nada`, 503, cors);
+      }
+    }
+
     // Rutas: /e/<clave del objeto>. Nada más existe.
     if (!url.pathname.startsWith('/e/')) return noPasa('ruta desconocida', 404, cors);
     const clave = decodeURIComponent(url.pathname.slice(3));
@@ -130,7 +150,10 @@ export default {
 
     // La organización va en el token, no en un documento consultable: es lo que
     // impide que una sesión válida de OTRA empresa lea estas fotos.
-    if (entorno.ORG_PERMITIDA && sesion.orgId !== entorno.ORG_PERMITIDA) {
+    // Sin condicional: si el token no declara organización, o declara otra, no
+    // pasa. `undefined !== 'transpower'` es cierto, así que un token sin el
+    // reclamo también se rechaza — que es lo correcto.
+    if (sesion.orgId !== entorno.ORG_PERMITIDA) {
       return noPasa('esta sesión no pertenece a la organización dueña del dato', 403, cors);
     }
 
@@ -143,6 +166,9 @@ export default {
     // `private`: son datos de cliente. Que los cachee el navegador de quien ya
     // está autorizado, y NADIE por el camino.
     cabeceras.set('cache-control', 'private, max-age=3600');
+    // La respuesta depende del token: sin esto, una caché intermedia (o el
+    // propio navegador) podría devolverla a una petición SIN `Authorization`.
+    cabeceras.set('vary', 'Authorization, Origin');
     cabeceras.set('x-content-type-options', 'nosniff');
     // Una imagen servida como documento puede ejecutarse; así no.
     cabeceras.set('content-disposition', 'inline');

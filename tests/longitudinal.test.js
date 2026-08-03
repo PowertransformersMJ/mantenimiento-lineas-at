@@ -27,6 +27,9 @@
 // ============================================================================
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import {
   factorLongitudinal, factorTransversalPostRotura,
@@ -36,6 +39,9 @@ import {
   UMBRAL_UTILIZACION_LONGITUDINAL_PCT,
 } from '../nucleo/longitudinal.js';
 import { factorTransversal } from '../nucleo/cargas.js';
+import { FUNCIONES_ANCLA } from '../nucleo/mecanica.js';
+
+const AQUI = dirname(fileURLToPath(import.meta.url));
 
 const cerca = (real, esperado, tol, msg) =>
   assert.ok(Number.isFinite(real) && Math.abs(real - esperado) <= tol,
@@ -62,6 +68,44 @@ const apoyo = (nombre, funcionEstructural, extra = {}) => ({
 });
 
 // ════════════════════════════════════════════════════════════════════════════
+
+describe('EL GUARDIÁN: la lista de funciones que anclan no puede divergir', () => {
+  // Esta prueba es la que faltaba, y su ausencia costó un fallo real: `ANCLAN`
+  // nació sin 'Derivación' y la suite pasaba 555/555 en verde con un apoyo de
+  // derivación publicando CERO carga longitudinal en el informe firmable.
+  //
+  // No se puede importar `ANCLAN` (es interna, y exportarla solo para probarla
+  // sería abrir el módulo por una prueba), así que se lee el ARCHIVO — igual que
+  // `tests/nucleo.test.js` hace con el contrato. Si alguien añade una función
+  // que ancla en un sitio y no en el otro, esto se pone rojo.
+  test('ANCLAN de longitudinal.js == FUNCIONES_ANCLA de mecanica.js', () => {
+    const fuente = readFileSync(join(AQUI, '..', 'nucleo', 'longitudinal.js'), 'utf-8');
+    const bloque = /const ANCLAN\s*=\s*Object\.freeze\(\[([\s\S]*?)\]\)/.exec(fuente);
+    assert.ok(bloque, 'no se encontró ANCLAN en nucleo/longitudinal.js');
+    const deLongitudinal = [...bloque[1].matchAll(/'([^']+)'/g)].map((m) => m[1]);
+
+    assert.deepEqual(deLongitudinal.sort(), [...FUNCIONES_ANCLA].sort(),
+      'la lista de longitudinal.js y la de mecanica.js divergieron: un apoyo caería '
+      + 'en la rama equivocada y publicaría un número falso');
+  });
+
+  test('un apoyo de DERIVACIÓN no cae en la rama de suspensión', () => {
+    // El caso concreto que el fallo producía: cero publicado, con una nota que
+    // afirma «dentro de un tramo la tensión es común» — falsa en una derivación,
+    // porque `mecanica.js` CORTA el tramo ahí.
+    const r = longitudinalDeLaLinea(
+      [apoyo('A', 'Terminal'), apoyo('B', 'Derivación', { deflexion_grados: 30 }), apoyo('C', 'Terminal')],
+      [tramo('A', 'B', { eds: 1200, tMax: 700, viento: 1230, tMin: 1500 }),
+       tramo('B', 'C', { eds: 1200, tMax: 1000, viento: 1255, tMin: 1290 })],
+      { rts_kgf: 6000 },
+    );
+    const b = r.find((x) => x.apoyo === 'B');
+    assert.equal(b.caso, 'desequilibrio', 'una derivación ANCLA: no es suspensión');
+    assert.notEqual(b.permanente.flAdelanteMax_kgf, 0);
+    assert.ok(!b.notas.some((n) => /Cero DEL MODELO/.test(n)),
+      'no puede adjuntar la nota del cero de suspensión');
+  });
+});
 
 describe('los dos factores geométricos: mismo ángulo, dos ejes', () => {
   test('cos(α/2): 1 en recta, √3/2 a 60°, 0 a 180°', () => {
@@ -490,6 +534,75 @@ describe('la línea entera: identidad, no conteo', () => {
     assert.ok(c.accidental.atras && c.accidental.adelante, 'se evalúa la rotura de cada lado');
     // Y no hay ningún campo que los sume.
     assert.equal(c.permanente.fuerza_kgf, undefined);
+  });
+
+  test('un anclaje SIN ángulo no publica «0,0 kgf»: es un hueco, no un cero', () => {
+    // Cazado por la auditoría. El guardián miraba `porEstado.length`, que cuenta
+    // INTENTOS: con el ángulo sin resolver los cuatro estados dan null y el array
+    // sigue teniendo cuatro entradas, así que `Math.max(null ?? 0, ...)` convertía
+    // el hueco en 0 y la fila publicaba, EN PROSA y en el informe firmable, «el
+    // mayor desequilibrio calculado (0,0 kgf) queda por debajo del ruido».
+    const r = longitudinalDeLaLinea(
+      [apoyo('A', 'Terminal'), apoyo('B', 'Retención / anclaje'), apoyo('C', 'Terminal')],
+      [tramo('A', 'B', { eds: 1200, tMax: 700, viento: 1230, tMin: 1500 }),
+       tramo('B', 'C', { eds: 1200, tMax: 1000, viento: 1255, tMin: 1290 })],
+      { rts_kgf: 6000 },                       // sin deflexión y sin coordenadas
+    );
+    const b = de(r, 'B');
+    assert.equal(b.caso, 'no_evaluable');
+    assert.match(b.noEvaluable, /ángulo de quiebre/);
+    assert.equal(b.sentidoResoluble, null, 'nunca `false`: no hubo número que comparar');
+    assert.ok(!b.notas.some((n) => /0[.,]0 kgf/.test(n)),
+      'no puede escribir un cero que nadie calculó');
+  });
+
+  test('la ROTURA toma el pico del lado SANO, no el del roto', () => {
+    // Cazado por la auditoría y reproducido: con los dos tramos picando en
+    // estados distintos, publicaba 1290 kgf donde la envolvente del tramo sano
+    // son 1900 — 32 % por debajo y POR EL LADO INSEGURO.
+    const r = longitudinalDeLaLinea(
+      [apoyo('A', 'Terminal'), apoyo('B', 'Retención / anclaje', { deflexion_grados: 30 }), apoyo('C', 'Terminal')],
+      [tramo('A', 'B', { eds: 1200, tMax: 700, viento: 1230, tMin: 1500 }),   // pica a tMin
+       tramo('B', 'C', { eds: 1200, tMax: 1000, viento: 1900, tMin: 1290 })], // pica a viento
+      { rts_kgf: 6000 },
+    );
+    const b = de(r, 'B');
+    // Se rompe ATRÁS → sobrevive el de ADELANTE, cuya envolvente es 1900.
+    assert.equal(b.accidental.atras.fuerza_kgf, 1900);
+    assert.match(b.accidental.atras.estadoTiro, /viento/i, 'y rotulada con SU estado');
+    // Se rompe ADELANTE → sobrevive el de ATRÁS, envolvente 1500.
+    assert.equal(b.accidental.adelante.fuerza_kgf, 1500);
+    assert.match(b.accidental.adelante.estadoTiro, /Mínima/);
+  });
+
+  test('un NOMBRE repetido no publica el tiro de otro apoyo', () => {
+    // Es el único error que ninguna comprobación de conteo detecta: no altera
+    // ninguna magnitud agregada, la tabla se ve idéntica, y voltea el lado.
+    const r = longitudinalDeLaLinea(
+      [apoyo('E07', 'Terminal'), apoyo('E08', 'Suspensión', { deflexion_grados: 1 }),
+       apoyo('E07', 'Retención / anclaje', { deflexion_grados: 20 }), apoyo('E10', 'Terminal')],
+      [tramo('E07', 'E08', { eds: 1200, tMax: 700, viento: 1230, tMin: 1500 }),
+       tramo('E08', 'E07', { eds: 1200, tMax: 700, viento: 1230, tMin: 1500 }),
+       tramo('E07', 'E10', { eds: 1200, tMax: 1000, viento: 1255, tMin: 1290 })],
+      { rts_kgf: 6000 },
+    );
+    for (const f of r.filter((x) => x.apoyo === 'E07')) {
+      assert.equal(f.caso, 'no_evaluable', 'con el nombre ambiguo no se publica número');
+      assert.match(f.noEvaluable, /no identifica a un solo apoyo/);
+      assert.equal(f.permanente, null);
+    }
+  });
+
+  test('un «Terminal» con vano a los DOS lados se niega en vez de elegir uno', () => {
+    const r = longitudinalDeLaLinea(
+      [apoyo('A', 'Terminal', { deflexion_grados: 10 }), apoyo('B', 'Retención / anclaje', { deflexion_grados: 20 })],
+      [tramo('X', 'A', { eds: 1200, tMax: 700, viento: 1230, tMin: 1500 }),
+       tramo('A', 'B', { eds: 1200, tMax: 700, viento: 1230, tMin: 1500 })],
+      { rts_kgf: 6000 },
+    );
+    const a = de(r, 'A');
+    assert.equal(a.caso, 'no_evaluable');
+    assert.match(a.noEvaluable, /DOS lados/);
   });
 
   test('la función es PURA: no toca lo que le entra', () => {
