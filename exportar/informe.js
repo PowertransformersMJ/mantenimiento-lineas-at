@@ -516,12 +516,33 @@ function seccionVanos(grupos) {
   });
 
   const fuera = grupos.reduce((s, g) => s + g.filas.filter((f) => f?.fueraDeRango === true).length, 0);
-  const cierre = fuera
+  // ⚠️ `fueraDeRango` es de TRES estados: `nucleo/vanos.js` devuelve `null`
+  // cuando no hay VIR contra el que comparar, y su comentario ya avisa de que
+  // «`false` diría que está dentro de rango». Contar solo los `true` y cerrar
+  // con «todos dentro» convierte esos huecos en un aprobado — en el documento
+  // que se firma, y contradiciendo al CSV del mismo exporte, que en esa misma
+  // fila escribe «no evaluable». Camino real: un VIR ausente, o dos estructuras
+  // capturadas sobre la misma coordenada (el «punto doble» que ya vigila
+  // `exportar/calidad.js`).
+  const sinVeredicto = grupos.reduce(
+    (s, g) => s + g.filas.filter((f) => f?.fueraDeRango !== true && f?.fueraDeRango !== false).length, 0);
+
+  const avisoFuera = fuera
     ? `<p class="aviso"><b>${n(fuera)} vano(s)</b> se apartan más de un 30 % del VIR de su tramo (marcados con ▲). `
       + 'El tiro común del tramo los representa peor que a los demás, y la desviación va por el lado malo: '
       + 'en el vano largo la flecha real sale MAYOR que la calculada, justo donde se decide el gálibo. '
       + 'Síntoma en campo: la distancia medida con cinta no coincide con la del informe, y siempre en el '
       + 'vano más largo.</p>'
+    : '';
+
+  const avisoSinVeredicto = sinVeredicto
+    ? `<p class="aviso"><b>${n(sinVeredicto)} vano(s) NO tienen veredicto</b> sobre la banda del VIR: `
+      + 'su tramo no trajo un vano ideal de regulación con el que comparar. No es que estén dentro — '
+      + 'es que no se sabe, y sobre ellos este informe no afirma nada.</p>'
+    : '';
+
+  const cierre = (fuera || sinVeredicto)
+    ? avisoFuera + avisoSinVeredicto
     : parrafo('Todos los vanos quedan dentro de la banda adoptada respecto al VIR de su tramo, '
       + 'de modo que el tiro común del tramo los representa a todos por igual.');
 
@@ -656,7 +677,51 @@ function seccionLongitudinal(filas) {
       filas: cuerpo,
       pie: `El mayor desequilibrio NO ocurre en el estado de mayor tiro: el tiro máximo es a mínima `
         + `temperatura, pero la mayor diferencia entre tramos es a MÁXIMA. ${NOTA_HUECO}`,
-    });
+    })
+    + motivosLongitudinal(filas);
+}
+
+/**
+ * Los motivos y supuestos que el núcleo escribió POR FILA.
+ *
+ * Se perdían: la tabla pinta nueve columnas y ninguna es el motivo, así que el
+ * papel firmado se quedaba sin el aviso del PISO DE VALIDEZ — cuando un tramo
+ * contiguo cae por debajo del 25 % de su propio EDS, el desequilibrio lo domina
+ * un tramo prácticamente flojo EN EL MODELO, y el propio núcleo lo llama
+ * «numéricamente el mismo fallo que un hueco convertido en cero, pero que entra
+ * por un número calculado». Eso llegaba al CSV y a la pantalla, y no al informe.
+ *
+ * Se agrupan por texto idéntico, igual que en la pantalla: veinticuatro veces el
+ * mismo párrafo tapa a las tres filas que dicen algo distinto.
+ */
+function motivosLongitudinal(filas) {
+  const grupos = new Map();
+  for (const f of filas) {
+    for (const [texto, esMotivo] of [
+      ...(f?.noEvaluable ? [[f.noEvaluable, true]] : []),
+      ...lista(f?.notas).map((x) => [x, false]),
+    ]) {
+      const limpio = String(texto ?? '').trim();
+      if (!limpio) continue;
+      const clave = (esMotivo ? 'X·' : 'N·') + limpio;
+      if (grupos.has(clave)) grupos.get(clave).apoyos.push(f.apoyo);
+      else grupos.set(clave, { texto: limpio, esMotivo, apoyos: [f.apoyo] });
+    }
+  }
+  if (!grupos.size) return '';
+
+  const orden = [...grupos.values()]
+    .sort((a, b) => Number(b.esMotivo) - Number(a.esMotivo) || a.apoyos.length - b.apoyos.length);
+
+  return tabla({
+    leyenda: 'Lo que el cálculo del eje longitudinal supuso o no pudo resolver, y en qué apoyos. '
+      + 'Escrito por el propio motor, no redactado a mano.',
+    cabecera: '<th>Apoyos</th><th>Observación</th>',
+    filas: orden.map((g) => `<tr><td>${esc(g.apoyos.length > 4
+      ? `${n(g.apoyos.length)} apoyos` : g.apoyos.join(', '))}</td>
+      <td>${g.esMotivo ? '<b>Sin carga calculada:</b> ' : ''}${esc(g.texto)}</td></tr>`),
+    pie: NOTA_HUECO,
+  });
 }
 
 const CASO_LONGITUDINAL = {
@@ -931,6 +996,16 @@ export function limitacionesDeclaradas(entrada) {
   // 9 · Los vanos que el tiro común del tramo representa peor.
   const fuera = gruposDeVanos(e.vanos)
     .reduce((s, g) => s + g.filas.filter((f) => f?.fueraDeRango === true).length, 0);
+  // Los vanos SIN veredicto también son una limitación: el informe no puede
+  // decir de ellos que cumplen, y hasta hoy ni los contaba ni los declaraba.
+  const vanosSinVeredicto = gruposDeVanos(e.vanos)
+    .reduce((s, g) => s + g.filas.filter((f) => f?.fueraDeRango !== true && f?.fueraDeRango !== false).length, 0);
+  if (vanosSinVeredicto) {
+    add(`${n(vanosSinVeredicto)} vano(s) sin veredicto sobre la banda del VIR`,
+      'Su tramo no trajo un vano ideal de regulación con el que comparar, así que no se sabe si el '
+      + 'tiro común del tramo los representa bien. No están dentro de la banda: están sin evaluar.',
+      'cálculo mecánico');
+  }
   if (fuera) {
     add(`${n(fuera)} vano(s) quedan fuera de la banda adoptada respecto al VIR de su tramo`,
       'En esos vanos el tiro común del tramo los representa peor que a los demás, y la desviación va por '

@@ -249,6 +249,38 @@ describe('informe — la carga sobre las estructuras', () => {
   });
 });
 
+describe('informe — los huecos NO se convierten en aprobados', () => {
+  test('un vano SIN veredicto no se cuenta como «dentro de la banda»', () => {
+    // `fueraDeRango` es de TRES estados: null cuando no hay VIR con el que
+    // comparar. Contar solo los `true` y cerrar con «todos dentro» convierte el
+    // hueco en un aprobado, en el documento que se firma — y contradice al CSV
+    // del mismo exporte, que en esa fila escribe «no evaluable».
+    const h = informeHtml(base({ vanos: [{ ...VANOS[0], fueraDeRango: null, relVir: null }] }));
+    assert.doesNotMatch(h, /Todos los vanos quedan dentro de la banda/);
+    assert.match(h, /NO tienen veredicto/);
+    const lim = limitacionesDeclaradas(base({ vanos: [{ ...VANOS[0], fueraDeRango: null, relVir: null }] }));
+    assert.ok(lim.some((l) => /sin veredicto sobre la banda del VIR/.test(l.titulo)),
+      'y sube a la sección final, que es la que se lee al firmar');
+  });
+
+  test('con todos los vanos evaluados y dentro, sí se puede afirmar', () => {
+    const h = informeHtml(base());
+    assert.match(h, /Todos los vanos quedan dentro de la banda/);
+  });
+
+  test('los motivos del eje longitudinal llegan al papel, agrupados', () => {
+    // Se perdían: la tabla pinta nueve columnas y ninguna es el motivo, así que
+    // el aviso del piso de validez no salía del CSV.
+    const conNota = CARGAS.map((c, i) => (i === 1
+      ? { ...c, notas: ['En «Máxima temperatura» el tramo que llega baja a 8,3 % de su propio EDS.'] }
+      : c));
+    const h = informeHtml(base({ longitudinal: conNota }));
+    assert.match(h, /supuso o no pudo resolver/);
+    assert.match(h, /8,3 % de su propio EDS/);
+    assert.match(h, /Sin carga calculada:/, 'y distingue el motivo del supuesto');
+  });
+});
+
 describe('informe — el texto de los datos va escapado', () => {
 
   test('un nombre con < > & " no deforma el documento', () => {

@@ -35,11 +35,24 @@ service cloud.firestore {
     function esAuditor()    { return esAdmin() || rol() == 'auditor'; }
 
     // Lectura: cualquier miembro autenticado de la organización dueña del dato.
-    function puedeLeer()    { return autenticado() && resource.data.orgId == miOrg(); }
+    //
+    // ⚠️ `miOrg() != ''` NO es redundante, aunque `deMiOrg()` ya lo llevara.
+    // Sin él, un usuario cuyo token trae `rol` pero se quedó SIN `orgId` —un
+    // desliz de aprovisionamiento— cumple `resource.data.orgId == miOrg()`
+    // siempre que el documento también tenga la organización vacía, porque
+    // `'' == ''` es verdadero. El `min(1)` del contrato vive en el cliente, no
+    // aquí: las reglas son la última línea y no pueden apoyarse en él.
+    function puedeLeer()    { return autenticado() && miOrg() != ''
+                                     && resource.data.orgId == miOrg(); }
 
     /** Un documento nuevo no puede nacer en otra organización ni suplantar autor. */
     function altaCoherente() {
-      return request.resource.data.orgId == miOrg()
+      // Misma trampa del lado de la escritura: sin esta comprobación se podrían
+      // CREAR documentos con `orgId: ''`, que después cualquier cuenta sin
+      // reclamos podría leer. En `evidencias` eso expondría `rutaObjeto`, que es
+      // justo la clave que el portero de fotos acepta.
+      return miOrg() != ''
+          && request.resource.data.orgId == miOrg()
           && request.resource.data.creadoPor == request.auth.uid;
     }
 
