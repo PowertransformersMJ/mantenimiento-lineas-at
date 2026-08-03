@@ -311,12 +311,19 @@ suspensión angular · <30° ángulo · ≥30° retención):
 | E01 | — | Terminal (origen) |
 | **E022** | **64,7°** | Retención / anclaje |
 | **E04** | **50,2°** | Retención / anclaje |
-| **E06** | **119,3°** | Retención / anclaje — la línea casi se dobla sobre sí misma |
+| **E06** | **118,2°** | Retención / anclaje — la línea casi se dobla sobre sí misma |
 | **E20** | **76,0°** | Retención / anclaje |
 | **E21** | **58,6°** | Retención / anclaje |
 | E24 | — | Terminal (final) |
 
 Los otros 19 apoyos quedan en suspensión o suspensión angular (máximo 11,2°).
+
+> ⚠️ **E06 es 118,2°, no los 119,3° del módulo original** (verificado 2026-08-03 sobre los datos de
+> producción): el ángulo del original contaba el empalme «EMP TUB» como si fuera un vértice de la
+> línea, y un empalme no dobla nada — cuelga a mitad de vano. Por eso su factor de amplificación es
+> **×1,716 (71,6 % más carga), no ×1,726**. Lo mismo, en pequeño, en sus dos vecinos: E05 4,3° → 3,5°
+> y E07 1,0° → 0,0°. La función estructural no cambia en ninguno. Corregido en el motor por `ADR-014`
+> (la deflexión la manda la geodésica); el `99 §ADR-006` ya lo había cazado en el exporte.
 
 > **Confirmación independiente.** La investigación de falla incrustada en el propio HTML afirma que
 > E20 y E21 tienen deflexiones de **76,03°** y **58,65°** y que *"ninguna de las dos puede ser de

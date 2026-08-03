@@ -12,10 +12,14 @@ Térmica · Viento · **Cargas** (los DOS ejes) · Cantidades · Exportar. **597
 Producción al día y **verificada en pantalla**, no solo por hash.
 
 **La auditoría está cerrada (ADR-014).** Los 20 hallazgos de la ola 4, resueltos. Lo último en
-entrar: la deflexión con **un solo dueño** (manda la geodésica — no mueve ningún número de LN-627,
-comprobado: los 24 ángulos guardados coinciden dentro de 0,005°), el informe ya no atribuye el tope
-de tiro a una hipótesis que no lo declara, el CSV no le entrega fórmulas a Excel, y el **portero
-tiene sus primeras 14 pruebas** — estaba en producción sirviendo fotos de cliente sin ninguna.
+entrar: la deflexión con **un solo dueño** (manda la geodésica), el informe ya no atribuye el tope de
+tiro a una hipótesis que no lo declara, el CSV no le entrega fórmulas a Excel, y el **portero tiene
+sus primeras 14 pruebas** — estaba en producción sirviendo fotos de cliente sin ninguna.
+
+**⚠️ Tres ángulos de LN-627 cambiaron, y los tres estaban mal:** E05 4,3°→3,5°, **E06 119,3°→118,2°**
+y E07 1,0°→0,0°. Son los que rodean el empalme «EMP TUB»: el valor guardado lo calculó el módulo
+original contando el empalme como vértice. **E06, el apoyo que más amplifica, pasa de ×1,726 a
+×1,716.** Ninguna función estructural cambia. Ya corregido en `40 §10` y `99 §ADR-006/014`.
 
 **Las fotos ya se sirven.** R2 activo ($0/mes), depósito privado, portero desplegado en
 `lineas-at-evidencias.ajimenezp99.workers.dev`, y las 4 del expediente de LN-627 cargando en la
@@ -79,7 +83,7 @@ galería. Verificado que un desconocido NO puede bajarlas (ADR-010).
   coherencia, **cargas**, **longitudinal**) · `contratos/` (v0.2.0) · `exportar/` (+ mecanica de 5
   secciones, informe de 11) · `web/` · `evidencias/` (Worker, **en producción**).
 - **Hallazgos de ingeniería reales**: 14 de 23 vanos fuera de la banda 0,7–1,3 del VIR · parábola
-  admisible aquí (−0,100 %) · **3 apoyos amplifican la tensión** (E06 ×1,726 = 73 % más) ·
+  admisible aquí (−0,100 %) · **3 apoyos amplifican la tensión** (E06 ×1,716 = 72 % más, con 118,2°) ·
   **los 2 terminales soportan el tiro entero** (2.339 kgf/conductor), un orden por encima de
   cualquier desequilibrio.
 - **Deuda declarada**: fluencia · vano peso (falta cota de sujeción) · despeje al terreno · ficha

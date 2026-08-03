@@ -993,7 +993,7 @@ el aire (pestaña Viento): las dos hablan del cable. La pregunta de la que respo
 mantenimiento es otra —**¿y el apoyo aguanta?**— y no salía por ninguna pantalla.
 
 El dato escondido era el **factor del quiebre**, `2·sen(α/2)`: vale 0 en recta, 1 exacto a 60° y
-1,73 a 120°. En LN-627 hay tres estructuras por encima de 60°, y una (E06, 119,3°) recibe un **73 %
+1,73 a 120°. En LN-627 hay tres estructuras por encima de 60°, y una (E06, 118,2°) recibe un **72 %
 más** de carga transversal que la propia tensión del conductor — siempre, haya viento o no. Un apoyo
 así, dimensionado «por el tiro», está dimensionado por poco más de la mitad.
 
@@ -1186,8 +1186,22 @@ estaba arreglado en `0a44024` y el crudo lo listaba pendiente por error.
 > y manda la GEOMETRÍA — el `deflexion_grados` guardado existe para AUDITAR lo que se calculó aquel
 > día (así lo dice el contrato), no para pintar hoy. Si la geometría no puede resolverlo se usa el
 > guardado, pero la fila lo DECLARA; y si los dos existen y discrepan más de 0,5°, también.
-> Comprobado sobre LN-627: los 24 ángulos guardados coinciden con los geodésicos dentro de 0,005°,
-> así que **el cambio no mueve un solo número de la línea real** — cierra una trampa futura.
+
+> **Y sí movió números en LN-627 — tres, y los tres estaban mal.** Verificado contra producción con
+> el navegador del Ingeniero: `E05 4,3° → 3,5°`, **`E06 119,3° → 118,2°`** y `E07 1,0° → 0,0°`. Son
+> exactamente los tres apoyos que rodean el empalme «EMP TUB»: el ángulo guardado lo había calculado
+> el módulo original contando el empalme como un vértice de la línea, y un empalme no dobla nada —
+> cuelga a mitad de vano. La consecuencia visible: **E06, el apoyo que más amplifica la tensión de
+> toda la línea, pasa de ×1,726 a ×1,716** (73 % → 72 % más carga transversal). Ninguna función
+> estructural cambia. El `99 §ADR-006` ya había cazado este mismo error en el exporte del
+> levantamiento y lo dejó escrito; lo que faltaba era que el MOTOR dejara de consumir el valor
+> contaminado. Y desde hoy la pantalla lo declara sola: la nota de discrepancia sale en esos tres
+> apoyos, con los dos ángulos y con qué corregir si el bueno fuera el otro.
+>
+> **Aviso de método, para no repetirlo:** la primera comprobación dio «no mueve ningún número», y era
+> falsa — el filtro de empalmes del script miraba un campo `tipo` que el fixture de la bóveda no
+> tiene, así que no filtró nada y comparó el valor guardado contra sí mismo. Un filtro que no casa
+> con nada no falla: devuelve todo y parece que confirma (`L-32`, misma familia).
 
 > **Una frase del informe firmable se DERIVA de su dueño, no se escribe a mano.** El tope de tiro
 > sale del indicador de `evaluarUmbrales` (que ahora publica `procedenciaUmbral` como campo, no
