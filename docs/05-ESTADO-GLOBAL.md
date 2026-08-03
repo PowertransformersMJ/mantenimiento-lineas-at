@@ -5,11 +5,11 @@
 | Señal | Valor (al **2026-07-29**) |
 |---|---|
 | **Misión ahora** | **F0 · Verificación.** Repo creado, cerebro cableado, `nucleo/` portado y verificado. Arquitectura **decidida y revisada externamente**: comité ×3 (ADR-001) + Consejo Externo Gemini 3.1 Pro (ADR-002, confirma en 7 puntos y enmienda 3). Pendientes → `10`. |
-| **Build** | 🟢 `npm test` **597 pass / 0 fail** (núcleo + exportes + vistas puras). · verificado-vivo: 2026-08-03 |
+| **Build** | 🟢 `npm test` **601 pass / 0 fail** (núcleo + exportes + vistas puras). · verificado-vivo: 2026-08-03 |
 | **Repo** | `main` · https://github.com/PowertransformersMJ/mantenimiento-lineas-at · **PÚBLICO** (decisión del Ingeniero 2026-07-29) |
 | **Producción** | 🟢 **https://mantenimiento-lineas-at.pages.dev** — Cloudflare Pages, cuenta `ajimenezp99@gmail.com`. Caparazón con línea de demostración: **cero datos de cliente**. Despliegue a mano (`npm run deploy --workspace web`); el automático espera los 2 secretos del repo. · verificado-vivo: 2026-07-29 |
 | **Backend** | 🟢 **Un solo trabajador**: el portero de fotos (`evidencias/`), delante de un depósito R2 privado. Adelanta cómputo en servidor a conciencia (ADR-010): es la única forma de no exponer material de cliente. |
-| **Coste** | **$0/mes.** R2 activo con 10 GB gratis y 18 MB usados (0,18 %); egress gratis sin límite (verificado en la tarifa oficial, 2026-08-03). Pendiente: alerta de presupuesto. |
+| **Coste** | **$0/mes.** R2 activo con 10 GB gratis y ~35 MB usados (0,35 %); egress gratis sin límite (verificado en la tarifa oficial, 2026-08-03). Pendiente: alerta de presupuesto. |
 | **Cerebro** | kernel íntegro == canónico (la versión la reporta `brain:check`) · bóveda con crudo del comité (477 KB) y fixture de LN-627 |
 | **Alcance** | **Plataforma COMPLETA e independiente** (ADR-003): no se integra con Maximo ni SAP, debe traer todo lo necesario. F5 (sincronización campo↔oficina) deja de ser condicional. |
 | **Deuda crítica** | 🔴 **7 preguntas a AFINIA sin enviar**: la nº 3 decide si F4 (captura en campo) existe; la nº 4 decide F5 y F6. (✅ motor de cálculo sin deuda desde 07-29, `40 §8` · ✅ Consejo Externo cerrado, ADR-002 · ✅ alcance y presupuesto fijados, ADR-003.) |

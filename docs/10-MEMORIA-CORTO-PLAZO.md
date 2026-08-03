@@ -8,7 +8,7 @@
 ## 🎯 Dónde estamos
 
 **11 pestañas vivas**: Resumen · Distancias · Fichas · **Falla** · Fundamentos · Mecánico ·
-Térmica · Viento · **Cargas** (los DOS ejes) · Cantidades · Exportar. **597 pruebas** en verde.
+Térmica · Viento · **Cargas** (los DOS ejes) · Cantidades · Exportar. **601 pruebas** en verde.
 Producción al día y **verificada en pantalla**, no solo por hash.
 
 **La auditoría está cerrada (ADR-014).** Los 20 hallazgos de la ola 4, resueltos. Lo último en
@@ -21,9 +21,15 @@ y E07 1,0°→0,0°. Son los que rodean el empalme «EMP TUB»: el valor guardad
 original contando el empalme como vértice. **E06, el apoyo que más amplifica, pasa de ×1,726 a
 ×1,716.** Ninguna función estructural cambia. Ya corregido en `40 §10` y `99 §ADR-006/014`.
 
-**Las fotos ya se sirven.** R2 activo ($0/mes), depósito privado, portero desplegado en
-`lineas-at-evidencias.ajimenezp99.workers.dev`, y las 4 del expediente de LN-627 cargando en la
-galería. Verificado que un desconocido NO puede bajarlas (ADR-010).
+**Las 103 fotos ya se sirven, y cada una sabe de quién es.** R2 activo ($0/mes, ~35 MB de 10 GB),
+depósito privado, portero desplegado. Las 4 del expediente en la pestaña Falla y **las 99 de
+estructura en la ficha de su punto** (ADR-015). Verificado en producción, punto por punto: E06 sus
+9, el empalme E05-E06 sus 2, E13-E24 declarando que no tienen ninguna.
+
+⚠️ **La regla de asignación NO es la obvia:** `e07` es **E06**, no E07. El número del archivo es el
+del PUNTO del levantamiento, empalmes incluidos, y en LN-627 hay empalmes en los puntos 6 y 8. La
+regla obvia habría desplazado 54 de las 99 fotos. La única prueba de esto vive en el HTML de 30 MB
+de Descargas, **sin respaldo** (TODO-34). Detalle en `99 §ADR-015`.
 
 ## 🛑 LO PRIMERO AL RETOMAR
 
@@ -34,7 +40,7 @@ galería. Verificado que un desconocido NO puede bajarlas (ADR-010).
    **Los números NO han cambiado.** Ojo: `vistas/tramos.ts`, `vientoDatos.ts` y `Fundamentos.tsx`
    siguen leyendo `tiroMaximoAdmisible()` = 0,5·RTS fijo en código — unificarlo al cerrar la decisión.
 2. **La alerta de presupuesto de Cloudflare (TODO-44), del Ingeniero.** R2 no apaga: factura. Hoy
-   son 18 MB de 10 GB gratis, así que el riesgo es teórico — pero la regla del proyecto es que
+   son ~35 MB de 10 GB gratis, así que el riesgo sigue siendo teórico — pero la regla del proyecto es que
    ninguna pieza tenga gasto ilimitado. `+ Add Budget Alert` en Workers & Pages; sugerido 1 USD.
 
 ## 🧭 Cómo retomar
@@ -47,7 +53,7 @@ galería. Verificado que un desconocido NO puede bajarlas (ADR-010).
 3. **Verificar contra PRODUCCIÓN con el Chrome del Ingeniero** y **preguntarle a la pestaña qué
    bundle cargó** — `curl` prueba el borde, el navegador tiene su propia caché (`L-18`, tres cachés
    en serie). Esta sesión verificó dos veces una pantalla vieja por saltarse esto.
-4. Antes de CADA push: auditoría de coordenadas + `npm test` (597) + `contrato:verificar` +
+4. Antes de CADA push: auditoría de coordenadas + `npm test` (601) + `contrato:verificar` +
    `brain:check`. Documentar TODO fallo en `30` ANTES de commitear.
 5. Autenticado en esta Mac: `gh`, `wrangler` (cuenta ajimenezp99), `firebase`. Llave admin de
    Firebase en Descargas. Cuenta Cloudflare `ecc6a431234e4ef7f57f36a022ebff8f`.
@@ -68,7 +74,6 @@ galería. Verificado que un desconocido NO puede bajarlas (ADR-010).
 
 | # | Qué | Dónde está el plan |
 |---|---|---|
-| **TODO-43** | Las **99 fotos por estructura**. R2 ya está vivo; falta el vínculo `apoyoId` en `Evidencia`, en el subidor y en la ficha. **Si el nombre del archivo no basta para asignarlas, NO se suben**: mal asignadas son peores que ausentes | crudo de **ADR-013** |
 | **TODO-41** | Alta ADITIVA en el contrato: `capacidadLongitudinal {valor_kgf, tipo, alturaReferencia_m, fuente}`. Sin ella NINGÚN apoyo tiene veredicto en el eje longitudinal | **ADR-012** |
 | **TODO-42/37** | **Informe gerencial** del expediente (10 secciones especificadas) | crudo de **ADR-012** |
 | **TODO-30** | CI: validación XSD real de GPX/KML (xmllint + esquemas versionados en el repo) | crudo de **ADR-013** |
@@ -76,7 +81,7 @@ galería. Verificado que un desconocido NO puede bajarlas (ADR-010).
 | **TODO-11** | F1 · Nota técnica LN-627 con las correcciones de la auditoría | — |
 | **TODO-13/14/15/16/21/22/23** | F3-F5: invalidación por tramo · sincronización bifurcada · Firestore vs D1 · flujo IA con `ProveedorFalso` · prueba de navegador · secretos para despliegue automático | — |
 
-## ✅ Consolidado (detalle → ADR-001…014)
+## ✅ Consolidado (detalle → ADR-001…015)
 
 - **Modelo**: 24 estructuras + 2 empalmes (NO son apoyos), 23 vanos, tramos 1-2-2-14-1-3 (`40 §10`).
 - **Workspaces**: `nucleo/` (geodesia, mecánica, térmica, estadísticas, vanos, umbrales, cantidades,

@@ -1236,3 +1236,80 @@ estaba arreglado en `0a44024` y el crudo lo listaba pendiente por error.
 
 `research-archive/2026-08-03-auditoria-ola-4.json` — mismos veinte hallazgos; éste cierra los once
 que `ADR-013` dejó abiertos.
+
+---
+
+## ADR-015 · 2026-08-03 · Una foto puede colgar de un APOYO, y el número del archivo no es el del apoyo
+
+**Estado:** ✅ Cerrado · `TODO-43` completo · 99 fotos en producción, repartidas y verificadas
+
+### Contexto
+
+Las 99 fotografías de estructura de LN-627 llevaban desde el principio en la bóveda, sin poder
+subirse. El plan de la auditoría (`ADR-013`) las declaró **no viables** por dos razones distintas:
+una regla de asignación que no es la que parece, y un contrato que las rechazaba.
+
+### La trampa: `e07` NO es `E07`
+
+El número del nombre del archivo es el número de **PUNTO del levantamiento**, y ahí dentro van
+también los empalmes. En LN-627 hay empalmes en los puntos 6 y 8, así que a partir de ahí todo se
+corre dos posiciones:
+
+| archivo | punto | qué es de verdad |
+|---|---|---|
+| `e06-*` | 6 | **EMPALME E05-E06** (2 fotos) |
+| `e07-*` | 7 | **estructura E06** (9 fotos) |
+| `e08-*` | 8 | **EMPALME E06-E07** (3 fotos) |
+| `e09-*`…`e14-*` | 9-14 | E07 … E12, todo corrido |
+
+Leer «`e07` = E07» habría desplazado **9 de los 14 grupos — 54 de las 99 fotos** a un apoyo
+equivocado. Sería creíble, estaría mal, y no lo notaría nadie hasta que alguien fuera al sitio.
+
+**Verificado contra la fuente, no contra el índice.** El `indice.json` de la bóveda NO prueba nada:
+sus campos `estructuraPunto` y `orden` son exactamente los dos números del nombre del archivo — es
+circular. La prueba está en el HTML del módulo de campo: su lista `BASE` pone `627 EMP TUB` en n=6
+y `627 E06` en n=7, y su mapa `FOTOS` tiene 8, 20, 7, 7, 3, 2, 9, 3, 7, 8, 7, 9, 5 y 4 fotos por
+clave — idéntico, grupo a grupo, a los archivos de la bóveda.
+
+### Decisión
+
+> **`apoyoId` basta por sí solo para que una fotografía sea evidencia.** El contrato exigía
+> inspección o investigación; estas fotos no son ninguna de las dos, son el recorrido de
+> levantamiento. La alternativa —crear la Inspección y colgarlas de ella— era más fiel al dominio y
+> se descartó porque **obligaba a inventar datos**: la cuadrilla y los apoyos cubiertos no existen
+> en ninguna parte, y «tener fotos» no es «haberse inspeccionado». Una foto amarrada a UNA
+> estructura y a la fecha en que se tomó ya prueba lo que tiene que probar.
+
+> **La asignación se IMPRIME antes de subir un solo byte, y es todo o nada.** El subidor resuelve
+> cada archivo LEYENDO el documento del apoyo en la base (`orden === n−1`) y usando SU id —nunca
+> re-derivándolo con la fórmula del sembrador, que el día que cambie de semilla apuntaría a
+> documentos inexistentes sin un solo error—. Si un archivo no resuelve, no se sube ninguno: la
+> mitad bien colgada y la otra mitad en el limbo es peor que ninguna.
+
+> **Las 5 fotos de los dos empalmes se publican en la ficha del EMPALME**, que tiene su propio UUID.
+> Colgarlas de la estructura vecina «para no perderlas» sería inventar procedencia. Por eso la
+> galería de la ficha NO está condicionada a que el punto sea estructura.
+
+> **Los pies se dejan como vienen** («IMG_3394 · 10:06:19»): no son descripciones, pero no afirman
+> nada falso y son la trazabilidad con el archivo original. Redactar qué muestra una foto es un
+> juicio de ingeniería, y `ADR-004` prohíbe que el modelo opine sobre evidencia.
+
+### Consecuencias
+
+- 99 fotos en R2 (**17 MB**, total del depósito ~35 MB de 10 GB gratis) y 99 fichas en la base.
+  Verificado en producción: E06 muestra sus 9, el empalme E05-E06 sus 2, y E13-E24 declaran que no
+  tienen ninguna. Reparto comprobado contra la base, punto por punto.
+- El contrato pasa a admitir tres dueños posibles, con **prueba de guardián** (`tests/contrato-
+  evidencia.test.js`): estrechar ese `refine` haría desaparecer fotos ya pagadas **en silencio**,
+  porque la aplicación descarta con `safeParse` lo que no valida y no lo dice en pantalla.
+- Se cerró un fallo latente: la lectura de evidencias estaba condicionada a que la línea tuviera
+  expediente de falla. Funcionaba por casualidad —LN-627 tiene uno— y la segunda línea con fotos y
+  sin falla habría mostrado cero, sin error.
+- **Deuda declarada:** el subidor lanza `wrangler` una vez por archivo, en serie. Si falla en la 98
+  quedan objetos huérfanos en R2 (reintentar es seguro: la clave lleva la huella). Y la única
+  prueba de que `e07` es E06 vive en un HTML de 30 MB **sin respaldo remoto** (`TODO-34`): si ese
+  archivo se pierde, la asignación deja de ser reproducible.
+
+### Crudo de respaldo
+
+`research-archive/2026-08-03-auditoria-ola-4.json` → `plan43` (12 pasos, 9 riesgos, 7 huecos).

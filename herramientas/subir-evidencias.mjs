@@ -218,22 +218,11 @@ if (SECO) {
   process.exit(0);
 }
 
-// ⛔ PUERTA CERRADA mientras el contrato no admita una evidencia que cuelgue de
-// un APOYO. Hoy `Evidencia` exige `inspeccionId` o `investigacionId`, y una
-// foto de estructura no tiene ninguno de los dos: la aplicación la leería,
-// `safeParse` fallaría por ese `refine` y el filtro la descartaría EN SILENCIO.
-// Resultado: 99 objetos ocupando y facturando en R2, 99 fichas en la base y
-// CERO fotos en pantalla, sin un solo error donde mirar. Es el fallo más caro
-// de diagnosticar de todo el subsistema, así que se para antes, no después.
-// Cómo se abre: decisión del Ingeniero documentada como ADR (TODO-43).
-if (EXIGE_APOYO) {
-  console.error('\n⛔ Falta la DECISIÓN sobre cómo cuelga una foto de estructura.');
-  console.error('   Hoy el contrato exige que toda evidencia tenga inspección o investigación');
-  console.error('   (contratos/src/eventos.ts, el `refine` del final). Una foto de apoyo no tiene');
-  console.error('   ninguna de las dos, así que la aplicación la descartaría sin avisar.');
-  console.error('   La asignación de arriba ya está verificada: lo único que falta es esa decisión.\n');
-  process.exit(1);
-}
+// El contrato admite desde ADR-015 que una evidencia cuelgue de un APOYO. Antes
+// no, y escribir estas fichas sin ese cambio habría sido el peor fallo posible:
+// la aplicación las leería, `safeParse` fallaría por el `refine` y el filtro las
+// descartaría EN SILENCIO — 99 objetos facturando en R2, 99 fichas en la base y
+// cero fotos en pantalla, sin un solo error donde mirar.
 
 // ── Subir a R2 ─────────────────────────────────────────────────────────────
 // Vía wrangler, que ya está autenticado en esta Mac. Si R2 no está habilitado,
@@ -331,5 +320,7 @@ await escritura.commit();
 console.log(`\n✅ ${lote.length} ficha(s) de evidencia escritas en la base.`);
 console.log(`   depósito : ${DEPOSITO}`);
 console.log(`   cuelgan de: ${investigacionId ? 'investigación ' + investigacionId : 'la línea'}`);
-console.log(`\n⚠️  Falta decidir CÓMO se sirven: el depósito es privado y la web no`);
-console.log(`   tiene servidor. Ver docs/99 · ADR pendiente sobre servido de evidencias.\n`);
+console.log(`   se sirven por: el portero de ${DEPOSITO} (ADR-010), que verifica la sesión`);
+console.log(`\n   Comprobación: abra la ficha del punto en la aplicación. Si las fotos no`);
+console.log(`   aparecen, lo primero que hay que mirar es si el paquete publicado lleva la`);
+console.log(`   versión del contrato que admite estas fichas — se descartan en silencio.\n`);

@@ -71,6 +71,7 @@ Guarda `research-archive/` (crudos de deliberación: comités, consejos externos
 | `ADR-012` | 2026-08-01 | El eje longitudinal (terminal · desequilibrio · rotura), diseñado con workflow de 7 agentes y verificado a mano contra el motor | `research-archive/2026-08-01-workflow-eje-longitudinal.json` |
 | `ADR-013` | 2026-08-03 | Auditoría adversarial de la ola 4: 9 fallos que 564 pruebas en verde no veían, incluido un portero que fallaba ABIERTO | `research-archive/2026-08-03-auditoria-ola-4.json` |
 | `ADR-014` | 2026-08-03 | Los once menores cerrados: un dueño único para la deflexión y para el dialecto CSV, el tope de tiro con su procedencia verdadera, y las barreras imaginarias del portero corregidas | `research-archive/2026-08-03-auditoria-ola-4.json` |
+| `ADR-015` | 2026-08-03 | Una foto puede colgar de un APOYO; y el número del archivo es el del PUNTO del levantamiento, no el de la estructura: `e07` es E06 | `research-archive/2026-08-03-auditoria-ola-4.json` |
 
 > Toda decisión cara de revertir entra aquí con su ADR y su crudo enlazado. Si hubo comité o consejo
 > externo y el crudo no está archivado, la tarea **no está cerrada** (`CLAUDE.md §G.4`).

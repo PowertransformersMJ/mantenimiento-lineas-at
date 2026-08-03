@@ -42,11 +42,22 @@ export const Evidencia = Base.extend({
   /**
    * De QUÉ cuelga esta evidencia. Eran obligatoriamente de una inspección; hoy
    * también pueden serlo de una investigación de falla, que es un expediente y
-   * no una campaña de inspección (ADR-008).
+   * no una campaña de inspección (ADR-008), o **directamente de un APOYO**
+   * (ADR-015).
    *
-   * Ambos son opcionales por separado pero **uno de los dos es obligatorio**:
-   * lo hace cumplir el `refine` de abajo. Una foto huérfana no es evidencia de
-   * nada — es un archivo, y nadie sabría por qué se guardó ni con qué compararla.
+   * Los tres son opcionales por separado pero **uno de los tres es
+   * obligatorio**: lo hace cumplir el `refine` de abajo. Una foto huérfana no
+   * es evidencia de nada — es un archivo, y nadie sabría por qué se guardó ni
+   * con qué compararla.
+   *
+   * ⚠️ Por qué `apoyoId` basta por sí solo. Las 99 fotos de estructura de
+   * LN-627 no vienen de una falla ni de una campaña de inspección: son el
+   * recorrido de levantamiento. Exigirles una inspección obligaba a inventar
+   * quién iba en la cuadrilla y qué apoyos cubrió —datos que no existen— y
+   * «tener fotos» no es «haberse inspeccionado»: declarar cobertura por haber
+   * fotografiado sería una inferencia metida en un expediente. Una foto amarrada
+   * a UNA estructura y a la fecha en que se tomó ya prueba lo que tiene que
+   * probar: cómo estaba ese apoyo ese día.
    */
   inspeccionId: Id.optional(),
   investigacionId: Id.optional(),
@@ -68,8 +79,8 @@ export const Evidencia = Base.extend({
    */
   subida: z.enum(['pendiente', 'subiendo', 'completa', 'fallida']).default('pendiente'),
 }).refine(
-  (e) => Boolean(e.inspeccionId) || Boolean(e.investigacionId),
-  { message: 'Toda evidencia cuelga de una inspección o de una investigación: una foto sin dueño no prueba nada.' },
+  (e) => Boolean(e.inspeccionId) || Boolean(e.investigacionId) || Boolean(e.apoyoId),
+  { message: 'Toda evidencia cuelga de una inspección, de una investigación o de un apoyo: una foto sin dueño no prueba nada.' },
 );
 
 // ── Hallazgo (lo que una PERSONA confirmó) ──────────────────────────────────
