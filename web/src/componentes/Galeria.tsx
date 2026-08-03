@@ -111,7 +111,17 @@ export function Galeria({ evidencias }: { evidencias: Evidencia[] }) {
               {url ? (
                 <button type="button" className="galeria-lupa" onClick={() => setAmpliada(url)}
                   aria-label={`Ampliar: ${e.pie ?? 'fotografía del evento'}`}>
-                  <img src={url} alt={e.pie ?? 'Fotografía del evento'} loading="lazy" />
+                  {/* ⚠️ SIN `loading="lazy"`. Cazado con las fotos reales ya en R2:
+                      el navegador NUNCA seleccionaba la fuente de estas imágenes
+                      —`currentSrc` vacío y `complete: false` aun estando a la vista—
+                      y la galería salía en blanco con los pies de foto puestos, que
+                      es el fallo más engañoso posible: parece que faltan las fotos
+                      cuando en realidad ya estaban descargadas en memoria.
+                      El diferido de Chrome no se lleva con las URL `blob:`, y aquí
+                      además no aporta nada: cuando este elemento se pinta, el binario
+                      YA se bajó del portero (por eso hay un blob). Diferir la pintura
+                      de algo que ya está en memoria no ahorra ni una petición. */}
+                  <img src={url} alt={e.pie ?? 'Fotografía del evento'} />
                 </button>
               ) : (
                 <div className="galeria-hueco" aria-hidden="true" />
