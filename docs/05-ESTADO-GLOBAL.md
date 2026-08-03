@@ -8,8 +8,8 @@
 | **Build** | 🟢 `npm test` **555 pass / 0 fail** (núcleo + exportes + vistas puras). · verificado-vivo: 2026-08-01 |
 | **Repo** | `main` · https://github.com/PowertransformersMJ/mantenimiento-lineas-at · **PÚBLICO** (decisión del Ingeniero 2026-07-29) |
 | **Producción** | 🟢 **https://mantenimiento-lineas-at.pages.dev** — Cloudflare Pages, cuenta `ajimenezp99@gmail.com`. Caparazón con línea de demostración: **cero datos de cliente**. Despliegue a mano (`npm run deploy --workspace web`); el automático espera los 2 secretos del repo. · verificado-vivo: 2026-07-29 |
-| **Backend** | ⬜ **Ninguno, a propósito.** F0–F4 corren en la Mac: cero cuentas, cero tarjetas, cero proveedores que puedan cobrar o apagar. |
-| **Coste** | **$0/mes.** Primer peso posible en F6, y solo si F5 se disparó. Lo autoriza el Ingeniero. |
+| **Backend** | 🟢 **Un solo trabajador**: el portero de fotos (`evidencias/`), delante de un depósito R2 privado. Adelanta cómputo en servidor a conciencia (ADR-010): es la única forma de no exponer material de cliente. |
+| **Coste** | **$0/mes.** R2 activo con 10 GB gratis y 18 MB usados (0,18 %); egress gratis sin límite (verificado en la tarifa oficial, 2026-08-03). Pendiente: alerta de presupuesto. |
 | **Cerebro** | kernel íntegro == canónico (la versión la reporta `brain:check`) · bóveda con crudo del comité (477 KB) y fixture de LN-627 |
 | **Alcance** | **Plataforma COMPLETA e independiente** (ADR-003): no se integra con Maximo ni SAP, debe traer todo lo necesario. F5 (sincronización campo↔oficina) deja de ser condicional. |
 | **Deuda crítica** | 🔴 **7 preguntas a AFINIA sin enviar**: la nº 3 decide si F4 (captura en campo) existe; la nº 4 decide F5 y F6. (✅ motor de cálculo sin deuda desde 07-29, `40 §8` · ✅ Consejo Externo cerrado, ADR-002 · ✅ alcance y presupuesto fijados, ADR-003.) |
@@ -21,4 +21,4 @@
 - **Workflows y subagentes:** siempre acotados y con `model: 'opus'` (orden del Ingeniero).
 
 ## 🧩 Sub-sistemas
-`nucleo/` ✅ · `exportar/` ✅ (workspace puro, ADR-006/007) · pruebas de oro ✅ · cerebro ✅ · CI ✅ · **pestañas 11/11** ✅ (Cargas: los DOS ejes, ADR-011/012) · `evidencias/` (portero de fotos) ⏳ espera alta de R2, TODO-32 · generador de línea ⬜ F2 · base local ⬜ F3 · captura en campo ⬜ F4 · nube ⬜ F5 · mapas offline ⬜ F4+
+`nucleo/` ✅ · `exportar/` ✅ (workspace puro, ADR-006/007) · pruebas de oro ✅ · cerebro ✅ · CI ✅ · **pestañas 11/11** ✅ (Cargas: los DOS ejes, ADR-011/012) · `evidencias/` (portero de fotos) ✅ **en producción** (ADR-010) · generador de línea ⬜ F2 · base local ⬜ F3 · captura en campo ⬜ F4 · nube ⬜ F5 · mapas offline ⬜ F4+

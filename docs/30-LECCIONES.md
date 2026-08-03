@@ -357,3 +357,18 @@
   suma. Y conviene separar las dos preguntas en dos banderas con nombre distinto
   (`sentidoResoluble` / `inversionResoluble`) en vez de reutilizar una: reutilizarla es justo lo
   que hizo que el error no se viera.
+
+### L-30 · `loading="lazy"` no carga URLs `blob:` — y el fallo se lee como «faltan los datos»
+- **Síntoma:** la galería del expediente pintaba los cuatro marcos con sus pies de foto y **ninguna
+  imagen**. Todo lo demás estaba bien: el token, el portero, R2 y la red.
+- **Causa:** el `<img loading="lazy">` nunca seleccionaba la fuente — `currentSrc` VACÍO y
+  `complete: false` aun estando a la vista y con `scrollIntoView` hecho. El binario ya estaba
+  descargado (comprobado a mano: el blob era un JPEG válido, cabecera `FF D8 FF E0`, y una
+  `new Image()` con esa misma URL cargaba 1051×1400 al instante).
+- **Regla:** con URL `blob:`, NO se usa `loading="lazy"`. Y no se pierde nada: cuando ese elemento
+  se pinta, el binario YA se bajó —por eso existe el blob—, así que diferir la PINTURA de algo que
+  está en memoria no ahorra ni una petición.
+- **Cómo se diagnostica en 30 segundos, sin adivinar:** comparar el elemento real contra una
+  `new Image()` con el mismo `src`. Si la copia carga y el original no, el problema es del ELEMENTO
+  (atributos, estilos, ciclo de vida), no del dato ni de la red. Aquí ese contraste separó «no
+  llegan las fotos» de «llegaron y no se pintan», que son dos investigaciones distintas.

@@ -927,7 +927,15 @@ y control catenaria-vs-parábola) · `nucleo/cantidades.js` (BOM geométrico) ·
 
 ## ADR-010 · 2026-08-01 · Cómo se sirven las fotos: un portero delante del almacenamiento
 
-**Estado:** ✅ Construido y probado · ⏳ Sin desplegar: espera a que R2 esté habilitado.
+**Estado:** ✅ **EN PRODUCCIÓN desde el 2026-08-03.** El Ingeniero completó el alta de R2 ($0/mes,
+10 GB gratis) y se desplegó todo: depósito `lineas-at-evidencias` (privado), portero en
+`lineas-at-evidencias.ajimenezp99.workers.dev`, 4 fotos del expediente de LN-627 servidas y
+verificadas en pantalla.
+
+**La prueba de seguridad, hecha contra la URL real:** sin token → 401 · token basura → 401 · JWT
+bien formado con FIRMA FALSA → 401 *«la llave del token no está entre las de Google»* · objeto
+inexistente → 401 **antes** de mirar si existe, para que nadie enumere qué fotos hay tanteando
+rutas. El portero no se conforma con que el token parezca un token.
 
 ### Contexto
 

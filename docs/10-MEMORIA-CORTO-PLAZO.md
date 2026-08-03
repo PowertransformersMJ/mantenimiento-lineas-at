@@ -57,7 +57,6 @@ en el crudo de la bóveda.
 
 | # | Qué | Por qué importa |
 |---|---|---|
-| **TODO-32** | **Completar el alta de R2** (tarjeta + dirección + 2 casillas) | Desbloquea las 103 fotos y el informe fotográfico |
 | **TODO-33** | **Decidir 50 % o 25 % de RTS** como tope de tiro | Hoy el motor calcula con 50 % y la doctrina dice 25 % |
 | **TODO-34** | **Respaldo de la bóveda**: no tiene remoto. 337 MB, con un archivo de 110 MB (`sgm-transpower/confidencial-retirado/*.bundle`) que **GitHub rechaza** (tope 100 MB/archivo). Opciones: repo privado excluyendo ese bundle · copia a disco externo (no había ninguno montado) · dejarlo solo en la Mac | Ahí viven las 103 fotos, los fixtures y todos los crudos |
 | **TODO-02** | Enviar a AFINIA las **7 preguntas** (`99 §ADR-001`) | La 3 decide si F4 existe; la 4 decide F5/F6 |
@@ -68,8 +67,9 @@ en el crudo de la bóveda.
 
 | # | Qué | Estado |
 |---|---|---|
-| **TODO-35** | Al habilitarse R2: depósito + desplegar `evidencias/` + `VITE_EVIDENCIAS_URL` + subir fotos + verificar la galería en producción | 🔜 en cuanto TODO-32 |
-| **TODO-36** | **Fichas editable** (hecho fechado, no sobrescritura) — es DECISIÓN FUERTE: modelo de datos + escritura a Firestore + reglas. Se propone como ADR, no se implementa a ciegas. Las 99 fotos siguen tras R2 | 🔲 espera decisión del Ingeniero |
+| **TODO-36** | **Fichas editable** (hecho fechado, no sobrescritura) — es DECISIÓN FUERTE: modelo de datos + escritura a Firestore + reglas. Se propone como ADR, no se implementa a ciegas | 🔲 espera decisión del Ingeniero |
+| **TODO-43** | Las **99 fotos por estructura**: R2 ya está vivo, pero `subir-evidencias.mjs` las colgaría de la LÍNEA, no de cada apoyo. Falta el vínculo `apoyoId` en el subidor y en la ficha | 🔲 |
+| **TODO-44** | Poner la **alerta de presupuesto** en Cloudflare (`+ Add Budget Alert` en Workers & Pages). R2 no apaga: factura. Con 18 MB de 10 GB el riesgo es teórico, pero la regla del proyecto es que ninguna pieza tenga gasto ilimitado | 🔲 del Ingeniero |
 | **TODO-41** | Alta ADITIVA en el contrato de `capacidadLongitudinal {valor_kgf, tipo, alturaReferencia_m, fuente}`: sin ella NINGÚN apoyo tiene veredicto en el eje longitudinal | 🔲 sigue a ADR-012 |
 | **TODO-42** | **Informe gerencial** — el workflow dejó su especificación (10 secciones) en el crudo de ADR-012 | 🔲 |
 | **TODO-37** | **Informe gerencial** del expediente (control documental, riesgo residual, recomendaciones) — inventariado en el crudo de ADR-009 | 🔲 |
@@ -89,7 +89,7 @@ en el crudo de la bóveda.
   o sea 73 % más carga transversal que el propio tiro, siempre**) → pestaña Cargas, ADR-011.
 - **Deuda declarada, no resuelta**: fluencia, vano peso (falta cota de sujeción), despeje al
   terreno, ficha real del proveedor del conductor.
-- **Cerebro**: 29 lecciones (L-01…L-29). Leer antes de tocar Firebase, mapas, despliegues o
+- **Cerebro**: 30 lecciones (L-01…L-30). Leer antes de tocar Firebase, mapas, despliegues o
   workflows con agentes.
 
 ## 🚫 Callejones ya probados (no repetir — detalle en `30`)
