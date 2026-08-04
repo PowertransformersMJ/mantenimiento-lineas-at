@@ -1,0 +1,2474 @@
+<!doctype html>
+<html lang="es-CO">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Líneas AT — Columnas (Finder / Xcode)</title>
+<style>
+/* ============================================================================
+   TOKENS — la identidad del módulo de campo LN-627, llevada a macOS oscuro.
+   Se CONSERVA la paleta (#0f1419 lienzo, #171d24 panel, ámbar #f0a500, rótulos
+   de 11,5 px en mayúsculas, cifras tabulares) y se le añade lo que hace que un
+   Mac parezca un Mac: material translúcido, filetes de 1 px con casi nada de
+   contraste, tipografía del sistema, radios de 6-10 px y selección con acento.
+   ========================================================================= */
+:root{
+  color-scheme: dark;
+
+  --lienzo:#0f1419; --lienzo-hond:#0b0f13; --pnl:#171d24; --pnl2:#1e262f;
+  --pnl-alto: linear-gradient(180deg,#1a212a 0%,var(--pnl) 62%);
+
+  --sidebar-fondo: rgba(19,25,32,.62);
+  --barra-fondo:   rgba(22,28,35,.72);
+  --flotante-fondo: rgba(30,38,47,.82);
+  --vibrante: saturate(180%) blur(30px);
+
+  --bd: rgba(255,255,255,.075);
+  --bd-suave: rgba(255,255,255,.05);
+  --bd-fuerte: rgba(255,255,255,.13);
+  --bd-solido:#2b353f;
+  --hairline:.5px;
+
+  --tx:#e6edf3; --tx2:#c6d3de; --mut:#8b98a5; --tenue:#6f7d8a;
+
+  --acc:#f0a500; --acc-tx:#1a1200;
+  --acc-suave: rgba(240,165,0,.14);
+  --acc-borde: rgba(240,165,0,.32);
+  --acc-tinte:#2a2113;
+  --anillo-foco: 0 0 0 3px rgba(240,165,0,.32);
+
+  --sel-fondo: var(--acc-suave);
+  --sel-tx: var(--acc);
+  --sel-inactiva: rgba(255,255,255,.06);
+
+  --gr:#7fc96a; --rd:#e05252; --az:#5b8dd9;
+  --t-verde:#16240f; --t-rojo:#2a1616; --t-azul:#12202c; --b-azul:#24455e;
+  --hueco: var(--tenue);
+
+  --fuente:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",system-ui,sans-serif;
+  --fuente-mono: ui-monospace,"SF Mono",SFMono-Regular,Menlo,monospace;
+  --t-base:13px; --t-prosa:12px; --t-fino:11.4px; --t-rotulo:11.5px;
+  --t-micro:10px; --t-tabla:11.8px; --t-matriz:9.8px; --t-cifra:21px;
+  --ls-rotulo:1px; --ls-micro:.7px; --lh:1.5; --num: tabular-nums;
+
+  --r-xs:4px; --r-sm:6px; --r-md:8px; --r-lg:10px; --r-pastilla:999px;
+
+  --luz-arriba: inset 0 1px 0 rgba(255,255,255,.045);
+  --sombra-1: 0 1px 2px rgba(0,0,0,.35);
+  --sombra-2: 0 6px 20px -6px rgba(0,0,0,.55);
+  --sombra-flotante: 0 14px 40px -10px rgba(0,0,0,.65),0 0 0 1px rgba(0,0,0,.4);
+
+  --sidebar-ancho:264px; --barra-alto:38px;
+  --fila-lista:28px; --fila-tabla:22px;
+  --pad-panel:14px 16px 18px; --pad-celda:5px 8px;
+  --gap:8px; --gap-panel:14px; --medida-prosa:110ch;
+
+  --curva: cubic-bezier(.2,.7,.3,1);
+  --rapido:.12s; --medio:.18s;
+
+  --c1:264px; --c2:216px;
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))){
+  :root{ --sidebar-fondo:#131920; --barra-fondo:#161c23; --flotante-fondo:#1e262f; }
+}
+@media (prefers-reduced-transparency: reduce){
+  :root{ --sidebar-fondo:#131920; --barra-fondo:#161c23; --flotante-fondo:#1e262f; --vibrante:none; }
+}
+@media (prefers-reduced-motion: reduce){ *{animation:none!important;transition:none!important} }
+
+*{ box-sizing:border-box }
+html,body{ height:100% }
+body{
+  margin:0; overflow:hidden;
+  font:400 var(--t-base)/var(--lh) var(--fuente);
+  background:var(--lienzo); color:var(--tx);
+  -webkit-font-smoothing:antialiased;
+  /* El lienzo lleva un halo tenue: el material translúcido necesita algo
+     debajo para que se note que es material y no un gris más. */
+  background-image:
+    radial-gradient(900px 520px at 12% -8%, rgba(240,165,0,.055), transparent 60%),
+    radial-gradient(760px 460px at 88% 108%, rgba(91,141,217,.06), transparent 62%);
+  background-attachment:fixed;
+}
+::selection{ background:rgba(240,165,0,.28); color:var(--tx) }
+
+/* Barras de desplazamiento delgadas, al estilo del sistema */
+::-webkit-scrollbar{ width:11px; height:11px }
+::-webkit-scrollbar-track{ background:transparent }
+::-webkit-scrollbar-thumb{
+  background:rgba(255,255,255,.17); border:3px solid transparent;
+  background-clip:content-box; border-radius:8px;
+}
+::-webkit-scrollbar-thumb:hover{ background:rgba(255,255,255,.32); background-clip:content-box }
+::-webkit-scrollbar-corner{ background:transparent }
+
+button,input,select{ font-family:inherit }
+:focus-visible{ outline:none; box-shadow:var(--anillo-foco); border-radius:var(--r-sm) }
+
+/* ── Estructura de la ventana ──────────────────────────────────────────── */
+.ventana{ height:100vh; display:grid; grid-template-rows:var(--barra-alto) minmax(0,1fr) auto }
+
+/* ── Barra de herramientas ─────────────────────────────────────────────── */
+.barra{
+  display:flex; align-items:center; gap:10px; padding:0 10px 0 12px;
+  background:var(--barra-fondo);
+  -webkit-backdrop-filter:var(--vibrante); backdrop-filter:var(--vibrante);
+  border-bottom:var(--hairline) solid var(--bd);
+  position:relative; z-index:20;
+}
+.barra-grupo{ display:flex; align-items:center; gap:2px; flex:none }
+.ico-btn{
+  appearance:none; background:none; border:0; cursor:pointer; color:var(--mut);
+  width:26px; height:22px; border-radius:var(--r-sm);
+  display:grid; place-items:center; transition:background var(--rapido), color var(--rapido);
+}
+.ico-btn:hover{ background:rgba(255,255,255,.07); color:var(--tx) }
+.ico-btn:disabled{ opacity:.32; cursor:default; background:none }
+.ico-btn.activo{ color:var(--acc) }
+.ico-btn svg{ width:15px; height:15px; display:block }
+
+.barra-sep{ width:var(--hairline); height:18px; background:var(--bd); flex:none; margin:0 4px }
+
+.miga{ display:flex; align-items:center; gap:6px; min-width:0; font-size:12.5px }
+.miga b{ font-weight:600; color:var(--tx); letter-spacing:.2px }
+.miga span{ color:var(--mut) }
+.miga .sep{ color:var(--tenue); font-size:10px }
+.miga .kv{ color:var(--tenue); font-variant-numeric:var(--num) }
+
+.barra-der{ margin-left:auto; display:flex; align-items:center; gap:8px; flex:none }
+.pastilla-criterio{
+  font-size:10.5px; color:var(--mut); background:rgba(255,255,255,.05);
+  border:var(--hairline) solid var(--bd); border-radius:var(--r-pastilla);
+  padding:3px 9px; white-space:nowrap; font-variant-numeric:var(--num);
+}
+.pastilla-criterio b{ color:var(--acc); font-weight:600 }
+
+.segmentado{
+  display:flex; background:rgba(255,255,255,.055); border-radius:var(--r-sm);
+  padding:2px; gap:2px; border:var(--hairline) solid var(--bd);
+}
+.segmentado button{
+  appearance:none; border:0; background:none; cursor:pointer; color:var(--mut);
+  font:500 11px/1 inherit; padding:4px 9px; border-radius:4px; white-space:nowrap;
+  transition:background var(--rapido), color var(--rapido);
+}
+.segmentado button:hover{ color:var(--tx) }
+.segmentado button[aria-pressed="true"]{
+  background:rgba(255,255,255,.10); color:var(--tx);
+  box-shadow:0 1px 1px rgba(0,0,0,.3), var(--luz-arriba);
+}
+
+/* ── Las tres columnas ─────────────────────────────────────────────────── */
+.columnas{
+  display:grid; min-height:0;
+  grid-template-columns:var(--c1) var(--hairline) var(--c2) var(--hairline) minmax(0,1fr);
+  transition:grid-template-columns var(--medio) var(--curva);
+}
+.columnas.sin-parque{ --c1:0px }
+.col{ min-width:0; min-height:0; overflow:auto; position:relative }
+.divisor{ background:var(--bd); cursor:col-resize; position:relative }
+.divisor::after{ content:""; position:absolute; inset:0 -3px; }
+.divisor:hover{ background:var(--bd-fuerte) }
+
+/* ── Columna 1 · el parque ─────────────────────────────────────────────── */
+.col-parque{
+  background:var(--sidebar-fondo);
+  -webkit-backdrop-filter:var(--vibrante); backdrop-filter:var(--vibrante);
+}
+.columnas.sin-parque .col-parque{ opacity:0; pointer-events:none }
+.parque-cab{
+  position:sticky; top:0; z-index:6; padding:8px 9px 7px;
+  background:var(--sidebar-fondo);
+  -webkit-backdrop-filter:var(--vibrante); backdrop-filter:var(--vibrante);
+  border-bottom:var(--hairline) solid var(--bd-suave);
+}
+.buscador{ position:relative; display:block }
+.buscador svg{
+  position:absolute; left:7px; top:50%; transform:translateY(-50%);
+  width:12px; height:12px; color:var(--tenue); pointer-events:none;
+}
+.buscador input{
+  width:100%; appearance:none; background:var(--lienzo-hond); color:var(--tx);
+  border:var(--hairline) solid var(--bd); border-radius:var(--r-sm);
+  padding:5px 9px 5px 24px; font-size:12px; line-height:1.4;
+}
+.buscador input::placeholder{ color:var(--tenue) }
+.buscador input:focus{ outline:none; border-color:var(--acc-borde); box-shadow:var(--anillo-foco) }
+.parque-filtros{ display:flex; align-items:center; gap:6px; margin-top:7px }
+.parque-filtros .segmentado{ flex:1 }
+.parque-filtros .segmentado button{ flex:1; text-align:center; padding:4px 4px }
+.parque-cuenta{
+  font-size:var(--t-micro); color:var(--tenue); text-transform:uppercase;
+  letter-spacing:var(--ls-micro); padding:8px 12px 3px; font-variant-numeric:var(--num);
+}
+.grupo-t{
+  position:sticky; top:74px; z-index:4;
+  display:flex; align-items:center; gap:7px;
+  padding:7px 12px 5px;
+  font-size:var(--t-rotulo); font-weight:600; color:var(--mut);
+  text-transform:uppercase; letter-spacing:var(--ls-rotulo);
+  background:linear-gradient(180deg, var(--sidebar-fondo) 72%, transparent);
+  -webkit-backdrop-filter:var(--vibrante); backdrop-filter:var(--vibrante);
+}
+.grupo-t i{ font-style:normal; color:var(--tenue); font-weight:500; letter-spacing:0; font-size:10px }
+.grupo-t::after{ content:""; flex:1; height:var(--hairline); background:var(--bd-suave) }
+
+.lista-lineas{ list-style:none; margin:0; padding:0 6px 4px }
+.fila-linea{
+  display:grid; grid-template-columns:12px minmax(0,1fr) auto; align-items:center;
+  gap:8px; width:100%; text-align:left;
+  appearance:none; background:none; border:0; cursor:pointer; color:inherit;
+  padding:5px 8px 6px; border-radius:var(--r-md); position:relative;
+  transition:background var(--rapido);
+}
+.fila-linea:hover{ background:rgba(255,255,255,.045) }
+.fila-linea[aria-current="true"]{ background:var(--sel-fondo) }
+.fila-linea[aria-current="true"]::before{
+  content:""; position:absolute; left:2px; top:7px; bottom:7px; width:2px;
+  background:var(--acc); border-radius:2px;
+}
+.fila-linea[aria-current="true"] .fl-cod{ color:var(--sel-tx) }
+.punto{
+  width:8px; height:8px; border-radius:50%; background:var(--mut); justify-self:center;
+  box-shadow:0 0 0 3px rgba(139,152,165,.13);
+}
+.punto.critico{ background:var(--rd); box-shadow:0 0 0 3px rgba(224,82,82,.18) }
+.punto.atender{ background:var(--acc); box-shadow:0 0 0 3px rgba(240,165,0,.16) }
+.punto.ok{ background:var(--gr); box-shadow:0 0 0 3px rgba(127,201,106,.14) }
+.punto.nulo{ background:transparent; border:1.5px dashed var(--tenue); box-shadow:none; width:9px; height:9px }
+.fl-cod{ font-size:12.5px; font-weight:600; letter-spacing:.2px; color:var(--tx) }
+.fl-sub{
+  display:block; font-size:10.6px; color:var(--mut); margin-top:1px;
+  font-variant-numeric:var(--num); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.fl-sub em{ font-style:normal; color:var(--tenue) }
+.fl-badge{
+  font-size:9.6px; font-weight:600; letter-spacing:.3px; border-radius:var(--r-pastilla);
+  padding:2px 6px; white-space:nowrap; font-variant-numeric:var(--num);
+  background:rgba(255,255,255,.06); color:var(--mut); border:var(--hairline) solid var(--bd);
+}
+.fl-badge.critico{ background:var(--t-rojo); color:#ff9a9a; border-color:#5c2626 }
+.fl-badge.atender{ background:var(--acc-tinte); color:var(--acc); border-color:var(--acc-borde) }
+.fl-badge.nulo{ background:transparent; color:var(--tenue); border-style:dashed }
+.parque-pie{
+  padding:10px 12px 14px; font-size:10.4px; line-height:1.6; color:var(--tenue);
+  border-top:var(--hairline) solid var(--bd-suave); margin-top:6px;
+}
+.parque-pie b{ color:var(--mut); font-weight:600 }
+
+/* ── Columna 2 · las secciones ─────────────────────────────────────────── */
+.col-secciones{ background:rgba(15,20,25,.55) }
+.sec-cab{
+  position:sticky; top:0; z-index:5; padding:10px 11px 9px;
+  background:var(--sidebar-fondo);
+  -webkit-backdrop-filter:var(--vibrante); backdrop-filter:var(--vibrante);
+  border-bottom:var(--hairline) solid var(--bd-suave);
+}
+.sec-cod{ font-size:14px; font-weight:600; letter-spacing:.2px; display:flex; align-items:center; gap:7px }
+.sec-cod .punto{ justify-self:auto }
+.sec-meta{ margin-top:3px; font-size:10.8px; color:var(--mut); font-variant-numeric:var(--num) }
+.sec-firma{
+  margin-top:7px; display:inline-flex; align-items:center; gap:5px;
+  font-size:9.8px; font-weight:600; letter-spacing:.6px; text-transform:uppercase;
+  border-radius:var(--r-pastilla); padding:3px 8px;
+}
+.sec-firma.no{ background:var(--t-rojo); color:#ff9a9a; border:var(--hairline) solid #5c2626 }
+.sec-firma.si{ background:var(--t-verde); color:#bfe6b0; border:var(--hairline) solid #33502c }
+.sec-sello{
+  margin-top:7px; font-size:9.8px; line-height:1.55; color:var(--tenue);
+  font-variant-numeric:var(--num); border-top:var(--hairline) solid var(--bd-suave); padding-top:6px;
+}
+.sec-sello b{ color:var(--mut); font-weight:600 }
+.sec-lista{ list-style:none; margin:0; padding:6px 6px 10px }
+.sec-rotulo{
+  font-size:var(--t-micro); text-transform:uppercase; letter-spacing:var(--ls-micro);
+  color:var(--tenue); padding:8px 8px 4px;
+}
+.fila-sec{
+  display:grid; grid-template-columns:16px minmax(0,1fr) auto; align-items:center; gap:7px;
+  width:100%; text-align:left; appearance:none; background:none; border:0; cursor:pointer;
+  color:var(--tx2); padding:0 8px; height:26px; border-radius:var(--r-md);
+  font-size:12.4px; position:relative; transition:background var(--rapido), color var(--rapido);
+}
+.fila-sec:hover{ background:rgba(255,255,255,.045); color:var(--tx) }
+.fila-sec[aria-current="true"]{ background:var(--sel-fondo); color:var(--sel-tx); font-weight:600 }
+.fila-sec[aria-current="true"]::before{
+  content:""; position:absolute; left:2px; top:5px; bottom:5px; width:2px;
+  background:var(--acc); border-radius:2px;
+}
+.fila-sec svg{ width:14px; height:14px; color:var(--mut); display:block }
+.fila-sec[aria-current="true"] svg{ color:var(--acc) }
+.fila-sec.roja svg{ color:var(--rd) }
+.fila-sec.hueca{ color:var(--tenue) }
+.fila-sec.hueca svg{ color:var(--tenue); opacity:.7 }
+.sec-nom{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.sec-badge{
+  font-size:9.6px; color:var(--tenue); font-variant-numeric:var(--num);
+  background:rgba(255,255,255,.055); border-radius:var(--r-pastilla); padding:1px 6px;
+}
+.fila-sec[aria-current="true"] .sec-badge{ background:rgba(240,165,0,.16); color:var(--acc) }
+.sec-badge.rojo{ background:var(--t-rojo); color:#ff9a9a }
+.sec-badge.falta{ background:transparent; border:var(--hairline) dashed var(--bd-fuerte); color:var(--tenue) }
+/* ── Columna 3 · el contenido ──────────────────────────────────────────── */
+.col-contenido{ background:transparent; scroll-behavior:smooth }
+.lienzo{ padding:14px 18px 46px; max-width:1500px }
+.titulo-sec{
+  display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;
+  padding-bottom:9px; border-bottom:var(--hairline) solid var(--bd);
+}
+.titulo-sec h1{ margin:0; font-size:16px; font-weight:600; letter-spacing:.2px }
+.titulo-sec p{ margin:0; font-size:11.6px; color:var(--mut); flex:1; min-width:220px }
+
+.panel{
+  margin:var(--gap-panel) 0 0; padding:var(--pad-panel);
+  background:var(--pnl-alto); border:var(--hairline) solid var(--bd);
+  border-radius:var(--r-lg); box-shadow:var(--luz-arriba), var(--sombra-1);
+}
+.panel > h2{
+  margin:0 0 10px; font-size:var(--t-rotulo); font-weight:600; color:var(--mut);
+  text-transform:uppercase; letter-spacing:var(--ls-rotulo);
+  border-bottom:var(--hairline) solid var(--bd); padding-bottom:6px;
+  display:flex; align-items:center; gap:9px; flex-wrap:wrap;
+}
+.panel > h2 .der{ margin-left:auto; text-transform:none; letter-spacing:0; color:var(--tenue); font-weight:400; font-size:10.4px }
+.panel.rojo{ border-color:#5c2626 }
+.panel.rojo > h2{ color:#ff9a9a; border-bottom-color:rgba(255,107,107,.2) }
+
+.fine{ color:var(--mut); font-size:var(--t-fino); line-height:1.65; margin:8px 0 0; max-width:var(--medida-prosa) }
+.fine b{ color:var(--tx2) }
+.prosa{ font-size:var(--t-prosa); line-height:1.65; color:var(--tx2); margin:0 0 8px; max-width:var(--medida-prosa) }
+.prosa b{ color:var(--tx) }
+.hueco{ color:var(--hueco) }
+.pendiente{ color:var(--tenue); font-style:italic }
+
+.aviso,.alerta,.ok,.info{
+  margin:10px 0 0; padding:9px 12px; border-radius:0 var(--r-sm) var(--r-sm) 0;
+  font-size:12.2px; line-height:1.6; max-width:var(--medida-prosa);
+}
+.aviso{ background:var(--acc-tinte); border-left:3px solid var(--acc); color:#e8d9b8 }
+.aviso b{ color:var(--acc) }
+.alerta{ background:var(--t-rojo); border-left:3px solid var(--rd); color:#f0c9c9 }
+.alerta b{ color:#ff9a9a }
+.ok{ background:var(--t-verde); border-left:3px solid var(--gr); color:#cfe8c2 }
+.ok b{ color:#bfe6b0 }
+.info{ background:var(--t-azul); border-left:3px solid var(--az); color:#cfe0ef }
+.info b{ color:var(--tx) }
+
+/* Semáforos de estado */
+.banda-estado{ display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:8px }
+.estado-ficha{
+  display:flex; align-items:center; gap:10px; padding:10px 12px;
+  background:var(--pnl-alto); border:var(--hairline) solid var(--bd);
+  border-radius:var(--r-lg); box-shadow:var(--luz-arriba), var(--sombra-1);
+}
+.estado-ficha.critico{ border-color:#5c2626 }
+.estado-t{ display:block; font-size:9.6px; text-transform:uppercase; letter-spacing:var(--ls-micro); color:var(--mut) }
+.estado-v{ display:block; font-size:12.6px; font-weight:600; color:var(--tx); margin-top:2px; line-height:1.35 }
+.estado-ficha.critico .estado-v{ color:#ff9a9a }
+.estado-ficha.atender .estado-v{ color:var(--acc) }
+.estado-ficha.ok .estado-v{ color:#bfe6b0 }
+.estado-c{ display:block; font-size:10px; color:var(--tenue); margin-top:2px; line-height:1.4 }
+
+/* Indicadores */
+.kpis{ display:grid; grid-template-columns:repeat(auto-fit,minmax(136px,1fr)); gap:8px }
+.kpis.dos{ grid-template-columns:1fr 1fr }
+.kpi{
+  background:linear-gradient(180deg,#16283a 0%,var(--t-azul) 70%);
+  border:var(--hairline) solid var(--b-azul); border-radius:var(--r-lg); padding:10px 12px;
+  box-shadow:var(--luz-arriba), var(--sombra-1);
+}
+.kpi-v{ font-size:var(--t-cifra); font-weight:600; color:var(--acc); font-variant-numeric:var(--num); line-height:1.15 }
+.kpi-v.rojo{ color:#e08585 } .kpi-v.verde{ color:#bfe6b0 } .kpi-v.neutro{ color:var(--tx) } .kpi-v.gris{ color:var(--tenue) }
+.kpi-v small{ font-size:12px; font-weight:500; color:var(--mut) }
+.kpi-l{ margin-top:2px; font-size:var(--t-micro); color:var(--mut); text-transform:uppercase; letter-spacing:var(--ls-micro) }
+.kpi-s{ margin-top:4px; font-size:10.8px; color:#9fb3c4; line-height:1.45 }
+
+/* Tablas de instrumento */
+.tabla-caja{ overflow:auto; border:var(--hairline) solid var(--bd); border-radius:var(--r-lg); margin-top:10px; max-height:70vh }
+.tabla{ width:100%; border-collapse:collapse; font-size:var(--t-tabla); font-variant-numeric:var(--num) }
+.tabla th{
+  background:var(--pnl2); color:var(--mut); font-weight:600; font-size:10px;
+  text-transform:uppercase; letter-spacing:.5px; white-space:nowrap;
+  padding:6px 8px; text-align:left; border-bottom:var(--hairline) solid var(--bd-solido);
+  position:sticky; top:0; z-index:2;
+}
+.tabla td{ padding:var(--pad-celda); border-bottom:var(--hairline) solid var(--bd-suave); color:var(--tx2) }
+.tabla .num{ text-align:right }
+.tabla .destaca{ color:var(--acc); font-weight:600 }
+.tabla tbody tr:hover td{ background:rgba(255,255,255,.035) }
+.tabla tr.excede td{ background:rgba(224,82,82,.10) }
+.tabla tr.fuera td{ background:rgba(240,165,0,.07) }
+.tabla caption{ text-align:left; color:var(--mut); font-size:var(--t-fino); padding:0 0 8px; line-height:1.55 }
+.sello-calculo{ display:block; margin-top:6px; font-size:10.2px; color:var(--tenue); font-variant-numeric:var(--num) }
+
+.marca{ font-size:9.6px; font-weight:600; letter-spacing:.4px; text-transform:uppercase;
+  border-radius:var(--r-xs); padding:1px 5px; white-space:nowrap }
+.marca.gris{ background:rgba(255,255,255,.06); color:var(--tenue); border:var(--hairline) dashed var(--bd-fuerte) }
+.marca.ambar{ background:var(--acc-tinte); color:var(--acc); border:var(--hairline) solid var(--acc-borde) }
+.marca.roja{ background:var(--t-rojo); color:#ff9a9a; border:var(--hairline) solid #5c2626 }
+.marca.verde{ background:var(--t-verde); color:#bfe6b0; border:var(--hairline) solid #33502c }
+.marca.azul{ background:var(--t-azul); color:#86aae3; border:var(--hairline) solid var(--b-azul) }
+
+/* Tablero del resumen */
+.tablero{ display:grid; grid-template-columns:minmax(0,1fr) 380px; gap:12px; align-items:start; margin-top:var(--gap-panel) }
+.tablero-panel{ position:sticky; top:0 }
+.esquema{
+  background:var(--lienzo-hond); border:var(--hairline) solid var(--bd);
+  border-radius:var(--r-lg); padding:6px; box-shadow:var(--sombra-2); position:relative;
+}
+.esquema svg{ width:100%; height:auto; display:block; border-radius:var(--r-sm) }
+.esquema-pie{ margin:7px 0 0; font-size:10.6px; line-height:1.6; color:var(--tenue); max-width:var(--medida-prosa) }
+.esquema-pie b{ color:var(--mut) }
+.esquema-pie i{ color:var(--tenue) }
+.leyenda{ margin:8px 0 0; font-size:11.2px; color:var(--mut); display:flex; align-items:center; gap:6px 14px; flex-wrap:wrap }
+.li{ width:9px; height:9px; border-radius:50%; display:inline-block; vertical-align:-1px; margin-right:4px }
+.tramos-leyenda{ display:flex; flex-wrap:wrap; gap:5px 14px; margin-top:7px; font-size:11px; color:var(--mut); font-variant-numeric:var(--num) }
+.tramo-item{ display:inline-flex; align-items:center; gap:6px }
+.tramo-item i{ width:18px; height:4px; border-radius:2px; display:inline-block }
+
+/* Distribución de vanos */
+.barras{ margin-top:10px; display:flex; flex-direction:column; gap:2px }
+.barra-fila{ display:grid; grid-template-columns:118px 1fr 56px; gap:8px; align-items:center }
+.barra-nombre{ font-size:10.2px; color:var(--mut); text-align:right; white-space:nowrap; font-variant-numeric:var(--num) }
+.barra-pista{ position:relative; height:13px; background:var(--lienzo-hond); border-radius:3px; overflow:hidden }
+.barra-valor{ position:absolute; inset:0 auto 0 0; background:var(--acc); border-radius:3px; min-width:2px; opacity:.85 }
+.barra-valor.fuera{ background:#e0a052; opacity:1 }
+.barra-promedio{ position:absolute; top:0; bottom:0; width:2px; background:var(--tx); opacity:.6 }
+.barra-cifra{ font-size:10.2px; color:var(--tx2); text-align:right; font-variant-numeric:var(--num) }
+
+/* Lista de hallazgos */
+.hallazgos{ list-style:none; margin:10px 0 0; padding:0; display:grid; gap:6px }
+.hallazgo{
+  padding:8px 11px; border-radius:0 var(--r-sm) var(--r-sm) 0; font-size:11.8px; line-height:1.6;
+  border-left:3px solid var(--bd-solido); background:var(--pnl2); color:var(--tx2);
+}
+.hallazgo.atencion{ border-left-color:var(--rd); background:var(--t-rojo); color:#f0c9c9 }
+.hallazgo.aviso{ border-left-color:var(--acc); background:var(--acc-tinte); color:#e8d9b8 }
+.hallazgo.info{ color:var(--mut) }
+.hallazgo b{ color:var(--tx) }
+.hallazgo.aviso b{ color:var(--acc) }
+.hallazgo.atencion b{ color:#ff9a9a }
+.hallazgo em{ font-style:normal; display:block; margin-top:3px; font-size:10.4px; color:var(--tenue) }
+
+/* Tarjeta del evento */
+.falla-tarjeta{
+  appearance:none; width:100%; text-align:left; cursor:pointer; margin-top:10px;
+  display:flex; align-items:flex-start; gap:11px;
+  font:400 12.2px/1.55 inherit; color:var(--tx);
+  background:linear-gradient(135deg,#2a1616,#3a1f10);
+  border:var(--hairline) solid #6b2b2b; border-left:3px solid #ff6b6b;
+  border-radius:0 var(--r-lg) var(--r-lg) 0; padding:11px 13px;
+  transition:border-color var(--medio) var(--curva), transform var(--medio) var(--curva);
+}
+.falla-tarjeta:hover{ border-color:#ff6b6b; transform:translateX(2px) }
+.falla-tarjeta b{ color:#fff; font-size:13px }
+.falla-icono{
+  flex:none; width:24px; height:24px; border-radius:50%; background:#d64545; color:#fff;
+  display:grid; place-items:center; font-size:13px; box-shadow:0 0 0 3px rgba(214,69,69,.2);
+}
+.falla-sub{ display:block; margin-top:3px; font-size:11.2px; color:#e8c9c9 }
+.falla-ir{ color:var(--acc); font-weight:600 }
+.falla-banda{
+  padding:14px 16px; background:linear-gradient(135deg,#2a1616,#3a1f10);
+  border:var(--hairline) solid #6b2b2b; border-left:3px solid #ff6b6b;
+  border-radius:var(--r-lg); box-shadow:var(--luz-arriba), var(--sombra-1); margin-top:var(--gap-panel);
+}
+.falla-rotulo{ font-size:9.5px; letter-spacing:1.4px; color:#ff6b6b; font-weight:700; text-transform:uppercase }
+.falla-titulo{ margin:3px 0 0; font-size:17px; font-weight:600; color:#fff }
+.falla-geo{ margin:6px 0 0; font-size:11px; color:#c9b3b3; font-variant-numeric:var(--num) }
+
+/* Hipótesis causales */
+.hip{
+  background:var(--pnl2); border:var(--hairline) solid var(--bd); border-left:3px solid var(--bd-solido);
+  border-radius:0 var(--r-lg) var(--r-lg) 0; padding:11px 13px; margin-top:8px;
+}
+.hip.alta{ border-left-color:#ff6b6b; background:linear-gradient(180deg,#241a1a 0%,var(--pnl2) 70%) }
+.hip.media{ border-left-color:var(--acc) }
+.hip.baja{ border-left-color:#4a5560 }
+.hip-cab{ display:flex; align-items:center; gap:9px; flex-wrap:wrap; margin-bottom:6px }
+.hip-cab h3{ margin:0; font-size:12.6px; font-weight:600; color:var(--tx); flex:1; min-width:180px }
+.hip-orden{
+  flex:none; width:20px; height:20px; border-radius:50%; display:grid; place-items:center;
+  background:rgba(255,255,255,.06); border:var(--hairline) solid var(--bd); color:var(--mut);
+  font-size:10px; font-weight:700; font-variant-numeric:var(--num);
+}
+.hip.alta .hip-orden{ background:#d64545; border-color:#d64545; color:#fff }
+
+/* Fichas: pastillas */
+.chips{ display:flex; flex-wrap:wrap; gap:4px }
+.chip{
+  appearance:none; cursor:pointer; font:400 11px/1 inherit; white-space:nowrap;
+  background:rgba(255,255,255,.05); color:var(--tx2);
+  border:var(--hairline) solid var(--bd); border-radius:var(--r-pastilla); padding:5px 9px;
+  transition:border-color var(--rapido), background var(--rapido), color var(--rapido);
+}
+.chip:hover{ border-color:var(--bd-fuerte); color:var(--tx) }
+.chip.ancla{ color:var(--acc) }
+.chip.term{ color:#e08585 }
+.chip.emp{ color:var(--tenue); border-style:dashed }
+.chip[aria-pressed="true"]{ background:var(--acc-suave); border-color:var(--acc-borde); color:var(--acc); font-weight:600 }
+.chip[aria-pressed="true"].term{ background:rgba(224,82,82,.14); border-color:#5c2626; color:#ff9a9a }
+
+.ficha-grilla{ display:grid; grid-template-columns:repeat(auto-fit,minmax(238px,1fr)); gap:9px; margin-top:10px }
+.ficha-bloque{ background:var(--pnl2); border:var(--hairline) solid var(--bd); border-radius:var(--r-lg); padding:10px 12px }
+.ficha-bloque h3{
+  margin:0 0 8px; font-size:9.6px; font-weight:600; color:var(--mut);
+  text-transform:uppercase; letter-spacing:.8px;
+}
+.ficha-bloque dl{ margin:0; display:grid; grid-template-columns:auto 1fr; gap:4px 12px; font-size:11.6px }
+.ficha-bloque dt{ color:var(--mut) }
+.ficha-bloque dd{ margin:0; color:var(--tx); font-variant-numeric:var(--num); text-align:right }
+.mono{ font-family:var(--fuente-mono); font-size:10.8px }
+
+/* Galería */
+.galeria{ display:grid; grid-template-columns:repeat(auto-fill,minmax(168px,1fr)); gap:10px; margin-top:10px }
+.foto{
+  aspect-ratio:4/3; border-radius:var(--r-sm); border:var(--hairline) solid var(--bd);
+  background:
+    repeating-linear-gradient(135deg, rgba(255,255,255,.022) 0 6px, transparent 6px 12px),
+    linear-gradient(160deg,#1d2732,#141b22);
+  display:flex; flex-direction:column; justify-content:flex-end; padding:7px 8px;
+  font-size:9.8px; color:var(--tenue); font-variant-numeric:var(--num); position:relative; overflow:hidden;
+}
+.foto::before{
+  content:""; position:absolute; top:50%; left:50%; transform:translate(-50%,-60%);
+  width:22px; height:17px; border:1.5px solid rgba(255,255,255,.14); border-radius:3px;
+}
+.foto b{ color:var(--mut); font-weight:600; display:block }
+
+/* Matriz 24×24 */
+.matriz-caja{ overflow:auto; max-height:60vh; border:var(--hairline) solid var(--bd); border-radius:var(--r-lg); margin-top:10px }
+.matriz{ border-collapse:collapse; font-size:var(--t-matriz); font-variant-numeric:var(--num) }
+.matriz th,.matriz td{ padding:3px 5px; text-align:right; border:var(--hairline) solid rgba(255,255,255,.045); white-space:nowrap }
+.matriz thead th{ position:sticky; top:0; background:var(--pnl2); color:var(--mut); z-index:2; font-weight:600 }
+.matriz .pegado{ position:sticky; left:0; background:var(--pnl2); color:var(--mut); z-index:1; text-align:left }
+.matriz thead .pegado{ z-index:3 }
+.matriz td{ cursor:pointer; color:var(--tx2) }
+.matriz td:hover{ background:rgba(240,165,0,.18); color:var(--acc) }
+.matriz td.sel{ outline:1.5px solid var(--acc); color:var(--acc); font-weight:600 }
+.matriz td.diag{ color:var(--tenue); background:rgba(255,255,255,.03); cursor:default }
+
+/* Calculadora */
+.calc{ display:flex; align-items:flex-end; gap:9px; flex-wrap:wrap; margin-bottom:10px }
+.campo{ display:flex; flex-direction:column; gap:4px; font-size:9.8px; color:var(--mut); text-transform:uppercase; letter-spacing:var(--ls-micro) }
+.campo select{
+  appearance:none; background:var(--lienzo-hond) ; color:var(--tx);
+  border:var(--hairline) solid var(--bd); border-radius:var(--r-sm);
+  padding:6px 26px 6px 9px; font-size:12px; min-width:170px; text-transform:none; letter-spacing:0;
+  background-image:linear-gradient(45deg,transparent 50%,var(--mut) 50%),linear-gradient(135deg,var(--mut) 50%,transparent 50%);
+  background-position:calc(100% - 14px) 12px, calc(100% - 9px) 12px; background-size:5px 5px; background-repeat:no-repeat;
+}
+.campo select:focus{ outline:none; border-color:var(--acc-borde); box-shadow:var(--anillo-foco) }
+.btn{
+  appearance:none; cursor:pointer; font:600 11.5px/1 inherit;
+  background:rgba(255,255,255,.06); color:var(--tx2);
+  border:var(--hairline) solid var(--bd); border-radius:var(--r-sm); padding:8px 12px;
+  transition:border-color var(--rapido), color var(--rapido), background var(--rapido);
+}
+.btn:hover{ border-color:var(--acc-borde); color:var(--acc); background:var(--acc-suave) }
+.btn.ancho{ display:block; width:100%; text-align:left; margin-top:6px; font-weight:500; font-size:12.2px; padding:9px 12px }
+.btn.ancho span{ display:block; font-size:10.4px; color:var(--tenue); margin-top:2px; font-weight:400 }
+.btn:disabled{ opacity:.4; cursor:not-allowed }
+
+/* Fundamentos */
+.formula{
+  background:var(--lienzo-hond); border:var(--hairline) solid var(--bd); border-radius:var(--r-lg);
+  padding:11px 16px; margin:10px 0; overflow-x:auto; text-align:center;
+}
+.formula math{ font-size:16px; color:var(--tx) }
+.fund-vivo{
+  margin:10px 0 0; padding:9px 12px; border-radius:0 var(--r-sm) var(--r-sm) 0; font-size:12px; line-height:1.6;
+  background:var(--t-azul); border-left:3px solid var(--az); color:#cfe0ef; max-width:var(--medida-prosa);
+}
+.fund-vivo b{ color:var(--tx) }
+.figura{ background:var(--lienzo-hond); border:var(--hairline) solid var(--bd); border-radius:var(--r-lg); padding:10px; margin-top:10px }
+.figura svg{ display:block; margin:0 auto; max-width:560px; width:100% }
+.dos-col{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px }
+.dos-col > div{ background:var(--pnl2); border:var(--hairline) solid var(--bd); border-radius:var(--r-lg); padding:10px 12px }
+.dos-col h4{ margin:0 0 6px; font-size:9.6px; text-transform:uppercase; letter-spacing:.8px; color:var(--mut); font-weight:600 }
+.dos-col ul{ margin:0; padding-left:15px; font-size:11.6px; line-height:1.6; color:var(--tx2) }
+
+/* Estado vacío honesto */
+.vacio{ text-align:left; padding:8px 2px }
+.vacio h3{ margin:0 0 6px; font-size:14px; font-weight:600; color:var(--tx) }
+.falta-lista{ list-style:none; margin:10px 0 0; padding:0; display:grid; gap:5px; max-width:var(--medida-prosa) }
+.falta-lista li{
+  display:grid; grid-template-columns:16px 1fr; gap:8px; align-items:start;
+  font-size:11.8px; line-height:1.55; color:var(--tx2);
+  padding:7px 10px; background:var(--pnl2); border:var(--hairline) solid var(--bd); border-radius:var(--r-sm);
+}
+.falta-lista i{ font-style:normal; color:var(--rd); font-weight:700; text-align:center }
+.falta-lista i.si{ color:var(--gr) }
+.falta-lista b{ color:var(--tx) }
+
+/* ── Barra de estado ───────────────────────────────────────────────────── */
+.estatus{
+  background:var(--barra-fondo);
+  -webkit-backdrop-filter:var(--vibrante); backdrop-filter:var(--vibrante);
+  border-top:var(--hairline) solid var(--bd);
+  font-size:10.6px; color:var(--tenue); font-variant-numeric:var(--num);
+}
+.estatus-fila{ display:flex; align-items:center; gap:12px; padding:5px 12px; min-height:25px }
+.estatus b{ color:var(--mut); font-weight:600 }
+.estatus details{ margin-left:auto }
+.estatus summary{
+  cursor:pointer; list-style:none; color:var(--mut); padding:2px 8px; border-radius:var(--r-xs);
+  transition:background var(--rapido), color var(--rapido); white-space:nowrap;
+}
+.estatus summary::-webkit-details-marker{ display:none }
+.estatus summary:hover{ background:rgba(255,255,255,.06); color:var(--tx) }
+.estatus details[open] summary{ background:rgba(255,255,255,.06); color:var(--acc) }
+.explica{
+  padding:12px 16px 14px; border-top:var(--hairline) solid var(--bd-suave);
+  font-size:11.8px; line-height:1.7; color:var(--tx2); max-width:104ch;
+  max-height:40vh; overflow:auto;
+}
+.explica h4{ margin:0 0 6px; font-size:var(--t-rotulo); text-transform:uppercase; letter-spacing:var(--ls-rotulo); color:var(--mut); font-weight:600 }
+.explica p{ margin:0 0 7px }
+.explica b{ color:var(--tx) }
+.explica .gana{ color:#bfe6b0; font-weight:600 }
+.explica .pierde{ color:#e8c9a0; font-weight:600 }
+
+/* ── Pantallas menos anchas ────────────────────────────────────────────── */
+@media (max-width:1380px){
+  .tablero{ grid-template-columns:minmax(0,1fr) 320px }
+}
+@media (max-width:1180px){
+  .tablero{ grid-template-columns:1fr }
+  .tablero-panel{ position:static }
+  .dos-col{ grid-template-columns:1fr }
+  :root{ --c1:232px; --c2:190px }
+  .barra .pastilla-criterio{ display:none }
+}
+
+/* ── Modo claro del sistema ────────────────────────────────────────────── */
+@media (prefers-color-scheme: light){
+  :root{
+    color-scheme: light;
+    --lienzo:#f2f4f7; --lienzo-hond:#e8ebef; --pnl:#ffffff; --pnl2:#f6f8fa;
+    --pnl-alto: linear-gradient(180deg,#fff 0%,#fbfcfd 62%);
+    --sidebar-fondo: rgba(246,248,250,.72); --barra-fondo: rgba(250,251,252,.80);
+    --flotante-fondo: rgba(255,255,255,.90);
+    --bd: rgba(0,0,0,.09); --bd-suave: rgba(0,0,0,.06);
+    --bd-fuerte: rgba(0,0,0,.18); --bd-solido:#d6dce2;
+    --tx:#111a22; --tx2:#39485a; --mut:#5d6b78; --tenue:#8894a0;
+    --acc:#a86f00; --acc-tx:#fff; --acc-suave: rgba(240,165,0,.18); --acc-tinte:#fff6e0;
+    --t-verde:#eef7ea; --t-rojo:#fdefef; --t-azul:#eef4fa; --b-azul:#cfe0ef;
+    --luz-arriba: inset 0 1px 0 rgba(255,255,255,.8);
+    --sombra-1: 0 1px 2px rgba(16,24,32,.08);
+    --sombra-2: 0 6px 20px -6px rgba(16,24,32,.16);
+  }
+  body{ background-image:
+    radial-gradient(900px 520px at 12% -8%, rgba(240,165,0,.10), transparent 60%),
+    radial-gradient(760px 460px at 88% 108%, rgba(91,141,217,.10), transparent 62%); }
+  .col-secciones{ background:rgba(255,255,255,.35) }
+  .kpi{ background:linear-gradient(180deg,#f4f8fc 0%,#eaf1f8 70%) }
+  .foto{ background:repeating-linear-gradient(135deg, rgba(0,0,0,.03) 0 6px, transparent 6px 12px), linear-gradient(160deg,#eef2f6,#e2e8ee) }
+  .falla-tarjeta,.falla-banda{ background:linear-gradient(135deg,#fdefef,#fff6e8); border-color:#e6b7b7 }
+  .falla-tarjeta b,.falla-titulo{ color:#7a1f1f }
+  .falla-sub,.falla-geo{ color:#8a5a5a }
+  .estado-ficha.critico .estado-v,.fl-badge.critico,.sec-firma.no,.marca.roja,.alerta b{ color:#a32020 }
+  .hallazgo.atencion,.alerta{ color:#7a1f1f }
+  .aviso{ color:#6b4e00 } .ok{ color:#2c5c22 } .info{ color:#22415e }
+  ::-webkit-scrollbar-thumb{ background:rgba(0,0,0,.20); background-clip:content-box }
+}
+</style>
+</head>
+<body>
+<div class="ventana">
+
+  <!-- ── Barra de herramientas ─────────────────────────────────────────── -->
+  <header class="barra">
+    <div class="barra-grupo">
+      <button class="ico-btn activo" id="btnParque" title="Ocultar u mostrar el parque (⌘B)" aria-label="Alternar la columna del parque">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="1.6" y="2.6" width="12.8" height="10.8" rx="2"/><path d="M6 2.6v10.8"/></svg>
+      </button>
+      <button class="ico-btn" id="btnAtras" title="Atrás" aria-label="Atrás">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9.8 3.5L5.3 8l4.5 4.5"/></svg>
+      </button>
+      <button class="ico-btn" id="btnAdelante" title="Adelante" aria-label="Adelante">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.2 3.5L10.7 8l-4.5 4.5"/></svg>
+      </button>
+    </div>
+    <div class="barra-sep"></div>
+    <nav class="miga" id="miga" aria-label="Dónde estoy"></nav>
+    <div class="barra-der">
+      <span class="pastilla-criterio" id="pastillaCriterio"></span>
+      <div class="segmentado" role="group" aria-label="Densidad de la ventana">
+        <button type="button" id="btnAnchoLibro" aria-pressed="false" title="Acotar el ancho de lectura">Lectura</button>
+        <button type="button" id="btnAnchoTablero" aria-pressed="true" title="Usar todo el ancho">Tablero</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── Las tres columnas ─────────────────────────────────────────────── -->
+  <main class="columnas" id="columnas">
+
+    <aside class="col col-parque" id="colParque" aria-label="Parque de líneas">
+      <div class="parque-cab">
+        <label class="buscador">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4.3"/><path d="M10.2 10.2l3 3" stroke-linecap="round"/></svg>
+          <input type="search" id="buscar" placeholder="Buscar línea, subestación, conductor" autocomplete="off" aria-label="Buscar en el parque">
+        </label>
+        <div class="parque-filtros">
+          <div class="segmentado" role="group" aria-label="Cómo agrupar el parque">
+            <button type="button" data-agrupar="estado" aria-pressed="true">Estado</button>
+            <button type="button" data-agrupar="zona" aria-pressed="false">Zona</button>
+            <button type="button" data-agrupar="tension" aria-pressed="false">Tensión</button>
+          </div>
+        </div>
+      </div>
+      <p class="parque-cuenta" id="parqueCuenta"></p>
+      <div id="parqueLista"></div>
+      <p class="parque-pie">
+        Cada fila lee un <b>resumen guardado</b> por línea —fechado y sellado con la versión del
+        motor y la hipótesis—, no la línea entera. El cálculo completo solo corre al seleccionar.
+      </p>
+    </aside>
+
+    <div class="divisor" id="div1" role="separator" aria-orientation="vertical" title="Arrastrar para cambiar el ancho"></div>
+
+    <nav class="col col-secciones" id="colSecciones" aria-label="Secciones de la línea"></nav>
+
+    <div class="divisor" id="div2" role="separator" aria-orientation="vertical" title="Arrastrar para cambiar el ancho"></div>
+
+    <section class="col col-contenido" id="colContenido" aria-live="polite">
+      <div class="lienzo" id="lienzo"></div>
+    </section>
+  </main>
+
+  <!-- ── Barra de estado ───────────────────────────────────────────────── -->
+  <footer class="estatus">
+    <div class="estatus-fila">
+      <span id="estatusTexto"></span>
+      <details id="explicaDet">
+        <summary>Qué propone este diseño</summary>
+      </details>
+    </div>
+    <div class="explica" id="explicaCuerpo" hidden>
+      <h4>Columnas (Finder / Xcode) — para el Ingeniero</h4>
+      <p>
+        <b>Qué gana.</b> La pregunta «¿cuál línea?» y la pregunta «¿qué quiero ver?» dejan de
+        pelearse por el mismo sitio: la primera columna es el parque entero —con buscador y
+        agrupado por estado, zona o tensión—, la segunda son las once secciones de la línea
+        elegida, y la tercera es el contenido. Con una línea se ve igual de bien que con cuarenta,
+        y usted <span class="gana">nunca pierde de vista dónde está</span>: el código de la línea,
+        su estado de firma y la sección activa están siempre a la vista, en columna, sin abrir menús.
+        Además la sección <span class="gana">sobrevive al cambio de línea</span>: si está comparando
+        Cargas de dos líneas, salta de una a otra y sigue en Cargas.
+      </p>
+      <p>
+        <b>Qué pierde.</b> Las dos columnas de navegación se comen unos 480 píxeles de ancho
+        —<span class="pierde">la matriz de 24×24 y las tablas de doce columnas quedan más
+        apretadas</span> que con pestañas horizontales— y en un portátil de 13" habría que plegar
+        el parque para trabajar cómodo (se pliega con ⌘B, y la ventana lo recuerda). También es el
+        diseño que más «mira hacia adentro»: es excelente para auditar una línea y para saltar
+        entre líneas, pero <span class="pierde">no da una vista de cartera</span> —ni tabla
+        comparativa ni mapa del parque completo—; para eso haría falta una pantalla aparte.
+      </p>
+      <p>
+        <b>Lo que no negocia.</b> Un hueco se pinta como hueco: donde no hay dato va un guion, nunca
+        un cero. Cada veredicto viaja con el criterio contra el que se emitió (el tope de tiro en
+        disputa —50 % del motor frente al 25 % de la doctrina— sale en la barra superior, no
+        enterrado). Y las secciones que a una línea le faltan <b>siguen apareciendo</b>, diciendo
+        qué les falta: ocultarlas se leería como «aquí no aplica», que es como se fabrica confianza
+        falsa en un parque de cuarenta activos.
+      </p>
+    </div>
+  </footer>
+</div>
+
+<script>
+'use strict';
+/* ============================================================================
+   MAQUETA — «Columnas (Finder / Xcode)».
+   Las cifras de LN-627 son las públicas del proyecto (24 estructuras, 2 empalmes,
+   23 vanos, 2.929 m, 66 kV, 103 fotografías, AAAC Darien, deflexiones deducidas).
+   Las demás líneas y toda coordenada son SINTÉTICAS y están para probar la
+   escala del diseño: ni un dato de campo real vive en este archivo.
+   ========================================================================= */
+
+/* ── utilidades ─────────────────────────────────────────────────────────── */
+const F = (v, d = 0) => (v === null || v === undefined || !isFinite(v))
+  ? '—' : Number(v).toLocaleString('es-CO', { minimumFractionDigits: d, maximumFractionDigits: d });
+const H = '<span class="hueco">—</span>';
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const grad = (r) => r * 180 / Math.PI;
+const rad = (g) => g * Math.PI / 180;
+const rng = (s) => () => (s = (s * 1103515245 + 12345) & 0x7fffffff, s / 0x7fffffff);
+
+const COLORES_TRAMO = ['#d63b3b', '#4bb0f5', '#5bc46f', '#d67a1f'];
+const MOTOR = 'motor v0.9.3';
+
+/* ── el parque ──────────────────────────────────────────────────────────── */
+const COND = {
+  darien:   { nom: 'AAAC Darien 559,5 MCM', rts: 8528, sec: 283.5, diam: 0.02179, w: 0.780, amp: 718 },
+  alliance: { nom: 'AAAC Alliance 394,5 MCM', rts: 6120, sec: 199.9, diam: 0.01829, w: 0.550, amp: 570 },
+  butte:    { nom: 'AAAC Butte 312,8 MCM', rts: 4980, sec: 158.5, diam: 0.01628, w: 0.436, amp: 494 },
+  canton:   { nom: 'AAAC Canton 394,5 MCM', rts: 6120, sec: 199.9, diam: 0.01829, w: 0.550, amp: 570 },
+  hawk:     { nom: 'ACSR Hawk 477 MCM', rts: 8710, sec: 281.1, diam: 0.02177, w: 0.978, amp: 659 },
+  grosbeak: { nom: 'ACSR Grosbeak 636 MCM', rts: 11430, sec: 374.7, diam: 0.02514, w: 1.302, amp: 795 },
+  drake:    { nom: 'ACSR Drake 795 MCM', rts: 14290, sec: 468.5, diam: 0.02814, w: 1.628, amp: 907 },
+  acar750:  { nom: 'ACAR 750 MCM', rts: 9070, sec: 380.0, diam: 0.02525, w: 1.048, amp: 838 },
+};
+
+const PARQUE = [
+  { id:'LN-627', kv:66,   circ:1, est:24, emp:2, m:2929.35, cond:COND.darien,  zona:'Norte',  sub:'S/E Bahía → S/E Palmar',
+    hip:{ nom:'Hipótesis del módulo de campo (SIN VALIDAR)', proc:'supuesto', congelada:false, fecha:null,
+          eds:20, tEds:25, tMax:75, tMin:15, viento:80, tViento:25, cx:1.0, rho:null },
+    evento:true, fotos:{ total:103, exp:4, est:99, puntos:14, sin:12 }, gps:8, curada:true, semilla:7,
+    resumen:'2026-08-02 21:40' },
+
+  { id:'LN-201', kv:110,  circ:1, est:61, emp:1, m:14803, cond:COND.hawk,     zona:'Norte',  sub:'S/E Palmar → S/E Salinas',
+    hip:{ nom:'H-2026-04 · viento regional', proc:'norma', congelada:true, fecha:'2026-05-12',
+          eds:18, tEds:25, tMax:75, tMin:15, viento:95, tViento:25, cx:1.0, rho:1.225 },
+    evento:false, fotos:{ total:412, exp:0, est:412, puntos:47, sin:14 }, gps:3, semilla:11, resumen:'2026-07-30 08:12' },
+
+  { id:'LN-208', kv:110,  circ:1, est:48, emp:0, m:11264, cond:COND.hawk,     zona:'Norte',  sub:'S/E Salinas → S/E Manglar',
+    hip:{ nom:'H-2026-04 · viento regional', proc:'norma', congelada:true, fecha:'2026-05-12',
+          eds:18, tEds:25, tMax:75, tMin:15, viento:95, tViento:25, cx:1.0, rho:1.225 },
+    evento:false, fotos:{ total:301, exp:0, est:301, puntos:41, sin:7 }, gps:3, semilla:13, resumen:'2026-07-30 08:19' },
+
+  { id:'LN-233', kv:66,   circ:1, est:33, emp:1, m:5412, cond:null,           zona:'Centro', sub:'S/E Manglar → S/E Sabana',
+    hip:null, evento:false, fotos:{ total:0, exp:0, est:0, puntos:0, sin:33 }, gps:8, semilla:17, resumen:'2026-06-18 16:03' },
+
+  { id:'LN-310', kv:110,  circ:2, est:74, emp:2, m:18921, cond:COND.acar750,  zona:'Centro', sub:'S/E Sabana → S/E Bahía',
+    hip:{ nom:'H-2026-01 · adoptada del proyecto original (SIN VALIDAR)', proc:'supuesto', congelada:false, fecha:null,
+          eds:20, tEds:25, tMax:75, tMin:15, viento:80, tViento:25, cx:1.0, rho:null },
+    evento:true, fotos:{ total:588, exp:11, est:577, puntos:62, sin:12 }, gps:4, semilla:19, resumen:'2026-07-28 11:47' },
+
+  { id:'LN-344', kv:34.5, circ:1, est:27, emp:0, m:3884, cond:COND.darien,    zona:'Centro', sub:'S/E Sabana → derivación Bloque C',
+    hip:{ nom:'H-2026-06 · ficha de proveedor', proc:'proveedor', congelada:true, fecha:'2026-06-30',
+          eds:20, tEds:25, tMax:75, tMin:15, viento:80, tViento:25, cx:1.0, rho:1.225 },
+    evento:false, fotos:{ total:188, exp:0, est:188, puntos:25, sin:2 }, gps:3, semilla:23, resumen:'2026-08-01 07:22' },
+
+  { id:'LN-402', kv:110,  circ:2, est:96, emp:3, m:24152, cond:COND.grosbeak, zona:'Sur',    sub:'S/E Bahía → S/E Alto',
+    hip:{ nom:'H-2025-11 · heredada, sin revisar', proc:'supuesto', congelada:false, fecha:null,
+          eds:20, tEds:25, tMax:75, tMin:15, viento:80, tViento:25, cx:1.0, rho:null },
+    evento:2, fotos:{ total:702, exp:23, est:679, puntos:78, sin:18 }, gps:6, semilla:29, resumen:'2026-07-25 19:05' },
+
+  { id:'LN-455', kv:66,   circ:1, est:41, emp:1, m:7641, cond:COND.alliance,  zona:'Sur',    sub:'S/E Alto → S/E Palmar',
+    hip:{ nom:'H-2026-03 · viento regional', proc:'norma', congelada:true, fecha:'2026-04-21',
+          eds:18, tEds:25, tMax:75, tMin:15, viento:95, tViento:25, cx:1.0, rho:1.225 },
+    evento:false, fotos:{ total:266, exp:0, est:266, puntos:35, sin:6 }, gps:3, semilla:31, resumen:'2026-07-31 09:58' },
+
+  { id:'LN-487', kv:66,   circ:1, est:19, emp:0, m:2173, cond:null,           zona:'Sur',    sub:'S/E Alto → derivación Bloque D',
+    hip:null, evento:false, fotos:{ total:0, exp:0, est:0, puntos:0, sin:19 }, gps:8, semilla:37, resumen:'2026-05-09 10:31' },
+
+  { id:'LN-512', kv:110,  circ:1, est:58, emp:1, m:13045, cond:COND.hawk,     zona:'Sabana', sub:'S/E Manglar → S/E Ribera',
+    hip:{ nom:'H-2026-04 · viento regional', proc:'norma', congelada:true, fecha:'2026-05-12',
+          eds:18, tEds:25, tMax:75, tMin:15, viento:95, tViento:25, cx:1.0, rho:1.225 },
+    evento:false, fotos:{ total:377, exp:0, est:377, puntos:49, sin:9 }, gps:3, semilla:41, resumen:'2026-07-29 14:26' },
+
+  { id:'LN-560', kv:34.5, circ:1, est:22, emp:0, m:2963, cond:COND.darien,    zona:'Sabana', sub:'S/E Ribera → derivación Bloque A',
+    hip:{ nom:'H-2026-02 · adoptada en campo (SIN VALIDAR)', proc:'supuesto', congelada:false, fecha:null,
+          eds:20, tEds:25, tMax:75, tMin:15, viento:80, tViento:25, cx:1.0, rho:null },
+    evento:false, fotos:{ total:96, exp:0, est:96, puntos:16, sin:6 }, gps:8, semilla:43, resumen:'2026-07-20 15:44' },
+
+  { id:'LN-598', kv:66,   circ:1, est:36, emp:1, m:6720, cond:COND.butte,     zona:'Sabana', sub:'S/E Ribera → S/E Sabana',
+    hip:{ nom:'H-2026-05 · ficha de proveedor', proc:'proveedor', congelada:true, fecha:'2026-06-11',
+          eds:20, tEds:25, tMax:75, tMin:15, viento:80, tViento:25, cx:1.0, rho:1.225 },
+    evento:false, fotos:{ total:242, exp:0, est:242, puntos:33, sin:3 }, gps:3, semilla:47, resumen:'2026-08-01 06:50' },
+
+  { id:'LN-604', kv:110,  circ:2, est:83, emp:2, m:21403, cond:COND.drake,    zona:'Sur',    sub:'S/E Alto → S/E Cordal',
+    hip:{ nom:'H-2025-09 · heredada, sin revisar', proc:'supuesto', congelada:false, fecha:null,
+          eds:20, tEds:25, tMax:75, tMin:15, viento:80, tViento:25, cx:1.0, rho:null },
+    evento:true, fotos:{ total:611, exp:9, est:602, puntos:70, sin:13 }, gps:6, semilla:53, resumen:'2026-07-26 17:38' },
+
+  { id:'LN-711', kv:66,   circ:1, est:29, emp:1, m:4531, cond:null,           zona:'Norte',  sub:'S/E Palmar → derivación Bloque B',
+    hip:null, evento:false, fotos:{ total:0, exp:0, est:0, puntos:0, sin:29 }, gps:8, semilla:59, resumen:'2026-06-02 12:14' },
+
+  { id:'LN-733', kv:110,  circ:1, est:67, emp:2, m:16082, cond:COND.acar750,  zona:'Centro', sub:'S/E Sabana → S/E Cordal',
+    hip:{ nom:'H-2026-04 · viento regional', proc:'norma', congelada:true, fecha:'2026-05-12',
+          eds:18, tEds:25, tMax:75, tMin:15, viento:95, tViento:25, cx:1.0, rho:1.225 },
+    evento:false, fotos:{ total:459, exp:0, est:459, puntos:55, sin:12 }, gps:4, semilla:61, resumen:'2026-07-27 10:09' },
+
+  { id:'LN-806', kv:34.5, circ:1, est:31, emp:0, m:4118, cond:COND.canton,    zona:'Sabana', sub:'S/E Ribera → derivación Bloque E',
+    hip:{ nom:'H-2026-06 · ficha de proveedor', proc:'proveedor', congelada:true, fecha:'2026-06-30',
+          eds:20, tEds:25, tMax:75, tMin:15, viento:80, tViento:25, cx:1.0, rho:1.225 },
+    evento:false, fotos:{ total:171, exp:0, est:171, puntos:28, sin:3 }, gps:3, semilla:67, resumen:'2026-08-01 07:31' },
+
+  { id:'LN-812', kv:66,   circ:1, est:44, emp:2, m:8954, cond:COND.darien,    zona:'Norte',  sub:'S/E Salinas → S/E Bahía',
+    hip:{ nom:'H-2026-02 · adoptada en campo (SIN VALIDAR)', proc:'supuesto', congelada:false, fecha:null,
+          eds:20, tEds:25, tMax:75, tMin:15, viento:80, tViento:25, cx:1.0, rho:null },
+    evento:false, fotos:{ total:288, exp:0, est:288, puntos:38, sin:6 }, gps:8, semilla:71, resumen:'2026-07-22 13:55' },
+
+  { id:'LN-870', kv:110,  circ:1, est:52, emp:1, m:12310, cond:COND.hawk,     zona:'Centro', sub:'S/E Cordal → S/E Manglar',
+    hip:null, evento:false, fotos:{ total:64, exp:0, est:64, puntos:11, sin:41 }, gps:12,
+    parcial:{ conGps:18 }, semilla:73, resumen:'2026-06-27 09:03' },
+
+  { id:'LN-902', kv:66,   circ:1, est:38, emp:1, m:6051, cond:COND.butte,     zona:'Norte',  sub:'S/E Bahía → derivación Bloque F',
+    hip:{ nom:'H-2026-05 · ficha de proveedor', proc:'proveedor', congelada:true, fecha:'2026-06-11',
+          eds:20, tEds:25, tMax:75, tMin:15, viento:80, tViento:25, cx:1.0, rho:1.225 },
+    evento:false, fotos:{ total:254, exp:0, est:254, puntos:35, sin:3 }, gps:3, semilla:79, resumen:'2026-08-01 06:58' },
+];
+
+/* ── LN-627: la geometría real ya consolidada (vanos y deflexiones) ─────── */
+const VANOS_627 = [100, 137.5, 118.5, 62.4, 82.6, 247.8, 210, 200, 88.4, 95.2, 90.1, 97.6,
+  85.3, 99.4, 92.8, 86.7, 94.5, 91.2, 99, 13.35, 105.5, 336.7, 294.8];
+const DEFLEX_627 = [null, 64.7, 2.1, 50.2, 3.5, 118.2, 0.0, 1.4, 4.8, 2.2, 11.2, 6.3, 0.9,
+  3.7, 8.1, 2.6, 5.4, 1.8, 9.6, 76.0, 58.6, 4.1, 2.9, null];
+/* Los dos empalmes NO son apoyos: cuelgan a mitad de vano y no parten ningún vano. */
+const EMPALMES_627 = [
+  { nom: 'EMP E05-E06', entre: 5, fotos: 2 },
+  { nom: 'EMP E06-E07', entre: 6, fotos: 0 },
+];
+
+/* ── materialización de una línea (geometría → tramos → cargas) ─────────── */
+function funcionPorDeflexion(d) {
+  if (d === null) return 'Terminal';
+  if (d < 3) return 'Suspensión';
+  if (d < 15) return 'Suspensión angular';
+  if (d < 30) return 'Ángulo';
+  return 'Retención / anclaje';
+}
+
+function materializar(L) {
+  if (L._m) return L._m;
+  const n = L.est, nv = n - 1;
+  let vanos, defl;
+
+  if (L.curada) {
+    vanos = VANOS_627.slice();
+    defl = DEFLEX_627.slice();
+  } else {
+    const r = rng(L.semilla);
+    const base = L.m / nv;
+    vanos = [];
+    for (let i = 0; i < nv; i++) vanos.push(base * (0.45 + r() * 1.35));
+    const k = L.m / vanos.reduce((a, b) => a + b, 0);
+    vanos = vanos.map((v) => Math.round(v * k * 10) / 10);
+    defl = [null];
+    const nAnc = Math.max(2, Math.round(nv / 11));
+    const anclas = new Set();
+    for (let i = 0; i < nAnc; i++) anclas.add(2 + Math.floor(r() * (n - 4)));
+    for (let i = 1; i < n - 1; i++) defl.push(anclas.has(i) ? 30 + r() * 68 : r() * 13);
+    defl.push(null);
+  }
+
+  const nombres = [];
+  for (let i = 0; i < n; i++) nombres.push('E' + String(i + 1).padStart(2, '0'));
+
+  /* Coordenadas en un plano LOCAL en metros — sintéticas por definición: se
+     construyen a partir de los vanos y las deflexiones, nunca de un GPS. El
+     signo de cada quiebre se elige para que el trazado siga avanzando. */
+  const pt = [{ x: 0, y: 0 }];
+  let hd = 0;
+  for (let i = 0; i < nv; i++) {
+    if (i > 0 && defl[i] !== null) {
+      const a = hd + defl[i], b = hd - defl[i];
+      hd = Math.abs(a) <= Math.abs(b) ? a : b;
+    }
+    const p = pt[i];
+    pt.push({ x: p.x + vanos[i] * Math.cos(rad(hd)), y: p.y + vanos[i] * Math.sin(rad(hd)) });
+  }
+  const dist = (i, j) => Math.hypot(pt[i].x - pt[j].x, pt[i].y - pt[j].y);
+
+  /* Tramos de tensión: de terminal a terminal, cortando en cada retención. */
+  const cortes = [0];
+  for (let i = 1; i < n - 1; i++) if (defl[i] !== null && defl[i] >= 30) cortes.push(i);
+  cortes.push(n - 1);
+
+  const c = L.cond, hip = L.hip;
+  const tramos = cortes.slice(0, -1).map((ini, k) => {
+    const fin = cortes[k + 1];
+    const vs = vanos.slice(ini, fin);
+    const s1 = vs.reduce((a, b) => a + b, 0);
+    const s3 = vs.reduce((a, b) => a + b * b * b, 0);
+    const vir = Math.sqrt(s3 / s1);
+    const t = {
+      n: k + 1, ini, fin, desde: nombres[ini], hasta: nombres[fin], vanos: vs,
+      nVanos: vs.length, largo: s1, vanoMax: Math.max(...vs), vir,
+      color: COLORES_TRAMO[k % COLORES_TRAMO.length],
+    };
+    if (c && hip) {
+      const eds = c.rts * hip.eds / 100;
+      t.hEds = eds;
+      t.hTMax = eds * Math.max(0.35, 0.96 - 3.5 / vir);
+      t.hTMin = eds * (1.05 + 4.5 / vir);
+      t.hViento = eds * (1.33 + 12 / vir);
+      t.pico = Math.max(t.hEds, t.hTMax, t.hTMin, t.hViento);
+      t.pctRts = t.pico / c.rts * 100;
+      t.flechaMax = c.w * t.vanoMax * t.vanoMax / (8 * t.hTMax);
+    }
+    return t;
+  });
+  /* OJO: un tramo cubre los VANOS [ini, fin) y los NODOS [ini, fin]. Confundir
+     los dos índices le asigna a cada vano frontera el VIR del tramo vecino —y
+     con él, la flecha y el veredicto de banda equivocados. */
+  const tramoDeVano = (i) => tramos.find((t) => i >= t.ini && i < t.fin) || tramos[0];
+
+  /* Viento sobre el cable: presión, empuje por metro, resultante y balanceo. */
+  let viento = null;
+  if (c && hip) {
+    const v = hip.viento / 3.6;
+    const rho = hip.rho === null ? 1.225 : hip.rho;
+    const q = 0.5 * rho * v * v * hip.cx;
+    const emp = q * c.diam / 9.81;
+    const res = Math.hypot(emp, c.w);
+    viento = { v, q, rho, emp, res, ang: grad(Math.atan2(emp, c.w)), rel: emp / c.w, supuesta: hip.rho === null };
+  }
+
+  /* Apoyos: geometría derivada + las dos cargas, que nunca se suman. */
+  const apoyos = nombres.map((nom, i) => {
+    const d = defl[i];
+    const ta = i > 0 ? tramoDeVano(i - 1) : null, ts = i < n - 1 ? tramoDeVano(i) : null;
+    const vAnt = i > 0 ? vanos[i - 1] : null, vSig = i < n - 1 ? vanos[i] : null;
+    const vViento = (vAnt !== null && vSig !== null) ? (vAnt + vSig) / 2 : (vAnt !== null ? vAnt / 2 : vSig / 2);
+    const extremo = (i === 0 || i === n - 1);
+    const a = {
+      i, n: i + 1, nom, defl: d, func: funcionPorDeflexion(d), extremo,
+      vAnt, vSig, vViento, tramos: [ta && ta.n, ts && ts.n].filter((x, k, arr) => x && arr.indexOf(x) === k),
+      factor: d === null ? null : 2 * Math.sin(rad(d) / 2),
+    };
+    if (c && hip && !extremo) {
+      const tiro = Math.max(ta ? ta.hViento : 0, ts ? ts.hViento : 0);
+      a.tiro = tiro;
+      a.ftAng = a.factor * tiro;
+      a.ftVto = viento.emp * vViento;
+      a.ftTot = a.ftAng + a.ftVto;
+    }
+    if (c && hip && extremo) {
+      a.tiroLong = tramos[tramos.length - 1].hViento;  // tiro del tramo que gobierna
+    }
+    return a;
+  });
+
+  /* Vano a vano contra el VIR de su tramo: la banda 0,7–1,3. */
+  const filasVano = vanos.map((v, i) => {
+    const t = tramoDeVano(i);
+    const rel = v / t.vir;
+    return {
+      i: i + 1, desde: nombres[i], hasta: nombres[i + 1], v, tramo: t.n, vir: t.vir, rel,
+      fuera: rel < 0.7 || rel > 1.3, color: t.color,
+      flecha: (c && hip) ? c.w * v * v / (8 * t.hTMax) : null,
+    };
+  });
+
+  const prom = L.m / nv;
+  const orden = vanos.slice().sort((a, b) => a - b);
+  const m = {
+    n, nv, vanos, defl, nombres, pt, dist, tramos, apoyos, filasVano, viento,
+    fuera: filasVano.filter((f) => f.fuera).length,
+    amplifican: apoyos.filter((a) => a.factor !== null && a.factor > 1).length,
+    anclajes: apoyos.filter((a) => a.func === 'Retención / anclaje'),
+    prom, min: orden[0], max: orden[orden.length - 1], mediana: orden[Math.floor(orden.length / 2)],
+    directa: dist(0, n - 1),
+    largos: vanos.filter((v) => v > 2 * prom).length,
+    peorFactor: apoyos.filter((a) => a.factor !== null).sort((a, b) => b.factor - a.factor)[0],
+    peorCarga: (c && hip) ? apoyos.filter((a) => a.ftTot).sort((a, b) => b.ftTot - a.ftTot)[0] : null,
+    empalmes: L.curada ? EMPALMES_627 : Array.from({ length: L.emp }, (_, k) => ({
+      nom: 'EMP ' + String(k + 1).padStart(2, '0'), entre: 3 + k * 7, fotos: 0,
+    })),
+  };
+  L._m = m;
+  return m;
+}
+
+/* Avisos abiertos por línea — lo que el «resumen guardado» trae ya contado. */
+function avisos(L) {
+  const m = materializar(L);
+  let n = 0;
+  if (L.evento) n += (L.evento === true ? 1 : L.evento);
+  if (L.gps >= 8) n += 1;
+  n += m.fuera > 0 ? 1 : 0;
+  n += m.amplifican > 0 ? 1 : 0;
+  n += m.largos > 0 ? 1 : 0;
+  if (!L.hip) n += 1; else if (!L.hip.congelada) n += 1;
+  if (L.parcial) n += 1;
+  return n;
+}
+function estadoDe(L) {
+  if (L.evento) return 'critico';
+  if (!L.cond || !L.hip || L.parcial) return 'nulo';
+  if (!L.hip.congelada || materializar(L).fuera > 0) return 'atender';
+  return 'ok';
+}
+const ETIQUETA_ESTADO = {
+  critico: { t: 'Exigen atención', d: 'evento de falla abierto' },
+  atender: { t: 'Con avisos abiertos', d: 'calculadas, con hallazgos sin cerrar' },
+  nulo:    { t: 'No evaluables', d: 'les falta dato para poder opinar — no es «sana»' },
+  ok:      { t: 'Sin avisos abiertos', d: 'contra el criterio con que se calcularon' },
+};
+const ORDEN_ESTADO = ['critico', 'atender', 'nulo', 'ok'];
+
+/* ── iconos de sección (trazo de 1,3 px, como los símbolos del sistema) ─── */
+const ICO = {
+  resumen:'<rect x="2" y="2.5" width="5" height="5" rx="1.2"/><rect x="9" y="2.5" width="5" height="5" rx="1.2"/><rect x="2" y="9.5" width="5" height="4" rx="1.2"/><rect x="9" y="9.5" width="5" height="4" rx="1.2"/>',
+  distancias:'<path d="M2 11.5h12M4 9.5v4M8 9.5v4M12 9.5v4"/><path d="M2.5 5.5h11" stroke-dasharray="2 1.6"/><circle cx="2.5" cy="5.5" r="1.1"/><circle cx="13.5" cy="5.5" r="1.1"/>',
+  fichas:'<rect x="3" y="1.8" width="10" height="12.4" rx="1.6"/><path d="M5.5 5h5M5.5 8h5M5.5 11h3"/>',
+  falla:'<path d="M8 2.2L14.4 13H1.6z" stroke-linejoin="round"/><path d="M8 6.4v3.1M8 11.3v.1"/>',
+  fundamentos:'<path d="M2.4 3.2c2.4-1 4.2-1 5.6 0 1.4-1 3.2-1 5.6 0v9c-2.4-1-4.2-1-5.6 0-1.4-1-3.2-1-5.6 0z"/><path d="M8 3.2v9"/>',
+  mecanico:'<path d="M1.8 4.2c3.2 0 3.2 7.6 6.2 7.6s3-7.6 6.2-7.6"/><circle cx="1.8" cy="4.2" r="1.1"/><circle cx="14.2" cy="4.2" r="1.1"/>',
+  termica:'<path d="M6.4 8.6V3.4a1.6 1.6 0 0 1 3.2 0v5.2a3 3 0 1 1-3.2 0z"/><path d="M8 6.2v4"/>',
+  viento:'<path d="M1.6 5.4h7.6a2 2 0 1 0-2-2"/><path d="M1.6 8.6h9.8a2 2 0 1 1-2 2"/><path d="M1.6 11.6h5"/>',
+  cargas:'<path d="M8 1.8v9.4M4.6 8.2L8 11.6l3.4-3.4"/><path d="M2 14h12"/>',
+  cantidades:'<path d="M2.4 2.6h11.2M2.4 6h11.2M2.4 9.4h7.4M2.4 12.8h4.6"/>',
+  exportar:'<path d="M8 1.8v8M5 6.8L8 9.8l3-3"/><path d="M2.4 11.4v1.6a1.4 1.4 0 0 0 1.4 1.4h8.4a1.4 1.4 0 0 0 1.4-1.4v-1.6"/>',
+};
+const svgIco = (k) => '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round">' + ICO[k] + '</svg>';
+
+/* ── las once secciones ─────────────────────────────────────────────────── */
+const SECCIONES = [
+  { id:'resumen',     nom:'Resumen',     ico:'resumen',     grupo:'La línea' },
+  { id:'distancias',  nom:'Distancias',  ico:'distancias',  grupo:'La línea' },
+  { id:'fichas',      nom:'Fichas',      ico:'fichas',      grupo:'La línea' },
+  { id:'falla',       nom:'Falla',       ico:'falla',       grupo:'La línea' },
+  { id:'fundamentos', nom:'Fundamentos', ico:'fundamentos', grupo:'El cálculo' },
+  { id:'mecanico',    nom:'Mecánico',    ico:'mecanico',    grupo:'El cálculo' },
+  { id:'termica',     nom:'Térmica',     ico:'termica',     grupo:'El cálculo' },
+  { id:'viento',      nom:'Viento',      ico:'viento',      grupo:'El cálculo' },
+  { id:'cargas',      nom:'Cargas',      ico:'cargas',      grupo:'El cálculo' },
+  { id:'cantidades',  nom:'Cantidades',  ico:'cantidades',  grupo:'Entrega' },
+  { id:'exportar',    nom:'Exportar',    ico:'exportar',    grupo:'Entrega' },
+];
+
+/* Qué le falta a una línea para poder abrir una sección. Nunca se esconde la
+   sección: se dice qué falta, que es información sobre el ACTIVO. */
+function faltaPara(L, sec) {
+  const f = [];
+  if (['mecanico', 'termica', 'viento', 'cargas'].includes(sec)) {
+    if (!L.cond) f.push(['Conductor declarado', 'sin él no hay tiro, ni flecha, ni ampacidad, ni carga sobre el apoyo']);
+    if (!L.hip) f.push(['Hipótesis de cálculo', 'sin EDS, temperaturas ni viento no hay estado que resolver']);
+  }
+  if (sec === 'falla' && !L.evento) f.push(['Expediente de falla', 'esta línea no tiene ningún evento abierto — es un hecho de la línea, no un hueco del sistema']);
+  if (sec === 'distancias' && L.parcial) f.push(['Levantamiento completo', 'solo ' + L.parcial.conGps + ' de ' + L.est + ' estructuras traen coordenada']);
+  return f;
+}
+const seccionCompleta = (L, sec) => faltaPara(L, sec).length === 0;
+
+function contadorSeccion(L, sec) {
+  const m = materializar(L);
+  switch (sec) {
+    case 'distancias':  return L.parcial ? L.parcial.conGps + '/' + L.est : L.est + '×' + L.est;
+    case 'fichas':      return String(L.est + L.emp);
+    case 'falla':       return L.evento ? String(L.evento === true ? 1 : L.evento) : '—';
+    case 'fundamentos': return '9';
+    case 'mecanico':    return L.cond ? String(m.tramos.length) : '—';
+    case 'termica':     return L.cond ? '4' : '—';
+    case 'viento':      return L.cond ? '6' : '—';
+    case 'cargas':      return L.cond ? '0/' + L.est : '—';
+    case 'cantidades':  return '3';
+    case 'exportar':    return '7';
+    default:            return '';
+  }
+}
+
+/* ── estado de la interfaz ──────────────────────────────────────────────── */
+const estado = {
+  linea: 'LN-627', seccion: 'resumen', agrupar: 'estado', filtro: '',
+  ficha: 5, distA: 0, distB: 23, fundamento: 'catenaria', ancho: 'tablero',
+  hist: [], hpos: -1,
+};
+const lineaActual = () => PARQUE.find((l) => l.id === estado.linea);
+const $ = (s) => document.querySelector(s);
+
+function empujarHistoria() {
+  const t = estado.linea + '|' + estado.seccion;
+  if (estado.hist[estado.hpos] === t) return;
+  estado.hist = estado.hist.slice(0, estado.hpos + 1);
+  estado.hist.push(t);
+  estado.hpos = estado.hist.length - 1;
+}
+function irA(pos) {
+  if (pos < 0 || pos >= estado.hist.length) return;
+  estado.hpos = pos;
+  const [l, s] = estado.hist[pos].split('|');
+  estado.linea = l; estado.seccion = s;
+  pintarTodo(false);
+}
+
+/* ── columna 1: el parque ───────────────────────────────────────────────── */
+function pintarParque() {
+  const q = estado.filtro.trim().toLowerCase();
+  const visibles = PARQUE.filter((L) => !q || (
+    L.id + ' ' + L.sub + ' ' + L.zona + ' ' + (L.cond ? L.cond.nom : 'sin conductor') + ' ' + L.kv
+  ).toLowerCase().includes(q));
+
+  let grupos;
+  if (estado.agrupar === 'estado') {
+    grupos = ORDEN_ESTADO.map((e) => ({
+      clave: e, titulo: ETIQUETA_ESTADO[e].t, nota: ETIQUETA_ESTADO[e].d,
+      lineas: visibles.filter((L) => estadoDe(L) === e),
+    }));
+  } else if (estado.agrupar === 'zona') {
+    grupos = ['Norte', 'Centro', 'Sur', 'Sabana'].map((z) => ({
+      clave: z, titulo: 'Zona ' + z, nota: 'orden por severidad',
+      lineas: visibles.filter((L) => L.zona === z).sort((a, b) => ORDEN_ESTADO.indexOf(estadoDe(a)) - ORDEN_ESTADO.indexOf(estadoDe(b))),
+    }));
+  } else {
+    grupos = [110, 66, 34.5].map((kv) => ({
+      clave: kv, titulo: F(kv, kv === 34.5 ? 1 : 0) + ' kV', nota: 'orden por severidad',
+      lineas: visibles.filter((L) => L.kv === kv).sort((a, b) => ORDEN_ESTADO.indexOf(estadoDe(a)) - ORDEN_ESTADO.indexOf(estadoDe(b))),
+    }));
+  }
+
+  $('#parqueCuenta').textContent = visibles.length + ' de ' + PARQUE.length + ' líneas'
+    + (q ? ' · filtro «' + estado.filtro + '»' : '');
+
+  $('#parqueLista').innerHTML = grupos.filter((g) => g.lineas.length).map((g) => `
+    <p class="grupo-t">${esc(g.titulo)} <i>${g.lineas.length}</i></p>
+    <ul class="lista-lineas">${g.lineas.map(filaLinea).join('')}</ul>
+  `).join('') || '<p class="parque-pie">Ninguna línea coincide con el filtro.</p>';
+}
+
+function filaLinea(L) {
+  const e = estadoDe(L), a = avisos(L), sel = L.id === estado.linea;
+  const badge = L.evento
+    ? '<span class="fl-badge critico">' + (L.evento === true ? 1 : L.evento) + ' evento' + (L.evento === true ? '' : 's') + '</span>'
+    : (e === 'nulo'
+      ? '<span class="fl-badge nulo">sin evaluar</span>'
+      : '<span class="fl-badge ' + (e === 'atender' ? 'atender' : '') + '">' + a + ' aviso' + (a === 1 ? '' : 's') + '</span>');
+  return `<li><button class="fila-linea" data-linea="${L.id}" aria-current="${sel}">
+    <span class="punto ${e}"></span>
+    <span>
+      <span class="fl-cod">${L.id}</span>
+      <span class="fl-sub">${F(L.kv, L.kv === 34.5 ? 1 : 0)} kV · ${L.est} est · ${F(L.m / 1000, 2)} km<em> · ${L.cond ? esc(L.cond.nom.split(' ').slice(0, 2).join(' ')) : 'sin conductor'}</em></span>
+    </span>
+    ${badge}
+  </button></li>`;
+}
+
+/* ── columna 2: las secciones de la línea elegida ───────────────────────── */
+function pintarSecciones() {
+  const L = lineaActual(), m = materializar(L), e = estadoDe(L);
+  const firmable = L.hip && L.hip.congelada;
+  let grupo = '', html = '';
+  SECCIONES.forEach((s) => {
+    if (s.grupo !== grupo) { grupo = s.grupo; html += '<li class="sec-rotulo">' + grupo + '</li>'; }
+    const completa = seccionCompleta(L, s.id);
+    const cont = contadorSeccion(L, s.id);
+    const roja = s.id === 'falla' && L.evento;
+    html += `<li><button class="fila-sec ${roja ? 'roja' : ''} ${completa ? '' : 'hueca'}"
+      data-seccion="${s.id}" aria-current="${s.id === estado.seccion}">
+      ${svgIco(s.ico)}
+      <span class="sec-nom">${s.nom}</span>
+      <span class="sec-badge ${roja ? 'rojo' : ''} ${completa ? '' : 'falta'}">${cont}</span>
+    </button></li>`;
+  });
+
+  $('#colSecciones').innerHTML = `
+    <div class="sec-cab">
+      <div class="sec-cod"><span class="punto ${e}"></span>${L.id}</div>
+      <div class="sec-meta">${F(L.kv, L.kv === 34.5 ? 1 : 0)} kV · ${L.circ} circuito${L.circ > 1 ? 's' : ''} · ${L.est} estructuras${L.emp ? ' + ' + L.emp + ' empalme' + (L.emp > 1 ? 's' : '') : ''}</div>
+      <div class="sec-meta">${esc(L.sub)}</div>
+      <span class="sec-firma ${firmable ? 'si' : 'no'}">${firmable ? 'Hipótesis congelada' : 'No firmable'}</span>
+      <div class="sec-sello">
+        <b>Resumen</b> ${L.resumen} · ${MOTOR}<br>
+        <b>Hipótesis</b> ${L.hip ? esc(L.hip.nom) : 'no declarada'}<br>
+        <b>Tope de tiro</b> 50 % RTS <span class="marca ambar">en disputa</span>
+      </div>
+    </div>
+    <ul class="sec-lista">${html}</ul>`;
+}
+
+/* ── pintado general ────────────────────────────────────────────────────── */
+function pintarTodo(nuevaHistoria = true) {
+  if (nuevaHistoria) empujarHistoria();
+  const L = lineaActual();
+  pintarParque();
+  pintarSecciones();
+  pintarContenido();
+
+  const s = SECCIONES.find((x) => x.id === estado.seccion);
+  $('#miga').innerHTML = `<span>Parque</span><span class="sep">›</span><b>${L.id}</b>`
+    + `<span class="sep">›</span><span>${s.nom}</span>`
+    + `<span class="kv"> · ${F(L.kv, L.kv === 34.5 ? 1 : 0)} kV · ${F(L.m, 0)} m</span>`;
+  $('#pastillaCriterio').innerHTML = L.hip
+    ? 'Tope de tiro <b>50 % RTS</b> · doctrina interna 25 % — sin decidir'
+    : 'Sin hipótesis declarada — <b>no se emite veredicto</b>';
+  $('#estatusTexto').innerHTML = `<b>${PARQUE.length}</b> líneas en el parque · `
+    + `<b>${PARQUE.filter((x) => estadoDe(x) === 'critico').length}</b> exigen atención · `
+    + `<b>${PARQUE.filter((x) => !x.cond || !x.hip).length}</b> no evaluables · `
+    + `seleccionada <b>${L.id}</b> · maqueta de interfaz: cifras públicas de LN-627, el resto es ejemplo`;
+  $('#btnAtras').disabled = estado.hpos <= 0;
+  $('#btnAdelante').disabled = estado.hpos >= estado.hist.length - 1;
+  $('#colContenido').scrollTop = 0;
+}
+
+function pintarContenido() {
+  const L = lineaActual();
+  const falta = faltaPara(L, estado.seccion);
+  const cuerpo = falta.length ? seccionIncompleta(L, estado.seccion, falta) : SECCION_HTML[estado.seccion](L);
+  const s = SECCIONES.find((x) => x.id === estado.seccion);
+  $('#lienzo').innerHTML = `<div class="titulo-sec"><h1>${s.nom}</h1><p>${TITULARES[s.id]}</p></div>` + cuerpo;
+}
+
+const TITULARES = {
+  resumen:'El estado de la línea de un vistazo: qué exige acción, qué está calculado y contra qué criterio.',
+  distancias:'Distancia directa y recorrido entre cualquier par de estructuras. Geodesia, no regla sobre el mapa.',
+  fichas:'La ficha de cada punto levantado. Lo que falta se pinta como falta, nunca como cero.',
+  falla:'El expediente del evento: lo que se VE, separado de lo que se CONCLUYE.',
+  fundamentos:'Por qué el número es ese: concepto, figura, fórmula y el valor vivo de esta línea.',
+  mecanico:'Tiros y flechas por tramo de tensión, y cada vano contra el VIR de su tramo.',
+  termica:'Cuánta corriente aguanta el conductor según el clima que se adopte.',
+  viento:'Qué le hace el viento al cable — y qué NO dice este cálculo.',
+  cargas:'Dos ejes que jamás se suman: lo transversal y lo longitudinal sobre cada apoyo.',
+  cantidades:'Memoria de cantidades geométrica, y lo que todavía no se puede cuantificar.',
+  exportar:'Los archivos que salen del mismo motor que pinta estas pantallas.',
+};
+
+function seccionIncompleta(L, sec, falta) {
+  const s = SECCIONES.find((x) => x.id === sec);
+  const esFalla = sec === 'falla';
+  return `<div class="panel"><h2>${s.nom} — ${esFalla ? 'sin expediente abierto' : 'no evaluable en ' + L.id}</h2>
+    <div class="vacio">
+      <p class="prosa">${esFalla
+        ? 'Esta línea <b>no tiene ningún evento de falla abierto</b>. Eso es un hecho sobre la línea, no un hueco del sistema: la sección sigue aquí, y sigue contando cero.'
+        : 'La sección sigue en la lista <b>a propósito</b>. Esconderla se leería como «aquí no aplica», y lo que pasa es otra cosa: falta el dato que la haría calculable.'}</p>
+      <ul class="falta-lista">
+        ${falta.map(([q, p]) => `<li><i>✕</i><span><b>${esc(q)}</b> — ${esc(p)}</span></li>`).join('')}
+        ${esFalla ? '' : '<li><i class="si">✓</i><span><b>Geometría levantada</b> — ' + L.est + ' estructuras y ' + (L.est - 1) + ' vanos ya consolidados: Resumen, Distancias, Fichas y Cantidades sí responden.</span></li>'}
+      </ul>
+      ${esFalla ? '' : `<p class="aviso"><b>Qué se puede hacer hoy:</b> declarar el conductor y la hipótesis en la ficha de la línea
+        deja calculables de una vez Mecánico, Térmica, Viento y Cargas — el levantamiento ya está.</p>`}
+    </div></div>`;
+}
+
+/* ── piezas reutilizables ───────────────────────────────────────────────── */
+const panel = (t, cuerpo, clase = '', der = '') =>
+  `<section class="panel ${clase}"><h2>${t}${der ? '<span class="der">' + der + '</span>' : ''}</h2>${cuerpo}</section>`;
+const kpi = (v, l, s = '', c = '') =>
+  `<div class="kpi"><div class="kpi-v ${c}">${v}</div><div class="kpi-l">${l}</div>${s ? '<div class="kpi-s">' + s + '</div>' : ''}</div>`;
+const sello = (txt) => `<span class="sello-calculo">${txt}</span>`;
+
+/* Esquema geométrico de la línea. El mapa real es opcional por diseño: si las
+   teselas tardan o no hay señal, ESTE dibujo responde. */
+function esquema(L) {
+  const m = materializar(L);
+  /* Se gira el trazado para que su eje principal quede horizontal: es una
+     rotación de plancha, no un dato. Por eso el norte se rotula «N*» y se dice
+     que la orientación es relativa. */
+  const th = Math.atan2(m.pt[m.n - 1].y - m.pt[0].y, m.pt[m.n - 1].x - m.pt[0].x);
+  const co = Math.cos(-th), si = Math.sin(-th);
+  const P = m.pt.map((p) => ({ x: p.x * co - p.y * si, y: p.x * si + p.y * co }));
+  const xs = P.map((p) => p.x), ys = P.map((p) => p.y);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  const W = 1000, pad = 52;
+  const k = Math.min((W - pad * 2) / Math.max(x1 - x0, 1), 430 / Math.max(y1 - y0, 1));
+  const Hh = Math.max(220, (y1 - y0) * k + pad * 2);
+  const dy = (Hh - pad * 2 - (y1 - y0) * k) / 2;
+  const X = (p) => pad + (p.x - x0) * k, Y = (p) => pad + dy + (y1 - p.y) * k;
+
+  const trazos = m.tramos.map((t) => {
+    const d = P.slice(t.ini, t.fin + 1).map((p, i) => (i ? 'L' : 'M') + X(p).toFixed(1) + ' ' + Y(p).toFixed(1)).join(' ');
+    return `<path d="${d}" fill="none" stroke="${t.color}" stroke-width="2.2" stroke-linejoin="round" opacity=".9"/>`;
+  }).join('');
+
+  const nodos = m.apoyos.map((a) => {
+    const p = P[a.i], x = X(p).toFixed(1), y = Y(p).toFixed(1);
+    if (a.extremo) return `<rect x="${x - 4.5}" y="${y - 4.5}" width="9" height="9" fill="none" stroke="var(--tx)" stroke-width="1.8"/>`;
+    if (a.func === 'Retención / anclaje') return `<circle cx="${x}" cy="${y}" r="4.6" fill="var(--acc)"/>`;
+    return `<circle cx="${x}" cy="${y}" r="2.6" fill="var(--mut)"/>`;
+  }).join('');
+
+  const paso = m.n > 60 ? 8 : (m.n > 40 ? 5 : (m.n > 24 ? 3 : 2));
+  const puestos = [];
+  const rotulos = m.apoyos.filter((a) => {
+    const clave = a.extremo || a.func === 'Retención / anclaje';
+    if (!clave && a.i % paso !== 0) return false;
+    const x = X(P[a.i]), y = Y(P[a.i]);
+    if (!clave && puestos.some((q) => Math.hypot(q[0] - x, q[1] - y) < 30)) return false;
+    puestos.push([x, y]); return true;
+  }).map((a) => {
+    const p = P[a.i];
+    return `<text x="${(X(p) + 6).toFixed(1)}" y="${(Y(p) - 7).toFixed(1)}" fill="var(--acc)" font-size="11" font-family="var(--fuente-mono)">${a.nom}</text>`;
+  }).join('');
+
+  const falla = L.evento && L.curada ? (() => {
+    const p = P[1];
+    return `<g><circle cx="${X(p).toFixed(1)}" cy="${Y(p).toFixed(1)}" r="13" fill="rgba(214,69,69,.28)">
+      <animate attributeName="r" values="9;19;9" dur="1.9s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values=".55;0;.55" dur="1.9s" repeatCount="indefinite"/></circle>
+      <circle cx="${X(p).toFixed(1)}" cy="${Y(p).toFixed(1)}" r="8" fill="#d64545" stroke="var(--lienzo)" stroke-width="2"/>
+      <text x="${X(p).toFixed(1)}" y="${(Y(p) + 3.6).toFixed(1)}" text-anchor="middle" font-size="10" font-weight="700" fill="#fff">!</text></g>`;
+  })() : '';
+
+  /* Escala gráfica y norte, como en una plancha */
+  const esc100 = 200 * k;
+  const escala = `<g transform="translate(${pad},${(Hh - 18).toFixed(0)})">
+      <path d="M0 0h${esc100.toFixed(1)}" stroke="var(--mut)" stroke-width="1.4"/>
+      <path d="M0 -4v8M${esc100.toFixed(1)} -4v8" stroke="var(--mut)" stroke-width="1.4"/>
+      <text x="${(esc100 / 2).toFixed(1)}" y="-7" text-anchor="middle" fill="var(--mut)" font-size="10.5">200 m</text></g>`;
+  const norte = `<g transform="translate(${W - pad},${pad})">
+      <path d="M0 16V-2M-5 4L0 -3l5 7" fill="none" stroke="var(--mut)" stroke-width="1.4" stroke-linecap="round"/>
+      <text x="0" y="30" text-anchor="middle" fill="var(--mut)" font-size="10.5">N*</text></g>`;
+
+  return `<div class="esquema">
+    <svg viewBox="0 0 ${W} ${Hh.toFixed(0)}" role="img" aria-label="Esquema geométrico de ${L.id}">
+      ${trazos}${nodos}${rotulos}${falla}${escala}${norte}
+    </svg>
+  </div>
+  <p class="esquema-pie">Esquema geométrico en planta. El mapa con teselas es <b>opcional por diseño</b>:
+    si tarda o no hay señal, este dibujo responde igual. <i>N* es orientación relativa — el trazado se gira
+    para que quepa, y la maqueta no lleva coordenadas.</i></p>`;
+}
+
+/* ── SECCIÓN · Resumen ──────────────────────────────────────────────────── */
+const SECCION_HTML = {};
+
+SECCION_HTML.resumen = (L) => {
+  const m = materializar(L);
+  const firmable = L.hip && L.hip.congelada;
+  const nEv = L.evento === true ? 1 : (L.evento || 0);
+
+  const semaforos = [
+    { c: nEv ? 'critico' : 'ok', t: 'Eventos de falla', v: nEv ? nEv + ' expediente abierto' : 'Ninguno abierto',
+      cr: nEv ? 'con verificaciones pendientes sin resolver' : 'no hay registro de apertura de línea' },
+    { c: L.gps >= 8 ? 'atender' : 'ok', t: 'Calidad del levantamiento',
+      v: L.gps >= 8 ? '1 punto de atención' : 'Sin puntos de atención',
+      cr: 'precisión GPS declarada ±' + L.gps + ' m' },
+    { c: 'atender', t: 'Cálculo mecánico', v: '0 de ' + L.est + ' apoyos con veredicto',
+      cr: 'ningún apoyo declara carga de rotura ni capacidad longitudinal' },
+    { c: firmable ? 'ok' : 'critico', t: 'Hipótesis', v: firmable ? 'Congelada ' + L.hip.fecha : 'SIN congelar',
+      cr: L.hip ? 'procedencia: ' + L.hip.proc : 'no declarada' },
+  ];
+
+  const orient = firmable
+    ? `Ingeniero: <b>${L.id}</b> está calculada contra una hipótesis congelada el ${L.hip.fecha}. Lo que queda abierto son ${avisos(L)} avisos de geometría y el veredicto de resistencia de los apoyos, que sigue sin poder emitirse.`
+    : `Ingeniero: mientras la hipótesis de <b>${L.id}</b> no esté congelada, <b>ningún número de esta línea es un dictamen firmable</b>. El cálculo corre, se puede auditar y se puede discutir — pero no se firma.`;
+
+  const distrib = m.filasVano.map((f) => {
+    const w = (f.v / m.max * 100).toFixed(1);
+    return `<div class="barra-fila">
+      <span class="barra-nombre">${f.desde}→${f.hasta}</span>
+      <span class="barra-pista"><span class="barra-valor ${f.fuera ? 'fuera' : ''}" style="width:${w}%"></span>
+        <span class="barra-promedio" style="left:${(m.prom / m.max * 100).toFixed(1)}%"></span></span>
+      <span class="barra-cifra">${F(f.v, 1)}</span></div>`;
+  }).join('');
+
+  const coherencia = m.apoyos.filter((a) => !a.extremo).slice(0, 40).filter((a) => a.func === 'Retención / anclaje' || a.defl >= 8)
+    .map((a) => `<tr><td>${a.nom}</td><td class="num">${F(a.defl, 1)}°</td><td>${a.func}</td>
+      <td><span class="marca gris">no declarada</span></td>
+      <td class="fine" style="color:var(--mut)">la geometría la impone; falta que el Ingeniero la confirme</td></tr>`).join('');
+
+  return `
+  ${panel('Estado de la línea', `<div class="banda-estado">${semaforos.map((s) => `
+    <div class="estado-ficha ${s.c}"><span class="punto ${s.c}"></span>
+      <span><span class="estado-t">${s.t}</span><span class="estado-v">${s.v}</span>
+      <span class="estado-c">${s.cr}</span></span></div>`).join('')}</div>
+    <p class="prosa" style="margin-top:12px">${orient}</p>`)}
+
+  ${nEv ? `<button class="falla-tarjeta" data-ir="falla">
+      <span class="falla-icono">!</span>
+      <span><b>Apertura de línea en ${L.curada ? 'E02' : 'E' + String(Math.round(L.est / 3)).padStart(2, '0')}</b>
+      <span class="falla-sub">Expediente abierto · verificaciones pendientes sin resolver ·
+      ${L.fotos.exp} fotografías de evidencia</span>
+      <span class="falla-sub falla-ir">Abrir el expediente →</span></span></button>` : ''}
+
+  <div class="tablero">
+    <div>
+      ${esquema(L)}
+      <p class="leyenda">
+        <span><span class="li" style="background:var(--acc)"></span>Retención / anclaje (${m.anclajes.length})</span>
+        <span><span class="li" style="background:var(--mut);width:7px;height:7px"></span>Suspensión y suspensión angular (${m.apoyos.filter((a) => a.func.startsWith('Suspensión')).length})</span>
+        <span><span class="li" style="border:1.5px solid var(--tx);background:none;border-radius:0"></span>Terminal (2)</span>
+        ${L.emp ? `<span><span class="li" style="background:var(--tenue);width:6px;height:6px"></span>Empalme (${L.emp}) — no es apoyo</span>` : ''}
+      </p>
+      <div class="tramos-leyenda">${m.tramos.map((t) => `<span class="tramo-item">
+        <i style="background:${t.color}"></i>Tramo ${t.n} · ${t.desde}→${t.hasta} · ${t.nVanos} vano${t.nVanos > 1 ? 's' : ''} · VIR ${F(t.vir, 1)} m</span>`).join('')}</div>
+    </div>
+    <div class="tablero-panel">
+      <div class="kpis dos">
+        ${kpi(F(L.m, 0) + ' <small>m</small>', 'Longitud de la línea', 'suma de los ' + m.nv + ' vanos')}
+        ${kpi(F(m.directa, 0) + ' <small>m</small>', 'Distancia directa', 'entre ' + m.nombres[0] + ' y ' + m.nombres[m.n - 1], 'neutro')}
+        ${kpi(String(L.est), 'Estructuras', L.emp ? '+ ' + L.emp + ' empalme(s), que no son apoyos' : 'sin empalmes')}
+        ${kpi(String(m.nv), 'Vanos', 'entre estructuras, no entre puntos')}
+        ${kpi(F(m.prom, 1) + ' <small>m</small>', 'Vano promedio', 'mediana ' + F(m.mediana, 1) + ' m', 'neutro')}
+        ${kpi(F(m.min, 1) + ' / ' + F(m.max, 1), 'Mín / máx (m)', 'relación ' + F(m.max / m.min, 1) + '×', 'neutro')}
+      </div>
+      ${panel('Lo que este levantamiento NO demuestra', `
+        <ul class="hallazgos">
+          <li class="hallazgo atencion"><b>Cotas GPS de mano, ±${L.gps} m declarados.</b> No sirven para flecha,
+            gálibo ni distancias de seguridad.<em>calidad del dato · no es un fallo de la aplicación</em></li>
+          <li class="hallazgo aviso"><b>Vano peso: no se puede calcular.</b> Falta la cota de sujeción del
+            conductor en cada apoyo.<em>se captura en campo (F4)</em></li>
+          <li class="hallazgo aviso"><b>Despeje al terreno: sin verificar.</b> Sin cota fiable no hay
+            comparación contra la Tabla 3.10.2.a del RETIE.<em>RETIE Libro 3</em></li>
+          ${L.cond ? `<li class="hallazgo info"><b>Ficha del proveedor del conductor: pendiente.</b>
+            El módulo elástico está en conflicto (6.300 vs 7.000 kg/mm²) y ese conflicto decide si un tramo
+            cumple.<em>deuda declarada, no olvido</em></li>` : ''}
+        </ul>`, '', 'lo que no se demuestra pesa igual que lo que sí')}
+    </div>
+  </div>
+
+  ${panel('Coherencia entre función declarada y deflexión medida',
+    `<p class="prosa">La función estructural de estos apoyos <b>no viene de la ficha</b>: la deduce la
+     geometría con el criterio &lt;3° suspensión · &lt;15° suspensión angular · &lt;30° ángulo · ≥30° retención.
+     Es una <b>propuesta de la geometría</b>, no un dato de campo verificado.</p>
+     <div class="tabla-caja" style="max-height:290px"><table class="tabla">
+       <thead><tr><th>Apoyo</th><th class="num">Deflexión</th><th>Función que impone la geometría</th>
+       <th>Función declarada en ficha</th><th>Lectura</th></tr></thead>
+       <tbody>${coherencia}</tbody></table></div>
+     ${sello('deflexión recalculada sobre la geodésica · ' + MOTOR + ' · los empalmes no cuentan como vértice')}`)}
+
+  ${panel('Calidad del levantamiento', `<ul class="hallazgos">
+      <li class="hallazgo atencion"><b>Precisión GPS ±${L.gps} m.</b> ${L.gps >= 8
+        ? 'Con esa incertidumbre, la cota no aguanta un cálculo de flecha ni de gálibo: se declara y se excluye.'
+        : 'Suficiente para planta; la cota sigue sin servir para gálibo.'}<em>hallazgo calculado, no redactado</em></li>
+      ${m.peorFactor && m.peorFactor.defl > 60 ? `<li class="hallazgo aviso"><b>Quiebre de ${F(m.peorFactor.defl, 1)}° en ${m.peorFactor.nom}.</b>
+        La línea casi se dobla sobre sí misma: ese apoyo recibe ${F((m.peorFactor.factor - 1) * 100, 1)} % más carga transversal que el propio tiro.<em>y es carga permanente: con viento y sin él</em></li>` : ''}
+      ${m.largos ? `<li class="hallazgo aviso"><b>${m.largos} vano(s) por encima del doble del promedio.</b>
+        ${m.filasVano.filter((f) => f.v > 2 * m.prom).map((f) => f.desde + '→' + f.hasta + ' (' + F(f.v, 1) + ' m)').join(' y ')}.
+        La flecha crece con el cuadrado del vano.<em>ocultar un vano largo es el error que más engaña</em></li>` : ''}
+      <li class="hallazgo info"><b>${L.fotos.total} fotografías</b> — ${L.fotos.exp} del expediente y
+        ${L.fotos.est} de estructura repartidas en ${L.fotos.puntos} puntos, con ${L.fotos.sin} puntos
+        declarando que no tienen ninguna.<em>un punto sin foto se declara; no se deja en blanco</em></li>
+    </ul>`)}
+
+  ${panel('Distribución de vanos', `<div class="kpis">
+      ${kpi(String(m.nv), 'Vanos', '')}
+      ${kpi(F(m.prom, 1), 'Promedio (m)', '', 'neutro')}
+      ${kpi(F(m.mediana, 1), 'Mediana (m)', 'la mediana está por debajo: hay pocos vanos muy largos', 'neutro')}
+      ${kpi(F(m.max, 1), 'Máximo (m)', m.filasVano.find((f) => f.v === m.max).desde + '→' + m.filasVano.find((f) => f.v === m.max).hasta, 'rojo')}
+      ${kpi(F(m.min, 1), 'Mínimo (m)', m.filasVano.find((f) => f.v === m.min).desde + '→' + m.filasVano.find((f) => f.v === m.min).hasta, 'azul')}
+      ${kpi(F(m.max / m.min, 1) + '×', 'Relación máx/mín', 'por eso el cálculo va por tramo', 'neutro')}
+    </div>
+    <div class="barras">${distrib}</div>
+    <p class="fine">La marca blanca de cada barra es el vano promedio (${F(m.prom, 1)} m).
+      En ámbar oscuro, los ${m.fuera} vanos que caen <b>fuera de la banda 0,7–1,3</b> respecto al VIR de su tramo.</p>`)}`;
+};
+
+/* ── SECCIÓN · Distancias ───────────────────────────────────────────────── */
+SECCION_HTML.distancias = (L) => {
+  const m = materializar(L);
+  const A = Math.min(estado.distA, m.n - 1), B = Math.min(estado.distB, m.n - 1);
+  const d = m.dist(A, B);
+  const rec = m.vanos.slice(Math.min(A, B), Math.max(A, B)).reduce((a, b) => a + b, 0);
+  const az = (grad(Math.atan2(m.pt[B].x - m.pt[A].x, m.pt[B].y - m.pt[A].y)) + 360) % 360;
+  const rumbos = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSO', 'SO', 'OSO', 'O', 'ONO', 'NO', 'NNO'];
+  const rumbo = rumbos[Math.round(az / 22.5) % 16];
+  const opts = (sel) => m.nombres.map((n, i) => `<option value="${i}" ${i === sel ? 'selected' : ''}>${n}</option>`).join('');
+
+  /* Matriz completa: N×N celdas, encabezados pegados, clic al par. */
+  const maxD = Math.max(...m.nombres.map((_, i) => m.dist(0, i)));
+  const cab = '<tr><th class="pegado">·</th>' + m.nombres.map((n) => `<th>${n.replace('E', '')}</th>`).join('') + '</tr>';
+  const cuerpo = m.nombres.map((n, i) => '<tr><th class="pegado">' + n + '</th>' + m.nombres.map((_, j) => {
+    if (i === j) return '<td class="diag">·</td>';
+    const v = m.dist(i, j);
+    const t = Math.max(0, 1 - v / (maxD * 0.55));
+    const selc = (i === A && j === B) || (i === B && j === A) ? ' sel' : '';
+    return `<td class="c${selc}" data-par="${i},${j}" style="background:rgba(240,165,0,${(t * 0.20).toFixed(3)})">${F(v, 0)}</td>`;
+  }).join('') + '</tr>').join('');
+
+  return `
+  ${panel('Calculadora de dos extremos', `
+    <div class="calc">
+      <label class="campo">Desde<select id="selA">${opts(A)}</select></label>
+      <button class="btn" id="btnInvertir" title="Intercambiar los dos extremos">⇄ Invertir</button>
+      <label class="campo">Hasta<select id="selB">${opts(B)}</select></label>
+    </div>
+    <div class="kpis">
+      ${kpi(F(d, 1) + ' <small>m</small>', 'Distancia directa', 'Vincenty sobre el elipsoide, no regla sobre el mapa')}
+      ${kpi(F(rec, 1) + ' <small>m</small>', 'Recorrido por la línea', 'factor de rodeo ' + F(rec / Math.max(d, 0.001), 3) + '×', 'neutro')}
+      ${kpi(F(az, 1) + '° <small>' + rumbo + '</small>', 'Azimut', 'de ' + m.nombres[A] + ' hacia ' + m.nombres[B], 'neutro')}
+      ${kpi(H, 'Desnivel GPS', 'cota de mano ±' + L.gps + ' m — NO firmable para flecha ni gálibo', 'gris')}
+    </div>
+    ${sello('geodesia verificada contra constantes WGS84 publicadas · ' + MOTOR)}`)}
+
+  ${panel('Matriz de distancias directas', `
+    <p class="prosa">${m.n} × ${m.n} = <b>${F(m.n * m.n, 0)} celdas</b>. El tinte ámbar marca proximidad:
+      cuanto más oscuro, más cerca están las dos estructuras. Un clic lleva el par a la calculadora.</p>
+    <div class="matriz-caja"><table class="matriz"><thead>${cab}</thead><tbody>${cuerpo}</tbody></table></div>
+    <p class="fine">Distancias en metros, entre estructuras. Los ${L.emp} empalme(s) no aparecen:
+      no son apoyos y no definen vano.</p>`,
+    '', F(m.n * m.n, 0) + ' pares')}`;
+};
+
+/* ── SECCIÓN · Fichas ───────────────────────────────────────────────────── */
+SECCION_HTML.fichas = (L) => {
+  const m = materializar(L);
+  const i = Math.min(estado.ficha, m.n - 1);
+  const a = m.apoyos[i];
+  const t = m.tramos.find((x) => i >= x.ini && i <= x.fin);
+  const tieneFotos = L.fotos.total > 0 && (i % 2 === 1) && L.fotos.puntos > 0;
+  const nFotos = tieneFotos ? (L.curada && i === 5 ? 9 : 3 + (i % 5)) : 0;
+
+  const chips = m.apoyos.map((x) => `<button class="chip ${x.extremo ? 'term' : (x.func === 'Retención / anclaje' ? 'ancla' : '')}"
+      data-ficha="${x.i}" aria-pressed="${x.i === i}">${x.nom}</button>`).join('')
+    + m.empalmes.map((e) => `<button class="chip emp" disabled title="Un empalme no sostiene el conductor">${esc(e.nom)}</button>`).join('');
+
+  const P = '<span class="pendiente">pendiente — se captura en campo (F4)</span>';
+  const criterios = [
+    ['Deflexión contra función estructural', a.defl === null ? 'terminal, sin deflexión definida' : F(a.defl, 1) + '° → ' + a.func,
+      a.defl === null ? 'azul' : 'verde', 'criterio interno: <3° susp · <15° susp. angular · <30° ángulo · ≥30° retención'],
+    ['Carga transversal contra capacidad', a.ftTot ? F(a.ftTot, 0) + ' kgf recibidos · capacidad ' + '—' : 'no evaluable',
+      'gris', 'la capacidad NO se estima: sin carga de rotura declarada la fila queda no evaluable'],
+    ['Carga longitudinal contra capacidad', a.extremo ? 'recibe el tiro entero · capacidad —' : 'desequilibrio entre tramos · capacidad —',
+      'gris', 'la capacidad longitudinal no se deduce de la carga de rotura (ensayo transversal en punta)'],
+    ['Vano peso del apoyo', 'no calculable', 'gris', 'falta la cota de sujeción del conductor: sin ella no hay componente vertical'],
+    ['Distancia al terreno', 'sin verificar', 'gris', 'RETIE Libro 3, Tabla 3.10.2.a — exige cota fiable, y la del GPS de mano no lo es'],
+  ];
+
+  return `
+  ${panel('Puntos levantados', `<div class="chips">${chips}</div>
+    <p class="fine">${L.est} estructuras y ${L.emp} empalme(s). El empalme aparece <b>y está deshabilitado</b>:
+      cuelga a mitad de vano, no sostiene el conductor y contarlo partiría un vano real en dos falsos.</p>`,
+    '', (L.est + L.emp) + ' puntos')}
+
+  ${panel('Ficha de ' + a.nom, `<div class="ficha-grilla">
+    <div class="ficha-bloque"><h3>Identidad</h3><dl>
+      <dt>Nombre canónico</dt><dd>${L.id} ${a.nom}</dd>
+      <dt>Nombre de campo</dt><dd class="mono">${L.curada && i === 1 ? 'LN 627 E022' : (L.curada && i === 6 ? 'E02' : a.nom)}</dd>
+      <dt>Posición</dt><dd>${a.n} de ${m.n}</dd>
+      <dt>Función (geometría)</dt><dd>${a.func}</dd>
+      <dt>Función (ficha)</dt><dd>${P}</dd>
+      <dt>Tramo de tensión</dt><dd>${a.tramos.join(' y ')}</dd>
+    </dl></div>
+    <div class="ficha-bloque"><h3>Ubicación · ejemplo sintético</h3><dl>
+      <dt>Latitud</dt><dd class="mono">10°00'${F(i * 1.7, 1)}" N</dd>
+      <dt>Longitud</dt><dd class="mono">75°00'${F(i * 2.3, 1)}" O</dd>
+      <dt>Decimal</dt><dd class="mono">10,0000 / −75,0000</dd>
+      <dt>Precisión</dt><dd>±${L.gps} m <span class="marca roja">no firmable</span></dd>
+      <dt>Cota</dt><dd>${P}</dd>
+      <dt>Progresiva</dt><dd>${F(m.vanos.slice(0, i).reduce((x, y) => x + y, 0), 1)} m</dd>
+    </dl></div>
+    <div class="ficha-bloque"><h3>Geometría derivada</h3><dl>
+      <dt>Deflexión</dt><dd>${a.defl === null ? H : F(a.defl, 1) + '°'}</dd>
+      <dt>Factor 2·sen(α/2)</dt><dd>${a.factor === null ? H : '×' + F(a.factor, 3)}</dd>
+      <dt>Vano anterior</dt><dd>${a.vAnt === null ? H : F(a.vAnt, 1) + ' m'}</dd>
+      <dt>Vano siguiente</dt><dd>${a.vSig === null ? H : F(a.vSig, 1) + ' m'}</dd>
+      <dt>Vano viento</dt><dd>${F(a.vViento, 1)} m</dd>
+      <dt>Vano peso</dt><dd>${H} <span class="marca gris">falta cota</span></dd>
+    </dl></div>
+    <div class="ficha-bloque"><h3>Inventario del apoyo</h3><dl>
+      <dt>Material</dt><dd>${P}</dd>
+      <dt>Altura total</dt><dd>${P}</dd>
+      <dt>Altura útil</dt><dd>${P}</dd>
+      <dt>Carga de rotura</dt><dd>${P}</dd>
+      <dt>Capacidad longitudinal</dt><dd>${P}</dd>
+      <dt>Crucetas</dt><dd>${P}</dd>
+    </dl></div>
+    <div class="ficha-bloque"><h3>Aislamiento y puesta a tierra</h3><dl>
+      <dt>Cadena</dt><dd>${P}</dd>
+      <dt>Unidades</dt><dd>${P}</dd>
+      <dt>Fuga total</dt><dd>${H}</dd>
+      <dt>Fuga específica</dt><dd>${H}</dd>
+      <dt>Resistencia de PAT</dt><dd>${P}</dd>
+      <dt>Contrapesos</dt><dd>${P}</dd>
+    </dl></div>
+    <div class="ficha-bloque"><h3>Trazabilidad del dato</h3><dl>
+      <dt>UUID</dt><dd class="mono">a7f${(i * 7919).toString(16).padStart(4, '0')}-…-9c${(i * 31).toString(16).padStart(2, '0')}</dd>
+      <dt>Revisión</dt><dd>${2 + (i % 3)}</dd>
+      <dt>Levantó</dt><dd>cuadrilla-${1 + (i % 3)}</dd>
+      <dt>Fecha</dt><dd>2026-07-${String(10 + (i % 6)).padStart(2, '0')}</dd>
+      <dt>Última edición</dt><dd>${L.resumen}</dd>
+      <dt>Motor</dt><dd class="mono">${MOTOR}</dd>
+    </dl></div>
+  </div>
+  <p class="fine">Un hueco se pinta <b>como hueco</b>: «pendiente — se captura en campo (F4)». Nunca cero.
+    Un cero en «carga de rotura» sería una mentira que alguien podría firmar.</p>`,
+    a.extremo ? 'rojo' : '', a.func)}
+
+  ${panel('Criterios sobre ' + a.nom, `<div class="tabla-caja" style="max-height:none"><table class="tabla">
+    <thead><tr><th>Criterio</th><th>Valor</th><th>Veredicto</th><th>Fuente del criterio</th></tr></thead>
+    <tbody>${criterios.map(([c, v, s, f]) => `<tr><td>${c}</td><td>${v}</td>
+      <td><span class="marca ${s}">${s === 'verde' ? 'coherente' : (s === 'azul' ? 'no aplica' : 'no evaluable')}</span></td>
+      <td class="fine" style="color:var(--mut);max-width:420px;white-space:normal">${f}</td></tr>`).join('')}</tbody></table></div>
+    <p class="fine">El criterio viaja <b>pegado</b> al veredicto, no en una nota al pie: un semáforo sin fuente
+      es una opinión con colores.</p>`)}
+
+  ${panel('Fotografías de ' + a.nom, nFotos ? `<div class="galeria">${Array.from({ length: nFotos }, (_, k) => `
+      <figure class="foto"><b>IMG_${String(1400 + i * 12 + k)}.JPG</b>
+        ${a.nom} · 2026-07-${String(10 + (i % 6)).padStart(2, '0')} · 3,2 MB</figure>`).join('')}</div>
+    <p class="fine">Las miniaturas se piden bajo demanda y con la sesión del usuario. En la maqueta no viaja
+      ninguna imagen: <b>ni un byte de campo vive en este archivo</b>.</p>`
+    : `<p class="prosa">Este punto <b>declara que no tiene fotografías</b>. No es un fallo de carga:
+      es un hecho registrado del levantamiento, y por eso se cuenta entre los ${L.fotos.sin} puntos sin evidencia.</p>`,
+    '', nFotos ? nFotos + ' de ' + L.fotos.total : 'sin evidencia')}`;
+};
+
+/* ── SECCIÓN · Falla ────────────────────────────────────────────────────── */
+SECCION_HTML.falla = (L) => {
+  const m = materializar(L);
+  const idx = L.curada ? 1 : Math.round(L.est / 3);
+  const a = m.apoyos[idx];
+  const nEv = L.evento === true ? 1 : L.evento;
+  const nFotoEv = L.fotos.exp || 4;
+  const muestra = Math.min(nFotoEv, 8);
+
+  const cronologia = [
+    ['2026-07-11 04:12', 'Apertura de línea', 'registro del centro de control', 'evento'],
+    ['2026-07-11 06:40', 'Inspección aérea de la traza', 'cuadrilla-1', 'campo'],
+    ['2026-07-11 09:25', 'Hallazgo en ' + a.nom + ': herraje de retención desprendido', 'cuadrilla-1', 'campo'],
+    ['2026-07-11 11:02', 'Registro fotográfico del punto (' + L.fotos.exp + ' tomas)', 'cuadrilla-1', 'evidencia'],
+    ['2026-07-12 15:30', 'Recalculada la deflexión del punto sobre la geodésica', MOTOR, 'cálculo'],
+    ['2026-07-14 08:00', 'Expediente abierto con verificaciones pendientes', 'oficina', 'expediente'],
+  ];
+
+  const hipotesis = [
+    ['alta', 'Sobrecarga transversal permanente por el quiebre',
+      'El apoyo trabaja con un factor 2·sen(α/2) de ×' + F(a.factor || 1, 3) + ' sobre el tiro del conductor: ' +
+      F(((a.factor || 1) - 1) * 100, 1) + ' % más carga que la tensión, y sin viento de por medio.',
+      'sustento: deflexión ' + F(a.defl, 1) + '° recalculada sobre la geodésica; carga transversal ' + (a.ftTot ? F(a.ftTot, 0) + ' kgf' : 'calculada')],
+    ['media', 'Herraje o grapa fuera de especificación para retención',
+      'La función que impone la geometría es retención; la ficha del apoyo no declara qué herraje lleva instalado.',
+      'sustento: campo «inventario del apoyo» vacío en la ficha — no se puede contrastar'],
+    ['baja', 'Evento externo (impacto, vegetación, tercero)',
+      'No hay registro fotográfico ni reporte que lo sostenga. Se deja anotada para no cerrarla por omisión.',
+      'sustento: ninguno documentado — se declara para que la ausencia sea visible'],
+  ];
+
+  const verif = [
+    ['Medir la deflexión real en sitio con estación total', 'cuadrilla-2', 'pendiente'],
+    ['Levantar el inventario del apoyo (material, altura, carga de rotura)', 'cuadrilla-2', 'pendiente'],
+    ['Solicitar al proveedor la ficha del conductor (módulo elástico en conflicto)', 'oficina', 'pendiente'],
+    ['Revisar los dos apoyos vecinos por el mismo criterio', 'cuadrilla-2', 'pendiente'],
+    ['Confirmar la función estructural de los ' + m.anclajes.length + ' anclajes deducidos', 'Ingeniero', 'pendiente'],
+  ];
+
+  return `
+  <div class="falla-banda">
+    <div class="falla-rotulo">Expediente ${nEv > 1 ? '1 de ' + nEv : 'abierto'} · apertura de línea</div>
+    <h2 class="falla-titulo">${L.id} · ${a.nom} — herraje de retención</h2>
+    <p class="falla-geo">Componente afectado: herraje de retención · Función que impone la geometría:
+      ${a.func} · Deflexión ${F(a.defl, 1)}° · Progresiva ${F(m.vanos.slice(0, idx).reduce((x, y) => x + y, 0), 1)} m ·
+      Coordenada reservada — la maqueta no lleva datos de campo</p>
+  </div>
+
+  ${nEv > 1 ? `<p class="aviso"><b>Esta línea tiene ${nEv} expedientes abiertos.</b> Se muestra el más
+    reciente; el otro sigue abierto y <b>sigue contando</b> en el semáforo de la línea.</p>` : ''}
+
+  ${panel('Evidencia', `<div class="galeria">${Array.from({ length: muestra }, (_, k) => `
+      <figure class="foto"><b>EVID_${String(k + 1).padStart(3, '0')}.JPG</b>${a.nom} · 2026-07-11 · 4,1 MB</figure>`).join('')}</div>
+    ${nFotoEv > muestra ? '<p class="fine">Se cargan ' + muestra + ' de ' + nFotoEv + ' bajo demanda: las miniaturas se piden por lotes, no en serie, para no gastar cuota ni batería.</p>' : ''}
+    <p class="fine">La evidencia del expediente se cuenta aparte de las fotografías de estructura:
+      ${L.fotos.exp} de expediente + ${L.fotos.est} de estructura = ${L.fotos.total}.</p>`,
+    '', nFotoEv + ' tomas')}
+
+  ${panel('Cronología', `<div class="tabla-caja" style="max-height:none"><table class="tabla">
+    <thead><tr><th>Cuándo</th><th>Qué pasó</th><th>Quién / de dónde sale</th><th>Tipo</th></tr></thead>
+    <tbody>${cronologia.map(([c, q, w, t]) => `<tr><td class="mono">${c}</td><td>${q}</td><td>${w}</td>
+      <td><span class="marca ${t === 'evento' ? 'roja' : (t === 'cálculo' ? 'azul' : 'gris')}">${t}</span></td></tr>`).join('')}</tbody>
+    </table></div>`)}
+
+  ${panel('Lectura de la evidencia — lo que se VE', `
+    <p class="prosa">El herraje de retención del punto aparece desprendido y el conductor descolgado del lado
+      del vano de ${F(a.vSig || a.vAnt, 1)} m. No hay marcas de arco en la cruceta. El apoyo no muestra
+      deformación permanente apreciable en las tomas disponibles.</p>
+    <p class="fine">Esto es <b>descripción</b>, y va deliberadamente separada de lo que sigue. Mezclar lo que se
+      ve con lo que se concluye es como se cuela una hipótesis en un informe con la autoridad de un hecho.</p>`)}
+
+  ${panel('Hipótesis causales — lo que se CONCLUYE', hipotesis.map(([s, t, d, f], k) => `
+    <div class="hip ${s}"><div class="hip-cab"><span class="hip-orden">${k + 1}</span>
+      <h3>${t}</h3><span class="marca ${s === 'alta' ? 'roja' : (s === 'media' ? 'ambar' : 'gris')}">verosimilitud ${s}</span></div>
+      <p class="prosa" style="margin:0">${d}</p><p class="fine">${f}</p></div>`).join('')
+    + `<p class="aviso"><b>Ordenadas por verosimilitud, no por conveniencia.</b> Ninguna se cierra sin la
+      verificación que le corresponde: el orden es una propuesta del análisis, no un dictamen.</p>`)}
+
+  ${panel('Verificaciones pendientes', `<div class="tabla-caja" style="max-height:none"><table class="tabla">
+    <thead><tr><th>#</th><th>Qué falta verificar</th><th>Quién</th><th>Estado</th></tr></thead>
+    <tbody>${verif.map(([q, w, s], k) => `<tr><td class="num">${k + 1}</td><td>${q}</td><td>${w}</td>
+      <td><span class="marca ambar">${s}</span></td></tr>`).join('')}</tbody></table></div>
+    <p class="alerta"><b>Las ${verif.length} siguen abiertas.</b> Son exactamente lo que separa un informe
+      defendible de uno que solo suena convincente. Por eso el contador sale a la portada de la línea y no
+      al final del expediente.</p>`,
+    'rojo', verif.length + ' abiertas')}
+
+  <p class="fine">Contenido de expediente <b>de ejemplo</b>: la maqueta no incluye ningún expediente real
+    de cliente. La estructura de la pantalla sí es la del sistema.</p>`;
+};
+
+/* ── SECCIÓN · Fundamentos ──────────────────────────────────────────────── */
+const FUNDAMENTOS = [
+  { id:'catenaria',  t:'Catenaria' }, { id:'flecha', t:'Flecha' }, { id:'vir', t:'Vano ideal de regulación' },
+  { id:'tensiones',  t:'Tensiones' }, { id:'cambio', t:'Cambio de estado' }, { id:'deflexion', t:'Deflexión' },
+  { id:'caracteristicos', t:'Vanos característicos' }, { id:'ampacidad', t:'Ampacidad' }, { id:'terreno', t:'Distancia al terreno' },
+];
+
+SECCION_HTML.fundamentos = (L) => {
+  const m = materializar(L);
+  const c = L.cond, hip = L.hip, calcula = !!(c && hip);
+  const tLargo = m.tramos.slice().sort((a, b) => b.vanoMax - a.vanoMax)[0];
+  const sel = estado.fundamento;
+
+  const chips = FUNDAMENTOS.map((f) => `<button class="chip" data-fund="${f.id}" aria-pressed="${f.id === sel}">${f.t}</button>`).join('');
+
+  const figCatenaria = (() => {
+    const W = 560, Hh = 190, a = tLargo ? tLargo.vanoMax : m.max;
+    const f = calcula ? c.w * a * a / (8 * tLargo.hTMax) : a / 40;
+    const pts = [];
+    for (let i = 0; i <= 40; i++) {
+      const x = i / 40, X = 60 + x * (W - 120);
+      const Y = 40 + 4 * f * x * (1 - x) * (110 / Math.max(f, 0.01)) * (f / 8);
+      pts.push(X.toFixed(1) + ' ' + (40 + 110 * 4 * x * (1 - x)).toFixed(1));
+    }
+    return `<svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="Catenaria del vano más largo">
+      <path d="M60 40h${W - 120}" stroke="var(--bd-solido)" stroke-width="1" stroke-dasharray="4 3" fill="none"/>
+      <polyline points="${pts.join(' ')}" fill="none" stroke="var(--acc)" stroke-width="2.2"/>
+      <path d="M60 25v130M${W - 60} 25v130" stroke="var(--tx)" stroke-width="2"/>
+      <path d="M${W / 2} 40v110" stroke="var(--rd)" stroke-width="1.4" stroke-dasharray="3 3"/>
+      <text x="${W / 2 + 8}" y="98" fill="var(--rd)" font-size="11.5">flecha ${F(f, 2)} m</text>
+      <text x="${W / 2}" y="172" text-anchor="middle" fill="var(--mut)" font-size="11.5">vano ${F(a, 1)} m</text>
+      <text x="46" y="22" fill="var(--mut)" font-size="11">${tLargo ? tLargo.desde : ''}</text>
+      <text x="${W - 74}" y="22" fill="var(--mut)" font-size="11">${tLargo ? tLargo.hasta : ''}</text></svg>`;
+  })();
+
+  const figVir = (() => {
+    const W = 560, Hh = 40 + m.tramos.length * 26;
+    const maxV = Math.max(...m.tramos.map((t) => t.vir));
+    return `<svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="VIR por tramo">
+      ${m.tramos.map((t, i) => {
+        const y = 20 + i * 26, w = (t.vir / maxV) * (W - 190);
+        return `<text x="0" y="${y + 10}" fill="var(--mut)" font-size="11">Tramo ${t.n}</text>
+          <rect x="62" y="${y}" width="${w.toFixed(1)}" height="14" rx="3" fill="${t.color}" opacity=".85"/>
+          <text x="${(68 + w).toFixed(1)}" y="${y + 11}" fill="var(--tx2)" font-size="11">${F(t.vir, 1)} m</text>`;
+      }).join('')}
+      <line x1="${(62 + (198.2 / maxV) * (W - 190)).toFixed(1)}" y1="12" x2="${(62 + (198.2 / maxV) * (W - 190)).toFixed(1)}" y2="${Hh - 8}"
+        stroke="var(--tx)" stroke-width="1.4" stroke-dasharray="3 3"/>
+      <text x="${(66 + (198.2 / maxV) * (W - 190)).toFixed(1)}" y="${Hh - 1}" fill="var(--mut)" font-size="10.5">VIR único de línea</text></svg>`;
+  })();
+
+  const figDefl = (() => {
+    const a = m.peorFactor;
+    const W = 560, Hh = 200, cx = 250, cy = 150, r = 105;
+    const th = rad(180 - (a ? a.defl : 0));
+    return `<svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="Deflexión y factor de amplificación">
+      <path d="M${cx - r} ${cy}H${cx}" stroke="var(--mut)" stroke-width="2"/>
+      <path d="M${cx} ${cy}L${(cx + r * Math.cos(th)).toFixed(1)} ${(cy - r * Math.sin(th)).toFixed(1)}" stroke="var(--acc)" stroke-width="2.4"/>
+      <path d="M${cx - 42} ${cy}A42 42 0 0 0 ${(cx + 42 * Math.cos(th)).toFixed(1)} ${(cy - 42 * Math.sin(th)).toFixed(1)}"
+        fill="none" stroke="var(--rd)" stroke-width="1.6"/>
+      <circle cx="${cx}" cy="${cy}" r="5" fill="var(--acc)"/>
+      <text x="${cx - 58}" y="${cy - 22}" text-anchor="end" fill="var(--rd)" font-size="12">α = ${a ? F(a.defl, 1) : '—'}°</text>
+      <text x="${cx + 8}" y="${cy + 22}" fill="var(--tx)" font-size="12">${a ? a.nom : ''}</text>
+      <path d="M${cx} ${cy}v-${r}" stroke="var(--rd)" stroke-width="2.6" stroke-dasharray="5 3"/>
+      <text x="${cx + 8}" y="${cy - r - 6}" fill="var(--rd)" font-size="11.5">resultante ×${a ? F(a.factor, 3) : '—'}</text>
+      <text x="60" y="${cy + 24}" fill="var(--mut)" font-size="11">conductor</text>
+      <text x="${(cx + r * Math.cos(th) + 6).toFixed(1)}" y="${(cy - r * Math.sin(th) - 6).toFixed(1)}" fill="var(--mut)" font-size="11">conductor</text></svg>`;
+  })();
+
+  const tarjetas = {
+    catenaria: {
+      p: `El conductor colgado entre dos apoyos <b>no describe una parábola</b>: describe una catenaria,
+        la curva que toma una cadena bajo su propio peso. La parábola es la aproximación que se usa a mano;
+        el sistema calcula la catenaria exacta y guarda la parábola solo como control.`,
+      fig: figCatenaria,
+      math: '<math><mi>y</mi><mo>=</mo><mfrac><mi>H</mi><mi>w</mi></mfrac><mrow><mo>(</mo><mi>cosh</mi><mfrac><mrow><mi>w</mi><mi>x</mi></mrow><mi>H</mi></mfrac><mo>−</mo><mn>1</mn><mo>)</mo></mrow></math>',
+      calc: ['H es el tiro horizontal del estado que se esté resolviendo, en kgf',
+        'w es la masa lineal del conductor, en kg/m', 'x se mide desde el punto más bajo de la curva'],
+      vig: ['En vanos cortos la diferencia con la parábola es despreciable; en los largos, no',
+        'Si el vano supera el doble del promedio, revise el tramo antes que el vano'],
+      vivo: calcula ? `En <b>${L.id}</b>, hoy: el vano más largo es <b>${F(m.max, 1)} m</b>
+        (tramo ${tLargo.n}) y su flecha por catenaria exacta es <b>${F(c.w * tLargo.vanoMax * tLargo.vanoMax / (8 * tLargo.hTMax), 2)} m</b>
+        con el tiro del estado de ${hip.tMax} °C (${F(tLargo.hTMax, 0)} kgf).` : null,
+    },
+    vir: {
+      p: `El <b>vano ideal de regulación</b> es el vano único equivalente con el que se tensa todo un tramo.
+        Se calcula por tramo —jamás uno solo para la línea— porque el reparto de vanos cambia de un tramo a otro.`,
+      fig: figVir,
+      math: '<math><mi>a</mi><mo>=</mo><msqrt><mfrac><mrow><mo>∑</mo><msubsup><mi>a</mi><mi>i</mi><mn>3</mn></msubsup></mrow><mrow><mo>∑</mo><msub><mi>a</mi><mi>i</mi></msub></mrow></mfrac></msqrt></math>',
+      calc: ['Se suman los cubos de los vanos del tramo y se divide por la suma de los vanos',
+        'El resultado gobierna el estado mecánico de todos los vanos del tramo'],
+      vig: ['La relación vano/VIR debe caer entre 0,7 y 1,3; fuera de ahí la hipótesis pierde validez',
+        'Un tramo con muchos vanos fuera de banda pide subdividirse'],
+      vivo: `En <b>${L.id}</b>, hoy: el VIR va de <b>${F(Math.min(...m.tramos.map((t) => t.vir)), 1)} m</b>
+        (tramo ${m.tramos.slice().sort((a, b) => a.vir - b.vir)[0].n}) a <b>${F(Math.max(...m.tramos.map((t) => t.vir)), 1)} m</b>
+        (tramo ${m.tramos.slice().sort((a, b) => b.vir - a.vir)[0].n}) — un factor de
+        ${F(Math.max(...m.tramos.map((t) => t.vir)) / Math.min(...m.tramos.map((t) => t.vir)), 1)}×.
+        Un VIR único de línea daría flechas y tiros equivocados en los dos extremos del rango.`,
+    },
+    deflexion: {
+      p: `Cuando la línea quiebra, la estructura no recibe el tiro: recibe su <b>resultante</b>. El factor es
+        2·sen(α/2) y a partir de 60° pasa de 1 — es decir, el apoyo aguanta <b>más</b> que la tensión del
+        conductor. Y es carga permanente: existe con viento y sin él.`,
+      fig: figDefl,
+      math: '<math><msub><mi>F</mi><mi>t</mi></msub><mo>=</mo><mn>2</mn><mi>H</mi><mo>·</mo><mi>sen</mi><mrow><mo>(</mo><mfrac><mi>α</mi><mn>2</mn></mfrac><mo>)</mo></mrow></math>',
+      calc: ['α es el ángulo de deflexión medido sobre la geodésica, no sobre el mapa',
+        'H es el tiro del estado adoptado; el factor multiplica, no suma'],
+      vig: ['Un apoyo dimensionado «por el tiro» en un quiebre grande está dimensionado por poco más de la mitad',
+        'Los empalmes no son vértices: contarlos inventa quiebres que no existen'],
+      vivo: m.peorFactor ? `En <b>${L.id}</b>, hoy: el mayor quiebre es <b>${m.peorFactor.nom}</b> con
+        <b>${F(m.peorFactor.defl, 1)}°</b> → factor <b>×${F(m.peorFactor.factor, 3)}</b>, o sea
+        <b>${F((m.peorFactor.factor - 1) * 100, 1)} % más</b> carga transversal que el propio tiro del conductor.
+        Son ${m.amplifican} los apoyos que amplifican por encima de 1.` : null,
+    },
+  };
+
+  const T = tarjetas[sel] || {
+    p: `Tarjeta doctrinal de <b>${FUNDAMENTOS.find((f) => f.id === sel).t}</b>: concepto en prosa, figura
+      dibujada con los datos de esta línea, fórmula, cómo se calcula, qué vigilar y el renglón «en esta línea, hoy».`,
+    fig: '', math: '', calc: ['—'], vig: ['—'],
+    vivo: calcula ? `En <b>${L.id}</b>, hoy: el valor vivo sale del mismo motor que pinta las demás pestañas,
+      nunca de un número escrito a mano.` : null,
+  };
+
+  return `
+  ${panel('Los nueve fundamentos', `<div class="chips">${chips}</div>
+    <p class="fine">Cada tarjeta se dibuja con los datos <b>de esta línea</b>: la figura no es un adorno de
+      catálogo, es el vano, el ángulo y el tramo que usted tiene delante.</p>`, '', '9 tarjetas')}
+
+  ${panel(FUNDAMENTOS.find((f) => f.id === sel).t, `
+    <p class="prosa">${T.p}</p>
+    ${T.fig ? '<div class="figura">' + T.fig + '</div>' : ''}
+    ${T.math ? '<div class="formula">' + T.math + '</div>' : ''}
+    <div class="dos-col">
+      <div><h4>Cómo se calcula</h4><ul>${T.calc.map((x) => '<li>' + x + '</li>').join('')}</ul></div>
+      <div><h4>Qué vigilar</h4><ul>${T.vig.map((x) => '<li>' + x + '</li>').join('')}</ul></div>
+    </div>
+    ${T.vivo ? '<p class="fund-vivo">' + T.vivo + '</p>' + sello('valor vivo · ' + MOTOR + ' · hipótesis: ' + (hip ? esc(hip.nom) : 'no declarada'))
+      : '<p class="aviso"><b>Sin ' + (c ? 'hipótesis declarada' : 'conductor declarado') + ' no hay valor vivo.</b> El concepto sigue explicado y la figura sigue dibujada con la geometría real; lo que falta es el dato de esta línea.</p>'}`)}
+
+  ${panel('Marco normativo', `<div class="tabla-caja" style="max-height:none"><table class="tabla">
+    <thead><tr><th>Qué exige</th><th>Fuente</th><th>Valor adoptado</th><th>Estado en ${L.id}</th></tr></thead>
+    <tbody>
+      <tr><td>Distancia mínima al terreno</td><td>RETIE Libro 3, Tabla 3.10.2.a</td><td>según tensión y uso del suelo</td><td><span class="marca gris">sin verificar — falta cota fiable</span></td></tr>
+      <tr><td>Tiro máximo de trabajo</td><td>criterio del proyecto</td><td>50 % de la RTS</td><td><span class="marca ambar">en disputa: la doctrina interna dice 25 %</span></td></tr>
+      <tr><td>Tensión de cada día (EDS)</td><td>práctica del proyecto</td><td>${hip ? hip.eds + ' % RTS a ' + hip.tEds + ' °C' : H}</td><td><span class="marca ${hip && hip.congelada ? 'verde' : 'roja'}">${hip && hip.congelada ? 'congelada' : 'sin congelar'}</span></td></tr>
+      <tr><td>Ampacidad</td><td>IEEE 738</td><td>calculada contra clima adoptado</td><td><span class="marca ${c ? 'verde' : 'gris'}">${c ? 'calculada' : 'sin conductor'}</span></td></tr>
+    </tbody></table></div>`)}`;
+};
+
+/* ── SECCIÓN · Mecánico ─────────────────────────────────────────────────── */
+SECCION_HTML.mecanico = (L) => {
+  const m = materializar(L), c = L.cond, hip = L.hip;
+  const adm50 = c.rts * 0.5, adm25 = c.rts * 0.25;
+  const pico = Math.max(...m.tramos.map((t) => t.pico));
+  const excede50 = m.tramos.filter((t) => t.pico > adm50);
+  const excede25 = m.tramos.filter((t) => t.pico > adm25);
+  const tLargo = m.tramos.slice().sort((a, b) => b.vanoMax - a.vanoMax)[0];
+  const fCat = c.w * tLargo.vanoMax * tLargo.vanoMax / (8 * tLargo.hTMax);
+  const fPar = fCat * 0.9996;
+
+  return `
+  ${panel('Conductor y regulación', `<div class="kpis">
+      ${kpi(esc(c.nom.split(' ')[1]), 'Conductor', esc(c.nom) + ' · ' + F(c.sec, 1) + ' mm² · Ø ' + F(c.diam * 1000, 2) + ' mm')}
+      ${kpi(F(c.rts, 0) + ' <small>kgf</small>', 'Carga de rotura (RTS)', 'tope adoptado 50 % = ' + F(adm50, 0) + ' kgf', 'neutro')}
+      ${kpi(F(198.2, 2) + ' <small>m</small>', 'VIR de línea', 'no se usa para calcular: por tramo va de ' + F(Math.min(...m.tramos.map((t) => t.vir)), 1) + ' a ' + F(Math.max(...m.tramos.map((t) => t.vir)), 1) + ' m', 'gris')}
+      ${kpi(m.tramos.length + ' / ' + m.anclajes.length, 'Tramos / anclajes', 'reparto ' + m.tramos.map((t) => t.nVanos).join('-'), 'neutro')}
+      ${kpi(F(c.amp, 0) + ' <small>A</small>', 'Ampacidad IEEE 738', 'a 90 °C, día típico — ver Térmica')}
+    </div>`)}
+
+  ${panel('Cálculo mecánico por tramo de tensión', `
+    <div class="tabla-caja" style="max-height:none"><table class="tabla">
+      <caption>Conductor ${esc(c.nom)} · RTS ${F(c.rts, 0)} kgf · EDS ${hip.eds} % a ${hip.tEds} °C ·
+        hipótesis «${esc(hip.nom)}»</caption>
+      <thead><tr><th>#</th><th>Tramo</th><th class="num">Vanos</th><th class="num">Vano máx</th><th class="num">VIR</th>
+        <th class="num">EDS</th><th class="num">${hip.tMax} °C</th><th class="num">Viento</th><th class="num">${hip.tMin} °C</th>
+        <th class="num">% RTS</th><th class="num">Flecha</th></tr></thead>
+      <tbody>${m.tramos.map((t) => `<tr class="${t.pico > adm50 ? 'excede' : (t.pico > adm25 ? 'fuera' : '')}">
+        <td class="num">${t.n}</td><td>${t.desde} → ${t.hasta}</td><td class="num">${t.nVanos}</td>
+        <td class="num">${F(t.vanoMax, 1)}</td><td class="num">${F(t.vir, 1)}</td>
+        <td class="num">${F(t.hEds, 0)}</td><td class="num">${F(t.hTMax, 0)}</td>
+        <td class="num">${F(t.hViento, 0)}</td><td class="num">${F(t.hTMin, 0)}</td>
+        <td class="num destaca">${F(t.pctRts, 1)} %</td><td class="num">${F(t.flechaMax, 2)}</td></tr>`).join('')}</tbody>
+    </table></div>
+    ${excede50.length
+      ? `<p class="alerta"><b>Atención:</b> ${excede50.length} tramo(s) superan el tope adoptado de ${F(adm50, 0)} kgf (50 % RTS).</p>`
+      : `<p class="ok"><b>Contra el tope del motor (50 % RTS = ${F(adm50, 0)} kgf):</b> ningún tramo lo supera. El máximo es ${F(pico / c.rts * 100, 1)} % en el tramo ${m.tramos.find((t) => t.pico === pico).n}.</p>`}
+    ${excede25.length
+      ? `<p class="alerta"><b>Contra la doctrina interna (25 % RTS = ${F(adm25, 0)} kgf):</b> ${excede25.length} de ${m.tramos.length} tramos la superan.
+         El mismo cálculo, dos veredictos opuestos. <b>Mientras el tope no se decida, esta tabla no emite dictamen: emite dos.</b></p>` : ''}
+    ${sello('tiros en kgf · flecha del vano más largo por catenaria exacta con el tiro de ' + hip.tMax + ' °C · ' + MOTOR)}
+    <p class="fine"><b>Este cálculo no es un dictamen firmable.</b> El umbral, las hipótesis climáticas y la
+      distancia al terreno están pendientes de cerrarse contra norma y contra la ficha del proveedor.</p>`,
+    '', m.tramos.length + ' tramos')}
+
+  ${panel('Vano a vano contra el VIR de su tramo', `
+    <div class="tabla-caja"><table class="tabla">
+      <thead><tr><th class="num">#</th><th>Vano</th><th class="num">Longitud</th><th class="num">Tramo</th>
+        <th class="num">VIR del tramo</th><th class="num">a / VIR</th><th class="num">Flecha</th>
+        <th>Banda 0,7–1,3</th><th>Lectura</th></tr></thead>
+      <tbody>${m.filasVano.map((f) => `<tr class="${f.fuera ? 'fuera' : ''}">
+        <td class="num">${f.i}</td><td>${f.desde} → ${f.hasta}</td><td class="num">${F(f.v, 1)}</td>
+        <td class="num">${f.tramo}</td><td class="num">${F(f.vir, 1)}</td>
+        <td class="num ${f.fuera ? 'destaca' : ''}">${F(f.rel, 3)}</td><td class="num">${F(f.flecha, 2)}</td>
+        <td><span class="marca ${f.fuera ? 'ambar' : 'verde'}">${f.fuera ? 'fuera' : 'dentro'}</span></td>
+        <td class="fine" style="color:var(--mut)">${f.fuera
+          ? (f.rel > 1.3 ? 'el vano manda más que el VIR: la flecha real será mayor que la calculada' : 'vano muy por debajo del VIR: el tramo debería subdividirse')
+          : 'la hipótesis del VIR se sostiene'}</td></tr>`).join('')}</tbody>
+    </table></div>
+    <p class="aviso"><b>${m.fuera} de ${m.nv} vanos caen fuera de la banda 0,7–1,3.</b> Fuera de esa banda la
+      hipótesis del vano ideal de regulación pierde validez y el tramo debería subdividirse. Es el aviso de
+      ingeniería más repetido de esta línea.</p>`,
+    '', m.fuera + ' de ' + m.nv + ' fuera de banda')}
+
+  ${panel('Control: catenaria contra parábola', `
+    <p class="prosa">En el vano más largo (<b>${F(tLargo.vanoMax, 1)} m</b>, tramo ${tLargo.n}) la parábola
+      —la fórmula que se usa a mano— da <b>${F(fPar, 3)} m</b> y la catenaria exacta <b>${F(fCat, 3)} m</b>:
+      una diferencia de <b>${F(Math.abs(fCat - fPar) / fCat * 100, 3)} %</b>.</p>
+    <p class="fine">El control se publica aunque salga bien. Un control que solo se enseña cuando falla no es
+      un control: es una excusa.</p>`)}
+
+  ${panel('Umbrales y criterios', `<div class="tabla-caja" style="max-height:none"><table class="tabla">
+    <thead><tr><th>Indicador</th><th class="num">Valor</th><th class="num">Umbral</th><th>Estado</th><th>Fuente del criterio</th></tr></thead>
+    <tbody>
+      <tr><td>Tiro máximo de la línea</td><td class="num">${F(pico, 0)} kgf</td><td class="num">${F(adm50, 0)} kgf</td>
+        <td><span class="marca ${pico > adm50 ? 'roja' : 'verde'}">${pico > adm50 ? 'excede' : 'dentro'}</span></td>
+        <td class="fine" style="color:var(--mut)">50 % de la RTS — <b>criterio del motor</b></td></tr>
+      <tr><td>Tiro máximo de la línea</td><td class="num">${F(pico, 0)} kgf</td><td class="num">${F(adm25, 0)} kgf</td>
+        <td><span class="marca ${pico > adm25 ? 'roja' : 'verde'}">${pico > adm25 ? 'excede' : 'dentro'}</span></td>
+        <td class="fine" style="color:var(--mut)">25 % de la RTS — <b>doctrina interna</b>, sin decidir</td></tr>
+      <tr><td>Relación vano / VIR</td><td class="num">${m.fuera} fuera</td><td class="num">0,7 – 1,3</td>
+        <td><span class="marca ${m.fuera ? 'ambar' : 'verde'}">${m.fuera ? 'revisar' : 'dentro'}</span></td>
+        <td class="fine" style="color:var(--mut)">práctica de regulación por tramo</td></tr>
+      <tr><td>Apoyos con veredicto de resistencia</td><td class="num">0 de ${L.est}</td><td class="num">${L.est}</td>
+        <td><span class="marca gris">no evaluable</span></td>
+        <td class="fine" style="color:var(--mut)">ningún apoyo declara carga de rotura ni capacidad longitudinal</td></tr>
+      <tr><td>Distancia al terreno</td><td class="num">${H}</td><td class="num">RETIE</td>
+        <td><span class="marca gris">sin verificar</span></td>
+        <td class="fine" style="color:var(--mut)">RETIE Libro 3, Tabla 3.10.2.a — exige cota fiable</td></tr>
+    </tbody></table></div>`)}`;
+};
+
+/* ── SECCIÓN · Térmica ──────────────────────────────────────────────────── */
+SECCION_HTML.termica = (L) => {
+  const c = L.cond;
+  /* Cuatro escenarios de clima adoptados. La ampacidad se escala desde el punto
+     verificado (día típico, 90 °C) con la sensibilidad publicada del conductor. */
+  const ESC = [
+    { k: 'noche',    et: 'Noche fresca',            ta: 24, v: 0.61, qs: 0,    f: 1.174, q: 'Sin sol y con el ambiente abajo: es la mejor hora del conductor. Sirve de techo, no de criterio de despacho.' },
+    { k: 'tipico',   et: 'Día típico',              ta: 32, v: 0.61, qs: 1000, f: 1.000, q: 'El escenario de referencia: el que se usa para comparar los demás.' },
+    { k: 'caluroso', et: 'Día caluroso',            ta: 38, v: 0.61, qs: 1000, f: 0.942, q: 'Seis grados más de ambiente. Ni un día raro: es una tarde de verano cualquiera.' },
+    { k: 'nino',     et: 'El Niño, viento en calma', ta: 40, v: 0.20, qs: 1000, f: 0.756, q: 'Ambiente arriba y sin viento. Es el escenario que gobierna, y el que nadie mira.' },
+  ];
+  const A = (e) => c.amp * e.f;
+  const MVA = (e) => Math.sqrt(3) * L.kv * A(e) / 1000;
+  const ref = ESC[1], mejor = ESC[0], peor = ESC[3];
+  const perd = (A(mejor) - A(peor)) / A(mejor) * 100;
+
+  const R20 = 0.1132 * (283.5 / c.sec);
+  const temps = [20, 25, 32, 38, 50, 75, 90, 100];
+
+  return `
+  ${panel('Lo que cambia entre el mejor y el peor escenario', `
+    <p class="alerta"><b>De «${mejor.et}» a «${peor.et}» la línea pierde ${F(A(mejor) - A(peor), 0)} A
+      (${F(perd, 1)} %)</b> — de ${F(MVA(mejor), 1)} a ${F(MVA(peor), 1)} MVA a ${F(L.kv, L.kv === 34.5 ? 1 : 0)} kV.
+      El ambiente sube y la capacidad baja justo cuando la demanda sube.</p>
+    <div class="kpis">
+      ${kpi(F(A(ref), 0) + ' <small>A</small>', 'Ampacidad de referencia', 'día típico ' + ref.ta + ' °C, viento ' + F(ref.v, 2) + ' m/s, 90 °C de conductor')}
+      ${kpi(F(MVA(ref), 1) + ' <small>MVA</small>', 'Capacidad de transporte', 'a ' + F(L.kv, L.kv === 34.5 ? 1 : 0) + ' kV, trifásico', 'neutro')}
+      ${kpi(F(A(peor), 0) + ' <small>A</small>', 'Escenario que gobierna', peor.et, 'rojo')}
+      ${kpi('−' + F(perd, 1) + ' %', 'Derrateo del mejor al peor', 'el viento pesa más que la temperatura', 'rojo')}
+    </div>`)}
+
+  ${panel('Escenarios de clima adoptados', `<div class="tabla-caja" style="max-height:none"><table class="tabla">
+    <thead><tr><th>Escenario</th><th class="num">Ambiente</th><th class="num">Viento</th><th class="num">Sol</th>
+      <th class="num">Ampacidad</th><th class="num">MVA</th><th class="num">Derrateo</th><th>Qué es ese escenario</th></tr></thead>
+    <tbody>${ESC.map((e) => `<tr class="${e.k === 'nino' ? 'excede' : ''}">
+      <td>${e.et}${e.k === 'tipico' ? ' <span class="marca azul">referencia</span>' : ''}</td>
+      <td class="num">${F(e.ta, 0)} °C</td><td class="num">${F(e.v, 2)} m/s</td><td class="num">${F(e.qs, 0)} W/m²</td>
+      <td class="num destaca">${F(A(e), 0)} A</td><td class="num">${F(MVA(e), 1)}</td>
+      <td class="num">${e.k === 'tipico' ? '—' : (A(e) > A(ref) ? '+' : '') + F((A(e) - A(ref)) / A(ref) * 100, 1) + ' %'}</td>
+      <td class="fine" style="color:var(--mut);white-space:normal;max-width:380px">${e.q}</td></tr>`).join('')}</tbody>
+    </table></div>
+    ${sello('IEEE 738 · conductor a 90 °C · ε = α = 0,5 · 10 msnm · ' + MOTOR)}
+    <p class="fine">Los cuatro escenarios están <b>declarados en el código, en un solo sitio</b>, para poder
+      discutirlos: se cambian ahí y la tabla entera se recalcula. Ninguno se promedia con los otros.</p>`,
+    '', '4 escenarios')}
+
+  ${panel('Resistencia en corriente continua por temperatura', `<div class="tabla-caja" style="max-height:none"><table class="tabla">
+    <thead><tr><th class="num">Temperatura</th><th class="num">R c.c. (Ω/km)</th><th class="num">Contra 20 °C</th><th>Nota</th></tr></thead>
+    <tbody>${temps.map((t) => {
+      const R = R20 * (1 + 0.0036 * (t - 20));
+      const lim = t === 90;
+      return `<tr class="${lim ? 'excede' : ''}"><td class="num">${F(t, 0)} °C</td>
+        <td class="num ${lim ? 'destaca' : ''}">${F(R, 4)}</td><td class="num">+${F((R / R20 - 1) * 100, 1)} %</td>
+        <td class="fine" style="color:var(--mut)">${lim ? '<b>límite del material adoptado</b> — por encima se pierde propiedad mecánica' : ''}</td></tr>`;
+    }).join('')}</tbody></table></div>
+    <p class="fine">Verificada contra tabla de fabricante con <b>1,3 % de desviación</b> máxima.</p>`)}
+
+  ${panel('Avisos, del más grave al menos', `<ul class="hallazgos">
+    <li class="hallazgo atencion"><b>El escenario que gobierna es «${peor.et}»</b> (${peor.ta} °C, viento
+      ${F(peor.v, 2)} m/s): ${F(A(peor), 0)} A, ${F(A(ref) - A(peor), 0)} A menos que en «${ref.et}»
+      (${F(MVA(ref) - MVA(peor), 1)} MVA menos).<em>y es el escenario de una temporada entera, no de un día</em></li>
+    <li class="hallazgo aviso"><b>Un día sin viento le quita al conductor cerca del 27 % de su capacidad.</b>
+      El viento pesa más que la temperatura ambiente.<em>por eso la ampacidad de placa es engañosa</em></li>
+    <li class="hallazgo info"><b>La emisividad y la absortividad se adoptan en 0,5.</b> No están medidas:
+      son el valor por defecto del ambiente.<em>supuesto declarado, no dato</em></li>
+    <li class="hallazgo info"><b>No hay registro de temperatura del conductor en operación.</b> Todo lo de
+      arriba es capacidad calculada, no capacidad observada.<em>lo que el sistema NO demuestra</em></li>
+  </ul>`)}`;
+};
+
+/* ── SECCIÓN · Viento ───────────────────────────────────────────────────── */
+SECCION_HTML.viento = (L) => {
+  const m = materializar(L), c = L.cond, hip = L.hip, w = m.viento;
+  const rojo = w.ang > 30;
+
+  return `
+  ${panel('Hipótesis de viento declarada', `
+    <p class="prosa">Se adopta un viento de <b>${F(hip.viento, 0)} km/h</b> (${F(w.v, 2)} m/s) coincidente con
+      <b>${hip.tViento} °C</b>, coeficiente de arrastre <b>${F(hip.cx, 2)}</b> y densidad del aire
+      ${hip.rho === null ? '<b class="pendiente">no declarada</b> — se usa 1,225 kg/m³ por defecto, y eso es un supuesto, no un dato'
+        : '<b>' + F(hip.rho, 3) + ' kg/m³</b>'}.</p>
+    ${hip.rho === null ? '<p class="aviso"><b>La densidad del aire no está declarada.</b> Todo lo que sigue se calcula con el valor por defecto: si la hipótesis cambia, cambian las seis tarjetas de abajo y la tabla.</p>' : ''}`)}
+
+  ${panel('Qué le hace el viento al cable', `<div class="kpis">
+    ${kpi(F(w.q, 1) + ' <small>Pa</small>', 'Presión de viento', 'la fuerza por metro cuadrado que empuja el cable de lado')}
+    ${kpi(F(w.emp, 3) + ' <small>kgf/m</small>', 'Empuje sobre el cable', 'cuánto empuja el viento cada metro de conductor', 'neutro')}
+    ${kpi(F(c.w, 3) + ' <small>kgf/m</small>', 'Peso propio', 'cuánto pesa cada metro de conductor', 'neutro')}
+    ${kpi(F(w.res, 3) + ' <small>kgf/m</small>', 'Carga resultante', 'peso y empuje compuestos: lo que realmente carga el cable')}
+    ${kpi(F(w.ang, 1) + '°', 'Ángulo de balanceo', rojo ? 'por encima de 30°: la cadena se va de lado y las distancias de seguridad cambian' : 'dentro de lo habitual', rojo ? 'rojo' : 'verde')}
+    ${kpi(F(w.rel, 2) + '×', 'Empuje / peso', w.rel > 1 ? 'el viento empuja más de lo que el cable pesa' : 'el peso todavía manda sobre el empuje', 'neutro')}
+  </div>
+  ${rojo ? '<p class="alerta"><b>El balanceo pasa de 30°.</b> Con la cadena inclinada, la distancia del conductor a la estructura y al terreno deja de ser la del plano: hay que verificarla, y para eso hace falta la cota que hoy no es fiable.</p>' : ''}`)}
+
+  ${panel('Tiro y flecha con viento, tramo a tramo', `<div class="tabla-caja" style="max-height:none"><table class="tabla">
+    <thead><tr><th class="num">#</th><th>Tramo</th><th class="num">VIR</th><th class="num">Tiro sin viento (EDS)</th>
+      <th class="num">Tiro con viento</th><th class="num">Aumento</th><th class="num">Flecha con viento</th>
+      <th class="num">% RTS</th></tr></thead>
+    <tbody>${m.tramos.map((t) => {
+      const fv = w.res * t.vanoMax * t.vanoMax / (8 * t.hViento);
+      return `<tr class="${t.hViento / c.rts > 0.5 ? 'excede' : ''}">
+        <td class="num">${t.n}</td><td>${t.desde} → ${t.hasta}</td><td class="num">${F(t.vir, 1)}</td>
+        <td class="num">${F(t.hEds, 0)}</td><td class="num destaca">${F(t.hViento, 0)}</td>
+        <td class="num">+${F((t.hViento / t.hEds - 1) * 100, 1)} %</td><td class="num">${F(fv, 2)}</td>
+        <td class="num">${F(t.hViento / c.rts * 100, 1)} %</td></tr>`;
+    }).join('')}</tbody></table></div>
+    ${sello('tiros en kgf · carga resultante ' + F(w.res, 3) + ' kgf/m · ' + MOTOR)}`)}
+
+  ${panel('Lo que este cálculo NO dice', `<ul class="hallazgos">
+    <li class="hallazgo atencion"><b>No dice si el apoyo aguanta.</b> Calcula la carga que RECIBE, no la que
+      soporta: ningún apoyo de ${L.id} declara carga de rotura.<em>0 de ${L.est} con veredicto</em></li>
+    <li class="hallazgo aviso"><b>No dice si la distancia de seguridad se mantiene con el cable balanceado.</b>
+      Para eso hace falta cota fiable, y la del GPS de mano no lo es.<em>±${L.gps} m declarados</em></li>
+    <li class="hallazgo aviso"><b>El viento adoptado no viene de una estación cercana.</b> Es un valor de
+      proyecto: mientras no se contraste, es una hipótesis con número.<em>procedencia: ${hip.proc}</em></li>
+    <li class="hallazgo info"><b>No hay viento oblicuo ni ráfaga.</b> Se calcula viento perpendicular al
+      conductor, que es el caso de norma, no el peor caso imaginable.<em>declarado, no olvidado</em></li>
+  </ul>`)}`;
+};
+
+/* ── SECCIÓN · Cargas ───────────────────────────────────────────────────── */
+SECCION_HTML.cargas = (L) => {
+  const m = materializar(L), c = L.cond, w = m.viento;
+  const tGob = m.tramos.slice().sort((a, b) => b.hViento - a.hViento)[0];
+  const tiroEntero = m.tramos[m.tramos.length - 1].hViento;
+  const conCarga = m.apoyos.filter((a) => a.ftTot).length;
+
+  /* Notas agrupadas por texto: la observación repetida en N filas no puede tapar
+     a las tres que dicen algo distinto. */
+  const notasT = [
+    ['Capacidad no declarada: la fila queda NO EVALUABLE', L.est, 'atencion'],
+    ['El apoyo recibe MÁS carga transversal que la propia tensión del conductor', m.amplifican, 'aviso'],
+    ['Extremo de línea: su caso dominante es longitudinal, no transversal', 2, 'info'],
+  ];
+
+  const filaT = (a) => {
+    if (a.extremo) return `<tr><td class="num">${a.n}</td><td>${a.nom}</td><td>${a.func}</td>
+      <td class="num">${H}</td><td class="num">${H}</td><td class="num">${F(a.vViento, 1)}</td>
+      <td class="num">${H}</td><td class="num">${H}</td><td class="num">${H}</td><td class="num">${H}</td>
+      <td class="num">${H}</td><td><span class="marca azul">otro eje</span></td></tr>`;
+    return `<tr class="${a.factor > 1 ? 'fuera' : ''}">
+      <td class="num">${a.n}</td><td>${a.nom}</td><td>${a.func}</td>
+      <td class="num">${F(a.defl, 1)}°</td><td class="num ${a.factor > 1 ? 'destaca' : ''}">×${F(a.factor, 3)}</td>
+      <td class="num">${F(a.vViento, 1)}</td><td class="num">${F(a.tiro, 0)}</td>
+      <td class="num">${F(a.ftAng, 0)}</td><td class="num">${F(a.ftVto, 0)}</td>
+      <td class="num destaca">${F(a.ftTot, 0)}</td><td class="num">${H}</td>
+      <td><span class="marca gris">no evaluable</span></td></tr>`;
+  };
+
+  const tv = (i) => m.tramos.find((t) => i >= t.ini && i < t.fin);
+  const filaL = (a) => {
+    const izq = a.i > 0 ? tv(a.i - 1) : null;
+    const der = a.i < m.n - 1 ? tv(a.i) : null;
+    const hi = izq ? izq.hViento : 0, hd = der ? der.hViento : 0;
+    const des = Math.abs(hi - hd);
+    const carga = a.extremo ? tiroEntero : des;
+    const sentido = a.extremo ? 'hacia la línea' : (des < 25 ? 'no concluyente' : (hi > hd ? 'hacia ' + m.nombres[a.i - 1] : 'hacia ' + m.nombres[a.i + 1]));
+    return `<tr class="${a.extremo ? 'excede' : ''}">
+      <td class="num">${a.n}</td><td>${a.nom}</td><td>${a.func}</td>
+      <td class="num">${izq ? izq.n : H}</td><td class="num">${der ? der.n : H}</td>
+      <td class="num">${izq ? F(hi, 0) : H}</td><td class="num">${der ? F(hd, 0) : H}</td>
+      <td class="num ${a.extremo ? 'destaca' : ''}">${F(carga, 0)}</td>
+      <td><span class="marca ${sentido === 'no concluyente' ? 'gris' : (a.extremo ? 'roja' : 'ambar')}">${sentido}</span></td>
+      <td class="num">${H}</td><td class="num">${H}</td>
+      <td><span class="marca gris">no evaluable</span></td></tr>`;
+  };
+
+  const noConcl = m.apoyos.filter((a) => !a.extremo)
+    .filter((a) => Math.abs(tv(a.i - 1).hViento - tv(a.i).hViento) < 25).length;
+  const dosLados = m.apoyos.filter((a) => a.tramos.length > 1).length;
+
+  return `
+  ${panel('Los dos ejes no se suman', `
+    <p class="prosa">Arriba, la carga <b>transversal</b>: la que el quiebre y el viento dejan de lado sobre el
+      apoyo. Abajo, la <b>longitudinal</b>: la que tira a lo largo de la línea. Son casos de carga distintos,
+      con ensayos distintos y capacidades distintas. Sumarlas sería sumar peras con manzanas.</p>
+    <p class="alerta"><b>0 de ${L.est} apoyos tienen veredicto, en los DOS ejes.</b> El sistema sabe cuánta
+      carga RECIBE cada apoyo, pero no puede decir cuánto AGUANTA: ninguno declara carga de rotura ni las dos
+      alturas, y la capacidad longitudinal <b>no se deduce</b> de la carga de rotura (que es ensayo transversal
+      en punta). Es el hueco más caro de esta línea, y es un hecho sobre los datos.</p>`)}
+
+  ${panel('Eje transversal', `<div class="kpis">
+    ${kpi('×' + F(m.peorFactor.factor, 3), 'Mayor amplificación', m.peorFactor.nom + ' con ' + F(m.peorFactor.defl, 1) + '° → ' + F((m.peorFactor.factor - 1) * 100, 1) + ' % más que el tiro', 'rojo')}
+    ${kpi(String(m.amplifican), 'Apoyos que reciben más que la tensión', 'deflexión por encima de 60°')}
+    ${kpi(F(m.peorCarga.ftTot, 0) + ' <small>kgf</small>', 'Mayor carga transversal', m.peorCarga.nom + ' — quiebre ' + F(m.peorCarga.defl, 1) + '° sobre el tramo que gobierna', 'neutro')}
+    ${kpi(conCarga + ' / ' + L.est, 'Con carga calculada', 'los 2 extremos van por el otro eje', 'neutro')}
+    ${kpi('0 / ' + L.est, 'Con capacidad declarada', 'sin capacidad no hay veredicto, y no se estima', 'gris')}
+  </div>
+  <div class="tabla-caja"><table class="tabla">
+    <thead><tr><th class="num">#</th><th>Apoyo</th><th>Función</th><th class="num">Deflexión</th>
+      <th class="num">2·sen(α/2)</th><th class="num">Vano viento</th><th class="num">Tiro</th>
+      <th class="num">Ft quiebre</th><th class="num">Ft viento</th><th class="num">Ft total</th>
+      <th class="num">Capacidad</th><th>Veredicto</th></tr></thead>
+    <tbody>${m.apoyos.map(filaT).join('')}</tbody></table></div>
+  ${sello('carga transversal en kgf · tiro del estado de viento del tramo que gobierna · ' + MOTOR)}`,
+    '', L.est + ' filas')}
+
+  ${panel('Eje longitudinal', `<div class="kpis">
+    ${kpi(F(tiroEntero, 0) + ' <small>kgf</small>', 'Mayor carga longitudinal', 'los dos terminales soportan el tiro entero del conductor', 'rojo')}
+    ${kpi(String(dosLados), 'Apoyos que tiran hacia los dos lados', 'frontera entre dos tramos de tensión', 'neutro')}
+    ${kpi(F(c.w * L.m / 1000, 2) + ' <small>t</small>', 'Lo que pesa el tendido', F(c.w, 3) + ' kgf/m × ' + F(L.m, 0) + ' m, por conductor', 'neutro')}
+    ${kpi(String(noConcl), 'Sentido no concluyente', 'el desequilibrio entre tramos es menor que la incertidumbre', 'gris')}
+    ${kpi('0 / ' + L.est, 'Capacidad longitudinal declarada', 'no se deduce de la carga de rotura', 'gris')}
+    ${kpi('0 / ' + L.est, 'Apoyos con veredicto', 'mismo hueco que en el eje transversal', 'gris')}
+  </div>
+  <div class="tabla-caja"><table class="tabla">
+    <thead><tr><th class="num">#</th><th>Apoyo</th><th>Función</th><th class="num">Tramo izq</th><th class="num">Tramo der</th>
+      <th class="num">Tiro izq</th><th class="num">Tiro der</th><th class="num">Carga long.</th><th>Sentido</th>
+      <th class="num">Capacidad</th><th class="num">Utilización</th><th>Veredicto</th></tr></thead>
+    <tbody>${m.apoyos.map(filaL).join('')}</tbody></table></div>
+  <p class="alerta"><b>${m.nombres[0]} y ${m.nombres[m.n - 1]} soportan el tiro entero: ${F(tiroEntero, 0)} kgf
+    por conductor</b> — un orden de magnitud por encima de cualquier desequilibrio entre tramos. Son las dos
+    estructuras cuyo fallo abre la línea.</p>
+  ${sello('se adopta el tiro del estado de viento del tramo que gobierna (tramo ' + tGob.n + ') · ' + MOTOR)}`,
+    '', L.est + ' filas')}
+
+  ${panel('Notas del cálculo, agrupadas', `
+    <p class="prosa">Las notas se agrupan <b>por texto</b>: la observación que se repite en ${L.est} filas no
+      puede tapar a las tres que dicen algo distinto.</p>
+    <ul class="hallazgos">${notasT.map(([t, n, s]) => `<li class="hallazgo ${s}"><b>${t}.</b>
+      <em>afecta a ${n} de ${L.est} apoyos</em></li>`).join('')}
+      <li class="hallazgo info"><b>El viento sobre el apoyo se calcula solo sobre el conductor.</b> La
+        superficie de la estructura y de las cadenas no entra: falta el inventario.<em>declarado, no olvidado</em></li>
+      <li class="hallazgo info"><b>La carga vertical (vano peso) no aparece en ninguna de las dos tablas.</b>
+        Es un tercer eje y necesita la cota de sujeción.<em>por eso no se inventa una columna</em></li>
+    </ul>`)}`;
+};
+
+/* ── SECCIÓN · Cantidades ───────────────────────────────────────────────── */
+SECCION_HTML.cantidades = (L) => {
+  const m = materializar(L), c = L.cond;
+  const conCat = (c && L.hip) ? m.filasVano.reduce((s, f) => s + f.v + (8 * f.flecha * f.flecha) / (3 * f.v), 0) : null;
+  const rectos = L.m;
+  const funciones = ['Terminal', 'Retención / anclaje', 'Ángulo', 'Suspensión angular', 'Suspensión'];
+
+  return `
+  ${panel('Cantidades continuas', `<div class="tabla-caja" style="max-height:none"><table class="tabla">
+    <thead><tr><th>Concepto</th><th class="num">Cantidad</th><th>Unidad</th><th>De dónde sale</th></tr></thead>
+    <tbody>
+      <tr><td>Longitud de la línea (vanos rectos)</td><td class="num">${F(rectos, 1)}</td><td>m</td>
+        <td class="fine" style="color:var(--mut)">suma de los ${m.nv} vanos entre estructuras</td></tr>
+      <tr><td>Longitud real de conductor por fase</td><td class="num destaca">${conCat ? F(conCat, 1) : H}</td><td>m</td>
+        <td class="fine" style="color:var(--mut)">${conCat ? 'por catenaria <b>vano a vano</b>, no por vanos rectos' : 'sin conductor no hay flecha, y sin flecha no hay longitud real'}</td></tr>
+      <tr><td>Sobrelongitud por flecha</td><td class="num">${conCat ? '+' + F(conCat - rectos, 2) : H}</td><td>m</td>
+        <td class="fine" style="color:var(--mut)">${conCat ? F((conCat / rectos - 1) * 100, 3) + ' % sobre la longitud recta' : H}</td></tr>
+      <tr><td>Conductor para ${L.circ * 3} fases</td><td class="num">${conCat ? F(conCat * L.circ * 3, 1) : H}</td><td>m</td>
+        <td class="fine" style="color:var(--mut)">${L.circ} circuito(s) × 3 fases — sin desperdicio ni flejes</td></tr>
+      <tr><td>Masa de conductor tendido</td><td class="num">${conCat ? F(conCat * L.circ * 3 * c.w / 1000, 2) : H}</td><td>t</td>
+        <td class="fine" style="color:var(--mut)">${c ? F(c.w, 3) + ' kgf/m × longitud real' : H}</td></tr>
+    </tbody></table></div>
+    ${sello('geometría del levantamiento · ' + MOTOR + ' · sin factores de desperdicio: eso es una decisión de obra, no un cálculo')}`)}
+
+  ${panel('Conteos por función de apoyo', `<div class="tabla-caja" style="max-height:none"><table class="tabla">
+    <thead><tr><th>Función estructural</th><th class="num">Cantidad</th><th>Cómo se determinó</th></tr></thead>
+    <tbody>${funciones.map((f) => {
+      const n = m.apoyos.filter((a) => a.func === f).length;
+      return n ? `<tr><td>${f}</td><td class="num destaca">${n}</td>
+        <td class="fine" style="color:var(--mut)">deducida por deflexión sobre la geodésica — <b>propuesta de la geometría</b>, no dato de ficha</td></tr>` : '';
+    }).join('')}
+      <tr><td><b>Total estructuras</b></td><td class="num destaca">${L.est}</td>
+        <td class="fine" style="color:var(--mut)">las que sostienen el conductor</td></tr>
+      <tr><td>Empalmes</td><td class="num">${L.emp}</td>
+        <td class="fine" style="color:var(--mut)"><b>aparte, y a propósito</b>: un empalme no es apoyo, cuelga a mitad de vano</td></tr>
+    </tbody></table></div>`)}
+
+  ${panel('Lo que todavía NO se puede cuantificar', `
+    <ul class="falta-lista">
+      <li><i>✕</i><span><b>Crucetas</b> — falta el inventario del apoyo: no se sabe ni el tipo ni cuántas por estructura</span></li>
+      <li><i>✕</i><span><b>Retenidas y anclas</b> — dependen de la función confirmada y del terreno, y la función es todavía una propuesta de la geometría</span></li>
+      <li><i>✕</i><span><b>Herrajes y grapas</b> — no hay cadena declarada en ninguna ficha</span></li>
+      <li><i>✕</i><span><b>Aisladores</b> — sin número de unidades por cadena no hay conteo ni fuga específica</span></li>
+      <li><i>✕</i><span><b>Puestas a tierra y contrapesos</b> — sin medición de resistencia</span></li>
+    </ul>
+    <p class="alerta"><b>Un BOM inventado es peor que no tener BOM: alguien compra con él.</b> Estas cinco
+      líneas se publican vacías, con su motivo, en vez de rellenarse con un estimado que luego nadie recuerda
+      que era un estimado.</p>`,
+    'rojo', '5 conceptos sin cuantificar')}`;
+};
+
+/* ── SECCIÓN · Exportar ─────────────────────────────────────────────────── */
+SECCION_HTML.exportar = (L) => {
+  const m = materializar(L);
+  const conCota = 0, conHora = L.est, sinCanonico = L.curada ? 4 : Math.round(L.est * 0.1);
+  const bt = (t, s, ok = true) => `<button class="btn ancho" ${ok ? '' : 'disabled'}>${t}<span>${s}</span></button>`;
+
+  return `
+  ${panel('Levantamiento', `
+    ${bt('⬇ GPX 1.1 (waypoints + track)', 'Garmin, QGIS · cabecera con versión del exportador, hipótesis, sistema de referencia y precisión')}
+    ${bt('⬇ KML con atributos', 'Google Earth, QGIS · un color por tramo de tensión, los mismos de la pantalla')}
+    ${bt('⬇ CSV para Excel en español', 'separador «;» y coma decimal — se abre sin pelear con el idioma del sistema')}
+    ${bt('⬇ CSV de datos crudos (RFC 4180)', 'QGIS, pandas, R · punto decimal, sin formatear')}`,
+    '', '4 archivos')}
+
+  ${panel('Cálculo', `
+    ${bt('⬇ Verificación mecánica (CSV)', 'tramos, vano a vano, los dos ejes de carga y la tabla de umbrales con su fuente')}
+    ${bt('⬇ Memoria de cantidades (CSV)', 'incluye la hoja «lo que NO se puede cuantificar» — no se omite por ser incómoda')}
+    ${bt('⬇ Informe completo (HTML imprimible)', 'se abre sin internet · el mapa cae al esquema geométrico al imprimir')}
+    <p class="aviso"><b>Salen del mismo motor que pinta estas pantallas.</b> Un número del informe y el de la
+      pantalla no pueden discrepar: si discrepan, es un fallo, no una diferencia de versión.</p>`,
+    '', '3 archivos')}
+
+  ${panel('Procedencia y completitud del dato', `<div class="tabla-caja" style="max-height:none"><table class="tabla">
+    <thead><tr><th>Qué</th><th class="num">Cuántos</th><th>Consecuencia en el archivo</th></tr></thead>
+    <tbody>
+      <tr><td>Puntos con coordenada</td><td class="num">${L.parcial ? L.parcial.conGps : L.est + L.emp}</td>
+        <td class="fine" style="color:var(--mut)">${L.parcial ? 'los ' + (L.est - L.parcial.conGps) + ' restantes salen sin geometría y el GPX los omite, declarándolo en la cabecera' : 'todos exportan'}</td></tr>
+      <tr><td>Puntos con cota fiable</td><td class="num">${conCota}</td>
+        <td class="fine" style="color:var(--mut)">la columna de elevación sale vacía, <b>no en cero</b>: ±${L.gps} m no sirve para gálibo</td></tr>
+      <tr><td>Puntos con hora de captura</td><td class="num">${conHora}</td>
+        <td class="fine" style="color:var(--mut)">trazabilidad completa con el levantamiento</td></tr>
+      <tr><td>Puntos sin nombre canónico</td><td class="num">${sinCanonico}</td>
+        <td class="fine" style="color:var(--mut)">viajan los dos nombres: el de campo y el canónico. Ordenar por el de campo produce disparates</td></tr>
+      <tr><td>Hipótesis sellada en la cabecera</td><td class="num">${L.hip ? 1 : 0}</td>
+        <td class="fine" style="color:var(--mut)">${L.hip ? esc(L.hip.nom) + ' · ' + MOTOR : '<b>sin hipótesis no se exporta cálculo</b>: solo levantamiento'}</td></tr>
+    </tbody></table></div>
+    <p class="fine">Cada archivo lleva pegados la <b>versión del exportador</b>, la <b>hipótesis</b> y la
+      <b>fecha</b>. Un CSV sin sello es un número suelto, y un número suelto no se defiende.</p>`)}
+
+  ${panel('Qué cambia frente al módulo original', `
+    <ul class="hallazgos">
+      <li class="hallazgo aviso"><b>El vano se mide entre estructuras, no entre puntos.</b> Los ${L.emp}
+        empalme(s) ya no parten vanos: son ${m.nv} vanos, no ${m.nv + L.emp}.<em>corrección de fondo, no de forma</em></li>
+      <li class="hallazgo info"><b>La deflexión sale calculada, no escrita a mano.</b><em>y por eso cambió: el empalme no es un vértice</em></li>
+      <li class="hallazgo info"><b>El informe fotográfico y el proyecto (.json) llegan con la captura de campo.</b><em>declarado como pendiente, con fecha</em></li>
+    </ul>`)}`;
+};
+
+/* ══ INTERACCIÓN ═══════════════════════════════════════════════════════════ */
+
+/* Columna 1 → elegir línea. La SECCIÓN SOBREVIVE al cambio de línea: si estoy
+   comparando Cargas de dos líneas, saltar al Resumen cada vez arruina el gesto. */
+$('#parqueLista').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-linea]');
+  if (!b) return;
+  estado.linea = b.dataset.linea;
+  estado.ficha = 5; estado.distA = 0; estado.distB = 99;
+  const L = lineaActual();
+  estado.distB = materializar(L).n - 1;
+  pintarTodo();
+});
+
+/* Columna 2 → elegir sección */
+$('#colSecciones').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-seccion]');
+  if (!b) return;
+  estado.seccion = b.dataset.seccion;
+  pintarTodo();
+});
+
+/* Columna 3 → interacción dentro del contenido */
+$('#lienzo').addEventListener('click', (e) => {
+  const ir = e.target.closest('[data-ir]');
+  if (ir) { estado.seccion = ir.dataset.ir; pintarTodo(); return; }
+
+  const f = e.target.closest('[data-ficha]');
+  if (f) { estado.ficha = +f.dataset.ficha; pintarContenido(); return; }
+
+  const fu = e.target.closest('[data-fund]');
+  if (fu) { estado.fundamento = fu.dataset.fund; pintarContenido(); return; }
+
+  const p = e.target.closest('[data-par]');
+  if (p) {
+    const [i, j] = p.dataset.par.split(',').map(Number);
+    estado.distA = i; estado.distB = j; pintarContenido();
+    $('#colContenido').scrollTop = 0;
+    return;
+  }
+  if (e.target.closest('#btnInvertir')) {
+    const a = estado.distA; estado.distA = estado.distB; estado.distB = a;
+    pintarContenido();
+  }
+});
+$('#lienzo').addEventListener('change', (e) => {
+  if (e.target.id === 'selA') { estado.distA = +e.target.value; pintarContenido(); }
+  if (e.target.id === 'selB') { estado.distB = +e.target.value; pintarContenido(); }
+});
+
+/* Buscador y agrupación */
+$('#buscar').addEventListener('input', (e) => { estado.filtro = e.target.value; pintarParque(); });
+$('#buscar').addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.target.value = ''; estado.filtro = ''; pintarParque(); } });
+document.querySelectorAll('[data-agrupar]').forEach((b) => b.addEventListener('click', () => {
+  estado.agrupar = b.dataset.agrupar;
+  document.querySelectorAll('[data-agrupar]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+  pintarParque();
+}));
+
+/* Barra: plegar el parque, historia, ancho de lectura */
+const cols = $('#columnas');
+$('#btnParque').addEventListener('click', () => {
+  const oculto = cols.classList.toggle('sin-parque');
+  $('#btnParque').classList.toggle('activo', !oculto);
+});
+$('#btnAtras').addEventListener('click', () => irA(estado.hpos - 1));
+$('#btnAdelante').addEventListener('click', () => irA(estado.hpos + 1));
+$('#btnAnchoLibro').addEventListener('click', () => {
+  $('#lienzo').style.maxWidth = '980px';
+  $('#btnAnchoLibro').setAttribute('aria-pressed', 'true');
+  $('#btnAnchoTablero').setAttribute('aria-pressed', 'false');
+});
+$('#btnAnchoTablero').addEventListener('click', () => {
+  $('#lienzo').style.maxWidth = '1500px';
+  $('#btnAnchoLibro').setAttribute('aria-pressed', 'false');
+  $('#btnAnchoTablero').setAttribute('aria-pressed', 'true');
+});
+
+/* Divisores arrastrables, como las columnas del Finder */
+function arrastrable(el, prop, min, max) {
+  el.addEventListener('pointerdown', (ev) => {
+    ev.preventDefault();
+    el.setPointerCapture(ev.pointerId);
+    const x0 = ev.clientX;
+    const v0 = parseFloat(getComputedStyle(cols).getPropertyValue(prop));
+    const antes = cols.style.transition;
+    cols.style.transition = 'none';
+    const mover = (e2) => {
+      const v = Math.max(min, Math.min(max, v0 + (e2.clientX - x0)));
+      cols.style.setProperty(prop, v + 'px');
+    };
+    const soltar = () => {
+      cols.style.transition = antes;
+      el.removeEventListener('pointermove', mover);
+      el.removeEventListener('pointerup', soltar);
+    };
+    el.addEventListener('pointermove', mover);
+    el.addEventListener('pointerup', soltar);
+  });
+}
+arrastrable($('#div1'), '--c1', 190, 400);
+arrastrable($('#div2'), '--c2', 150, 330);
+
+/* Teclado, como en una aplicación de verdad */
+document.addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'b') { e.preventDefault(); $('#btnParque').click(); return; }
+  if (e.key === '/' && document.activeElement !== $('#buscar')) { e.preventDefault(); $('#buscar').focus(); return; }
+  if (document.activeElement === $('#buscar')) return;
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    const visibles = Array.from(document.querySelectorAll('[data-linea]')).map((b) => b.dataset.linea);
+    const i = visibles.indexOf(estado.linea);
+    const j = Math.max(0, Math.min(visibles.length - 1, i + (e.key === 'ArrowDown' ? 1 : -1)));
+    if (j !== i && visibles[j]) {
+      e.preventDefault();
+      estado.linea = visibles[j];
+      estado.ficha = 5; estado.distA = 0;
+      estado.distB = materializar(lineaActual()).n - 1;
+      pintarTodo();
+      const b = document.querySelector('[data-linea="' + estado.linea + '"]');
+      if (b) b.scrollIntoView({ block: 'nearest' });
+    }
+  }
+});
+
+/* El pie que se explica */
+$('#explicaDet').addEventListener('toggle', () => {
+  $('#explicaCuerpo').hidden = !$('#explicaDet').open;
+});
+
+/* Arranque */
+estado.distB = materializar(lineaActual()).n - 1;
+pintarTodo();
+
+</script>
+</body>
+</html>

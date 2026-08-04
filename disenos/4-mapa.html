@@ -1,0 +1,2202 @@
+<!doctype html>
+<html lang="es-CO">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mantenimiento de líneas AT · Territorio primero</title>
+<style>
+/* ============================================================================
+   TOKENS — identidad del módulo de campo LN-627 llevada a macOS oscuro.
+   La paleta NO se sustituye: #0f1419 lienzo, #171d24 panel, ámbar #f0a500,
+   rótulos de 11,5 px en mayúsculas, cifras tabulares. Se le añade lo que hace
+   que un Mac parezca un Mac: material translúcido, filetes de medio píxel,
+   tipografía del sistema, radios de 6-10 px y selección con acento.
+   ========================================================================= */
+:root{
+  color-scheme:dark;
+  --lienzo:#0f1419; --lienzo-hond:#0b0f13; --pnl:#171d24; --pnl2:#1e262f;
+  --pnl-alto:linear-gradient(180deg,#1a212a 0%,var(--pnl) 62%);
+  --sidebar-fondo:rgba(19,25,32,.62); --barra-fondo:rgba(22,28,35,.72);
+  --flotante-fondo:rgba(30,38,47,.86); --vibrante:saturate(180%) blur(30px);
+  --bd:rgba(255,255,255,.075); --bd-suave:rgba(255,255,255,.05);
+  --bd-fuerte:rgba(255,255,255,.13); --bd-solido:#2b353f; --hairline:.5px;
+  --tx:#e6edf3; --tx2:#c6d3de; --mut:#8b98a5; --tenue:#6f7d8a;
+  --acc:#f0a500; --acc-tx:#1a1200; --acc-suave:rgba(240,165,0,.14);
+  --acc-borde:rgba(240,165,0,.32); --acc-tinte:#2a2113;
+  --anillo-foco:0 0 0 3px rgba(240,165,0,.32);
+  --sel-fondo:var(--acc-suave); --sel-tx:var(--acc);
+  --gr:#7fc96a; --rd:#e05252; --az:#5b8dd9;
+  --t-verde:#16240f; --t-rojo:#2a1616; --t-azul:#12202c; --b-azul:#24455e;
+  --hueco:var(--tenue);
+  --fuente:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",system-ui,sans-serif;
+  --fuente-mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,monospace;
+  --t-base:13px; --t-prosa:12px; --t-fino:11.4px; --t-rotulo:11.5px;
+  --t-micro:10px; --t-tabla:11.8px; --t-matriz:9.8px; --t-cifra:21px;
+  --ls-rotulo:1px; --ls-micro:.7px; --lh:1.5; --num:tabular-nums;
+  --r-xs:4px; --r-sm:6px; --r-md:8px; --r-lg:10px;
+  --luz-arriba:inset 0 1px 0 rgba(255,255,255,.045);
+  --sombra-1:0 1px 2px rgba(0,0,0,.35);
+  --sombra-2:0 6px 20px -6px rgba(0,0,0,.55);
+  --sombra-flotante:0 14px 40px -10px rgba(0,0,0,.65),0 0 0 1px rgba(0,0,0,.4);
+  --sidebar-ancho:264px; --barra-alto:38px; --inspector-ancho:376px;
+  --curva:cubic-bezier(.2,.7,.3,1); --rapido:.12s; --medio:.18s;
+}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+  :root{--sidebar-fondo:#131920;--barra-fondo:#161c23;--flotante-fondo:#1e262f}
+}
+@media (prefers-reduced-transparency:reduce){
+  :root{--sidebar-fondo:#131920;--barra-fondo:#161c23;--flotante-fondo:#1e262f;--vibrante:none}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+@media (prefers-color-scheme:light){
+  :root{color-scheme:light;
+    --lienzo:#f2f4f7;--lienzo-hond:#e8ebef;--pnl:#fff;--pnl2:#f6f8fa;
+    --pnl-alto:linear-gradient(180deg,#fff 0%,#fbfcfd 62%);
+    --sidebar-fondo:rgba(246,248,250,.72);--barra-fondo:rgba(250,251,252,.80);
+    --flotante-fondo:rgba(255,255,255,.94);
+    --bd:rgba(0,0,0,.09);--bd-suave:rgba(0,0,0,.06);--bd-fuerte:rgba(0,0,0,.18);--bd-solido:#d6dce2;
+    --tx:#111a22;--tx2:#39485a;--mut:#5d6b78;--tenue:#8894a0;
+    --acc:#a86f00;--acc-tx:#fff;--acc-suave:rgba(240,165,0,.18);--acc-tinte:#fff6e0;
+    --t-verde:#eaf6e4;--t-rojo:#fdeaea;--t-azul:#e9f1fa;--b-azul:#c3d8ee;--lienzo-hond:#e8ebef;
+    --luz-arriba:inset 0 1px 0 rgba(255,255,255,.8);
+    --sombra-1:0 1px 2px rgba(16,24,32,.08);--sombra-2:0 6px 20px -6px rgba(16,24,32,.16);
+  }
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font:400 var(--t-base)/var(--lh) var(--fuente);background:var(--lienzo);
+  color:var(--tx);-webkit-font-smoothing:antialiased;overflow:hidden}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;font-family:inherit}
+:focus-visible{outline:none;box-shadow:var(--anillo-foco);border-radius:var(--r-sm)}
+::-webkit-scrollbar{width:11px;height:11px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:6px;border:3px solid transparent;background-clip:content-box}
+::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.26);background-clip:content-box}
+.num,.cifra,.tabla,.kpi-v{font-variant-numeric:var(--num)}
+.rotulo{font-size:var(--t-rotulo);text-transform:uppercase;letter-spacing:var(--ls-rotulo);color:var(--mut);font-weight:600}
+
+/* ── Estructura de ventana ───────────────────────────────────────────── */
+.ventana{display:flex;height:100vh;height:100dvh;overflow:hidden}
+
+/* ── Barra lateral ───────────────────────────────────────────────────── */
+.sidebar{width:var(--sidebar-ancho);flex:0 0 var(--sidebar-ancho);
+  background:var(--sidebar-fondo);-webkit-backdrop-filter:var(--vibrante);backdrop-filter:var(--vibrante);
+  border-right:var(--hairline) solid var(--bd);display:flex;flex-direction:column;
+  transition:margin-left var(--medio) var(--curva)}
+body.plegado .sidebar{margin-left:calc(-1 * var(--sidebar-ancho))}
+.sb-cab{height:var(--barra-alto);display:flex;align-items:center;gap:8px;padding:0 10px 0 13px;
+  border-bottom:var(--hairline) solid var(--bd);flex:0 0 auto}
+.sb-marca{font-size:11.5px;font-weight:600;letter-spacing:.2px;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sb-marca span{color:var(--acc)}
+.sb-buscar{padding:8px 10px 6px;flex:0 0 auto}
+.campo{width:100%;background:var(--lienzo-hond);border:var(--hairline) solid var(--bd);
+  border-radius:var(--r-sm);color:var(--tx);font:400 12px/1 var(--fuente);padding:5px 9px 6px 24px;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%238b98a5' stroke-width='1.4'><circle cx='7' cy='7' r='4.2'/><path d='M10.2 10.2 13.5 13.5'/></svg>");
+  background-repeat:no-repeat;background-position:6px 50%;background-size:12px}
+.campo::placeholder{color:var(--tenue)}
+.segmentado{display:flex;gap:0;margin:0 10px 8px;background:var(--lienzo-hond);
+  border:var(--hairline) solid var(--bd);border-radius:var(--r-sm);padding:2px}
+.segmentado button{flex:1;font-size:10.5px;font-weight:600;padding:3px 2px;border-radius:4px;color:var(--mut);
+  letter-spacing:.2px;white-space:nowrap}
+.segmentado button.on{background:var(--pnl2);color:var(--tx);box-shadow:var(--sombra-1)}
+.sb-lista{flex:1;overflow-y:auto;padding:0 8px 10px}
+.sb-grupo{margin-top:9px}
+.sb-grupo>h3{margin:0 0 3px;padding:0 6px;font-size:var(--t-micro);text-transform:uppercase;
+  letter-spacing:var(--ls-micro);color:var(--tenue);font-weight:600;display:flex;justify-content:space-between}
+.fila{display:flex;align-items:center;gap:8px;padding:4px 7px;border-radius:var(--r-md);
+  cursor:pointer;min-height:30px}
+.fila:hover{background:rgba(255,255,255,.04)}
+.fila.sel{background:var(--sel-fondo);box-shadow:inset 2px 0 0 var(--acc)}
+.fila.sel .f-cod{color:var(--sel-tx)}
+.f-cod{font-size:12px;font-weight:600;font-variant-numeric:var(--num);letter-spacing:.1px}
+.f-meta{font-size:var(--t-micro);color:var(--tenue);font-variant-numeric:var(--num);margin-top:-1px}
+.f-txt{flex:1;min-width:0;line-height:1.28}
+.glifo{width:9px;height:9px;border-radius:50%;flex:0 0 auto;margin-right:1px}
+.g-verde{background:var(--gr)}
+.g-rojo{background:var(--rd)}
+.g-ambar{background:linear-gradient(90deg,var(--acc) 50%,transparent 50%);border:1.2px solid var(--acc)}
+.g-hueco{border:1.2px dashed var(--tenue);background:transparent}
+.sb-pie{flex:0 0 auto;border-top:var(--hairline) solid var(--bd);padding:7px 13px 9px;
+  font-size:var(--t-micro);color:var(--tenue);line-height:1.45;font-variant-numeric:var(--num)}
+.sb-pie b{color:var(--mut);font-weight:600}
+
+/* ── Barra de herramientas ───────────────────────────────────────────── */
+.principal{flex:1;min-width:0;display:flex;flex-direction:column}
+.barra{height:var(--barra-alto);flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:0 10px;
+  background:var(--barra-fondo);-webkit-backdrop-filter:var(--vibrante);backdrop-filter:var(--vibrante);
+  border-bottom:var(--hairline) solid var(--bd)}
+.b-icono{width:26px;height:22px;border-radius:5px;display:grid;place-items:center;color:var(--mut)}
+.b-icono:hover{background:rgba(255,255,255,.06);color:var(--tx)}
+.b-titulo{flex:1;min-width:0;text-align:center;font-size:12.5px;font-weight:600;letter-spacing:.1px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.b-titulo em{font-style:normal;color:var(--mut);font-weight:400}
+.b-der{display:flex;align-items:center;gap:6px}
+.pastilla{font-size:10.5px;font-weight:600;letter-spacing:.3px;padding:2.5px 9px;border-radius:999px;
+  border:1px solid var(--acc-borde);color:var(--acc);background:var(--acc-suave);white-space:nowrap}
+.pastilla.roja{border-color:rgba(224,82,82,.4);color:var(--rd);background:rgba(224,82,82,.12)}
+.pastilla.verde{border-color:rgba(127,201,106,.4);color:var(--gr);background:rgba(127,201,106,.1)}
+.pastilla.hueca{border-style:dashed;border-color:var(--bd-fuerte);color:var(--tenue);background:transparent}
+
+/* ── Cuerpo ──────────────────────────────────────────────────────────── */
+.cuerpo{flex:1;min-height:0;display:flex}
+.centro{flex:1;min-width:0;display:flex;flex-direction:column}
+.inspector{width:var(--inspector-ancho);flex:0 0 var(--inspector-ancho);
+  border-left:var(--hairline) solid var(--bd);background:var(--lienzo);
+  display:flex;flex-direction:column;min-height:0}
+
+/* ── Cabecera de línea ───────────────────────────────────────────────── */
+.linea-cab{flex:0 0 auto;padding:9px 14px 8px;border-bottom:var(--hairline) solid var(--bd);
+  display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;background:var(--pnl-alto)}
+.lc-cod{font-size:15px;font-weight:600;letter-spacing:.2px}
+.lc-hechos{display:flex;gap:0;flex-wrap:wrap;font-size:var(--t-fino);color:var(--mut);
+  font-variant-numeric:var(--num)}
+.lc-hechos span{padding:0 10px;border-left:var(--hairline) solid var(--bd)}
+.lc-hechos span:first-child{border-left:0;padding-left:0}
+.lc-hechos b{color:var(--tx2);font-weight:600}
+.lc-sello{margin-left:auto;font-size:var(--t-micro);color:var(--tenue);font-variant-numeric:var(--num);text-align:right}
+
+/* ── Lienzo del territorio ───────────────────────────────────────────── */
+.territorio{flex:1 1 auto;min-height:230px;position:relative;overflow:hidden;
+  background:var(--lienzo-hond)}
+@media (prefers-color-scheme:dark){
+  .territorio{background:radial-gradient(120% 90% at 30% 0%,#141b23 0%,var(--lienzo-hond) 70%)}
+}
+.territorio svg{width:100%;height:100%;display:block}
+.traza{fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.traza-halo{fill:none;stroke:rgba(0,0,0,.5);stroke-width:5;stroke-linejoin:round;stroke-linecap:round}
+.mk{cursor:pointer}
+.mk:hover .mk-hit{stroke:var(--acc);stroke-width:1.2;fill:rgba(240,165,0,.12)}
+.mk-lbl{font:600 9.5px var(--fuente);fill:var(--mut);letter-spacing:.2px}
+.mk-lbl.on{fill:var(--acc)}
+.sel-ring{fill:none;stroke:var(--acc);stroke-width:1.4}
+.capas{position:absolute;top:10px;right:10px;z-index:5;width:196px;
+  background:var(--flotante-fondo);-webkit-backdrop-filter:var(--vibrante);backdrop-filter:var(--vibrante);
+  border:var(--hairline) solid var(--bd-fuerte);border-radius:var(--r-md);
+  box-shadow:var(--sombra-flotante);padding:8px 9px 9px;font-size:11.5px}
+.capas h4{margin:0 0 4px;font-size:var(--t-micro);text-transform:uppercase;letter-spacing:var(--ls-micro);
+  color:var(--tenue);font-weight:600}
+.capas h4+h4{margin-top:9px}
+.capas label{display:flex;align-items:center;gap:6px;padding:2.5px 5px;border-radius:5px;cursor:pointer;color:var(--tx2)}
+.capas label:hover{background:rgba(255,255,255,.05)}
+.capas label.on{background:var(--acc-suave);color:var(--acc)}
+.capas input{accent-color:var(--acc);margin:0;width:11px;height:11px}
+.leyenda{position:absolute;left:10px;bottom:10px;z-index:5;max-width:calc(100% - 230px);
+  background:var(--flotante-fondo);-webkit-backdrop-filter:var(--vibrante);backdrop-filter:var(--vibrante);
+  border:var(--hairline) solid var(--bd-fuerte);border-radius:var(--r-md);box-shadow:var(--sombra-flotante);
+  padding:7px 10px 8px;font-size:var(--t-fino);color:var(--mut);font-variant-numeric:var(--num)}
+.leyenda h4{margin:0 0 5px;font-size:var(--t-micro);text-transform:uppercase;letter-spacing:var(--ls-micro);color:var(--tenue);font-weight:600}
+.ly-fila{display:flex;flex-wrap:wrap;gap:4px 14px}
+.ly-it{display:inline-flex;align-items:center;gap:6px}
+.ly-sw{width:16px;height:3.5px;border-radius:2px;flex:0 0 auto}
+.ly-pt{width:9px;height:9px;border-radius:50%;flex:0 0 auto}
+.escala{position:absolute;right:12px;bottom:12px;z-index:4;font-size:var(--t-micro);color:var(--tenue);
+  font-variant-numeric:var(--num);text-align:right}
+.escala i{display:block;height:4px;border:var(--hairline) solid var(--mut);border-top:0;margin-bottom:2px}
+.globo{position:fixed;z-index:40;pointer-events:none;background:var(--flotante-fondo);
+  -webkit-backdrop-filter:var(--vibrante);backdrop-filter:var(--vibrante);
+  border:var(--hairline) solid var(--bd-fuerte);border-radius:var(--r-sm);box-shadow:var(--sombra-flotante);
+  padding:6px 9px;font-size:11.4px;line-height:1.5;color:var(--tx2);font-variant-numeric:var(--num);
+  max-width:250px;opacity:0;transition:opacity var(--rapido)}
+.globo.on{opacity:1}
+.globo b{color:var(--acc);display:block;font-size:12px}
+
+/* ── Cajón de secciones ──────────────────────────────────────────────── */
+.cajon{flex:0 0 auto;display:flex;flex-direction:column;min-height:0;border-top:var(--hairline) solid var(--bd)}
+.banda{flex:0 0 auto;display:flex;align-items:center;gap:2px;padding:5px 8px;overflow-x:auto;
+  background:var(--barra-fondo);-webkit-backdrop-filter:var(--vibrante);backdrop-filter:var(--vibrante);
+  border-bottom:var(--hairline) solid var(--bd);scrollbar-width:none}
+.banda::-webkit-scrollbar{display:none}
+.sec{display:inline-flex;align-items:center;gap:5px;padding:4px 9px 5px;border-radius:var(--r-sm);
+  font-size:11px;font-weight:600;color:var(--mut);letter-spacing:.25px;white-space:nowrap}
+.sec:hover{background:rgba(255,255,255,.05);color:var(--tx)}
+.sec.on{background:var(--acc-suave);color:var(--acc);box-shadow:inset 0 0 0 var(--hairline) var(--acc-borde)}
+.sec i{width:6px;height:6px;border-radius:50%;display:inline-block}
+.sec i.rojo{background:var(--rd)} .sec i.ambar{background:var(--acc)}
+.sec i.hueco{border:1px dashed var(--tenue)}
+.banda .estirar{flex:1}
+.tirador{flex:0 0 auto;height:9px;cursor:ns-resize;display:grid;place-items:center;background:var(--lienzo)}
+.tirador::after{content:"";width:32px;height:3px;border-radius:2px;background:var(--bd-fuerte)}
+.panel-sec{flex:1 1 auto;overflow-y:auto;padding:12px 14px 22px;min-height:0}
+
+/* ── Piezas de contenido ─────────────────────────────────────────────── */
+.panel{margin:0 0 12px;padding:11px 13px 14px;background:var(--pnl-alto);
+  border:var(--hairline) solid var(--bd);border-radius:var(--r-lg);
+  box-shadow:var(--luz-arriba),var(--sombra-1)}
+.panel>h2{margin:0 0 9px;font-size:var(--t-rotulo);font-weight:600;color:var(--mut);
+  text-transform:uppercase;letter-spacing:var(--ls-rotulo);border-bottom:var(--hairline) solid var(--bd);padding-bottom:5px}
+.panel>h2 em{float:right;font-style:normal;text-transform:none;letter-spacing:0;color:var(--tenue);font-weight:400;font-size:11px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:7px}
+.kpi{background:linear-gradient(180deg,#16283a 0%,var(--t-azul) 70%);border:var(--hairline) solid var(--b-azul);
+  border-radius:var(--r-md);padding:8px 11px 9px;box-shadow:var(--luz-arriba),var(--sombra-1)}
+.kpi-v{font-size:var(--t-cifra);font-weight:600;color:var(--acc);line-height:1.12}
+.kpi-v small{font-size:12px;font-weight:500;color:var(--mut)}
+.kpi-l{margin-top:1px;font-size:var(--t-micro);color:var(--mut);text-transform:uppercase;letter-spacing:var(--ls-micro)}
+.kpi-s{margin-top:3px;font-size:11px;color:#9fb3c4;line-height:1.4}
+.kpi.hueco .kpi-v{color:var(--tenue)}
+.kpi.rojo .kpi-v{color:var(--rd)}
+.aviso,.alerta,.ok,.nota{margin:9px 0 0;padding:8px 11px;border-radius:0 var(--r-sm) var(--r-sm) 0;
+  font-size:12.2px;line-height:1.55}
+.aviso{background:var(--acc-tinte);border-left:3px solid var(--acc);color:#e8d9b8}
+.aviso b{color:var(--acc)}
+.alerta{background:var(--t-rojo);border-left:3px solid var(--rd);color:#f0c9c9}
+.alerta b{color:#ffb4b4}
+.ok{background:var(--t-verde);border-left:3px solid var(--gr);color:#cfe8c2}
+.ok b{color:var(--gr)}
+.nota{background:var(--pnl2);border-left:3px solid var(--bd-solido);color:var(--mut)}
+.nota b{color:var(--tx2)}
+@media (prefers-color-scheme:light){
+  .aviso{color:#6b4f00}.alerta{color:#8c2020}.ok{color:#2c5a1c}
+  .kpi{background:var(--t-azul)}
+}
+.fine{color:var(--mut);font-size:var(--t-fino);line-height:1.6;margin:7px 0 0}
+.fine b{color:var(--tx2)}
+.prosa{color:var(--tx2);font-size:var(--t-prosa);line-height:1.62;max-width:110ch;margin:0 0 8px}
+.tabla-caja{overflow:auto;border:var(--hairline) solid var(--bd);border-radius:var(--r-lg);max-height:none}
+.tabla{width:100%;border-collapse:collapse;font-size:var(--t-tabla)}
+.tabla caption{text-align:left;color:var(--mut);font-size:var(--t-fino);padding:0 0 8px;line-height:1.5}
+.tabla th{background:var(--pnl2);color:var(--mut);font-weight:600;font-size:var(--t-micro);
+  text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;padding:5px 8px;text-align:left;
+  border-bottom:var(--hairline) solid var(--bd-solido);position:sticky;top:0;z-index:2}
+.tabla td{padding:4px 8px;border-bottom:var(--hairline) solid var(--bd-suave);color:var(--tx2)}
+.tabla .num{text-align:right;font-variant-numeric:var(--num)}
+.tabla .destaca{color:var(--acc);font-weight:600}
+.tabla tr.fuera td{background:rgba(240,165,0,.075)}
+.tabla tr.mal td{background:rgba(224,82,82,.1)}
+.tabla tbody tr:hover td{background:rgba(255,255,255,.045)}
+.tabla tbody tr.aqui td{background:var(--acc-suave);box-shadow:inset 2px 0 0 var(--acc)}
+.tabla .txt{color:var(--mut);font-size:var(--t-fino);line-height:1.45}
+.sello-v{display:inline-block;font-size:9.5px;font-weight:600;letter-spacing:.3px;padding:1px 6px;
+  border-radius:999px;border:1px solid var(--bd-fuerte);color:var(--mut);white-space:nowrap}
+.sello-v.cumple{color:var(--gr);border-color:rgba(127,201,106,.35);background:rgba(127,201,106,.1)}
+.sello-v.revisar{color:var(--acc);border-color:var(--acc-borde);background:var(--acc-suave)}
+.sello-v.no{color:var(--tenue);border-style:dashed}
+.sello-v.rojo{color:var(--rd);border-color:rgba(224,82,82,.35);background:rgba(224,82,82,.1)}
+.hueco-txt{color:var(--tenue)}
+.dos-col{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start}
+@media (max-width:1420px){.dos-col{grid-template-columns:1fr}}
+.pastillas{display:flex;flex-wrap:wrap;gap:4px;margin:0 0 10px}
+.pz{font-size:11px;font-weight:600;padding:3px 9px;border-radius:999px;border:var(--hairline) solid var(--bd);
+  color:var(--mut);background:var(--pnl2);font-variant-numeric:var(--num)}
+.pz:hover{border-color:var(--bd-fuerte);color:var(--tx)}
+.pz.on{background:var(--acc-suave);border-color:var(--acc-borde);color:var(--acc)}
+.pz.emp{border-style:dashed}
+.boton{display:inline-flex;align-items:center;gap:6px;padding:6px 13px;border-radius:var(--r-sm);
+  background:var(--pnl2);border:var(--hairline) solid var(--bd-fuerte);font-size:12px;font-weight:600;color:var(--tx)}
+.boton:hover{border-color:var(--acc-borde);color:var(--acc)}
+.boton.ppal{background:var(--acc);color:var(--acc-tx);border-color:transparent}
+.boton.ppal:hover{opacity:.9;color:var(--acc-tx)}
+.barras{display:flex;align-items:flex-end;gap:2px;height:74px;padding:0 0 0 0;position:relative;margin-top:6px}
+.barra-v{flex:1;background:linear-gradient(180deg,var(--az),#2c496d);border-radius:2px 2px 0 0;min-height:2px;position:relative}
+.barra-v.fuera{background:linear-gradient(180deg,var(--acc),#7a5400)}
+.barra-v:hover{outline:1px solid var(--acc);outline-offset:1px}
+.marca-prom{position:absolute;left:0;right:0;border-top:1px dashed var(--acc);pointer-events:none}
+.marca-prom span{position:absolute;right:0;top:-13px;font-size:9.5px;color:var(--acc);font-variant-numeric:var(--num)}
+.rejilla-ficha{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;font-size:11.6px;align-items:baseline}
+.rejilla-ficha dt{color:var(--tenue);white-space:nowrap}
+.rejilla-ficha dd{margin:0;color:var(--tx2);font-variant-numeric:var(--num)}
+.rejilla-ficha dd.h{color:var(--tenue);font-style:italic}
+.mini-h{margin:11px 0 4px;font-size:var(--t-micro);text-transform:uppercase;letter-spacing:var(--ls-micro);
+  color:var(--tenue);font-weight:600;border-bottom:var(--hairline) solid var(--bd-suave);padding-bottom:3px}
+.mini-h:first-child{margin-top:0}
+.matriz{border-collapse:collapse;font-size:var(--t-matriz);font-variant-numeric:var(--num)}
+.matriz th{position:sticky;top:0;background:var(--pnl2);z-index:3;padding:3px 4px;font-size:9px;
+  border-bottom:var(--hairline) solid var(--bd-solido);color:var(--mut)}
+.matriz th.esq{left:0;z-index:4}
+.matriz td.rh{position:sticky;left:0;background:var(--pnl2);z-index:2;font-weight:600;color:var(--mut);
+  padding:2px 5px;border-right:var(--hairline) solid var(--bd-solido)}
+.matriz td{padding:2px 4px;text-align:right;border-bottom:var(--hairline) solid var(--bd-suave);
+  color:var(--tx2);cursor:pointer;min-width:42px}
+.matriz td.diag{color:var(--tenue);background:var(--lienzo-hond);cursor:default}
+.matriz td:hover:not(.diag){outline:1px solid var(--acc)}
+.galeria{display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:5px;margin-top:7px}
+.foto{aspect-ratio:4/3;border-radius:var(--r-sm);border:var(--hairline) solid var(--bd);
+  background:repeating-linear-gradient(135deg,var(--lienzo-hond) 0 6px,var(--pnl2) 6px 12px);
+  display:grid;place-items:center;font-size:9.5px;color:var(--tenue);text-align:center;line-height:1.3;padding:3px}
+
+/* ── Inspector ───────────────────────────────────────────────────────── */
+.insp-tabs{flex:0 0 auto;display:flex;gap:2px;padding:5px 8px;border-bottom:var(--hairline) solid var(--bd);
+  background:var(--barra-fondo);-webkit-backdrop-filter:var(--vibrante);backdrop-filter:var(--vibrante)}
+.insp-tabs button{flex:1;font-size:11px;font-weight:600;padding:4px;border-radius:var(--r-sm);color:var(--mut);letter-spacing:.2px}
+.insp-tabs button.on{background:var(--acc-suave);color:var(--acc)}
+.insp-cuerpo{flex:1;overflow-y:auto;padding:11px 12px 20px;min-height:0}
+.semaforos{display:grid;gap:5px}
+.sem{display:flex;gap:8px;align-items:flex-start;padding:7px 9px;border-radius:var(--r-md);
+  background:var(--pnl2);border:var(--hairline) solid var(--bd)}
+.sem .glifo{margin-top:4px}
+.sem-t{font-size:11.6px;font-weight:600;color:var(--tx)}
+.sem-v{font-size:11.4px;color:var(--tx2);line-height:1.45;margin-top:1px}
+.sem-c{font-size:var(--t-micro);color:var(--tenue);line-height:1.45;margin-top:3px;
+  border-top:var(--hairline) solid var(--bd-suave);padding-top:3px}
+.sem-c b{color:var(--mut);font-weight:600}
+.sem.rojo{background:var(--t-rojo);border-color:rgba(224,82,82,.28)}
+.sem.ambar{background:var(--acc-tinte);border-color:var(--acc-borde)}
+.sem.hueca{border-style:dashed}
+.insp-h{margin:14px 0 6px;font-size:var(--t-rotulo);text-transform:uppercase;letter-spacing:var(--ls-rotulo);
+  color:var(--mut);font-weight:600;border-bottom:var(--hairline) solid var(--bd);padding-bottom:4px}
+.insp-h:first-child{margin-top:0}
+.crit{padding:6px 0;border-bottom:var(--hairline) solid var(--bd-suave)}
+.crit-l{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.crit-e{font-size:11.5px;color:var(--tx);font-weight:600}
+.crit-v{font-size:11.5px;color:var(--acc);font-variant-numeric:var(--num)}
+.crit-v.h{color:var(--tenue)}
+.crit-d{font-size:11px;color:var(--mut);line-height:1.45;margin-top:2px}
+.crit-c{font-size:var(--t-micro);color:var(--tenue);line-height:1.4;margin-top:2px}
+.no-demuestra{margin-top:14px;padding:9px 11px;border-radius:var(--r-md);border:var(--hairline) dashed var(--bd-fuerte);
+  background:var(--lienzo-hond)}
+.no-demuestra h4{margin:0 0 5px;font-size:var(--t-micro);text-transform:uppercase;letter-spacing:var(--ls-micro);
+  color:var(--tenue);font-weight:600}
+.no-demuestra ul{margin:0;padding-left:15px;font-size:11.2px;color:var(--mut);line-height:1.55}
+.no-demuestra li{margin-bottom:4px}
+.no-demuestra b{color:var(--tx2)}
+
+/* ── Barra de estado ─────────────────────────────────────────────────── */
+.estado-barra{flex:0 0 auto;height:23px;display:flex;align-items:center;gap:12px;padding:0 12px;
+  background:var(--barra-fondo);-webkit-backdrop-filter:var(--vibrante);backdrop-filter:var(--vibrante);
+  border-top:var(--hairline) solid var(--bd);font-size:var(--t-micro);color:var(--tenue);
+  font-variant-numeric:var(--num)}
+.estado-barra b{color:var(--mut);font-weight:600}
+details.propone{margin-left:auto;position:relative}
+details.propone summary{list-style:none;cursor:pointer;color:var(--mut);font-size:var(--t-micro)}
+details.propone summary::-webkit-details-marker{display:none}
+details.propone summary:hover{color:var(--acc)}
+details.propone .caja{position:absolute;right:0;bottom:20px;width:520px;max-width:78vw;
+  background:var(--flotante-fondo);-webkit-backdrop-filter:var(--vibrante);backdrop-filter:var(--vibrante);
+  border:var(--hairline) solid var(--bd-fuerte);border-radius:var(--r-lg);box-shadow:var(--sombra-flotante);
+  padding:12px 15px 14px;font-size:12px;line-height:1.62;color:var(--tx2)}
+details.propone .caja h5{margin:0 0 6px;font-size:var(--t-rotulo);text-transform:uppercase;
+  letter-spacing:var(--ls-rotulo);color:var(--acc);font-weight:600}
+details.propone .caja p{margin:0 0 7px}
+details.propone .caja b{color:var(--tx)}
+
+/* ── Adaptación ──────────────────────────────────────────────────────── */
+@media (max-width:1460px){:root{--inspector-ancho:330px}}
+@media (max-width:1240px){
+  :root{--sidebar-ancho:228px;--inspector-ancho:300px}
+  .lc-sello{display:none}
+}
+@media (max-width:1080px){
+  .inspector{position:absolute;right:0;top:var(--barra-alto);bottom:0;z-index:20;
+    background:var(--flotante-fondo);-webkit-backdrop-filter:var(--vibrante);backdrop-filter:var(--vibrante);
+    box-shadow:var(--sombra-flotante)}
+  body:not(.insp) .inspector{display:none}
+}
+</style>
+</head>
+<body>
+<div class="ventana">
+
+  <!-- ══ BARRA LATERAL: el eje «qué línea». El parque crece; esto no. ══ -->
+  <aside class="sidebar">
+    <div class="sb-cab">
+      <div class="sb-marca">Líneas <span>AT</span> · cartera</div>
+    </div>
+    <div class="sb-buscar"><input class="campo" id="buscar" type="search" placeholder="Buscar línea, tensión…" autocomplete="off"></div>
+    <div class="segmentado" id="filtro"></div>
+    <div class="sb-lista" id="lista"></div>
+    <div class="sb-pie" id="sb-pie"></div>
+  </aside>
+
+  <div class="principal">
+    <!-- ══ BARRA DE HERRAMIENTAS ══ -->
+    <div class="barra">
+      <button class="b-icono" id="plegar" title="Ocultar la barra lateral" aria-label="Ocultar la barra lateral">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2">
+          <rect x="1.5" y="2.5" width="13" height="11" rx="2"/><path d="M6 2.5v11"/></svg>
+      </button>
+      <div class="b-titulo" id="titulo"></div>
+      <div class="b-der" id="barra-der"></div>
+    </div>
+
+    <div class="cuerpo">
+      <div class="centro">
+        <div class="linea-cab" id="linea-cab"></div>
+
+        <!-- ══ EL TERRITORIO: el índice de la línea ══ -->
+        <div class="territorio" id="territorio">
+          <div id="lienzo-mapa" style="position:absolute;inset:0"></div>
+          <div class="capas" id="capas"></div>
+          <div class="leyenda" id="leyenda"></div>
+        </div>
+
+        <!-- ══ CAJÓN: las once secciones, bajo el mapa ══ -->
+        <div class="cajon" id="cajon" style="height:392px">
+          <div class="tirador" id="tirador" title="Arrastrar para dar más o menos alto al cajón"></div>
+          <div class="banda" id="banda"></div>
+          <div class="panel-sec" id="panel-sec"></div>
+        </div>
+      </div>
+
+      <!-- ══ INSPECTOR ══ -->
+      <aside class="inspector">
+        <div class="insp-tabs" id="insp-tabs"></div>
+        <div class="insp-cuerpo" id="insp-cuerpo"></div>
+      </aside>
+    </div>
+
+    <div class="estado-barra" id="estado-barra"></div>
+  </div>
+</div>
+<div class="globo" id="globo"></div>
+
+<script>
+/* ===========================================================================
+   MAQUETA · «Territorio primero». Un solo archivo, sin recursos externos.
+   El trazado es SINTÉTICO: se camina con azimuts inventados a partir de las
+   deflexiones publicadas. NO hay ni una coordenada real, ni una fotografía.
+   Los conteos (24 estructuras, 2 empalmes, 23 vanos, 2.929 m, 66 kV, 103
+   fotografías) y las cifras de ingeniería salen de la documentación del
+   proyecto. Lo demás se calcula aquí para que nada se contradiga.
+   ======================================================================== */
+
+/* ── Formato es-CO. L-26: «1.716» se lee «mil setecientos dieciséis». ──── */
+const nf = (x, d = 0) => (x === null || x === undefined || Number.isNaN(x))
+  ? '—' : x.toLocaleString('es-CO', { minimumFractionDigits: d, maximumFractionDigits: d });
+const H = (s) => String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+const HUECO = '<span class="hueco-txt">—</span>';
+
+/* ── La cartera. Los estados salen de un RESUMEN GUARDADO por línea, no de
+      recalcular 17 líneas al abrir (free-tier sagrado). Cada estado viaja con
+      el criterio contra el que se emitió. ─────────────────────────────── */
+const CARTERA = [
+  { cod:'LN-201', nom:'Doble circuito norte', kv:110, est:42, km:11.4, estado:'verde',
+    crit:'Hipótesis congelada · 42 de 42 apoyos con capacidad declarada · sin expediente abierto' },
+  { cod:'LN-455', nom:'Derivación industrial', kv:110, est:31, km:8.7, estado:'rojo',
+    crit:'2 expedientes de falla abiertos · 7 verificaciones sin resolver' },
+  { cod:'LN-914', nom:'Enlace regional', kv:110, est:58, km:16.2, estado:'ambar',
+    crit:'Hipótesis SIN congelar · los números no son dictamen' },
+  { cod:'LN-083', nom:'Alimentador oriental', kv:110, est:24, km:6.1, estado:'hueco', sinConductor:true,
+    crit:'Sin conductor declarado: no hay mecánico, térmica, viento ni cargas' },
+  { cod:'LN-512', nom:'Anillo occidental', kv:110, est:26, km:6.9, estado:'rojo',
+    crit:'1 expediente abierto · 3 tramos por encima del tope de tiro adoptado' },
+
+  { cod:'LN-627', nom:'Línea consolidada (módulo de campo)', kv:66, est:24, km:2.929, estado:'ambar', real:true,
+    crit:'Hipótesis SIN VALIDAR y sin congelar · 0 de 24 apoyos con capacidad declarada · 1 expediente abierto' },
+  { cod:'LN-118', nom:'Ramal costero', kv:66, est:18, km:4.3, estado:'verde',
+    crit:'Hipótesis congelada · 18 de 18 con capacidad · sin hallazgos' },
+  { cod:'LN-236', nom:'Circuito de reserva', kv:66, est:36, km:9.8, estado:'hueco',
+    crit:'0 de 36 apoyos con capacidad declarada: no evaluable, que NO es lo mismo que sano' },
+  { cod:'LN-402', nom:'Interconexión sur', kv:66, est:29, km:7.2, estado:'ambar',
+    crit:'Hipótesis SIN congelar · 4 vanos fuera de banda a/VIR' },
+  { cod:'LN-671', nom:'Salida de planta', kv:66, est:15, km:3.6, estado:'verde',
+    crit:'Hipótesis congelada · 15 de 15 con capacidad' },
+  { cod:'LN-845', nom:'Troncal intermedia', kv:66, est:41, km:10.5, estado:'ambar',
+    crit:'Precisión del levantamiento ±12 m: no sirve para flecha ni gálibo' },
+  { cod:'LN-193', nom:'Enlace corto', kv:66, est:12, km:2.4, estado:'verde',
+    crit:'Hipótesis congelada · 12 de 12 con capacidad' },
+
+  { cod:'LN-309', nom:'Distribución rural', kv:34.5, est:47, km:12.9, estado:'rojo',
+    crit:'1 expediente abierto · 11 apoyos con deflexión incoherente con su función' },
+  { cod:'LN-528', nom:'Anillo urbano', kv:34.5, est:22, km:5.4, estado:'hueco',
+    crit:'Levantamiento no cargado: no hay geometría que evaluar' },
+  { cod:'LN-742', nom:'Alimentador portuario', kv:34.5, est:27, km:6.8, estado:'ambar',
+    crit:'Hipótesis SIN congelar · conductor sin ficha de proveedor' },
+  { cod:'LN-560', nom:'Ramal agrícola', kv:34.5, est:33, km:8.1, estado:'verde',
+    crit:'Hipótesis congelada · 33 de 33 con capacidad' },
+  { cod:'LN-077', nom:'Derivación de bombeo', kv:34.5, est:19, km:4.6, estado:'hueco',
+    crit:'Sin hipótesis declarada: nada que contrastar' },
+];
+const ETIQ_ESTADO = {
+  verde:'Sin discrepancia', rojo:'Pide revisión',
+  ambar:'Hipótesis sin congelar', hueco:'No evaluable',
+};
+
+/* ── LN-627 · la línea consolidada ──────────────────────────────────────
+   23 vanos. Suma 2.928,90 m ≈ 2,929 km. Promedio 127,3 m. Mínimo 13,35 m
+   (el par de retención E20–E21). Máximo 336,70 m. ──────────────────── */
+const VANOS = [142.60, 247.80, 118.40, 152.30, 15.40, 235.40, 42.10, 61.20, 175.90,
+               38.70, 71.80, 248.60, 49.60, 66.40, 55.90, 82.70, 36.55, 125.00, 88.40,
+               13.35, 336.70, 294.80, 229.30];
+
+/* Deflexión por apoyo (E01 y E24 son terminales: no tienen). Los cinco
+   anclajes deducidos por geometría son E02, E04, E06, E20 y E21. */
+const DEFLEX = [null, 64.7, 4.2, 50.2, 6.8, 118.2, 2.1, 3.4, 1.8, 5.2, 2.7, 1.4,
+                3.9, 2.2, 6.1, 1.9, 4.4, 2.8, 1.6, 76.0, 58.6, 3.1, 2.4, null];
+/* Signo del giro: solo para dibujar. La ingeniería usa el valor absoluto. */
+const GIRO = [0, -1, 1, 1, -1, 1, 1, -1, 1, -1, 1, -1, 1, -1, 1, -1, 1, -1, 1, 1, -1, 1, -1, 0];
+
+const FUNC = ['Terminal','Retención','Suspensión','Ángulo','Suspensión','Ángulo',
+  'Suspensión','Suspensión','Suspensión','Suspensión','Suspensión','Suspensión','Suspensión',
+  'Suspensión','Suspensión','Suspensión','Suspensión','Suspensión','Suspensión',
+  'Retención','Retención','Suspensión','Suspensión','Terminal'];
+const ES_ANCLA = FUNC.map(f => ['Terminal','Retención','Ángulo','Derivación'].includes(f));
+
+/* Tramos de tensión: entre anclajes. Reparto 1-2-2-14-1-3 = 23 vanos. */
+const TRAMOS = [
+  { n:1, desde:0,  hasta:1,  v:[0] },
+  { n:2, desde:1,  hasta:3,  v:[1,2] },
+  { n:3, desde:3,  hasta:5,  v:[3,4] },
+  { n:4, desde:5,  hasta:19, v:[5,6,7,8,9,10,11,12,13,14,15,16,17,18] },
+  { n:5, desde:19, hasta:20, v:[19] },
+  { n:6, desde:20, hasta:23, v:[20,21,22] },
+];
+const COLOR_TRAMO = ['#d63b3b','#4bb0f5','#5bc46f','#d67a1f','#d63b3b','#4bb0f5'];
+
+/* Fotografías: 103 = 4 del expediente + 99 de estructura en 14 puntos.
+   12 de los 26 puntos declaran que no tienen ninguna. */
+const FOTOS = { 'E01':9,'E02':8,'E04':7,'E05':6,'E06':12,'E08':5,'E10':7,'E12':6,
+                'E14':8,'E16':5,'E18':4,'E20':9,'E21':7,'E24':6 };
+
+/* Conductor e hipótesis — procedencia «supuesto», SIN VALIDAR, sin congelar. */
+const COND = { mat:'AAAC', cod:'Darien', cal:'559,5 MCM', secc:283.5, diam_mm:21.79,
+  rts:8528, w:0.782, E:6300, alfa:23.0e-6, tmax:90, r20:0.1182, beta:0.00347 };
+const HIP = { nombre:'Hipótesis del módulo de campo (SIN VALIDAR)', proc:'supuesto',
+  congelada:false, eds_pct:20, tEds:25, tMax:90, tMin:18, vViento:25.0, tViento:25,
+  cx:1.0, rho:null, topeAplicado:50, topeDoctrina:25 };
+const KV = 66, FASES = 3, CIRCUITOS = 1;
+
+/* ── Derivados ──────────────────────────────────────────────────────── */
+const N = 24, LTOTAL = VANOS.reduce((s,a)=>s+a,0);
+const vir = (vs) => Math.sqrt(vs.reduce((s,a)=>s+a*a*a,0) / vs.reduce((s,a)=>s+a,0));
+TRAMOS.forEach(t => { t.vanos = t.v.map(i=>VANOS[i]); t.vir = vir(t.vanos);
+  t.vanoMax = Math.max(...t.vanos); t.sum = t.vanos.reduce((s,a)=>s+a,0); });
+const VIR_LINEA = vir(VANOS);
+const tramoDeVano = (i) => TRAMOS.find(t => t.v.includes(i));
+
+/* Estados mecánicos por tramo. El motor real los resuelve por bisección de la
+   ecuación de cambio de estado; aquí se dejan los valores ya resueltos. */
+const EST_TRAMO = {
+  1:{eds:1706,tmax:1498,viento:2104,tmin:2012},
+  2:{eds:1706,tmax:1552,viento:2287,tmin:2098},
+  3:{eds:1706,tmax:1501,viento:2118,tmin:2019},
+  4:{eds:1706,tmax:1530,viento:2201,tmin:2061},
+  5:{eds:1706,tmax:1702,viento:1711,tmin:1710},
+  6:{eds:1706,tmax:1596,viento:2339,tmin:2140},
+};
+TRAMOS.forEach(t => { const e = EST_TRAMO[t.n];
+  t.est = e; t.pico = Math.max(e.eds,e.tmax,e.viento,e.tmin);
+  t.pctRts = t.pico / COND.rts * 100;
+  t.flechaMax = flechaCat(COND.w, t.vanoMax, e.tmax);
+});
+function flechaCat(w,a,Hh){ const C = Hh/w; return C*(Math.cosh(a/(2*C))-1); }
+function longCat(w,a,Hh){ const C = Hh/w; return 2*C*Math.sinh(a/(2*C)); }
+const TOPE_APLICADO = COND.rts * HIP.topeAplicado/100;   // 4.264 kgf
+const TOPE_DOCTRINA = COND.rts * HIP.topeDoctrina/100;   // 2.132 kgf
+const TIRO_MAX = Math.max(...TRAMOS.map(t=>t.pico));     // 2.339 kgf
+
+/* Viento: presión, empuje, resultante y balanceo. */
+const RHO = HIP.rho ?? 1.225;   // no declarada → se adopta y se dice
+const Q_PA = 0.5 * RHO * HIP.vViento ** 2;
+const W_VIENTO = Q_PA * HIP.cx * (COND.diam_mm/1000) / 9.80665;
+const W_TOTAL = Math.hypot(COND.w, W_VIENTO);
+const ANG_BAL = Math.atan2(W_VIENTO, COND.w) * 180/Math.PI;
+
+/* ── Los 24 apoyos, con todo lo que el sistema sabe y lo que no ──────── */
+const APOYOS = Array.from({length:N}, (_,i) => {
+  const nom = 'E' + String(i+1).padStart(2,'0');
+  const vAnt = i > 0 ? VANOS[i-1] : null, vSig = i < N-1 ? VANOS[i] : null;
+  const d = DEFLEX[i];
+  const factor = d === null ? null : 2*Math.sin(d*Math.PI/360);
+  const vViento = (vAnt !== null && vSig !== null) ? (vAnt+vSig)/2
+                 : (vSig !== null ? vSig/2 : vAnt/2);
+  const tAnt = vAnt !== null ? tramoDeVano(i-1) : null;
+  const tSig = vSig !== null ? tramoDeVano(i) : null;
+  const tramos = [...new Set([tAnt?.n, tSig?.n].filter(Boolean))];
+  const tiro = Math.max(tAnt?.est.viento ?? 0, tSig?.est.viento ?? 0);
+  const esExtremo = i === 0 || i === N-1;
+  const ftAng = factor === null ? null : tiro*factor*FASES;
+  const ftVie = W_VIENTO * vViento * FASES;
+  return { i, n:i+1, nom, func:FUNC[i], ancla:ES_ANCLA[i], defl:d, factor,
+    amplifica: factor !== null && factor > 1, vAnt, vSig, vViento, tramos, tiro,
+    esExtremo, ftAng, ftVie, ftTotal: ftAng === null ? null : ftAng + ftVie,
+    fotos: FOTOS[nom] ?? 0,
+    /* Longitudinal: los terminales cargan el tiro entero; los anclajes
+       intermedios, el desequilibrio entre los tramos que separan. */
+    lonCaso: esExtremo ? 'Terminal — tiro entero'
+            : ES_ANCLA[i] ? 'Anclaje — desequilibrio entre tramos'
+            : 'Suspensión — sentido no concluyente',
+    lonAdel: tSig ? tSig.est.viento*FASES : null,
+    lonAtras: tAnt ? tAnt.est.viento*FASES : null,
+  };
+});
+APOYOS.forEach(a => {
+  if (a.esExtremo) { a.lonNeta = TIRO_MAX*FASES; a.lonSentido = 'Hacia la línea'; }
+  else if (a.ancla) {
+    const dif = Math.abs((a.lonAdel ?? 0) - (a.lonAtras ?? 0));
+    a.lonNeta = dif * Math.cos(a.defl*Math.PI/360);
+    a.lonSentido = (a.lonAdel ?? 0) > (a.lonAtras ?? 0) ? 'Hacia adelante' : 'Hacia atrás';
+  } else { a.lonNeta = null; a.lonSentido = 'No concluyente'; }
+});
+
+/* Relación a/VIR por vano. Fuera de la banda 0,7–1,3 la hipótesis del vano
+   ideal de regulación pierde validez y el tramo debería subdividirse. */
+const VANOS_INFO = VANOS.map((a,i) => {
+  const t = tramoDeVano(i), r = a/t.vir;
+  return { i, n:i+1, a, t, r, fuera: r < 0.7 || r > 1.3,
+    de:APOYOS[i].nom, a2:APOYOS[i+1].nom,
+    flecha: flechaCat(COND.w, a, t.est.tmax),
+    longCat: longCat(COND.w, a, t.est.eds) };
+});
+const FUERA_BANDA = VANOS_INFO.filter(v => v.fuera).length;
+const AMPLIFICAN = APOYOS.filter(a => a.amplifica).length;
+
+/* Empalmes: NO son apoyos. Uno partía un vano real de 247,8 m en dos falsos. */
+const EMPALMES = [
+  { id:'EMP-1', vano:1, frac:84/247.80, nota:'A 84,0 m de E02. Contarlo como apoyo partía el vano real de 247,80 m en dos falsos de 84,0 y 163,8 m.' },
+  { id:'EMP-2', vano:21, frac:130/294.80, nota:'A 130,0 m de E22, dentro del vano de 294,80 m.' },
+];
+
+/* ── Trazado sintético: se camina con azimuts. CERO coordenadas reales. ── */
+function trazar(vanos, deflex, giro, az0){
+  const pt = [{x:0,y:0}]; let az = az0;
+  for (let i=0;i<vanos.length;i++){
+    if (i>0 && deflex[i] !== null) az += giro[i]*deflex[i];
+    const r = az*Math.PI/180, p = pt[pt.length-1];
+    pt.push({ x:p.x + vanos[i]*Math.sin(r), y:p.y + vanos[i]*Math.cos(r) });
+  }
+  return pt;
+}
+const XY = trazar(VANOS, DEFLEX, GIRO, 172);
+const dist = (a,b) => Math.hypot(XY[a].x-XY[b].x, XY[a].y-XY[b].y);
+const DIRECTA = dist(0, N-1);
+const RODEO = LTOTAL / DIRECTA;
+const azimut = (a,b) => { const d = (Math.atan2(XY[b].x-XY[a].x, XY[b].y-XY[a].y)*180/Math.PI+360)%360; return d; };
+const RUMBOS = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSO','SO','OSO','O','ONO','NO','NNO'];
+const rumbo = (az) => RUMBOS[Math.round(az/22.5)%16];
+
+/* Trazado sintético para las demás líneas de la cartera: mismo lenguaje
+   visual, geometría procedural determinista. No hay dato que enseñar. */
+function trazaSintetica(cod, nEst){
+  let s = 0; for (const c of cod) s = (s*31 + c.charCodeAt(0)) & 0xffff;
+  const rnd = () => { s = (s*1103515245 + 12345) & 0x7fffffff; return (s>>8)/0x7fffff; };
+  const vs = [], df = [null], gr = [0];
+  for (let i=0;i<nEst-1;i++) vs.push(40 + rnd()*320);
+  for (let i=1;i<nEst-1;i++){ const gran = rnd() < .18; df.push(gran ? 30+rnd()*80 : rnd()*7); gr.push(rnd()<.5?-1:1); }
+  df.push(null); gr.push(0);
+  return { vanos:vs, pts:trazar(vs, df, gr, 20+rnd()*320), defl:df };
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   ESTADO. La línea y la sección son ejes DISTINTOS: cambiar de línea NO
+   devuelve al Resumen (riesgo de escala #2). La selección de apoyo sí se
+   suelta, porque E06 de otra línea es otro apoyo.
+   ═══════════════════════════════════════════════════════════════════ */
+const SECCIONES = [
+  ['resumen','Resumen'], ['distancias','Distancias'], ['fichas','Fichas'],
+  ['falla','Falla'], ['fundamentos','Fundamentos'], ['mecanico','Mecánico'],
+  ['termica','Térmica'], ['viento','Viento'], ['cargas','Cargas'],
+  ['cantidades','Cantidades'], ['exportar','Exportar'],
+];
+const SIN_CONDUCTOR = ['mecanico','termica','viento','cargas'];
+
+const S = {
+  linea:'LN-627', seccion:'resumen', capa:'tramos', sel:null, insp:'linea',
+  filtro:'todas', busca:'', ficha:0, fundamento:'catenaria',
+  overlay:{ falla:true, nombres:true, prog:false },
+  distA:0, distB:23,
+};
+const $ = (id) => document.getElementById(id);
+const lineaActual = () => CARTERA.find(l => l.cod === S.linea);
+const esReal = () => lineaActual().real === true;
+
+/* ── Barra lateral ─────────────────────────────────────────────────── */
+function pintarFiltro(){
+  const ops = [['todas','Todas'],['atencion','Atención'],['sinver','Sin veredicto']];
+  $('filtro').innerHTML = ops.map(([k,t]) =>
+    `<button data-f="${k}" class="${S.filtro===k?'on':''}">${t}</button>`).join('');
+}
+function pintarLista(){
+  const q = S.busca.trim().toLowerCase();
+  let ls = CARTERA.filter(l => !q || (l.cod+' '+l.nom+' '+l.kv).toLowerCase().includes(q));
+  if (S.filtro === 'atencion') ls = ls.filter(l => l.estado==='rojo' || l.estado==='ambar');
+  if (S.filtro === 'sinver')   ls = ls.filter(l => l.estado==='hueco');
+  const grupos = [...new Set(ls.map(l=>l.kv))].sort((a,b)=>b-a);
+  $('lista').innerHTML = grupos.map(kv => {
+    const fs = ls.filter(l => l.kv === kv);
+    return `<section class="sb-grupo"><h3><span>${nf(kv,kv%1?1:0)} kV</span><span>${fs.length}</span></h3>` +
+      fs.map(l => `<div class="fila ${l.cod===S.linea?'sel':''}" data-linea="${l.cod}" tabindex="0"
+          title="${H(l.cod)} — ${H(ETIQ_ESTADO[l.estado])}. Criterio: ${H(l.crit)}">
+          <span class="glifo g-${l.estado}"></span>
+          <span class="f-txt"><span class="f-cod">${l.cod}</span>
+            <span class="f-meta">${nf(l.est)} est · ${nf(l.km,1)} km${l.real?' · consolidada':''}</span></span>
+        </div>`).join('') + `</section>`;
+  }).join('') || `<p class="fine" style="padding:14px 8px">Ninguna línea cumple el filtro.</p>`;
+  const tot = CARTERA.reduce((s,l)=>({e:s.e+l.est, k:s.k+l.km}), {e:0,k:0});
+  $('sb-pie').innerHTML =
+    `<b>${CARTERA.length} líneas</b> · ${nf(tot.e)} estructuras · ${nf(tot.k,1)} km<br>
+     Los estados de esta lista salen del <b>resumen guardado</b> de cada línea
+     (motor v1.4.2 · 03-08-2026). No se recalculan al abrir: 17 líneas serían
+     miles de lecturas por sesión.`;
+}
+
+/* ── Barra de herramientas y cabecera de línea ─────────────────────── */
+function pintarBarra(){
+  const l = lineaActual();
+  $('titulo').innerHTML = `${H(l.cod)} <em>— ${H(l.nom)}</em>`;
+  const p = { verde:['verde','Sin discrepancia'], rojo:['roja','Pide revisión'],
+              ambar:['','Hipótesis sin congelar'], hueco:['hueca','No evaluable'] }[l.estado];
+  $('barra-der').innerHTML =
+    `<span class="pastilla ${p[0]}" title="${H(l.crit)}">${p[1]}</span>
+     <button class="b-icono" id="tgl-insp" title="Mostrar u ocultar el inspector">
+       <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2">
+         <rect x="1.5" y="2.5" width="13" height="11" rx="2"/><path d="M10.5 2.5v11"/></svg></button>`;
+  $('tgl-insp').onclick = () => document.body.classList.toggle('insp');
+}
+function pintarCabLinea(){
+  const l = lineaActual();
+  const hechos = esReal() ? [
+    ['Tensión', `${nf(KV)} kV`], ['Circuitos', nf(CIRCUITOS)],
+    ['Estructuras', `${nf(N)} <span style="color:var(--tenue)">+ 2 empalmes</span>`],
+    ['Vanos', nf(VANOS.length)], ['Longitud', `${nf(LTOTAL,0)} m`],
+    ['Conductor', `${COND.mat} ${COND.cod} ${COND.cal}`],
+    ['Tramos de tensión', nf(TRAMOS.length)],
+  ] : [
+    ['Tensión', `${nf(l.kv, l.kv%1?1:0)} kV`], ['Estructuras', nf(l.est)],
+    ['Longitud', `${nf(l.km,1)} km`], ['Conductor', l.sinConductor?'<span class="hueco-txt">no declarado</span>':'declarado'],
+  ];
+  $('linea-cab').innerHTML =
+    `<span class="lc-cod">${H(l.cod)}</span>
+     <span class="lc-hechos">${hechos.map(([k,v])=>`<span>${k} <b>${v}</b></span>`).join('')}</span>
+     <span class="lc-sello">Resumen sellado 03-08-2026 · motor v1.4.2<br>
+       hipótesis «${H(esReal()?HIP.nombre:'no declarada')}»</span>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   EL TERRITORIO. La geografía ES el índice: se enciende una capa y la
+   pregunta «¿DÓNDE está el problema?» se contesta señalando.
+   ═══════════════════════════════════════════════════════════════════ */
+const CAPAS = [
+  ['tramos','Tramos de tensión'], ['quiebre','Amplificación del quiebre'],
+  ['banda','Relación a/VIR'], ['inventario','Inventario declarado'],
+  ['fotos','Fotografías por punto'],
+];
+function pintarCapas(){
+  $('capas').innerHTML =
+    `<h4>Colorear por</h4>` +
+    CAPAS.map(([k,t]) => `<label class="${S.capa===k?'on':''}">
+      <input type="radio" name="capa" value="${k}" ${S.capa===k?'checked':''}>${t}</label>`).join('') +
+    `<h4>Sobreponer</h4>` +
+    [['falla','Evento de falla'],['nombres','Nombres de anclaje'],['prog','Progresiva']]
+      .map(([k,t]) => `<label class="${S.overlay[k]?'on':''}">
+        <input type="checkbox" data-ov="${k}" ${S.overlay[k]?'checked':''}>${t}</label>`).join('');
+}
+
+/* Los colores del dibujo salen de los TOKENS, no de hexadecimales sueltos:
+   así el esquema sigue siendo legible cuando el Mac está en modo claro. */
+const C_ACC='var(--acc)', C_TX='var(--tx)', C_MUT='var(--mut)',
+      C_TENUE='var(--tenue)', C_AZ='var(--az)', C_LINEA='var(--bd-solido)';
+function colorVano(i){
+  if (S.capa === 'banda') return VANOS_INFO[i].fuera ? C_ACC : C_LINEA;
+  if (S.capa === 'tramos') return COLOR_TRAMO[tramoDeVano(i).n - 1];
+  return C_LINEA;
+}
+function pintaApoyo(a){
+  /* Devuelve [relleno, borde, radio, hueco?] según la capa activa. */
+  if (S.capa === 'quiebre'){
+    if (a.factor === null) return ['none', C_TX, 4.5, true];
+    if (a.amplifica) return [C_ACC, C_ACC, 4 + (a.factor-1)*7, false];
+    return [C_TENUE, C_TENUE, 3, false];
+  }
+  if (S.capa === 'inventario') return ['none', C_TENUE, 4, true];  // 0 de 24 declaran
+  if (S.capa === 'fotos'){
+    if (!a.fotos) return ['none', C_TENUE, 3.5, true];
+    return [C_AZ, C_AZ, 3 + Math.sqrt(a.fotos)*0.9, false];
+  }
+  if (a.func === 'Terminal') return ['none', C_TX, 4.5, true];
+  if (a.ancla) return [C_ACC, C_ACC, 5, false];
+  return [C_MUT, C_MUT, 3, false];
+}
+
+function pintarMapa(){
+  const cont = $('lienzo-mapa');
+  const W = cont.clientWidth || 900, Hh = cont.clientHeight || 420;
+  if (!esReal()) return pintarMapaSintetico(cont, W, Hh);
+
+  const m = 46;
+  const xs = XY.map(p=>p.x), ys = XY.map(p=>p.y);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  const k = Math.min((W-2*m)/((x1-x0)||1), (Hh-2*m)/((y1-y0)||1));
+  const px = (x) => m + (x-x0)*k + ((W-2*m) - (x1-x0)*k)/2;
+  const py = (y) => Hh - m - (y-y0)*k - ((Hh-2*m) - (y1-y0)*k)/2;   // norte arriba
+  const P = XY.map(p => ({x:px(p.x), y:py(p.y)}));
+
+  /* Vanos: cada uno con el color de su capa. */
+  const vanosSvg = VANOS.map((_,i) =>
+    `<line class="mk-vano" data-vano="${i}" x1="${P[i].x.toFixed(1)}" y1="${P[i].y.toFixed(1)}"
+       x2="${P[i+1].x.toFixed(1)}" y2="${P[i+1].y.toFixed(1)}"
+       stroke="${colorVano(i)}" stroke-width="${S.capa==='banda'&&VANOS_INFO[i].fuera?3:2}"
+       stroke-linecap="round" ${S.capa==='banda'&&!VANOS_INFO[i].fuera?'stroke-dasharray="1 3"':''}></line>`).join('');
+
+  /* Empalmes: puntos sobre el vano, con forma distinta. NO son apoyos. */
+  const empSvg = EMPALMES.map(e => {
+    const A = P[e.vano], B = P[e.vano+1];
+    const x = A.x + (B.x-A.x)*e.frac, y = A.y + (B.y-A.y)*e.frac;
+    return `<g class="mk" data-emp="${e.id}"><rect x="${(x-3).toFixed(1)}" y="${(y-3).toFixed(1)}"
+      width="6" height="6" transform="rotate(45 ${x.toFixed(1)} ${y.toFixed(1)})"
+      fill="none" stroke="var(--tenue)" stroke-width="1.2"></rect>
+      <circle class="mk-hit" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="9" fill="transparent"></circle></g>`;
+  }).join('');
+
+  const ocupado = [];
+  const apSvg = APOYOS.map(a => {
+    const [fill, stroke, r, hueca] = pintaApoyo(a);
+    const p = P[a.i];
+    const sel = S.sel === a.i
+      ? `<circle class="sel-ring" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${(r+5).toFixed(1)}"></circle>` : '';
+    const forma = a.func === 'Terminal'
+      ? `<rect x="${(p.x-r).toFixed(1)}" y="${(p.y-r).toFixed(1)}" width="${(r*2).toFixed(1)}"
+           height="${(r*2).toFixed(1)}" fill="${fill}" stroke="${stroke}" stroke-width="1.6"></rect>`
+      : `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${r.toFixed(1)}" fill="${fill}"
+           stroke="${stroke}" stroke-width="${hueca?1.4:0}" ${hueca?'stroke-dasharray="2 1.6"':''}></circle>`;
+    let etq = '';
+    if (S.overlay.nombres && (a.ancla || S.sel === a.i)){
+      /* Escalonado: dos anclajes cercanos en pantalla se pisan el nombre.
+         E20 y E21 están a 13,35 m de verdad — en el dibujo, a nada. */
+      const txt = a.nom + (S.capa==='quiebre'&&a.factor!==null?` ×${nf(a.factor,3)}`:'');
+      let lx = p.x + 8, ly = p.y + 3.5, w = txt.length*5.6 + 6;
+      for (let k=0;k<6;k++){
+        const choca = ocupado.some(o => Math.abs(o.y-ly) < 11 && lx < o.x2+5 && lx+w+5 > o.x1);
+        if (!choca) break;
+        if (k % 2 === 0) ly += 12; else { lx = lx > p.x ? p.x - 8 - w : p.x + 8; ly -= 12; }
+      }
+      if (lx + w > W - 8) lx = p.x - 8 - w;
+      ocupado.push({x1:lx, x2:lx+w, y:ly});
+      etq = `<text class="mk-lbl ${a.amplifica?'on':''}" x="${lx.toFixed(1)}" y="${ly.toFixed(1)}">${txt}</text>`;
+    }
+    const prog = S.overlay.prog
+      ? `<text class="mk-lbl" x="${(p.x).toFixed(1)}" y="${(p.y-9).toFixed(1)}" text-anchor="middle"
+          style="font-size:8px">${nf(VANOS.slice(0,a.i).reduce((s,v)=>s+v,0),0)}</text>` : '';
+    return `<g class="mk" data-apoyo="${a.i}">${sel}${forma}${etq}${prog}
+      <circle class="mk-hit" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="11" fill="transparent"></circle></g>`;
+  }).join('');
+
+  /* El expediente de falla vive en E06: el quiebre de 118,2°. El globo se
+     va al lado donde quepa, para no salirse del lienzo. */
+  const f = P[5];
+  const bw = 168, izq = f.x + 34 + bw > W - 14;
+  const bx = izq ? f.x - 34 - bw : f.x + 34;
+  const by = Math.max(10, f.y - 42);
+  const fallaSvg = S.overlay.falla ? `
+    <g pointer-events="none">
+      <circle cx="${f.x.toFixed(1)}" cy="${f.y.toFixed(1)}" r="15" fill="none" stroke="var(--rd)" stroke-width="1.2" opacity=".75"></circle>
+      <circle cx="${f.x.toFixed(1)}" cy="${f.y.toFixed(1)}" r="22" fill="none" stroke="var(--rd)" stroke-width=".8" opacity=".35"></circle>
+      <line x1="${(f.x + (izq?-18:18)).toFixed(1)}" y1="${(f.y-14).toFixed(1)}"
+            x2="${(izq?bx+bw:bx).toFixed(1)}" y2="${(by+12).toFixed(1)}" stroke="var(--rd)" stroke-width="1"></line>
+      <rect x="${bx.toFixed(1)}" y="${by.toFixed(1)}" width="${bw}" height="25" rx="5" fill="rgba(42,22,22,.94)" stroke="rgba(224,82,82,.45)"></rect>
+      <text x="${(bx+8).toFixed(1)}" y="${(by+11).toFixed(1)}" style="font:600 10px var(--fuente);fill:#ffb4b4">Expediente abierto · E06</text>
+      <text x="${(bx+8).toFixed(1)}" y="${(by+20).toFixed(1)}" style="font:400 9px var(--fuente);fill:#f0c9c9">apertura de línea · 4 verificaciones</text>
+    </g>` : '';
+
+  /* Rosa de los vientos, a la izquierda: arriba a la derecha está el panel. */
+  const norte = `<g pointer-events="none" opacity=".65">
+      <line x1="26" y1="30" x2="26" y2="54" stroke="var(--mut)" stroke-width="1"></line>
+      <path d="M26 28 l-3.4 7 h6.8 z" fill="var(--mut)"></path>
+      <text x="26" y="66" text-anchor="middle" style="font:600 9px var(--fuente);fill:var(--mut)">N</text></g>`;
+  const esc = Math.round(200*k);
+  cont.innerHTML =
+    `<svg viewBox="0 0 ${W} ${Hh}" width="${W}" height="${Hh}">
+       <g>${vanosSvg}</g>${empSvg}${apSvg}${fallaSvg}${norte}
+     </svg>
+     <div class="escala"><i style="width:${esc}px"></i>200 m</div>`;
+  cablearMapa();
+  pintarLeyenda();
+}
+
+function pintarMapaSintetico(cont, W, Hh){
+  const l = lineaActual();
+  if (l.estado === 'hueco' && l.cod === 'LN-528'){
+    cont.innerHTML = `<div style="position:absolute;inset:0;display:grid;place-items:center;padding:30px">
+      <div style="max-width:52ch;text-align:center">
+        <div style="font-size:15px;font-weight:600;margin-bottom:7px">Sin levantamiento cargado</div>
+        <p class="fine" style="line-height:1.7">${H(l.cod)} está dada de alta en la cartera con ${nf(l.est)}
+        estructuras declaradas, pero no tiene geometría: no hay trazado que dibujar ni distancias que calcular.
+        <b>No es que la línea esté bien: es que no hay nada contra qué contrastarla.</b> Las once secciones
+        siguen ahí abajo y cada una dice qué le falta.</p></div></div>`;
+    $('leyenda').innerHTML = '';
+    return;
+  }
+  const t = trazaSintetica(l.cod, l.est), P0 = t.pts, m = 46;
+  const xs = P0.map(p=>p.x), ys = P0.map(p=>p.y);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  const k = Math.min((W-2*m)/((x1-x0)||1), (Hh-2*m)/((y1-y0)||1));
+  const P = P0.map(p => ({ x: m + (p.x-x0)*k + ((W-2*m)-(x1-x0)*k)/2,
+                           y: Hh - m - (p.y-y0)*k - ((Hh-2*m)-(y1-y0)*k)/2 }));
+  const col = l.estado === 'hueco' ? '#4a5a68' : '#4a5a68';
+  const seg = P.slice(1).map((p,i) =>
+    `<line x1="${P[i].x.toFixed(1)}" y1="${P[i].y.toFixed(1)}" x2="${p.x.toFixed(1)}" y2="${p.y.toFixed(1)}"
+      stroke="${col}" stroke-width="1.8" stroke-linecap="round"></line>`).join('');
+  const mk = P.map((p,i) => {
+    const grande = t.defl[i] !== null && t.defl[i] > 25;
+    return `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${grande?4:2.4}"
+      fill="none" stroke="${grande?'var(--mut)':'var(--tenue)'}" stroke-width="1.2" stroke-dasharray="2 1.6"></circle>`;
+  }).join('');
+  cont.innerHTML = `<svg viewBox="0 0 ${W} ${Hh}" width="${W}" height="${Hh}"><g opacity=".55">${seg}${mk}</g>
+    <g><rect x="12" y="14" width="${Math.max(230, Math.min(470, W-224)).toFixed(0)}" height="46" rx="8"
+        fill="var(--flotante-fondo)" stroke="rgba(255,255,255,.13)"></rect>
+      <text x="28" y="33" style="font:600 11.5px var(--fuente);fill:#f0a500">Detalle no consolidado en esta maqueta</text>
+      <text x="28" y="48" style="font:400 10.5px var(--fuente);fill:var(--mut)">El trazado se dibuja punteado: es un esquema, no el levantamiento.</text></g></svg>`;
+  $('leyenda').innerHTML = `<h4>${H(l.cod)} · ${nf(l.est)} estructuras</h4>
+    <div class="ly-fila"><span class="ly-it">${H(ETIQ_ESTADO[l.estado])} — ${H(l.crit)}</span></div>`;
+}
+
+function pintarLeyenda(){
+  const ly = $('leyenda');
+  const sw = (c,t) => `<span class="ly-it"><i class="ly-sw" style="background:${c}"></i>${t}</span>`;
+  const pt = (c,t,extra='') => `<span class="ly-it"><i class="ly-pt" style="${extra||`background:${c}`}"></i>${t}</span>`;
+  if (S.capa === 'tramos'){
+    ly.innerHTML = `<h4>Tramos de tensión · el cálculo mecánico se hace por tramo, no por vano</h4>
+      <div class="ly-fila">${TRAMOS.map(t => sw(COLOR_TRAMO[t.n-1],
+        `T${t.n} ${t.desde===0?'E01':APOYOS[t.desde].nom}→${APOYOS[t.hasta].nom} · ${t.v.length} vano${t.v.length>1?'s':''} · VIR ${nf(t.vir,1)} m`)).join('')}</div>
+      <div class="ly-fila" style="margin-top:5px">
+        ${pt('var(--acc)','Anclaje')} ${pt('var(--mut)','Suspensión')}
+        ${pt('','Terminal','border:1.5px solid var(--tx);border-radius:0')}
+        ${pt('','Empalme (no es apoyo)','border:1.2px solid var(--tenue);transform:rotate(45deg);border-radius:0')}</div>`;
+  } else if (S.capa === 'quiebre'){
+    ly.innerHTML = `<h4>Amplificación del quiebre · factor 2·sen(α/2)</h4>
+      <div class="ly-fila">${pt('var(--acc)','Recibe MÁS que el tiro (factor &gt; 1) — ' + nf(AMPLIFICAN) + ' apoyos')}
+        ${pt('var(--tenue)','Recibe menos que el tiro')}
+        ${pt('','Terminal: su caso dominante es longitudinal','border:1.5px solid var(--tx);border-radius:0')}</div>
+      <div class="ly-fila" style="margin-top:4px"><span class="ly-it">El disco crece con el factor.
+        E06 llega a ×${nf(APOYOS[5].factor,3)}: un ${nf((APOYOS[5].factor-1)*100,1)} % más de carga transversal
+        que el propio tiro, y permanente — con viento y sin él.</span></div>`;
+  } else if (S.capa === 'banda'){
+    ly.innerHTML = `<h4>Relación vano / VIR de su tramo · banda de validez 0,7–1,3</h4>
+      <div class="ly-fila">${sw('var(--acc)','Fuera de banda — '+nf(FUERA_BANDA)+' de '+nf(VANOS.length)+' vanos')}
+        ${sw('var(--bd-solido)','Dentro de banda')}</div>
+      <div class="ly-fila" style="margin-top:4px"><span class="ly-it">Fuera de la banda la hipótesis del vano ideal
+        de regulación pierde validez y el tramo debería subdividirse.</span></div>`;
+  } else if (S.capa === 'inventario'){
+    ly.innerHTML = `<h4>Inventario declarado · carga de rotura y capacidad longitudinal</h4>
+      <div class="ly-fila">${pt('','Sin capacidad declarada — 24 de 24','border:1.4px dashed var(--tenue)')}</div>
+      <div class="ly-fila" style="margin-top:4px"><span class="ly-it">La línea entera se queda hueca, y eso es
+        exactamente lo que pasa: el sistema sabe cuánta carga RECIBE cada apoyo y no puede decir cuánto AGUANTA.
+        Es un hecho sobre los datos, no un fallo de la aplicación.</span></div>`;
+  } else {
+    const con = APOYOS.filter(a=>a.fotos).length;
+    ly.innerHTML = `<h4>Fotografías por punto · 103 en total (4 del expediente + 99 de estructura)</h4>
+      <div class="ly-fila">${pt('var(--az)','Con fotografía — '+nf(con)+' estructuras (el disco crece con el número)')}
+        ${pt('','Declara que no tiene ninguna — '+nf(N-con)+' estructuras + los 2 empalmes','border:1.4px dashed var(--tenue)')}</div>`;
+  }
+}
+
+/* Interacción del mapa: señalar en vez de leer. */
+function cablearMapa(){
+  const g = $('globo');
+  const mostrar = (ev, html) => { g.innerHTML = html; g.classList.add('on');
+    const r = 14; let x = ev.clientX + r, y = ev.clientY + r;
+    if (x + 260 > innerWidth) x = ev.clientX - 260;
+    if (y + 120 > innerHeight) y = ev.clientY - 110;
+    g.style.left = x+'px'; g.style.top = y+'px'; };
+  document.querySelectorAll('#lienzo-mapa [data-apoyo]').forEach(el => {
+    const a = APOYOS[+el.dataset.apoyo];
+    el.onmousemove = (ev) => mostrar(ev, `<b>${a.nom} · ${a.func}</b>
+      Deflexión ${a.defl===null?'— (terminal)':nf(a.defl,1)+'°'}${a.factor!==null?` · factor ×${nf(a.factor,3)}`:''}<br>
+      Vano anterior ${a.vAnt===null?'—':nf(a.vAnt,2)+' m'} · siguiente ${a.vSig===null?'—':nf(a.vSig,2)+' m'}<br>
+      Vano viento ${nf(a.vViento,2)} m · tramo ${a.tramos.join(' y ')}<br>
+      Carga transversal ${a.ftTotal===null?'—':nf(a.ftTotal,0)+' kgf'} · capacidad <span style="color:var(--tenue)">no declarada</span><br>
+      Fotografías ${a.fotos?nf(a.fotos):'ninguna'}`);
+    el.onmouseleave = () => g.classList.remove('on');
+    el.onclick = () => { S.sel = a.i; S.insp = 'punto'; S.ficha = a.i;
+      g.classList.remove('on'); render(); };
+  });
+  document.querySelectorAll('#lienzo-mapa [data-emp]').forEach(el => {
+    const e = EMPALMES.find(x => x.id === el.dataset.emp);
+    el.onmousemove = (ev) => mostrar(ev, `<b>${e.id} · empalme</b>
+      No es apoyo: no sostiene el conductor y no corta el vano.<br>${H(e.nota)}`);
+    el.onmouseleave = () => g.classList.remove('on');
+  });
+  document.querySelectorAll('#lienzo-mapa [data-vano]').forEach(el => {
+    const v = VANOS_INFO[+el.dataset.vano];
+    el.style.cursor = 'pointer';
+    el.onmousemove = (ev) => mostrar(ev, `<b>Vano ${v.n} · ${v.de} → ${v.a2}</b>
+      Longitud ${nf(v.a,2)} m · tramo ${v.t.n} (VIR ${nf(v.t.vir,1)} m)<br>
+      Relación a/VIR ${nf(v.r,2)} — <span style="color:${v.fuera?'#f0a500':'#7fc96a'}">${v.fuera?'FUERA de la banda 0,7–1,3':'dentro de banda'}</span><br>
+      Flecha a ${nf(HIP.tMax)} °C ${nf(v.flecha,2)} m`);
+    el.onmouseleave = () => g.classList.remove('on');
+    el.onclick = () => { S.distA = v.i; S.distB = v.i+1; S.seccion = 'distancias'; render(); };
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   INSPECTOR. «Línea» es el estado del activo; «Punto», el apoyo señalado.
+   Lo que el sistema NO demuestra vive aquí abajo, siempre visible.
+   ═══════════════════════════════════════════════════════════════════ */
+const SEMAFOROS = [
+  { g:'rojo', t:'Eventos de falla', v:'1 expediente abierto — apertura de línea en E06. 4 verificaciones pendientes sin resolver.',
+    c:'Criterio: hay expediente abierto mientras quede una verificación sin cerrar.' },
+  { g:'ambar', t:'Calidad del levantamiento', v:'Precisión GPS declarada ±8 m. 1 punto de atención y 2 avisos calculados.',
+    c:'Criterio: ±8 m no permite flecha, gálibo ni distancias de seguridad. Sirve para trazado y vanos, no para verticales.' },
+  { g:'hueco', t:'Cálculo mecánico', v:'0 de 24 apoyos con veredicto, en los DOS ejes. Ninguno declara carga de rotura ni capacidad longitudinal.',
+    c:'Criterio: no se compara contra una capacidad que nadie declaró. No evaluable ≠ sano.' },
+  { g:'ambar', t:'Hipótesis', v:'«Hipótesis del módulo de campo (SIN VALIDAR)» · procedencia: supuesto · congelada: no. Tope de tiro sin decidir (motor 50 % RTS, doctrina interna 25 %).',
+    c:'Criterio: mientras la hipótesis no esté congelada, ningún número de esta línea es un dictamen firmable.' },
+];
+function pintarInspector(){
+  $('insp-tabs').innerHTML = [['linea','Línea'],['punto','Punto']].map(([k,t]) =>
+    `<button data-insp="${k}" class="${S.insp===k?'on':''}">${t}${
+      k==='punto'&&S.sel!==null?' · '+APOYOS[S.sel].nom:''}</button>`).join('');
+  $('insp-cuerpo').innerHTML = (S.insp === 'punto') ? inspPunto() : inspLinea();
+}
+function inspLinea(){
+  const l = lineaActual();
+  if (!esReal()) return `
+    <div class="insp-h">Estado de ${H(l.cod)}</div>
+    <div class="sem ${l.estado==='rojo'?'rojo':l.estado==='ambar'?'ambar':l.estado==='hueco'?'hueca':''}">
+      <span class="glifo g-${l.estado}"></span>
+      <div><div class="sem-t">${H(ETIQ_ESTADO[l.estado])}</div>
+        <div class="sem-c" style="border:0;padding:0;margin-top:3px"><b>Criterio:</b> ${H(l.crit)}</div></div></div>
+    <div class="insp-h">Identidad del activo</div>
+    <dl class="rejilla-ficha">
+      <dt>Tensión</dt><dd>${nf(l.kv,l.kv%1?1:0)} kV</dd>
+      <dt>Estructuras</dt><dd>${nf(l.est)}</dd>
+      <dt>Longitud</dt><dd>${nf(l.km,1)} km</dd>
+      <dt>Conductor</dt><dd class="${l.sinConductor?'h':''}">${l.sinConductor?'no declarado':'declarado'}</dd>
+      <dt>Resumen sellado</dt><dd>03-08-2026 · motor v1.4.2</dd>
+    </dl>
+    <div class="no-demuestra"><h4>Por qué esta línea se ve vacía</h4>
+      <ul><li>Esta maqueta solo consolidó el detalle de <b>LN-627</b>. Aquí no se rellena con datos
+      inventados: se enseña <b>qué falta</b>, que es lo que hará el sistema el día que entre una línea a medias.</li>
+      <li>La <b>sección activa se conserva</b> al cambiar de línea: si estabas comparando Cargas, sigues en Cargas.</li></ul></div>`;
+
+  const revisar = [4,9,14].map(i=>APOYOS[i].nom);   // suspensiones con deflexión > 5°
+  return `
+    <div class="insp-h">¿Está lista para firmar?</div>
+    <p class="alerta" style="margin-top:0"><b>No.</b> La hipótesis no está congelada y su procedencia es
+      «supuesto». Mientras siga así, <b>ningún número de esta línea es un dictamen firmable</b>: son cálculos
+      correctos sobre supuestos que nadie ha validado.</p>
+    <div class="insp-h">Los cuatro semáforos</div>
+    <div class="semaforos">${SEMAFOROS.map(s => `
+      <div class="sem ${s.g==='rojo'?'rojo':s.g==='ambar'?'ambar':'hueca'}">
+        <span class="glifo g-${s.g}"></span>
+        <div><div class="sem-t">${s.t}</div><div class="sem-v">${s.v}</div>
+          <div class="sem-c">${s.c}</div></div></div>`).join('')}</div>
+
+    <div class="insp-h">Por dónde empezar</div>
+    <dl class="rejilla-ficha">
+      <dt>Apoyo crítico</dt><dd><b style="color:var(--acc)">E06</b> — deflexión ${nf(APOYOS[5].defl,1)}°,
+        factor ×${nf(APOYOS[5].factor,3)}</dd>
+      <dt>Qué significa</dt><dd>${nf((APOYOS[5].factor-1)*100,1)} % MÁS carga transversal que el propio tiro,
+        y permanente: con viento y sin él</dd>
+      <dt>Amplifican &gt; 1</dt><dd>${nf(AMPLIFICAN)} apoyos (deflexión &gt; 60°): ${
+        APOYOS.filter(a=>a.amplifica).map(a=>a.nom).join(', ')}</dd>
+      <dt>Terminales</dt><dd>E01 y E24 cargan el tiro entero: ${nf(TIRO_MAX)} kgf por conductor</dd>
+      <dt>Geometría</dt><dd>${nf(FUERA_BANDA)} de ${nf(VANOS.length)} vanos fuera de la banda 0,7–1,3 respecto al VIR de su tramo</dd>
+      <dt>Función vs. medida</dt><dd>${revisar.length} suspensiones con deflexión &gt; 5°: ${revisar.join(', ')}</dd>
+    </dl>
+
+    <div class="no-demuestra"><h4>Qué NO demuestra este levantamiento</h4>
+      <ul>
+        <li>Cotas GPS de mano con precisión declarada <b>±8 m</b>: no sirven para flecha, gálibo ni
+          distancias de seguridad.</li>
+        <li><b>Vano peso</b> no calculable — falta la cota de sujeción. Sin él no hay carga vertical.</li>
+        <li><b>Despeje al terreno sin verificar.</b> La flecha se calcula; la distancia al suelo, no.</li>
+        <li>Deuda declarada en <b>fluencia</b> y en la ficha real del proveedor del conductor. El módulo
+          elástico está en conflicto: <b>6.300 vs 7.000 kg/mm²</b>, y ese conflicto decide si un tramo
+          cumple el RETIE.</li>
+        <li><b>Capacidad de los apoyos:</b> 0 de 24 en los dos ejes. La longitudinal no se deduce de la
+          carga de rotura, que es ensayo transversal en punta.</li>
+      </ul></div>`;
+}
+function inspPunto(){
+  if (S.sel === null) return `<p class="fine">Señala un apoyo en el mapa —o una pastilla en la sección
+    Fichas— y su detalle aparece aquí. Ese es el gesto: en una línea de 24 apoyos y 2,9 km, la pregunta
+    «¿dónde está el problema?» se contesta señalando, no leyendo una tabla de 24 filas por 12 columnas.</p>`;
+  const a = APOYOS[S.sel];
+  const cr = criterios(a);
+  return `
+    <div class="insp-h">${a.nom} · ${a.func}${a.amplifica?' · <span style="color:var(--acc)">amplifica</span>':''}</div>
+    <dl class="rejilla-ficha">
+      <dt>Progresiva</dt><dd>${nf(VANOS.slice(0,a.i).reduce((s,v)=>s+v,0),1)} m desde E01</dd>
+      <dt>Tramos</dt><dd>${a.tramos.map(n=>'T'+n).join(' y ')}</dd>
+      <dt>Deflexión</dt><dd>${a.defl===null?HUECO+' terminal':nf(a.defl,1)+'°'}</dd>
+      <dt>Factor 2·sen(α/2)</dt><dd>${a.factor===null?HUECO:'×'+nf(a.factor,3)}</dd>
+      <dt>Vano anterior</dt><dd>${a.vAnt===null?HUECO:nf(a.vAnt,2)+' m'}</dd>
+      <dt>Vano siguiente</dt><dd>${a.vSig===null?HUECO:nf(a.vSig,2)+' m'}</dd>
+      <dt>Vano viento</dt><dd>${nf(a.vViento,2)} m</dd>
+      <dt>Vano peso</dt><dd class="h">pendiente — falta cota de sujeción (F4)</dd>
+      <dt>Coordenada</dt><dd class="h">no se publica en la maqueta</dd>
+      <dt>Precisión GPS</dt><dd>±8 m — <span class="hueco-txt">no firmable para verticales</span></dd>
+    </dl>
+    <div class="insp-h">Carga que RECIBE / capacidad que AGUANTA</div>
+    <dl class="rejilla-ficha">
+      <dt>Tiro del conductor</dt><dd>${nf(a.tiro)} kgf (estado de máximo viento)</dd>
+      <dt>Quiebre (transversal)</dt><dd>${a.ftAng===null?HUECO:nf(a.ftAng,0)+' kgf'}</dd>
+      <dt>Viento sobre el cable</dt><dd>${nf(a.ftVie,0)} kgf</dd>
+      <dt>Total transversal</dt><dd>${a.ftTotal===null?HUECO:'<b style="color:var(--acc)">'+nf(a.ftTotal,0)+' kgf</b>'}</dd>
+      <dt>Longitudinal</dt><dd>${a.lonNeta===null?HUECO+' sentido no concluyente':nf(a.lonNeta,0)+' kgf · '+a.lonSentido}</dd>
+      <dt>Carga de rotura</dt><dd class="h">no declarada — se captura en campo (F4)</dd>
+      <dt>Capacidad longitudinal</dt><dd class="h">no declarada · no se deduce de la de rotura</dd>
+      <dt>Utilización</dt><dd class="h">no evaluable</dd>
+    </dl>
+    <div class="insp-h">Semáforo del apoyo · 5 criterios</div>
+    ${cr.map(c => `<div class="crit">
+      <div class="crit-l"><span class="crit-e">${c.e}</span>
+        <span class="crit-v ${c.v==='—'?'h':''}">${c.v}</span></div>
+      <div class="crit-d">${c.d} <span class="sello-v ${c.s}">${c.st}</span></div>
+      <div class="crit-c">${c.c}</div></div>`).join('')}
+    <div class="insp-h">Evidencia de este punto</div>
+    ${a.fotos ? `<p class="fine" style="margin:0">${nf(a.fotos)} fotografías de estructura.</p>
+      <div class="galeria">${Array.from({length:Math.min(a.fotos,6)},(_,i)=>
+        `<div class="foto">${a.nom}-${String(i+1).padStart(2,'0')}<br>sin publicar</div>`).join('')}</div>
+      ${a.fotos>6?`<p class="fine">+ ${nf(a.fotos-6)} más.</p>`:''}`
+    : `<p class="nota" style="margin-top:0"><b>Este punto declara que no tiene fotografías.</b>
+        No es un fallo de la galería: es un hueco del levantamiento, y se cuenta como tal
+        (12 de los 26 puntos están así).</p>`}
+    <div class="no-demuestra"><h4>Trazabilidad del dato</h4>
+      <ul><li>UUID <b>a7f3…${a.nom.toLowerCase()}</b> · revisión 3 · capturado por cuadrilla de campo ·
+        normalizado 30-07-2026.</li>
+      <li>La deflexión que manda es la <b>derivada de las coordenadas de sus vecinos</b>, no el campo
+        guardado en la ficha: si mañana se corrige una coordenada, el ángulo cambia solo.</li></ul></div>`;
+}
+function criterios(a){
+  const susp = a.func === 'Suspensión';
+  const coh = a.defl === null ? null : (susp && a.defl > 5);
+  return [
+    { e:'Función vs. deflexión', v: a.defl===null?'—':nf(a.defl,1)+'°',
+      s: a.defl===null?'no':(coh?'revisar':'cumple'),
+      st: a.defl===null?'no evaluable':(coh?'revisar':'cumple'),
+      d: a.defl===null ? 'Terminal: no tiene deflexión definida.'
+        : coh ? 'Una suspensión con este ángulo trabaja fuera de su caso de carga.'
+        : `${a.func} con ${nf(a.defl,1)}°: coherente con lo que la función admite.`,
+      c: 'Criterio: la suspensión admite hasta 5°; por encima el apoyo debería ser de retención o ángulo.' },
+    { e:'Fuga específica', v:'—', s:'no', st:'no evaluable',
+      d:'No hay número de unidades ni fuga por unidad declarados en la ficha.',
+      c:'Criterio: IEC 60815, nivel de contaminación costero. Falta el dato, no el criterio.' },
+    { e:'Puesta a tierra', v:'—', s:'no', st:'no evaluable',
+      d:'Resistencia de puesta a tierra sin medir en este punto.',
+      c:'Criterio: RETIE, valor máximo según configuración. Se captura en campo (F4).' },
+    { e:'Capacidad transversal', v:'—', s:'no', st:'no evaluable',
+      d:`Recibe ${a.ftTotal===null?'—':nf(a.ftTotal,0)+' kgf'} y no declara carga de rotura.`,
+      c:'Criterio: utilización ≤ 80 % de la capacidad declarada. Sin capacidad no hay veredicto — y no se estima.' },
+    { e:'Capacidad longitudinal', v:'—', s:'no', st:'no evaluable',
+      d: a.esExtremo ? `Terminal: soporta el tiro entero, ${nf(TIRO_MAX*FASES,0)} kgf con las tres fases.`
+        : 'Sin capacidad longitudinal declarada.',
+      c:'Criterio: no se deduce de la carga de rotura, que es ensayo transversal en punta.' },
+  ];
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   BANDA DE SECCIONES + despacho
+   ═══════════════════════════════════════════════════════════════════ */
+function pintarBanda(){
+  const l = lineaActual();
+  const marca = (k) => {
+    if (!esReal()) return l.sinConductor && SIN_CONDUCTOR.includes(k) ? '<i class="hueco"></i>' : '';
+    if (k === 'falla') return '<i class="rojo"></i>';
+    if (k === 'cargas' || k === 'fichas') return '<i class="hueco"></i>';
+    if (k === 'mecanico' || k === 'viento') return '<i class="ambar"></i>';
+    return '';
+  };
+  $('banda').innerHTML = SECCIONES.map(([k,t]) =>
+    `<button class="sec ${S.seccion===k?'on':''}" data-sec="${k}">${t}${marca(k)}</button>`).join('') +
+    `<span class="estirar"></span>
+     <button class="sec" id="mas-alto" title="Dar más alto al cajón">Cajón ▾</button>`;
+}
+function pintarSeccion(){
+  const l = lineaActual();
+  if (!esReal()){
+    const falta = l.sinConductor && SIN_CONDUCTOR.includes(S.seccion)
+      ? `Esta sección necesita un <b>conductor declarado</b> (material, sección, diámetro, carga de rotura,
+         módulo elástico). ${H(l.cod)} no lo tiene, así que no hay estados mecánicos, ni ampacidad, ni carga
+         de viento, ni carga sobre las estructuras.`
+      : `El detalle de ${H(l.cod)} no está consolidado en esta maqueta.`;
+    $('panel-sec').innerHTML = `<div class="panel"><h2>${H(SECCIONES.find(s=>s[0]===S.seccion)[1])}
+      <em>${H(l.cod)}</em></h2>
+      <p class="aviso" style="margin-top:0">${falta}</p>
+      <p class="fine"><b>La sección no se esconde.</b> Ocultarla se leería como «aquí no aplica», y entonces
+      el hueco deja de contarse justo cuando más líneas hay. Se queda, y dice qué le falta — igual que cada
+      celda vacía se pinta «—» y baja su motivo a los avisos.</p></div>`;
+    return;
+  }
+  $('panel-sec').innerHTML = ({
+    resumen:secResumen, distancias:secDistancias, fichas:secFichas, falla:secFalla,
+    fundamentos:secFundamentos, mecanico:secMecanico, termica:secTermica, viento:secViento,
+    cargas:secCargas, cantidades:secCantidades, exportar:secExportar,
+  })[S.seccion]();
+  cablearSeccion();
+}
+
+/* ── Piezas reutilizables ──────────────────────────────────────────── */
+const kpi = (v, l, s, clase='') =>
+  `<div class="kpi ${clase}"><div class="kpi-v">${v}</div><div class="kpi-l">${l}</div>
+   ${s?`<div class="kpi-s">${s}</div>`:''}</div>`;
+const tabla = (cap, ths, filas, extra='') =>
+  `<div class="tabla-caja"><table class="tabla ${extra}"><thead><tr>${
+    ths.map(t=>`<th>${t}</th>`).join('')}</tr></thead><tbody>${filas}</tbody></table></div>
+   ${cap?`<p class="fine">${cap}</p>`:''}`;
+
+/* ── RESUMEN ───────────────────────────────────────────────────────── */
+function secResumen(){
+  const prom = LTOTAL / VANOS.length;
+  const maxV = Math.max(...VANOS), minV = Math.min(...VANOS);
+  const incoh = APOYOS.filter(a => a.func === 'Suspensión' && a.defl !== null && a.defl > 5);
+  const barras = VANOS_INFO.map(v =>
+    `<div class="barra-v ${v.fuera?'fuera':''}" style="height:${(v.a/maxV*100).toFixed(1)}%"
+      title="Vano ${v.n} · ${v.de}→${v.a2} · ${nf(v.a,2)} m · a/VIR ${nf(v.r,2)}"></div>`).join('');
+  return `
+  <div class="panel"><h2>Banda de gerenciamiento <em>calculada, no redactada</em></h2>
+    <div class="semaforos" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr));display:grid">
+      ${SEMAFOROS.map(s=>`<div class="sem ${s.g==='rojo'?'rojo':s.g==='ambar'?'ambar':'hueca'}">
+        <span class="glifo g-${s.g}"></span><div><div class="sem-t">${s.t}</div>
+        <div class="sem-v">${s.v}</div><div class="sem-c">${s.c}</div></div></div>`).join('')}
+    </div>
+    <p class="aviso"><b>Orientación.</b> Esta línea NO está lista para firmar. El sistema no certifica nada:
+      certifica el ingeniero que firma. Lo que hace aquí es <b>hacer barato comprobar que ese ingeniero tiene
+      razón</b> — y por eso enseña con el mismo peso lo que demuestra y lo que no.</p>
+  </div>
+
+  <div class="panel"><h2>Evento de falla <em>1 expediente abierto</em></h2>
+    <p class="alerta" style="margin-top:0"><b>Apertura de línea · E06.</b> Componente afectado: herraje de
+      conexión de la cadena de retención, fase central. Geolocalizado en el apoyo de mayor quiebre de la línea
+      (${nf(APOYOS[5].defl,1)}°, factor ×${nf(APOYOS[5].factor,3)}). <b>4 verificaciones pendientes sin
+      resolver</b> — son literalmente lo que separa un informe defendible de uno que solo suena convincente.
+      <button class="boton chico" data-ir="falla" style="margin-left:8px;padding:2px 9px">Abrir el expediente</button></p>
+  </div>
+
+  <div class="dos-col">
+    <div class="panel"><h2>Coherencia entre función declarada y deflexión medida</h2>
+      ${tabla('El criterio es del núcleo, no de esta pantalla: la suspensión admite hasta 5°.',
+        ['Apoyo','Función declarada','Deflexión medida','Veredicto'],
+        APOYOS.filter(a=>a.defl!==null).map(a=>{
+          const mal = a.func==='Suspensión' && a.defl>5;
+          return `<tr class="${mal?'fuera':''}" data-ap="${a.i}" style="cursor:pointer">
+            <td class="destaca">${a.nom}</td><td>${a.func}</td>
+            <td class="num">${nf(a.defl,1)}°</td>
+            <td><span class="sello-v ${mal?'revisar':'cumple'}">${mal?'revisar':'cumple'}</span></td></tr>`;
+        }).join(''))}
+      <p class="${incoh.length?'aviso':'ok'}">${incoh.length
+        ? `<b>${nf(incoh.length)} suspensiones</b> declaran una función que su ángulo no admite: ${
+            incoh.map(a=>`${a.nom} (${nf(a.defl,1)}°)`).join(', ')}. Cambiar la función <b>recalcula la línea
+            entera</b>: es el campo que decide dónde se corta el tramo de tensión.`
+        : 'Ninguna discrepancia.'}</p>
+    </div>
+
+    <div class="panel"><h2>Calidad del levantamiento <em>hallazgos calculados</em></h2>
+      <p class="alerta" style="margin-top:0"><b>Atención · precisión GPS ±8 m.</b> Las cotas no permiten
+        calcular flecha, gálibo ni distancias de seguridad. Sirven para trazado, vanos y azimuts.</p>
+      <p class="aviso"><b>Aviso · quiebre de ${nf(APOYOS[5].defl,1)}° en E06.</b> Un apoyo dimensionado
+        «por el tiro» estaría dimensionado por poco más de la mitad de lo que recibe.</p>
+      <p class="aviso"><b>Aviso · dos vanos de más del doble del promedio</b> (${nf(maxV,1)} m y
+        ${nf(VANOS_INFO.map(v=>v.a).sort((a,b)=>b-a)[1],1)} m, contra ${nf(prom,1)} m de promedio).</p>
+      <p class="nota"><b>Info · 2 empalmes correctamente excluidos del conteo de apoyos.</b> Contarlos partía
+        un vano real de 247,80 m en dos falsos de 84,0 y 163,8 m.</p>
+      <p class="nota"><b>Info · 12 de 26 puntos declaran no tener fotografía.</b> Se cuenta como hueco, no se
+        oculta.</p>
+    </div>
+  </div>
+
+  <div class="panel"><h2>Distribución de vanos <em>${nf(VANOS.length)} vanos · ${nf(LTOTAL,0)} m</em></h2>
+    <div class="kpis">
+      ${kpi(nf(LTOTAL,0)+' <small>m</small>','Longitud por la línea','Suma de los 23 vanos reales')}
+      ${kpi(nf(DIRECTA,0)+' <small>m</small>','Distancia directa E01–E24','Factor de rodeo '+nf(RODEO,3))}
+      ${kpi(nf(prom,2)+' <small>m</small>','Vano promedio','')}
+      ${kpi(nf(minV,2)+' <small>m</small>','Vano mínimo','E20–E21, el par de retención')}
+      ${kpi(nf(maxV,2)+' <small>m</small>','Vano máximo','E21–E22, en el tramo 6')}
+      ${kpi(nf(FUERA_BANDA)+' <small>de '+nf(VANOS.length)+'</small>','Fuera de banda a/VIR','Ámbar en la barra y en el mapa','rojo')}
+    </div>
+    <div class="barras" style="margin-top:10px">${barras}
+      <div class="marca-prom" style="bottom:${(prom/maxV*100).toFixed(1)}%"><span>promedio ${nf(prom,1)} m</span></div>
+    </div>
+    <p class="fine">Una barra por vano, en orden de recorrido. En ámbar los ${nf(FUERA_BANDA)} que caen fuera
+      de la banda 0,7–1,3 respecto al VIR de <b>su</b> tramo — no del de la línea. Enciende la capa
+      <b>«Relación a/VIR»</b> en el mapa y verás dónde están.</p>
+  </div>`;
+}
+
+/* ── DISTANCIAS ────────────────────────────────────────────────────── */
+function secDistancias(){
+  const a = S.distA, b = S.distB;
+  const d = dist(a,b);
+  const recorrido = VANOS.slice(Math.min(a,b), Math.max(a,b)).reduce((s,v)=>s+v,0);
+  const az = azimut(a,b);
+  const opts = (sel) => APOYOS.map(x =>
+    `<option value="${x.i}" ${x.i===sel?'selected':''}>${x.nom} · ${x.func}</option>`).join('');
+  const maxD = Math.max(...APOYOS.map((_,i)=>Math.max(...APOYOS.map((_,j)=>dist(i,j)))));
+  const cabeza = `<tr><th class="esq"></th>${APOYOS.map(x=>`<th>${x.nom}</th>`).join('')}</tr>`;
+  const cuerpo = APOYOS.map((x,i) => `<tr><td class="rh">${x.nom}</td>${
+    APOYOS.map((_,j) => {
+      if (i===j) return `<td class="diag">—</td>`;
+      const dd = dist(i,j), k = Math.max(0, 1 - dd/1500) * 0.30;
+      return `<td data-par="${i},${j}" style="background:rgba(240,165,0,${k.toFixed(3)})">${nf(dd,0)}</td>`;
+    }).join('')}</tr>`).join('');
+  return `
+  <div class="panel"><h2>Calculadora de dos extremos <em>Vincenty sobre elipsoide WGS84</em></h2>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+      <select class="campo" id="dA" style="width:200px;padding-left:9px;background-image:none">${opts(a)}</select>
+      <button class="boton" id="invertir" title="Intercambiar los dos extremos">⇄</button>
+      <select class="campo" id="dB" style="width:200px;padding-left:9px;background-image:none">${opts(b)}</select>
+    </div>
+    <div class="kpis">
+      ${kpi(nf(d,1)+' <small>m</small>','Distancia directa','Geodésica, no haversine')}
+      ${kpi(nf(recorrido,1)+' <small>m</small>','Recorrido por la línea','Factor de rodeo '+nf(recorrido/(d||1),3))}
+      ${kpi(nf(az,1)+'°','Azimut inicial', rumbo(az)+' — del primero al segundo')}
+      ${kpi(HUECO,'Desnivel GPS','no firmable · precisión ±8 m','hueco')}
+    </div>
+    <p class="fine">El desnivel se calcula, pero <b>no se publica como resultado</b>: con ±8 m de precisión
+      vertical, restar dos cotas produce un número con más error que valor. Un hueco se pinta como hueco.</p>
+  </div>
+  <div class="panel"><h2>Matriz de distancias directas <em>${nf(N)}×${nf(N)} · ${nf(N*N)} celdas</em></h2>
+    <p class="fine" style="margin:0 0 8px">Tinte ámbar por proximidad: cuanto más cerca, más intenso. Haz clic
+      en una celda y el par sube a la calculadora. Encabezados pegados a los bordes.</p>
+    <div class="tabla-caja" style="max-height:340px"><table class="matriz"><thead>${cabeza}</thead>
+      <tbody>${cuerpo}</tbody></table></div>
+    <p class="fine">Distancia máxima de la matriz: <b>${nf(maxD,1)} m</b>. Las ${nf(N)} celdas de la diagonal
+      no son cero: son el mismo punto, y se pintan «—».</p>
+  </div>`;
+}
+
+/* ── FICHAS ────────────────────────────────────────────────────────── */
+function secFichas(){
+  const puntos = [...APOYOS.map(a=>({k:a.i, nom:a.nom, emp:false, func:a.func})),
+                  ...EMPALMES.map((e,i)=>({k:'E'+i, nom:e.id, emp:true, func:'Empalme'}))];
+  const sel = typeof S.ficha === 'number' ? APOYOS[S.ficha] : null;
+  const past = puntos.map(p => `<button class="pz ${p.emp?'emp':''} ${!p.emp&&p.k===S.ficha?'on':''}"
+      data-ficha="${p.k}" title="${p.func}">${p.nom}</button>`).join('');
+  if (!sel){
+    const e = EMPALMES[+String(S.ficha).slice(1)];
+    return `<div class="panel"><h2>Fichas <em>24 estructuras + 2 empalmes</em></h2>
+      <div class="pastillas">${past}</div>
+      <p class="aviso" style="margin-top:0"><b>${e.id} — un empalme NO es un apoyo.</b> ${H(e.nota)}
+        No sostiene conductor, no recibe carga transversal y no corta el vano: por eso no tiene ficha de
+        estructura, no entra en el conteo de 24 y no aparece en las tablas de cargas.</p></div>`;
+  }
+  const a = sel, cr = criterios(a);
+  const blq = (t, filas) => `<div class="mini-h">${t}</div><dl class="rejilla-ficha">${
+    filas.map(([k,v,h])=>`<dt>${k}</dt><dd class="${h?'h':''}">${v}</dd>`).join('')}</dl>`;
+  return `
+  <div class="panel"><h2>Ficha del punto <em>26 puntos · ficha completa, ~48 campos</em></h2>
+    <div class="pastillas">${past}</div>
+    <div class="dos-col">
+      <div>
+        ${blq('Identidad', [['Nombre canónico', a.nom], ['Nombre de campo', a.nom+'-GPS'],
+          ['Tipo de punto','Estructura'], ['Función estructural', a.func],
+          ['Código de inventario','pendiente — se captura en campo (F4)',1],
+          ['Año de instalación','pendiente — se captura en campo (F4)',1],
+          ['Propietario','pendiente — se captura en campo (F4)',1]])}
+        ${blq('Ubicación', [['Latitud (GMS)','no se publica en la maqueta',1],
+          ['Longitud (GMS)','no se publica en la maqueta',1],
+          ['Decimal WGS84','no se publica en la maqueta',1],
+          ['Precisión declarada','±8 m'], ['Cota GPS','no firmable para verticales',1],
+          ['Sistema oficial','MAGNA-SIRGAS — transformación pendiente',1]])}
+        ${blq('Geometría derivada', [['Deflexión', a.defl===null?'— terminal':nf(a.defl,1)+'°', a.defl===null],
+          ['Vano anterior', a.vAnt===null?'—':nf(a.vAnt,2)+' m', a.vAnt===null],
+          ['Vano siguiente', a.vSig===null?'—':nf(a.vSig,2)+' m', a.vSig===null],
+          ['Vano viento', nf(a.vViento,2)+' m'],
+          ['Vano peso','pendiente — falta cota de sujeción',1],
+          ['Progresiva', nf(VANOS.slice(0,a.i).reduce((s,v)=>s+v,0),1)+' m']])}
+      </div>
+      <div>
+        ${blq('Sistema y conductor', [['Tensión nominal', nf(KV)+' kV'], ['Um','72,5 kV'],
+          ['BIL','325 kV pico'], ['Fases / circuitos', nf(FASES)+' / '+nf(CIRCUITOS)],
+          ['Conductor', COND.mat+' '+COND.cod+' '+COND.cal],
+          ['Sección / diámetro', nf(COND.secc,1)+' mm² · Ø '+nf(COND.diam_mm,2)+' mm'],
+          ['Carga de rotura (RTS)', nf(COND.rts)+' kgf'],
+          ['Cable de guarda','pendiente — se captura en campo (F4)',1]])}
+        ${blq('Inventario del apoyo', [['Tipo de apoyo','pendiente — se captura en campo (F4)',1],
+          ['Altura total','pendiente — se captura en campo (F4)',1],
+          ['Altura libre','pendiente — se captura en campo (F4)',1],
+          ['Carga de rotura','no declarada — sin ella no hay veredicto',1],
+          ['Capacidad longitudinal','no declarada — no se deduce de la de rotura',1],
+          ['Crucetas / retenidas','pendiente — se captura en campo (F4)',1],
+          ['Condición / inclinación','pendiente — se captura en campo (F4)',1]])}
+        ${blq('Aislamiento y puesta a tierra', [['Modelo de aislador','pendiente (F4)',1],
+          ['Nº de unidades','pendiente (F4)',1], ['Fuga por unidad','pendiente (F4)',1],
+          ['Fuga específica','— no evaluable',1], ['Nivel de contaminación','costero (declarado)'],
+          ['Tipo de puesta a tierra','pendiente (F4)',1], ['Resistencia medida','pendiente (F4)',1]])}
+        ${blq('Trazabilidad del dato', [['UUID','a7f3…'+a.nom.toLowerCase()], ['Revisión','3'],
+          ['Capturado por','cuadrilla de campo'], ['Normalizado','30-07-2026'],
+          ['Fuente de la deflexión','derivada de coordenadas vecinas']])}
+      </div>
+    </div>
+    <p class="fine"><b>Ni un hueco se pinta como cero.</b> Un cero es una medida; «pendiente» es una tarea.
+      Confundirlos es cómo un informe acaba diciendo que un apoyo de altura desconocida mide 0 m.</p>
+  </div>
+  <div class="panel"><h2>Semáforo de ${a.nom} <em>5 criterios, siempre los cinco</em></h2>
+    ${tabla('Los cinco criterios salen siempre y en el mismo orden, pase lo que pase con los datos. Una fila que desaparece cuando falta el dato se lee como «eso ya no aplica», y entonces el hueco deja de contarse.',
+      ['Criterio','Valor','Veredicto','Qué pasa','Contra qué se comparó'],
+      cr.map(c=>`<tr><td>${c.e}</td><td class="num ${c.v==='—'?'':'destaca'}">${c.v==='—'?HUECO:c.v}</td>
+        <td><span class="sello-v ${c.s}">${c.st}</span></td><td class="txt">${c.d}</td>
+        <td class="txt">${c.c}</td></tr>`).join(''))}
+  </div>
+  <div class="panel"><h2>Fotografías de ${a.nom} <em>${a.fotos?nf(a.fotos)+' de 99':'ninguna'}</em></h2>
+    ${a.fotos ? `<div class="galeria">${Array.from({length:a.fotos},(_,i)=>
+        `<div class="foto">${a.nom}-${String(i+1).padStart(2,'0')}<br><span style="opacity:.6">no se publica</span></div>`).join('')}</div>
+      <p class="fine">Las imágenes reales no se reproducen en esta maqueta. En producción se cargan bajo
+        demanda y con miniatura: 20 líneas rondan los 340 MB y la galería pide las fotos de un punto en serie.</p>`
+    : `<p class="nota" style="margin-top:0"><b>Este punto declara que no tiene fotografías.</b> 12 de los 26
+        puntos están así. Se cuenta, no se esconde.</p>`}
+  </div>`;
+}
+
+/* ── FALLA ─────────────────────────────────────────────────────────── */
+function secFalla(){
+  const hip = [
+    ['Fallo del herraje de conexión por fatiga mecánica','alta',
+     'El apoyo acumula el mayor quiebre de la línea (118,2°, factor ×1,716): carga transversal permanente un 71,6 % por encima del tiro, con viento y sin él. El herraje trabaja a tracción constante.'],
+    ['Contorneo de la cadena por contaminación salina','media',
+     'Zona costera y nivel de contaminación declarado alto. No se puede contrastar: la ficha no trae número de unidades ni fuga por unidad, así que la fuga específica queda sin evaluar.'],
+    ['Descarga atmosférica','media',
+     'Época y zona compatibles. No hay registro de descargas ni ángulo de apantallamiento declarado; sin cable de guarda en la ficha, la hipótesis no se puede acotar.'],
+    ['Agente externo (vegetación o terceros)','baja',
+     'El vano anterior es de 15,40 m y el siguiente de 235,40 m: el despeje al terreno no está verificado, así que no se descarta — pero tampoco hay evidencia que apunte ahí.'],
+  ];
+  const verif = [
+    ['Ensayo del herraje retirado en laboratorio','Pendiente','Cierra o descarta la hipótesis principal. Sin este ensayo, la causa sigue siendo una hipótesis ordenada, no una conclusión.'],
+    ['Levantar carga de rotura y capacidad longitudinal de E06','Pendiente','Es el dato que hoy impide emitir cualquier veredicto de capacidad en toda la línea.'],
+    ['Medir fuga específica de la cadena instalada','Pendiente','Permite evaluar la segunda hipótesis contra IEC 60815.'],
+    ['Verificar despeje al terreno en el vano E06–E07','Pendiente','El levantamiento GPS de mano no lo resuelve: ±8 m de precisión vertical.'],
+  ];
+  return `
+  <div class="panel" style="border-color:rgba(224,82,82,.32)">
+    <h2 style="color:#ffb4b4">Expediente de falla <em>1 abierto · apertura de línea</em></h2>
+    <div class="kpis">
+      ${kpi('E06','Estructura','Ángulo · deflexión '+nf(APOYOS[5].defl,1)+'°','rojo')}
+      ${kpi('×'+nf(APOYOS[5].factor,3),'Factor de quiebre','El mayor de la línea','rojo')}
+      ${kpi(nf(VANOS.slice(0,5).reduce((s,v)=>s+v,0),1)+' <small>m</small>','Progresiva','Desde E01')}
+      ${kpi('4','Verificaciones pendientes','Ninguna resuelta','rojo')}
+      ${kpi('4','Fotografías del expediente','De las 103 de la línea')}
+    </div>
+    <p class="alerta"><b>Componente afectado:</b> herraje de conexión de la cadena de retención, fase central.
+      <b>Placa:</b> no legible en la evidencia. <b>Geolocalización:</b> coordenada registrada en el expediente,
+      no publicada aquí.</p>
+  </div>
+  <div class="panel"><h2>Evidencia</h2>
+    <div class="galeria">${['general del apoyo','detalle del herraje','cadena caída','vano hacia E07']
+      .map((t,i)=>`<div class="foto" style="aspect-ratio:3/2">EXP-${String(i+1).padStart(2,'0')}<br>${t}</div>`).join('')}</div>
+    <p class="fine">Las fotografías del expediente no se reproducen en la maqueta.</p>
+  </div>
+  <div class="dos-col">
+    <div class="panel"><h2>Cronología</h2>
+      ${tabla('', ['Momento','Hecho registrado','Fuente'], [
+        ['T0','Apertura de línea registrada por protecciones','SCADA'],
+        ['T0 + 40 min','Cuadrilla en sitio; se confirma cadena caída en fase central','Reporte de campo'],
+        ['T0 + 1 h 15','Registro fotográfico del apoyo y del herraje','Evidencia EXP-01…04'],
+        ['T0 + 3 h','Reposición provisional y reenergización','Reporte de campo'],
+        ['T0 + 2 días','Herraje retirado enviado a ensayo','Acta de retiro'],
+      ].map(r=>`<tr><td class="num">${r[0]}</td><td>${r[1]}</td><td class="txt">${r[2]}</td></tr>`).join(''))}
+    </div>
+    <div class="panel"><h2>Lectura de la evidencia <em>lo que se VE</em></h2>
+      <p class="prosa">La cadena de la fase central quedó en el suelo con el herraje de conexión separado.
+        En las cuatro fotografías se aprecia la superficie de fractura y la ausencia de deformación plástica
+        apreciable en el cuerpo del herraje. El resto de la cruceta y las otras dos fases permanecen en
+        posición. No hay marcas de arco visibles sobre los aisladores en la evidencia disponible.</p>
+      <p class="nota"><b>Hasta aquí llega lo observado.</b> Todo lo que sigue es interpretación, y va
+        separado a propósito: mezclar lo que se ve con lo que se concluye es como un informe deja de ser
+        defendible.</p>
+    </div>
+  </div>
+  <div class="panel" style="border-top:2px solid var(--acc-borde)">
+    <h2>Hipótesis causales <em>lo que se CONCLUYE · ordenadas por verosimilitud</em></h2>
+    ${hip.map(([t,v,s],i)=>`<div style="padding:8px 0;border-bottom:var(--hairline) solid var(--bd-suave)">
+      <div style="display:flex;gap:9px;align-items:baseline">
+        <span class="pz on" style="cursor:default">${i+1}</span>
+        <b style="font-size:12.5px">${t}</b>
+        <span class="sello-v ${v==='alta'?'rojo':v==='media'?'revisar':'no'}" style="margin-left:auto">verosimilitud ${v}</span></div>
+      <p class="prosa" style="margin:4px 0 0">${s}</p></div>`).join('')}
+    <p class="aviso"><b>Ninguna de estas cuatro es la causa.</b> Son hipótesis con su sustento y su sello.
+      La causa la dictamina quien firma, con el expediente delante — y para eso hacen falta las cuatro
+      verificaciones de abajo.</p>
+  </div>
+  <div class="panel"><h2>Verificaciones pendientes <em>el contador que sale a la portada</em></h2>
+    ${tabla('Mientras quede una sin resolver, el expediente sigue abierto y la línea sigue en rojo.',
+      ['Verificación','Estado','Qué desbloquea'],
+      verif.map(v=>`<tr class="mal"><td>${v[0]}</td>
+        <td><span class="sello-v rojo">${v[1]}</span></td><td class="txt">${v[2]}</td></tr>`).join(''))}
+  </div>`;
+}
+
+/* ── FUNDAMENTOS ───────────────────────────────────────────────────── */
+function figCatenaria(){
+  const a = 336.70, Hh = TRAMOS[5].est.tmax, C = Hh/COND.w, f = flechaCat(COND.w,a,Hh);
+  const W=430,Ht=150,mx=42,my=22;
+  const pts = Array.from({length:61},(_,i)=>{
+    const x = -a/2 + a*i/60, y = C*(Math.cosh(x/C)-1);
+    return [(mx + (x+a/2)/a*(W-2*mx)).toFixed(1), (my + (f-y)/f*(Ht-2*my-16)).toFixed(1)];
+  });
+  const yTop = my, yBot = my + (Ht-2*my-16);
+  return `<svg viewBox="0 0 ${W} ${Ht}" style="width:100%;max-width:430px;height:auto">
+    <line x1="${mx}" y1="${yTop}" x2="${W-mx}" y2="${yTop}" stroke="var(--bd-solido)" stroke-dasharray="3 3"/>
+    <polyline points="${pts.map(p=>p.join(',')).join(' ')}" fill="none" stroke="var(--acc)" stroke-width="2"/>
+    <line x1="${mx}" y1="${yTop-8}" x2="${mx}" y2="${yBot+10}" stroke="var(--tx)" stroke-width="1.4"/>
+    <line x1="${W-mx}" y1="${yTop-8}" x2="${W-mx}" y2="${yBot+10}" stroke="var(--tx)" stroke-width="1.4"/>
+    <line x1="${W/2}" y1="${yTop}" x2="${W/2}" y2="${yBot}" stroke="var(--gr)" stroke-width="1.2"/>
+    <text x="${W/2+6}" y="${(yTop+yBot)/2}" style="font:600 10px var(--fuente);fill:var(--gr)">f = ${nf(f,2)} m</text>
+    <text x="${W/2}" y="${Ht-4}" text-anchor="middle" style="font:400 10px var(--fuente);fill:var(--mut)">a = ${nf(a,2)} m · el vano más largo de LN-627</text>
+    <text x="${mx}" y="${yTop-11}" style="font:400 9.5px var(--fuente);fill:var(--mut)">E21</text>
+    <text x="${W-mx}" y="${yTop-11}" text-anchor="end" style="font:400 9.5px var(--fuente);fill:var(--mut)">E22</text>
+  </svg>`;
+}
+function figDeflexion(){
+  const W=430,Ht=150, cx=200, cy=112, R=74, al=APOYOS[5].defl;
+  const a1 = 250*Math.PI/180, a2 = a1 + al*Math.PI/180;
+  const p = (ang,r)=>[(cx+r*Math.cos(ang)).toFixed(1),(cy+r*Math.sin(ang)).toFixed(1)];
+  const A=p(a1,R), B=p(a2,R);
+  return `<svg viewBox="0 0 ${W} ${Ht}" style="width:100%;max-width:430px;height:auto">
+    <line x1="${cx}" y1="${cy}" x2="${A[0]}" y2="${A[1]}" stroke="var(--mut)" stroke-width="2"/>
+    <line x1="${cx}" y1="${cy}" x2="${B[0]}" y2="${B[1]}" stroke="var(--mut)" stroke-width="2"/>
+    <path d="M ${p(a1,26)[0]} ${p(a1,26)[1]} A 26 26 0 0 1 ${p(a2,26)[0]} ${p(a2,26)[1]}"
+      fill="none" stroke="var(--acc)" stroke-width="1.6"/>
+    <circle cx="${cx}" cy="${cy}" r="5" fill="var(--acc)"/>
+    <text x="${cx+30}" y="${cy-16}" style="font:600 11px var(--fuente);fill:var(--acc)">α = ${nf(al,1)}°</text>
+    <text x="${cx-10}" y="${cy+18}" text-anchor="end" style="font:600 10px var(--fuente);fill:var(--tx)">E06</text>
+    <line x1="${cx}" y1="${cy}" x2="${cx+96}" y2="${cy-4}" stroke="var(--acc)" stroke-width="2.4" marker-end=""/>
+    <path d="M${cx+96} ${cy-4} l-8 -4 v8 z" fill="var(--acc)"/>
+    <text x="${cx+40}" y="${cy+18}" style="font:600 10.5px var(--fuente);fill:var(--acc)">resultante ×${nf(APOYOS[5].factor,3)}</text>
+    <text x="${A[0]}" y="${+A[1]+13}" style="font:400 9.5px var(--fuente);fill:var(--mut)">vano E05–E06</text>
+    <text x="${B[0]}" y="${+B[1]-6}" style="font:400 9.5px var(--fuente);fill:var(--mut)">vano E06–E07</text>
+  </svg>`;
+}
+function figVanos(){
+  const W=430,Ht=150,mx=20;
+  const mv = Math.max(...VANOS);
+  const bars = VANOS_INFO.map((v,i)=>{
+    const x = mx + i*((W-2*mx)/23), w = (W-2*mx)/23 - 2, h = v.a/mv*96;
+    return `<rect x="${x.toFixed(1)}" y="${(118-h).toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}"
+      fill="${v.fuera?'var(--acc)':'var(--az)'}" rx="1.5"/>`;
+  }).join('');
+  const yv = 118 - VIR_LINEA/mv*96;
+  return `<svg viewBox="0 0 ${W} ${Ht}" style="width:100%;max-width:430px;height:auto">
+    ${bars}<line x1="${mx}" y1="${yv.toFixed(1)}" x2="${W-mx}" y2="${yv.toFixed(1)}" stroke="var(--gr)" stroke-dasharray="4 3"/>
+    <text x="${W-mx}" y="${(yv-4).toFixed(1)}" text-anchor="end" style="font:600 9.5px var(--fuente);fill:var(--gr)">VIR único de línea ${nf(VIR_LINEA,1)} m</text>
+    <text x="${mx}" y="132" style="font:400 9.5px var(--fuente);fill:var(--mut)">23 vanos, en orden de recorrido — en ámbar los ${nf(FUERA_BANDA)} fuera de banda</text>
+  </svg>`;
+}
+const FUNDAMENTOS = [
+  ['catenaria','Catenaria', figCatenaria,
+   'Un conductor colgado entre dos apoyos no adopta una parábola: adopta una catenaria, la curva del peso propio repartido a lo largo del cable. La parábola es su aproximación de primer orden, y a los vanos de esta línea las dos coinciden casi exactamente.',
+   '<math><mrow><mi>C</mi><mo>=</mo><mfrac><mi>H</mi><mi>w</mi></mfrac></mrow></math> · <math><mrow><mi>L</mi><mo>=</mo><mn>2</mn><mi>C</mi><mo>·</mo><mi>sinh</mi><mo>(</mo><mfrac><mi>a</mi><mrow><mn>2</mn><mi>C</mi></mrow></mfrac><mo>)</mo></mrow></math>',
+   'El parámetro C sale del tiro horizontal dividido por la masa lineal. Con C se obtienen flecha y longitud sin aproximar.',
+   'A vanos cortos la parábola sobra; a vanos largos y en auditoría, la catenaria manda. El sistema calcula con catenaria y enseña la diferencia.',
+   () => `C = ${nf(TRAMOS[5].est.tmax/COND.w,1)} m en el tramo 6 a ${nf(HIP.tMax)} °C. En el vano de ${nf(336.70,2)} m
+     la flecha por catenaria es ${nf(flechaCat(COND.w,336.70,TRAMOS[5].est.tmax),3)} m y por parábola
+     ${nf(COND.w*336.70**2/(8*TRAMOS[5].est.tmax),3)} m: <b>${nf(Math.abs(flechaCat(COND.w,336.70,TRAMOS[5].est.tmax)-COND.w*336.70**2/(8*TRAMOS[5].est.tmax))/flechaCat(COND.w,336.70,TRAMOS[5].est.tmax)*100,2)} %</b> de diferencia.`],
+  ['flecha','Flecha', figCatenaria,
+   'La flecha es cuánto baja el conductor en el centro del vano respecto a la recta que une sus dos sujeciones. Crece con el cuadrado del vano y baja con el tiro: por eso tensar más ahorra altura de apoyo, y por eso tensar más acorta la vida del cable.',
+   '<math><mrow><mi>f</mi><mo>=</mo><mi>C</mi><mo>·</mo><mo>(</mo><mi>cosh</mi><mo>(</mo><mfrac><mi>a</mi><mrow><mn>2</mn><mi>C</mi></mrow></mfrac><mo>)</mo><mo>−</mo><mn>1</mn><mo>)</mo></mrow></math>',
+   'Se evalúa en el estado de máxima temperatura, que es el de flecha máxima y el que decide el despeje al terreno.',
+   'Una flecha correcta con un despeje sin verificar no dice nada del gálibo. Aquí el levantamiento no llega.',
+   () => `Flecha máxima de la línea: <b>${nf(Math.max(...TRAMOS.map(t=>t.flechaMax)),3)} m</b>, en el vano de
+     ${nf(336.70,2)} m del tramo 6 a ${nf(HIP.tMax)} °C. <b>El despeje al terreno queda sin verificar:</b>
+     con ±8 m de precisión vertical, la cota GPS no sirve para gálibo.`],
+  ['vir','Vano ideal de regulación', figVanos,
+   'Dentro de un tramo de tensión el conductor se mueve libremente sobre las suspensiones, así que la tensión mecánica es común a todo el tramo. El VIR es el vano único equivalente con el que se tensa el tramo entero.',
+   '<math><mrow><mi>VIR</mi><mo>=</mo><msqrt><mfrac><mrow><mo>Σ</mo><msubsup><mi>a</mi><mi>i</mi><mn>3</mn></msubsup></mrow><mrow><mo>Σ</mo><msub><mi>a</mi><mi>i</mi></msub></mrow></mfrac></msqrt></mrow></math>',
+   'Se calcula por tramo, nunca uno solo para la línea. Un tramo con vanos muy dispares tiene un VIR que no representa a ninguno.',
+   'La banda de validez es a/VIR entre 0,7 y 1,3. Fuera de ella el tramo debería subdividirse.',
+   () => `El VIR va de <b>${nf(Math.min(...TRAMOS.map(t=>t.vir)),1)} m</b> (tramo 5) a
+     <b>${nf(Math.max(...TRAMOS.map(t=>t.vir)),1)} m</b> (tramo 6). Un VIR único de línea
+     (${nf(VIR_LINEA,2)} m) daría flechas y tiros equivocados en los dos extremos.
+     <b>${nf(FUERA_BANDA)} de ${nf(VANOS.length)} vanos</b> caen fuera de la banda.`],
+  ['tensiones','Tensiones y EDS', figVanos,
+   'El EDS (Every Day Stress) es la tensión de servicio permanente, expresada como porcentaje de la carga de rotura. Es el compromiso entre altura de apoyo y vida del conductor: alto ahorra estructura, alto también fatiga el cable por vibración eólica.',
+   '<math><mrow><mi>EDS</mi><mo>=</mo><mfrac><mi>H</mi><mi>RTS</mi></mfrac><mo>·</mo><mn>100</mn></mrow></math>',
+   'Se fija en la hipótesis y se propaga a los cuatro estados por la ecuación de cambio de estado.',
+   'El tope de tiro admisible es una DECISIÓN, no una constante. Aquí está sin cerrar y eso cambia veredictos.',
+   () => `EDS adoptado ${nf(HIP.eds_pct)} % a ${nf(HIP.tEds)} °C = <b>${nf(COND.rts*HIP.eds_pct/100)} kgf</b>.
+     El pico de la línea es ${nf(TIRO_MAX)} kgf = <b>${nf(TIRO_MAX/COND.rts*100,1)} % de la RTS</b>:
+     cumple contra el ${nf(HIP.topeAplicado)} % que aplica el motor y <b>NO cumple</b> contra el
+     ${nf(HIP.topeDoctrina)} % de la doctrina interna. Ese conflicto sigue abierto.`],
+  ['cambio','Cambio de estado', figCatenaria,
+   'Dado un estado conocido, predice el tiro en otro: el cable cambia de longitud exactamente lo que se dilata por temperatura más lo que se estira por carga. Es el corazón del cálculo mecánico y no tiene solución cerrada útil.',
+   '<math><mrow><msubsup><mi>H</mi><mn>2</mn><mn>2</mn></msubsup><mo>(</mo><msub><mi>H</mi><mn>2</mn></msub><mo>+</mo><mi>A</mi><mo>)</mo><mo>=</mo><mi>B</mi></mrow></math>',
+   'Se resuelve por bisección, con el VIR del tramo como vano equivalente. 200 iteraciones y expansión previa del extremo superior.',
+   'El módulo elástico entra al cuadrado en la práctica: un valor de catálogo en vez del real mueve el resultado lo bastante como para cambiar un veredicto.',
+   () => `Cuatro estados por tramo: EDS, ${nf(HIP.tMax)} °C, máximo viento y ${nf(HIP.tMin)} °C.
+     <b>Módulo elástico en conflicto: ${nf(COND.E)} vs 7.000 kg/mm²</b> — el catálogo genérico contra la ficha
+     del proveedor, que todavía no se tiene. Ese conflicto decide si un tramo cumple el RETIE.`],
+  ['deflexion','Deflexión y quiebre', figDeflexion,
+   'La deflexión es el cambio de dirección del trazado en un apoyo. No es un dato de geometría: es el multiplicador de la carga transversal que la estructura recibe del propio tiro del conductor, y existe con viento y sin él.',
+   '<math><mrow><msub><mi>F</mi><mi>t</mi></msub><mo>=</mo><mn>2</mn><mi>T</mi><mo>·</mo><mi>sen</mi><mo>(</mo><mfrac><mi>α</mi><mn>2</mn></mfrac><mo>)</mo></mrow></math>',
+   'A partir de 60° el factor pasa de 1: la estructura recibe MÁS que el propio tiro del conductor.',
+   'Es carga permanente. Sumarla a la longitudinal sería sumar peras con manzanas: son ejes distintos y casos de carga distintos.',
+   () => `E06 con ${nf(APOYOS[5].defl,1)}° da factor <b>×${nf(APOYOS[5].factor,3)}</b>: un
+     ${nf((APOYOS[5].factor-1)*100,1)} % más de carga transversal que el tiro. Son <b>${nf(AMPLIFICAN)}</b> los
+     apoyos con factor mayor que 1. Un apoyo así dimensionado «por el tiro» está dimensionado por poco más de
+     la mitad de lo que recibe.`],
+  ['vanoscar','Vanos característicos', figVanos,
+   'Tres vanos que se confunden entre sí y sirven para cosas distintas: el vano real (geometría y flecha), el vano viento (semisuma de los adyacentes, para carga transversal) y el vano peso (entre los puntos más bajos de las catenarias vecinas, para carga vertical).',
+   '<math><mrow><msub><mi>a</mi><mi>v</mi></msub><mo>=</mo><mfrac><mrow><msub><mi>a</mi><mi>i</mi></msub><mo>+</mo><msub><mi>a</mi><mrow><mi>i</mi><mo>+</mo><mn>1</mn></mrow></msub></mrow><mn>2</mn></mfrac></mrow></math>',
+   'El vano viento sale de la geometría; el vano peso necesita además la cota de sujeción de cada apoyo.',
+   'Sin vano peso no hay carga vertical, y sin carga vertical no se detecta el arrancamiento de un apoyo en cambio de rasante.',
+   () => `Vano viento máximo: <b>${nf(Math.max(...APOYOS.map(a=>a.vViento)),2)} m</b> en
+     ${APOYOS.reduce((m,a)=>a.vViento>m.vViento?a:m).nom}. <b>El vano peso no se puede calcular en ningún
+     apoyo:</b> falta la cota de sujeción. Es un hueco declarado, no un cero.`],
+  ['ampacidad','Ampacidad', figVanos,
+   'Es la corriente que el conductor puede llevar en régimen permanente sin pasar de su temperatura máxima. Sale de un balance térmico: lo que genera por efecto Joule iguala lo que pierde por convección y radiación, menos lo que gana del sol.',
+   '<math><mrow><mi>I</mi><mo>=</mo><msqrt><mfrac><mrow><msub><mi>q</mi><mi>c</mi></msub><mo>+</mo><msub><mi>q</mi><mi>r</mi></msub><mo>−</mo><msub><mi>q</mi><mi>s</mi></msub></mrow><mrow><mi>R</mi><mo>(</mo><msub><mi>T</mi><mi>c</mi></msub><mo>)</mo></mrow></mfrac></msqrt></mrow></math>',
+   'IEEE Std 738. La convección toma el mayor de tres correlaciones; todo depende de la temperatura de película y de la altitud.',
+   'La ampacidad de placa es engañosa: el viento pesa más que la temperatura ambiente. Un día en calma le quita más de una cuarta parte.',
+   () => `${nf(718)} A a ${nf(COND.tmax)} °C en el día típico = <b>${nf(1.7320508*KV*718/1000,1)} MVA</b>.
+     El límite de ${nf(COND.tmax)} °C del AAAC viene de la aleación 6201-T81: por encima pierde propiedades
+     mecánicas <b>de forma permanente</b>. No es un valor conservador de catálogo, es un umbral de material.`],
+  ['terreno','Distancia al terreno', figCatenaria,
+   'El despeje mínimo al suelo es lo que separa una línea calculada de una línea segura. Se verifica con la flecha del estado de máxima temperatura y la cota real del terreno bajo cada vano.',
+   '<math><mrow><msub><mi>d</mi><mi>min</mi></msub><mo>=</mo><msub><mi>z</mi><mi>suj</mi></msub><mo>−</mo><mi>f</mi><mo>−</mo><msub><mi>z</mi><mi>terr</mi></msub></mrow></math>',
+   'Exige tres cosas: flecha, cota de sujeción y perfil del terreno. El sistema tiene la primera.',
+   'Es el hueco que más caro sale: un cálculo mecánico impecable no dice nada del gálibo si el terreno no está levantado.',
+   () => `<b>No verificable con este levantamiento.</b> Cotas GPS de mano con precisión declarada ±8 m, sin
+     cota de sujeción y sin perfil de terreno. La flecha existe; el despeje, no. El marco es el RETIE
+     Libro 3, Tabla 3.10.2.a.`],
+];
+function secFundamentos(){
+  const f = FUNDAMENTOS.find(x=>x[0]===S.fundamento) ?? FUNDAMENTOS[0];
+  return `
+  <div class="panel"><h2>Fundamentos <em>la doctrina, con los números vivos de esta línea</em></h2>
+    <div class="pastillas">${FUNDAMENTOS.map(x=>
+      `<button class="pz ${x[0]===S.fundamento?'on':''}" data-fund="${x[0]}">${x[1]}</button>`).join('')}</div>
+    <div class="dos-col">
+      <div>
+        <p class="prosa">${f[3]}</p>
+        <div style="background:var(--lienzo-hond);border:var(--hairline) solid var(--bd);border-radius:var(--r-sm);
+          padding:9px 12px;font-size:14px;color:var(--acc);text-align:center;margin:10px 0">${f[4]}</div>
+        <div class="mini-h">Cómo se calcula</div><p class="prosa">${f[5]}</p>
+        <div class="mini-h">Qué vigilar</div><p class="prosa">${f[6]}</p>
+      </div>
+      <div>
+        <div style="background:var(--pnl2);border:var(--hairline) solid var(--bd);border-radius:var(--r-md);padding:8px">${f[2]()}</div>
+        <p class="aviso" style="margin-top:10px"><b>En esta línea, hoy:</b> ${f[7]()}</p>
+      </div>
+    </div>
+  </div>
+  <div class="panel"><h2>Marco normativo</h2>
+    ${tabla('El veredicto sale siempre del VALOR contra la NORMA. Un número sin fórmula o sin norma detrás no es un veredicto: es una opinión.',
+      ['Norma','Qué fija','Cómo entra en el cálculo','Estado'],
+      [['RETIE Libro 3, Tabla 3.10.2.a','Distancias mínimas al terreno según tensión y tipo de zona','Umbral del despeje verificado con la flecha de máxima temperatura','<span class="sello-v no">no verificable — falta perfil de terreno</span>'],
+       ['IEEE Std 738','Ampacidad en régimen permanente','Balance térmico por escenario climático','<span class="sello-v cumple">aplicada</span>'],
+       ['IEC 60815','Fuga específica según nivel de contaminación','Contraste contra la cadena instalada','<span class="sello-v no">no evaluable — falta la ficha de aislamiento</span>'],
+       ['WGS84 / MAGNA-SIRGAS','Sistema de referencia','Vincenty sobre elipsoide WGS84; el oficial de Colombia es MAGNA-SIRGAS','<span class="sello-v revisar">transformación pendiente</span>'],
+       ['Doctrina interna del proyecto','Tope de tiro admisible','El motor aplica 50 % de la RTS; la doctrina dice 25 %','<span class="sello-v revisar">sin decidir</span>'],
+      ].map(r=>`<tr><td class="destaca">${r[0]}</td><td>${r[1]}</td><td class="txt">${r[2]}</td><td>${r[3]}</td></tr>`).join(''))}
+  </div>`;
+}
+
+/* ── MECÁNICO ──────────────────────────────────────────────────────── */
+function secMecanico(){
+  const exc50 = TRAMOS.filter(t=>t.pico > TOPE_APLICADO);
+  const exc25 = TRAMOS.filter(t=>t.pico > TOPE_DOCTRINA);
+  const aMax = Math.max(...VANOS);
+  const fCat = flechaCat(COND.w, aMax, TRAMOS[5].est.tmax);
+  const fPar = COND.w*aMax**2/(8*TRAMOS[5].est.tmax);
+  return `
+  <div class="panel"><h2>Conductor y regulación</h2>
+    <div class="kpis">
+      ${kpi(COND.mat+' '+COND.cod,'Conductor',COND.cal+' · '+nf(COND.secc,1)+' mm² · Ø '+nf(COND.diam_mm,2)+' mm')}
+      ${kpi(nf(COND.rts)+' <small>kgf</small>','Carga de rotura (RTS)','Tope aplicado '+nf(TOPE_APLICADO)+' kgf ('+nf(HIP.topeAplicado)+' %)')}
+      ${kpi(nf(VIR_LINEA,2)+' <small>m</small>','VIR único de línea','No se usa para calcular: cada tramo lleva el suyo')}
+      ${kpi(nf(TRAMOS.length)+' / '+nf(5),'Tramos / anclajes intermedios','E02, E04, E06, E20, E21')}
+      ${kpi(nf(718)+' <small>A</small>','Ampacidad IEEE 738','A '+nf(COND.tmax)+' °C, día típico')}
+    </div>
+    <p class="${exc50.length?'alerta':'ok'}">${exc50.length
+      ? `<b>${nf(exc50.length)} tramos</b> superan el tope aplicado de ${nf(TOPE_APLICADO)} kgf.`
+      : `<b>Contra el tope que aplica el motor</b> (${nf(HIP.topeAplicado)} % de la RTS = ${nf(TOPE_APLICADO)} kgf),
+         ningún tramo lo supera. El máximo es ${nf(Math.max(...TRAMOS.map(t=>t.pctRts)),1)} %.`}</p>
+    <p class="aviso"><b>Y contra el otro criterio, no.</b> La doctrina interna del proyecto dice
+      ${nf(HIP.topeDoctrina)} % de la RTS = ${nf(TOPE_DOCTRINA)} kgf, y con ese tope
+      <b>${nf(exc25.length)} tramos</b> quedan por encima: ${exc25.map(t=>'T'+t.n+' ('+nf(t.pctRts,1)+' %)').join(', ')}.
+      El mismo número, dos veredictos. Por eso el criterio viaja pegado al veredicto: sin él, el semáforo miente.</p>
+  </div>
+  <div class="panel"><h2>Cálculo mecánico por tramo de tensión</h2>
+    ${tabla(`Tiros en kgf. La flecha es la del vano más largo del tramo, por catenaria exacta, con el tiro del
+      estado de ${nf(HIP.tMax)} °C. <b>Sello:</b> motor v1.4.2 · hipótesis «${H(HIP.nombre)}» ·
+      procedencia ${HIP.proc} · congelada: no · calculado 03-08-2026.`,
+      ['#','Tramo','Vanos','Vano máx (m)','VIR (m)','EDS',nf(HIP.tMax)+' °C','Viento',nf(HIP.tMin)+' °C','% RTS','Flecha (m)'],
+      TRAMOS.map(t=>`<tr class="${t.pico>TOPE_DOCTRINA?'fuera':''}">
+        <td class="num">${t.n}</td><td>${APOYOS[t.desde].nom} → ${APOYOS[t.hasta].nom}</td>
+        <td class="num">${nf(t.v.length)}</td><td class="num">${nf(t.vanoMax,2)}</td>
+        <td class="num">${nf(t.vir,2)}</td><td class="num">${nf(t.est.eds)}</td>
+        <td class="num">${nf(t.est.tmax)}</td><td class="num">${nf(t.est.viento)}</td>
+        <td class="num">${nf(t.est.tmin)}</td><td class="num destaca">${nf(t.pctRts,1)} %</td>
+        <td class="num">${nf(t.flechaMax,3)}</td></tr>`).join(''))}
+  </div>
+  <div class="panel"><h2>Vano a vano <em>${nf(FUERA_BANDA)} de ${nf(VANOS.length)} fuera de banda</em></h2>
+    ${tabla('La relación a/VIR se calcula contra el VIR del TRAMO del vano, no contra uno único de línea. Fuera de 0,7–1,3 la hipótesis del vano ideal de regulación pierde validez y el tramo debería subdividirse.',
+      ['#','Vano','Tramo','a (m)','VIR del tramo (m)','a / VIR','Validez','Flecha a '+nf(HIP.tMax)+' °C (m)','Longitud de cable (m)'],
+      VANOS_INFO.map(v=>`<tr class="${v.fuera?'fuera':''}" data-ap="${v.i}" style="cursor:pointer">
+        <td class="num">${v.n}</td><td>${v.de} → ${v.a2}</td><td class="num">T${v.t.n}</td>
+        <td class="num">${nf(v.a,2)}</td><td class="num">${nf(v.t.vir,2)}</td>
+        <td class="num destaca">${nf(v.r,2)}</td>
+        <td><span class="sello-v ${v.fuera?'revisar':'cumple'}">${v.fuera?'fuera de banda':'dentro'}</span></td>
+        <td class="num">${nf(v.flecha,3)}</td><td class="num">${nf(v.longCat,2)}</td></tr>`).join(''))}
+  </div>
+  <div class="dos-col">
+    <div class="panel"><h2>Control: catenaria contra parábola</h2>
+      ${tabla('', ['Método','Flecha en el vano de '+nf(aMax,2)+' m','Diferencia'],
+        [['Catenaria exacta', nf(fCat,4)+' m','—'],
+         ['Parábola (1er orden)', nf(fPar,4)+' m', nf(Math.abs(fCat-fPar)/fCat*100,3)+' %']]
+        .map(r=>`<tr><td>${r[0]}</td><td class="num destaca">${r[1]}</td><td class="num">${r[2]}</td></tr>`).join(''))}
+      <p class="ok">A estos vanos la parábola es perfectamente utilizable. El sistema calcula con
+        <b>catenaria</b> de todos modos, y enseña la diferencia: una verificación que no se puede ver no
+        verifica nada.</p>
+    </div>
+    <div class="panel"><h2>Umbrales y criterios</h2>
+      ${tabla('Cada indicador con su valor, su umbral, su estado y su FUENTE. Sin la última columna, las tres primeras son decoración.',
+        ['Indicador','Valor','Umbral','Estado','Fuente'],
+        [['Tiro máximo (motor)', nf(TIRO_MAX)+' kgf', nf(TOPE_APLICADO)+' kgf', 'cumple','Hipótesis: 50 % de la RTS'],
+         ['Tiro máximo (doctrina)', nf(TIRO_MAX)+' kgf', nf(TOPE_DOCTRINA)+' kgf', 'revisar','Doctrina interna del proyecto — sin decidir'],
+         ['Relación a/VIR', nf(FUERA_BANDA)+' de '+nf(VANOS.length)+' fuera', '0,7 – 1,3', 'revisar','Práctica de regulación por tramo'],
+         ['Temperatura máxima', nf(COND.tmax)+' °C', nf(COND.tmax)+' °C', 'cumple','AAAC 6201-T81 — umbral de material'],
+         ['Despeje al terreno', '—', 'RETIE Tabla 3.10.2.a', 'no','Falta perfil de terreno y cota de sujeción'],
+         ['Capacidad de apoyos', '0 de 24 declaradas', 'utilización ≤ 80 %', 'no','No se estima una capacidad que nadie declaró'],
+         ['Fuga específica', '—', 'IEC 60815, nivel costero', 'no','Falta la ficha de aislamiento'],
+        ].map(r=>`<tr><td>${r[0]}</td><td class="num ${r[1]==='—'?'':'destaca'}">${r[1]==='—'?HUECO:r[1]}</td>
+          <td class="num">${r[2]}</td>
+          <td><span class="sello-v ${r[3]==='no'?'no':r[3]}">${r[3]==='no'?'no evaluable':r[3]}</span></td>
+          <td class="txt">${r[4]}</td></tr>`).join(''))}
+    </div>
+  </div>`;
+}
+
+/* ── TÉRMICA ───────────────────────────────────────────────────────── */
+const ESCENARIOS = [
+  ['Noche fresca', 24, 0.61, 0, 841, 'Sin sol y con el ambiente abajo: es la mejor hora del conductor. Sirve de techo, no de criterio de despacho.', false],
+  ['Día típico', 32, 0.61, 1000, 718, 'Escenario de REFERENCIA: contra este se mide todo lo que la línea pierde en los demás.', true],
+  ['Día caluroso', 38, 0.61, 1000, 676, 'Seis grados más de ambiente. Ni un día raro: es una tarde de verano cualquiera.', false],
+  ['El Niño, viento en calma', 40, 0.20, 1000, 497, 'Ambiente arriba Y aire quieto a la vez. Coincide con los meses de mayor demanda: la capacidad cae justo cuando hace falta.', false],
+];
+function secTermica(){
+  const ref = ESCENARIOS.find(e=>e[6])[4];
+  const mejor = Math.max(...ESCENARIOS.map(e=>e[4])), peor = Math.min(...ESCENARIOS.map(e=>e[4]));
+  const mva = (A) => 1.7320508*KV*A/1000;
+  const R = (T) => COND.r20*(1 + COND.beta*(T-20));
+  const temps = [[20,'Referencia de la tabla de fabricante'],[32,'Ambiente del día típico'],
+    [50,'Servicio moderado'],[75,'Límite continuo de un ACSR — no de este conductor'],
+    [90,'LÍMITE DEL MATERIAL · AAAC 6201-T81'],[100,'Por encima del límite: pérdida permanente de propiedades']];
+  return `
+  <div class="panel"><h2>Comportamiento térmico <em>IEEE Std 738, régimen permanente</em></h2>
+    <p class="alerta" style="margin-top:0"><b>Del mejor al peor escenario la línea pierde
+      ${nf((1-peor/mejor)*100,1)} % de su capacidad</b> — de ${nf(mejor)} A a ${nf(peor)} A, sin que cambie
+      ni un metro de conductor. La ampacidad de placa es engañosa: <b>el viento pesa más que la temperatura
+      ambiente</b>.</p>
+    ${tabla(`Ampacidad a ${nf(COND.tmax)} °C de conductor. Potencia con ${nf(KV)} kV y factor √3.
+      El derrateo se mide contra el día típico, que es la fila destacada.`,
+      ['Escenario','Ambiente','Viento','Sol','Ampacidad','Potencia','Pierde','Qué es este escenario'],
+      ESCENARIOS.map(e=>`<tr class="${e[6]?'aqui':''} ${e[4]===peor?'mal':''}">
+        <td><b>${e[0]}</b></td><td class="num">${nf(e[1])} °C</td><td class="num">${nf(e[2],2)} m/s</td>
+        <td class="num">${nf(e[3])} W/m²</td><td class="num destaca">${nf(e[4])} A</td>
+        <td class="num">${nf(mva(e[4]),1)} MVA</td>
+        <td class="num">${e[6]?'referencia':(e[4]>ref?'−'+nf((e[4]/ref-1)*100,1)+' % (gana)':nf((1-e[4]/ref)*100,1)+' %')}</td>
+        <td class="txt">${e[5]}</td></tr>`).join(''))}
+  </div>
+  <div class="dos-col">
+    <div class="panel"><h2>Resistencia en corriente continua</h2>
+      ${tabla(`R₂₀ = ${nf(COND.r20,4)} Ω/km, verificada contra tabla de fabricante (≈ 0,1198 Ω/km):
+        desviación 1,3 %. El factor 1,02 es el sobrelargo por cableado — los hilos van helicoidales y
+        recorren más que la longitud del cable.`,
+        ['Temperatura','Resistencia','Qué representa esa temperatura'],
+        temps.map(t=>`<tr class="${t[0]===90?'fuera':''} ${t[0]===100?'mal':''}">
+          <td class="num">${nf(t[0])} °C</td><td class="num destaca">${nf(R(t[0]),4)} Ω/km</td>
+          <td class="txt">${t[1]}</td></tr>`).join(''))}
+    </div>
+    <div class="panel"><h2>Avisos <em>de más grave a menos</em></h2>
+      <p class="alerta" style="margin-top:0"><b>Atención · El Niño con viento en calma.</b> ${nf(peor)} A
+        (${nf(mva(peor),1)} MVA): ${nf((1-peor/ref)*100,1)} % por debajo del día típico, y coincide con los
+        meses de mayor demanda. La capacidad cae justo cuando hace falta.</p>
+      <p class="aviso"><b>Aviso · el viento manda.</b> Bajar de 0,61 a 0,20 m/s cuesta más capacidad que
+        subir el ambiente de 32 a 38 °C. Cualquier hipótesis de viento optimista se paga en amperios.</p>
+      <p class="aviso"><b>Aviso · el límite de ${nf(COND.tmax)} °C no es de catálogo.</b> Viene de la aleación
+        6201-T81: por encima, el conductor pierde propiedades mecánicas <b>de forma permanente</b>.</p>
+      <p class="nota"><b>Info · sin registro de carga real.</b> Estos son escenarios climáticos adoptados, no
+        medidas. El sistema no sabe qué corriente lleva esta línea: sabe cuánta podría llevar.</p>
+      <p class="nota"><b>Info · altitud adoptada 10 msnm</b> y emisividad/absortividad 0,5. Los tres son
+        supuestos de la hipótesis sin validar.</p>
+    </div>
+  </div>`;
+}
+
+/* ── VIENTO ────────────────────────────────────────────────────────── */
+function secViento(){
+  const t = [
+    [nf(Q_PA,1)+' <small>Pa</small>','Presión dinámica','Lo que empuja el aire por cada metro cuadrado que encuentra de frente.'],
+    [nf(W_VIENTO,3)+' <small>kgf/m</small>','Empuje sobre el cable','Lo que el viento empuja de lado, por cada metro de conductor.'],
+    [nf(COND.w,3)+' <small>kgf/m</small>','Peso propio','Lo que pesa un metro de este conductor.'],
+    [nf(W_TOTAL,3)+' <small>kgf/m</small>','Carga resultante','Peso y empuje compuestos: es la que entra en el cambio de estado.'],
+    [nf(ANG_BAL,1)+'°','Ángulo de balanceo','Cuánto se va de lado la cadena. Por encima de 30° hay que mirar la distancia a la estructura.'],
+    [nf(W_VIENTO/COND.w,3),'Empuje / peso','El viento empuja más de lo que el cable pesa.'],
+  ];
+  return `
+  <div class="panel"><h2>Hipótesis de viento declarada</h2>
+    <p class="prosa">El cálculo adopta un viento de <b>${nf(HIP.vViento,1)} m/s</b> a una temperatura
+      coincidente de <b>${nf(HIP.tViento)} °C</b>, con coeficiente de arrastre <b>${nf(HIP.cx,1)}</b>
+      (cilindro liso) sobre un conductor de <b>Ø ${nf(COND.diam_mm,2)} mm</b>. La <b>densidad del aire NO
+      está declarada</b> en la hipótesis: se adopta ${nf(RHO,3)} kg/m³, el valor a nivel del mar, y se dice
+      aquí en vez de esconderlo en el código. Con ${nf(HIP.vViento,1)} m/s, la presión y el empuje salen de
+      la geometría del cable; nada de esto está validado contra un estudio de viento de zona.</p>
+    <p class="aviso" style="margin-top:2px"><b>Procedencia: supuesto.</b> Esta hipótesis no viene de un
+      estudio ni de una norma de zona: viene del módulo de campo, sin validar y sin congelar. Es el motivo
+      por el que ninguno de los números de abajo es un dictamen firmable.</p>
+    <div class="kpis" style="margin-top:11px">
+      ${t.map((x,i)=>kpi(x[0],x[1],x[2], i===4 && ANG_BAL>30 ? 'rojo':'')).join('')}
+    </div>
+    ${ANG_BAL>30?`<p class="alerta"><b>Balanceo de ${nf(ANG_BAL,1)}°</b> — por encima de 30°. Con la cadena
+      tan inclinada, la distancia del conductor a la estructura deja de ser la de proyecto. No se puede
+      verificar: <b>la longitud de la cadena no está declarada en ninguna ficha.</b></p>`:''}
+  </div>
+  <div class="panel"><h2>Tiro y flecha con viento, tramo a tramo</h2>
+    ${tabla('El estado de máximo viento es el que dimensiona herrajes y estructuras. La carga resultante compone vectorialmente peso propio y empuje: no se suman, se componen.',
+      ['#','Tramo','VIR (m)','w propio (kgf/m)','w viento (kgf/m)','w resultante (kgf/m)','Tiro con viento (kgf)','% RTS','Flecha (m)','Balanceo'],
+      TRAMOS.map(t=>`<tr class="${t.est.viento>TOPE_DOCTRINA?'fuera':''}">
+        <td class="num">${t.n}</td><td>${APOYOS[t.desde].nom} → ${APOYOS[t.hasta].nom}</td>
+        <td class="num">${nf(t.vir,2)}</td><td class="num">${nf(COND.w,3)}</td>
+        <td class="num">${nf(W_VIENTO,3)}</td><td class="num">${nf(W_TOTAL,3)}</td>
+        <td class="num destaca">${nf(t.est.viento)}</td>
+        <td class="num">${nf(t.est.viento/COND.rts*100,1)} %</td>
+        <td class="num">${nf(flechaCat(W_TOTAL,t.vanoMax,t.est.viento),3)}</td>
+        <td class="num">${nf(ANG_BAL,1)}°</td></tr>`).join(''))}
+  </div>
+  <div class="panel"><h2>Lo que este cálculo NO dice</h2>
+    <p class="nota" style="margin-top:0"><b>No dice si los apoyos aguantan.</b> Calcula lo que el viento le
+      hace al CABLE. Lo que llega a la estructura está en Cargas — y allí no hay veredicto, porque ningún
+      apoyo declara su capacidad.</p>
+    <p class="nota"><b>No dice si el viento adoptado es el correcto.</b> ${nf(HIP.vViento,1)} m/s es un
+      supuesto. Un estudio de zona costera podría pedir más, y cada m/s entra al cuadrado en la presión.</p>
+    <p class="nota"><b>No dice nada del viento sobre la propia estructura</b>, que en apoyos altos no es
+      despreciable. Falta el área expuesta, que ninguna ficha declara.</p>
+    <p class="nota"><b>No considera viento oblicuo ni ráfaga.</b> El modelo es viento perpendicular al
+      conductor, uniforme y permanente.</p>
+    <p class="nota"><b>No verifica la distancia de la cadena a la estructura</b> con el balanceo calculado:
+      falta la longitud de la cadena.</p>
+  </div>`;
+}
+
+/* ── CARGAS ────────────────────────────────────────────────────────── */
+function notasAgrupadas(clave){
+  const m = new Map();
+  APOYOS.forEach(a => {
+    const ns = clave === 't' ? [
+      a.esExtremo ? null : 'Carga transversal compuesta con la hipótesis adoptada: quiebre y viento sumados alineados, que es el caso conservador.',
+      a.esExtremo ? 'Apoyo extremo: su caso de carga dominante es el longitudinal, que esta tabla no evalúa.' : null,
+      'Sin carga de rotura declarada: no hay utilización ni margen. No se estima.',
+      a.amplifica ? 'El quiebre amplifica: la estructura recibe MÁS carga transversal que el propio tiro del conductor.' : null,
+    ] : [
+      a.esExtremo ? 'Terminal: soporta el tiro entero del conductor, sin nada que lo equilibre al otro lado.' : null,
+      (!a.esExtremo && a.ancla) ? 'Anclaje intermedio: la carga longitudinal es el desequilibrio entre los tramos que separa, proyectado por cos(α/2).' : null,
+      (!a.ancla) ? 'Suspensión: el sentido de la carga longitudinal no es concluyente sin conocer el reparto real de tensiones sobre las poleas.' : null,
+      'Sin capacidad longitudinal declarada: no se deduce de la carga de rotura, que es ensayo transversal en punta.',
+    ];
+    ns.filter(Boolean).forEach(txt => { if(!m.has(txt)) m.set(txt,[]); m.get(txt).push(a.nom); });
+  });
+  return [...m.entries()].sort((x,y)=>x[1].length-y[1].length);
+}
+function secCargas(){
+  const conCarga = APOYOS.filter(a=>a.ftTotal!==null);
+  const peor = conCarga.reduce((m,a)=>a.ftTotal>m.ftTotal?a:m);
+  const peorF = APOYOS.filter(a=>a.factor!==null).reduce((m,a)=>a.factor>m.factor?a:m);
+  const tendido = TIRO_MAX*1.5;
+  const lonPeor = APOYOS.reduce((m,a)=>(a.lonNeta??0)>(m.lonNeta??0)?a:m);
+  const notasT = notasAgrupadas('t'), notasL = notasAgrupadas('l');
+  return `
+  <div class="panel"><h2>Eje transversal <em>perpendicular a la línea · quiebre + viento</em></h2>
+    <div class="kpis">
+      ${kpi('×'+nf(peorF.factor,3),'Mayor amplificación','En '+peorF.nom+' — deflexión '+nf(peorF.defl,1)+'°')}
+      ${kpi(nf(AMPLIFICAN),'Reciben más que el tiro','Factor mayor que 1 (deflexión > 60°)')}
+      ${kpi(nf(peor.ftTotal,0)+' <small>kgf</small>','Mayor carga transversal','En '+peor.nom+', con las '+nf(FASES)+' fases')}
+      ${kpi(nf(conCarga.length)+' <small>de '+nf(N)+'</small>','Con carga calculada','Los 2 terminales no: su caso es longitudinal')}
+      ${kpi('0 <small>de '+nf(N)+'</small>','Con capacidad declarada','No evaluable — y eso NO es «sano»','hueco')}
+    </div>
+    ${tabla('Carga en kgf, con las tres fases. La resultante del quiebre es PERMANENTE: existe con viento y sin él. Esta tabla no dimensiona ningún apoyo: compara una carga contra una capacidad declarada, y aquí no hay ninguna.',
+      ['#','Apoyo','Función','Deflexión','Factor','Vano viento (m)','Tiro (kgf)','Quiebre (kgf)','Viento (kgf)','Total (kgf)','Utilización','Estado'],
+      APOYOS.map(a=>`<tr class="${a.amplifica?'fuera':''} ${S.sel===a.i?'aqui':''}" data-ap="${a.i}" style="cursor:pointer">
+        <td class="num">${a.n}</td><td class="destaca">${a.nom}</td><td>${a.func}</td>
+        <td class="num">${a.defl===null?HUECO:nf(a.defl,1)+'°'}</td>
+        <td class="num ${a.amplifica?'destaca':''}">${a.factor===null?HUECO:'×'+nf(a.factor,3)}</td>
+        <td class="num">${nf(a.vViento,2)}</td><td class="num">${nf(a.tiro)}</td>
+        <td class="num">${a.ftAng===null?HUECO:nf(a.ftAng,0)}</td>
+        <td class="num">${nf(a.ftVie,0)}</td>
+        <td class="num destaca">${a.ftTotal===null?HUECO:nf(a.ftTotal,0)}</td>
+        <td class="num">${HUECO}</td>
+        <td><span class="sello-v no">no evaluable</span></td></tr>`).join(''))}
+  </div>
+  <div class="panel"><h2>Observaciones del cálculo transversal <em>agrupadas por texto</em></h2>
+    ${notasT.map(([txt,aps])=>`<p class="${aps.length<=3?'aviso':'nota'}" style="margin-top:6px">
+      ${txt} <b>(${aps.length===N?'las '+nf(N)+' estructuras':aps.join(', ')})</b></p>`).join('')}
+    <p class="fine">Veinticuatro filas con el mismo párrafo no informan de nada: tapan las tres que dicen algo
+      distinto. Cada observación aparece una vez, con la lista de apoyos que la comparten.</p>
+  </div>
+
+  <div class="panel" style="border-top:2px solid var(--b-azul)">
+    <h2>Eje longitudinal <em>en la dirección de la línea · NUNCA se suma al transversal</em></h2>
+    <div class="kpis">
+      ${kpi(nf(TIRO_MAX*FASES,0)+' <small>kgf</small>','Mayor carga longitudinal','E01 y E24: el tiro entero de las '+nf(FASES)+' fases','rojo')}
+      ${kpi(nf(5),'Tiran hacia los dos lados','Anclajes intermedios: E02, E04, E06, E20, E21')}
+      ${kpi(nf(tendido,0)+' <small>kgf</small>','Tiro de tendido de obra','1,5 × el tiro máximo, por conductor')}
+      ${kpi(nf(APOYOS.filter(a=>!a.ancla).length),'Sentido no concluyente','Suspensiones: depende del reparto real sobre poleas','hueco')}
+      ${kpi('0 <small>de '+nf(N)+'</small>','Capacidad longitudinal declarada','No se deduce de la carga de rotura','hueco')}
+      ${kpi('0 <small>de '+nf(N)+'</small>','Con veredicto','Mismo hueco, otro eje','hueco')}
+    </div>
+    ${tabla('La carga longitudinal es otro eje y otro caso de carga. Sumarla a la transversal sería sumar peras con manzanas: por eso van en dos tablas y nunca en una columna común.',
+      ['#','Apoyo','Caso','Deflexión','cos(α/2)','Hacia adelante (kgf)','Hacia atrás (kgf)','Neta (kgf)','Sentido','Capacidad','Utilización','Estado'],
+      APOYOS.map(a=>`<tr class="${a.esExtremo?'mal':''} ${S.sel===a.i?'aqui':''}" data-ap="${a.i}" style="cursor:pointer">
+        <td class="num">${a.n}</td><td class="destaca">${a.nom}</td><td class="txt">${a.lonCaso}</td>
+        <td class="num">${a.defl===null?HUECO:nf(a.defl,1)+'°'}</td>
+        <td class="num">${a.defl===null?HUECO:nf(Math.cos(a.defl*Math.PI/360),4)}</td>
+        <td class="num">${a.lonAdel===null?HUECO:nf(a.lonAdel,0)}</td>
+        <td class="num">${a.lonAtras===null?HUECO:nf(a.lonAtras,0)}</td>
+        <td class="num destaca">${a.lonNeta===null?HUECO:nf(a.lonNeta,0)}</td>
+        <td><span class="sello-v ${a.lonNeta===null?'no':'revisar'}">${a.lonSentido}</span></td>
+        <td class="num">${HUECO}</td><td class="num">${HUECO}</td>
+        <td><span class="sello-v no">no evaluable</span></td></tr>`).join(''))}
+  </div>
+  <div class="panel"><h2>Observaciones del cálculo longitudinal</h2>
+    ${notasL.map(([txt,aps])=>`<p class="${aps.length<=3?'aviso':'nota'}" style="margin-top:6px">
+      ${txt} <b>(${aps.length===N?'las '+nf(N)+' estructuras':aps.join(', ')})</b></p>`).join('')}
+  </div>
+  <div class="panel"><h2>Por qué esta pestaña no emite ni un veredicto</h2>
+    <p class="alerta" style="margin-top:0"><b>El sistema sabe cuánta carga RECIBE cada apoyo y no puede decir
+      cuánto AGUANTA.</b> Es el hueco más caro que tiene la línea, y es un hecho sobre los datos, no un fallo
+      de la aplicación. Un apoyo que «cumple» contra una rotura supuesta es un informe firmado sobre una
+      suposición.</p>
+    <p class="fine">Enciende la capa <b>«Inventario declarado»</b> en el mapa: la línea entera se queda hueca.
+      Eso es lo que hay.</p>
+  </div>`;
+}
+
+/* ── CANTIDADES ────────────────────────────────────────────────────── */
+function secCantidades(){
+  const totalCable = VANOS_INFO.reduce((s,v)=>s+v.longCat,0);
+  const porFuncion = {};
+  APOYOS.forEach(a => porFuncion[a.func] = (porFuncion[a.func]??0)+1);
+  return `
+  <div class="panel"><h2>Memoria de cantidades <em>geométrica · solo lo que la geometría demuestra</em></h2>
+    <div class="kpis">
+      ${kpi(nf(totalCable,2)+' <small>m</small>','Conductor por fase','Longitud por catenaria, no por vanos rectos')}
+      ${kpi(nf(totalCable*FASES,2)+' <small>m</small>','Conductor total','Con las '+nf(FASES)+' fases')}
+      ${kpi(nf(totalCable-LTOTAL,2)+' <small>m</small>','Sobrelargo por catenaria','Lo que la recta se deja: '+nf((totalCable/LTOTAL-1)*100,3)+' %')}
+      ${kpi(nf(N),'Estructuras','+ 2 empalmes, que no son apoyos')}
+      ${kpi(nf(VANOS.length),'Vanos','Ninguno partido por un empalme')}
+    </div>
+    ${tabla('La longitud de cable se calcula por catenaria vano a vano con el tiro EDS de SU tramo. Sumar los vanos rectos dejaría fuera el sobrelargo, que es lo que se compra de más.',
+      ['#','Vano','Tramo','Vano recto (m)','Tiro EDS (kgf)','Longitud por catenaria (m)','Sobrelargo (m)','De dónde sale'],
+      VANOS_INFO.map(v=>`<tr><td class="num">${v.n}</td><td>${v.de} → ${v.a2}</td><td class="num">T${v.t.n}</td>
+        <td class="num">${nf(v.a,2)}</td><td class="num">${nf(v.t.est.eds)}</td>
+        <td class="num destaca">${nf(v.longCat,3)}</td><td class="num">${nf(v.longCat-v.a,3)}</td>
+        <td class="txt">L = 2C·sinh(a/2C) con C = H/w del tramo ${v.t.n}</td></tr>`).join('') +
+      `<tr style="border-top:2px solid var(--bd-solido)"><td></td><td><b>Total por fase</b></td><td></td>
+        <td class="num"><b>${nf(LTOTAL,2)}</b></td><td></td>
+        <td class="num destaca"><b>${nf(totalCable,2)}</b></td>
+        <td class="num"><b>${nf(totalCable-LTOTAL,2)}</b></td><td class="txt">Suma de los 23 vanos</td></tr>`)}
+  </div>
+  <div class="dos-col">
+    <div class="panel"><h2>Conteo por función de apoyo</h2>
+      ${tabla('Los empalmes van aparte a propósito: no son apoyos, no se compran como apoyos y no se inspeccionan como apoyos.',
+        ['Función','Cantidad','Qué implica'],
+        Object.entries(porFuncion).map(([f,n])=>`<tr><td class="destaca">${f}</td><td class="num">${nf(n)}</td>
+          <td class="txt">${{'Terminal':'Soporta el tiro entero; su caso dominante es longitudinal.',
+            'Retención':'Corta el tramo de tensión.','Ángulo':'Corta el tramo y amplifica por el quiebre.',
+            'Suspensión':'Deja correr el conductor; admite hasta 5° de deflexión.'}[f]}</td></tr>`).join('') +
+        `<tr style="border-top:2px solid var(--bd-solido)"><td><b>Total estructuras</b></td>
+          <td class="num"><b>${nf(N)}</b></td><td class="txt">Es el número que va al informe.</td></tr>
+         <tr><td class="hueco-txt">Empalmes</td><td class="num hueco-txt">2</td>
+          <td class="txt">NO son apoyos. Contarlos partía un vano real de 247,80 m en dos falsos.</td></tr>`)}
+    </div>
+    <div class="panel"><h2>Lo que todavía NO se puede cuantificar</h2>
+      <p class="alerta" style="margin-top:0"><b>Un BOM inventado es peor que no tener BOM: alguien compra
+        con él.</b> Estas cuatro familias no salen de la geometría y ninguna ficha las declara.</p>
+      ${tabla('', ['Familia','Estado','Qué haría falta'],
+        [['Crucetas','no cuantificable','Material, longitud y cantidad por apoyo (cr_mat, cr_long, cr_cant)'],
+         ['Retenidas','no cuantificable','Cantidad y tipo por apoyo (ret_cant, ret_tipo)'],
+         ['Herrajes','no cuantificable','Depende del tipo de cadena y de la función real de cada apoyo'],
+         ['Aisladores','no cuantificable','Modelo, material y número de unidades por cadena (a_mod, a_n)'],
+         ['Puesta a tierra','no cuantificable','Tipo, número de electrodos y resistencia medida'],
+        ].map(r=>`<tr><td class="destaca">${r[0]}</td><td><span class="sello-v no">${r[1]}</span></td>
+          <td class="txt">${r[2]}</td></tr>`).join(''))}
+      <p class="fine">Todas se capturan en el módulo de campo F4. Mientras tanto, la memoria de cantidades es
+        <b>geométrica</b> y se llama así.</p>
+    </div>
+  </div>`;
+}
+
+/* ── EXPORTAR ──────────────────────────────────────────────────────── */
+function secExportar(){
+  const grupo = (titulo, items) => `<div class="panel"><h2>${titulo}</h2>
+    ${items.map(i=>`<div style="display:flex;gap:11px;align-items:flex-start;padding:8px 0;
+      border-bottom:var(--hairline) solid var(--bd-suave)">
+      <button class="boton ${i[4]?'ppal':''}" data-baja="${i[0]}" style="flex:0 0 auto;min-width:132px">${i[0]}</button>
+      <div><div style="font-size:12px;color:var(--tx2)">${i[1]}</div>
+        <div class="fine" style="margin-top:2px">Procedencia: ${i[2]} · ${i[3]}</div></div></div>`).join('')}</div>`;
+  const conCota = 0, conHora = N, sinNombre = 0;
+  return `
+  <div class="dos-col">
+    ${grupo('Levantamiento', [
+      ['GPX 1.1','Trazado y puntos para GPS de mano y aplicaciones de campo.','coordenadas normalizadas del levantamiento','26 puntos (24 estructuras + 2 empalmes)'],
+      ['KML','Para Google Earth. Los 6 tramos con su color, el mismo del mapa.','geometría + colores de tramo en aabbggrr','1 línea, 6 tramos, 26 puntos'],
+      ['CSV para Excel es-CO','Coma decimal y punto y coma como separador: abre bien de doble clic.','tabla de puntos normalizada','26 filas × 18 columnas'],
+      ['CSV crudo RFC 4180','Punto decimal, coma separadora. Para procesar, no para abrir.','misma tabla, sin adaptar','26 filas × 18 columnas'],
+    ])}
+    ${grupo('Cálculo', [
+      ['Verificación mecánica','Tramos, estados, % RTS, flechas y relación a/VIR.','motor v1.4.2 · hipótesis sin congelar','6 tramos + 23 vanos', true],
+      ['Memoria de cantidades','Longitud de conductor por catenaria y conteo por función.','geometría verificada','23 vanos + 4 funciones'],
+      ['Informe completo HTML','Todo lo consolidado, imprimible, se abre sin internet.','todas las secciones + sellos','1 archivo autocontenido', true],
+    ])}
+  </div>
+  <div class="dos-col">
+    <div class="panel"><h2>Completitud del dato <em>lo que va a salir en el archivo</em></h2>
+      ${tabla('', ['Campo','Cuántos puntos lo tienen','Consecuencia en el archivo'],
+        [['Coordenada', nf(26)+' de 26','Todos los formatos salen completos'],
+         ['Cota utilizable', nf(conCota)+' de 26','El GPX sale sin elevación: ±8 m no es una cota'],
+         ['Hora de captura', nf(conHora)+' de 26','Los 2 empalmes no la traen'],
+         ['Nombre canónico', nf(26-sinNombre)+' de 26','Ninguno cae al nombre del GPS'],
+         ['Función estructural', nf(N)+' de 24','Los empalmes no tienen función: no son apoyos'],
+         ['Carga de rotura','0 de 24','La columna sale vacía, con «—», no con cero'],
+        ].map(r=>`<tr class="${r[1].startsWith('0')?'fuera':''}"><td>${r[0]}</td>
+          <td class="num destaca">${r[1]}</td><td class="txt">${r[2]}</td></tr>`).join(''))}
+    </div>
+    <div class="panel"><h2>Qué cambia frente al módulo original</h2>
+      <p class="aviso" style="margin-top:0"><b>Los empalmes ya no cuentan como apoyos.</b> El original
+        exportaba 26 apoyos y 25 vanos; aquí salen <b>24 estructuras y 23 vanos</b>, y el vano de 247,80 m
+        aparece entero en vez de partido en 84,0 y 163,8 m.</p>
+      <p class="aviso"><b>El VIR se calcula por tramo.</b> El original usaba uno único de línea
+        (${nf(VIR_LINEA,2)} m); aquí cada tramo lleva el suyo, de ${nf(Math.min(...TRAMOS.map(t=>t.vir)),1)} a
+        ${nf(Math.max(...TRAMOS.map(t=>t.vir)),1)} m.</p>
+      <p class="nota"><b>Las columnas sin dato salen con «—».</b> El original escribía 0, y un 0 en una
+        columna de carga de rotura es una mentira que alguien acaba sumando.</p>
+      <div id="acuse" style="margin-top:12px"></div>
+    </div>
+  </div>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   CABLEADO Y CICLO DE PINTADO
+   ═══════════════════════════════════════════════════════════════════ */
+function cablearSeccion(){
+  document.querySelectorAll('[data-ap]').forEach(el => {
+    el.onclick = () => { S.sel = +el.dataset.ap; S.ficha = +el.dataset.ap; S.insp = 'punto'; render(); };
+  });
+  document.querySelectorAll('[data-ficha]').forEach(el => {
+    el.onclick = () => { const v = el.dataset.ficha;
+      S.ficha = v.startsWith('E') && v.length === 2 && !isNaN(+v[1]) ? v : +v;
+      if (typeof S.ficha === 'number'){ S.sel = S.ficha; S.insp = 'punto'; }
+      render(); };
+  });
+  document.querySelectorAll('[data-fund]').forEach(el => {
+    el.onclick = () => { S.fundamento = el.dataset.fund; pintarSeccion(); };
+  });
+  document.querySelectorAll('[data-ir]').forEach(el => {
+    el.onclick = () => { S.seccion = el.dataset.ir; render(); };
+  });
+  document.querySelectorAll('[data-par]').forEach(el => {
+    el.onclick = () => { const [i,j] = el.dataset.par.split(',').map(Number);
+      S.distA = i; S.distB = j; pintarSeccion(); };
+  });
+  const dA = $('dA'), dB = $('dB'), inv = $('invertir');
+  if (dA) dA.onchange = () => { S.distA = +dA.value; pintarSeccion(); };
+  if (dB) dB.onchange = () => { S.distB = +dB.value; pintarSeccion(); };
+  if (inv) inv.onclick = () => { const t = S.distA; S.distA = S.distB; S.distB = t; pintarSeccion(); };
+  document.querySelectorAll('[data-baja]').forEach(el => {
+    el.onclick = () => { const ac = $('acuse');
+      if (ac) ac.innerHTML = `<p class="ok" style="margin:0"><b>Acuse:</b> «${H(el.dataset.baja)}» se habría
+        preparado con el sello <b>motor v1.4.2 · hipótesis sin congelar · 03-08-2026</b>.
+        En esta maqueta no se descarga nada.</p>`;
+      if (ac) ac.scrollIntoView({block:'nearest', behavior:'smooth'}); };
+  });
+}
+
+function render(){
+  pintarFiltro(); pintarLista(); pintarBarra(); pintarCabLinea();
+  pintarCapas(); pintarMapa(); pintarBanda(); pintarSeccion(); pintarInspector(); pintarEstado();
+}
+function pintarEstado(){
+  const l = lineaActual();
+  const izq = esReal()
+    ? `<b>${nf(N)}</b> estructuras · <b>${nf(VANOS.length)}</b> vanos · <b>${nf(LTOTAL,0)}</b> m ·
+       <b>${nf(KV)}</b> kV · <b>${nf(TRAMOS.length)}</b> tramos · <b>103</b> fotografías`
+    : `<b>${nf(l.est)}</b> estructuras · <b>${nf(l.km,1)}</b> km · <b>${nf(l.kv,l.kv%1?1:0)}</b> kV`;
+  $('estado-barra').innerHTML =
+    `<span>${izq}</span>
+     <span>Capa: <b>${CAPAS.find(c=>c[0]===S.capa)[1]}</b></span>
+     <span>Sección: <b>${SECCIONES.find(s=>s[0]===S.seccion)[1]}</b></span>
+     <span>${S.sel===null?'Ningún apoyo señalado':'Señalado: <b>'+APOYOS[S.sel].nom+'</b>'}</span>
+     <details class="propone"><summary>Qué propone este diseño ▴</summary>
+       <div class="caja">
+         <h5>Territorio primero — la geografía como índice</h5>
+         <p>Al abrir una línea no te encuentras once pestañas: te encuentras <b>su trazado</b>, y encima le
+           enciendes la capa que te interesa — tramos de tensión, quiebres que amplifican, vanos fuera de
+           banda, inventario declarado, fotografías. Señalas E06 y el inspector de la derecha te cuenta ese
+           apoyo entero. Las once secciones siguen ahí, en el cajón de abajo, y la que tengas abierta
+           <b>sobrevive al cambio de línea</b>.</p>
+         <p><b>Qué gana:</b> «¿dónde está el problema?» se contesta en un gesto, no leyendo 24 filas por 12
+           columnas. Y el hueco se vuelve imposible de ignorar: enciende «Inventario declarado» y la línea
+           entera se queda hueca, porque 0 de 24 apoyos declaran capacidad. Eso es exactamente lo que pasa.</p>
+         <p><b>Qué pierde:</b> las tablas largas (Cargas, Distancias, Mecánico) viven en un cajón bajo el mapa
+           y tienen menos alto que si ocuparan la pantalla entera — se puede arrastrar el tirador, pero nunca
+           llegan a pantalla completa. Y una línea sin coordenadas fiables se queda sin su mejor índice: ahí
+           esta maqueta se defiende peor que las otras tres.</p>
+         <p><b>Cuándo elegirla:</b> si tu trabajo es decidir a qué apoyo mandas la cuadrilla, esta. Si es leer
+           tablas de arriba abajo, otra te servirá mejor. — <em>Maqueta: trazado sintético, sin una sola
+           coordenada real ni fotografía. Los conteos y las cifras de ingeniería son los del proyecto.</em></p>
+       </div></details>`;
+}
+
+/* ── Eventos globales ──────────────────────────────────────────────── */
+$('plegar').onclick = () => { document.body.classList.toggle('plegado');
+  setTimeout(()=>{ pintarMapa(); }, 200); };
+$('buscar').oninput = (e) => { S.busca = e.target.value; pintarLista(); };
+$('filtro').onclick = (e) => { const b = e.target.closest('[data-f]');
+  if (b){ S.filtro = b.dataset.f; pintarFiltro(); pintarLista(); } };
+$('lista').onclick = (e) => { const f = e.target.closest('[data-linea]');
+  if (f && f.dataset.linea !== S.linea){ S.linea = f.dataset.linea; S.sel = null;
+    S.insp = 'linea'; S.ficha = 0; render(); } };
+$('lista').onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' '){
+  const f = e.target.closest('[data-linea]'); if (f){ e.preventDefault(); f.click(); } } };
+$('capas').onchange = (e) => {
+  if (e.target.name === 'capa'){ S.capa = e.target.value; pintarCapas(); pintarMapa(); pintarEstado(); }
+  if (e.target.dataset.ov){ S.overlay[e.target.dataset.ov] = e.target.checked; pintarCapas(); pintarMapa(); }
+};
+$('banda').onclick = (e) => {
+  const b = e.target.closest('[data-sec]');
+  if (b){ S.seccion = b.dataset.sec; pintarBanda(); pintarSeccion(); pintarEstado();
+    $('panel-sec').scrollTop = 0; return; }
+  if (e.target.closest('#mas-alto')){
+    const c = $('cajon'), h = c.getBoundingClientRect().height;
+    c.style.height = (h > 560 ? 300 : h + 170) + 'px';
+    setTimeout(pintarMapa, 30);
+  }
+};
+/* Tirador: el cajón se puede dar más o menos alto, como un panel de Xcode. */
+(() => {
+  let arrastrando = false, y0 = 0, h0 = 0;
+  const t = $('tirador'), c = $('cajon');
+  t.onmousedown = (e) => { arrastrando = true; y0 = e.clientY;
+    h0 = c.getBoundingClientRect().height; document.body.style.cursor = 'ns-resize';
+    e.preventDefault(); };
+  addEventListener('mousemove', (e) => { if (!arrastrando) return;
+    const h = Math.min(innerHeight - 220, Math.max(120, h0 + (y0 - e.clientY)));
+    c.style.height = h + 'px'; });
+  addEventListener('mouseup', () => { if (!arrastrando) return;
+    arrastrando = false; document.body.style.cursor = ''; pintarMapa(); });
+})();
+$('insp-tabs').onclick = (e) => { const b = e.target.closest('[data-insp]');
+  if (b){ S.insp = b.dataset.insp; pintarInspector(); } };
+addEventListener('resize', () => { clearTimeout(window.__t);
+  window.__t = setTimeout(pintarMapa, 120); });
+addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  const i = SECCIONES.findIndex(s => s[0] === S.seccion);
+  if (e.key === 'ArrowRight' && e.metaKey){ S.seccion = SECCIONES[(i+1)%SECCIONES.length][0]; render(); }
+  if (e.key === 'ArrowLeft' && e.metaKey){ S.seccion = SECCIONES[(i-1+SECCIONES.length)%SECCIONES.length][0]; render(); }
+  if (e.key === 'Escape'){ S.sel = null; S.insp = 'linea'; render(); }
+});
+
+/* La línea vive en la URL. Sin esto, «la primera de la lista» deja de ser una
+   respuesta con 20 líneas — y no se puede mandar un enlace a una línea concreta.
+   Formato: #LN-627/cargas/quiebre/E06 */
+function leerURL(){
+  if (typeof location === 'undefined') return;
+  const h = (location.hash || '').replace(/^#/, '');
+  if (!h) return;
+  const [cod, sec, capa, ap] = h.split('/');
+  if (CARTERA.some(l => l.cod === cod)) S.linea = cod;
+  if (SECCIONES.some(s => s[0] === sec)) S.seccion = sec;
+  if (CAPAS.some(c => c[0] === capa)) S.capa = capa;
+  const i = APOYOS.findIndex(a => a.nom === ap);
+  if (i >= 0){ S.sel = i; S.ficha = i; S.insp = 'punto'; }
+}
+function escribirURL(){
+  if (typeof location === 'undefined') return;
+  const h = `#${S.linea}/${S.seccion}/${S.capa}${S.sel!==null?'/'+APOYOS[S.sel].nom:''}`;
+  try { if (location.hash !== h) history.replaceState(null, '', h); } catch (_) {}
+}
+addEventListener('hashchange', () => { leerURL(); render(); });
+const _render = render;
+render = function(){ _render(); escribirURL(); };
+
+/* El cajón arranca proporcional a la pantalla: en un 16" deja el mapa alto y
+   en una pantalla baja no lo ahoga. A partir de ahí manda el tirador. */
+$('cajon').style.height = Math.round(Math.max(260, Math.min(420, innerHeight * 0.38))) + 'px';
+
+leerURL();
+render();
+requestAnimationFrame(pintarMapa);
+
+</script>
+</body>
+</html>

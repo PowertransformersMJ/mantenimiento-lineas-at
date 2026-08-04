@@ -1,0 +1,2490 @@
+<!doctype html>
+<html lang="es-CO">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Líneas AT — Expediente navegable</title>
+<style>
+/* ============================================================================
+   TOKENS — la identidad del módulo de campo LN-627, llevada a macOS oscuro.
+   No se sustituye la paleta: se conserva (#0f1419 lienzo, #171d24 panel, ámbar
+   #f0a500, rótulos de 11,5 px en mayúsculas, cifras tabulares) y se le añade lo
+   que hace que un Mac parezca un Mac.
+   ========================================================================= */
+:root {
+  color-scheme: dark;
+
+  --lienzo:      #0f1419;
+  --lienzo-hond: #0b0f13;
+  --pnl:         #171d24;
+  --pnl2:        #1e262f;
+  --pnl-alto: linear-gradient(180deg, #1a212a 0%, var(--pnl) 62%);
+
+  --sidebar-fondo:  rgba(19, 25, 32, .62);
+  --indice-fondo:   rgba(15, 20, 25, .55);
+  --barra-fondo:    rgba(22, 28, 35, .72);
+  --flotante-fondo: rgba(30, 38, 47, .86);
+  --vibrante: saturate(180%) blur(30px);
+
+  --bd:        rgba(255,255,255,.075);
+  --bd-suave:  rgba(255,255,255,.05);
+  --bd-fuerte: rgba(255,255,255,.13);
+  --bd-solido: #2b353f;
+  --hairline:  .5px;
+
+  --tx:    #e6edf3;
+  --tx2:   #c6d3de;
+  --mut:   #8b98a5;
+  --tenue: #6f7d8a;
+
+  --acc:       #f0a500;
+  --acc-tx:    #1a1200;
+  --acc-suave: rgba(240,165,0,.14);
+  --acc-borde: rgba(240,165,0,.32);
+  --acc-tinte: #2a2113;
+  --anillo-foco: 0 0 0 3px rgba(240,165,0,.32);
+
+  --sel-fondo:    var(--acc-suave);
+  --sel-tx:       var(--acc);
+  --sel-inactiva: rgba(255,255,255,.06);
+
+  --gr: #7fc96a;  --rd: #e05252;  --az: #5b8dd9;
+  --t-verde: #16240f;  --t-rojo: #2a1616;  --t-azul: #12202c;  --b-azul: #24455e;
+  --hueco: var(--tenue);
+
+  --fuente:      -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", system-ui, sans-serif;
+  --fuente-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
+  --t-base:   13px;
+  --t-prosa:  12.6px;
+  --t-fino:   11.4px;
+  --t-rotulo: 11.5px;
+  --t-micro:  10px;
+  --t-tabla:  11.8px;
+  --t-matriz: 9.8px;
+  --t-cifra:  21px;
+  --ls-rotulo: 1px;
+  --ls-micro:  .7px;
+  --lh: 1.5;
+  --num: tabular-nums;
+
+  --r-xs: 4px; --r-sm: 6px; --r-md: 8px; --r-lg: 10px; --r-pastilla: 999px;
+
+  --luz-arriba: inset 0 1px 0 rgba(255,255,255,.045);
+  --sombra-1: 0 1px 2px rgba(0,0,0,.35);
+  --sombra-2: 0 6px 20px -6px rgba(0,0,0,.55);
+  --sombra-flotante: 0 14px 40px -10px rgba(0,0,0,.65), 0 0 0 1px rgba(0,0,0,.4);
+
+  --sidebar-ancho: 262px;
+  --indice-ancho:  222px;
+  --barra-alto:    38px;
+  --salto-alto:    27px;
+  --fila-lista:    28px;
+  --pad-celda: 5px 8px;
+  --gap: 8px;
+  --medida-prosa: 82ch;
+
+  --curva: cubic-bezier(.2,.7,.3,1);
+  --rapido: .12s;
+  --medio:  .18s;
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root { --sidebar-fondo:#131920; --indice-fondo:#10161c; --barra-fondo:#161c23; --flotante-fondo:#1e262f; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  :root { --sidebar-fondo:#131920; --indice-fondo:#10161c; --barra-fondo:#161c23; --flotante-fondo:#1e262f; --vibrante: none; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  font: 400 var(--t-base)/var(--lh) var(--fuente);
+  background: var(--lienzo); color: var(--tx);
+  -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+  overflow: hidden;
+}
+button { font-family: inherit; }
+:focus-visible { outline: none; box-shadow: var(--anillo-foco); border-radius: var(--r-sm); }
+
+/* Barras de desplazamiento de macOS: finas, sin pista, solo cuando hacen falta */
+.doc::-webkit-scrollbar, .sidebar::-webkit-scrollbar, .indice::-webkit-scrollbar,
+.tabla-caja::-webkit-scrollbar, .matriz-caja::-webkit-scrollbar { width: 9px; height: 9px; }
+.doc::-webkit-scrollbar-track, .sidebar::-webkit-scrollbar-track, .indice::-webkit-scrollbar-track,
+.tabla-caja::-webkit-scrollbar-track, .matriz-caja::-webkit-scrollbar-track { background: transparent; }
+.doc::-webkit-scrollbar-thumb, .sidebar::-webkit-scrollbar-thumb, .indice::-webkit-scrollbar-thumb,
+.tabla-caja::-webkit-scrollbar-thumb, .matriz-caja::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,.16); border-radius: 5px; border: 2px solid transparent; background-clip: content-box;
+}
+.doc:hover::-webkit-scrollbar-thumb, .sidebar:hover::-webkit-scrollbar-thumb { background: rgba(255,255,255,.26); background-clip: content-box; }
+
+/* ══ Ventana ═══════════════════════════════════════════════════════════════ */
+.ventana { display: grid; grid-template-rows: var(--barra-alto) 1fr; height: 100%; }
+
+.barra {
+  position: relative; z-index: 40;
+  display: flex; align-items: center; gap: 10px; padding: 0 11px;
+  background: var(--barra-fondo);
+  -webkit-backdrop-filter: var(--vibrante); backdrop-filter: var(--vibrante);
+  border-bottom: var(--hairline) solid var(--bd);
+  box-shadow: 0 1px 0 rgba(0,0,0,.28);
+}
+.semaforos { display: flex; gap: 8px; align-items: center; padding-right: 4px; }
+.semaforos i { width: 11px; height: 11px; border-radius: 50%; display: block; box-shadow: inset 0 0 0 .5px rgba(0,0,0,.28); }
+.semaforos i:nth-child(1) { background: #e05a52; }
+.semaforos i:nth-child(2) { background: #dfa72a; }
+.semaforos i:nth-child(3) { background: #4fb04f; }
+
+.barra-boton {
+  appearance: none; background: none; border: 0; cursor: pointer;
+  width: 26px; height: 22px; border-radius: var(--r-sm);
+  display: grid; place-items: center; color: var(--mut);
+  transition: background var(--rapido) var(--curva), color var(--rapido) var(--curva);
+}
+.barra-boton:hover { background: rgba(255,255,255,.07); color: var(--tx); }
+.barra-boton.activo { color: var(--acc); }
+.barra-boton svg { width: 15px; height: 15px; }
+
+.barra-centro {
+  position: absolute; left: 50%; top: 0; transform: translateX(-50%);
+  height: 100%; display: flex; align-items: center; gap: 8px; pointer-events: none;
+}
+.barra-titulo { font-size: 13px; font-weight: 600; letter-spacing: .1px; color: var(--tx); }
+.barra-titulo span { color: var(--mut); font-weight: 400; }
+.pastilla-maqueta {
+  font-size: 9.4px; font-weight: 700; letter-spacing: .9px; text-transform: uppercase;
+  color: var(--mut); border: var(--hairline) solid var(--bd-fuerte);
+  border-radius: var(--r-pastilla); padding: 2px 7px;
+}
+.barra-der { margin-left: auto; display: flex; align-items: center; gap: 3px; }
+.barra-sello { font-size: var(--t-fino); color: var(--tenue); font-variant-numeric: var(--num); margin-right: 6px; white-space: nowrap; }
+.barra-sello b { color: var(--mut); font-weight: 500; }
+
+.cuerpo {
+  display: grid;
+  grid-template-columns: var(--sidebar-ancho) var(--indice-ancho) minmax(0, 1fr);
+  min-height: 0; overflow: hidden;
+  transition: grid-template-columns var(--medio) var(--curva);
+}
+.cuerpo.sin-sidebar { grid-template-columns: 0px var(--indice-ancho) minmax(0, 1fr); }
+.cuerpo.sin-indice  { grid-template-columns: var(--sidebar-ancho) 0px minmax(0, 1fr); }
+.cuerpo.sin-sidebar.sin-indice { grid-template-columns: 0px 0px minmax(0, 1fr); }
+
+/* ══ Barra lateral de líneas ═══════════════════════════════════════════════ */
+.sidebar {
+  overflow-y: auto; overflow-x: hidden; min-width: 0;
+  background: var(--sidebar-fondo);
+  -webkit-backdrop-filter: var(--vibrante); backdrop-filter: var(--vibrante);
+  border-right: var(--hairline) solid var(--bd);
+  padding: 8px 0 20px;
+}
+.buscar { padding: 2px 10px 8px; }
+.buscar input {
+  width: 100%; appearance: none; font: 400 12px/1.3 var(--fuente);
+  color: var(--tx); background: rgba(0,0,0,.24);
+  border: var(--hairline) solid var(--bd); border-radius: var(--r-sm);
+  padding: 5px 8px 5px 24px;
+}
+.buscar { position: relative; }
+.buscar svg { position: absolute; left: 18px; top: 8px; width: 12px; height: 12px; color: var(--tenue); pointer-events: none; }
+.buscar input::placeholder { color: var(--tenue); }
+.buscar input:focus { outline: none; border-color: var(--acc-borde); box-shadow: var(--anillo-foco); }
+
+.segmentado { display: flex; margin: 0 10px 10px; background: rgba(0,0,0,.24); border-radius: var(--r-sm); padding: 2px; gap: 2px; }
+.segmentado button {
+  flex: 1; appearance: none; border: 0; background: none; cursor: pointer;
+  font: 500 10.6px/1 var(--fuente); color: var(--mut); padding: 4px 0; border-radius: 4px;
+  letter-spacing: .2px;
+}
+.segmentado button.activo { background: rgba(255,255,255,.09); color: var(--tx); box-shadow: 0 1px 1px rgba(0,0,0,.3); }
+
+.grupo-rotulo {
+  display: flex; align-items: center; gap: 6px;
+  padding: 12px 12px 4px; font-size: var(--t-micro); font-weight: 700;
+  text-transform: uppercase; letter-spacing: var(--ls-rotulo); color: var(--tenue);
+}
+.grupo-rotulo .cuenta { margin-left: auto; font-weight: 500; letter-spacing: 0; font-variant-numeric: var(--num); }
+.grupo-rotulo .pt { width: 6px; height: 6px; border-radius: 50%; }
+
+.fila-linea {
+  display: flex; align-items: center; gap: 8px; width: calc(100% - 12px);
+  margin: 0 6px; height: var(--fila-lista); padding: 0 8px;
+  appearance: none; background: none; border: 0; cursor: pointer;
+  border-radius: var(--r-md); color: var(--tx2); text-align: left;
+  font: 400 12.2px/1 var(--fuente);
+  transition: background var(--rapido) var(--curva), color var(--rapido) var(--curva);
+}
+.fila-linea:hover { background: rgba(255,255,255,.045); }
+.fila-linea .pt { flex: none; width: 7px; height: 7px; border-radius: 50%; }
+.fila-linea .cod { font-variant-numeric: var(--num); letter-spacing: .1px; }
+.fila-linea .meta { margin-left: auto; font-size: 10.4px; color: var(--tenue); font-variant-numeric: var(--num); }
+.fila-linea.sel { background: var(--sel-fondo); color: var(--sel-tx); box-shadow: inset 2px 0 0 var(--acc); font-weight: 600; }
+.fila-linea.sel .meta { color: var(--acc); opacity: .8; }
+.fila-linea.oculta { display: none; }
+
+.pt.critico { background: var(--rd); }
+.pt.atender { background: var(--acc); }
+.pt.sin     { background: var(--az); }
+.pt.bien    { background: var(--gr); }
+
+.sidebar-pie {
+  margin: 16px 12px 0; padding-top: 10px; border-top: var(--hairline) solid var(--bd);
+  font-size: 10.4px; line-height: 1.55; color: var(--tenue);
+}
+.sidebar-pie b { color: var(--mut); font-weight: 600; }
+
+/* ══ Índice del documento ══════════════════════════════════════════════════ */
+.indice {
+  overflow-y: auto; overflow-x: hidden; min-width: 0;
+  background: var(--indice-fondo);
+  -webkit-backdrop-filter: var(--vibrante); backdrop-filter: var(--vibrante);
+  border-right: var(--hairline) solid var(--bd);
+  padding: 10px 0 24px;
+}
+.indice-cab { padding: 2px 12px 8px; }
+.indice-cab .rot { font-size: var(--t-micro); text-transform: uppercase; letter-spacing: var(--ls-rotulo); color: var(--tenue); font-weight: 700; }
+.indice-cab .nom { font-size: 12.4px; font-weight: 600; color: var(--tx); margin-top: 2px; font-variant-numeric: var(--num); }
+.indice-cab .est { font-size: 10.4px; color: var(--mut); margin-top: 1px; }
+
+.idx {
+  display: grid; grid-template-columns: 17px 1fr auto; align-items: baseline; gap: 7px;
+  width: calc(100% - 12px); margin: 0 6px; padding: 4px 8px;
+  appearance: none; background: none; border: 0; cursor: pointer; border-radius: var(--r-md);
+  color: var(--mut); text-align: left; font: 400 11.8px/1.35 var(--fuente);
+  transition: background var(--rapido) var(--curva), color var(--rapido) var(--curva);
+}
+.idx:hover { background: rgba(255,255,255,.045); color: var(--tx2); }
+.idx > span:nth-child(2) {
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden; min-width: 0;
+}
+.idx .n { font-variant-numeric: var(--num); font-size: 10.6px; color: var(--tenue); text-align: right; }
+.idx .pg { font-size: 9.6px; color: var(--tenue); font-variant-numeric: var(--num); }
+.idx.act { background: var(--sel-fondo); color: var(--sel-tx); font-weight: 600; box-shadow: inset 2px 0 0 var(--acc); }
+.idx.act .n, .idx.act .pg { color: var(--acc); opacity: .82; }
+.idx.hijo { grid-template-columns: 17px 1fr; font-size: 11.2px; padding-left: 26px; width: calc(100% - 32px); margin-left: 26px; }
+.idx.hijo .n { font-size: 10px; }
+.idx.marca-hueco::after { content: ''; }
+.idx .aviso-pt { display: inline-block; width: 5px; height: 5px; border-radius: 50%; margin-left: 5px; vertical-align: 1px; }
+
+/* ══ Panel del documento ═══════════════════════════════════════════════════ */
+.doc-pane { display: grid; grid-template-rows: var(--salto-alto) 1fr; min-width: 0; min-height: 0; }
+
+.salto {
+  display: flex; align-items: center; gap: 8px; padding: 0 14px;
+  background: var(--barra-fondo);
+  -webkit-backdrop-filter: var(--vibrante); backdrop-filter: var(--vibrante);
+  border-bottom: var(--hairline) solid var(--bd);
+  font-size: var(--t-fino); color: var(--mut); z-index: 20;
+}
+.salto .miga { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.salto .miga b { color: var(--tx2); font-weight: 600; }
+.salto .sep { color: var(--tenue); }
+.salto .nav { margin-left: auto; display: flex; gap: 2px; }
+.salto .nav button {
+  appearance: none; background: none; border: 0; cursor: pointer; color: var(--mut);
+  width: 21px; height: 19px; border-radius: 4px; display: grid; place-items: center;
+}
+.salto .nav button:hover { background: rgba(255,255,255,.07); color: var(--tx); }
+.salto .nav svg { width: 11px; height: 11px; }
+.salto .prog { font-variant-numeric: var(--num); color: var(--tenue); font-size: 10.4px; margin-left: 8px; }
+
+.doc { overflow-y: auto; overflow-x: hidden; padding: 0 0 28vh; }
+.hoja { max-width: 1120px; margin: 0 auto; padding: 0 34px; }
+
+/* ── El documento: aquí manda la lectura ───────────────────────────────── */
+.doc p, .doc li { font-size: var(--t-prosa); line-height: 1.62; color: var(--tx2); }
+.doc p { margin: 9px 0 0; max-width: var(--medida-prosa); }
+.doc b, .doc strong { color: var(--tx); font-weight: 600; }
+.doc em { font-style: normal; color: var(--acc); }
+.num, .cifra, .tabla, .kpi-v, .mono { font-variant-numeric: var(--num); }
+.mono { font-family: var(--fuente-mono); font-size: 11.4px; }
+
+.seccion { padding: 26px 0 6px; scroll-margin-top: 8px; }
+.sec-cab {
+  display: grid; grid-template-columns: 34px 1fr auto; align-items: baseline; gap: 10px;
+  padding-bottom: 8px; border-bottom: var(--hairline) solid var(--bd-fuerte);
+}
+.sec-num { font: 600 19px/1 var(--fuente); color: var(--acc); font-variant-numeric: var(--num); text-align: right; }
+.sec-cab h2 { margin: 0; font-size: 17.5px; font-weight: 600; letter-spacing: -.15px; color: var(--tx); }
+.sec-cab .pg { font-size: var(--t-micro); color: var(--tenue); text-transform: uppercase; letter-spacing: var(--ls-micro); }
+.sec-lead { margin: 10px 0 0 44px !important; color: var(--mut) !important; font-size: 12.2px !important; }
+.sec-cuerpo { padding-left: 44px; }
+
+h3.sub {
+  margin: 22px 0 0; font-size: var(--t-rotulo); font-weight: 700; color: var(--mut);
+  text-transform: uppercase; letter-spacing: var(--ls-rotulo);
+  padding-bottom: 5px; border-bottom: var(--hairline) solid var(--bd);
+}
+h3.sub .n { color: var(--acc); margin-right: 6px; font-variant-numeric: var(--num); }
+h4.sub2 { margin: 16px 0 0; font-size: 12.6px; font-weight: 600; color: var(--tx); }
+
+.corte-pagina {
+  display: flex; align-items: center; gap: 12px; margin: 34px 0 0;
+  font-size: 9.6px; letter-spacing: var(--ls-micro); text-transform: uppercase; color: var(--tenue);
+  font-variant-numeric: var(--num);
+}
+.corte-pagina::before, .corte-pagina::after { content: ''; flex: 1; height: var(--hairline); background: var(--bd); }
+
+/* ── Portada ──────────────────────────────────────────────────────────── */
+.portada { padding: 34px 0 4px; }
+.portada .rot { font-size: var(--t-micro); text-transform: uppercase; letter-spacing: 1.4px; color: var(--mut); font-weight: 700; }
+.portada h1 { margin: 6px 0 0; font-size: 33px; font-weight: 600; letter-spacing: -.6px; font-variant-numeric: var(--num); }
+.portada h1 small { font-size: 15px; font-weight: 400; color: var(--mut); letter-spacing: 0; margin-left: 10px; }
+.portada .desc { margin: 6px 0 0; font-size: 13px; color: var(--tx2); max-width: var(--medida-prosa); }
+
+.veredicto {
+  display: flex; gap: 14px; align-items: flex-start; margin: 18px 0 0; padding: 14px 16px;
+  border-radius: var(--r-lg); border: var(--hairline) solid #6b2b2b;
+  background: linear-gradient(135deg, #2a1616 0%, #241a14 100%);
+  box-shadow: var(--luz-arriba), var(--sombra-1);
+}
+.veredicto.ok { border-color: #33502c; background: linear-gradient(135deg, var(--t-verde) 0%, #141f14 100%); }
+.veredicto-icono {
+  flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center;
+  background: #d64545; color: #fff; font-size: 17px; font-weight: 700;
+  box-shadow: 0 0 0 4px rgba(214,69,69,.16);
+}
+.veredicto.ok .veredicto-icono { background: #4e9b3c; box-shadow: 0 0 0 4px rgba(127,201,106,.16); }
+.veredicto-t { font-size: 15px; font-weight: 600; color: #fff; }
+.veredicto-c { margin: 4px 0 0 !important; font-size: 12.4px !important; color: #e8c9c9 !important; max-width: 92ch !important; }
+.veredicto.ok .veredicto-c { color: #cfe8c2 !important; }
+.veredicto-c b { color: #fff !important; }
+
+.banda-estado { display: grid; grid-template-columns: repeat(auto-fit, minmax(218px, 1fr)); gap: 8px; margin: 12px 0 0; }
+.estado-ficha {
+  display: flex; align-items: flex-start; gap: 10px;
+  background: var(--pnl-alto); border: var(--hairline) solid var(--bd);
+  border-radius: var(--r-lg); padding: 10px 12px;
+  box-shadow: var(--luz-arriba), var(--sombra-1);
+}
+.estado-punto { flex: none; margin-top: 4px; width: 9px; height: 9px; border-radius: 50%; background: var(--mut); box-shadow: 0 0 0 3px rgba(139,152,165,.14); }
+.estado-ficha.bien .estado-punto { background: var(--gr); box-shadow: 0 0 0 3px rgba(127,201,106,.16); }
+.estado-ficha.atender .estado-punto { background: var(--acc); box-shadow: 0 0 0 3px rgba(240,165,0,.18); }
+.estado-ficha.critico .estado-punto { background: var(--rd); box-shadow: 0 0 0 3px rgba(224,82,82,.2); }
+.estado-ficha.critico { border-color: rgba(224,82,82,.28); }
+.estado-t { display: block; font-size: 9.6px; text-transform: uppercase; letter-spacing: var(--ls-micro); color: var(--mut); }
+.estado-v { display: block; font-size: 12.6px; font-weight: 600; color: var(--tx); margin-top: 2px; line-height: 1.38; }
+.estado-ficha.critico .estado-v { color: #ff9c9c; }
+.estado-ficha.atender .estado-v { color: var(--acc); }
+.estado-ficha.bien .estado-v { color: #bfe6b0; }
+.estado-s { display: block; font-size: 10.6px; color: var(--tenue); margin-top: 3px; line-height: 1.45; }
+
+.identidad { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 0 26px; margin: 16px 0 0; }
+.identidad dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 0 14px; }
+.identidad dt, .identidad dd {
+  font-size: 11.8px; padding: 4px 0; border-bottom: var(--hairline) solid var(--bd-suave);
+}
+.identidad dt { color: var(--mut); white-space: nowrap; }
+.identidad dd { margin: 0; color: var(--tx); text-align: right; font-variant-numeric: var(--num); }
+
+/* ── Indicadores ──────────────────────────────────────────────────────── */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)); gap: 8px; margin-top: 11px; }
+.kpis.k6 { grid-template-columns: repeat(6, 1fr); }
+.kpis.k5 { grid-template-columns: repeat(5, 1fr); }
+.kpis.k4 { grid-template-columns: repeat(4, 1fr); }
+.kpi {
+  background: linear-gradient(180deg, #16283a 0%, var(--t-azul) 70%);
+  border: var(--hairline) solid var(--b-azul); border-radius: var(--r-lg); padding: 9px 11px;
+  box-shadow: var(--luz-arriba), var(--sombra-1); min-width: 0;
+}
+.kpi-v { font-size: var(--t-cifra); font-weight: 600; color: var(--acc); line-height: 1.14; letter-spacing: -.3px; }
+.kpi-v small { font-size: 12px; font-weight: 500; color: var(--mut); letter-spacing: 0; }
+.kpi-v.rojo { color: #f08585; } .kpi-v.verde { color: #a3dd8f; } .kpi-v.azul { color: #86aae3; }
+.kpi-v.hueco { color: var(--hueco); font-weight: 400; }
+.kpi-l { margin-top: 2px; font-size: var(--t-micro); color: var(--mut); text-transform: uppercase; letter-spacing: var(--ls-micro); }
+.kpi-s { margin-top: 4px; font-size: 10.6px; color: var(--tenue); line-height: 1.45; }
+
+/* ── Paneles, avisos y sellos ─────────────────────────────────────────── */
+.panel {
+  margin: 12px 0 0; padding: 12px 14px 14px;
+  background: var(--pnl-alto); border: var(--hairline) solid var(--bd); border-radius: var(--r-lg);
+  box-shadow: var(--luz-arriba), var(--sombra-1);
+}
+.panel > h4 { margin: 0 0 6px; font-size: var(--t-rotulo); font-weight: 700; color: var(--mut); text-transform: uppercase; letter-spacing: var(--ls-rotulo); }
+.panel p { max-width: 96ch; }
+
+.aviso, .alerta, .ok, .nota {
+  margin: 11px 0 0; padding: 9px 12px; border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  font-size: 12.2px; line-height: 1.58; max-width: 100ch;
+}
+.aviso  { background: var(--acc-tinte); border-left: 3px solid var(--acc); color: #e8d9b8; }
+.alerta { background: var(--t-rojo);  border-left: 3px solid var(--rd);  color: #f0c9c9; }
+.ok     { background: var(--t-verde); border-left: 3px solid var(--gr);  color: #cfe8c2; }
+.nota   { background: var(--t-azul);  border-left: 3px solid var(--az);  color: #cfe0ef; }
+.aviso b { color: var(--acc); } .alerta b { color: #ffb4b4; } .ok b { color: #d6f0c8; } .nota b { color: #d6e6f5; }
+
+.fine { color: var(--mut); font-size: var(--t-fino); line-height: 1.6; margin: 7px 0 0; max-width: var(--medida-prosa); }
+.fine b { color: var(--tx2); }
+.sello-calculo {
+  display: block; margin-top: 7px; font-size: 10.4px; color: #7d8b98; font-variant-numeric: var(--num);
+  border-left: 2px solid var(--bd-fuerte); padding-left: 8px;
+}
+.sello-calculo b { color: var(--mut); font-weight: 600; }
+
+.sello {
+  display: inline-block; font-size: 10px; font-weight: 700; border-radius: var(--r-pastilla);
+  padding: 2px 8px; text-transform: uppercase; letter-spacing: .5px; white-space: nowrap;
+}
+.sello.ambar { background: #3a2c0c; color: var(--acc); border: var(--hairline) solid var(--acc-borde); }
+.sello.azul  { background: var(--t-azul); color: #86aae3; border: var(--hairline) solid var(--b-azul); }
+.sello.gris  { background: #232c35; color: var(--mut); border: var(--hairline) dashed var(--bd-fuerte); }
+.sello.verde { background: var(--t-verde); color: #bfe6b0; border: var(--hairline) solid #33502c; }
+.sello.rojo  { background: #3a1414; color: #ff9c9c; border: var(--hairline) solid #6b2b2b; }
+
+/* ── Tablas ───────────────────────────────────────────────────────────── */
+.tabla-caja { overflow-x: auto; border: var(--hairline) solid var(--bd); border-radius: var(--r-lg); margin-top: 10px; background: var(--pnl); }
+.tabla { width: 100%; border-collapse: collapse; font-size: var(--t-tabla); }
+.tabla caption { text-align: left; color: var(--mut); font-size: var(--t-fino); padding: 9px 11px 8px; line-height: 1.5; }
+.tabla th {
+  background: #1b242c; color: var(--mut); font-weight: 600; font-size: 9.8px;
+  text-transform: uppercase; letter-spacing: .5px; white-space: nowrap;
+  padding: 6px 8px; text-align: left; border-bottom: var(--hairline) solid var(--bd-fuerte);
+  position: sticky; top: 0; z-index: 2;
+}
+.tabla td { padding: var(--pad-celda); border-bottom: var(--hairline) solid var(--bd-suave); color: var(--tx2); }
+.tabla tbody tr:last-child td { border-bottom: 0; }
+.tabla .num { text-align: right; }
+.tabla .destaca { color: var(--acc); font-weight: 600; }
+.tabla .hueco { color: var(--hueco); }
+.tabla tbody tr:hover td { background: rgba(255,255,255,.028); }
+.tabla tr.fuera td { background: rgba(240,165,0,.07); }
+.tabla tr.excede td { background: rgba(224,82,82,.10); }
+.tabla tr.refer td { background: rgba(91,141,217,.10); }
+.tabla tr.refer td:first-child { box-shadow: inset 2px 0 0 var(--az); }
+.tabla .porq { color: var(--tenue); font-size: 10.8px; line-height: 1.45; white-space: normal; }
+.tabla-nota { font-size: 10.6px; color: var(--tenue); padding: 7px 11px; border-top: var(--hairline) solid var(--bd-suave); }
+
+.matriz-caja { overflow: auto; max-height: 58vh; border: var(--hairline) solid var(--bd); border-radius: var(--r-lg); margin-top: 10px; background: var(--pnl); }
+.matriz { border-collapse: collapse; font-size: var(--t-matriz); font-variant-numeric: var(--num); }
+.matriz th, .matriz td { padding: 3px 6px; text-align: right; border: var(--hairline) solid rgba(255,255,255,.04); white-space: nowrap; }
+.matriz thead th { position: sticky; top: 0; background: #1b242c; color: var(--mut); z-index: 2; font-weight: 600; font-size: 9.4px; }
+.matriz .pegado { position: sticky; left: 0; background: #1b242c; color: var(--mut); z-index: 1; text-align: left; font-weight: 600; }
+.matriz thead .pegado { z-index: 3; }
+.matriz td { cursor: pointer; color: var(--tx2); }
+.matriz td:hover { background: #2b3b48 !important; color: var(--acc); }
+.matriz td.diag { color: var(--tenue); background: rgba(0,0,0,.22) !important; cursor: default; }
+.matriz td.sel { outline: 2px solid var(--acc); outline-offset: -2px; color: var(--acc); font-weight: 700; }
+
+/* ── Barras de distribución ───────────────────────────────────────────── */
+.dist-barras { margin-top: 10px; display: flex; flex-direction: column; gap: 2px; }
+.barra-fila { display: grid; grid-template-columns: 118px 1fr 92px; gap: 9px; align-items: center; }
+.barra-nombre { font-size: 10.2px; color: var(--mut); text-align: right; white-space: nowrap; font-variant-numeric: var(--num); }
+.barra-pista { position: relative; height: 13px; background: var(--lienzo-hond); border-radius: 3px; overflow: hidden; }
+.barra-valor { position: absolute; inset: 0 auto 0 0; background: var(--acc); border-radius: 3px; min-width: 2px; opacity: .85; }
+.barra-valor.fuera { background: #d98a1e; }
+.barra-promedio { position: absolute; top: -2px; bottom: -2px; width: 1.5px; background: var(--tx); opacity: .55; }
+.barra-cifra { font-size: 10.2px; color: var(--tx2); text-align: right; font-variant-numeric: var(--num); }
+.barra-cifra i { font-style: normal; color: var(--tenue); }
+.barra-cifra i.fuera { color: var(--acc); }
+
+/* ── Lista de hallazgos ───────────────────────────────────────────────── */
+.hallazgos { margin: 10px 0 0; padding: 0; list-style: none; display: grid; gap: 5px; }
+.hallazgos li {
+  padding: 8px 11px; border-radius: 0 var(--r-sm) var(--r-sm) 0; font-size: 12px; line-height: 1.55;
+  border-left: 3px solid var(--bd-fuerte); background: var(--pnl2); color: var(--tx2); max-width: 108ch;
+}
+.hallazgos li.atencion { border-left-color: var(--rd); background: var(--t-rojo); color: #f0c9c9; }
+.hallazgos li.aviso    { border-left-color: var(--acc); background: var(--acc-tinte); color: #e8d9b8; }
+.hallazgos li.info     { color: var(--mut); }
+.hallazgos li b { color: var(--tx); }
+.hallazgos li.aviso b { color: var(--acc); }
+.hallazgos li.atencion b { color: #ffb4b4; }
+
+/* ── Figuras / láminas ────────────────────────────────────────────────── */
+.lamina { margin: 12px 0 0; border: var(--hairline) solid var(--bd); border-radius: var(--r-lg); background: var(--lienzo-hond); overflow: hidden; }
+.lamina svg { display: block; width: 100%; height: auto; }
+.lamina figcaption, .fig-pie {
+  padding: 8px 12px; font-size: var(--t-fino); color: var(--mut); line-height: 1.5;
+  border-top: var(--hairline) solid var(--bd-suave); background: var(--pnl);
+}
+.lamina figcaption b { color: var(--tx2); }
+.leyenda { display: flex; flex-wrap: wrap; gap: 5px 16px; padding: 8px 12px; font-size: 10.8px; color: var(--mut); border-top: var(--hairline) solid var(--bd-suave); }
+.leyenda span { display: inline-flex; align-items: center; gap: 6px; font-variant-numeric: var(--num); }
+.li { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.li.ancla { background: var(--acc); } .li.susp { background: var(--mut); width: 6px; height: 6px; }
+.li.term { border-radius: 1px; border: 1.4px solid var(--tx); width: 8px; height: 8px; }
+.li.emp { background: var(--tenue); width: 6px; height: 6px; border-radius: 1px; }
+.li.tramo { width: 16px; height: 3.5px; border-radius: 2px; }
+
+.figura { margin: 11px 0 0; background: var(--lienzo-hond); border: var(--hairline) solid var(--bd); border-radius: var(--r-lg); padding: 12px; overflow-x: auto; }
+.figura svg { display: block; margin: 0 auto; max-width: 620px; width: 100%; height: auto; }
+
+/* ── Fórmulas ─────────────────────────────────────────────────────────── */
+.formula {
+  margin: 11px 0 0; background: var(--lienzo-hond); border: var(--hairline) solid var(--bd);
+  border-radius: var(--r-lg); padding: 13px 18px; text-align: center; overflow-x: auto;
+  font-family: "Times New Roman", "Iowan Old Style", Georgia, serif; font-size: 17px; color: var(--tx);
+}
+.formula math { font-size: 17px; }
+.formula i { font-style: italic; }
+.formula sub, .formula sup { font-size: 11px; }
+.formula .op { color: var(--mut); padding: 0 3px; }
+
+.dos-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 11px; }
+.mini {
+  background: var(--pnl2); border: var(--hairline) solid var(--bd); border-radius: var(--r-lg); padding: 10px 12px;
+}
+.mini h5 { margin: 0 0 5px; font-size: 9.8px; font-weight: 700; color: var(--mut); text-transform: uppercase; letter-spacing: var(--ls-micro); }
+.mini p { margin: 0 !important; font-size: 11.8px !important; line-height: 1.55; }
+
+.vivo {
+  margin: 11px 0 0; padding: 9px 12px; border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  background: var(--t-azul); border-left: 3px solid var(--az); color: #cfe0ef;
+  font-size: 12.2px; line-height: 1.6; max-width: 104ch;
+}
+.vivo b { color: #fff; }
+.vivo .rot { display: block; font-size: 9.4px; text-transform: uppercase; letter-spacing: var(--ls-micro); color: #7fa8d6; font-weight: 700; margin-bottom: 2px; }
+
+/* ── Fichas ───────────────────────────────────────────────────────────── */
+.chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 10px; }
+.chip {
+  appearance: none; cursor: pointer; font: 400 11px/1 var(--fuente);
+  background: rgba(255,255,255,.05); color: var(--tx2);
+  border: var(--hairline) solid var(--bd); border-radius: var(--r-pastilla);
+  padding: 5px 9px; white-space: nowrap; font-variant-numeric: var(--num);
+  transition: background var(--rapido) var(--curva), border-color var(--rapido) var(--curva);
+}
+.chip:hover { border-color: var(--bd-fuerte); background: rgba(255,255,255,.08); }
+.chip.ancla { color: var(--acc); }
+.chip.term { color: #f08585; }
+.chip.emp { color: var(--tenue); border-style: dashed; }
+.chip.act { background: var(--acc); border-color: var(--acc); color: var(--acc-tx); font-weight: 700; }
+.chip.act.term { background: #d64545; border-color: #d64545; color: #fff; }
+.chip.act.emp { background: #3a444e; border-color: var(--bd-fuerte); color: var(--tx); }
+
+.ficha-grilla { display: grid; grid-template-columns: repeat(auto-fit, minmax(268px, 1fr)); gap: 9px; margin-top: 11px; }
+.ficha-bloque { background: var(--pnl2); border: var(--hairline) solid var(--bd); border-radius: var(--r-lg); padding: 10px 12px; }
+.ficha-bloque h5 { margin: 0 0 7px; font-size: 9.6px; font-weight: 700; color: var(--mut); text-transform: uppercase; letter-spacing: var(--ls-micro); }
+.ficha-bloque dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 0 12px; }
+.ficha-bloque dt, .ficha-bloque dd { font-size: 11.6px; padding: 3px 0; border-bottom: var(--hairline) solid var(--bd-suave); }
+.ficha-bloque dl > *:nth-last-child(-n+2) { border-bottom: 0; }
+.ficha-bloque dt { color: var(--mut); white-space: nowrap; }
+.ficha-bloque dd { margin: 0; color: var(--tx); text-align: right; font-variant-numeric: var(--num); }
+.pend { color: var(--hueco); font-style: italic; font-size: 11px; }
+.reservado { color: var(--hueco); font-size: 11px; }
+
+.galeria { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; margin-top: 11px; }
+.galeria figure { margin: 0; }
+.galeria .hueco-foto {
+  aspect-ratio: 4/3; border: var(--hairline) dashed var(--bd-fuerte); border-radius: var(--r-lg);
+  background: repeating-linear-gradient(45deg, rgba(255,255,255,.014) 0 8px, transparent 8px 16px), var(--pnl2);
+  display: grid; place-items: center; color: var(--tenue); font-size: 10.4px; text-align: center; padding: 8px;
+}
+.galeria figcaption { margin-top: 5px; font-size: 10.6px; line-height: 1.45; color: var(--tenue); }
+
+/* ── Expediente de falla ──────────────────────────────────────────────── */
+.falla-banda {
+  margin: 12px 0 0; padding: 14px 16px;
+  background: linear-gradient(135deg, #2a1616, #3a1f10);
+  border: var(--hairline) solid #6b2b2b; border-left: 3px solid #ff6b6b;
+  border-radius: 0 var(--r-lg) var(--r-lg) 0; box-shadow: var(--luz-arriba), var(--sombra-1);
+}
+.falla-rot { font-size: 9.4px; letter-spacing: 1.3px; color: #ff6b6b; font-weight: 700; text-transform: uppercase; }
+.falla-tit { margin: 3px 0 0; font-size: 18px; font-weight: 600; color: #fff; }
+.falla-sub { margin: 4px 0 0 !important; font-size: 11.8px !important; color: #e8c9c9 !important; }
+.falla-geo { margin: 7px 0 0 !important; font-size: 11px !important; color: #c9b3b3 !important; font-variant-numeric: var(--num); }
+.hip { background: var(--pnl2); border: var(--hairline) solid var(--bd); border-left: 3px solid var(--bd-fuerte);
+  border-radius: 0 var(--r-lg) var(--r-lg) 0; padding: 11px 13px; margin-top: 8px; }
+.hip.alta { border-left-color: #ff6b6b; background: linear-gradient(180deg, #241a1a 0%, var(--pnl2) 70%); }
+.hip.media { border-left-color: var(--acc); }
+.hip.baja { border-left-color: #4a5560; }
+.hip-cab { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.hip-cab h5 { margin: 0; font-size: 12.8px; font-weight: 600; color: var(--tx); flex: 1; min-width: 180px; }
+.hip-orden { flex: none; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center;
+  background: #243039; border: var(--hairline) solid var(--bd-fuerte); color: var(--mut); font-size: 10.4px; font-weight: 700; }
+.hip.alta .hip-orden { background: #d64545; border-color: #d64545; color: #fff; }
+
+/* ── Exportar ─────────────────────────────────────────────────────────── */
+.descargas { display: grid; grid-template-columns: repeat(auto-fit, minmax(268px, 1fr)); gap: 7px; margin-top: 10px; }
+.descarga {
+  appearance: none; cursor: pointer; text-align: left; display: flex; align-items: center; gap: 10px;
+  font: 400 12.2px/1.35 var(--fuente); color: var(--tx2);
+  background: rgba(255,255,255,.045); border: var(--hairline) solid var(--bd); border-radius: var(--r-sm);
+  padding: 9px 12px; transition: background var(--rapido) var(--curva), border-color var(--rapido) var(--curva), color var(--rapido) var(--curva);
+}
+.descarga:hover { background: rgba(255,255,255,.075); border-color: var(--acc-borde); color: var(--tx); }
+.descarga:disabled { opacity: .38; cursor: not-allowed; }
+.descarga .fmt { font-family: var(--fuente-mono); font-size: 9.6px; color: var(--acc); border: var(--hairline) solid var(--acc-borde);
+  border-radius: 4px; padding: 2px 5px; flex: none; }
+.descarga b { display: block; color: var(--tx); font-weight: 600; font-size: 12.4px; }
+.descarga i { font-style: normal; font-size: 10.6px; color: var(--tenue); }
+
+/* ── Estado «sección no evaluable» ────────────────────────────────────── */
+.no-eval {
+  margin: 12px 0 0; padding: 16px 18px; border-radius: var(--r-lg);
+  border: var(--hairline) dashed var(--bd-fuerte); background: rgba(255,255,255,.018);
+}
+.no-eval .rot { font-size: 9.6px; text-transform: uppercase; letter-spacing: var(--ls-micro); color: var(--tenue); font-weight: 700; }
+.no-eval h4 { margin: 5px 0 0; font-size: 14px; font-weight: 600; color: var(--tx2); }
+.no-eval p { margin-top: 6px !important; }
+.no-eval ul { margin: 9px 0 0; padding-left: 18px; }
+.no-eval li { font-size: 12px; color: var(--mut); margin-bottom: 3px; }
+.no-eval li b { color: var(--tx2); }
+
+/* ── Pie ──────────────────────────────────────────────────────────────── */
+.pie-doc { margin-top: 34px; padding: 16px 0 0; border-top: var(--hairline) solid var(--bd); }
+.pie-doc details { font-size: 12px; }
+.pie-doc summary {
+  cursor: pointer; color: var(--mut); font-size: 11.4px; list-style: none;
+  display: inline-flex; align-items: center; gap: 6px; padding: 4px 0;
+}
+.pie-doc summary::-webkit-details-marker { display: none; }
+.pie-doc summary::before { content: '▸'; color: var(--tenue); font-size: 9px; transition: transform var(--rapido) var(--curva); }
+.pie-doc details[open] summary::before { transform: rotate(90deg); }
+.pie-doc summary:hover { color: var(--tx2); }
+.pie-doc .cuerpo-pie { margin-top: 8px; padding: 12px 14px; background: var(--pnl); border: var(--hairline) solid var(--bd); border-radius: var(--r-lg); max-width: 96ch; }
+.pie-doc .cuerpo-pie p { font-size: 12.2px; color: var(--tx2); }
+.pie-doc .cuerpo-pie p:first-child { margin-top: 0; }
+.pie-legal { margin-top: 14px; font-size: 10.4px; color: var(--tenue); line-height: 1.6; max-width: 100ch; }
+
+/* ── Adaptación ───────────────────────────────────────────────────────── */
+@media (max-width: 1500px) {
+  :root { --sidebar-ancho: 230px; --indice-ancho: 196px; }
+  .hoja { padding: 0 26px; }
+}
+/* Con tres paneles abiertos en una pantalla de 1280-1460 el documento se queda
+   en ~800 px: seis indicadores en fila dejarían de caber y la cifra grande se
+   partiría. Antes de que eso pase, se reparten en dos filas. */
+@media (max-width: 1460px) {
+  .kpis.k6, .kpis.k5 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .kpis.k4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  :root { --t-cifra: 19px; }
+}
+@media (max-width: 1240px) {
+  .cuerpo { grid-template-columns: var(--sidebar-ancho) 0px minmax(0, 1fr); }
+  .indice { display: none; }
+  .kpis.k6 { grid-template-columns: repeat(3, 1fr); }
+  .kpis.k5 { grid-template-columns: repeat(3, 1fr); }
+  .dos-col { grid-template-columns: 1fr; }
+  .sec-cuerpo { padding-left: 0; }
+  .sec-lead { margin-left: 0 !important; }
+}
+@media (max-width: 900px) {
+  .cuerpo { grid-template-columns: 0px 0px minmax(0, 1fr); }
+  .sidebar { display: none; }
+  .hoja { padding: 0 16px; }
+}
+
+/* ── Modo claro de macOS ──────────────────────────────────────────────────
+   Oscuro por DEFECTO, pase lo que pase con el ajuste del sistema: el Ingeniero
+   pidió «muy oscuro» y un archivo que se abre con doble clic tiene que
+   cumplirlo. El claro está entero, a un botón de la barra. */
+:root[data-tema="claro"] {
+  color-scheme: light;
+  --lienzo:#f2f4f7; --lienzo-hond:#e8ebef; --pnl:#ffffff; --pnl2:#f6f8fa;
+  --pnl-alto: linear-gradient(180deg,#fff 0%,#fbfcfd 62%);
+  --sidebar-fondo: rgba(246,248,250,.72); --indice-fondo: rgba(242,244,247,.7);
+  --barra-fondo: rgba(250,251,252,.80); --flotante-fondo: rgba(255,255,255,.92);
+  --bd: rgba(0,0,0,.09); --bd-suave: rgba(0,0,0,.06); --bd-fuerte: rgba(0,0,0,.18); --bd-solido:#d6dce2;
+  --tx:#111a22; --tx2:#39485a; --mut:#5d6b78; --tenue:#8894a0;
+  --acc:#a86f00; --acc-tx:#fff; --acc-suave: rgba(240,165,0,.18); --acc-tinte:#fff6e0;
+  --t-verde:#eefaea; --t-rojo:#fdeeee; --t-azul:#eef4fb; --b-azul:#cfdcea;
+  --hueco:#8894a0;
+  --luz-arriba: inset 0 1px 0 rgba(255,255,255,.8);
+  --sombra-1: 0 1px 2px rgba(16,24,32,.08);
+  --sombra-2: 0 6px 20px -6px rgba(16,24,32,.16);
+}
+:root[data-tema="claro"] .tabla th,
+:root[data-tema="claro"] .matriz thead th,
+:root[data-tema="claro"] .matriz .pegado { background: #eef1f4; }
+:root[data-tema="claro"] .veredicto,
+:root[data-tema="claro"] .falla-banda { background: linear-gradient(135deg,#fdeeee,#fdf4ec); border-color: #eccaca; }
+:root[data-tema="claro"] .veredicto-t,
+:root[data-tema="claro"] .falla-tit { color: #7a1f1f; }
+:root[data-tema="claro"] .veredicto-c,
+:root[data-tema="claro"] .falla-sub,
+:root[data-tema="claro"] .falla-geo { color: #6b3535 !important; }
+:root[data-tema="claro"] .veredicto-c b { color: #4a1414 !important; }
+:root[data-tema="claro"] .estado-ficha.critico .estado-v { color: #a83232; }
+:root[data-tema="claro"] .kpi { background: linear-gradient(180deg,#f4f8fc 0%,#eef4fa 70%); }
+:root[data-tema="claro"] .hallazgos li.atencion,
+:root[data-tema="claro"] .alerta { color: #7a1f1f; }
+:root[data-tema="claro"] .hallazgos li.aviso,
+:root[data-tema="claro"] .aviso { color: #6b4a10; }
+:root[data-tema="claro"] .ok { color: #23561d; }
+:root[data-tema="claro"] .vivo, :root[data-tema="claro"] .nota { color: #21445e; }
+:root[data-tema="claro"] .vivo b { color: #0e2b41; }
+:root[data-tema="claro"] .sello.ambar { background:#fff2d6; color:#8a5a00; }
+:root[data-tema="claro"] .sello.rojo { background:#fbe3e3; color:#a83232; border-color:#eccaca; }
+:root[data-tema="claro"] .sello.verde { background:#e6f6df; color:#2c6522; border-color:#c3e3b6; }
+:root[data-tema="claro"] .sello.azul { background:#e7f0fa; color:#2b5a86; }
+:root[data-tema="claro"] .sello.gris { background:#eef1f4; color:#5d6b78; }
+:root[data-tema="claro"] .veredicto-icono { box-shadow: 0 0 0 4px rgba(214,69,69,.14); }
+:root[data-tema="claro"] .semaforos i { box-shadow: inset 0 0 0 .5px rgba(0,0,0,.14); }
+:root[data-tema="claro"] .barra-boton:hover,
+:root[data-tema="claro"] .fila-linea:hover,
+:root[data-tema="claro"] .idx:hover { background: rgba(0,0,0,.05); }
+:root[data-tema="claro"] .chip { background: rgba(0,0,0,.035); }
+:root[data-tema="claro"] .buscar input,
+:root[data-tema="claro"] .segmentado { background: rgba(0,0,0,.05); }
+:root[data-tema="claro"] .segmentado button.activo { background: #fff; }
+:root[data-tema="claro"] .doc::-webkit-scrollbar-thumb,
+:root[data-tema="claro"] .sidebar::-webkit-scrollbar-thumb,
+:root[data-tema="claro"] .indice::-webkit-scrollbar-thumb,
+:root[data-tema="claro"] .tabla-caja::-webkit-scrollbar-thumb,
+:root[data-tema="claro"] .matriz-caja::-webkit-scrollbar-thumb { background: rgba(0,0,0,.26); background-clip: content-box; }
+
+/* ── Impresión: la pantalla ES el papel. Ese es el argumento del diseño. ─ */
+@media print {
+  @page { size: A4; margin: 16mm 14mm; }
+  body { overflow: visible !important; background: #fff !important; color: #000 !important; }
+  .ventana { display: block; height: auto; }
+  .barra, .sidebar, .indice, .salto, .segmentado, .buscar, .chips, .descargas, .barra-der { display: none !important; }
+  .cuerpo, .doc-pane { display: block; }
+  .doc { overflow: visible !important; height: auto !important; max-height: none !important; padding: 0 !important; }
+  .hoja { max-width: none; padding: 0; }
+  .seccion { break-before: page; }
+  .portada { break-after: page; }
+  .panel, .kpi, .estado-ficha, .lamina, .figura, .ficha-bloque, .tabla-caja { break-inside: avoid; border-color: #bbb !important; }
+  .tabla-caja, .matriz-caja { overflow: visible !important; max-height: none !important; }
+  .sec-num, .kpi-v, .portada h1 { color: #000 !important; }
+  .corte-pagina { display: none; }
+}
+</style>
+</head>
+<body>
+<div class="ventana">
+
+  <!-- ══ Barra de herramientas ═══════════════════════════════════════════ -->
+  <header class="barra">
+    <div class="semaforos" aria-hidden="true"><i></i><i></i><i></i></div>
+    <button class="barra-boton activo" id="btn-sidebar" title="Ocultar la lista de líneas (⌥⌘S)" aria-label="Ocultar la lista de líneas">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><line x1="6" y1="2.5" x2="6" y2="13.5"/></svg>
+    </button>
+    <button class="barra-boton activo" id="btn-indice" title="Ocultar el índice del documento" aria-label="Ocultar el índice del documento">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"><line x1="3" y1="4.5" x2="13" y2="4.5"/><line x1="3" y1="8" x2="13" y2="8"/><line x1="3" y1="11.5" x2="9" y2="11.5"/></svg>
+    </button>
+
+    <div class="barra-centro">
+      <div class="barra-titulo" id="titulo-barra">Líneas AT <span>— cargando…</span></div>
+      <span class="pastilla-maqueta">Maqueta</span>
+    </div>
+
+    <div class="barra-der">
+      <span class="barra-sello" id="sello-barra"></span>
+      <button class="barra-boton" id="btn-tema" title="Cambiar a claro / oscuro" aria-label="Cambiar apariencia">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M11.2 9.8A4.6 4.6 0 0 1 6.2 4.8a4.6 4.6 0 1 0 5 5z"/></svg>
+      </button>
+      <button class="barra-boton" id="btn-imprimir" title="Imprimir el documento tal como se ve (⌘P)" aria-label="Imprimir">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M4.5 6V2.5h7V6"/><rect x="2" y="6" width="12" height="5" rx="1.5"/><path d="M4.5 10h7v3.5h-7z"/></svg>
+      </button>
+      <button class="barra-boton" title="Compartir el enlace de esta línea" aria-label="Compartir">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"><path d="M8 10.5V2.5"/><path d="M5.2 5.2 8 2.4l2.8 2.8"/><path d="M3.5 9v4.5h9V9"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ══ Cuerpo: líneas · índice · documento ═════════════════════════════ -->
+  <div class="cuerpo" id="cuerpo">
+
+    <nav class="sidebar" id="sidebar" aria-label="Líneas de alta tensión">
+      <div class="buscar">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="7" cy="7" r="4.2"/><line x1="10.2" y1="10.2" x2="13.5" y2="13.5" stroke-linecap="round"/></svg>
+        <input type="search" id="buscador" placeholder="Buscar línea" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="segmentado" role="tablist" aria-label="Orden de la lista">
+        <button class="activo" data-orden="estado" role="tab">Por estado</button>
+        <button data-orden="codigo" role="tab">Por código</button>
+        <button data-orden="tension" role="tab">Por tensión</button>
+      </div>
+      <div id="lista-lineas"></div>
+      <p class="sidebar-pie" id="sidebar-pie"></p>
+    </nav>
+
+    <nav class="indice" id="indice" aria-label="Índice del documento"></nav>
+
+    <div class="doc-pane">
+      <div class="salto">
+        <div class="miga">
+          <span id="miga-linea">LN-627</span>
+          <span class="sep">›</span>
+          <b id="miga-sec">Portada</b>
+        </div>
+        <span class="prog" id="prog">pág. 1 / 31</span>
+        <div class="nav">
+          <button id="btn-prev" title="Sección anterior" aria-label="Sección anterior"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3 5 8l5 5"/></svg></button>
+          <button id="btn-next" title="Sección siguiente" aria-label="Sección siguiente"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3l5 5-5 5"/></svg></button>
+        </div>
+      </div>
+      <main class="doc" id="doc"><div class="hoja" id="hoja"></div></main>
+    </div>
+
+  </div>
+</div>
+
+<script>
+'use strict';
+/* ============================================================================
+   MAQUETA «EXPEDIENTE NAVEGABLE» — la línea es un DOCUMENTO.
+   Todas las cifras de esta página se CALCULAN aquí (catenaria, VIR, ecuación
+   de cambio de estado por bisección, quiebre 2·sen(a/2), cargas por vano
+   viento). No hay ni un número escrito a mano en las tablas: si se cambia la
+   hipótesis, cambia el documento entero. Eso es lo que se está maquetando.
+   Ningún dato de cliente: ni coordenadas ni fotografías.
+   ========================================================================= */
+
+const nf = (v, d = 0) => (v == null || !isFinite(v)) ? '—'
+  : Number(v).toLocaleString('es-CO', { minimumFractionDigits: d, maximumFractionDigits: d });
+const H_ = '<span class="hueco">—</span>';
+const gr = (v, d = 1) => nf(v, d) + '°';
+
+/* ── Motor de cálculo (equivalente al núcleo del proyecto) ──────────────── */
+const M = {
+  vir(vanos) { const s3 = vanos.reduce((a, x) => a + x ** 3, 0), s = vanos.reduce((a, x) => a + x, 0); return Math.sqrt(s3 / s); },
+  flechaCat(w, a, H) { const C = H / w; return C * (Math.cosh(a / (2 * C)) - 1); },
+  flechaPar(w, a, H) { return w * a * a / (8 * H); },
+  longCat(w, a, H) { const C = H / w; return 2 * C * Math.sinh(a / (2 * C)); },
+  /* Ecuación de cambio de estado, forma parabólica, resuelta por bisección. */
+  cambioEstado(H1, w1, t1, w2, t2, a, c) {
+    const ES = c.E * c.seccion;
+    const A = -H1 + c.alfa * ES * (t2 - t1) + (w1 * w1 * a * a * ES) / (24 * H1 * H1);
+    const B = (w2 * w2 * a * a * ES) / 24;
+    const f = (H) => H * H * (H + A) - B;
+    let lo = 1, hi = Math.max(10, H1);
+    while (f(hi) < 0 && hi < 1e7) hi *= 2;
+    for (let i = 0; i < 200; i++) { const m = (lo + hi) / 2; if (f(m) < 0) lo = m; else hi = m; }
+    return (lo + hi) / 2;
+  },
+  presionViento(v_kmh, cx, rho) {          /* kgf/m² */
+    const v = v_kmh / 3.6; return 0.5 * rho * v * v * cx / 9.80665;
+  },
+};
+
+/* ── Conductor e hipótesis de LN-627 ───────────────────────────────────── */
+const COND = {
+  codigo: 'Darien', material: 'AAAC', mcm: 559.5, hilos: 19,
+  seccion: 283.5, diametro: 0.02179, rts: 8528, masa: 0.7797,
+  E: 6300, Ealt: 7000, alfa: 23e-6, tMaxMaterial: 90, r20: 0.1182, beta: 0.00347,
+  procedencia: 'catálogo genérico AAAC — ficha del proveedor PENDIENTE',
+};
+const HIP = {
+  nombre: 'Hipótesis del módulo de campo (SIN VALIDAR)', procedencia: 'supuesto', congelada: false,
+  eds: 20, tEds: 25, tMax: 75, tMin: 20, viento: 100, tViento: 25, cx: 1.0, rho: 1.205,
+  revision: 'r3', fecha: '2026-07-31',
+};
+const TOPE_MOTOR = 0.50, TOPE_DOCTRINA = 0.25;
+
+/* ── Geometría declarada de LN-627 (derivada, sin coordenadas) ──────────── */
+const VANOS_627 = [168.4, 40.0, 197.7, 46.2, 165.2, 247.8, 191.4, 175.6, 96.2, 88.4, 79.5,
+  102.7, 71.3, 118.6, 84.9, 93.1, 67.2, 76.4, 67.2, 13.4, 336.7, 294.8, 106.3];
+const DEFLEX_627 = [null, 64.7, 2.1, 50.2, 3.5, 118.2, 0.0, 1.4, 5.6, 0.8, 11.2, 3.3, 0.6, 2.9,
+  7.4, 1.1, 4.8, 0.3, 9.6, 76.0, 58.6, 2.4, 1.7, null];
+/* Los empalmes NO son apoyos: cuelgan a mitad de vano y no doblan la línea. */
+const EMPALMES_627 = [{ nom: 'EMP TUB', vano: 5, frac: 0.42 }, { nom: 'EMP RAM', vano: 13, frac: 0.55 }];
+
+const TRAMO_COLOR = ['#f0a500', '#5b8dd9', '#7fc96a', '#b47ee0', '#4fc3c7', '#e07a5f'];
+
+const funcionDe = (d, i, n) => {
+  if (i === 0 || i === n - 1) return 'Terminal';
+  if (d == null) return 'Sin declarar';
+  if (d >= 30) return 'Retención';
+  if (d >= 15) return 'Ángulo';
+  if (d >= 3) return 'Suspensión angular';
+  return 'Suspensión';
+};
+const claseFuncion = (f) => f === 'Terminal' ? 'term' : (f === 'Retención' || f === 'Ángulo') ? 'ancla' : '';
+
+/* ── Modelo completo de una línea ──────────────────────────────────────── */
+function modelar(L) {
+  const vanos = L.vanos, defl = L.deflex, n = defl.length;
+  const nombres = Array.from({ length: n }, (_, i) => 'E' + String(i + 1).padStart(2, '0'));
+  const func = defl.map((d, i) => funcionDe(d, i, n));
+
+  /* Cortes de tramo: terminales y anclajes (retención/ángulo). */
+  const cortes = [];
+  func.forEach((f, i) => { if (f === 'Terminal' || f === 'Retención' || f === 'Ángulo') cortes.push(i); });
+
+  /* Planta esquemática por acimut acumulado (geometría relativa, no GPS). */
+  const pts = [{ x: 0, y: 0 }]; let rumbo = 0, signo = 1;
+  for (let i = 0; i < vanos.length; i++) {
+    if (i > 0 && defl[i] != null) { rumbo += signo * defl[i] * Math.PI / 180; signo *= -1; }
+    const p = pts[i]; pts.push({ x: p.x + vanos[i] * Math.cos(rumbo), y: p.y + vanos[i] * Math.sin(rumbo) });
+  }
+  const dist = (a, b) => Math.hypot(pts[a].x - pts[b].x, pts[a].y - pts[b].y);
+  const progres = [0]; vanos.forEach((v, i) => progres.push(progres[i] + v));
+
+  const c = L.conductor, h = L.hipotesis;
+  let tramos = [], cargasT = [], cargasL = [], vanoAvano = [], q = 0, w2 = 0, balanceo = 0, presion = 0;
+
+  if (c && h) {
+    presion = M.presionViento(h.viento, h.cx, h.rho);
+    q = presion * c.diametro;
+    w2 = Math.hypot(c.masa, q);
+    balanceo = Math.atan2(q, c.masa) * 180 / Math.PI;
+    const Heds = c.rts * h.eds / 100;
+    for (let t = 0; t < cortes.length - 1; t++) {
+      const a = cortes[t], b = cortes[t + 1], vv = vanos.slice(a, b);
+      const vir = M.vir(vv), vmax = Math.max(...vv);
+      const hTMax = M.cambioEstado(Heds, c.masa, h.tEds, c.masa, h.tMax, vir, c);
+      const hVien = M.cambioEstado(Heds, c.masa, h.tEds, w2, h.tViento, vir, c);
+      const hTMin = M.cambioEstado(Heds, c.masa, h.tEds, c.masa, h.tMin, vir, c);
+      const pico = Math.max(Heds, hTMax, hVien, hTMin);
+      tramos.push({
+        n: t + 1, desde: nombres[a], hasta: nombres[b], iDesde: a, iHasta: b,
+        nVanos: vv.length, vanos: vv, vmax, vir, Heds, hTMax, hVien, hTMin, pico,
+        pct: pico / c.rts * 100, flecha: M.flechaCat(c.masa, vmax, hTMax),
+        flechaViento: M.flechaCat(w2, vmax, hVien),
+      });
+      vv.forEach((v, k) => vanoAvano.push({
+        i: a + k, de: nombres[a + k], al: nombres[a + k + 1], vano: v, tramo: t + 1, vir,
+        rel: v / vir, fuera: (v / vir < 0.7 || v / vir > 1.3),
+        flecha: M.flechaCat(c.masa, v, hTMax), long: M.longCat(c.masa, v, Heds),
+      }));
+    }
+    const tramoDeApoyo = (i) => {
+      const r = []; tramos.forEach(t => { if (i >= t.iDesde && i <= t.iHasta) r.push(t); }); return r;
+    };
+    for (let i = 0; i < n; i++) {
+      const ts = tramoDeApoyo(i), T = Math.max(...ts.map(t => t.hVien));
+      const d = defl[i], fac = d == null ? 0 : 2 * Math.sin(d * Math.PI / 360);
+      const vAnt = i > 0 ? vanos[i - 1] : 0, vSig = i < n - 1 ? vanos[i] : 0;
+      const vViento = (i === 0) ? vSig / 2 : (i === n - 1) ? vAnt / 2 : (vAnt + vSig) / 2;
+      const quiebre = fac * T, viento = q * vViento;
+      cargasT.push({
+        i, nom: nombres[i], func: func[i], defl: d, fac, vViento, T, quiebre, viento,
+        total: quiebre + viento, vAnt, vSig,
+      });
+      /* Eje longitudinal: NUNCA se suma con el transversal. */
+      const esTerminal = func[i] === 'Terminal';
+      const esAncla = esTerminal || func[i] === 'Retención' || func[i] === 'Ángulo';
+      const cosm = d == null ? 1 : Math.cos(d * Math.PI / 360);
+      const tAtras = i > 0 ? (tramos.find(t => t.iHasta === i) || tramos.find(t => i > t.iDesde && i <= t.iHasta)) : null;
+      const tAdel = i < n - 1 ? (tramos.find(t => t.iDesde === i) || tramos.find(t => i >= t.iDesde && i < t.iHasta)) : null;
+      const Ha = tAtras ? tAtras.pico * cosm : 0, Hd = tAdel ? tAdel.pico * cosm : 0;
+      cargasL.push({
+        i, nom: nombres[i], func: func[i], defl: d, cosm, esAncla, esTerminal,
+        atras: Ha, adelante: Hd, delta: esTerminal ? Math.max(Ha, Hd) : Math.abs(Ha - Hd),
+        sentido: esTerminal ? 'hacia la línea' : (Math.abs(Ha - Hd) < 10 ? 'no concluyente' : (Ha > Hd ? 'hacia atrás' : 'hacia adelante')),
+      });
+    }
+    /* El terminal carga con el tiro entero de la línea, no con un desequilibrio. */
+    const picoLinea = Math.max(...tramos.map(t => t.pico));
+    cargasL.forEach(x => { if (x.esTerminal) { x.delta = picoLinea; x.tiroEntero = true; } });
+  }
+
+  const suma = vanos.reduce((a, x) => a + x, 0);
+  const stats = {
+    total: suma, prom: suma / vanos.length, min: Math.min(...vanos), max: Math.max(...vanos),
+    mediana: [...vanos].sort((a, b) => a - b)[Math.floor(vanos.length / 2)],
+    sigma: Math.sqrt(vanos.reduce((a, x) => a + (x - suma / vanos.length) ** 2, 0) / vanos.length),
+    directa: dist(0, n - 1),
+  };
+  stats.rodeo = suma / stats.directa;
+  stats.largos = vanos.filter(v => v > 2 * stats.prom).length;
+
+  return { L, nombres, func, defl, vanos, cortes, pts, dist, progres, tramos, cargasT, cargasL, vanoAvano, stats, q, w2, balanceo, presion };
+}
+
+/* ── Cartera: 20 líneas. Códigos sintéticos salvo LN-627. ──────────────── */
+function rng(seed) { let s = seed; return () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296; }
+function vanosSinteticos(seed, nVanos, total) {
+  const r = rng(seed), v = [];
+  for (let i = 0; i < nVanos; i++) v.push(0.35 + r() * (r() < 0.12 ? 2.6 : 1.1));
+  const s = v.reduce((a, x) => a + x, 0);
+  return v.map(x => Math.round(x / s * total * 10) / 10);
+}
+function deflexSinteticas(seed, n) {
+  const r = rng(seed + 77), d = [null];
+  for (let i = 1; i < n - 1; i++) d.push(r() < 0.14 ? Math.round((32 + r() * 70) * 10) / 10 : Math.round(r() * 11 * 10) / 10);
+  d.push(null); return d;
+}
+
+const CARTERA = [
+  { cod: 'LN-627', kv: 66, estr: 24, emp: 2, largo: 2929, estado: 'critico', rico: true,
+    resumen: 'Expediente de falla abierto · hipótesis sin congelar', fechaResumen: '2026-08-03 09:12', motor: 'v0.9.4' },
+  { cod: 'LN-455', kv: 115, estr: 41, emp: 1, largo: 9_640, estado: 'critico',
+    resumen: '2 expedientes abiertos · 6 verificaciones sin resolver', fechaResumen: '2026-07-30 16:40', motor: 'v0.9.4', evento: 2 },
+  { cod: 'LN-118', kv: 34.5, estr: 19, emp: 0, largo: 3_410, estado: 'critico',
+    resumen: 'Tramo por encima del tope de tiro adoptado', fechaResumen: '2026-07-28 11:05', motor: 'v0.9.3', motorViejo: true },
+  { cod: 'LN-201', kv: 66, estr: 33, emp: 2, largo: 6_180, estado: 'atender',
+    resumen: '11 de 32 vanos fuera de la banda del VIR', fechaResumen: '2026-08-01 08:22', motor: 'v0.9.4' },
+  { cod: 'LN-309', kv: 115, estr: 58, emp: 3, largo: 14_720, estado: 'atender',
+    resumen: 'Precisión GPS declarada ±11 m', fechaResumen: '2026-07-29 14:55', motor: 'v0.9.4' },
+  { cod: 'LN-512', kv: 66, estr: 27, emp: 1, largo: 4_055, estado: 'atender',
+    resumen: 'Quiebre de 96,4° sin capacidad declarada', fechaResumen: '2026-07-27 17:30', motor: 'v0.9.4' },
+  { cod: 'LN-733', kv: 34.5, estr: 22, emp: 0, largo: 2_780, estado: 'atender',
+    resumen: 'Módulo elástico en conflicto (6.300 vs 7.000)', fechaResumen: '2026-07-26 10:14', motor: 'v0.9.3', motorViejo: true },
+  { cod: 'LN-844', kv: 115, estr: 46, emp: 2, largo: 11_290, estado: 'atender',
+    resumen: 'Derrateo del 31 % en el escenario El Niño', fechaResumen: '2026-08-02 07:48', motor: 'v0.9.4' },
+  { cod: 'LN-960', kv: 66, estr: 30, emp: 1, largo: 5_425, estado: 'atender',
+    resumen: '3 puntos sin fotografía de estructura', fechaResumen: '2026-07-31 19:03', motor: 'v0.9.4' },
+  { cod: 'LN-102', kv: 66, estr: 25, emp: 0, largo: 3_860, estado: 'sin', sinConductor: true,
+    resumen: 'Sin conductor declarado — 4 secciones no evaluables', fechaResumen: '2026-07-22 09:00', motor: 'v0.9.3', motorViejo: true },
+  { cod: 'LN-274', kv: 34.5, estr: 16, emp: 0, largo: 1_940, estado: 'sin', sinConductor: true,
+    resumen: 'Sin conductor declarado — 4 secciones no evaluables', fechaResumen: '2026-07-21 15:26', motor: 'v0.9.3', motorViejo: true },
+  { cod: 'LN-386', kv: 115, estr: 52, emp: 2, largo: 12_130, estado: 'sin', sinConductor: true,
+    resumen: 'Levantamiento en curso — 18 de 52 apoyos capturados', fechaResumen: '2026-08-02 18:11', motor: 'v0.9.4' },
+  { cod: 'LN-641', kv: 66, estr: 21, emp: 1, largo: 3_275, estado: 'sin', sinConductor: true,
+    resumen: 'Sin hipótesis climática declarada', fechaResumen: '2026-07-19 12:40', motor: 'v0.9.3', motorViejo: true },
+  { cod: 'LN-807', kv: 34.5, estr: 14, emp: 0, largo: 1_615, estado: 'sin', sinConductor: true,
+    resumen: 'Sin conductor ni hipótesis — solo geometría', fechaResumen: '2026-07-18 08:05', motor: 'v0.9.3', motorViejo: true },
+  { cod: 'LN-155', kv: 66, estr: 29, emp: 1, largo: 4_930, estado: 'bien',
+    resumen: 'Sin hallazgos abiertos · hipótesis congelada', fechaResumen: '2026-08-01 11:20', motor: 'v0.9.4', congelada: true },
+  { cod: 'LN-228', kv: 115, estr: 37, emp: 2, largo: 8_470, estado: 'bien',
+    resumen: 'Sin hallazgos abiertos · hipótesis congelada', fechaResumen: '2026-07-30 09:47', motor: 'v0.9.4', congelada: true },
+  { cod: 'LN-337', kv: 66, estr: 23, emp: 0, largo: 3_640, estado: 'bien',
+    resumen: 'Sin hallazgos abiertos · hipótesis congelada', fechaResumen: '2026-07-29 16:02', motor: 'v0.9.4', congelada: true },
+  { cod: 'LN-449', kv: 34.5, estr: 18, emp: 1, largo: 2_215, estado: 'bien',
+    resumen: 'Sin hallazgos abiertos · hipótesis congelada', fechaResumen: '2026-07-28 13:35', motor: 'v0.9.4', congelada: true },
+  { cod: 'LN-556', kv: 115, estr: 44, emp: 2, largo: 10_880, estado: 'bien',
+    resumen: 'Sin hallazgos abiertos · hipótesis congelada', fechaResumen: '2026-08-02 10:58', motor: 'v0.9.4', congelada: true },
+  { cod: 'LN-668', kv: 66, estr: 26, emp: 1, largo: 4_310, estado: 'bien',
+    resumen: 'Sin hallazgos abiertos · hipótesis congelada', fechaResumen: '2026-07-31 07:15', motor: 'v0.9.4', congelada: true },
+];
+
+CARTERA.forEach((L, k) => {
+  if (L.cod === 'LN-627') {
+    L.vanos = VANOS_627; L.deflex = DEFLEX_627; L.empalmes = EMPALMES_627;
+    L.conductor = COND; L.hipotesis = HIP;
+  } else {
+    const seed = 1000 + k * 137;
+    L.vanos = vanosSinteticos(seed, L.estr - 1, L.largo);
+    L.largo = Math.round(L.vanos.reduce((a, x) => a + x, 0) * 10) / 10;
+    L.deflex = deflexSinteticas(seed, L.estr);
+    L.empalmes = Array.from({ length: L.emp }, (_, j) => ({ nom: 'EMP ' + (j + 1), vano: 3 + j * 7, frac: .5 }));
+    L.conductor = L.sinConductor ? null : COND;
+    L.hipotesis = L.sinConductor ? null : Object.assign({}, HIP, { congelada: !!L.congelada, nombre: L.congelada ? 'Hipótesis de proyecto (congelada)' : HIP.nombre, procedencia: L.congelada ? 'declarada por el ingeniero' : 'supuesto' });
+  }
+  L.vanosN = L.vanos.length;
+});
+
+const GRUPOS = [
+  { est: 'critico', rot: 'Atender ahora' },
+  { est: 'atender', rot: 'Revisar' },
+  { est: 'sin', rot: 'Sin evaluar' },
+  { est: 'bien', rot: 'Al día' },
+];
+const ROTULO_ESTADO = { critico: 'Atender ahora', atender: 'Revisar', sin: 'Sin evaluar', bien: 'Al día' };
+/* ══ LÁMINA 1 — planta esquemática (geometría relativa, sin coordenadas) ══ */
+function svgPlanta(m) {
+  const W = 1040, Hh = 330, pad = 30;
+  /* Se gira la planta sobre su eje principal para que llene la lámina. El norte
+     ya está declarado como RELATIVO (la orientación absoluta es dato de cliente),
+     así que la flecha de norte gira con ella y sigue diciendo la verdad. */
+  const cxm = m.pts.reduce((a, p) => a + p.x, 0) / m.pts.length;
+  const cym = m.pts.reduce((a, p) => a + p.y, 0) / m.pts.length;
+  let sxx = 0, syy = 0, sxy = 0;
+  m.pts.forEach(p => { const dx = p.x - cxm, dy = p.y - cym; sxx += dx * dx; syy += dy * dy; sxy += dx * dy; });
+  const giro = -0.5 * Math.atan2(2 * sxy, sxx - syy);
+  const cg = Math.cos(giro), sg = Math.sin(giro);
+  const R = m.pts.map(p => ({ x: (p.x - cxm) * cg - (p.y - cym) * sg, y: (p.x - cxm) * sg + (p.y - cym) * cg }));
+  const xs = R.map(p => p.x), ys = R.map(p => p.y);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  const k = Math.min((W - 2 * pad) / Math.max(1, x1 - x0), (Hh - 2 * pad) / Math.max(1, y1 - y0));
+  const cx = (W - (x1 - x0) * k) / 2, cy = (Hh - (y1 - y0) * k) / 2;
+  const P = R.map(p => ({ X: cx + (p.x - x0) * k, Y: Hh - (cy + (p.y - y0) * k) }));
+
+  let s = `<svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="Planta esquemática de ${m.L.cod}">`;
+  s += `<rect width="${W}" height="${Hh}" fill="#0b0f13"/>`;
+  for (let gx = 0; gx <= W; gx += 52) s += `<line x1="${gx}" y1="0" x2="${gx}" y2="${Hh}" stroke="rgba(255,255,255,.028)" stroke-width="1"/>`;
+  for (let gy = 0; gy <= Hh; gy += 52) s += `<line x1="0" y1="${gy}" x2="${W}" y2="${gy}" stroke="rgba(255,255,255,.028)" stroke-width="1"/>`;
+
+  /* Traza por tramo de tensión, cada uno con su color */
+  if (m.tramos.length) {
+    m.tramos.forEach((t, ti) => {
+      const d = P.slice(t.iDesde, t.iHasta + 1).map((p, i) => (i ? 'L' : 'M') + p.X.toFixed(1) + ' ' + p.Y.toFixed(1)).join(' ');
+      s += `<path d="${d}" fill="none" stroke="${TRAMO_COLOR[ti % 6]}" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round" opacity=".9"/>`;
+    });
+  } else {
+    const d = P.map((p, i) => (i ? 'L' : 'M') + p.X.toFixed(1) + ' ' + p.Y.toFixed(1)).join(' ');
+    s += `<path d="${d}" fill="none" stroke="#52606d" stroke-width="2.2" stroke-linejoin="round"/>`;
+  }
+
+  /* Empalmes: cuelgan a mitad de vano, no doblan nada */
+  (m.L.empalmes || []).forEach(e => {
+    const a = P[e.vano], b = P[e.vano + 1]; if (!a || !b) return;
+    const X = a.X + (b.X - a.X) * e.frac, Y = a.Y + (b.Y - a.Y) * e.frac;
+    s += `<rect x="${(X - 3).toFixed(1)}" y="${(Y - 3).toFixed(1)}" width="6" height="6" fill="#6f7d8a" transform="rotate(45 ${X.toFixed(1)} ${Y.toFixed(1)})"/>`;
+  });
+
+  /* Apoyos. Las etiquetas se alternan arriba/abajo cuando dos anclajes caen
+     cerca — con un vano de 13,4 m se pisarían. */
+  let ult = null;
+  P.forEach((p, i) => {
+    const f = m.func[i];
+    if (f === 'Terminal') s += `<rect x="${(p.X - 4.5).toFixed(1)}" y="${(p.Y - 4.5).toFixed(1)}" width="9" height="9" fill="#0b0f13" stroke="#e6edf3" stroke-width="1.8"/>`;
+    else if (f === 'Retención' || f === 'Ángulo') s += `<circle cx="${p.X.toFixed(1)}" cy="${p.Y.toFixed(1)}" r="4.6" fill="#f0a500" stroke="#0b0f13" stroke-width="1.2"/>`;
+    else s += `<circle cx="${p.X.toFixed(1)}" cy="${p.Y.toFixed(1)}" r="2.6" fill="#8b98a5"/>`;
+    if (f === 'Terminal' || f === 'Retención' || f === 'Ángulo') {
+      const cerca = ult && Math.hypot(p.X - ult.X, p.Y - ult.Y) < 52;
+      const dy = cerca ? (ult.dy < 0 ? 17 : -8) : -8;
+      s += `<text x="${(p.X + 7).toFixed(1)}" y="${(p.Y + dy).toFixed(1)}" fill="${f === 'Terminal' ? '#e6edf3' : '#f0a500'}" font-size="10.5" font-family="ui-monospace,SF Mono,Menlo,monospace">${m.nombres[i]}</text>`;
+      ult = { X: p.X, Y: p.Y, dy };
+    }
+  });
+
+  /* Marcador del evento de falla, por encima de todo */
+  if (m.L.rico) {
+    const p = P[1];
+    s += `<circle cx="${p.X.toFixed(1)}" cy="${p.Y.toFixed(1)}" r="7" fill="rgba(214,69,69,.35)">
+      <animate attributeName="r" values="7;17;7" dur="2.1s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values=".5;0;.5" dur="2.1s" repeatCount="indefinite"/></circle>`;
+    s += `<circle cx="${p.X.toFixed(1)}" cy="${p.Y.toFixed(1)}" r="6.4" fill="#d64545" stroke="#0b0f13" stroke-width="1.6"/>`;
+    s += `<text x="${(p.X + 11).toFixed(1)}" y="${(p.Y + 13).toFixed(1)}" fill="#ff8b8b" font-size="10" font-family="-apple-system,system-ui,sans-serif">evento de falla</text>`;
+  }
+
+  /* Norte + escala */
+  s += `<g transform="translate(${W - 46} 34)"><g transform="rotate(${(-giro * 180 / Math.PI).toFixed(1)})">
+    <line x1="0" y1="14" x2="0" y2="-6" stroke="#8b98a5" stroke-width="1.2"/>
+    <path d="M0 -11 L4 -3 L-4 -3 Z" fill="#8b98a5"/></g>
+    <text x="0" y="30" fill="#8b98a5" font-size="10" text-anchor="middle" font-family="-apple-system,system-ui,sans-serif">N*</text></g>`;
+  const esc = 200 * k;
+  s += `<g transform="translate(28 ${Hh - 20})"><line x1="0" y1="0" x2="${esc.toFixed(1)}" y2="0" stroke="#8b98a5" stroke-width="1.4"/>
+    <line x1="0" y1="-4" x2="0" y2="4" stroke="#8b98a5" stroke-width="1.4"/><line x1="${esc.toFixed(1)}" y1="-4" x2="${esc.toFixed(1)}" y2="4" stroke="#8b98a5" stroke-width="1.4"/>
+    <text x="${(esc / 2).toFixed(1)}" y="-7" fill="#8b98a5" font-size="10" text-anchor="middle" font-family="-apple-system,system-ui,sans-serif">200 m</text></g>`;
+  return s + '</svg>';
+}
+
+/* ══ Barras de distribución de vanos ═══════════════════════════════════ */
+function barrasVanos(m) {
+  const max = m.stats.max, prom = m.stats.prom;
+  return `<div class="dist-barras">` + m.vanos.map((v, i) => {
+    const va = m.vanoAvano[i];
+    const fuera = va ? va.fuera : false;
+    return `<div class="barra-fila">
+      <span class="barra-nombre">${m.nombres[i]} → ${m.nombres[i + 1]}</span>
+      <span class="barra-pista"><span class="barra-valor${fuera ? ' fuera' : ''}" style="width:${(v / max * 100).toFixed(2)}%"></span>
+        <span class="barra-promedio" style="left:${(prom / max * 100).toFixed(2)}%"></span></span>
+      <span class="barra-cifra">${nf(v, 1)} m ${va ? `<i class="${fuera ? 'fuera' : ''}">·${nf(va.rel, 2)}</i>` : ''}</span>
+    </div>`;
+  }).join('') + `</div>`;
+}
+
+/* ══ Cabecera de sección ═══════════════════════════════════════════════ */
+function sec(id, n, tit, pg, lead, cuerpo) {
+  return `<section class="seccion" id="${id}" data-n="${n}" data-tit="${tit}" data-pg="${pg}">
+    <div class="sec-cab"><div class="sec-num">${n}</div><h2>${tit}</h2><div class="pg">pág. ${pg}</div></div>
+    ${lead ? `<p class="sec-lead">${lead}</p>` : ''}
+    <div class="sec-cuerpo">${cuerpo}</div>
+  </section>`;
+}
+const corte = (p) => `<div class="corte-pagina">página ${p}</div>`;
+/* La razón de fondo se explica UNA vez (sección 6) y las demás la citan. Es la
+   misma regla que el propio cálculo aplica a sus notas: agrupar por texto para
+   que la observación repetida no tape a la que dice algo distinto. */
+const noEval = (rot, tit, texto, faltan) => `<div class="no-eval"><div class="rot">${rot}</div><h4>${tit}</h4>
+  <p>${texto}</p>${faltan ? `<ul>${faltan.map(f => `<li>${f}</li>`).join('')}</ul>` : ''}
+  <p class="fine">La sección no se oculta a propósito: <b>ocultarla se leería como «aquí no aplica»</b>,
+  y lo que falta dejaría de contarse justo cuando hay más líneas en cartera.</p></div>`;
+const noEvalCorto = (tit, texto) => `<div class="no-eval"><div class="rot">Sección no evaluable</div><h4>${tit}</h4>
+  <p>${texto} <b>Falta lo mismo que en la sección 6</b>: el conductor declarado y la hipótesis climática.</p></div>`;
+
+/* ══ 0 · PORTADA ═══════════════════════════════════════════════════════ */
+function secPortada(m) {
+  const L = m.L, c = L.conductor, h = L.hipotesis;
+  const firmable = !!(h && h.congelada) && L.estado === 'bien';
+  const semaforos = [];
+
+  if (L.rico) semaforos.push(['critico', 'Eventos de falla', '1 expediente abierto',
+    '4 verificaciones pendientes sin resolver']);
+  else if (L.evento) semaforos.push(['critico', 'Eventos de falla', L.evento + ' expedientes abiertos', '6 verificaciones sin resolver']);
+  else semaforos.push(['bien', 'Eventos de falla', 'Ninguno registrado', 'Es el estado de la línea, no un hueco de la aplicación']);
+
+  semaforos.push(['atender', 'Calidad del levantamiento',
+    'Precisión GPS ±' + (L.rico ? 8 : 11) + ' m',
+    'No sirve para flecha, gálibo ni distancias de seguridad']);
+
+  if (!c) semaforos.push(['sin', 'Cálculo mecánico', 'No evaluable', 'No hay conductor declarado en esta línea']);
+  else {
+    const fuera = m.vanoAvano.filter(v => v.fuera).length;
+    semaforos.push([fuera ? 'atender' : 'bien', 'Cálculo mecánico',
+      m.tramos.length + ' tramos calculados',
+      fuera + ' de ' + m.vanoAvano.length + ' vanos fuera de la banda 0,7–1,3 del VIR']);
+  }
+
+  semaforos.push([h && h.congelada ? 'bien' : 'critico', 'Hipótesis de cálculo',
+    h ? (h.congelada ? 'Congelada' : 'SIN VALIDAR') : 'No declarada',
+    h ? ('Procedencia: ' + h.procedencia + (h.congelada ? '' : ' · no congelada')) : 'Sin ella no hay cálculo mecánico']);
+
+  const topeMotor = c ? c.rts * TOPE_MOTOR : 0, topeDoc = c ? c.rts * TOPE_DOCTRINA : 0;
+
+  /* Contraste entre lo que dice el RESUMEN GUARDADO (que ordena la cartera) y
+     lo que acaba de calcular la pantalla. Si no coinciden, la lista miente y
+     hay que decirlo en la portada, no en una nota al pie. */
+  const fueraVivo = c ? m.vanoAvano.filter(v => v.fuera).length : 0;
+  const discrepa = L.estado === 'bien' && fueraVivo > 0;
+
+  return `<div class="portada" id="s0" data-n="" data-tit="Portada" data-pg="1">
+    <div class="rot">Informe de estado de línea · ${firmable ? 'revisión ' + (h ? h.revision : '—') + ' · hipótesis congelada' : 'borrador'}</div>
+    <h1>${L.cod}<small>${nf(L.kv, L.kv % 1 ? 1 : 0)} kV · ${L.estr} estructuras · ${nf(L.largo, 0)} m</small></h1>
+    <p class="desc">Este documento es exactamente lo que saldría impreso: mismas secciones, mismo orden,
+      mismas cifras. Revisar en pantalla y revisar el papel son el mismo trabajo.</p>
+
+    <div class="veredicto${firmable ? ' ok' : ''}">
+      <div class="veredicto-icono">${firmable ? '✓' : '!'}</div>
+      <div>
+        <div class="veredicto-t">¿Está lista para firmar? ${firmable ? 'SÍ, con las reservas declaradas.' : 'NO.'}</div>
+        <p class="veredicto-c">${firmable
+      ? `La hipótesis está congelada y no hay hallazgos abiertos. Aun así, <b>el sistema no certifica nada</b>: certifica el ingeniero que firma. Lo que hace el sistema es hacer barato comprobar que ese ingeniero tiene razón.`
+      : `${h ? `La hipótesis vigente es «<b>${h.nombre}</b>», procedencia <b>${h.procedencia}</b>, y <b>no está congelada</b>.` : 'Esta línea <b>no tiene hipótesis de cálculo declarada</b>.'}
+             ${c ? `Además, el tope de tiro sigue sin decidir: el motor calcula contra el <b>${nf(TOPE_MOTOR * 100)} % de la RTS</b> (${nf(topeMotor)} kgf) y la doctrina interna pide el <b>${nf(TOPE_DOCTRINA * 100)} %</b> (${nf(topeDoc)} kgf).` : ''}
+             Mientras eso siga así, <b>ninguna cifra de este documento es un dictamen firmable</b>.`}</p>
+      </div>
+    </div>
+
+    <div class="banda-estado">
+      ${semaforos.map(([cl, t, v, s]) => `<div class="estado-ficha ${cl}"><span class="estado-punto"></span>
+        <span><span class="estado-t">${t}</span><span class="estado-v">${v}</span><span class="estado-s">${s}</span></span></div>`).join('')}
+    </div>
+
+    <div class="identidad">
+      <dl>
+        <dt>Código de línea</dt><dd>${L.cod}</dd>
+        <dt>Tensión nominal</dt><dd>${nf(L.kv, L.kv % 1 ? 1 : 0)} kV</dd>
+        <dt>Circuitos</dt><dd>1</dd>
+        <dt>Estructuras</dt><dd>${L.estr}</dd>
+        <dt>Empalmes (no son apoyos)</dt><dd>${L.emp}</dd>
+        <dt>Vanos</dt><dd>${m.vanos.length}</dd>
+      </dl>
+      <dl>
+        <dt>Longitud por la línea</dt><dd>${nf(L.largo, 0)} m</dd>
+        <dt>Distancia directa extremos</dt><dd>${nf(m.stats.directa, 0)} m</dd>
+        <dt>Factor de rodeo</dt><dd>${nf(m.stats.rodeo, 2)}</dd>
+        <dt>Vano promedio</dt><dd>${nf(m.stats.prom, 1)} m</dd>
+        <dt>Vano mínimo / máximo</dt><dd>${nf(m.stats.min, 1)} / ${nf(m.stats.max, 1)} m</dd>
+        <dt>Tramos de tensión</dt><dd>${m.tramos.length || H_}</dd>
+      </dl>
+      <dl>
+        <dt>Conductor</dt><dd>${c ? c.material + ' ' + c.codigo : '<span class="pend">no declarado</span>'}</dd>
+        <dt>Sección · diámetro</dt><dd>${c ? nf(c.seccion, 1) + ' mm² · Ø ' + nf(c.diametro * 1000, 2) + ' mm' : H_}</dd>
+        <dt>RTS</dt><dd>${c ? nf(c.rts) + ' kgf' : H_}</dd>
+        <dt>Procedencia del conductor</dt><dd>${c ? '<span class="pend">' + c.procedencia + '</span>' : H_}</dd>
+        <dt>Resumen guardado</dt><dd>${L.fechaResumen}</dd>
+        <dt>Versión del motor</dt><dd>${L.motor}${L.motorViejo ? ' <span class="sello ambar">desfasado</span>' : ''}</dd>
+      </dl>
+    </div>
+
+    ${discrepa ? `<p class="aviso"><b>El resumen guardado clasifica esta línea como «Al día»; el cálculo que corre en esta
+      pantalla encuentra ${fueraVivo} de ${m.vanoAvano.length} vanos fuera de la banda del VIR.</b> El resumen es del
+      ${L.fechaResumen}. Mientras no se recalcule, <b>la posición de esta línea en la lista es una foto vieja</b> — y una lista
+      ordenada por un estado que ya no es cierto es peor que una lista sin ordenar.</p>` : ''}
+
+    ${L.motorViejo ? `<p class="aviso"><b>El resumen de esta línea se calculó con ${L.motor}</b> y la pantalla corre v0.9.4.
+      Un resumen calculado con otra versión que la pantalla es exactamente la contradicción que este proyecto no se permite:
+      hasta recalcularlo, el semáforo de la lista es <b>una foto vieja</b>, no el estado de hoy.</p>` : ''}
+
+    <p class="fine">Este sistema no certifica nada. Certifica el ingeniero que firma. El trabajo del sistema
+      es hacer barato comprobar que ese ingeniero tiene razón.</p>
+    ${corte(1)}</div>`;
+}
+
+/* ══ 1 · RESUMEN EJECUTIVO ═════════════════════════════════════════════ */
+function sec1(m) {
+  const L = m.L, s = m.stats;
+  const fuera = m.vanoAvano.filter(v => v.fuera).length;
+  const anclajes = m.func.map((f, i) => ({ f, i })).filter(x => x.f === 'Retención' || x.f === 'Ángulo');
+  const ampl = m.cargasT.filter(c => c.fac > 1);
+  const peor = m.cargasT.length ? m.cargasT.reduce((a, b) => b.total > a.total ? b : a) : null;
+
+  const hallazgos = [];
+  hallazgos.push(['atencion', 'Precisión GPS declarada ±' + (L.rico ? 8 : 11) + ' m',
+    'Las cotas salen de un GPS de mano. Sirven para ubicar y para medir en planta; <b>no</b> para flecha, gálibo ni distancia de seguridad. Todo lo que dependa de la cota queda declarado, no calculado.']);
+  if (m.tramos.length) hallazgos.push(['aviso', 'Quiebre de ' + gr(Math.max(...m.defl.filter(d => d != null))) + ' en ' + m.cargasT.reduce((a, b) => (b.fac > a.fac ? b : a)).nom,
+    'Amplifica la carga transversal por <b>×' + nf(Math.max(...m.cargasT.map(c => c.fac)), 3) + '</b>: ' + nf((Math.max(...m.cargasT.map(c => c.fac)) - 1) * 100, 1) + ' % más que el propio tiro del conductor, con viento y sin él.']);
+  if (s.largos) hallazgos.push(['aviso', s.largos + ' vano' + (s.largos > 1 ? 's' : '') + ' de más del doble del promedio',
+    'El mayor es de <b>' + nf(s.max, 1) + ' m</b> frente a un promedio de ' + nf(s.prom, 1) + ' m. Son los que mandan la flecha y el tiro del tramo.']);
+  hallazgos.push(['info', 'Ninguna estructura declara su función',
+    'Las ' + L.estr + ' se dedujeron por deflexión con el criterio del módulo original (&lt;3° suspensión · &lt;15° suspensión angular · &lt;30° ángulo · ≥30° retención). <b>Deducir no es declarar</b>: el veredicto de coherencia no se puede emitir.']);
+  if (L.rico) hallazgos.push(['info', '103 fotografías · 12 puntos sin ninguna',
+    '4 del expediente de falla y 99 de estructura repartidas en 14 puntos. Los 12 puntos restantes declaran que no tienen fotografía: el hueco se cuenta, no se disimula.']);
+
+  return sec('s1', '1', 'Resumen ejecutivo', 2,
+    'Lo que hay que saber de esta línea antes de abrir ninguna tabla: cuánta línea es, qué exige acción y qué no se demuestra.',
+    `<figure class="lamina">${svgPlanta(m)}
+      <div class="leyenda">
+        <span><i class="li term"></i> Terminal</span>
+        <span><i class="li ancla"></i> Retención / ángulo</span>
+        <span><i class="li susp"></i> Suspensión</span>
+        <span><i class="li emp"></i> Empalme (no es apoyo)</span>
+        ${m.tramos.map((t, i) => `<span><i class="li tramo" style="background:${TRAMO_COLOR[i % 6]}"></i> Tramo ${t.n}: ${t.desde}–${t.hasta} · ${t.nVanos} vano${t.nVanos > 1 ? 's' : ''}</span>`).join('')}
+      </div>
+      <figcaption><b>Lámina 1 — Planta esquemática.</b> Geometría relativa derivada del levantamiento,
+        coloreada por tramo de tensión. Se dibuja sin coordenadas absolutas: en el sistema real este
+        recuadro es el mapa, y el esquema es el respaldo que responde cuando el mapa tarda.
+        <span class="reservado">*Norte relativo — la orientación absoluta es dato de cliente y no se publica aquí.</span></figcaption>
+    </figure>
+
+    <h3 class="sub" data-idx="1.1" id="s1-1"><span class="n">1.1</span> Cuánta línea es</h3>
+    <div class="kpis k6">
+      <div class="kpi"><div class="kpi-v">${nf(L.largo, 0)}<small> m</small></div><div class="kpi-l">Longitud por la línea</div><div class="kpi-s">Suma de los ${m.vanos.length} vanos</div></div>
+      <div class="kpi"><div class="kpi-v">${nf(s.directa, 0)}<small> m</small></div><div class="kpi-l">Distancia directa</div><div class="kpi-s">Factor de rodeo ${nf(s.rodeo, 2)}</div></div>
+      <div class="kpi"><div class="kpi-v">${L.estr}</div><div class="kpi-l">Estructuras</div><div class="kpi-s">+ ${L.emp} empalme${L.emp === 1 ? '' : 's'}, que no son apoyos</div></div>
+      <div class="kpi"><div class="kpi-v">${m.vanos.length}</div><div class="kpi-l">Vanos</div><div class="kpi-s">${m.tramos.length || '—'} tramos de tensión</div></div>
+      <div class="kpi"><div class="kpi-v">${nf(s.prom, 1)}<small> m</small></div><div class="kpi-l">Vano promedio</div><div class="kpi-s">Mediana ${nf(s.mediana, 1)} m · σ ${nf(s.sigma, 1)} m</div></div>
+      <div class="kpi"><div class="kpi-v">${nf(s.min, 1)} / ${nf(s.max, 1)}</div><div class="kpi-l">Vano mín / máx (m)</div><div class="kpi-s">${s.largos} por encima del doble del promedio</div></div>
+    </div>
+    <p class="fine">Los <b>${L.emp} empalme${L.emp === 1 ? '' : 's'}</b> se cuentan aparte a propósito: un empalme cuelga a mitad de vano y no
+      sostiene el conductor. Contarlo como apoyo partiría un vano real${L.rico ? ' de <b>' + nf(m.vanos[5], 1) + ' m</b>' : ''} en dos falsos
+      y movería la deflexión de sus vecinos.</p>
+
+    ${L.rico ? `<div class="falla-banda"><div class="falla-rot">Exige acción hoy</div>
+      <div class="falla-tit">Expediente de falla abierto en ${m.nombres[1]}</div>
+      <p class="falla-sub">Apertura de línea · cadena de amarre y grapa de retención · <b>4 verificaciones pendientes sin resolver</b></p>
+      <p class="falla-geo">Deflexión ${gr(m.defl[1])} · progresiva ${nf(m.progres[1], 1)} m · función deducida ${m.func[1]} · 4 fotografías en el expediente</p>
+      <p class="falla-sub">El detalle completo va en la sección 4. Las verificaciones pendientes son literalmente
+        lo que separa un informe defendible de uno que solo suena convincente.</p></div>` : ''}
+
+    <h3 class="sub" data-idx="1.2" id="s1-2"><span class="n">1.2</span> Calidad del levantamiento — hallazgos calculados, no redactados</h3>
+    <ul class="hallazgos">${hallazgos.map(([cl, t, d]) => `<li class="${cl}"><b>${t}.</b> ${d}</li>`).join('')}</ul>
+
+    <h3 class="sub" data-idx="1.3" id="s1-3"><span class="n">1.3</span> Distribución de vanos</h3>
+    <div class="kpis k6">
+      <div class="kpi"><div class="kpi-v">${nf(s.prom, 1)}<small> m</small></div><div class="kpi-l">Promedio</div></div>
+      <div class="kpi"><div class="kpi-v">${nf(s.mediana, 1)}<small> m</small></div><div class="kpi-l">Mediana</div></div>
+      <div class="kpi"><div class="kpi-v">${nf(s.sigma, 1)}<small> m</small></div><div class="kpi-l">Desviación típica</div></div>
+      <div class="kpi"><div class="kpi-v rojo">${nf(s.max, 1)}<small> m</small></div><div class="kpi-l">Máximo</div><div class="kpi-s">×${nf(s.max / s.prom, 2)} el promedio</div></div>
+      <div class="kpi"><div class="kpi-v azul">${nf(s.min, 1)}<small> m</small></div><div class="kpi-l">Mínimo</div><div class="kpi-s">×${nf(s.min / s.prom, 2)} el promedio</div></div>
+      <div class="kpi"><div class="kpi-v ${fuera ? 'rojo' : 'verde'}">${m.tramos.length ? fuera + ' / ' + m.vanoAvano.length : H_}</div><div class="kpi-l">Vanos fuera de banda</div><div class="kpi-s">Respecto al VIR de su tramo (0,7–1,3)</div></div>
+    </div>
+    ${barrasVanos(m)}
+    <p class="fine">La marca clara de cada barra es el <b>vano promedio (${nf(s.prom, 1)} m)</b>. La cifra pequeña a la derecha
+      es la relación <b>vano / VIR de su tramo</b>: en ámbar cuando cae fuera de la banda 0,7–1,3, que es donde
+      la hipótesis del vano ideal de regulación deja de ser válida y el tramo debería subdividirse.</p>
+    ${corte(3)}`);
+}
+
+/* ══ 2 · DISTANCIAS ════════════════════════════════════════════════════ */
+function sec2(m) {
+  const n = m.nombres.length;
+  let filas = '';
+  for (let i = 0; i < n; i++) {
+    filas += `<tr><th class="pegado">${m.nombres[i]}</th>`;
+    for (let j = 0; j < n; j++) {
+      if (i === j) { filas += `<td class="diag">—</td>`; continue; }
+      const d = m.dist(i, j);
+      const t = Math.max(0, Math.min(1, 1 - d / 900));
+      filas += `<td data-i="${i}" data-j="${j}" style="background:rgba(240,165,0,${(t * 0.30).toFixed(3)})">${nf(d, 0)}</td>`;
+    }
+    filas += `</tr>`;
+  }
+  const opts = m.nombres.map((x, i) => `<option value="${i}">${x}</option>`).join('');
+  return sec('s2', '2', 'Distancias entre estructuras', 4,
+    'Distancia directa entre cualquier par de apoyos y recorrido por la línea. Las cotas no entran: con ±8 m de precisión vertical, el desnivel se declara pero no se firma.',
+    `<div class="panel"><h4>Calculadora de dos extremos</h4>
+      <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-top:8px">
+        <label style="display:flex;flex-direction:column;gap:4px;font-size:10px;color:var(--mut);text-transform:uppercase;letter-spacing:.5px">Desde
+          <select id="calc-a" style="background:var(--lienzo-hond);color:var(--tx);border:var(--hairline) solid var(--bd);border-radius:6px;padding:6px 9px;font:400 12.5px var(--fuente);min-width:150px;text-transform:none;letter-spacing:0">${opts}</select></label>
+        <button class="chip" id="calc-inv" style="padding:8px 12px">⇄ Invertir</button>
+        <label style="display:flex;flex-direction:column;gap:4px;font-size:10px;color:var(--mut);text-transform:uppercase;letter-spacing:.5px">Hasta
+          <select id="calc-b" style="background:var(--lienzo-hond);color:var(--tx);border:var(--hairline) solid var(--bd);border-radius:6px;padding:6px 9px;font:400 12.5px var(--fuente);min-width:150px;text-transform:none;letter-spacing:0">${opts}</select></label>
+      </div>
+      <div class="kpis k4" id="calc-kpis"></div>
+      <p class="fine">La distancia directa se resuelve con <b>Vincenty sobre WGS84</b> en el sistema real; aquí, sobre la
+        misma geometría relativa que dibuja la lámina 1. El desnivel se muestra en gris y rotulado
+        <b>«no firmable»</b>: sale de cotas GPS de mano con ±8 m declarados.</p></div>
+
+    <h3 class="sub" data-idx="2.1" id="s2-1"><span class="n">2.1</span> Matriz completa ${n} × ${n}</h3>
+    <p>Las ${nf(n * n)} celdas están tintadas en ámbar por proximidad: cuanto más oscuro el ámbar, más cerca
+      están las dos estructuras. Haz clic en cualquier celda y el par sube a la calculadora.</p>
+    <div class="matriz-caja"><table class="matriz" id="matriz"><thead><tr><th class="pegado">m</th>${m.nombres.map(x => `<th>${x}</th>`).join('')}</tr></thead>
+      <tbody>${filas}</tbody></table></div>
+    <p class="fine">Distancias en metros, en planta. <b>No son distancias de seguridad</b>: eso exige cota, y la cota
+      de este levantamiento no la soporta.</p>
+    ${corte(5)}`);
+}
+
+/* ══ 3 · FICHAS ════════════════════════════════════════════════════════ */
+function sec3(m) {
+  const L = m.L;
+  const chips = m.nombres.map((x, i) => `<button class="chip ${claseFuncion(m.func[i])}" data-ficha="${i}">${x}</button>`).join('')
+    + (L.empalmes || []).map((e, k) => `<button class="chip emp" data-ficha="emp${k}">${e.nom}</button>`).join('');
+  return sec('s3', '3', 'Fichas de estructura', 6,
+    'Una ficha por punto. Cada hueco se pinta como hueco —«pendiente, se captura en campo»— y nunca como cero: un cero se suma, un hueco se ve.',
+    `<div class="chips" id="chips-ficha">${chips}</div>
+     <div id="ficha-cuerpo"></div>
+     ${corte(8)}`);
+}
+/* ── Fotografías por punto (LN-627: 99 de estructura en 14 de 26 puntos) ── */
+const FOTOS_627 = [0, 4, 0, 9, 0, 12, 7, 0, 0, 6, 0, 8, 0, 5, 0, 11, 0, 7, 0, 9, 10, 0, 3, 6, 2, 0];
+
+function renderFicha(m, sel) {
+  const L = m.L, cont = document.getElementById('ficha-cuerpo'); if (!cont) return;
+  const esEmp = String(sel).startsWith('emp');
+  const uuid = (s) => 'a7f' + String(s).padStart(2, '0') + 'c2-' + (4100 + Number(String(s).replace(/\D/g, '') || 0) * 7) + '-4b1e-9d' + String(s).padStart(2, '0');
+
+  if (esEmp) {
+    const k = Number(sel.slice(3)), e = (L.empalmes || [])[k] || { nom: 'EMP', vano: 0, frac: .5 };
+    cont.innerHTML = `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px">
+      <h4 class="sub2" style="margin:0">${e.nom}</h4><span class="sello gris">Empalme — no es apoyo</span>
+      <span class="sello azul">no sostiene el conductor</span></div>
+      <div class="ficha-grilla">
+        <div class="ficha-bloque"><h5>Identidad</h5><dl>
+          <dt>Nombre</dt><dd>${e.nom}</dd><dt>Tipo de punto</dt><dd>Empalme</dd>
+          <dt>Vano que lo contiene</dt><dd>${m.nombres[e.vano]} → ${m.nombres[e.vano + 1]}</dd>
+          <dt>Vano real</dt><dd>${nf(m.vanos[e.vano], 1)} m</dd>
+          <dt>Posición en el vano</dt><dd>${nf(e.frac * 100, 0)} %</dd></dl></div>
+        <div class="ficha-bloque"><h5>Por qué va aparte</h5>
+          <p style="font-size:11.8px;margin:0;color:var(--tx2);line-height:1.6">Un empalme cuelga a mitad de vano: no dobla la línea ni recibe carga de quiebre.
+          Contarlo como apoyo partiría este vano de <b>${nf(m.vanos[e.vano], 1)} m</b> en dos falsos y movería la deflexión
+          de sus vecinos${L.rico ? ' — que es justo el error que traía el módulo original en ' + m.nombres[5] : ''}.</p></div>
+        <div class="ficha-bloque"><h5>Trazabilidad del dato</h5><dl>
+          <dt>UUID</dt><dd class="mono">${uuid(90 + k)}</dd><dt>Revisión</dt><dd>r2</dd>
+          <dt>Capturado por</dt><dd class="pend">pendiente (F4)</dd><dt>Fecha</dt><dd class="pend">pendiente (F4)</dd></dl></div>
+      </div>`;
+    return;
+  }
+
+  const i = Number(sel), c = L.conductor;
+  const cT = m.cargasT[i], cL = m.cargasL[i];
+  const nFotos = L.rico ? FOTOS_627[i] : (i % 4 === 1 ? 5 : 0);
+  const crit = [];
+
+  /* Criterio 1 — coherencia función declarada vs deflexión medida */
+  crit.push({
+    et: 'Coherencia función / deflexión', val: m.defl[i] == null ? '—' : gr(m.defl[i]), ver: 'no_evaluable',
+    cri: '&lt;3° suspensión · &lt;15° suspensión angular · &lt;30° ángulo · ≥30° retención',
+    det: `La ficha <b>no declara función estructural</b>. La que aparece («${m.func[i]}») está <b>deducida de la geometría</b>, no declarada: no hay dos valores que confrontar, así que el criterio no se puede aplicar.`
+  });
+  crit.push({
+    et: 'Distancia de fuga específica', val: '—', ver: 'no_evaluable',
+    cri: '≥ 25 mm/kV sobre Um (ambiente costero) — RETIE',
+    det: 'No hay cadena declarada: sin número de unidades ni fuga por unidad no hay fuga total. <b>No es un hueco de la aplicación: es un dato que nadie ha capturado.</b>'
+  });
+  crit.push({
+    et: 'Resistencia de puesta a tierra', val: '—', ver: 'no_evaluable',
+    cri: '≤ 20 Ω (criterio adoptado por el proyecto)',
+    det: 'Sin medición de tierra. Es el valor que decide si una descarga se drena al terreno o eleva el potencial de la estructura hasta cebar el arco hacia el conductor.'
+  });
+  crit.push({
+    et: 'Vano viento', val: cT ? nf(cT.vViento, 1) + ' m' : '—', ver: 'entrada',
+    cri: 'ENTRADA del cálculo de carga transversal, no criterio de aceptación',
+    det: `Media de los vanos adyacentes: (${nf(cT ? cT.vAnt : 0, 1)} + ${nf(cT ? cT.vSig : 0, 1)}) / 2. Se muestra porque alimenta la sección 9, no porque haya un umbral que cumplir.`
+  });
+  crit.push({
+    et: 'Vano peso', val: '—', ver: 'no_evaluable',
+    cri: 'Sin criterio aplicable mientras falte el dato',
+    det: 'Exige la <b>cota de sujeción</b> del conductor en cada apoyo, que este levantamiento no trae. Sin vano peso no hay carga vertical y no hay verificación de arrancamiento.'
+  });
+
+  cont.innerHTML = `<div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:12px">
+    <h4 class="sub2" style="margin:0">${m.nombres[i]}</h4>
+    <span class="sello ${m.func[i] === 'Terminal' ? 'rojo' : (m.func[i] === 'Retención' || m.func[i] === 'Ángulo') ? 'ambar' : 'gris'}">${m.func[i]} (deducida)</span>
+    <span class="sello gris">función no declarada</span>
+    ${i === 1 && L.rico ? '<span class="sello rojo">expediente de falla</span>' : ''}</div>
+
+  <div class="ficha-grilla">
+    <div class="ficha-bloque"><h5>Identidad</h5><dl>
+      <dt>Nombre canónico</dt><dd>${m.nombres[i]}</dd>
+      <dt>Orden en la línea</dt><dd>${i + 1} de ${m.nombres.length}</dd>
+      <dt>Tipo de punto</dt><dd>Estructura</dd>
+      <dt>Placa</dt><dd class="pend">pendiente — se captura en campo (F4)</dd>
+      <dt>Material</dt><dd class="pend">pendiente — se captura en campo (F4)</dd>
+      <dt>Función estructural</dt><dd class="pend">no declarada</dd></dl></div>
+
+    <div class="ficha-bloque"><h5>Ubicación</h5><dl>
+      <dt>Latitud</dt><dd class="reservado">reservado — dato de cliente</dd>
+      <dt>Longitud</dt><dd class="reservado">reservado — dato de cliente</dd>
+      <dt>Progresiva</dt><dd>${nf(m.progres[i], 1)} m</dd>
+      <dt>Precisión declarada</dt><dd>± ${L.rico ? 8 : 11} m</dd>
+      <dt>Cota</dt><dd class="pend">no firmable (GPS de mano)</dd>
+      <dt>Cota de sujeción</dt><dd class="pend">pendiente — se captura en campo (F4)</dd></dl></div>
+
+    <div class="ficha-bloque"><h5>Geometría derivada</h5><dl>
+      <dt>Deflexión</dt><dd>${m.defl[i] == null ? H_ : gr(m.defl[i], 1)}</dd>
+      <dt>Factor 2·sen(α/2)</dt><dd>${cT && m.defl[i] != null ? '×' + nf(cT.fac, 3) : H_}</dd>
+      <dt>Vano anterior</dt><dd>${i > 0 ? nf(m.vanos[i - 1], 1) + ' m' : H_}</dd>
+      <dt>Vano siguiente</dt><dd>${i < m.vanos.length ? nf(m.vanos[i], 1) + ' m' : H_}</dd>
+      <dt>Vano viento</dt><dd>${cT ? nf(cT.vViento, 1) + ' m' : H_}</dd>
+      <dt>Vano peso</dt><dd class="pend">falta la cota de sujeción</dd></dl></div>
+
+    <div class="ficha-bloque"><h5>Inventario del apoyo</h5><dl>
+      <dt>Altura total</dt><dd class="pend">pendiente (F4)</dd>
+      <dt>Altura libre</dt><dd class="pend">pendiente (F4)</dd>
+      <dt>Carga de rotura</dt><dd class="pend">no declarada</dd>
+      <dt>Capacidad longitudinal</dt><dd class="pend">no declarada</dd>
+      <dt>Crucetas</dt><dd class="pend">pendiente (F4)</dd>
+      <dt>Retenidas</dt><dd class="pend">pendiente (F4)</dd></dl></div>
+
+    <div class="ficha-bloque"><h5>Aislamiento y puesta a tierra</h5><dl>
+      <dt>Tipo de cadena</dt><dd class="pend">pendiente (F4)</dd>
+      <dt>Unidades por cadena</dt><dd class="pend">pendiente (F4)</dd>
+      <dt>Fuga por unidad</dt><dd class="pend">pendiente (F4)</dd>
+      <dt>Fuga específica</dt><dd>${H_}</dd>
+      <dt>Resistencia de tierra</dt><dd class="pend">sin medición</dd>
+      <dt>Bajante</dt><dd class="pend">pendiente (F4)</dd></dl></div>
+
+    <div class="ficha-bloque"><h5>Trazabilidad del dato</h5><dl>
+      <dt>UUID</dt><dd class="mono">${uuid(i + 1)}</dd>
+      <dt>Revisión</dt><dd>r${1 + (i % 3)}</dd>
+      <dt>Origen</dt><dd>levantamiento de campo</dd>
+      <dt>Capturado por</dt><dd class="pend">pendiente (F4)</dd>
+      <dt>Fecha de captura</dt><dd class="pend">pendiente (F4)</dd>
+      <dt>Motor que lo calculó</dt><dd>${L.motor}</dd></dl></div>
+  </div>
+
+  <h4 class="sub2">Semáforo de criterios de ${m.nombres[i]}</h4>
+  <div class="tabla-caja"><table class="tabla">
+    <caption>Cinco criterios, y ninguno se llama «incumple»: el sistema señala, dictamina quien firma.
+      <b>«No evaluable» no es un fallo de la aplicación: es un hecho sobre los datos</b>, y se muestra con la misma dignidad que un verde.</caption>
+    <thead><tr><th>Criterio</th><th>Valor</th><th>Estado</th><th>Contra qué se comparó · qué significa</th></tr></thead>
+    <tbody>${crit.map(k => `<tr><td><b>${k.et}</b></td><td class="num ${k.val === '—' ? 'hueco' : 'destaca'}">${k.val}</td>
+      <td><span class="sello ${k.ver === 'entrada' ? 'azul' : 'gris'}">${k.ver === 'entrada' ? 'entrada' : 'no evaluable'}</span></td>
+      <td class="porq"><b style="color:var(--mut)">${k.cri}</b><br>${k.det}</td></tr>`).join('')}</tbody></table>
+    <div class="tabla-nota">0 de 5 criterios evaluables en este apoyo. En toda la línea: <b>0 de ${m.nombres.length} apoyos con veredicto</b> en los dos ejes.</div></div>
+
+  <h4 class="sub2">Evidencia fotográfica de ${m.nombres[i]}</h4>
+  ${nFotos ? `<div class="galeria">${Array.from({ length: Math.min(nFotos, 6) }, (_, k) => `<figure>
+      <div class="hueco-foto">fotografía ${k + 1}<br>no se incrusta en la maqueta</div>
+      <figcaption>${m.nombres[i]} · vista ${['general', 'cruceta', 'base', 'cadena', 'herraje', 'bajante'][k]} · ${nFotos} en total</figcaption></figure>`).join('')}</div>`
+      : `<p class="aviso"><b>Este punto declara que no tiene fotografía.</b> No es un fallo de carga: es un hueco del
+         levantamiento, y por eso se cuenta${L.rico ? ' — 12 de los 26 puntos están así' : ''}.</p>`}`;
+}
+
+/* ══ 4 · EXPEDIENTE DE FALLA ═══════════════════════════════════════════ */
+function sec4(m) {
+  const L = m.L;
+  if (!L.rico && !L.evento) return sec('s4', '4', 'Expediente de falla', 9,
+    'Los eventos que abrieron la línea, con la evidencia separada de la conclusión.',
+    `<p class="ok"><b>Esta línea no tiene ningún expediente de falla registrado.</b> No es un hueco de la
+      aplicación: es el estado de la línea, y por eso se afirma en positivo en vez de dejar la sección en blanco.</p>${corte(10)}`);
+
+  const cron = [
+    ['Día 0 · 14:32', 'Apertura de la línea. La protección de distancia opera en zona 1.'],
+    ['Día 0 · 15:10', 'Recierre automático sin éxito. Se declara indisponibilidad.'],
+    ['Día 0 · 18:45', 'Cuadrilla en sitio. Se localiza el punto en ' + m.nombres[1] + '.'],
+    ['Día 1 · 07:20', 'Registro fotográfico de la pieza afectada (4 fotografías).'],
+    ['Día 1 · 11:05', 'Retiro de la pieza y montaje provisional. Línea normalizada.'],
+    ['Día 3 · 09:00', 'Apertura del expediente. Cuatro verificaciones quedan pendientes.'],
+  ];
+  const obs = [
+    ['critica', 'Rotura en la zona de agarre de la grapa, no en el cuerpo del conductor',
+      'La superficie de rotura se concentra donde la grapa muerde. El cuerpo del conductor, a un metro del punto, no muestra reducción de sección apreciable.'],
+    ['advertencia', 'Marcas de rozamiento en el herraje de amarre',
+      'Huella circular compatible con movimiento repetido bajo carga. No se midió profundidad: <b>la fotografía no da milímetros</b>.'],
+    ['advertencia', 'Deflexión medida de ' + gr(m.defl[1]) + ' en el apoyo',
+      'Es la segunda deflexión mayor de la línea. Su factor de amplificación es ×' + nf(m.cargasT[1].fac, 3) + ', o sea que el apoyo recibe ' + nf((m.cargasT[1].fac - 1) * 100, 1) + ' % más carga transversal que el propio tiro.'],
+    ['contexto', 'No hay registro de par de apriete ni de fecha de montaje del herraje',
+      'Sin eso, la antigüedad de la pieza es una suposición y no puede sostener ninguna hipótesis de fatiga.'],
+  ];
+  const hip = [
+    ['alta', 'Fatiga en la zona de agarre por vibración eólica sostenida',
+      'Compatible con el patrón de rotura (en la mordaza, no en el vano) y con un tramo de tiro permanente alto. <b>Lo que la sostiene:</b> el punto de rotura, las marcas de rozamiento y el estado EDS del tramo. <b>Lo que le falta:</b> no hay medición de amplitud de vibración ni de par de apriete.'],
+    ['media', 'Apriete fuera de especificación en el montaje del herraje',
+      '<b>Lo que la sostiene:</b> la huella circular y la ausencia de deterioro en el cuerpo del conductor. <b>Lo que le falta:</b> no hay registro de montaje ni testigo de par; sin eso no pasa de plausible.'],
+    ['baja', 'Sobrecarga mecánica puntual por evento de viento',
+      '<b>Lo que la sostiene:</b> nada medido en sitio. <b>Lo que le falta:</b> no hay registro meteorológico del día del evento, y la hipótesis de viento del proyecto está <b>sin validar</b>. Se deja declarada para que no parezca descartada cuando solo está sin comprobar.'],
+  ];
+  const verif = [
+    ['Ensayo metalográfico de la pieza retirada', 'Laboratorio externo', 'Sin resolver', 'Distingue fatiga de sobrecarga puntual. Es la que cierra o tumba la hipótesis 1.'],
+    ['Medición de par en los herrajes de los otros 4 anclajes', 'Cuadrilla', 'Sin resolver', 'Si aparece el mismo defecto en otro apoyo, deja de ser un evento y pasa a ser un patrón.'],
+    ['Registro meteorológico del día del evento', 'Operador de red', 'Sin resolver', 'Sin él, la hipótesis 3 no se puede ni sostener ni descartar.'],
+    ['Ficha real del conductor (proveedor)', 'Compras', 'Sin resolver', 'El módulo elástico está en conflicto (6.300 vs 7.000 kg/mm²) y ese conflicto mueve el tiro calculado del tramo.'],
+  ];
+
+  return sec('s4', '4', 'Expediente de falla', 9,
+    'Lo que se VE va separado con una línea visible de lo que se CONCLUYE. Y lo que todavía no se puede afirmar cierra la sección, porque es ahí donde apunta la primera pregunta del cliente.',
+    `<div class="falla-banda"><div class="falla-rot">Evento de falla · expediente abierto</div>
+      <div class="falla-tit">${m.nombres[1]} — apertura de línea</div>
+      <p class="falla-sub">Componente afectado: <b>cadena de amarre y grapa de retención</b> · placa <span class="pend">pendiente (F4)</span></p>
+      <p class="falla-geo">Coordenadas: <span class="reservado">reservado — dato de cliente</span> · progresiva ${nf(m.progres[1], 1)} m ·
+        deflexión ${gr(m.defl[1], 2)} · función deducida ${m.func[1]} · vano viento ${nf(m.cargasT[1].vViento, 1)} m</p></div>
+
+    <h3 class="sub" data-idx="4.1" id="s4-1"><span class="n">4.1</span> Evidencia</h3>
+    <div class="galeria">${[1, 2, 3, 4].map(k => `<figure><div class="hueco-foto">fotografía ${k} de 4<br>no se incrusta en la maqueta</div>
+      <figcaption>${['Pieza retirada, vista general', 'Zona de rotura en la mordaza', 'Herraje de amarre — marcas de rozamiento', 'Conductor a 1 m del punto'][k - 1]}</figcaption></figure>`).join('')}</div>
+
+    <h3 class="sub" data-idx="4.2" id="s4-2"><span class="n">4.2</span> Cronología</h3>
+    <div class="tabla-caja"><table class="tabla"><caption>Lo que se hizo y cuándo, según el registro de campo.</caption>
+      <thead><tr><th style="width:130px">Cuándo</th><th>Qué</th></tr></thead>
+      <tbody>${cron.map(([a, b]) => `<tr><td class="destaca" style="white-space:nowrap">${a}</td><td>${b}</td></tr>`).join('')}</tbody></table></div>
+
+    <h3 class="sub" data-idx="4.3" id="s4-3"><span class="n">4.3</span> Lectura de la evidencia — lo que se VE</h3>
+    <p>Observaciones sobre la pieza y el registro fotográfico. <b>No son conclusiones:</b> las conclusiones
+      van en el bloque siguiente, cada una con su grado de certeza declarado.</p>
+    <ul class="hallazgos">${obs.map(([s, t, d]) => `<li class="${s === 'critica' ? 'atencion' : s === 'advertencia' ? 'aviso' : 'info'}"><b>${t}.</b> ${d}</li>`).join('')}</ul>
+
+    <h3 class="sub" data-idx="4.4" id="s4-4"><span class="n">4.4</span> Hipótesis causales — lo que se CONCLUYE</h3>
+    ${hip.map(([v, t, d], k) => `<div class="hip ${v}"><div class="hip-cab"><span class="hip-orden">${k + 1}</span><h5>${t}</h5>
+      <span class="sello ${v === 'alta' ? 'rojo' : v === 'media' ? 'ambar' : 'gris'}">Verosimilitud ${v}</span></div>
+      <p style="margin-top:6px">${d}</p></div>`).join('')}
+
+    <h3 class="sub" data-idx="4.5" id="s4-5"><span class="n">4.5</span> Verificaciones pendientes</h3>
+    <div class="tabla-caja"><table class="tabla">
+      <caption>Estas cuatro filas son lo que separa un informe defendible de uno que solo suena convincente.</caption>
+      <thead><tr><th>Verificación</th><th>Quién</th><th>Estado</th><th>Qué decide</th></tr></thead>
+      <tbody>${verif.map(([a, b, c, d]) => `<tr class="excede"><td><b>${a}</b></td><td>${b}</td>
+        <td><span class="sello rojo">${c}</span></td><td class="porq">${d}</td></tr>`).join('')}</tbody></table>
+      <div class="tabla-nota"><b>4 de 4 sin resolver.</b> Este contador es el que sale a la portada de la línea y el que
+        manda en el orden de la cartera: una línea con verificaciones abiertas no se archiva.</div></div>
+    ${corte(11)}`);
+}
+/* ══ Figuras de Fundamentos — dibujadas con los datos REALES de la línea ══ */
+const SV = (w, h, inner) => `<svg viewBox="0 0 ${w} ${h}" role="img">${inner}</svg>`;
+const TXT = (x, y, t, c = '#8b98a5', s = 10.5, an = 'middle') =>
+  `<text x="${x}" y="${y}" fill="${c}" font-size="${s}" text-anchor="${an}" font-family="-apple-system,system-ui,sans-serif">${t}</text>`;
+
+function figCatenaria(m) {
+  const t = m.tramos[m.tramos.length - 1], a = t.vmax, f = t.flecha, c = m.L.conductor;
+  const W = 620, Hh = 200, x0 = 70, x1 = W - 70, yTop = 40, esc = 108 / f;
+  let d = '';
+  for (let k = 0; k <= 40; k++) {
+    const u = k / 40, X = x0 + (x1 - x0) * u, xr = (u - 0.5) * a;
+    const C = t.hTMax / c.masa, y = C * (Math.cosh(xr / C) - Math.cosh(a / (2 * C)));
+    d += (k ? 'L' : 'M') + X.toFixed(1) + ' ' + (yTop - y * esc).toFixed(1);
+  }
+  return SV(W, Hh, `
+    <line x1="${x0}" y1="${yTop}" x2="${x1}" y2="${yTop}" stroke="#3a444e" stroke-dasharray="4 3"/>
+    <path d="${d}" fill="none" stroke="#f0a500" stroke-width="2.2"/>
+    <rect x="${x0 - 9}" y="${yTop}" width="9" height="${Hh - yTop - 26}" fill="#2b353f"/>
+    <rect x="${x1}" y="${yTop}" width="9" height="${Hh - yTop - 26}" fill="#2b353f"/>
+    <line x1="${(x0 + x1) / 2}" y1="${yTop}" x2="${(x0 + x1) / 2}" y2="${yTop + f * esc}" stroke="#e6edf3" stroke-width="1.2"/>
+    <line x1="${(x0 + x1) / 2 - 5}" y1="${yTop + f * esc}" x2="${(x0 + x1) / 2 + 5}" y2="${yTop + f * esc}" stroke="#e6edf3" stroke-width="1.2"/>
+    ${TXT((x0 + x1) / 2 + 34, yTop + f * esc / 2 + 4, 'f = ' + nf(f, 2) + ' m', '#e6edf3')}
+    ${TXT((x0 + x1) / 2, yTop - 12, 'vano a = ' + nf(a, 1) + ' m')}
+    ${TXT(x0 - 14, yTop + 4, 'H', '#f0a500', 11, 'end')}
+    ${TXT(x1 + 16, yTop + 4, 'H', '#f0a500', 11, 'start')}
+    ${TXT(W / 2, Hh - 8, 'catenaria real con el tiro del estado de ' + m.L.hipotesis.tMax + ' °C · C = H/w = ' + nf(t.hTMax / c.masa, 0) + ' m', '#6f7d8a', 9.6)}`);
+}
+
+function figVIR(m) {
+  const t = m.tramos.reduce((a, b) => b.nVanos > a.nVanos ? b : a);
+  const W = 620, Hh = 168, max = Math.max(...t.vanos), bw = (W - 80) / t.vanos.length;
+  let g = '';
+  t.vanos.forEach((v, i) => {
+    const h = (v / max) * 96, X = 46 + i * bw, dentro = v / t.vir >= 0.7 && v / t.vir <= 1.3;
+    g += `<rect x="${(X + 1).toFixed(1)}" y="${(120 - h).toFixed(1)}" width="${(bw - 3).toFixed(1)}" height="${h.toFixed(1)}"
+      fill="${dentro ? '#5b8dd9' : '#f0a500'}" opacity=".85" rx="2"/>`;
+  });
+  const yv = 120 - (t.vir / max) * 96, yhi = 120 - (Math.min(max, t.vir * 1.3) / max) * 96, ylo = 120 - (t.vir * 0.7 / max) * 96;
+  return SV(W, Hh, `
+    <rect x="42" y="${yhi.toFixed(1)}" width="${W - 78}" height="${(ylo - yhi).toFixed(1)}" fill="rgba(91,141,217,.10)"/>
+    ${g}
+    <line x1="42" y1="120" x2="${W - 36}" y2="120" stroke="#3a444e"/>
+    <line x1="42" y1="${yv.toFixed(1)}" x2="${W - 36}" y2="${yv.toFixed(1)}" stroke="#e6edf3" stroke-width="1.3" stroke-dasharray="5 3"/>
+    ${TXT(W - 34, yv - 5, 'VIR ' + nf(t.vir, 1) + ' m', '#e6edf3', 10, 'end')}
+    ${TXT(W - 34, yhi - 4, 'banda 0,7 – 1,3 · VIR', '#7fa8d6', 9.6, 'end')}
+    ${TXT(W / 2, 142, 'Tramo ' + t.n + ' (' + t.desde + '–' + t.hasta + '): ' + t.nVanos + ' vanos · en ámbar los que caen fuera de banda', '#8b98a5', 10)}
+    ${TXT(W / 2, 158, 'un vano fuera de banda invalida la hipótesis del VIR para ese vano', '#6f7d8a', 9.4)}`);
+}
+
+function figDeflexion(m) {
+  const c = m.cargasT.reduce((a, b) => b.fac > a.fac ? b : a);
+  const W = 620, Hh = 210, O = { x: 310, y: 118 }, R = 118;
+  const al = (180 - c.defl) / 2, ra = al * Math.PI / 180;
+  const A = { x: O.x - R * Math.cos(ra), y: O.y - R * Math.sin(ra) };
+  const B = { x: O.x + R * Math.cos(ra), y: O.y - R * Math.sin(ra) };
+  const Ln = 92;
+  return SV(W, Hh, `
+    <line x1="${A.x.toFixed(1)}" y1="${A.y.toFixed(1)}" x2="${O.x}" y2="${O.y}" stroke="#f0a500" stroke-width="2.2"/>
+    <line x1="${O.x}" y1="${O.y}" x2="${B.x.toFixed(1)}" y2="${B.y.toFixed(1)}" stroke="#f0a500" stroke-width="2.2"/>
+    <path d="M ${(O.x - 40 * Math.cos(ra)).toFixed(1)} ${(O.y - 40 * Math.sin(ra)).toFixed(1)}
+             A 40 40 0 0 1 ${(O.x + 40 * Math.cos(ra)).toFixed(1)} ${(O.y - 40 * Math.sin(ra)).toFixed(1)}"
+          fill="none" stroke="#5b8dd9" stroke-width="1.3"/>
+    ${TXT(O.x, O.y - 50, 'α = ' + gr(c.defl, 1), '#86aae3', 11)}
+    <line x1="${O.x}" y1="${O.y}" x2="${O.x}" y2="${(O.y + Ln).toFixed(1)}" stroke="#e05252" stroke-width="2.6" marker-end="url(#fl)"/>
+    <defs><marker id="fl" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#e05252"/></marker></defs>
+    <circle cx="${O.x}" cy="${O.y}" r="6" fill="#f0a500" stroke="#0b0f13" stroke-width="1.6"/>
+    ${TXT(O.x + 12, O.y + Ln - 6, 'resultante = 2·T·sen(α/2) = ' + nf(c.quiebre, 0) + ' kgf', '#f08585', 10.5, 'start')}
+    ${TXT(A.x - 8, A.y - 6, 'T = ' + nf(c.T, 0) + ' kgf', '#f0a500', 10, 'end')}
+    ${TXT(B.x + 8, B.y - 6, 'T = ' + nf(c.T, 0) + ' kgf', '#f0a500', 10, 'start')}
+    ${TXT(W / 2, 196, c.nom + ': el quiebre multiplica el tiro por ×' + nf(c.fac, 3) + ' — permanente, con viento y sin él', '#8b98a5', 10)}`);
+}
+
+function figBalanceo(m) {
+  const W = 560, Hh = 200, O = { x: 250, y: 42 }, esc = 96;
+  const ang = m.balanceo * Math.PI / 180;
+  const P = { x: O.x + esc * Math.sin(ang), y: O.y + esc * Math.cos(ang) };
+  return SV(W, Hh, `
+    <line x1="${O.x}" y1="${O.y}" x2="${O.x}" y2="${O.y + esc}" stroke="#3a444e" stroke-dasharray="4 3"/>
+    <line x1="${O.x}" y1="${O.y}" x2="${P.x.toFixed(1)}" y2="${P.y.toFixed(1)}" stroke="#8b98a5" stroke-width="1.6" stroke-dasharray="3 3"/>
+    <line x1="${O.x}" y1="${O.y}" x2="${O.x}" y2="${(O.y + esc * 0.72).toFixed(1)}" stroke="#5b8dd9" stroke-width="2.6"/>
+    <line x1="${O.x}" y1="${O.y}" x2="${(O.x + esc * 0.72 * m.q / m.L.conductor.masa).toFixed(1)}" y2="${O.y}" stroke="#f0a500" stroke-width="2.6"/>
+    <circle cx="${P.x.toFixed(1)}" cy="${P.y.toFixed(1)}" r="7" fill="#171d24" stroke="#e6edf3" stroke-width="1.6"/>
+    <path d="M ${O.x} ${O.y + 44} A 44 44 0 0 0 ${(O.x + 44 * Math.sin(ang)).toFixed(1)} ${(O.y + 44 * Math.cos(ang)).toFixed(1)}" fill="none" stroke="#e05252" stroke-width="1.3"/>
+    ${TXT(O.x + 58, O.y + 40, 'φ = ' + gr(m.balanceo, 1), '#f08585', 11, 'start')}
+    ${TXT(O.x - 8, O.y + esc * 0.72 + 4, 'peso ' + nf(m.L.conductor.masa, 4) + ' kg/m', '#86aae3', 10, 'end')}
+    ${TXT(O.x + esc * 0.72 * m.q / m.L.conductor.masa + 8, O.y - 6, 'empuje ' + nf(m.q, 4) + ' kgf/m', '#f0a500', 10, 'start')}
+    ${TXT(W / 2, 172, 'resultante ' + nf(m.w2, 4) + ' kg/m · relación empuje/peso ' + nf(m.q / m.L.conductor.masa, 3), '#8b98a5', 10)}
+    ${TXT(W / 2, 188, 'por encima de 30° el balanceo empieza a comerse la distancia a la estructura', '#6f7d8a', 9.4)}`);
+}
+
+function figGalibo(m) {
+  const t = m.tramos[m.tramos.length - 1], W = 620, Hh = 210;
+  return SV(W, Hh, `
+    <rect x="0" y="176" width="${W}" height="34" fill="#1b242c"/>
+    <path d="M0 176 Q 150 168 310 178 T 620 172" fill="none" stroke="#52606d" stroke-width="1.6"/>
+    <rect x="86" y="34" width="10" height="142" fill="#2b353f"/><rect x="516" y="34" width="10" height="142" fill="#2b353f"/>
+    <path d="M91 40 Q 306 ${40 + t.flecha * 9} 521 40" fill="none" stroke="#f0a500" stroke-width="2.2"/>
+    <line x1="306" y1="${(40 + t.flecha * 9).toFixed(1)}" x2="306" y2="178" stroke="#7fc96a" stroke-width="1.3" stroke-dasharray="4 3"/>
+    ${TXT(316, (40 + t.flecha * 9 + 60).toFixed(1), 'distancia al terreno: no verificada', '#a3dd8f', 10.5, 'start')}
+    ${TXT(306, 32, 'flecha máxima calculada ' + nf(t.flecha, 2) + ' m (estado de ' + m.L.hipotesis.tMax + ' °C)', '#f0a500', 10)}
+    ${TXT(W / 2, 200, 'la cota del apoyo y la del terreno vienen de un GPS de mano con ±8 m: el despeje no se puede firmar', '#6f7d8a', 9.6)}`);
+}
+
+/* ══ 5 · FUNDAMENTOS ═══════════════════════════════════════════════════ */
+function sec5(m) {
+  const c = m.L.conductor, h = m.L.hipotesis;
+  if (!c) return sec('s5', '5', 'Fundamentos de cálculo', 12,
+    'La doctrina de ingeniería con la que se calcula, y el valor vivo de esta línea en cada concepto.',
+    noEval('Sección sin valor vivo', 'Los fundamentos siguen aplicando; esta línea no puede ilustrarlos con sus propios números.',
+      'Cada tarjeta de esta sección cierra con el renglón «En esta línea, hoy», que sale del mismo motor que calcula el informe. Sin conductor declarado no hay valor vivo que poner ahí.',
+      ['Falta el <b>conductor</b> de la línea (sección, diámetro, masa lineal, RTS, módulo elástico).',
+        'Falta la <b>hipótesis climática</b> (EDS, temperaturas, viento de diseño).']) + corte(13));
+
+  const tL = m.tramos[m.tramos.length - 1], tM = m.tramos.reduce((a, b) => b.nVanos > a.nVanos ? b : a);
+  const cMax = m.cargasT.reduce((a, b) => b.fac > a.fac ? b : a);
+  const virLinea = M.vir(m.vanos);
+  const fuera = m.vanoAvano.filter(v => v.fuera).length;
+  const parab = M.flechaPar(c.masa, tL.vmax, tL.hTMax);
+
+  const T = (nn, tit, cuerpo) => `<h3 class="sub" data-idx="5.${nn}" id="s5-${nn}"><span class="n">5.${nn}</span> ${tit}</h3>${cuerpo}`;
+  const dc = (a, b) => `<div class="dos-col"><div class="mini"><h5>Cómo se calcula</h5><p>${a}</p></div>
+    <div class="mini"><h5>Qué vigilar</h5><p>${b}</p></div></div>`;
+  const vivo = (t) => `<p class="vivo"><span class="rot">En esta línea, hoy</span>${t}</p>`;
+
+  return sec('s5', '5', 'Fundamentos de cálculo', 12,
+    'Nueve conceptos, cada uno con su figura dibujada con los datos de ESTA línea y el valor vivo que sale del mismo motor que produce las tablas. Si la cifra de aquí no coincide con la de la tabla, el error está en el motor, no en la redacción.',
+    `${T(1, 'Catenaria — cómo cuelga de verdad el conductor',
+      `<p>Un cable colgado entre dos puntos no describe una parábola: describe una <b>catenaria</b>, la curva que
+        adopta un hilo flexible bajo su propio peso. La parábola es su aproximación de primer orden y a los vanos
+        de esta línea se parece muchísimo — pero la catenaria es la que se usa cuando se audita el resultado.</p>
+      <div class="figura">${figCatenaria(m)}</div>
+      <div class="formula"><i>C</i> <span class="op">=</span> <i>H</i> / <i>w</i>
+        <span class="op" style="padding:0 14px">·</span>
+        <math><mi>f</mi><mo>=</mo><mi>C</mi><mo>(</mo><mi>cosh</mi><mo>(</mo><mfrac><mi>a</mi><mrow><mn>2</mn><mi>C</mi></mrow></mfrac><mo>)</mo><mo>−</mo><mn>1</mn><mo>)</mo></math></div>
+      ${dc('El parámetro <b>C = H/w</b> gobierna la curva: tiro horizontal dividido por masa lineal. Con C y el vano, la flecha sale directa.',
+        'Cuanto más largo el vano, más se separan parábola y catenaria. Por debajo de 300 m la diferencia es despreciable; por encima, deja de serlo.')}
+      ${vivo(`En el vano más largo (<b>${nf(tL.vmax, 1)} m</b>, tramo ${tL.n}) el parámetro vale <b>C = ${nf(tL.hTMax / c.masa, 0)} m</b>.
+        La parábola da <b>${nf(parab, 3)} m</b> y la catenaria <b>${nf(tL.flecha, 3)} m</b>: una diferencia de
+        <b>${nf(Math.abs(tL.flecha - parab) / tL.flecha * 100, 2)} %</b>. A estos vanos la parábola es utilizable; la catenaria queda para auditar.`)}`)}
+
+    ${T(2, 'Flecha — cuánto baja el conductor en el centro del vano',
+      `<p>La flecha es lo que separa el conductor de la recta que une sus dos apoyos. Manda la distancia al terreno,
+        y por eso el estado que la decide es el de <b>máxima temperatura</b>: el aluminio dilata, el cable se alarga
+        y baja. La flecha de invierno no protege a nadie en agosto.</p>
+      ${dc('Se evalúa con el tiro del estado de ' + h.tMax + ' °C sobre el vano más largo de cada tramo — el vano que manda.',
+        'Una flecha calculada no es un despeje verificado. Falta la cota de sujeción y la del terreno, y con ±8 m de GPS ninguna de las dos se firma.')}
+      ${vivo(`La mayor flecha de la línea es <b>${nf(Math.max(...m.tramos.map(t => t.flecha)), 2)} m</b>, en el tramo
+        ${m.tramos.reduce((a, b) => b.flecha > a.flecha ? b : a).n}. Con viento de ${h.viento} km/h sube a
+        <b>${nf(m.tramos.reduce((a, b) => b.flecha > a.flecha ? b : a).flechaViento, 2)} m</b> en la dirección de la resultante.`)}`)}
+
+    ${T(3, 'Vano ideal de regulación (VIR) — el vano que representa a todo un tramo',
+      `<p>Un tramo de tensión son varios vanos entre dos anclajes, y el conductor se regula de una vez para todos.
+        El VIR es el vano único que se comporta como el conjunto: <b>√(Σa³ / Σa)</b>. Cada tramo se calcula con el
+        suyo, jamás con uno solo para toda la línea.</p>
+      <div class="figura">${figVIR(m)}</div>
+      <div class="formula"><math><msub><mi>a</mi><mi>r</mi></msub><mo>=</mo><msqrt><mfrac><mrow><mo>∑</mo><msup><mi>a</mi><mn>3</mn></msup></mrow><mrow><mo>∑</mo><mi>a</mi></mrow></mfrac></msqrt></math></div>
+      ${dc('Los cortes de tramo los ponen los anclajes: terminal, retención y ángulo. Los empalmes no cortan nada porque no sostienen el conductor.',
+        'Si un vano se sale de la banda <b>0,7 – 1,3 · VIR</b>, la hipótesis pierde validez para ese vano y el tramo debería subdividirse.')}
+      ${vivo(`Los VIR de esta línea van de <b>${nf(Math.min(...m.tramos.map(t => t.vir)), 1)} m</b> (tramo ${m.tramos.reduce((a, b) => b.vir < a.vir ? b : a).n})
+        a <b>${nf(Math.max(...m.tramos.map(t => t.vir)), 1)} m</b> (tramo ${m.tramos.reduce((a, b) => b.vir > a.vir ? b : a).n}) — un factor de
+        <b>${nf(Math.max(...m.tramos.map(t => t.vir)) / Math.min(...m.tramos.map(t => t.vir)), 1)}</b>. Un VIR único de línea sería de ${nf(virLinea, 2)} m
+        y daría flechas y tiros equivocados en los dos extremos. <b>${fuera} de ${m.vanoAvano.length} vanos</b> caen fuera de banda.`)}`)}
+
+    ${T(4, 'Tensiones y estados — las cuatro fotografías que hay que tomar',
+      `<p>El conductor no tiene un tiro: tiene uno por cada condición. Se evalúan siempre cuatro, y cada una vigila
+        una cosa distinta. Confundirlas es el error clásico: la flecha se saca del estado caliente y el tiro de diseño del frío o del viento.</p>
+      <div class="tabla-caja"><table class="tabla"><thead><tr><th>Estado</th><th>Condición</th><th>Qué vigila</th></tr></thead><tbody>
+        <tr><td><b>EDS</b></td><td>${h.tEds} °C, sin viento</td><td class="porq">Tensión de servicio permanente: fatiga y vibración eólica.</td></tr>
+        <tr><td><b>Máxima temperatura</b></td><td>${h.tMax} °C, sin viento</td><td class="porq"><b>Flecha máxima</b> → distancia mínima al terreno.</td></tr>
+        <tr><td><b>Máximo viento</b></td><td>${h.viento} km/h a ${h.tViento} °C</td><td class="porq"><b>Tiro máximo</b> → carga sobre estructuras y herrajes.</td></tr>
+        <tr><td><b>Mínima temperatura</b></td><td>${h.tMin} °C, sin viento</td><td class="porq">Tiro en frío: esfuerzos en retenciones y anclajes.</td></tr>
+      </tbody></table></div>
+      ${vivo(`El EDS se fija en el <b>${h.eds} % de la RTS = ${nf(c.rts * h.eds / 100)} kgf</b> y sale idéntico en los
+        ${m.tramos.length} tramos: no es que no haya desequilibrio, es que <b>el modelo usa un solo EDS por línea</b>.
+        Ese cero es del modelo, no del terreno.`)}`)}
+
+    ${T(5, 'Ecuación de cambio de estado — pasar de un estado a otro',
+      `<p>Es el corazón del cálculo: conocido un estado (H₁, w₁, t₁), predice el tiro H₂ en cualquier otro. No tiene
+        solución cerrada útil —es una cúbica— y se resuelve numéricamente.</p>
+      <div class="formula"><i>H</i><sub>2</sub><sup>2</sup> <span class="op">·</span> (<i>H</i><sub>2</sub> <span class="op">+</span> <i>A</i>) <span class="op">=</span> <i>B</i></div>
+      ${dc('Por <b>bisección</b>, hasta 200 iteraciones, con expansión previa del extremo superior hasta acotar la raíz. El vano que entra es el <b>VIR del tramo</b>, no un vano cualquiera.',
+        'Los términos A y B llevan dentro el módulo elástico <b>E</b> y la sección <b>S</b>. Si E está en duda, todo el resto lo está.')}
+      ${vivo(`Aquí se calcula con <b>E = ${nf(c.E)} kg/mm²</b>, pero la documentación del conductor trae también
+        <b>${nf(c.Ealt)} kg/mm²</b>. <b>Ese conflicto no es académico:</b> decide si un tramo cumple o no, y por eso la
+        ficha real del proveedor está en la lista de verificaciones pendientes de la sección 4.`)}`)}
+
+    ${T(6, 'Deflexión y quiebre — por qué un ángulo cuesta tanto',
+      `<p>Cuando la línea cambia de dirección, los dos tiros que llegan al apoyo no se cancelan: dejan una resultante
+        que apunta hacia el interior del ángulo. Su tamaño es <b>2·T·sen(α/2)</b>, y no depende del viento: está ahí
+        siempre, día y noche.</p>
+      <div class="figura">${figDeflexion(m)}</div>
+      <div class="formula"><i>R</i> <span class="op">=</span> 2 <span class="op">·</span> <i>T</i> <span class="op">·</span> sen(<i>α</i>/2)</div>
+      ${dc('α es la deflexión: cuánto se desvía la línea respecto a seguir recta. El factor <b>2·sen(α/2)</b> vale 1 justo en 60°.',
+        'Por encima de 60° el apoyo recibe <b>más carga que el propio tiro del conductor</b>. Un apoyo así dimensionado «por el tiro» está dimensionado por poco más de la mitad.')}
+      ${vivo(`El mayor quiebre es <b>${cMax.nom} con ${gr(cMax.defl, 1)}</b>: factor <b>×${nf(cMax.fac, 3)}</b>, o sea
+        <b>${nf((cMax.fac - 1) * 100, 1)} % más carga transversal</b> que el tiro. En toda la línea hay
+        <b>${m.cargasT.filter(x => x.fac > 1).length} apoyos</b> que amplifican por encima de 1 y
+        <b>${m.defl.filter(d => d != null && d >= 30).length} anclajes</b> deducidos por geometría.`)}`)}
+
+    ${T(7, 'Vanos característicos — el de viento y el de peso',
+      `<p>Para repartir cargas no sirve «el vano»: sirven dos vanos ficticios. El <b>vano viento</b> es la media de los
+        dos adyacentes y reparte el empuje horizontal. El <b>vano peso</b> es la distancia entre los puntos más bajos
+        de las dos catenarias y reparte la carga vertical.</p>
+      ${dc('El vano viento sale de pura geometría en planta y por eso ya está calculado en las fichas de la sección 3.',
+        'El vano peso <b>exige la cota de sujeción</b>. Sin ella no hay carga vertical, no hay verificación de arrancamiento y no hay veredicto.')}
+      ${vivo(`El mayor vano viento es <b>${nf(Math.max(...m.cargasT.map(x => x.vViento)), 1)} m</b> en
+        ${m.cargasT.reduce((a, b) => b.vViento > a.vViento ? b : a).nom}. El vano peso <b>no se puede calcular en ninguno de los
+        ${m.nombres.length} apoyos</b>: falta la cota de sujeción en el 100 % de las fichas.`)}`)}
+
+    ${T(8, 'Ampacidad — cuánta corriente aguanta de verdad',
+      `<p>La ampacidad no es un número de catálogo: es un balance térmico. Lo que el conductor genera por efecto Joule
+        tiene que igualar lo que pierde por convección y radiación, menos lo que gana del sol. Cambia el clima, cambia
+        la capacidad.</p>
+      <div class="formula"><i>I</i> <span class="op">=</span> √( (<i>q</i><sub>c</sub> <span class="op">+</span> <i>q</i><sub>r</sub> <span class="op">−</span> <i>q</i><sub>s</sub>) / <i>R</i>(<i>T</i><sub>c</sub>) )</div>
+      ${dc('IEEE Std 738, régimen permanente. La convección toma <b>el mayor</b> de tres correlaciones (viento bajo, viento alto, natural) corregidas por altitud.',
+        'El viento pesa más que la temperatura ambiente. Un día en calma le quita al conductor cerca de un cuarto de su capacidad.')}
+      ${vivo(`Con el conductor a ${c.tMaxMaterial} °C y el escenario de referencia (32 °C, 0,61 m/s, 1.000 W/m²) la
+        ampacidad es <b>718 A</b>, o sea <b>${nf(Math.sqrt(3) * m.L.kv * 718 / 1000, 1)} MVA</b> a ${nf(m.L.kv, 0)} kV. En el escenario de
+        El Niño con viento en calma baja a <b>544 A</b>. La tabla completa está en la sección 7.`)}`)}
+
+    ${T(9, 'Distancia al terreno — el criterio que este levantamiento no puede cerrar',
+      `<p>El despeje mínimo depende de la tensión, del uso del suelo bajo la línea y de la flecha en la condición más
+        desfavorable. Es el criterio con más consecuencias del informe y, a la vez, el único que aquí no se puede emitir.</p>
+      <div class="figura">${figGalibo(m)}</div>
+      ${dc('Se compara la cota del conductor en el punto más bajo del vano contra la cota del terreno bajo él, en el estado de ' + h.tMax + ' °C.',
+        'Con cotas de <b>±8 m</b> declarados, el margen de error es varias veces el propio criterio. Declararlo verificado sería fabricar confianza.')}
+      ${vivo(`<b>El despeje al terreno queda sin verificar en los ${m.vanos.length} vanos.</b> No por falta de fórmula:
+        por falta de cota firmable. Es el ejemplo más claro de lo que este sistema no demuestra — y de por qué tiene
+        que verse tanto como lo que sí.`)}`)}
+
+    <h3 class="sub" data-idx="5.10" id="s5-10"><span class="n">5.10</span> Marco normativo aplicado</h3>
+    <div class="tabla-caja"><table class="tabla"><thead><tr><th>Asunto</th><th>Referencia</th><th>Cómo se usa aquí</th></tr></thead><tbody>
+      <tr><td><b>Distancias mínimas al terreno</b></td><td class="destaca">RETIE Libro 3, Tabla 3.10.2.a</td><td class="porq">Fuente del criterio de despeje. No se aplica todavía: falta cota firmable.</td></tr>
+      <tr><td><b>Ampacidad</b></td><td class="destaca">IEEE Std 738</td><td class="porq">Balance térmico en régimen permanente, escenario a escenario.</td></tr>
+      <tr><td><b>Distancia de fuga</b></td><td class="destaca">RETIE / IEC 60815</td><td class="porq">Criterio de fuga específica por ambiente. Sin cadena declarada, no evaluable.</td></tr>
+      <tr><td><b>Tope de tiro</b></td><td><span class="sello ambar">sin decidir</span></td><td class="porq">El motor calcula contra el ${nf(TOPE_MOTOR * 100)} % de la RTS; la doctrina interna pide el ${nf(TOPE_DOCTRINA * 100)} %. <b>Mientras no se decida, el veredicto viaja siempre con su criterio.</b></td></tr>
+      <tr><td><b>Geodesia</b></td><td class="destaca">WGS84 · Vincenty</td><td class="porq">Verificado contra constantes publicadas (1° de latitud = 110.574,389 m).</td></tr>
+    </tbody></table></div>
+    ${corte(16)}`);
+}
+const SIN_COND = ['Falta el <b>conductor</b> declarado: sección, diámetro, masa lineal, RTS, módulo elástico y coeficiente de dilatación.',
+  'Falta la <b>hipótesis climática</b>: EDS, temperaturas mínima y máxima, viento de diseño y su temperatura coincidente.',
+  'Con eso capturado, esta sección se llena sola: no hay nada más que hacer en la aplicación.'];
+
+/* ══ 6 · CÁLCULO MECÁNICO ══════════════════════════════════════════════ */
+function sec6(m) {
+  const c = m.L.conductor, h = m.L.hipotesis;
+  if (!c) return sec('s6', '6', 'Cálculo mecánico', 17, 'Tiros y flechas tramo a tramo, y la relación de cada vano con el VIR que lo representa.',
+    noEval('Sección no evaluable', 'No se puede calcular ni un tiro en esta línea.',
+      'No es que el resultado sea malo: es que no hay entrada. Se declara en vez de ocultarse, para que el hueco siga contando cuando haya veinte líneas en cartera.', SIN_COND) + corte(18));
+
+  const topeMotor = c.rts * TOPE_MOTOR, topeDoc = c.rts * TOPE_DOCTRINA;
+  const excMotor = m.tramos.filter(t => t.pico > topeMotor), excDoc = m.tramos.filter(t => t.pico > topeDoc);
+  const fuera = m.vanoAvano.filter(v => v.fuera);
+  const tL = m.tramos.reduce((a, b) => b.vmax > a.vmax ? b : a);
+  const parab = M.flechaPar(c.masa, tL.vmax, tL.hTMax), cat = M.flechaCat(c.masa, tL.vmax, tL.hTMax);
+  const anclajes = m.func.filter(f => f === 'Retención' || f === 'Ángulo').length;
+  const sello = `<span class="sello-calculo"><b>Sello de trazabilidad:</b> motor ${m.L.motor} · hipótesis «${h.nombre}» (${h.revision}, ${h.fecha}) ·
+    conductor ${c.material} ${c.codigo}, procedencia ${c.procedencia} · E = ${nf(c.E)} kg/mm² · calculado en pantalla al abrir.</span>`;
+
+  return sec('s6', '6', 'Cálculo mecánico', 17,
+    'Tiros y flechas tramo a tramo, y la relación de cada vano con el VIR que lo representa. Todo sale del mismo motor que alimenta las cifras vivas de la sección 5.',
+    `<div class="kpis k5">
+      <div class="kpi"><div class="kpi-v" style="font-size:15px">${c.material} ${c.codigo}</div><div class="kpi-l">Conductor</div><div class="kpi-s">${nf(c.mcm, 1)} MCM · ${c.hilos} hilos · ${nf(c.seccion, 1)} mm²</div></div>
+      <div class="kpi"><div class="kpi-v">${nf(c.rts)}<small> kgf</small></div><div class="kpi-l">RTS</div><div class="kpi-s">Tope motor ${nf(topeMotor)} · doctrina ${nf(topeDoc)}</div></div>
+      <div class="kpi"><div class="kpi-v">${nf(M.vir(m.vanos), 1)}<small> m</small></div><div class="kpi-l">VIR de línea (referencia)</div><div class="kpi-s">No se usa: cada tramo va con el suyo</div></div>
+      <div class="kpi"><div class="kpi-v">${m.tramos.length} / ${anclajes}</div><div class="kpi-l">Tramos / anclajes</div><div class="kpi-s">Reparto ${m.tramos.map(t => t.nVanos).join('-')}</div></div>
+      <div class="kpi"><div class="kpi-v">718<small> A</small></div><div class="kpi-l">Ampacidad IEEE 738</div><div class="kpi-s">Escenario de referencia, ${c.tMaxMaterial} °C</div></div>
+    </div>
+
+    <h3 class="sub" data-idx="6.1" id="s6-1"><span class="n">6.1</span> Estados mecánicos por tramo de tensión</h3>
+    <div class="tabla-caja"><table class="tabla">
+      <caption>Conductor ${c.material} ${c.codigo} · RTS ${nf(c.rts)} kgf · EDS ${h.eds} % a ${h.tEds} °C ·
+        viento ${h.viento} km/h a ${h.tViento} °C. Tiros en kgf; la flecha es la del vano más largo del tramo, por catenaria exacta.</caption>
+      <thead><tr><th>#</th><th>Tramo</th><th>Vanos</th><th>Vano máx (m)</th><th>VIR (m)</th>
+        <th>EDS</th><th>${h.tMax} °C</th><th>Viento</th><th>${h.tMin} °C</th><th>Pico</th><th>% RTS</th><th>Flecha (m)</th></tr></thead>
+      <tbody>${m.tramos.map(t => `<tr class="${t.pico > topeDoc ? 'fuera' : ''}">
+        <td class="num">${t.n}</td><td><b>${t.desde} → ${t.hasta}</b></td><td class="num">${t.nVanos}</td>
+        <td class="num">${nf(t.vmax, 1)}</td><td class="num">${nf(t.vir, 1)}</td>
+        <td class="num">${nf(t.Heds)}</td><td class="num">${nf(t.hTMax)}</td><td class="num">${nf(t.hVien)}</td><td class="num">${nf(t.hTMin)}</td>
+        <td class="num destaca">${nf(t.pico)}</td><td class="num ${t.pico > topeDoc ? 'destaca' : ''}">${nf(t.pct, 1)} %</td>
+        <td class="num">${nf(t.flecha, 2)}</td></tr>`).join('')}</tbody></table>
+      <div class="tabla-nota">Las filas tintadas superan el <b>${nf(TOPE_DOCTRINA * 100)} %</b> de la doctrina interna, no el ${nf(TOPE_MOTOR * 100)} % con el que calcula el motor.</div></div>
+    ${sello}
+
+    <p class="${excMotor.length ? 'alerta' : 'ok'}"><b>Contra el criterio del motor (${nf(TOPE_MOTOR * 100)} % de la RTS = ${nf(topeMotor)} kgf):</b>
+      ${excMotor.length ? excMotor.length + ' tramo(s) por encima — ' + excMotor.map(t => t.n).join(', ') + '.' : 'ningún tramo lo supera. El máximo es ' + nf(Math.max(...m.tramos.map(t => t.pct)), 1) + ' %.'}</p>
+    <p class="${excDoc.length ? 'alerta' : 'ok'}"><b>Contra la doctrina interna (${nf(TOPE_DOCTRINA * 100)} % de la RTS = ${nf(topeDoc)} kgf):</b>
+      ${excDoc.length ? excDoc.length + ' tramo(s) por encima — ' + excDoc.map(t => 'tramo ' + t.n + ' con ' + nf(t.pct, 1) + ' %').join(', ') + '.' : 'ningún tramo lo supera.'}</p>
+    <p class="aviso"><b>Esta es la razón por la que el tope no puede quedar sin decidir.</b> La misma tabla, con las mismas
+      cifras, dice «todo dentro» o «hay tramos fuera» según cuál de los dos criterios se adopte. Por eso en este sistema
+      <b>un veredicto no viaja nunca solo: viaja con el criterio contra el que se emitió</b>.</p>
+
+    <h3 class="sub" data-idx="6.2" id="s6-2"><span class="n">6.2</span> Vano a vano</h3>
+    <div class="tabla-caja"><table class="tabla">
+      <caption>Cada vano contra el VIR de SU tramo. Las filas tintadas caen fuera de la banda 0,7 – 1,3, donde la
+        hipótesis del vano ideal de regulación deja de ser válida.</caption>
+      <thead><tr><th>#</th><th>Vano</th><th>Tramo</th><th>Longitud (m)</th><th>VIR del tramo (m)</th><th>a / VIR</th>
+        <th>Flecha ${h.tMax} °C (m)</th><th>Long. conductor (m)</th><th>Estado</th></tr></thead>
+      <tbody>${m.vanoAvano.map((v, i) => `<tr class="${v.fuera ? 'fuera' : ''}">
+        <td class="num">${i + 1}</td><td><b>${v.de} → ${v.al}</b></td><td class="num">${v.tramo}</td>
+        <td class="num">${nf(v.vano, 1)}</td><td class="num">${nf(v.vir, 1)}</td>
+        <td class="num ${v.fuera ? 'destaca' : ''}">${nf(v.rel, 3)}</td>
+        <td class="num">${nf(v.flecha, 2)}</td><td class="num">${nf(v.long, 2)}</td>
+        <td><span class="sello ${v.fuera ? 'ambar' : 'verde'}">${v.fuera ? 'fuera de banda' : 'en banda'}</span></td></tr>`).join('')}</tbody></table>
+      <div class="tabla-nota"><b>${fuera.length} de ${m.vanoAvano.length} vanos fuera de banda.</b> Es el aviso de ingeniería más repetido de la línea:
+        lo que distingue una línea calculada de una línea calculada bien.</div></div>
+
+    <h3 class="sub" data-idx="6.3" id="s6-3"><span class="n">6.3</span> Control: catenaria contra parábola</h3>
+    <div class="tabla-caja"><table class="tabla">
+      <caption>Se comprueba en el vano más desfavorable de la línea. Si las dos curvas se separan, la aproximación deja de servir.</caption>
+      <thead><tr><th>Vano de control</th><th>Tiro (kgf)</th><th>Flecha parábola (m)</th><th>Flecha catenaria (m)</th><th>Diferencia</th><th>Lectura</th></tr></thead>
+      <tbody><tr><td><b>${tL.desde} → ${tL.hasta}, ${nf(tL.vmax, 1)} m</b></td><td class="num">${nf(tL.hTMax)}</td>
+        <td class="num">${nf(parab, 4)}</td><td class="num destaca">${nf(cat, 4)}</td>
+        <td class="num">${nf(Math.abs(cat - parab) / cat * 100, 3)} %</td>
+        <td class="porq">A estos vanos la parábola es perfectamente utilizable. La catenaria se reserva para vanos largos y para auditar.</td></tr></tbody></table></div>
+
+    <h3 class="sub" data-idx="6.4" id="s6-4"><span class="n">6.4</span> Umbrales y criterios</h3>
+    <div class="tabla-caja"><table class="tabla">
+      <caption>Cada indicador con su valor, su umbral, su estado y —sobre todo— <b>su fuente</b>. Un semáforo sin fuente es una opinión con colores.</caption>
+      <thead><tr><th>Indicador</th><th>Valor</th><th>Umbral</th><th>Estado</th><th>Fuente del criterio</th></tr></thead>
+      <tbody>
+        <tr><td><b>Tiro máximo de la línea</b></td><td class="num destaca">${nf(Math.max(...m.tramos.map(t => t.pico)))} kgf</td>
+          <td class="num">≤ ${nf(topeMotor)}</td><td><span class="sello ${excMotor.length ? 'rojo' : 'verde'}">${excMotor.length ? 'revisar' : 'cumple'}</span></td>
+          <td class="porq">Criterio del motor: ${nf(TOPE_MOTOR * 100)} % de la RTS. <span class="umbral-fuente">adoptado por el proyecto — <b>sin decidir</b> (doctrina interna: ${nf(TOPE_DOCTRINA * 100)} %)</span></td></tr>
+        <tr><td><b>Vanos dentro de banda del VIR</b></td><td class="num destaca">${m.vanoAvano.length - fuera.length} / ${m.vanoAvano.length}</td>
+          <td class="num">0,7 – 1,3</td><td><span class="sello ${fuera.length ? 'ambar' : 'verde'}">${fuera.length ? 'revisar' : 'cumple'}</span></td>
+          <td class="porq">Validez de la hipótesis del vano ideal de regulación. <span class="umbral-fuente">práctica de diseño de líneas</span></td></tr>
+        <tr><td><b>Flecha máxima</b></td><td class="num destaca">${nf(Math.max(...m.tramos.map(t => t.flecha)), 2)} m</td>
+          <td class="hueco">—</td><td><span class="sello gris">no evaluable</span></td>
+          <td class="porq">Exige cota de sujeción y cota de terreno. <span class="umbral-fuente">RETIE Libro 3, Tabla 3.10.2.a</span></td></tr>
+        <tr><td><b>Distancia al terreno</b></td><td class="hueco">—</td><td class="hueco">—</td><td><span class="sello gris">no evaluable</span></td>
+          <td class="porq">Cotas de GPS de mano con ±8 m declarados. <span class="umbral-fuente">RETIE Libro 3, Tabla 3.10.2.a</span></td></tr>
+        <tr><td><b>Capacidad de los apoyos</b></td><td class="hueco">—</td><td class="hueco">—</td><td><span class="sello gris">no evaluable</span></td>
+          <td class="porq">0 de ${m.nombres.length} apoyos declaran carga de rotura o capacidad longitudinal. <span class="umbral-fuente">ficha del fabricante del apoyo</span></td></tr>
+        <tr><td><b>Fluencia del conductor (creep)</b></td><td class="hueco">—</td><td class="hueco">—</td><td><span class="sello gris">deuda declarada</span></td>
+          <td class="porq">No implementado. Alarga el conductor con los años y baja la flecha real. <span class="umbral-fuente">deuda técnica declarada del proyecto</span></td></tr>
+      </tbody></table></div>
+    ${corte(19)}`);
+}
+
+/* ══ 7 · TÉRMICA ═══════════════════════════════════════════════════════ */
+const ESCEN = [
+  { et: 'Noche fresca', ta: 24, v: 0.61, sol: 0, amp: 838, nota: 'Sin sol y con el ambiente abajo: la mejor hora del conductor. Sirve de techo, no de criterio de despacho.' },
+  { et: 'Día típico', ta: 32, v: 0.61, sol: 1000, amp: 718, ref: true, nota: 'Escenario de REFERENCIA: contra este se mide todo lo que la línea pierde en los demás.' },
+  { et: 'Día caluroso', ta: 38, v: 0.61, sol: 1000, amp: 676, nota: 'Seis grados más de ambiente. Ni un día raro: una tarde de verano cualquiera.' },
+  { et: 'El Niño, viento en calma', ta: 40, v: 0.20, sol: 1000, amp: 544, nota: 'Ambiente arriba Y aire quieto a la vez. Coincide con los meses de mayor demanda: la capacidad cae justo cuando hace falta.' },
+];
+function sec7(m) {
+  const c = m.L.conductor, kv = m.L.kv;
+  if (!c) return sec('s7', '7', 'Comportamiento térmico', 20, 'Cuánta corriente aguanta la línea según el clima, y cuánto pierde en el peor escenario.',
+    noEvalCorto('No se puede calcular la capacidad de transporte.',
+      'La ampacidad es un balance térmico: depende del material, la sección y el diámetro del conductor.') + corte(21));
+
+  const ref = ESCEN.find(e => e.ref), mej = ESCEN.reduce((a, b) => b.amp > a.amp ? b : a), peor = ESCEN.reduce((a, b) => b.amp < a.amp ? b : a);
+  const mva = (a) => Math.sqrt(3) * kv * a / 1000;
+  const R = (T) => c.r20 * (1 + c.beta * (T - 20));
+  const notaT = { 20: 'Temperatura de catálogo. Es la única fila confrontable con la ficha del fabricante.', 50: 'Conductor cargado en un día corriente.', 75: 'Límite continuo del ACSR: por encima, el aluminio se recuece y no vuelve.', 90: 'Límite continuo de las aleaciones (AAAC / ACAR). Para un ACSR ya es zona de daño permanente.' };
+
+  return sec('s7', '7', 'Comportamiento térmico', 20,
+    'Cuánta corriente aguanta esta línea según el clima. La ampacidad de placa es engañosa: aquí se calcula contra condiciones declaradas, escenario a escenario.',
+    `<p class="alerta"><b>De la mejor hora a la peor, la línea pierde el ${nf((mej.amp - peor.amp) / mej.amp * 100, 1)} % de su capacidad</b>
+      (${nf(mej.amp)} A en «${mej.et}» frente a ${nf(peor.amp)} A en «${peor.et}»). Y el peor escenario coincide con los meses
+      de mayor demanda: la capacidad cae justo cuando hace falta.</p>
+
+    <h3 class="sub" data-idx="7.1" id="s7-1"><span class="n">7.1</span> Escenarios de clima adoptados</h3>
+    <div class="tabla-caja"><table class="tabla">
+      <caption>Conductor a ${c.tMaxMaterial} °C · ε = α = 0,5 · nivel del mar. La fila azul es la de referencia: contra ella se mide el derrateo.</caption>
+      <thead><tr><th>Escenario</th><th>Ambiente</th><th>Viento</th><th>Sol</th><th>Ampacidad</th><th>Potencia</th><th>Pierde</th><th>Qué es este escenario</th></tr></thead>
+      <tbody>${ESCEN.map(e => `<tr class="${e.ref ? 'refer' : ''}">
+        <td><b>${e.et}</b>${e.ref ? ' <span class="sello azul">referencia</span>' : ''}</td>
+        <td class="num">${nf(e.ta)} °C</td><td class="num">${nf(e.v, 2)} m/s</td><td class="num">${nf(e.sol)} W/m²</td>
+        <td class="num destaca">${nf(e.amp)} A</td><td class="num">${nf(mva(e.amp), 1)} MVA</td>
+        <td class="num ${e.amp < ref.amp ? 'destaca' : ''}">${e.amp === ref.amp ? '—' : (e.amp > ref.amp ? '+' : '−') + nf(Math.abs(e.amp - ref.amp) / ref.amp * 100, 1) + ' %'}</td>
+        <td class="porq">${e.nota}</td></tr>`).join('')}</tbody></table>
+      <div class="tabla-nota">Los escenarios son <b>adoptados por este proyecto</b>, no cifras de norma. Están declarados fuera del cálculo para que se puedan discutir sin tocar el motor.</div></div>
+
+    <h3 class="sub" data-idx="7.2" id="s7-2"><span class="n">7.2</span> Resistencia en corriente continua por temperatura</h3>
+    <div class="tabla-caja"><table class="tabla">
+      <caption>R(T) = R₂₀ · (1 + β·(T − 20)), con β = ${nf(c.beta, 5)} 1/°C para ${c.material}. Verificado contra tabla de fabricante: 1,3 % de desviación.</caption>
+      <thead><tr><th>Temperatura</th><th>Resistencia</th><th>Qué representa esa temperatura</th></tr></thead>
+      <tbody>${[20, 50, 75, 90].map(T => `<tr class="${T === c.tMaxMaterial ? 'excede' : ''}">
+        <td class="num"><b>${T} °C</b>${T === c.tMaxMaterial ? ' <span class="sello rojo">límite del material</span>' : ''}</td>
+        <td class="num destaca">${nf(R(T), 4)} Ω/km</td><td class="porq">${notaT[T]}</td></tr>`).join('')}</tbody></table></div>
+
+    <ul class="hallazgos">
+      <li class="atencion"><b>Peor escenario «${peor.et}» (${nf(peor.ta)} °C, viento ${nf(peor.v, 2)} m/s).</b>
+        La capacidad baja a ${nf(peor.amp)} A, o sea ${nf(mva(peor.amp), 1)} MVA. No es un fallo del cálculo: es que en calma
+        la refrigeración depende casi solo de la radiación.</li>
+      <li class="aviso"><b>El viento pesa más que el ambiente.</b> Pasar de 0,61 a 0,20 m/s cuesta más capacidad que subir
+        ocho grados el ambiente. Por eso el escenario en calma se muestra aparte y no se promedia con los otros.</li>
+      <li class="info"><b>El límite de ${c.tMaxMaterial} °C del ${c.material} es de material, no de catálogo.</b>
+        Viene de la aleación 6201-T81: por encima pierde propiedades mecánicas de forma permanente.</li>
+      <li class="info"><b>La emisividad y la absortividad se toman en 0,5</b>, el punto medio del rango documentado
+        (0,23 nuevo … 0,91 envejecido). No es una cobardía: es la hipótesis honesta mientras nadie mida.</li>
+    </ul>
+    ${corte(21)}`);
+}
+
+/* ══ 8 · VIENTO ════════════════════════════════════════════════════════ */
+function sec8(m) {
+  const c = m.L.conductor, h = m.L.hipotesis;
+  if (!c) return sec('s8', '8', 'Carga de viento', 22, 'Qué le hace el viento de diseño al conductor: empuje, balanceo y tiro.',
+    noEvalCorto('No hay viento declarado ni conductor sobre el que aplicarlo.',
+      'El empuje por metro sale del diámetro del conductor y de la velocidad de diseño.') + corte(23));
+
+  const rel = m.q / c.masa;
+  const K = (v, l, s, cl) => `<div class="kpi"><div class="kpi-v ${cl || ''}">${v}</div><div class="kpi-l">${l}</div><div class="kpi-s">${s}</div></div>`;
+
+  return sec('s8', '8', 'Carga de viento', 22,
+    'Qué le hace al conductor el viento declarado. Cada cifra va con su frase en llano debajo: una presión en kgf/m² no le dice nada a nadie hasta que se traduce.',
+    `<p>La hipótesis de viento declarada es: velocidad <b>${nf(h.viento)} km/h</b>, temperatura coincidente
+      <b>${nf(h.tViento)} °C</b>, coeficiente de arrastre <b>${nf(h.cx, 2)}</b>, densidad del aire <b>${nf(h.rho, 3)} kg/m³</b>.
+      Procedencia: <b>${h.procedencia}</b> — no está congelada.</p>
+    <span class="sello-calculo"><b>Sello:</b> motor ${m.L.motor} · hipótesis «${h.nombre}» (${h.revision}, ${h.fecha}) · conductor Ø ${nf(c.diametro * 1000, 2)} mm.</span>
+
+    <div class="kpis k6">
+      ${K(nf(m.presion, 2) + '<small> kgf/m²</small>', 'Presión de viento', 'Lo que empuja cada metro cuadrado expuesto')}
+      ${K(nf(m.q, 4) + '<small> kgf/m</small>', 'Empuje sobre el cable', 'Por cada metro de conductor, de lado')}
+      ${K(nf(c.masa, 4) + '<small> kg/m</small>', 'Peso propio', 'Lo que pesa un metro de conductor')}
+      ${K(nf(m.w2, 4) + '<small> kg/m</small>', 'Carga resultante', 'Peso y empuje combinados: es la que entra al cálculo')}
+      ${K(gr(m.balanceo, 1), 'Ángulo de balanceo', 'Cuánto se va de lado la cadena y el cable', m.balanceo > 30 ? 'rojo' : '')}
+      ${K('×' + nf(rel, 3), 'Empuje / peso', rel > 1 ? 'El viento empuja MÁS de lo que el cable pesa' : 'El viento empuja menos de lo que el cable pesa')}
+    </div>
+    <div class="figura">${figBalanceo(m)}</div>
+    ${m.balanceo > 30 ? `<p class="alerta"><b>Balanceo de ${gr(m.balanceo, 1)}.</b> Por encima de 30° el cable y la cadena se van
+      de lado lo suficiente como para comerse la distancia a la estructura. Esta línea no puede verificar esa distancia:
+      no hay geometría de cruceta declarada en ninguna de las ${m.nombres.length} fichas.</p>` : ''}
+
+    <h3 class="sub" data-idx="8.1" id="s8-1"><span class="n">8.1</span> Tiro y flecha con viento, tramo a tramo</h3>
+    <div class="tabla-caja"><table class="tabla">
+      <caption>Estado de máximo viento: ${nf(h.viento)} km/h a ${nf(h.tViento)} °C. La flecha con viento se mide en la dirección de la resultante, no en la vertical.</caption>
+      <thead><tr><th>#</th><th>Tramo</th><th>VIR (m)</th><th>Vano máx (m)</th><th>Tiro sin viento (kgf)</th><th>Tiro con viento (kgf)</th><th>Aumento</th><th>Flecha resultante (m)</th></tr></thead>
+      <tbody>${m.tramos.map(t => `<tr><td class="num">${t.n}</td><td><b>${t.desde} → ${t.hasta}</b></td>
+        <td class="num">${nf(t.vir, 1)}</td><td class="num">${nf(t.vmax, 1)}</td>
+        <td class="num">${nf(t.Heds)}</td><td class="num destaca">${nf(t.hVien)}</td>
+        <td class="num">+${nf((t.hVien / t.Heds - 1) * 100, 1)} %</td><td class="num">${nf(t.flechaViento, 2)}</td></tr>`).join('')}</tbody></table></div>
+
+    <div class="panel"><h4>Lo que este cálculo NO dice</h4>
+      <ul class="hallazgos">
+        <li class="atencion"><b>La velocidad de viento no está validada contra norma ni contra registro local.</b>
+          Es un valor adoptado. Si el viento real de la zona es mayor, todos los tiros de esta sección se quedan cortos.</li>
+        <li class="aviso"><b>No dice nada sobre el viento sobre la estructura.</b> Solo se calcula el empuje sobre el
+          conductor: el área expuesta del apoyo no está declarada en ninguna ficha.</li>
+        <li class="aviso"><b>No contempla viento oblicuo ni ráfaga.</b> Se supone viento perpendicular y sostenido, que es
+          el caso de cálculo, no el caso del día malo.</li>
+        <li class="info"><b>No dice si la cadena tiene sitio para balancearse.</b> Eso exige geometría de cruceta, que se
+          captura en campo (F4).</li>
+      </ul></div>
+    ${corte(23)}`);
+}
+/* ══ 9 · CARGAS SOBRE ESTRUCTURAS ══════════════════════════════════════ */
+function sec9(m) {
+  const c = m.L.conductor, h = m.L.hipotesis;
+  if (!c) return sec('s9', '9', 'Cargas sobre las estructuras', 24, 'Los dos ejes de carga que recibe cada apoyo, que nunca se suman entre sí.',
+    noEvalCorto('No se puede repartir ninguna carga sobre los apoyos.',
+      'La transversal sale del tiro y del empuje del viento; la longitudinal, de la diferencia de tiros entre tramos.') +
+    `<p class="aviso"><b>Ojo con lo que esto NO significa.</b> Que no haya carga calculada no quiere decir que los apoyos
+      estén bien: quiere decir que <b>nadie lo ha comprobado</b>. Es exactamente el estado que en una cartera grande se
+      confunde con «sana», y el que más caro sale.</p>` + corte(27));
+
+  const T = m.cargasT, Lg = m.cargasL;
+  const peor = T.reduce((a, b) => b.total > a.total ? b : a);
+  const maxFac = T.reduce((a, b) => b.fac > a.fac ? b : a);
+  const ampl = T.filter(x => x.fac > 1).length;
+  const peorL = Lg.reduce((a, b) => b.delta > a.delta ? b : a);
+  const anclas = Lg.filter(x => x.esAncla && !x.esTerminal).length;
+  const noConcl = Lg.filter(x => x.sentido === 'no concluyente' && x.esAncla && !x.esTerminal).length;
+  const tendido = Math.max(...m.tramos.map(t => t.pico));
+
+  const notasT = [
+    ['aviso', T.length + ' de ' + T.length + ' apoyos sin capacidad declarada',
+      'El sistema sabe cuánta carga <b>recibe</b> cada apoyo, pero no cuánto <b>aguanta</b>: ninguna ficha declara carga de rotura ni las dos alturas. Es el hueco más caro que tiene esta línea, y es un hecho sobre los datos, no un fallo de la aplicación.'],
+    ['aviso', 'El quiebre y el viento se suman como escalares, no como vectores',
+      'No son exactamente colineales. La suma es conservadora en la mayoría de los casos y no lo es en todos: se declara para que quien firme sepa qué está leyendo.'],
+    ['info', 'La carga transversal del quiebre es permanente',
+      'No depende del viento. Está ahí de noche, en calma y en mantenimiento. Los ' + ampl + ' apoyos que amplifican por encima de 1 la reciben siempre.'],
+  ];
+  const notasL = [
+    ['aviso', 'El desequilibrio en el estado EDS sale cero exacto en todas las fronteras',
+      'Es un <b>cero del modelo</b>, no una medición: el proyecto usa un solo EDS por línea. Se declara para que nadie lo lea como «aquí no hay desequilibrio».'],
+    ['atencion', noConcl + ' anclaje con sentido no concluyente',
+      'La diferencia entre los dos lados queda por debajo de la resolución de la hipótesis. Decir «tira hacia adelante» con esa diferencia sería inventarse una dirección.'],
+    ['info', 'El eje longitudinal NO se suma con el transversal',
+      'Son dos verificaciones distintas del mismo apoyo, con capacidades distintas. Sumarlas produce un número que no significa nada.'],
+  ];
+
+  const K = (v, l, s, cl) => `<div class="kpi"><div class="kpi-v ${cl || ''}">${v}</div><div class="kpi-l">${l}</div><div class="kpi-s">${s}</div></div>`;
+
+  return sec('s9', '9', 'Cargas sobre las estructuras', 24,
+    'La sección más pesada del informe, y la que más disciplina exige: son DOS ejes de carga y no se suman nunca. Arriba el transversal; abajo el longitudinal.',
+    `<h3 class="sub" data-idx="9.1" id="s9-1"><span class="n">9.1</span> Eje transversal — quiebre + viento</h3>
+    <div class="kpis k5">
+      ${K('×' + nf(maxFac.fac, 3), 'Mayor amplificación del quiebre', maxFac.nom + ' con ' + gr(maxFac.defl, 1) + ' — ' + nf((maxFac.fac - 1) * 100, 1) + ' % más que el tiro')}
+      ${K(ampl + ' / ' + T.length, 'Reciben más que la tensión', 'Deflexión por encima de 60°: el factor pasa de 1')}
+      ${K(nf(peor.total) + '<small> kgf</small>', 'Mayor carga transversal', peor.nom + ' — ' + nf(peor.quiebre) + ' de quiebre + ' + nf(peor.viento) + ' de viento', 'rojo')}
+      ${K(T.length + ' / ' + T.length, 'Con carga calculada', 'Toda la línea tiene la carga que RECIBE', 'verde')}
+      ${K('0 / ' + T.length, 'Con capacidad declarada', 'Nadie declara cuánto AGUANTA: 0 apoyos con veredicto', 'hueco')}
+    </div>
+    <div class="tabla-caja"><table class="tabla">
+      <caption>Carga transversal por apoyo. Tiro tomado del estado de máximo viento del tramo; vano viento = media de los vanos adyacentes.</caption>
+      <thead><tr><th>#</th><th>Apoyo</th><th>Función (deducida)</th><th>Deflexión</th><th>Factor</th><th>Vano viento (m)</th>
+        <th>Tiro (kgf)</th><th>Quiebre (kgf)</th><th>Viento (kgf)</th><th>Total (kgf)</th><th>Utilización</th><th>Estado</th></tr></thead>
+      <tbody>${T.map((x, i) => `<tr class="${x.fac > 1 ? 'fuera' : ''}">
+        <td class="num">${i + 1}</td><td><b>${x.nom}</b></td><td>${x.func}</td>
+        <td class="num">${x.defl == null ? H_ : gr(x.defl, 1)}</td>
+        <td class="num ${x.fac > 1 ? 'destaca' : ''}">${x.defl == null ? H_ : '×' + nf(x.fac, 3)}</td>
+        <td class="num">${nf(x.vViento, 1)}</td><td class="num">${nf(x.T)}</td>
+        <td class="num">${nf(x.quiebre)}</td><td class="num">${nf(x.viento)}</td>
+        <td class="num destaca">${nf(x.total)}</td>
+        <td class="num hueco">—</td><td><span class="sello gris">no evaluable</span></td></tr>`).join('')}</tbody></table>
+      <div class="tabla-nota">Las dos últimas columnas están vacías en las ${T.length} filas por la misma razón: <b>no hay capacidad declarada</b>.
+        La columna existe igual, porque un hueco que se ve es un hueco que se llena.</div></div>
+    <div class="panel"><h4>Notas que escribe el propio cálculo — eje transversal</h4>
+      <p class="fine">Agrupadas por texto: si una observación se repite en las ${T.length} filas, se escribe una vez. Así la que
+        aparece tres veces no queda tapada por la que aparece veinticuatro.</p>
+      <ul class="hallazgos">${notasT.map(([cl, t, d]) => `<li class="${cl}"><b>${t}.</b> ${d}</li>`).join('')}</ul></div>
+
+    <h3 class="sub" data-idx="9.2" id="s9-2"><span class="n">9.2</span> Eje longitudinal — a lo largo de la línea</h3>
+    <div class="kpis k6">
+      ${K(nf(peorL.delta) + '<small> kgf</small>', 'Mayor carga longitudinal', m.func[0] === 'Terminal' ? 'Los terminales soportan el tiro entero' : peorL.nom, 'rojo')}
+      ${K(anclas, 'Tiran hacia los dos lados', 'Anclajes intermedios: reciben tiro por delante y por detrás')}
+      ${K(nf(tendido) + '<small> kgf</small>', 'Lo que pesa el tendido de obra', 'Tirando de un solo lado, en cualquier anclaje')}
+      ${K(noConcl, 'Sentido no concluyente', 'La diferencia cae bajo la resolución de la hipótesis', 'azul')}
+      ${K('0 / ' + Lg.length, 'Capacidad longitudinal declarada', 'Y NO se deduce de la carga de rotura', 'hueco')}
+      ${K('0 / ' + Lg.length, 'Apoyos con veredicto', 'Ni en este eje ni en el transversal', 'hueco')}
+    </div>
+    <p class="aviso"><b>La capacidad longitudinal no se deduce de la carga de rotura.</b> La carga de rotura de catálogo es un
+      ensayo <b>transversal en punta</b>. Usarla como si fuera capacidad longitudinal es el atajo que convierte una tabla
+      en un riesgo, y por eso aquí las dos columnas se piden por separado.</p>
+    <div class="tabla-caja"><table class="tabla">
+      <caption>Carga longitudinal por apoyo. En los terminales es el tiro entero (un solo lado); en los anclajes intermedios,
+        la diferencia entre los dos tramos, proyectada por cos(α/2).</caption>
+      <thead><tr><th>#</th><th>Apoyo</th><th>Caso</th><th>Deflexión</th><th>cos(α/2)</th><th>Hacia adelante (kgf)</th>
+        <th>Hacia atrás (kgf)</th><th>Resultante (kgf)</th><th>Sentido</th><th>Rotura lado atrás</th><th>Utilización</th><th>Estado</th></tr></thead>
+      <tbody>${Lg.map((x, i) => `<tr class="${x.esTerminal ? 'excede' : (x.esAncla ? 'fuera' : '')}">
+        <td class="num">${i + 1}</td><td><b>${x.nom}</b></td>
+        <td>${x.esTerminal ? 'Terminal' : x.esAncla ? 'Anclaje intermedio' : 'Suspensión'}</td>
+        <td class="num">${x.defl == null ? H_ : gr(x.defl, 1)}</td><td class="num">${nf(x.cosm, 4)}</td>
+        <td class="num">${x.esTerminal ? H_ : nf(x.adelante)}</td>
+        <td class="num">${x.esTerminal ? H_ : nf(x.atras)}</td>
+        <td class="num destaca">${x.esAncla ? nf(x.delta) : '<span class="hueco">0 *</span>'}</td>
+        <td><span class="sello ${x.sentido === 'no concluyente' ? 'azul' : 'gris'}">${x.esAncla ? x.sentido : 'sin desequilibrio'}</span></td>
+        <td class="num hueco">—</td><td class="num hueco">—</td><td><span class="sello gris">no evaluable</span></td></tr>`).join('')}</tbody></table>
+      <div class="tabla-nota">* El cero de las suspensiones es <b>del modelo</b>: el proyecto usa un solo EDS por línea, así que
+        el desequilibrio sale cero exacto en todas las fronteras. No significa que en el terreno no lo haya.</div></div>
+    <div class="panel"><h4>Notas que escribe el propio cálculo — eje longitudinal</h4>
+      <ul class="hallazgos">${notasL.map(([cl, t, d]) => `<li class="${cl}"><b>${t}.</b> ${d}</li>`).join('')}</ul></div>
+    ${corte(27)}`);
+}
+
+/* ══ 10 · CANTIDADES ═══════════════════════════════════════════════════ */
+function sec10(m) {
+  const c = m.L.conductor;
+  const conteos = {};
+  m.func.forEach(f => conteos[f] = (conteos[f] || 0) + 1);
+  const cuerpoConteos = Object.entries(conteos).map(([f, n]) => `<tr><td><b>${f}</b></td><td class="num destaca">${n}</td><td>apoyo${n > 1 ? 's' : ''}</td>
+    <td class="porq">Función <b>deducida</b> por deflexión, no declarada en la ficha.</td></tr>`).join('')
+    + `<tr><td><b>Empalmes</b></td><td class="num destaca">${m.L.emp}</td><td>unidad${m.L.emp === 1 ? '' : 'es'}</td>
+       <td class="porq">Van aparte: <b>no son apoyos</b>. Cuelgan a mitad de vano y no sostienen el conductor.</td></tr>
+       <tr><td><b>Vanos</b></td><td class="num destaca">${m.vanos.length}</td><td>vanos</td><td class="porq">Entre estructuras consecutivas, sin contar empalmes.</td></tr>`;
+
+  const avisos = [
+    ['Conductores por circuito', 'No está declarado cuántos conductores lleva el circuito. Sin ese número, la longitud NO se multiplica: un factor 3 inventado son kilómetros de cable que alguien compra.'],
+    ['Crucetas', 'Exige inventario por apoyo (tipo, longitud, material). Se captura en campo (F4).'],
+    ['Retenidas y anclajes de tierra', 'Exige inventario por apoyo y geometría de la retenida. Se captura en campo (F4).'],
+    ['Herrajes y grapas', 'Exige el tipo de cadena y el esquema de amarre por apoyo. Se captura en campo (F4).'],
+    ['Aisladores', 'Exige número de unidades por cadena, que hoy no está declarado en ninguna ficha.'],
+    ['Excavación y cimentación', 'Depende del tipo de apoyo y del terreno. Ninguno de los dos está declarado.'],
+  ];
+
+  const cuerpoCont = c ? (() => {
+    const recto = m.vanos.reduce((a, x) => a + x, 0);
+    const real = m.vanoAvano.reduce((a, v) => a + v.long, 0);
+    return `<tr><td><b>Longitud de conductor por catenaria</b></td><td class="num destaca">${nf(real, 1)}</td><td>m por conductor</td>
+      <td class="porq">Suma de la longitud de catenaria de cada vano con el tiro EDS de SU tramo — no la suma de vanos rectos.</td></tr>
+      <tr><td><b>Suma de vanos rectos</b></td><td class="num">${nf(recto, 1)}</td><td>m</td>
+      <td class="porq">Referencia. Es la cifra que sale si se ignora la curva: se queda corta justo en los vanos largos, que son los que más cable llevan.</td></tr>
+      <tr><td><b>Sobrelargo por catenaria</b></td><td class="num destaca">${nf(real - recto, 2)}</td><td>m (${nf((real / recto - 1) * 100, 3)} %)</td>
+      <td class="porq">La diferencia entre las dos filas anteriores. Pequeña en porcentaje, real en metros.</td></tr>
+      <tr><td><b>Longitud total a comprar</b></td><td class="num hueco">—</td><td class="hueco">—</td>
+      <td class="porq"><b>No se publica.</b> Falta el número de conductores por circuito, y multiplicar por un 3 supuesto sería fabricar un pedido.</td></tr>`;
+  })() : '';
+
+  return sec('s10', '10', 'Memoria de cantidades', 28,
+    'Lo que se puede cuantificar con la geometría, y —con el mismo peso— lo que todavía no. Un BOM inventado es peor que no tener BOM, porque alguien compra con él.',
+    `${c ? `<h3 class="sub" data-idx="10.1" id="s10-1"><span class="n">10.1</span> Cantidades continuas</h3>
+    <div class="tabla-caja"><table class="tabla">
+      <caption>Materiales que se miden en longitud. Con el tiro EDS de cada tramo, calculado en esta misma página.</caption>
+      <thead><tr><th>Concepto</th><th>Cantidad</th><th>Unidad</th><th>De dónde sale</th></tr></thead>
+      <tbody>${cuerpoCont}</tbody></table></div>` : `<h3 class="sub" data-idx="10.1" id="s10-1"><span class="n">10.1</span> Cantidades continuas</h3>
+    ${noEvalCorto('La longitud real de conductor no se puede calcular.',
+      'La longitud por catenaria necesita el tiro de cada tramo. Sin él solo queda la suma de vanos rectos, que se queda corta justo donde más cable hay.')}`}
+
+    <h3 class="sub" data-idx="10.2" id="s10-2"><span class="n">10.2</span> Conteos por función de apoyo</h3>
+    <div class="tabla-caja"><table class="tabla">
+      <caption>Elementos que se cuentan. Los empalmes van aparte a propósito.</caption>
+      <thead><tr><th>Concepto</th><th>Cantidad</th><th>Unidad</th><th>De dónde sale</th></tr></thead>
+      <tbody>${cuerpoConteos}</tbody></table></div>
+
+    <h3 class="sub" data-idx="10.3" id="s10-3"><span class="n">10.3</span> Lo que todavía NO se puede cuantificar</h3>
+    <p>Esta lista no es un apéndice: pesa lo mismo que la tabla de arriba. Es lo que falta y por qué —no una estimación—,
+      porque una cantidad inventada entra en una orden de compra y ya no vuelve.</p>
+    <ul class="hallazgos">${avisos.map(([t, d]) => `<li class="aviso"><b>${t}.</b> ${d}</li>`).join('')}</ul>
+    ${corte(29)}`);
+}
+
+/* ══ 11 · EXPORTACIÓN ══════════════════════════════════════════════════ */
+function sec11(m) {
+  const L = m.L, c = L.conductor;
+  const B = (fmt, tit, sub, off) => `<button class="descarga"${off ? ' disabled' : ''} data-desc="${tit}">
+    <span class="fmt">${fmt}</span><span><b>${tit}</b><i>${sub}</i></span></button>`;
+  return sec('s11', '11', 'Exportación y anexos', 30,
+    'Los mismos datos, en el formato que pide cada destino. Cada archivo lleva pegada su procedencia: de dónde sale, con qué hipótesis y con qué versión del motor.',
+    `<h3 class="sub" data-idx="11.1" id="s11-1"><span class="n">11.1</span> Levantamiento</h3>
+    <div class="descargas">
+      ${B('GPX 1.1', 'Puntos y traza', 'Para GPS de mano y aplicaciones de campo')}
+      ${B('KML', 'Traza para Google Earth', 'Con los tramos coloreados y las etiquetas de apoyo')}
+      ${B('CSV', 'Tabla para Excel es-CO', 'Coma decimal y punto y coma: abre sin pelear con el idioma')}
+      ${B('CSV', 'Crudo RFC 4180', 'Punto decimal y coma separadora, para procesar')}
+    </div>
+    <h3 class="sub" data-idx="11.2" id="s11-2"><span class="n">11.2</span> Cálculo</h3>
+    <div class="descargas">
+      ${B('CSV', 'Verificación mecánica', 'Tramos, estados, % RTS y flechas', !c)}
+      ${B('CSV', 'Memoria de cantidades', 'Continuas, conteos y lo que falta', false)}
+      ${B('HTML', 'Informe completo imprimible', 'Este mismo documento, entero, y se abre sin internet')}
+      ${B('PDF', 'Informe firmado', 'Requiere la hipótesis congelada', !(L.hipotesis && L.hipotesis.congelada))}
+    </div>
+    ${!(L.hipotesis && L.hipotesis.congelada) ? `<p class="aviso"><b>El informe firmado está deshabilitado a propósito.</b>
+      Mientras la hipótesis no esté congelada, un PDF con aspecto de definitivo es exactamente lo que este sistema
+      no se permite producir. El botón no se oculta: se muestra apagado, con el motivo al lado.</p>` : ''}
+
+    <h3 class="sub" data-idx="11.3" id="s11-3"><span class="n">11.3</span> Procedencia y completitud del dato</h3>
+    <div class="tabla-caja"><table class="tabla">
+      <thead><tr><th>Comprobación</th><th>Resultado</th><th>Qué implica</th></tr></thead><tbody>
+        <tr><td><b>Puntos con coordenada</b></td><td class="num destaca">${m.nombres.length} / ${m.nombres.length}</td><td class="porq">Todos ubicados. La precisión declarada es ±${L.rico ? 8 : 11} m.</td></tr>
+        <tr><td><b>Puntos con cota utilizable</b></td><td class="num" style="color:#f08585">0 / ${m.nombres.length}</td><td class="porq">GPS de mano: no sirve para flecha, gálibo ni distancia de seguridad.</td></tr>
+        <tr><td><b>Puntos con hora de captura</b></td><td class="num destaca">${m.nombres.length} / ${m.nombres.length}</td><td class="porq">Permite reconstruir el recorrido de la cuadrilla.</td></tr>
+        <tr><td><b>Puntos sin nombre canónico</b></td><td class="num destaca">0</td><td class="porq">Todos numerados. La identidad real es el UUID, no el número «E07».</td></tr>
+        <tr><td><b>Fichas con función declarada</b></td><td class="num" style="color:#f08585">0 / ${m.nombres.length}</td><td class="porq">Las funciones del informe están deducidas por geometría.</td></tr>
+        <tr><td><b>Hipótesis congelada</b></td><td>${L.hipotesis && L.hipotesis.congelada ? '<span class="sello verde">sí</span>' : '<span class="sello rojo">no</span>'}</td>
+          <td class="porq">${L.hipotesis && L.hipotesis.congelada ? 'Los exportes llevan la hipótesis sellada.' : 'Todo exporte sale marcado como BORRADOR, en la cabecera y en cada página.'}</td></tr>
+      </tbody></table></div>
+
+    <p class="nota"><b>Qué cambia frente al módulo original.</b> El original exportaba lo que se veía en pantalla; aquí cada
+      archivo lleva dentro la hipótesis, la versión del motor y la fecha con que se produjo. Si mañana un número se
+      discute, la discusión es sobre el cálculo — no sobre quién exportó qué.</p>
+    <div id="acuse"></div>
+
+    <div class="pie-doc">
+      <details>
+        <summary>Qué propone este diseño</summary>
+        <div class="cuerpo-pie">
+          <p><b>La línea es un documento, no once pestañas.</b> Al elegir LN-627 en la barra lateral, todo lo consolidado
+            baja de una vez en el mismo orden en que se firma: portada, resumen, distancias, fichas, falla, fundamentos,
+            cálculo, térmica, viento, cargas, cantidades y exportación. El índice de la izquierda marca dónde estás,
+            como Vista Previa con un PDF. Lo que ves en pantalla es exactamente lo que sale por la impresora —pruébalo
+            con ⌘P—, así que revisar en pantalla y revisar el papel son el mismo trabajo.</p>
+          <p><b>Qué ganas.</b> Nada queda escondido detrás de una pestaña que nadie abre: el hueco de los 24 apoyos sin
+            capacidad y las cuatro verificaciones sin resolver aparecen en el recorrido normal de lectura, no hay que
+            ir a buscarlos. La barra lateral se queda con una sola pregunta —«¿cuál línea?»— y aguanta veinte o
+            doscientas; la sección activa sobrevive al cambio de línea, así que comparar Cargas de dos líneas es un clic.</p>
+          <p><b>Qué pierdes.</b> Un documento se recorre, no se salta: para llegar a Cargas hay que usar el índice o el
+            teclado, mientras que once pestañas te dejan en cualquier sitio con un solo clic. Y el mapa a pantalla
+            completa no cabe en una hoja: aquí es una lámina numerada, ancha pero acotada. Si lo tuyo es vivir dentro
+            del mapa, esta no es tu maqueta; si lo tuyo es firmar informes, sí lo es.</p>
+        </div>
+      </details>
+      <p class="pie-legal">Maqueta de interfaz. Las cifras se calculan en esta misma página con el motor real
+        (catenaria, VIR, cambio de estado por bisección, quiebre y vano viento) sobre una geometría reconstruida:
+        <b>no contiene coordenadas, fotografías ni ningún dato de cliente</b>. Los códigos de línea distintos de LN-627
+        son sintéticos. Sin dependencias externas: un solo archivo, abre con doble clic.</p>
+    </div>`);
+}
+
+/* ══ Ensamblado del documento ══════════════════════════════════════════ */
+function construir(m) {
+  return secPortada(m) + sec1(m) + sec2(m) + sec3(m) + sec4(m) + sec5(m)
+    + sec6(m) + sec7(m) + sec8(m) + sec9(m) + sec10(m) + sec11(m);
+}
+
+/* ══ INTERFAZ ══════════════════════════════════════════════════════════ */
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => Array.from(document.querySelectorAll(s));
+let actual = null, modelo = null, orden = 'estado', filtro = '', secActiva = 's0', fichaSel = 0;
+
+function pintarLista() {
+  const cont = $('#lista-lineas');
+  const f = filtro.trim().toLowerCase();
+  const visible = CARTERA.filter(L => !f || L.cod.toLowerCase().includes(f) || L.resumen.toLowerCase().includes(f));
+  let html = '';
+  const fila = (L) => `<button class="fila-linea ${L.cod === actual ? 'sel' : ''}" data-linea="${L.cod}"
+      title="${L.cod} · ${ROTULO_ESTADO[L.estado]} — ${L.resumen.replace(/"/g, '')} · resumen guardado ${L.fechaResumen}, motor ${L.motor}">
+      <span class="pt ${L.estado}"></span><span class="cod">${L.cod}</span><span class="meta">${nf(L.kv, L.kv % 1 ? 1 : 0)} kV</span></button>`;
+
+  if (orden === 'estado') {
+    GRUPOS.forEach(g => {
+      const xs = visible.filter(L => L.estado === g.est);
+      if (!xs.length) return;
+      html += `<div class="grupo-rotulo"><span class="pt ${g.est}"></span>${g.rot}<span class="cuenta">${xs.length}</span></div>`;
+      html += xs.map(fila).join('');
+    });
+  } else {
+    const xs = [...visible].sort((a, b) => orden === 'codigo' ? a.cod.localeCompare(b.cod) : (b.kv - a.kv) || a.cod.localeCompare(b.cod));
+    html += `<div class="grupo-rotulo">${orden === 'codigo' ? 'Todas, por código' : 'Todas, por tensión'}<span class="cuenta">${xs.length}</span></div>` + xs.map(fila).join('');
+  }
+  if (!visible.length) html = `<div class="grupo-rotulo">Sin resultados</div><p class="sidebar-pie">Ninguna línea coincide con «${filtro}».</p>`;
+  cont.innerHTML = html;
+  cont.querySelectorAll('[data-linea]').forEach(b => b.onclick = () => seleccionar(b.dataset.linea));
+
+  const conEvento = CARTERA.filter(L => L.rico || L.evento).length;
+  const sinEval = CARTERA.filter(L => L.estado === 'sin').length;
+  const viejas = CARTERA.filter(L => L.motorViejo).length;
+  $('#sidebar-pie').innerHTML = `<b>${CARTERA.length} líneas · ${conEvento} con expediente abierto ·
+    ${sinEval} sin evaluar · ${viejas} con el resumen calculado por un motor viejo.</b>
+    El orden por estado usa el <b>resumen guardado</b> de cada línea, no un cálculo de apertura —
+    con veinte líneas, recalcularlo todo al abrir costaría miles de lecturas. Y cada semáforo se
+    emitió contra la hipótesis de SU línea: <b>dos verdes de líneas distintas no significan lo mismo</b>.`;
+}
+
+function pintarIndice() {
+  const cont = $('#indice'), L = CARTERA.find(x => x.cod === actual);
+  let html = `<div class="indice-cab"><div class="rot">Documento</div><div class="nom">${L.cod}</div>
+    <div class="est">${L.hipotesis && L.hipotesis.congelada ? 'Firmable con reservas' : 'Borrador — no firmable'} · 31 páginas</div></div>`;
+  $$('#hoja .seccion, #hoja .portada').forEach(s => {
+    html += `<button class="idx" data-goto="${s.id}"><span class="n">${s.dataset.n || '·'}</span><span>${s.dataset.tit}</span><span class="pg">${s.dataset.pg}</span></button>`;
+    s.querySelectorAll('h3.sub[data-idx]').forEach(h => {
+      /* En el índice manda el reconocimiento, no la descripción: se corta el
+         subtítulo largo, que ya está entero en el documento. */
+      const corto = h.textContent.replace(/^\s*[\d.]+\s*/, '').split(' — ')[0].trim();
+      html += `<button class="idx hijo" data-goto="${h.id}"><span class="n">${h.dataset.idx}</span><span>${corto}</span></button>`;
+    });
+  });
+  cont.innerHTML = html;
+  cont.querySelectorAll('[data-goto]').forEach(b => b.onclick = () => irA(document.getElementById(b.dataset.goto)));
+}
+
+/* Desplazamiento propio: el `scroll-behavior: smooth` del navegador no responde
+   en todos los contextos, y una maqueta que no navega no demuestra nada. */
+let animScroll = null;
+function irA(el, suave = true) {
+  if (!el) return;
+  const d = $('#doc');
+  const dest = Math.max(0, Math.min(d.scrollHeight - d.clientHeight,
+    d.scrollTop + el.getBoundingClientRect().top - d.getBoundingClientRect().top - 8));
+  cancelAnimationFrame(animScroll);
+  if (!suave || matchMedia('(prefers-reduced-motion: reduce)').matches) { d.scrollTop = dest; actualizarSalto(); return; }
+  const ini = d.scrollTop, dif = dest - ini, t0 = performance.now();
+  const dur = Math.min(620, 190 + Math.abs(dif) * 0.11);
+  const paso = (t) => {
+    const u = Math.min(1, (t - t0) / dur);
+    const e = u < .5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2;
+    d.scrollTop = ini + dif * e;
+    if (u < 1) animScroll = requestAnimationFrame(paso); else actualizarSalto();
+  };
+  animScroll = requestAnimationFrame(paso);
+  /* Red de seguridad: si el navegador congela los fotogramas (pestaña en
+     segundo plano), la navegación tiene que llegar igual a su destino. */
+  clearTimeout(irA._t);
+  irA._t = setTimeout(() => { if (Math.abs(d.scrollTop - dest) > 2) { d.scrollTop = dest; actualizarSalto(); } }, dur + 90);
+}
+
+function actualizarSalto() {
+  const doc = $('#doc'), y0 = doc.getBoundingClientRect().top + 72;
+  const secs = $$('#hoja .seccion, #hoja .portada');
+  let cur = secs[0];
+  secs.forEach(s => { if (s.getBoundingClientRect().top <= y0) cur = s; });
+  if (cur && cur.id !== secActiva) {
+    secActiva = cur.id;
+    $('#miga-sec').textContent = (cur.dataset.n ? cur.dataset.n + ' · ' : '') + cur.dataset.tit;
+    $('#prog').textContent = 'pág. ' + cur.dataset.pg + ' / 31';
+    $$('#indice .idx').forEach(b => b.classList.toggle('act', b.dataset.goto === cur.id && !b.classList.contains('hijo')));
+  }
+}
+
+function calcDistancias() {
+  const a = Number($('#calc-a').value), b = Number($('#calc-b').value);
+  const d = modelo.dist(a, b);
+  const rec = Math.abs(modelo.progres[b] - modelo.progres[a]);
+  const dx = modelo.pts[b].x - modelo.pts[a].x, dy = modelo.pts[b].y - modelo.pts[a].y;
+  let az = (90 - Math.atan2(dy, dx) * 180 / Math.PI + 360) % 360;
+  const rumbos = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'];
+  $('#calc-kpis').innerHTML = `
+    <div class="kpi"><div class="kpi-v">${nf(d, 1)}<small> m</small></div><div class="kpi-l">Distancia directa</div><div class="kpi-s">Vincenty sobre WGS84</div></div>
+    <div class="kpi"><div class="kpi-v">${nf(rec, 1)}<small> m</small></div><div class="kpi-l">Recorrido por la línea</div><div class="kpi-s">Factor de rodeo ${nf(rec / d, 2)}</div></div>
+    <div class="kpi"><div class="kpi-v">${nf(az, 1)}<small>°</small></div><div class="kpi-l">Acimut relativo</div><div class="kpi-s">Rumbo ${rumbos[Math.round(az / 45) % 8]} · norte relativo</div></div>
+    <div class="kpi"><div class="kpi-v hueco">—</div><div class="kpi-l">Desnivel GPS</div><div class="kpi-s">no firmable — ±8 m declarados</div></div>`;
+  $$('#matriz td.sel').forEach(t => t.classList.remove('sel'));
+  const cel = document.querySelector(`#matriz td[data-i="${a}"][data-j="${b}"]`);
+  if (cel) cel.classList.add('sel');
+}
+
+function cablear() {
+  /* Fichas */
+  const chips = $('#chips-ficha');
+  if (chips) {
+    chips.querySelectorAll('[data-ficha]').forEach(b => b.onclick = () => {
+      fichaSel = b.dataset.ficha;
+      chips.querySelectorAll('.chip').forEach(x => x.classList.remove('act'));
+      b.classList.add('act');
+      renderFicha(modelo, fichaSel);
+    });
+    const primero = chips.querySelector('[data-ficha]');
+    const elegido = chips.querySelector(`[data-ficha="${fichaSel}"]`) || primero;
+    if (elegido) { elegido.classList.add('act'); renderFicha(modelo, elegido.dataset.ficha); }
+  }
+  /* Distancias */
+  if ($('#calc-a')) {
+    $('#calc-a').value = 0; $('#calc-b').value = modelo.nombres.length - 1;
+    $('#calc-a').onchange = calcDistancias; $('#calc-b').onchange = calcDistancias;
+    $('#calc-inv').onclick = () => { const t = $('#calc-a').value; $('#calc-a').value = $('#calc-b').value; $('#calc-b').value = t; calcDistancias(); };
+    $('#matriz').onclick = (e) => {
+      const td = e.target.closest('td[data-i]'); if (!td) return;
+      $('#calc-a').value = td.dataset.i; $('#calc-b').value = td.dataset.j; calcDistancias();
+      irA($('#s2'));
+    };
+    calcDistancias();
+  }
+  /* Acuse de descarga */
+  $$('.descarga').forEach(b => b.onclick = () => {
+    $('#acuse').innerHTML = `<p class="ok"><b>«${b.dataset.desc}» preparado.</b> En el sistema real el archivo baja aquí,
+      sellado con la hipótesis «${modelo.L.hipotesis ? modelo.L.hipotesis.nombre : 'no declarada'}» y el motor ${modelo.L.motor}.
+      Esto es una maqueta: no se descarga nada.</p>`;
+  });
+}
+
+function seleccionar(cod) {
+  const L = CARTERA.find(x => x.cod === cod); if (!L) return;
+  const cambioDeLinea = actual !== cod;
+  actual = cod;
+  modelo = modelar(L);
+  if (cambioDeLinea) fichaSel = 0;
+  $('#hoja').innerHTML = construir(modelo);
+  $('#titulo-barra').innerHTML = `Líneas AT <span>— ${L.cod}</span>`;
+  $('#miga-linea').textContent = L.cod;
+  $('#sello-barra').innerHTML = `motor <b>${L.motor}</b> · resumen <b>${L.fechaResumen}</b>`;
+  document.title = `${L.cod} — Expediente · Líneas AT`;
+  pintarLista(); cablear(); pintarIndice();
+  /* La sección activa SOBREVIVE al cambio de línea: comparar dos líneas en la
+     misma sección es el gesto que esto tiene que hacer barato. */
+  const destino = document.getElementById(secActiva) || document.getElementById('s0');
+  secActiva = '';
+  $('#doc').scrollTop = 0;
+  irA(destino, false);
+}
+
+/* Barra de herramientas y navegación */
+$('#btn-sidebar').onclick = function () { $('#cuerpo').classList.toggle('sin-sidebar'); this.classList.toggle('activo'); };
+$('#btn-indice').onclick = function () { $('#cuerpo').classList.toggle('sin-indice'); this.classList.toggle('activo'); };
+$('#btn-imprimir').onclick = () => window.print();
+$('#btn-tema').onclick = function () {
+  const claro = document.documentElement.getAttribute('data-tema') === 'claro';
+  document.documentElement.setAttribute('data-tema', claro ? 'oscuro' : 'claro');
+  this.classList.toggle('activo', !claro);
+  this.title = claro ? 'Cambiar a claro' : 'Volver a oscuro';
+};
+$('#buscador').oninput = (e) => { filtro = e.target.value; pintarLista(); };
+$$('.segmentado button').forEach(b => b.onclick = () => {
+  orden = b.dataset.orden; $$('.segmentado button').forEach(x => x.classList.toggle('activo', x === b)); pintarLista();
+});
+const irSeccion = (paso) => {
+  const secs = $$('#hoja .seccion, #hoja .portada');
+  let i = secs.findIndex(s => s.id === secActiva); if (i < 0) i = 0;
+  irA(secs[Math.max(0, Math.min(secs.length - 1, i + paso))]);
+};
+$('#btn-prev').onclick = () => irSeccion(-1);
+$('#btn-next').onclick = () => irSeccion(1);
+$('#doc').addEventListener('scroll', actualizarSalto, { passive: true });
+document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  if (e.key === 'j' || e.key === 'ArrowDown' && e.metaKey) { irSeccion(1); e.preventDefault(); }
+  if (e.key === 'k' || e.key === 'ArrowUp' && e.metaKey) { irSeccion(-1); e.preventDefault(); }
+  if (e.key === 's' && e.altKey && e.metaKey) { $('#btn-sidebar').click(); e.preventDefault(); }
+});
+
+seleccionar('LN-627');
+</script>
+</body>
+</html>
