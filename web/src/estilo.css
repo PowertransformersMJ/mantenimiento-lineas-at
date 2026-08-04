@@ -70,7 +70,12 @@
   --tx3:                   #9fb3c4;
   --tx4:                   #90a0ad;
   --tx5:                   #7d8b98;
-  --tx-pendiente:          #6f7d8a;
+  /* NO EVALUABLE. Medido contra los cuatro fondos reales de la app: el
+     valor anterior (#6f7d8a) daba 3,56-4,02 y el mínimo legible es 4,5 —
+     o sea que el hueco quedaba escrito en un tono que cuesta leer. Este
+     da 5,63 en el peor fondo y sigue leyéndose como apagado, muy lejos
+     del ámbar de acento (7,2-8,2), que es de lo que hay que distinguirlo. */
+  --tx-pendiente:          #93a0ad;
   --tx-aviso:              #e8d9b8;
   --tx-ok:                 #cfe8c2;
   --tx-ok-fuerte:          #bfe6b0;
