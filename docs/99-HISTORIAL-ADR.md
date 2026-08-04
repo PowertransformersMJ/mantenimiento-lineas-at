@@ -1601,3 +1601,124 @@ partió en dos —blanco sobre los círculos rojos, tinta oscura sobre las tarje
 
 `research-archive/2026-08-04-workflow-critica-carcasa.json` (la crítica de oficio, 4+1 agentes)
 `research-archive/2026-08-04-workflow-carcasa-horizonte.json` (reconocimiento, plan IAP y línea base)
+
+---
+
+## ADR-020 · 2026-08-04 · El segmento RCA: un método instrumentado, y lo que se le prohíbe hacer
+
+**Estado:** ✅ Cerrado · `TODO-51` completo · contrato **v0.4.0** · 714 pruebas en verde
+**Revisión externa:** ⚠️ **NO revisada externamente.** Hubo workflow adversarial propio (4 lentes
+Opus + sintetizador) pero **no** Consejo Externo.
+
+### Contexto
+
+El Ingeniero pidió *«un segmento llamado RCA donde se analicen las fallas […] ishikagua, 5 porques,
+arbol de causas, proponer hipotesis […] considera que se te aporte registro fotografico, hallazgos,
+parametros de la linea, condiciones climaticas […] este segmento estara POR FUERA»*.
+
+### La decisión
+
+> **El RCA es un documento HERMANO, no una pestaña de la línea**, y el motivo no es de navegación:
+> la causa raíz más cara de un parque es **la que se repite**. El mismo conector fallando en tres
+> apoyos de dos líneas distintas es UNA causa raíz y TRES eventos, y desde dentro de una línea ese
+> patrón es invisible **por construcción**. Además, un aviso de las 2 de la mañana aún no tiene
+> apoyo identificado, y `Investigacion` lo exige con razón: un HECHO sí ocurre en un sitio.
+> `Investigacion` queda **intacta**.
+
+> **Las 6M se descartan.** Nacieron en un astillero para un proceso repetitivo; una línea es un
+> activo lineal de cincuenta años. «Máquina» no existe aquí. **«Mano de obra» se elimina como
+> espina** porque es la que invita a terminar el análisis en un nombre propio — el error humano
+> entra como PROCESO y como REGLA, nunca como persona. **«Medición» no es espina sino eje
+> transversal**: un error de medición no tumba una línea, tumba el ANÁLISIS. Quedan **once espinas**
+> del dominio.
+
+> **Cuatro estados de espina y ninguno es una aprobación**, y falta uno a propósito: **no existe «no
+> aplica»**, que es el agujero del descarte cómodo. Descartar y sostener EXIGEN evidencia enlazada;
+> «no evaluable» exige nombrar el dato que falta. Las once se pintan siempre.
+
+> **Escalera de los porqués**: efecto → modo de falla → mecanismo físico → condición → regla. Una
+> cadena que termina en el mecanismo físico **no es causa raíz**: describe física, no gestión, y
+> sobre la física no se puede actuar.
+
+### Lo que se le PROHÍBE al sistema — el veto del crítico, aceptado entero
+
+| Función | Por qué se rechaza |
+|---|---|
+| Ranking automático de hipótesis | Ordenar **es** dictaminar |
+| Causa raíz sugerida o árbol borrador por IA | Un borrador es un ancla; lo firmado sería del modelo con retoques |
+| Porcentaje de confianza | «Un número sin fórmula detrás es una opinión», y además suena calibrado |
+| Barra de progreso del análisis | Un análisis «al 92 %» empuja a cerrar |
+| Sexto caso de uso de IA | Rompe la lista cerrada de ADR-004 |
+
+Y **el botón de declarar la causa raíz NO EXISTE** mientras falte una de las seis condiciones: en su
+sitio va la lista de cuáles fallan. Un botón deshabilitado invita a buscar cómo habilitarlo.
+
+### El clima: lo que IDEAM sí da, y lo que no
+
+Verificado con fuente el 2026-08-04. `datos.gov.co` (Socrata) responde con CORS abierto → se
+consulta **desde el navegador**, sin servidor ni gasto (ADR-001 descartó Cloud Functions).
+
+**Tres trampas cazadas antes de darlo por bueno:**
+1. **La consulta se colgaba** (90 s sin respuesta): filtraba por coordenada sobre la serie de
+   temperatura, veinte millones de lecturas sin índice geográfico. Se cambia al **catálogo de
+   estaciones** `hp9r-jxuu`, que responde en 0,8 s.
+2. **No toda estación mide clima.** El catálogo mezcla redes: cerca del evento de LN-627, **tres de
+   las cinco estaciones más próximas son LIMNIMÉTRICAS** —miden el nivel de un río—. El criterio
+   ingenuo habría elegido una y devuelto cero lecturas de viento: un hueco disfrazado de dato. Se
+   filtra por categoría, con prueba.
+3. **El objeto `ubicaci_n` del catálogo trae latitud y longitud INTERCAMBIADAS.** Se leen siempre
+   los campos sueltos.
+
+**Huecos declarados, no rellenados:**
+- **RAYOS: no hay dato utilizable.** IDEAM no los publica en abierto. Existe `kscf-fk2u` «Rayos por
+  circuito» en datos.gov.co, pero es de **otro operador**: cubre Caldas (150.188 registros),
+  Risaralda (45.170), Quindío, Antioquia y Chocó, tiene **cero registros en el Caribe** y termina en
+  **2024**. En una línea tropical el rayo es la causa nº1, así que el sistema declara SIEMPRE que no
+  puede afirmar ni descartar una descarga.
+- **Desfase de ~11 días**, medido en cada sondeo preguntándole a IDEAM su último registro; no se
+  codifica un número que envejece.
+- **Es una estación, no el vano.** La distancia va pegada al valor, nunca al pie.
+- **La hora de IDEAM viene sin zona**; interpretarla como hora de Colombia es una inferencia
+  NUESTRA y se declara como tal.
+
+La consulta manda una **celda de rejilla**, no la coordenada del activo: el registro de consultas de
+un tercero no tiene por qué saber dónde está una torre de un cliente.
+
+### Consecuencias
+
+- Contrato `v0.3.0 → v0.4.0`: `AnalisisCausa` y `SondeoClima` en `contratos/src/rca.ts`, dos
+  colecciones nuevas con sus reglas, y `Evidencia.analisisId` como cuarto dueño posible.
+  `sondeos_clima` es **inmutable** (`update: if false`): un sondeo es un hecho fechado, no una
+  caché — si mañana IDEAM corrige la serie, el informe firmado debe seguir mostrando lo consultado.
+- `nucleo/rca.js` y `nucleo/clima.js`, puros y probados. **27 pruebas nuevas** (687 → 714).
+- **PRIMERA escritura del cliente a la base.** Hasta hoy la aplicación solo leía.
+- Lección nueva `32 · L-36`: las reglas de Firestore no se despliegan con el sitio.
+
+### La prueba que le da sentido: «la tormenta que no fue»
+
+Falla nocturna con viento fuerte registrado a la hora del disparo. Es cómodo concluir que lo tumbó
+el viento; pero en el Caribe hay viento fuerte muchos días y las líneas no se caen. **Una hipótesis
+con sustento SOLO climático queda topada en «baja» por el motor**, no por la buena voluntad de quien
+redacta. Verificado por mutación: al retirar el tope, la prueba se pone roja.
+
+### Lo que este ADR debe registrar sobre su propia construcción
+
+Al probar el guardado, Claude escribió un motivo plausible —«las fotografías no muestran hilos rotos
+ni marcas de frotamiento»— que **la cuarta fotografía del propio expediente contradice**: «Hilos
+rotos con extremos fundidos y oscurecimiento localizado». Se retiró del análisis.
+
+Queda escrito porque es la mejor demostración disponible de las dos reglas del segmento: **enlazar
+evidencia es obligatorio precisamente porque obliga a mirar lo que se afirma**, y **las palabras que
+se firman son del ingeniero**, no de quien escribe el código.
+
+### Deuda declarada
+
+- El árbol se edita como lista con padre; no hay lienzo interactivo. El dibujo saldrá del dato.
+- No hay estadística de parque ni correlación clima↔fallas: con n=1 sería un número con aspecto de
+  análisis.
+- Las acciones (CAPA) se registran; su ciclo de vida y eficacia no se gestionan todavía.
+- El informe del análisis con sus límites impresos está pendiente.
+
+### Crudo de respaldo
+
+`research-archive/2026-08-04-workflow-rca-lineas-at.json`

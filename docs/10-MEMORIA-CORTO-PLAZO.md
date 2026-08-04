@@ -31,7 +31,11 @@ longitudinal llegando al producto. Detalle en `99`; aquí solo lo que cambia dec
    `tiroAdmisible_pct` y `criterioTiroQueRige` YA existen en el contrato: su decisión ya tiene por
    dónde entrar. Ojo: `vistas/tramos.ts`, `vientoDatos.ts` y `Fundamentos.tsx` siguen leyendo
    `tiroMaximoAdmisible()` = 0,5·RTS fijo en código — unificarlo al cerrar la decisión.
-3. **Alerta de presupuesto en Cloudflare (TODO-44).** R2 no apaga: factura. ~35 MB de 10 GB gratis.
+3. **Segmento RCA COMPLETO y en producción** (): 11 espinas, porqués con nivel,
+   árbol con barreras, hipótesis con refutación, clima IDEAM y cierre condicionado. Lo que NO se
+   puede reintroducir: ranking de hipótesis, causa sugerida por IA, % de confianza, barra de
+   progreso, ni «no aplica» como estado de espina. RCA-2026-08-04-0227 existe, sin tocar.
+4. **Alerta de presupuesto en Cloudflare (TODO-44).** R2 no apaga: factura. ~35 MB de 10 GB gratis.
 
 ## 🧭 Cómo retomar
 
@@ -65,7 +69,6 @@ longitudinal llegando al producto. Detalle en `99`; aquí solo lo que cambia dec
 
 | # | Qué | Dónde está el plan |
 |---|---|---|
-| **TODO-51** | **Segmento RCA** (`99 §ADR-020` pendiente): ✅ F0 contrato v0.4.0 + reglas · ✅ F1 motor puro `nucleo/rca.js` con 27 pruebas (incl. «la tormenta que no fue») · ✅ F2 pantalla · ✅ F4 abrir desde el evento + tabla editable (PRIMERA escritura del cliente a la base; verificado en Firestore) · ⬜ F3 clima IDEAM · ⬜ enlazar evidencia · ⬜ porqués/árbol/hipótesis editables · ⬜ informe. **RCA-2026-08-04-0227 existe en producción**, creado desde el evento real, con las 11 familias SIN TOCAR y su limitación declarada. ⚠️ Durante la prueba Claude escribió un motivo que la propia evidencia del expediente CONTRADECÍA («no muestran hilos rotos» vs. la foto «Hilos rotos con extremos fundidos»): se retiró. Es la demostración de por qué enlazar evidencia es obligatorio y de por qué las palabras que se firman son del Ingeniero. IDEAM verificado: API Socrata abierta, datos al 24-07-2026 (~11 días de desfase), **sin rayos utilizables** (`kscf-fk2u` es de otro operador, eje cafetero, termina en 2024) | este chat |
 | **TODO-49** | ⏳ De los 4 bloqueantes, **3 portados y verificados en producción** (clic del hueco → Cargas · Exportar declara «0 de 24 con veredicto» · estado en la dirección `#/LN-627/cargas`, Atrás incluido). Queda el **contador de PARQUE**, NO construible hoy: solo se carga la línea abierta | `99 §ADR-018` |
 | **TODO-50** | **Blindaje de acceso** (`herramientas/usuarios.mjs`): ✅ fase 1 aprovisionamiento+auditoría · ✅ 2a correo/contraseña desplegado (Google aún como reserva) · ⬜ 2b retirar Google · ⬜ 3 cambio obligatorio de contraseña provisional + filtrado de vistas por rol · ⬜ 4 rol en el portero + App Check · ⬜ 5 `ADR-019`. Cuenta ajena `djrome014` deshabilitada (uid RsXHPB0YisSmpXOzkQAqBFiVnMp2), tenía reclamos `null`: no leyó nada | este chat |
 | **TODO-48** | **Deuda de ADR-017**: el criterio del veredicto longitudinal no menciona el ruido de tendido ni el piso de validez; `funcionProcedencia` no viaja a la fila (en LN-627 vale «deducido_geometria») | `99 §ADR-017` |
