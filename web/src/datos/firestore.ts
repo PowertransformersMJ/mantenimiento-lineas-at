@@ -8,7 +8,7 @@
 // la frontera. Un documento que no cumple el esquema no entra al cálculo — y el
 // cálculo es lo que el Ingeniero firma.
 // ============================================================================
-import { Apoyo, Evidencia, Hipotesis, Investigacion, Linea } from '@lineas/contratos';
+import { AnalisisCausa, Apoyo, Evidencia, Hipotesis, Investigacion, Linea } from '@lineas/contratos';
 import { cargarFirebase } from './cargar';
 import type { EstadoDatos, EstadoSesion, Repositorio } from './repositorio';
 
@@ -142,5 +142,30 @@ export const repositorioFirestore: Repositorio = {
     }
 
     return { fase: 'listo', linea, apoyos, conductor: linea.conductor, hipotesis, investigaciones, evidencias };
+  },
+
+  /**
+   * Los análisis de causa raíz de la organización.
+   *
+   * Se filtra por `orgId` en la consulta, igual que todo lo demás: las reglas
+   * de Firestore lo exigirían de todos modos, pero pedirlo mal devuelve un error
+   * de permisos en vez de una lista vacía, y eso se lee como avería.
+   *
+   * Devolver `[]` NO es un fallo: hoy no hay ningún análisis, y ése es el estado
+   * normal hasta que alguien abra el primero.
+   */
+  async listarAnalisis(): Promise<AnalisisCausa[]> {
+    const { esperarSesion, credenciales, baseDatos } = await cargarFirebase();
+    const { collection, getDocs, limit, query, where } = await firestore();
+    const u = await esperarSesion();
+    if (!u) return [];
+    const { orgId } = await credenciales(u);
+    if (!orgId) return [];
+
+    const q = query(collection(await baseDatos(), 'analisis'), where('orgId', '==', orgId), limit(100));
+    const s = await getDocs(q);
+    return s.docs
+      .map((d) => validar<AnalisisCausa>(AnalisisCausa, d.data()))
+      .filter((x): x is AnalisisCausa => x !== null);
   },
 };

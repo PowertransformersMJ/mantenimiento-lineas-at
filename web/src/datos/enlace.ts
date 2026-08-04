@@ -19,7 +19,7 @@
 import { useSyncExternalStore } from 'react';
 import type { Linea } from '@lineas/contratos';
 import { cargarFirebase } from './cargar';
-import { repositorio, usarRepositorio, type EstadoDatos } from './repositorio';
+import { repositorio, usarRepositorio, type EstadoDatos, type EstadoRca } from './repositorio';
 import { repositorioFirestore } from './firestore';
 
 /**
@@ -43,6 +43,12 @@ type Oyente = () => void;
  */
 class Almacen {
   #estado: EstadoDatos = { fase: 'cargando' };
+  /**
+   * El segmento RCA vive AL LADO del estado de la línea, no dentro. Si lo
+   * reemplazara, salir del análisis obligaría a recargar la línea desde la base.
+   * Sigue habiendo un solo almacén y un solo puente (ADR-005).
+   */
+  #rca: EstadoRca = { fase: 'cerrado' };
   #oyentes = new Set<Oyente>();
 
   leer = (): EstadoDatos => this.#estado;
@@ -54,8 +60,44 @@ class Almacen {
 
   poner(e: EstadoDatos): void {
     this.#estado = e;
-    for (const o of this.#oyentes) o();
+    this.#avisar();
   }
+
+  #avisar(): void { for (const o of this.#oyentes) o(); }
+
+  // ── El segmento RCA ───────────────────────────────────────────────────────
+
+  leerRca = (): EstadoRca => this.#rca;
+
+  #ponerRca(e: EstadoRca): void { this.#rca = e; this.#avisar(); }
+
+  /** Abre el segmento y trae el índice. El estado de la línea NO se toca. */
+  async abrirRca(): Promise<void> {
+    this.#ponerRca({ fase: 'cargando' });
+    try {
+      conectarBase();
+      this.#ponerRca({ fase: 'indice', analisis: await repositorio.listarAnalisis() });
+    } catch (e) {
+      this.#ponerRca({ fase: 'error', mensaje: e instanceof Error ? e.message : 'no se pudo leer los análisis' });
+    }
+  }
+
+  /** Abre un análisis del índice. No vuelve a consultar: ya está en memoria. */
+  verAnalisis(id: string): void {
+    const r = this.#rca;
+    const indice = r.fase === 'indice' ? r.analisis : r.fase === 'abierto' ? r.indice : [];
+    const a = indice.find((x) => x.id === id);
+    if (a) this.#ponerRca({ fase: 'abierto', analisis: a, indice });
+  }
+
+  /** Vuelve al índice del segmento. */
+  volverAlIndice(): void {
+    const r = this.#rca;
+    if (r.fase === 'abierto') this.#ponerRca({ fase: 'indice', analisis: r.indice });
+  }
+
+  /** Cierra el segmento y devuelve la pantalla a la línea, sin recargarla. */
+  cerrarRca(): void { this.#ponerRca({ fase: 'cerrado' }); }
 
   /** Carga la línea que el usuario tenga permiso de ver. Nunca inventa nada. */
   async cargar(): Promise<void> {
@@ -102,4 +144,9 @@ export const almacen = new Almacen();
 /** El único gancho que las pantallas usan para leer datos. */
 export function useDatos(): EstadoDatos {
   return useSyncExternalStore(almacen.suscribir, almacen.leer, almacen.leer);
+}
+
+/** El gancho del segmento RCA. Misma suscripción, otro trozo del estado. */
+export function useRca(): EstadoRca {
+  return useSyncExternalStore(almacen.suscribir, almacen.leerRca, almacen.leerRca);
 }

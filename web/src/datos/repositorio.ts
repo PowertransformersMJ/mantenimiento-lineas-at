@@ -15,7 +15,7 @@
 // Este módulo es AGNÓSTICO a la interfaz: no toca el DOM. Si mañana cambia el
 // framework de pantallas, esto sobrevive intacto.
 // ============================================================================
-import type { Apoyo, Conductor, Evidencia, Hipotesis, Investigacion, Linea } from '@lineas/contratos';
+import type { Apoyo, AnalisisCausa, Conductor, Evidencia, Hipotesis, Investigacion, Linea } from '@lineas/contratos';
 
 export type EstadoSesion =
   | { fase: 'comprobando' }
@@ -39,6 +39,24 @@ export type EstadoDatos =
   | { fase: 'error'; mensaje: string };
 
 /**
+ * EL SEGMENTO RCA — estado propio, a propósito.
+ *
+ * Va aparte de `EstadoDatos` y no dentro, aunque tentaba: si el análisis
+ * reemplazara el estado de la línea, salir del RCA obligaría a recargarla desde
+ * la base. Aquí conviven, y volver al parque es instantáneo.
+ *
+ * Sigue habiendo UN solo almacén y UN solo puente (ADR-005): lo que la regla
+ * prohíbe es que cada componente se suscriba por su cuenta o que haya dos copias
+ * del MISMO dato — no que el almacén sepa de dos cosas distintas.
+ */
+export type EstadoRca =
+  | { fase: 'cerrado' }                                   // el segmento no está abierto
+  | { fase: 'cargando' }
+  | { fase: 'indice'; analisis: AnalisisCausa[] }
+  | { fase: 'abierto'; analisis: AnalisisCausa; indice: AnalisisCausa[] }
+  | { fase: 'error'; mensaje: string };
+
+/**
  * Contrato del repositorio. Hoy solo existe la implementación que reporta
  * "sin sesión"; cuando Firestore esté habilitado entra la real detrás de esta
  * misma interfaz, sin tocar la capa de pantallas.
@@ -48,6 +66,8 @@ export interface Repositorio {
   /** Líneas que el usuario autenticado tiene permiso de ver. */
   listarLineas(): Promise<Linea[]>;
   cargarLinea(lineaId: string): Promise<EstadoDatos>;
+  /** Los análisis de causa raíz de la organización. Vacío es un resultado válido. */
+  listarAnalisis(): Promise<AnalisisCausa[]>;
 }
 
 /**
@@ -63,6 +83,9 @@ export const repositorioSinSesion: Repositorio = {
   },
   async cargarLinea() {
     return { fase: 'sin_sesion' };
+  },
+  async listarAnalisis() {
+    return [];
   },
 };
 

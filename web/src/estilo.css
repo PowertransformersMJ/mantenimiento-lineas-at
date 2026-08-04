@@ -703,6 +703,40 @@ p.fund-vivo + .sello-calculo { margin-top: 5px; }
 .parque-ver b { color: var(--tx2); font-weight: 660; }
 .parque-ver[data-cero="true"] b { color: var(--rd); }
 
+/* ── SEGMENTO RCA ─────────────────────────────────────────────────────────
+   Vive fuera de la línea: un análisis puede abarcar varias, o ninguna. */
+.rca { padding-top: 12px; }
+.rca-barra {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 10px;
+  padding-bottom: 8px; border-bottom: 1px solid var(--bd);
+}
+.rca-barra .col-rotulo { padding: 0; flex: 1; }
+.rca-cab { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 4px; }
+.ir-rca { margin-top: 0; }
+
+/* Un defecto de método NO es un adorno: es la razón por la que ese estado no
+   vale. Va pegado a la fila que lo tiene, no en un resumen al final. */
+.rca-defecto {
+  margin-top: 4px; font-size: 11px; color: var(--rd); line-height: 1.45;
+}
+
+.rca-cadena {
+  margin: 11px 0 0; padding: 11px 13px;
+  background: var(--pnl2); border: 1px solid var(--bd); border-radius: var(--radio);
+}
+.rca-cadena-cab {
+  display: flex; align-items: center; gap: 9px; font-size: 12px; font-weight: 600;
+  color: var(--tx); margin-bottom: 7px;
+}
+.rca-eslabones { margin: 0; padding-left: 20px; display: grid; gap: 5px; }
+.rca-eslabones li { font-size: 12px; color: var(--tx2); line-height: 1.5; }
+/* El nivel se ve ANTES que el texto: es lo que dice si la cadena llega o no. */
+.rca-nivel {
+  display: inline-block; margin-right: 7px; padding: 1px 7px; border-radius: var(--r-pastilla, 999px);
+  background: var(--pill); border: 1px solid var(--bd);
+  font-size: 9.5px; text-transform: uppercase; letter-spacing: .5px; color: var(--mut);
+}
+
 /* ── EL HORIZONTE (F6) ────────────────────────────────────────────────────
    Los apoyos en su orden y a su distancia real, el conductor colgando y —lo
    que importa— el apoyo sin veredicto dibujado HUECO. En pantalla clara un

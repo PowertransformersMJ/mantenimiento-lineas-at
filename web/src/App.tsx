@@ -7,7 +7,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { VERSION_CONTRATO } from '@lineas/contratos';
 import { derivarLevantamiento } from '@lineas/exportar/levantamiento';
-import { useDatos, almacen } from './datos/enlace';
+import { useDatos, useRca, almacen } from './datos/enlace';
+import { Rca } from './componentes/Rca';
 import { SinSesion, Cargando, Vacio, Error_ } from './componentes/Estado';
 import { VistaLinea } from './componentes/Linea';
 
@@ -101,6 +102,9 @@ function Cabecera() {
             <b>{nf(resumen.longitud)} m</b> · <b>{nf(resumen.kV)} kV</b>
           </p>
         )}
+        <button type="button" className="boton chico ir-rca" onClick={() => void almacen.abrirRca()}>
+          Análisis de causa raíz
+        </button>
         <span className="fase">Fase 0 · fundación</span>
       </div>
     </header>
@@ -119,6 +123,7 @@ function Pie() {
 
 function Contenido() {
   const d = useDatos();
+  const rca = useRca();
 
   /**
    * Acceso con correo y contraseña — la vía definitiva.
@@ -153,6 +158,10 @@ function Contenido() {
       almacen.poner({ fase: 'error', mensaje: e instanceof Error ? e.message : 'no se pudo iniciar sesión' });
     }
   }
+
+  // El segmento RCA se pinta ENCIMA de la línea, sin destruirla: volver al
+  // parque es instantáneo porque la línea nunca se descargó de memoria.
+  if (rca.fase !== 'cerrado') return <Rca />;
 
   switch (d.fase) {
     case 'sin_sesion': return <SinSesion onEntrar={entrar} onEntrarConGoogle={() => void entrarConGoogle()} />;

@@ -64,6 +64,7 @@ export const NIVEL_MINIMO_CAUSA_RAIZ = 'condicion';
  *   · `no_evaluable` EXIGE decir qué dato falta. «No evaluable» a secas es
  *     indistinguible de «no me apeteció mirar».
  */
+/** @param {Array} [evaluaciones] */
 export function evaluarEspinas(evaluaciones = []) {
   const porEspina = new Map(evaluaciones.map((e) => [e.espina, e]));
 
@@ -172,6 +173,7 @@ export function diagnosticoCadena(cadena) {
  * huérfanos, con una sola raíz, y sin la trampa que más ensucia un RCA — un nodo
  * que culpa a una persona sin colgar de él la condición que lo permitió.
  */
+/** @param {Array} [nodos] */
 export function validarArbol(nodos = []) {
   const problemas = [];
   const porId = new Map(nodos.map((n) => [n.id, n]));
@@ -220,6 +222,7 @@ export function validarArbol(nodos = []) {
 }
 
 /** Las barreras que se analizaron, y cuántas fallaron. La pregunta que suele valer más que la causa. */
+/** @param {Array} [nodos] */
 export function resumenBarreras(nodos = []) {
   const conBarrera = nodos.filter((n) => n.barrera);
   const fallaron = conBarrera.filter((n) => ['ausente', 'inefectiva', 'no_aplicada'].includes(n.barrera.estado));
@@ -252,6 +255,7 @@ export function resumenBarreras(nodos = []) {
  * 2. REFUTABILIDAD. Una hipótesis que no dice qué la tumbaría no es una
  *    hipótesis. Se marca como defectuosa y no puede sostener una causa raíz.
  */
+/** @param {Array} [hipotesis] */
 export function revisarHipotesis(hipotesis = []) {
   return hipotesis.map((h) => {
     const defectos = [];
@@ -284,6 +288,14 @@ export function revisarHipotesis(hipotesis = []) {
  * Por eso la pantalla no tiene botón de cerrar mientras alguna falle: en su
  * sitio va la lista de lo que falta. Un botón deshabilitado invita a buscar cómo
  * habilitarlo; una lista de lo que falta invita a ir a buscarlo.
+ */
+/**
+ * @param {Object}  [a]
+ * @param {Array}   [a.espinas]    evaluaciones de las once familias
+ * @param {Array}   [a.cadenas]    cadenas de porqués
+ * @param {Array}   [a.arbol]      nodos del árbol de causas
+ * @param {Array}   [a.hipotesis]  hipótesis con su sustento y su refutación
+ * @param {Array}   [a.ausencias]  lo que falta por verificar
  */
 export function condicionesCausaRaiz({ espinas = [], cadenas = [], arbol = [], hipotesis = [], ausencias = [] } = {}) {
   const tabla = evaluarEspinas(espinas);
@@ -357,6 +369,13 @@ export function condicionesCausaRaiz({ espinas = [], cadenas = [], arbol = [], h
  * Es el número que impide que un análisis convincente pase por sólido: un
  * expediente con veinte afirmaciones y tres evidencias se lee muy bien y no
  * prueba nada.
+ */
+/**
+ * @param {Object} [a]
+ * @param {Array}  [a.espinas]
+ * @param {Array}  [a.cadenas]
+ * @param {Array}  [a.arbol]
+ * @param {Array}  [a.hipotesis]
  */
 export function auditarRespaldo({ espinas = [], cadenas = [], arbol = [], hipotesis = [] } = {}) {
   const sinRespaldo = [];
