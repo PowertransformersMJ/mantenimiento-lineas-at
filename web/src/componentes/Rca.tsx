@@ -23,6 +23,7 @@
 // Todo el juicio lo hace `nucleo/rca.js`, que es puro y está probado. Aquí se
 // pinta; no se decide.
 // ============================================================================
+import { useState } from 'react';
 import {
   evaluarEspinas, revisarHipotesis, condicionesCausaRaiz,
   resumenBarreras, auditarRespaldo, fuerzaCadena, diagnosticoCadena,
@@ -44,20 +45,6 @@ const ROTULO_ESPINA: Record<string, string> = {
   montaje_tendido: 'Montaje y tendido',
   operacion_maniobra: 'Operación y maniobra',
   inspeccion_mantenimiento: 'Inspección y mantenimiento',
-};
-
-const ROTULO_ESTADO: Record<string, string> = {
-  descartada: 'descartada',
-  abierta: 'abierta',
-  sostenida: 'sostenida',
-  no_evaluable: 'no evaluable',
-};
-
-const CLASE_ESTADO: Record<string, string> = {
-  descartada: 'pill ok',
-  abierta: 'pill inf',
-  sostenida: 'pill av',
-  no_evaluable: 'h-pill grave',
 };
 
 const ROTULO_NIVEL: Record<string, string> = {
@@ -125,7 +112,6 @@ function Indice({ analisis }: { analisis: AnalisisCausa[] }) {
 // ── Un análisis abierto ─────────────────────────────────────────────────────
 
 function Abierto({ a }: { a: AnalisisCausa }) {
-  const tabla = evaluarEspinas(a.espinas);
   const hipotesis = revisarHipotesis(a.hipotesis);
   const cond = condicionesCausaRaiz(a);
   const barreras = resumenBarreras(a.arbol);
@@ -139,36 +125,7 @@ function Abierto({ a }: { a: AnalisisCausa }) {
         <h2 className="linea-titulo">{a.codigo} — {a.titulo}</h2>
       </div>
 
-      {/* LA TABLA DE DESCARTES. Siempre las once, con datos o sin ellos. */}
-      <section className="panel">
-        <h2>Las once familias de causas</h2>
-        <p className="fine">
-          Se recorren <b>todas</b>, siempre. Descartar o sostener una familia exige evidencia
-          enlazada; decir «no evaluable» exige nombrar el dato que falta. No existe el estado
-          «no aplica»: es el atajo que vacía un Ishikawa sin descartar nada.
-        </p>
-        <div className="tabla-caja">
-          <table className="tabla">
-            <thead><tr><th>Familia</th><th>Estado</th><th>Motivo</th><th className="num">Evidencias</th></tr></thead>
-            <tbody>
-              {tabla.map((e) => (
-                <tr key={e.espina}>
-                  <td className="destaca">{ROTULO_ESPINA[e.espina] ?? e.espina}</td>
-                  <td><span className={CLASE_ESTADO[e.estado]}>{ROTULO_ESTADO[e.estado]}</span></td>
-                  <td>
-                    {e.motivo}
-                    {e.datoQueFalta && <><br /><i className="fine">Falta: {e.datoQueFalta}</i></>}
-                    {e.defectos.map((d: string) => (
-                      <div key={d} className="rca-defecto">⚠ {d}</div>
-                    ))}
-                  </td>
-                  <td className="num">{e.evidenciaIds.length || <span className="h-pill">0</span>}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
+      <TablaDescartes a={a} />
 
       {/* LAS CADENAS */}
       {a.cadenas.length > 0 && (
@@ -312,6 +269,125 @@ function Abierto({ a }: { a: AnalisisCausa }) {
         )}
       </section>
     </>
+  );
+}
+
+
+/**
+ * LA TABLA DE DESCARTES, EDITABLE.
+ *
+ * Es el corazón del método y por eso se rellena aquí, no en un formulario
+ * aparte: el defecto aparece EN EL MOMENTO en que se comete. Si alguien marca
+ * «descartada» sin evidencia, la fila lo dice en el acto — no al guardar, ni en
+ * un resumen al final que nadie lee.
+ *
+ * Las once salen siempre, incluso las que nadie ha tocado.
+ */
+function TablaDescartes({ a }: { a: AnalisisCausa }) {
+  const [borrador, setBorrador] = useState(() => {
+    // Se indexa por TEXTO a propósito: mientras se edita, «estado» puede estar
+    // vacío —«sin mirar»—, que no es un valor del contrato. Solo lo que tiene
+    // estado se manda a validar.
+    const m = new Map<string, (typeof a.espinas)[number]>(a.espinas.map((e) => [e.espina, e]));
+    return evaluarEspinas(a.espinas).map((e) => ({
+      espina: e.espina,
+      estado: m.get(e.espina)?.estado ?? '',
+      motivo: m.get(e.espina)?.motivo ?? '',
+      datoQueFalta: m.get(e.espina)?.datoQueFalta ?? '',
+      evidenciaIds: m.get(e.espina)?.evidenciaIds ?? [],
+    }));
+  });
+  const [guardando, setGuardando] = useState(false);
+
+  const tocar = (espina: string, campo: string, valor: string) =>
+    setBorrador((b) => b.map((x) => (x.espina === espina ? { ...x, [campo]: valor } : x)));
+
+  // El juicio lo hace el motor, en vivo. La pantalla no decide nada.
+  const conEstado = borrador.filter((x) => x.estado);
+  const juicio = new Map<string, { defectos: string[] }>(
+    evaluarEspinas(conEstado.map((x) => ({ ...x, datoQueFalta: x.datoQueFalta || undefined })))
+      .map((e: { espina: string; defectos: string[] }) => [e.espina, e]),
+  );
+
+  const guardar = async () => {
+    setGuardando(true);
+    try {
+      await almacen.guardarEspinas(conEstado.map((x) => ({
+        espina: x.espina, estado: x.estado, motivo: x.motivo,
+        evidenciaIds: x.evidenciaIds,
+        ...(x.datoQueFalta ? { datoQueFalta: x.datoQueFalta } : {}),
+      })));
+    } finally { setGuardando(false); }
+  };
+
+  const sinMotivo = conEstado.filter((x) => !x.motivo.trim()).length;
+
+  return (
+    <section className="panel">
+      <h2>Las once familias de causas</h2>
+      <p className="fine">
+        Se recorren <b>todas</b>, siempre. Descartar o sostener una familia exige evidencia
+        enlazada; decir «no evaluable» exige nombrar el dato que falta. No existe el estado
+        «no aplica»: es el atajo que vacía un Ishikawa sin descartar nada.
+      </p>
+      <p className="aviso">
+        <b>Enlazar evidencia todavía no está construido.</b> Hasta que lo esté, marcar «descartada»
+        o «sostenida» dejará el aviso de «sin evidencia enlazada» — y ese aviso es correcto: la
+        afirmación no está respaldada. No se silencia por comodidad.
+      </p>
+
+      <div className="tabla-caja">
+        <table className="tabla">
+          <thead>
+            <tr><th style={{ width: '20%' }}>Familia</th><th style={{ width: '15%' }}>Estado</th><th>Motivo — obligatorio</th></tr>
+          </thead>
+          <tbody>
+            {borrador.map((x) => {
+              const j = juicio.get(x.espina);
+              return (
+                <tr key={x.espina}>
+                  <td className="destaca">{ROTULO_ESPINA[x.espina] ?? x.espina}</td>
+                  <td>
+                    <select className="rca-select" value={x.estado}
+                      onChange={(e) => tocar(x.espina, 'estado', e.target.value)}>
+                      <option value="">— sin mirar —</option>
+                      <option value="abierta">abierta</option>
+                      <option value="sostenida">sostenida</option>
+                      <option value="descartada">descartada</option>
+                      <option value="no_evaluable">no evaluable</option>
+                    </select>
+                  </td>
+                  <td>
+                    <textarea className="rca-motivo" rows={2} value={x.motivo}
+                      placeholder={x.estado ? 'Por qué está en ese estado' : ''}
+                      disabled={!x.estado}
+                      onChange={(e) => tocar(x.espina, 'motivo', e.target.value)} />
+                    {x.estado === 'no_evaluable' && (
+                      <input className="rca-motivo" value={x.datoQueFalta}
+                        placeholder="Qué dato falta, y quién lo tiene"
+                        onChange={(e) => tocar(x.espina, 'datoQueFalta', e.target.value)} />
+                    )}
+                    {j?.defectos.map((d: string) => <div key={d} className="rca-defecto">⚠ {d}</div>)}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="rca-guardar">
+        <button type="button" className="boton chico" onClick={() => void guardar()}
+          disabled={guardando || sinMotivo > 0}>
+          {guardando ? 'Guardando…' : `Guardar ${conEstado.length} de 11`}
+        </button>
+        {sinMotivo > 0 && (
+          <span className="fine">
+            {sinMotivo} familia(s) con estado y sin motivo. Un estado que no se puede auditar no vale.
+          </span>
+        )}
+      </div>
+    </section>
   );
 }
 

@@ -737,6 +737,25 @@ p.fund-vivo + .sello-calculo { margin-top: 5px; }
   font-size: 9.5px; text-transform: uppercase; letter-spacing: .5px; color: var(--mut);
 }
 
+/* El puente al segmento, dentro del expediente de falla */
+.rca-puente { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.rca-puente > div { flex: 1; min-width: 260px; }
+.rca-puente .fine { margin-top: 4px; }
+
+/* La tabla de descartes, editable. El defecto aparece EN EL MOMENTO en que se
+   comete, no al guardar: por eso los controles viven dentro de la fila. */
+.rca-select, .rca-motivo {
+  width: 100%; background: var(--campo); color: var(--tx);
+  border: 1px solid var(--bd); border-radius: 6px;
+  padding: 6px 8px; font: 400 12px/1.4 inherit; font-family: inherit;
+}
+.rca-motivo { margin-top: 0; resize: vertical; }
+.rca-motivo + .rca-motivo { margin-top: 5px; }
+.rca-select:focus, .rca-motivo:focus { outline: none; border-color: var(--acc); box-shadow: 0 0 0 3px var(--acc-halo); }
+.rca-motivo:disabled { opacity: .45; }
+.rca-guardar { display: flex; align-items: center; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
+.rca-guardar .boton { margin-top: 0; }
+
 /* ── EL HORIZONTE (F6) ────────────────────────────────────────────────────
    Los apoyos en su orden y a su distancia real, el conductor colgando y —lo
    que importa— el apoyo sin veredicto dibujado HUECO. En pantalla clara un

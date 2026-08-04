@@ -168,4 +168,75 @@ export const repositorioFirestore: Repositorio = {
       .map((d) => validar<AnalisisCausa>(AnalisisCausa, d.data()))
       .filter((x): x is AnalisisCausa => x !== null);
   },
+
+  /**
+   * ⚠️ PRIMERA ESCRITURA DEL CLIENTE A LA BASE. Hasta hoy la aplicación solo
+   * leía. Va ceñida a lo que las reglas permiten y a nada más:
+   *
+   *   · `orgId` se toma del TOKEN, no de un parámetro. Si viniera de fuera, un
+   *     cliente modificado podría sembrar documentos en otra organización — y
+   *     aunque `altaCoherente()` lo rechazaría, no se manda algo que se sabe
+   *     que va a ser negado.
+   *   · `creadoPor` es el uid de la sesión. La regla exige que coincida.
+   *   · Las once espinas NO se siembran: se dejan vacías a propósito. El motor
+   *     las devuelve como «no evaluable · nadie ha mirado esta familia
+   *     todavía», que es la verdad. Sembrarlas con texto de relleno haría que
+   *     un análisis recién abierto pareciera trabajado.
+   */
+  async crearAnalisis(datos: { titulo: string; lineaId?: string; apoyoId?: string; investigacionId?: string; sinActivo?: string }): Promise<string | null> {
+    const { esperarSesion, credenciales, baseDatos } = await cargarFirebase();
+    const { doc, setDoc } = await firestore();
+    const u = await esperarSesion();
+    if (!u) return null;
+    const { orgId } = await credenciales(u);
+    if (!orgId) return null;
+
+    const id = crypto.randomUUID();
+    const ahora = new Date().toISOString();
+    const doc_ = {
+      id, orgId, tipo: 'analisis_causa' as const,
+      creadoEn: ahora, creadoPor: u.uid, revision: 0,
+      codigo: `RCA-${ahora.slice(0, 10)}-${id.slice(0, 4)}`,
+      titulo: datos.titulo,
+      estado: 'abierto' as const,
+      abiertoEn: ahora,
+      alcance: {
+        lineaIds: datos.lineaId ? [datos.lineaId] : [],
+        apoyoIds: datos.apoyoId ? [datos.apoyoId] : [],
+        investigacionIds: datos.investigacionId ? [datos.investigacionId] : [],
+        ...(datos.sinActivo ? { sinActivoIdentificado: datos.sinActivo } : {}),
+      },
+      espinas: [], cadenas: [], arbol: [], hipotesis: [],
+      ausencias: [], acciones: [], limitaciones: [],
+      cerrado: false,
+    };
+    // Se valida contra el contrato ANTES de mandarlo. Si no cumple, el fallo se
+    // ve aquí y no como una denegación opaca de la base.
+    const r = AnalisisCausa.safeParse(doc_);
+    if (!r.success) throw new Error('El análisis no cumple el contrato: ' + r.error.issues[0]?.message);
+
+    await setDoc(doc(await baseDatos(), 'analisis', id), doc_);
+    return id;
+  },
+
+  /**
+   * Guarda la evaluación de las once familias. Se manda el array COMPLETO, no
+   * un parche: la tabla de descartes es una sola cosa y guardarla a trozos
+   * abriría la puerta a un estado a medias entre dos escrituras.
+   *
+   * No toca `orgId`, `creadoPor` ni `creadoEn` — la regla `noTocaReservados()`
+   * lo impediría, y con razón.
+   */
+  async guardarEspinas(analisisId: string, espinas: unknown[], revision: number): Promise<void> {
+    const { esperarSesion, baseDatos } = await cargarFirebase();
+    const { doc, updateDoc } = await firestore();
+    const u = await esperarSesion();
+    if (!u) throw new Error('sin sesión');
+    await updateDoc(doc(await baseDatos(), 'analisis', analisisId), {
+      espinas,
+      actualizadoEn: new Date().toISOString(),
+      actualizadoPor: u.uid,
+      revision: revision + 1,
+    });
+  },
 };

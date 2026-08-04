@@ -14,6 +14,7 @@
 // ============================================================================
 import type { Apoyo, Evidencia, Investigacion } from '@lineas/contratos';
 import { Galeria } from './Galeria';
+import { almacen } from '../datos/enlace';
 import { derivarLevantamiento } from '@lineas/exportar/levantamiento';
 import { useMemo } from 'react';
 import { nf } from '../vistas/formato';
@@ -75,6 +76,33 @@ export function Falla({ investigaciones, apoyos, evidencias = [] }:
                   {punto.funcionEstructural && <> · {punto.funcionEstructural}</>}
                 </p>
               )}
+            </section>
+
+            {/* El puente al segmento RCA. El expediente registra el HECHO; el
+                análisis razona sobre él, y vive fuera porque puede abarcar
+                varias líneas. Abrirlo desde aquí es lo que hace que el segmento
+                deje de estar vacío. */}
+            <section className="panel rca-puente">
+              <div>
+                <b>Análisis de causa raíz</b>
+                <p className="fine">
+                  Este expediente registra lo que PASÓ. Un análisis de causa raíz razona sobre
+                  ello con método —once familias de causas, porqués con nivel, barreras— y vive
+                  fuera de la línea, porque una misma causa puede repetirse en varias.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="boton chico"
+                onClick={() => void almacen.crearRcaDesdeEvento({
+                  titulo: `${ev.componenteAfectado} — ${punto?.nombre ?? 'estructura no identificada'}`,
+                  lineaId: ev.lineaId,
+                  apoyoId: ev.apoyoId,
+                  investigacionId: ev.id,
+                })}
+              >
+                Abrir análisis
+              </button>
             </section>
 
             <Galeria evidencias={evidencias.filter((x) => x.investigacionId === ev.id)} />

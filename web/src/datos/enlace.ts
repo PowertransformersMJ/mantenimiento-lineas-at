@@ -99,6 +99,39 @@ class Almacen {
   /** Cierra el segmento y devuelve la pantalla a la línea, sin recargarla. */
   cerrarRca(): void { this.#ponerRca({ fase: 'cerrado' }); }
 
+  /**
+   * Abre un análisis desde un evento de falla y lo deja en pantalla.
+   * Se relee el índice después de crear: así la lista y lo abierto no pueden
+   * discrepar, que es como se acaba enseñando algo que ya no existe.
+   */
+  async crearRcaDesdeEvento(datos: { titulo: string; lineaId?: string; apoyoId?: string; investigacionId?: string }): Promise<void> {
+    this.#ponerRca({ fase: 'cargando' });
+    try {
+      conectarBase();
+      const id = await repositorio.crearAnalisis(datos);
+      const indice = await repositorio.listarAnalisis();
+      const a = indice.find((x) => x.id === id);
+      this.#ponerRca(a ? { fase: 'abierto', analisis: a, indice } : { fase: 'indice', analisis: indice });
+    } catch (e) {
+      this.#ponerRca({ fase: 'error', mensaje: e instanceof Error ? e.message : 'no se pudo abrir el análisis' });
+    }
+  }
+
+  /** Guarda la tabla de descartes y refresca lo que hay en pantalla. */
+  async guardarEspinas(espinas: unknown[]): Promise<void> {
+    const r = this.#rca;
+    if (r.fase !== 'abierto') return;
+    const previo = r.analisis;
+    try {
+      await repositorio.guardarEspinas(previo.id, espinas, previo.revision ?? 0);
+      const indice = await repositorio.listarAnalisis();
+      const a = indice.find((x) => x.id === previo.id);
+      if (a) this.#ponerRca({ fase: 'abierto', analisis: a, indice });
+    } catch (e) {
+      this.#ponerRca({ fase: 'error', mensaje: e instanceof Error ? e.message : 'no se pudo guardar' });
+    }
+  }
+
   /** Carga la línea que el usuario tenga permiso de ver. Nunca inventa nada. */
   async cargar(): Promise<void> {
     this.poner({ fase: 'cargando' });

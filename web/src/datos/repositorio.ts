@@ -68,6 +68,10 @@ export interface Repositorio {
   cargarLinea(lineaId: string): Promise<EstadoDatos>;
   /** Los análisis de causa raíz de la organización. Vacío es un resultado válido. */
   listarAnalisis(): Promise<AnalisisCausa[]>;
+  /** Abre un análisis. Devuelve su id, o `null` si no hay sesión u organización. */
+  crearAnalisis(datos: { titulo: string; lineaId?: string; apoyoId?: string; investigacionId?: string; sinActivo?: string }): Promise<string | null>;
+  /** Guarda la tabla de descartes completa. Nunca a trozos. */
+  guardarEspinas(analisisId: string, espinas: unknown[], revision: number): Promise<void>;
 }
 
 /**
@@ -86,6 +90,12 @@ export const repositorioSinSesion: Repositorio = {
   },
   async listarAnalisis() {
     return [];
+  },
+  async crearAnalisis() {
+    return null;
+  },
+  async guardarEspinas() {
+    /* sin sesión no se escribe nada */
   },
 };
 
