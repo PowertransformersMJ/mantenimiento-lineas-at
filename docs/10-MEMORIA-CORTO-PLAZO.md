@@ -51,6 +51,7 @@ longitudinal llegando al producto. Detalle en `99`; aquí solo lo que cambia dec
 | # | Qué | Por qué importa |
 |---|---|---|
 | **NUEVO** | **Mirar la carcasa YA EN PRODUCCIÓN** y decir si el tono del papel y el ancho de las columnas van. Ajustarlo ahora es barato | Eligió «Horizonte + columnas» el 04-08 y está implementada; falta su ojo |
+| **NUEVO** | **Ponerte contraseña** y comprobar que entras: `usuarios.mjs contrasena --correo ajimenezp99@gmail.com --definitiva`. **Claude NO puede hacerlo** (no maneja contraseñas; la herramienta exige teclado real). Hasta que confirmes, Google sigue habilitado | Sin ese paso no se puede retirar Google sin dejarte fuera |
 | **TODO-33** | **Decidir 50 % o 25 % de RTS** como tope de tiro | El motor calcula con 50 % y la doctrina dice 25 % |
 | **TODO-44** | **Alerta de presupuesto** en Cloudflare (sugerido 1 USD) | R2 no apaga: factura |
 | **TODO-34** | **Respaldo de la bóveda**: sin remoto, 337 MB. **SUBIÓ DE PRIORIDAD**: la única prueba de que `e07` es E06 vive en un HTML de 30 MB en Descargas, sin copia | Sin él, la asignación de las 99 fotos deja de ser reproducible |
@@ -64,6 +65,7 @@ longitudinal llegando al producto. Detalle en `99`; aquí solo lo que cambia dec
 | # | Qué | Dónde está el plan |
 |---|---|---|
 | **TODO-49** | ⏳ De los 4 bloqueantes, **3 portados y verificados en producción** (clic del hueco → Cargas · Exportar declara «0 de 24 con veredicto» · estado en la dirección `#/LN-627/cargas`, Atrás incluido). Queda el **contador de PARQUE**, NO construible hoy: solo se carga la línea abierta | `99 §ADR-018` |
+| **TODO-50** | **Blindaje de acceso** (`herramientas/usuarios.mjs`): ✅ fase 1 aprovisionamiento+auditoría · ✅ 2a correo/contraseña desplegado (Google aún como reserva) · ⬜ 2b retirar Google · ⬜ 3 cambio obligatorio de contraseña provisional + filtrado de vistas por rol · ⬜ 4 rol en el portero + App Check · ⬜ 5 `ADR-019`. Cuenta ajena `djrome014` deshabilitada (uid RsXHPB0YisSmpXOzkQAqBFiVnMp2), tenía reclamos `null`: no leyó nada | este chat |
 | **TODO-48** | **Deuda de ADR-017**: el criterio del veredicto longitudinal no menciona el ruido de tendido ni el piso de validez; `funcionProcedencia` no viaja a la fila (en LN-627 vale «deducido_geometria») | `99 §ADR-017` |
 | **TODO-42/37** | **Informe gerencial** del expediente (10 secciones especificadas) | crudo de **ADR-012** |
 | **TODO-30** | CI: validación XSD real de GPX/KML | crudo de **ADR-013** |
