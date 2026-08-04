@@ -239,4 +239,54 @@ export const repositorioFirestore: Repositorio = {
       revision: revision + 1,
     });
   },
+
+  /**
+   * Las evidencias que este análisis puede enlazar.
+   *
+   * Son de dos orígenes y se juntan: las que ya colgaban de sus
+   * investigaciones —las 4 fotos del expediente, en el caso de LN-627— y las
+   * que se hayan pedido para el análisis mismo (`analisisId`, el cuarto dueño
+   * que entró en el contrato v0.4.0).
+   *
+   * ⚠️ TOPE DECLARADO: Firestore admite como mucho 30 valores en un `in`. Si un
+   * análisis abarcase más de 30 investigaciones, las de más NO saldrían — y eso
+   * se avisa en vez de recortar en silencio, que es como se pierde evidencia sin
+   * que nadie se entere.
+   */
+  async evidenciasDeAnalisis(analisisId: string, investigacionIds: string[]): Promise<Evidencia[]> {
+    const { esperarSesion, credenciales, baseDatos } = await cargarFirebase();
+    const { collection, getDocs, limit, query, where } = await firestore();
+    const u = await esperarSesion();
+    if (!u) return [];
+    const { orgId } = await credenciales(u);
+    if (!orgId) return [];
+
+    const db = await baseDatos();
+    const porId = new Map<string, Evidencia>();
+
+    const recoger = async (q: ReturnType<typeof query>) => {
+      const s = await getDocs(q);
+      for (const d of s.docs) {
+        const e = validar<Evidencia>(Evidencia, d.data());
+        if (e) porId.set(e.id, e);
+      }
+    };
+
+    if (investigacionIds.length) {
+      await recoger(query(
+        collection(db, 'evidencias'),
+        where('orgId', '==', orgId),
+        where('investigacionId', 'in', investigacionIds.slice(0, 30)),
+        limit(200),
+      ));
+    }
+    await recoger(query(
+      collection(db, 'evidencias'),
+      where('orgId', '==', orgId),
+      where('analisisId', '==', analisisId),
+      limit(200),
+    ));
+
+    return [...porId.values()];
+  },
 };

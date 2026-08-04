@@ -756,6 +756,19 @@ p.fund-vivo + .sello-calculo { margin-top: 5px; }
 .rca-guardar { display: flex; align-items: center; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
 .rca-guardar .boton { margin-top: 0; }
 
+/* Enlazar evidencia va DENTRO de la fila de su espina, no en un panel aparte:
+   la pregunta «¿con qué lo descarto?» se contesta donde se toma la decisión. */
+.rca-evidencias { margin-top: 7px; padding-top: 6px; border-top: 1px dashed var(--bd); }
+.rca-ev-rotulo {
+  display: block; font-size: 9.5px; text-transform: uppercase; letter-spacing: .5px;
+  color: var(--mut); margin-bottom: 4px;
+}
+.rca-ev {
+  display: flex; align-items: flex-start; gap: 6px; margin-bottom: 3px;
+  font-size: 11.4px; color: var(--tx2); line-height: 1.4; cursor: pointer;
+}
+.rca-ev input { margin-top: 2px; flex: none; }
+
 /* ── EL HORIZONTE (F6) ────────────────────────────────────────────────────
    Los apoyos en su orden y a su distancia real, el conductor colgando y —lo
    que importa— el apoyo sin veredicto dibujado HUECO. En pantalla clara un

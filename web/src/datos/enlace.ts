@@ -17,7 +17,7 @@
 // la pestaña — sin avisar, con el técnico en mitad de una inspección.
 // ============================================================================
 import { useSyncExternalStore } from 'react';
-import type { Linea } from '@lineas/contratos';
+import type { AnalisisCausa, Evidencia, Linea } from '@lineas/contratos';
 import { cargarFirebase } from './cargar';
 import { repositorio, usarRepositorio, type EstadoDatos, type EstadoRca } from './repositorio';
 import { repositorioFirestore } from './firestore';
@@ -82,12 +82,33 @@ class Almacen {
     }
   }
 
-  /** Abre un análisis del índice. No vuelve a consultar: ya está en memoria. */
-  verAnalisis(id: string): void {
+  /**
+   * Deja un análisis en pantalla CON sus evidencias.
+   *
+   * Un solo sitio hace esto, y no por elegancia: hay tres caminos que abren un
+   * análisis —verlo desde el índice, crearlo desde un evento, y refrescarlo tras
+   * guardar— y si cada uno trajera las evidencias por su cuenta, bastaría
+   * olvidarse en uno para que la pantalla enseñara un análisis sin nada que
+   * enlazar y nadie entendiera por qué.
+   */
+  async #abrirAnalisis(a: AnalisisCausa, indice: AnalisisCausa[]): Promise<void> {
+    let evidencias: Evidencia[] = [];
+    try {
+      evidencias = await repositorio.evidenciasDeAnalisis(a.id, a.alcance.investigacionIds);
+    } catch {
+      // Sin evidencias el análisis SIGUE abriéndose: enlazarlas es una parte, no
+      // la condición para poder trabajar. Una capa opcional nunca tiene veto
+      // sobre una esencial (`31 · L-11`).
+    }
+    this.#ponerRca({ fase: 'abierto', analisis: a, indice, evidencias });
+  }
+
+  /** Abre un análisis del índice. El documento ya está en memoria; sus fotos no. */
+  async verAnalisis(id: string): Promise<void> {
     const r = this.#rca;
     const indice = r.fase === 'indice' ? r.analisis : r.fase === 'abierto' ? r.indice : [];
     const a = indice.find((x) => x.id === id);
-    if (a) this.#ponerRca({ fase: 'abierto', analisis: a, indice });
+    if (a) await this.#abrirAnalisis(a, indice);
   }
 
   /** Vuelve al índice del segmento. */
@@ -111,7 +132,8 @@ class Almacen {
       const id = await repositorio.crearAnalisis(datos);
       const indice = await repositorio.listarAnalisis();
       const a = indice.find((x) => x.id === id);
-      this.#ponerRca(a ? { fase: 'abierto', analisis: a, indice } : { fase: 'indice', analisis: indice });
+      if (a) await this.#abrirAnalisis(a, indice);
+      else this.#ponerRca({ fase: 'indice', analisis: indice });
     } catch (e) {
       this.#ponerRca({ fase: 'error', mensaje: e instanceof Error ? e.message : 'no se pudo abrir el análisis' });
     }
@@ -126,7 +148,7 @@ class Almacen {
       await repositorio.guardarEspinas(previo.id, espinas, previo.revision ?? 0);
       const indice = await repositorio.listarAnalisis();
       const a = indice.find((x) => x.id === previo.id);
-      if (a) this.#ponerRca({ fase: 'abierto', analisis: a, indice });
+      if (a) await this.#abrirAnalisis(a, indice);
     } catch (e) {
       this.#ponerRca({ fase: 'error', mensaje: e instanceof Error ? e.message : 'no se pudo guardar' });
     }

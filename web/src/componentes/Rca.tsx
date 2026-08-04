@@ -28,7 +28,7 @@ import {
   evaluarEspinas, revisarHipotesis, condicionesCausaRaiz,
   resumenBarreras, auditarRespaldo, fuerzaCadena, diagnosticoCadena,
 } from '@lineas/nucleo/rca';
-import type { AnalisisCausa } from '@lineas/contratos';
+import type { AnalisisCausa, Evidencia } from '@lineas/contratos';
 import { almacen, useRca } from '../datos/enlace';
 import { nf } from '../vistas/formato';
 
@@ -89,7 +89,7 @@ function Indice({ analisis }: { analisis: AnalisisCausa[] }) {
             {analisis.map((a) => {
               const n = a.alcance.lineaIds.length + a.alcance.apoyoIds.length + a.alcance.investigacionIds.length;
               return (
-                <tr key={a.id} onClick={() => almacen.verAnalisis(a.id)} style={{ cursor: 'pointer' }}>
+                <tr key={a.id} onClick={() => void almacen.verAnalisis(a.id)} style={{ cursor: 'pointer' }}>
                   <td className="destaca">{a.codigo}</td>
                   <td>{a.titulo}</td>
                   <td>{a.estado === 'cerrado'
@@ -111,7 +111,7 @@ function Indice({ analisis }: { analisis: AnalisisCausa[] }) {
 
 // ── Un análisis abierto ─────────────────────────────────────────────────────
 
-function Abierto({ a }: { a: AnalisisCausa }) {
+function Abierto({ a, evidencias }: { a: AnalisisCausa; evidencias: Evidencia[] }) {
   const hipotesis = revisarHipotesis(a.hipotesis);
   const cond = condicionesCausaRaiz(a);
   const barreras = resumenBarreras(a.arbol);
@@ -125,7 +125,7 @@ function Abierto({ a }: { a: AnalisisCausa }) {
         <h2 className="linea-titulo">{a.codigo} — {a.titulo}</h2>
       </div>
 
-      <TablaDescartes a={a} />
+      <TablaDescartes a={a} evidencias={evidencias} />
 
       {/* LAS CADENAS */}
       {a.cadenas.length > 0 && (
@@ -283,7 +283,7 @@ function Abierto({ a }: { a: AnalisisCausa }) {
  *
  * Las once salen siempre, incluso las que nadie ha tocado.
  */
-function TablaDescartes({ a }: { a: AnalisisCausa }) {
+function TablaDescartes({ a, evidencias }: { a: AnalisisCausa; evidencias: Evidencia[] }) {
   const [borrador, setBorrador] = useState(() => {
     // Se indexa por TEXTO a propósito: mientras se edita, «estado» puede estar
     // vacío —«sin mirar»—, que no es un valor del contrato. Solo lo que tiene
@@ -301,6 +301,15 @@ function TablaDescartes({ a }: { a: AnalisisCausa }) {
 
   const tocar = (espina: string, campo: string, valor: string) =>
     setBorrador((b) => b.map((x) => (x.espina === espina ? { ...x, [campo]: valor } : x)));
+
+  /** Enlazar y desenlazar es simétrico: una evidencia mal puesta se quita igual de fácil. */
+  const alternarEvidencia = (espina: string, evId: string) =>
+    setBorrador((b) => b.map((x) => (x.espina !== espina ? x : {
+      ...x,
+      evidenciaIds: x.evidenciaIds.includes(evId)
+        ? x.evidenciaIds.filter((i) => i !== evId)
+        : [...x.evidenciaIds, evId],
+    })));
 
   // El juicio lo hace el motor, en vivo. La pantalla no decide nada.
   const conEstado = borrador.filter((x) => x.estado);
@@ -330,11 +339,13 @@ function TablaDescartes({ a }: { a: AnalisisCausa }) {
         enlazada; decir «no evaluable» exige nombrar el dato que falta. No existe el estado
         «no aplica»: es el atajo que vacía un Ishikawa sin descartar nada.
       </p>
-      <p className="aviso">
-        <b>Enlazar evidencia todavía no está construido.</b> Hasta que lo esté, marcar «descartada»
-        o «sostenida» dejará el aviso de «sin evidencia enlazada» — y ese aviso es correcto: la
-        afirmación no está respaldada. No se silencia por comodidad.
-      </p>
+      {evidencias.length === 0 && (
+        <p className="aviso">
+          <b>Este análisis no tiene ninguna evidencia disponible</b> para enlazar. Mientras siga
+          así, marcar «descartada» o «sostenida» dejará el aviso de «sin evidencia enlazada» — y
+          ese aviso es correcto: la afirmación no está respaldada.
+        </p>
+      )}
 
       <div className="tabla-caja">
         <table className="tabla">
@@ -366,6 +377,18 @@ function TablaDescartes({ a }: { a: AnalisisCausa }) {
                       <input className="rca-motivo" value={x.datoQueFalta}
                         placeholder="Qué dato falta, y quién lo tiene"
                         onChange={(e) => tocar(x.espina, 'datoQueFalta', e.target.value)} />
+                    )}
+                    {x.estado && evidencias.length > 0 && (
+                      <div className="rca-evidencias">
+                        <span className="rca-ev-rotulo">Evidencia que lo sostiene</span>
+                        {evidencias.map((ev) => (
+                          <label key={ev.id} className="rca-ev">
+                            <input type="checkbox" checked={x.evidenciaIds.includes(ev.id)}
+                              onChange={() => alternarEvidencia(x.espina, ev.id)} />
+                            <span>{ev.pie ?? ev.componenteEsperado ?? ev.rutaObjeto.split('/').pop()}</span>
+                          </label>
+                        ))}
+                      </div>
                     )}
                     {j?.defectos.map((d: string) => <div key={d} className="rca-defecto">⚠ {d}</div>)}
                   </td>
@@ -408,7 +431,7 @@ export function Rca() {
       {r.fase === 'cargando' && <section className="panel vacio"><div className="vacio-t">Cargando…</div></section>}
       {r.fase === 'error' && <section className="panel vacio"><div className="vacio-t">No se pudo leer</div><p className="vacio-c">{r.mensaje}</p></section>}
       {r.fase === 'indice' && <Indice analisis={r.analisis} />}
-      {r.fase === 'abierto' && <Abierto a={r.analisis} />}
+      {r.fase === 'abierto' && <Abierto a={r.analisis} evidencias={r.evidencias} />}
     </div>
   );
 }

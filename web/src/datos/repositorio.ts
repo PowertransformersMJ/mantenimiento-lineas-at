@@ -53,7 +53,7 @@ export type EstadoRca =
   | { fase: 'cerrado' }                                   // el segmento no está abierto
   | { fase: 'cargando' }
   | { fase: 'indice'; analisis: AnalisisCausa[] }
-  | { fase: 'abierto'; analisis: AnalisisCausa; indice: AnalisisCausa[] }
+  | { fase: 'abierto'; analisis: AnalisisCausa; indice: AnalisisCausa[]; evidencias: Evidencia[] }
   | { fase: 'error'; mensaje: string };
 
 /**
@@ -72,6 +72,8 @@ export interface Repositorio {
   crearAnalisis(datos: { titulo: string; lineaId?: string; apoyoId?: string; investigacionId?: string; sinActivo?: string }): Promise<string | null>;
   /** Guarda la tabla de descartes completa. Nunca a trozos. */
   guardarEspinas(analisisId: string, espinas: unknown[], revision: number): Promise<void>;
+  /** Las evidencias que un análisis puede enlazar: las de sus investigaciones y las suyas propias. */
+  evidenciasDeAnalisis(analisisId: string, investigacionIds: string[]): Promise<Evidencia[]>;
 }
 
 /**
@@ -96,6 +98,9 @@ export const repositorioSinSesion: Repositorio = {
   },
   async guardarEspinas() {
     /* sin sesión no se escribe nada */
+  },
+  async evidenciasDeAnalisis() {
+    return [];
   },
 };
 
