@@ -28,6 +28,7 @@
 // montaña. El orden y las distancias sí son reales.
 // ============================================================================
 import { useMemo } from 'react';
+import { nf } from '../vistas/formato';
 import type { EjesDeLinea } from '../vistas/ejesLinea';
 import type { VanosDeLinea } from '../vistas/vanosLinea';
 
@@ -111,7 +112,7 @@ export function Horizonte({ ejes, vanos, dictaminados, total }:
               d={`M${t.x1.toFixed(1)},${cima + 3} Q${((t.x1 + t.x2) / 2).toFixed(1)},${(cima + 3 + flecha).toFixed(1)} ${t.x2.toFixed(1)},${cima + 3}`}
             >
               <title>
-                {`Vano ${t.n}${t.largo !== null ? ` · ${t.largo.toFixed(1)} m` : ''}`}
+                {`Vano ${t.n}${t.largo !== null ? ` · ${nf(t.largo, 1)} m` : ''}`}
                 {t.fuera ? ' · FUERA de la banda 0,7–1,3 del vano ideal' : ''}
               </title>
             </path>
@@ -134,7 +135,7 @@ export function Horizonte({ ejes, vanos, dictaminados, total }:
                 {t.conVeredicto
                   ? ' · con veredicto en los dos ejes'
                   : ' · SIN VEREDICTO: el motor no puede dictaminarlo con lo que declara el inventario'}
-                {t.amplifica && t.factor !== null ? ` · amplifica ×${t.factor.toFixed(3)}` : ''}
+                {t.amplifica && t.factor !== null ? ` · amplifica ×${nf(t.factor, 3)}` : ''}
               </title>
             </g>
           );
@@ -144,7 +145,7 @@ export function Horizonte({ ejes, vanos, dictaminados, total }:
         {torres.filter((t) => t.amplifica && t.factor !== null && t.factor > 1.4).map((t) => (
           <g key={`a${t.nombre}`} className="hz-amplifica">
             <line x1={t.x} y1={cima - 5} x2={t.x} y2={cima - 17} />
-            <text x={t.x} y={cima - 21} textAnchor="middle">{`×${t.factor!.toFixed(2)}`}</text>
+            <text x={t.x} y={cima - 21} textAnchor="middle">{`×${nf(t.factor!, 2)}`}</text>
           </g>
         ))}
       </svg>
