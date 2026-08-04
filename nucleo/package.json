@@ -15,7 +15,8 @@
     "./coherencia": "./coherencia.js",
     "./package.json": "./package.json",
     "./cargas": "./cargas.js",
-    "./longitudinal": "./longitudinal.js"
+    "./longitudinal": "./longitudinal.js",
+    "./rca": "./rca.js"
   },
   "sideEffects": false
 }

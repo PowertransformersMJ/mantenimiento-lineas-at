@@ -124,6 +124,32 @@ service cloud.firestore {
       allow delete: if false;   // un evento ocurrido no se borra jamás
     }
 
+    // ── ANÁLISIS DE CAUSA RAÍZ ─────────────────────────────────────────────
+    // Vive FUERA de la línea a propósito: un análisis puede abarcar varias, o
+    // ninguna todavía. Meterlo dentro haría invisible el patrón más caro de un
+    // parque — el mismo componente fallando en apoyos de líneas distintas.
+    match /analisis/{analisisId} {
+      allow read:   if puedeLeer();
+      allow create: if esEditor() && altaCoherente();
+      // Un análisis CERRADO respalda un informe entregado: ya no se toca. Misma
+      // regla que las investigaciones y las hipótesis congeladas.
+      allow update: if esEditor() && deMiOrg(resource.data)
+                    && resource.data.cerrado == false && noTocaReservados();
+      allow delete: if false;   // un análisis hecho no se borra: se cierra
+    }
+
+    // 🔒 SONDEOS DE CLIMA — escritura ÚNICA, como la bitácora.
+    // Un sondeo a IDEAM NO es una caché: es un HECHO FECHADO. Si mañana IDEAM
+    // corrige la serie, el informe firmado tiene que seguir mostrando lo que se
+    // consultó el día que se firmó. Por eso se crea y NO se actualiza — ni el
+    // admin. Permitir `update` convertiría la prueba en una opinión editable.
+    match /sondeos_clima/{sondeoId} {
+      allow read:   if puedeLeer();
+      allow create: if esEditor() && altaCoherente();
+      allow update: if false;
+      allow delete: if false;
+    }
+
     // ⛔ HALLAZGOS Y CÁLCULOS — SOLO SERVIDOR.
     // Son juicio profesional y dictamen fechado. Ni el cliente ni el modelo
     // escriben aquí: pasan por una función que valida contra el contrato.

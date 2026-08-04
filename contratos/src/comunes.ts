@@ -25,8 +25,15 @@ import { z } from 'zod';
  * la línea (ADR-012). Un documento escrito con 0.2.0 sigue validando sin
  * tocarlo. La cifra se imprime en el pie de la aplicación: si no se sube, la
  * pantalla declara una versión que ya no es la que valida.
+ *
+ * 0.4.0 — MENOR (colecciones nuevas y un campo opcional; nada renombrado ni
+ * cambiado de tipo): entra el segmento RCA — `AnalisisCausa` y `SondeoClima` en
+ * `rca.ts`— y `Evidencia.analisisId`, para que una fotografía pueda colgar
+ * también de un análisis. `Investigacion` NO se toca: sigue exigiendo `lineaId`
+ * y `apoyoId`, porque un expediente de HECHO sí ocurre en un sitio concreto.
+ * Aflojar un `refine` solo admite más documentos: cero migración.
  */
-export const VERSION_CONTRATO = '0.3.0';
+export const VERSION_CONTRATO = '0.4.0';
 
 // ── Identificadores ─────────────────────────────────────────────────────────
 

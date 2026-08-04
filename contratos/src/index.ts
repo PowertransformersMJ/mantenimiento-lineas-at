@@ -25,6 +25,7 @@ export * from './comunes.js';
 export * from './activos.js';
 export * from './eventos.js';
 export * from './ia.js';
+export * from './rca.js';
 
 // ── Las tres funciones invocables ───────────────────────────────────────────
 // Solo `onCall`, jamás `onRequest` abierta. Con verificación de identidad y de
@@ -85,4 +86,23 @@ export const COLECCIONES = Object.freeze({
   solicitudes_ia:{ escribeCliente: 'campos_limitados' },
   sugerencias:   { escribeCliente: 'solo_decision' },  // solo el veredicto humano
   llamadas_ia:   { escribeCliente: 'nadie' },          // escritura única, ni el admin
+  /**
+   * Los dos que entraron el 2026-08-04, con su justificación escrita — como se
+   * hizo con el décimo, y por la misma razón: una colección que se cuela sin
+   * argumento es una colección que nadie sabe defender.
+   *
+   * `analisis` NO cabe dentro de `investigaciones`, y no es una preferencia de
+   * modelado: un expediente de falla es el HECHO —ocurrió en un apoyo de una
+   * línea, y por eso `Investigacion` exige los dos—, mientras que un análisis de
+   * causa raíz es el RAZONAMIENTO, y puede abarcar varias líneas o ninguna
+   * todavía. Meterlo dentro haría INVISIBLE POR CONSTRUCCIÓN el patrón más caro
+   * de un parque: el mismo componente fallando en apoyos de líneas distintas.
+   *
+   * `sondeos_clima` es aparte de `analisis` porque una consulta a IDEAM es un
+   * HECHO FECHADO, no una caché: si mañana IDEAM corrige la serie, el informe
+   * firmado tiene que seguir mostrando lo que se consultó el día que se firmó.
+   * Por eso se crea y NO se actualiza — ni el admin.
+   */
+  analisis:      { escribeCliente: 'rol_editor' },
+  sondeos_clima: { escribeCliente: 'rol_editor' },
 });

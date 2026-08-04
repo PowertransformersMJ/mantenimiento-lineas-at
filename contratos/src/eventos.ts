@@ -62,6 +62,16 @@ export const Evidencia = Base.extend({
   inspeccionId: Id.optional(),
   investigacionId: Id.optional(),
   apoyoId: Id.optional(),
+  /**
+   * Cuarto dueño posible (2026-08-04): un ANÁLISIS de causa raíz. Una foto de
+   * detalle tomada para el análisis —la macro del conector, la marca de arco—
+   * no siempre pertenece a la investigación del hecho: puede pedirse después,
+   * ya cerrado el expediente, precisamente para resolver el porqué.
+   *
+   * Aflojar un `refine` solo admite MÁS documentos: los que ya validaban siguen
+   * validando. Cero migración.
+   */
+  analisisId: Id.optional(),
   /** Ruta en el almacenamiento de objetos. El binario nunca entra a la base. */
   rutaObjeto: z.string().min(1),
   sha256: z.string().regex(/^[a-f0-9]{64}$/),
@@ -79,8 +89,8 @@ export const Evidencia = Base.extend({
    */
   subida: z.enum(['pendiente', 'subiendo', 'completa', 'fallida']).default('pendiente'),
 }).refine(
-  (e) => Boolean(e.inspeccionId) || Boolean(e.investigacionId) || Boolean(e.apoyoId),
-  { message: 'Toda evidencia cuelga de una inspección, de una investigación o de un apoyo: una foto sin dueño no prueba nada.' },
+  (e) => Boolean(e.inspeccionId) || Boolean(e.investigacionId) || Boolean(e.apoyoId) || Boolean(e.analisisId),
+  { message: 'Toda evidencia cuelga de una inspección, de una investigación, de un apoyo o de un análisis: una foto sin dueño no prueba nada.' },
 );
 
 // ── Hallazgo (lo que una PERSONA confirmó) ──────────────────────────────────
