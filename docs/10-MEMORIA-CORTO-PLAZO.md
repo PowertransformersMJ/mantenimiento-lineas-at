@@ -31,8 +31,10 @@ longitudinal llegando al producto. Detalle en `99`; aquí solo lo que cambia dec
    fiado del subagente. Ranking: 1 · 4 · 3 · 2, con 6 bloqueantes comunes.
    **ELEGIDA el 04-08** (piel Horizonte + esqueleto columnas). 6 fases; **F0-F3 EN PRODUCCIÓN
    Y VERIFICADAS**: F0 línea base · F1 tokenizar (113 literales → 61 tokens, probado byte a byte)
-   · F2+F2b higiene y contraste · **F3 la paleta clara**. Faltan: ⬜ F4 esqueleto de 3 columnas
-   · ⬜ F5 cielo derivado · ⬜ F6 horizonte. Plan y línea base:
+   · F2+F2b higiene y contraste · F3 la paleta clara · **F4 el caparazón de 3 columnas**
+   (parque→secciones→contenido; la lista de líneas YA existía y `enlace.ts` la tiraba; ARIA y
+   flechas ←/→ intactos; el resumen mide su columna vía `@container`, no la ventana).
+   Faltan: ⬜ F5 cielo derivado del veredicto · ⬜ F6 horizonte. Plan y línea base:
    `research-archive/2026-08-04-workflow-carcasa-horizonte.json`.
 2. **El tope de tiro sigue sin decidir (TODO-33).** Único bloqueo original que queda. Desde ADR-014
    `tiroAdmisible_pct` y `criterioTiroQueRige` YA existen en el contrato: su decisión ya tiene por
