@@ -62,6 +62,10 @@
   'assets/index-[^"]*\.js'` frente a `ls web/dist/assets/`; contra el navegador, **preguntarle a la
   pestaña qué cargó** (`[...document.querySelectorAll('script[src]')].map(s => s.src)`) y recargar
   en duro. Y a quien verifique, decirle siempre que recargue forzado. Es §3.2 aplicado al despliegue.
+- **El remedio que sí funciona sin tocar el teclado del Ingeniero** (2026-08-03): desde la propia
+  pestaña, `await fetch(location.origin + '/', { cache: 'reload' })` revalida el DOCUMENTO en la
+  caché HTTP; el `location.reload()` siguiente ya trae el paquete nuevo. Cambiar la consulta
+  (`?v=algo`) NO sirve: la entrada cacheada del documento sigue ahí.
 
 ### L-20 · La pantalla no puede prometer lo que el archivo no cumple
 - **Síntoma:** la pestaña Exportar afirmaba *"Todos llevan su procedencia adentro"*. Era falso para
