@@ -62,8 +62,7 @@ longitudinal llegando al producto. Detalle en `99`; aquí solo lo que cambia dec
 
 | # | Qué | Por qué importa |
 |---|---|---|
-| **NUEVO** | **Elegir ESQUELETO** entre las 4 de `disenos/` | Es lo que pidió y está entregado, a la espera |
-| **NUEVO** | **Confirmar la PIEL luminosa** de `5-horizonte.html` | Responde a su «como paisajes»; falta su ojo |
+| **NUEVO** | **Mirar la carcasa YA EN PRODUCCIÓN** y decir si el tono del papel y el ancho de las columnas van. Ajustarlo ahora es barato | Eligió «Horizonte + columnas» el 04-08 y está implementada; falta su ojo |
 | **TODO-33** | **Decidir 50 % o 25 % de RTS** como tope de tiro | El motor calcula con 50 % y la doctrina dice 25 % |
 | **TODO-44** | **Alerta de presupuesto** en Cloudflare (sugerido 1 USD) | R2 no apaga: factura |
 | **TODO-34** | **Respaldo de la bóveda**: sin remoto, 337 MB. **SUBIÓ DE PRIORIDAD**: la única prueba de que `e07` es E06 vive en un HTML de 30 MB en Descargas, sin copia | Sin él, la asignación de las 99 fotos deja de ser reproducible |

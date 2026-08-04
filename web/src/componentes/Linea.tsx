@@ -13,20 +13,19 @@ import type { Apoyo, Conductor, Evidencia, Hipotesis, Investigacion, Linea as TL
 import { vincenty, vanoIdealRegulacion } from '@lineas/nucleo/geodesia';
 import { ampacidad, temperaturaLimite } from '@lineas/nucleo/termica';
 import { estadisticasVanos } from '@lineas/nucleo/estadisticas';
-import { tramosDeTension, estadosDelTramo } from '@lineas/nucleo/mecanica';
-import { detalleVanos, controlParabola, resumenConductor } from '@lineas/nucleo/vanos';
 import { coherenciaFuncionDeflexion } from '@lineas/nucleo/coherencia';
 import { derivarLevantamiento } from '@lineas/exportar/levantamiento';
 import { calidadLevantamiento } from '@lineas/exportar/calidad';
 import { proyectar, vanos, geometriaSvg, soloEstructuras } from '../vistas/planta';
 import { COLORES_TRAMO_CSS } from '../vistas/tramoColores';
-import { calcularTramos, conductorParaNucleo, paramsParaNucleo } from '../vistas/tramos';
-import { nombreVisible } from '../vistas/planta';
+import { calcularTramos } from '../vistas/tramos';
 import { textoNucleo } from '../vistas/formato';
 import { conReintentos } from '../datos/cargar';
 import { almacen } from '../datos/enlace';
 import { ejesDeLinea } from '../vistas/ejesLinea';
 import { estadoDeLinea } from '../vistas/estadoLinea';
+import { vanosDeLinea } from '../vistas/vanosLinea';
+import { Horizonte } from './Horizonte';
 import { Distribucion } from './Distribucion';
 import { Distancias } from './Distancias';
 import { Fichas } from './Fichas';
@@ -431,45 +430,14 @@ function Mecanico({ apoyos, conductor, hipotesis }:
 
 // ── Vano a vano: el detalle que pide un revisor externo ─────────────────────
 
-interface FilaVano {
-  n: number; a_m: number; relVir: number | null;
-  flechaEds_m: number; flechaTMax_m: number; flechaTMin_m: number;
-  longitudConductor_m: number; parametroC_m: number; fueraDeRango: boolean | null;
-}
-
 function DetalleVanos({ apoyos, conductor, hipotesis }:
   { apoyos: Apoyo[]; conductor: Conductor; hipotesis: Hipotesis }) {
 
-  const r = useMemo(() => {
-    const E = soloEstructuras(apoyos);
-    if (E.length < 2) return null;
-    const L = vanos(apoyos);
-    const c = conductorParaNucleo(conductor);
-    const p = paramsParaNucleo(hipotesis);
-    const cortes = tramosDeTension(
-      E.map((a) => ({ funcionEstructural: a.funcionEstructural, nombre: nombreVisible(a) })), L);
-
-    // Se numera de forma CORRIDA sobre toda la línea: `detalleVanos` numera
-    // dentro de cada tramo, y dos vanos con el mismo número confundirían al
-    // que lee la tabla buscando "el vano 3".
-    let corrido = 0;
-    const filas: (FilaVano & { tramo: number })[] = [];
-    cortes.forEach((t: { vanos: number[] }, i: number) => {
-      const e = estadosDelTramo(t, c, p);
-      for (const f of detalleVanos(t, c, e) as FilaVano[]) {
-        filas.push({ ...f, n: ++corrido, tramo: i + 1 });
-      }
-    });
-
-    const res = resumenConductor(filas) as { longitudTotal_m: number | null; factorCatenaria_pct: number | null };
-    // Control de la simplificación parabólica en el vano MÁS LARGO, que es
-    // donde el error es mayor: si ahí es admisible, lo es en toda la línea.
-    const peor = filas.reduce((m, f) => (f.a_m > m.a_m ? f : m), filas[0]);
-    const ctrl = peor ? controlParabola(peor.a_m, peor.parametroC_m) as
-      { flechaCatenaria_m: number; flechaParabola_m: number; error_pct: number; aceptable: boolean } : null;
-
-    return { filas, res, ctrl, peor };
-  }, [apoyos, conductor, hipotesis]);
+  // La numeración corrida vive en `vanosDeLinea`, su dueño único: el horizonte
+  // dibuja EXACTAMENTE los mismos vanos con los mismos números. Si cada uno los
+  // numerase por su cuenta, «el vano 14» de esta tabla y el del dibujo podrían
+  // señalar tramos distintos de la línea.
+  const r = useMemo(() => vanosDeLinea(apoyos, conductor, hipotesis), [apoyos, conductor, hipotesis]);
 
   if (!r || !r.filas.length) return null;
   const fuera = r.filas.filter((f) => f.fueraDeRango);
@@ -572,8 +540,13 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
   // Cargas, por el mismo dueño— y de los expedientes sin cerrar. Ni un texto
   // fijo, ni una bandera escrita a mano: si mañana el inventario trae las
   // fichas, el cielo amanece solo.
+  const ejes = useMemo(
+    () => ejesDeLinea(apoyos, conductor, hipotesis, linea.circuitos),
+    [apoyos, conductor, hipotesis, linea.circuitos]);
+  const vanosLinea = useMemo(
+    () => vanosDeLinea(apoyos, conductor, hipotesis), [apoyos, conductor, hipotesis]);
+
   const estado = useMemo(() => {
-    const ejes = ejesDeLinea(apoyos, conductor, hipotesis, linea.circuitos);
     return estadoDeLinea({
       transversal: { filas: ejes.transversal.filas, total: ejes.transversal.total, aRevisar: ejes.transversal.aRevisar },
       longitudinal: ejes.longitudinal
@@ -582,7 +555,7 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
       investigaciones,
       hipotesis,
     });
-  }, [apoyos, conductor, hipotesis, linea.circuitos, investigaciones]);
+  }, [ejes, investigaciones, hipotesis]);
 
   return (
     <>
@@ -653,6 +626,10 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
               <span>apoyos con veredicto · los dos ejes</span>
             </div>
           </div>
+
+          <Horizonte ejes={ejes} vanos={vanosLinea}
+            dictaminados={estado.dictaminados} total={estado.total} />
+
       <div id="panel-linea" role="tabpanel" aria-labelledby={`pestana-${activa}`}>
         {activa === 'resumen' && (
           <Resumen apoyos={apoyos} investigaciones={investigaciones}

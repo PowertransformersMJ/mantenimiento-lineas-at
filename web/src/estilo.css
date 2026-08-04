@@ -54,6 +54,15 @@
   --cielo-bd-tormenta:  #bcc6cd;
   --cielo-bd-niebla:    #d5d3ca;
 
+  /* ── El horizonte (F6) ───────────────────────────────────────────────────
+     El dibujo que da nombre a la carcasa. Torre LLENA = con veredicto.
+     Torre HUECA y punteada = el motor no puede dictaminarla. */
+  --hz-suelo:      #dfe0cf;
+  --hz-cable:      #7d8a97;
+  --hz-dictaminada:#6e8f57;
+  --hz-hueca-bd:   #b03a3a;
+  --hz-hueca-fondo:#fdfbf6;
+
   /* ── Tokenización (fase 1) ──────────────────────────────────────────────
      Cada uno de estos era un color escrito a mano en una regla suelta. Aquí
      conservan su valor OSCURO EXACTO: esta fase no cambia ni un píxel. Existen
@@ -656,6 +665,47 @@ p.fund-vivo + .sello-calculo { margin-top: 5px; }
 }
 .parque-ver b { color: var(--tx2); font-weight: 660; }
 .parque-ver[data-cero="true"] b { color: var(--rd); }
+
+/* ── EL HORIZONTE (F6) ────────────────────────────────────────────────────
+   Los apoyos en su orden y a su distancia real, el conductor colgando y —lo
+   que importa— el apoyo sin veredicto dibujado HUECO. En pantalla clara un
+   hueco se ve como un agujero de luz; era el argumento entero de esta piel. */
+.horizonte {
+  margin: 0 0 12px; padding: 0;
+  border: 1px solid var(--bd); border-radius: var(--radio);
+  background: var(--pnl); overflow: hidden;
+  box-shadow: var(--luz-arriba), var(--sombra-1);
+}
+.horizonte svg { display: block; width: 100%; height: auto; }
+.hz-suelo { fill: var(--hz-suelo); }
+.hz-cable { fill: none; stroke: var(--hz-cable); stroke-width: 1.1; }
+.hz-fuera { stroke: var(--rd); stroke-width: 1.9; }
+.hz-torre path { stroke-width: 1.2; }
+.hz-torre line { stroke-width: 1.1; }
+.hz-dictaminada path { fill: var(--hz-dictaminada); fill-opacity: .85; stroke: var(--hz-dictaminada); }
+.hz-dictaminada line { stroke: var(--hz-dictaminada); }
+/* EL HUECO: contorno punteado y relleno del color del papel. */
+.hz-hueca path { fill: var(--hz-hueca-fondo); stroke: var(--hz-hueca-bd); stroke-dasharray: 2.6 2; }
+.hz-hueca line { stroke: var(--hz-hueca-bd); stroke-dasharray: 2.6 2; }
+.hz-amplifica line { stroke: var(--rd); stroke-width: 1; stroke-dasharray: 2 2; }
+.hz-amplifica text { fill: var(--rd); font-size: 9.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.hz-pie {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding: 7px 13px; border-top: 1px solid var(--bd);
+  background: var(--pnl2); font-size: 10.4px; color: var(--tx2);
+}
+.hz-leyenda { display: inline-flex; align-items: center; gap: 5px; font-variant-numeric: tabular-nums; }
+.hz-sw { width: 10px; height: 10px; border-radius: 2px; flex: none; display: inline-block; }
+.hz-sw-llena { background: var(--hz-dictaminada); }
+.hz-sw-hueca { background: var(--hz-hueca-fondo); border: 1.4px dashed var(--hz-hueca-bd); }
+.hz-sw-fuera { background: var(--rd); }
+.hz-nota { margin-left: auto; color: var(--mut); }
+.hz-lectura {
+  margin: 0; padding: 8px 13px; font-size: 11.4px; line-height: 1.5;
+  color: var(--tx2); border-top: 1px solid var(--bd);
+}
+@media print { .horizonte { break-inside: avoid; } }
 
 /* ══════════════════════════════════════════════════════════════════════════
    EVENTO DE FALLA — lo que el Ingeniero no alcanzaba a apreciar en la E02
