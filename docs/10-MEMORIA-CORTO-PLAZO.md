@@ -37,7 +37,10 @@ longitudinal llegando al producto. Detalle en `99`; aquí solo lo que cambia dec
    · **F5 el cielo** (`vistas/estadoLinea.ts` puro + `vistas/ejesLinea.ts` como dueño único de
    los dos ejes; `amanecer` INALCANZABLE si falta un apoyo, con prueba que lo vigila; la
    cobertura se cruza por apoyo, no se comparan conteos; corregido el conteo de expedientes que
-   sumaba los CERRADOS). Falta: ⬜ F6 horizonte. Plan y línea base:
+   sumaba los CERRADOS) · **F6 el horizonte** (24 apoyos en su orden y a su distancia real, los 24
+   HUECOS; los 14 vanos fuera de banda del dibujo son EXACTAMENTE los 14 de la tabla, verificado;
+   `vistas/vanosLinea.ts` dueño único de la numeración corrida). **LAS 6 FASES EN PRODUCCIÓN.**
+   Plan y línea base:
    `research-archive/2026-08-04-workflow-carcasa-horizonte.json`.
 2. **El tope de tiro sigue sin decidir (TODO-33).** Único bloqueo original que queda. Desde ADR-014
    `tiroAdmisible_pct` y `criterioTiroQueRige` YA existen en el contrato: su decisión ya tiene por
@@ -75,7 +78,7 @@ longitudinal llegando al producto. Detalle en `99`; aquí solo lo que cambia dec
 
 | # | Qué | Dónde está el plan |
 |---|---|---|
-| **TODO-47** | **Implementar la carcasa elegida** (esqueleto + piel) + ADR-018 + crudo. La crítica de oficio pendiente **ya se relanzó el 04-08** (4 críticos Opus + síntesis, solo eje esqueleto) | `disenos/README.md` |
+| **TODO-47** | ⚠️ Carcasa IMPLEMENTADA y desplegada (F0-F6). **Falta el `ADR-018`**: la decisión aún no está escrita en el historial | `disenos/README.md` |
 | **TODO-48** | **Deuda de ADR-017**: el criterio del veredicto longitudinal no menciona el ruido de tendido ni el piso de validez; `funcionProcedencia` no viaja a la fila (en LN-627 vale «deducido_geometria») | `99 §ADR-017` |
 | **TODO-42/37** | **Informe gerencial** del expediente (10 secciones especificadas) | crudo de **ADR-012** |
 | **TODO-30** | CI: validación XSD real de GPX/KML | crudo de **ADR-013** |

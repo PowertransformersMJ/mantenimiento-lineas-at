@@ -115,6 +115,25 @@
   contexto). Y la agrupación vive en la capa pura, no en el componente: es una decisión de lectura,
   y se prueba.
 
+### L-35 · `deploy` NO construye: se puede desplegar un `dist/` rancio y no enterarse
+- **Síntoma:** se arregla un detalle (el separador decimal del factor de amplificación), se
+  commitea, se despliega, se espera la propagación **y la comprobación da VERDE**… pero producción
+  sigue sirviendo el paquete anterior y el punto decimal sigue ahí.
+- **Causa:** la cadena usada fue `npm test && git commit && git push && npm run deploy`. El script
+  `deploy` del workspace `web` es solo `wrangler pages deploy dist`: **no construye nada**. Se subió
+  el `dist/` de la fase anterior, intacto.
+- **Lo que hizo el fallo INVISIBLE, y es lo grave:** la comprobación de propagación compara lo que
+  sirve producción contra `web/dist/index.html`. Si `dist/` está rancio, se está comparando el
+  artefacto viejo contra sí mismo: **la verificación pasa siempre**. Es la familia de «verde no
+  prueba nada» (`30 · L-33`) aplicada al despliegue — el oráculo estaba contaminado por la misma
+  causa que el defecto.
+- **Regla:** el despliegue es `npm run build && npm run deploy --workspace web`, en ese orden y sin
+  saltarse el primero. Está escrito así en `docs/10` desde el principio; el atajo fue mío.
+- **Cómo se detecta en 10 segundos:** preguntarle a la PESTAÑA qué paquete cargó
+  (`[...document.querySelectorAll('script[src]')].map(s => s.src)`) y contrastarlo con el hash que
+  acaba de imprimir `vite build` — **no con el contenido de `dist/`**. El navegador es el único
+  testigo que no comparte la causa del fallo con el artefacto que se está juzgando.
+
 ### L-30 · `loading="lazy"` no carga URLs `blob:` — y el fallo se lee como «faltan los datos»
 - **Síntoma:** la galería del expediente pintaba los cuatro marcos con sus pies de foto y **ninguna
   imagen**. Todo lo demás estaba bien: el token, el portero, R2 y la red.
