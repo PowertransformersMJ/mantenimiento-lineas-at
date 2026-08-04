@@ -769,6 +769,30 @@ p.fund-vivo + .sello-calculo { margin-top: 5px; }
 }
 .rca-ev input { margin-top: 2px; flex: none; }
 
+/* Los editores del RCA. Compactos a propósito: rellenar un análisis es trabajo
+   de rato largo, y cada píxel de más es un desplazamiento de más. */
+.rca-select-corto { width: auto; min-width: 150px; max-width: 100%; }
+.rca-eslabon-ed {
+  margin: 8px 0 0; padding: 8px 10px;
+  background: var(--pnl); border: 1px solid var(--bd); border-radius: 6px;
+  display: grid; gap: 5px;
+}
+.rca-barrera {
+  margin-top: 7px; padding-top: 7px; border-top: 1px dashed var(--bd);
+  display: grid; gap: 5px;
+}
+/* Quitar algo NO se disfraza de acción peligrosa: corregirse debe costar poco. */
+.rca-quitar {
+  appearance: none; background: none; border: 0; cursor: pointer;
+  color: var(--mut); font: 400 10.5px/1 inherit; font-family: inherit;
+  text-decoration: underline; text-underline-offset: 2px; padding: 2px 0;
+}
+.rca-quitar:hover { color: var(--rd); }
+.rca-cadena-cab { flex-wrap: wrap; }
+
+.rca-declarar { display: grid; gap: 8px; margin-top: 12px; max-width: 620px; }
+.rca-declarar .boton { margin-top: 0; justify-self: start; }
+
 /* ── EL HORIZONTE (F6) ────────────────────────────────────────────────────
    Los apoyos en su orden y a su distancia real, el conductor colgando y —lo
    que importa— el apoyo sin veredicto dibujado HUECO. En pantalla clara un

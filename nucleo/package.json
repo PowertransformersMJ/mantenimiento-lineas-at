@@ -16,7 +16,8 @@
     "./package.json": "./package.json",
     "./cargas": "./cargas.js",
     "./longitudinal": "./longitudinal.js",
-    "./rca": "./rca.js"
+    "./rca": "./rca.js",
+    "./clima": "./clima.js"
   },
   "sideEffects": false
 }

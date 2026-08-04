@@ -139,13 +139,13 @@ class Almacen {
     }
   }
 
-  /** Guarda la tabla de descartes y refresca lo que hay en pantalla. */
-  async guardarEspinas(espinas: unknown[]): Promise<void> {
+  /** Guarda una parte del análisis y refresca lo que hay en pantalla. */
+  async guardarParte(parche: Record<string, unknown>): Promise<void> {
     const r = this.#rca;
     if (r.fase !== 'abierto') return;
     const previo = r.analisis;
     try {
-      await repositorio.guardarEspinas(previo.id, espinas, previo.revision ?? 0);
+      await repositorio.guardarParte(previo.id, parche, previo.revision ?? 0);
       const indice = await repositorio.listarAnalisis();
       const a = indice.find((x) => x.id === previo.id);
       if (a) await this.#abrirAnalisis(a, indice);

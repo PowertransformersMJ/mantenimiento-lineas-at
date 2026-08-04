@@ -220,39 +220,26 @@ export const repositorioFirestore: Repositorio = {
   },
 
   /**
-   * Guarda la evaluación de las once familias. Se manda el array COMPLETO, no
-   * un parche: la tabla de descartes es una sola cosa y guardarla a trozos
-   * abriría la puerta a un estado a medias entre dos escrituras.
+   * Guarda una parte del análisis.
    *
-   * No toca `orgId`, `creadoPor` ni `creadoEn` — la regla `noTocaReservados()`
-   * lo impediría, y con razón.
+   * `parche` lleva SIEMPRE la lista completa de lo que cambia (las once
+   * espinas, todas las hipótesis…), no un delta. No toca `orgId`, `creadoPor`
+   * ni `creadoEn` — la regla `noTocaReservados()` lo impediría, y con razón:
+   * son los campos que dicen de quién es el documento.
    */
-  async guardarEspinas(analisisId: string, espinas: unknown[], revision: number): Promise<void> {
+  async guardarParte(analisisId: string, parche: Record<string, unknown>, revision: number): Promise<void> {
     const { esperarSesion, baseDatos } = await cargarFirebase();
     const { doc, updateDoc } = await firestore();
     const u = await esperarSesion();
     if (!u) throw new Error('sin sesión');
     await updateDoc(doc(await baseDatos(), 'analisis', analisisId), {
-      espinas,
+      ...parche,
       actualizadoEn: new Date().toISOString(),
       actualizadoPor: u.uid,
       revision: revision + 1,
     });
   },
 
-  /**
-   * Las evidencias que este análisis puede enlazar.
-   *
-   * Son de dos orígenes y se juntan: las que ya colgaban de sus
-   * investigaciones —las 4 fotos del expediente, en el caso de LN-627— y las
-   * que se hayan pedido para el análisis mismo (`analisisId`, el cuarto dueño
-   * que entró en el contrato v0.4.0).
-   *
-   * ⚠️ TOPE DECLARADO: Firestore admite como mucho 30 valores en un `in`. Si un
-   * análisis abarcase más de 30 investigaciones, las de más NO saldrían — y eso
-   * se avisa en vez de recortar en silencio, que es como se pierde evidencia sin
-   * que nadie se entere.
-   */
   async evidenciasDeAnalisis(analisisId: string, investigacionIds: string[]): Promise<Evidencia[]> {
     const { esperarSesion, credenciales, baseDatos } = await cargarFirebase();
     const { collection, getDocs, limit, query, where } = await firestore();

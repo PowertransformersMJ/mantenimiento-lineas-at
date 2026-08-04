@@ -24,12 +24,10 @@
 // pinta; no se decide.
 // ============================================================================
 import { useState } from 'react';
-import {
-  evaluarEspinas, revisarHipotesis, condicionesCausaRaiz,
-  resumenBarreras, auditarRespaldo, fuerzaCadena, diagnosticoCadena,
-} from '@lineas/nucleo/rca';
+import { evaluarEspinas, condicionesCausaRaiz, auditarRespaldo } from '@lineas/nucleo/rca';
 import type { AnalisisCausa, Evidencia } from '@lineas/contratos';
 import { almacen, useRca } from '../datos/enlace';
+import { EditorPorques, EditorArbol, EditorHipotesis, EditorAusencias, ClimaEvento } from './RcaEditores';
 import { nf } from '../vistas/formato';
 
 /** Cómo se lee cada espina en pantalla. El código interno no se le enseña a nadie. */
@@ -45,14 +43,6 @@ const ROTULO_ESPINA: Record<string, string> = {
   montaje_tendido: 'Montaje y tendido',
   operacion_maniobra: 'Operación y maniobra',
   inspeccion_mantenimiento: 'Inspección y mantenimiento',
-};
-
-const ROTULO_NIVEL: Record<string, string> = {
-  efecto: 'efecto',
-  modo_falla: 'modo de falla',
-  mecanismo_fisico: 'mecanismo físico',
-  condicion: 'condición',
-  regla: 'regla',
 };
 
 // ── El índice del segmento ──────────────────────────────────────────────────
@@ -112,9 +102,7 @@ function Indice({ analisis }: { analisis: AnalisisCausa[] }) {
 // ── Un análisis abierto ─────────────────────────────────────────────────────
 
 function Abierto({ a, evidencias }: { a: AnalisisCausa; evidencias: Evidencia[] }) {
-  const hipotesis = revisarHipotesis(a.hipotesis);
   const cond = condicionesCausaRaiz(a);
-  const barreras = resumenBarreras(a.arbol);
   const respaldo = auditarRespaldo(a);
   const faltan = cond.condiciones.filter((c) => !c.cumple);
 
@@ -127,107 +115,19 @@ function Abierto({ a, evidencias }: { a: AnalisisCausa; evidencias: Evidencia[] 
 
       <TablaDescartes a={a} evidencias={evidencias} />
 
-      {/* LAS CADENAS */}
-      {a.cadenas.length > 0 && (
-        <section className="panel">
-          <h2>Los porqués</h2>
-          {a.cadenas.map((c) => {
-            const f = fuerzaCadena(c);
-            return (
-              <div key={c.id} className="rca-cadena">
-                <div className="rca-cadena-cab">
-                  {ROTULO_ESPINA[c.espina] ?? c.espina}
-                  <span className={f.esAccionable ? 'pill ok' : 'pill av'}>
-                    {f.esAccionable ? 'accionable' : 'no llega a causa raíz'}
-                  </span>
-                </div>
-                <ol className="rca-eslabones">
-                  {c.eslabones.map((x, i) => (
-                    <li key={i}>
-                      <span className="rca-nivel">{ROTULO_NIVEL[x.nivel] ?? x.nivel}</span>
-                      {x.enunciado}
-                      {(x.evidenciaIds ?? []).length === 0 && !x.cortadaPorFaltaDeDato
-                        && <span className="h-pill grave">sin evidencia</span>}
-                      {x.cortadaPorFaltaDeDato && <i className="fine"> · cortada: {x.cortadaPorFaltaDeDato}</i>}
-                    </li>
-                  ))}
-                </ol>
-                <p className="fine">{diagnosticoCadena(c)}</p>
-              </div>
-            );
-          })}
-        </section>
-      )}
+      <EditorPorques a={a} evidencias={evidencias} />
+      <EditorArbol a={a} evidencias={evidencias} />
+      <EditorHipotesis a={a} evidencias={evidencias} />
+      <ClimaEvento />
+      <EditorAusencias a={a} />
 
-      {/* HIPÓTESIS — con lo que las refutaría, que es lo que las hace hipótesis */}
-      {hipotesis.length > 0 && (
-        <section className="panel">
-          <h2>Hipótesis</h2>
-          <p className="fine">
-            No van ordenadas por fuerza: ordenar es dictaminar. Cada una declara qué evidencia la
-            <b> refutaría</b> — una hipótesis que nada puede tumbar no es una hipótesis.
-          </p>
-          <div className="tabla-caja">
-            <table className="tabla">
-              <thead><tr><th>Enunciado</th><th>Familia</th><th>Verosimilitud</th><th>Qué la refutaría</th></tr></thead>
-              <tbody>
-                {hipotesis.map((h) => (
-                  <tr key={h.id}>
-                    <td>{h.enunciado}</td>
-                    <td>{ROTULO_ESPINA[h.espina] ?? h.espina}</td>
-                    <td>
-                      <span className={h.verosimilitudEfectiva === 'descartada' ? 'pill ok' : 'pill av'}>
-                        {h.verosimilitudEfectiva}
-                      </span>
-                      {h.topadaPorClima && <div className="rca-defecto">⚠ topada: sustento solo climático</div>}
-                      {h.defectos.map((d: string) => <div key={d} className="rca-defecto">⚠ {d}</div>)}
-                    </td>
-                    <td>{h.queLaRefutaria || <span className="h-pill grave">no lo declara</span>}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
-
-      {/* BARRERAS — la pregunta que suele valer más que la causa */}
-      {barreras.analizadas > 0 && (
-        <section className="panel">
-          <h2>Qué defensa debió detenerlo</h2>
-          {barreras.aviso && <p className="alerta">{barreras.aviso}</p>}
-          <ul className="calidad-lista">
-            {barreras.cuales.map((b, i: number) => (
-              <li key={i} className="calidad-item atencion"><b>{b.cual}</b> — {b.estado}. {b.detalle}</li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {/* LO QUE NO SE PUEDE AFIRMAR — bloque fijo */}
+      {/* El respaldo, en frío: cuántas afirmaciones no se apoyan en nada. */}
       <section className="panel">
-        <h2>Lo que este análisis NO puede afirmar hoy</h2>
-        {a.ausencias.length === 0 && a.limitaciones.length === 0 ? (
-          <p className="fine">Nada declarado todavía. Un análisis sin límites declarados suele
-            significar que aún no se han buscado.</p>
-        ) : (
-          <ul className="calidad-lista">
-            {a.ausencias.map((x, i) => (
-              <li key={`a${i}`} className="calidad-item aviso">
-                <b>{x.que}</b> — {x.porQue}
-                {x.quienLoTiene && <> · lo tiene: {x.quienLoTiene}</>}
-                {' '}<span className="h-pill">{x.estado}</span>
-              </li>
-            ))}
-            {a.limitaciones.map((x, i) => (
-              <li key={`l${i}`} className="calidad-item info">{x}</li>
-            ))}
-          </ul>
-        )}
+        <h2>Respaldo del análisis</h2>
         {respaldo.aviso && <p className="alerta">{respaldo.aviso}</p>}
         <p className="fine">
           {nf(respaldo.sinRespaldo)} de {nf(respaldo.totalAfirmaciones)} afirmaciones no tienen
-          evidencia enlazada.
+          evidencia enlazada. {a.limitaciones.map((l) => l).join(' · ')}
         </p>
       </section>
 
@@ -259,12 +159,14 @@ function Abierto({ a, evidencias }: { a: AnalisisCausa; evidencias: Evidencia[] 
                 </li>
               ))}
             </ul>
-            {/* Aquí NO hay botón de cerrar. En su sitio, lo que falta. */}
-            <p className="fine">
-              {faltan.length === 0
-                ? 'Se cumplen las seis condiciones. Declarar la causa raíz sigue siendo un acto de quien firma.'
-                : `Faltan ${faltan.length} de ${cond.total} condiciones para poder declarar una causa raíz.`}
-            </p>
+            {/* El botón NO existe mientras falte una condición. En su sitio, la
+                lista de arriba. Un botón deshabilitado invita a buscar cómo
+                habilitarlo; una lista de lo que falta invita a ir a buscarlo. */}
+            {faltan.length === 0 ? <Declarar a={a} /> : (
+              <p className="fine">
+                Faltan {faltan.length} de {cond.total} condiciones para poder declarar una causa raíz.
+              </p>
+            )}
           </>
         )}
       </section>
@@ -321,11 +223,11 @@ function TablaDescartes({ a, evidencias }: { a: AnalisisCausa; evidencias: Evide
   const guardar = async () => {
     setGuardando(true);
     try {
-      await almacen.guardarEspinas(conEstado.map((x) => ({
+      await almacen.guardarParte({ espinas: conEstado.map((x) => ({
         espina: x.espina, estado: x.estado, motivo: x.motivo,
         evidenciaIds: x.evidenciaIds,
         ...(x.datoQueFalta ? { datoQueFalta: x.datoQueFalta } : {}),
-      })));
+      })) });
     } finally { setGuardando(false); }
   };
 
@@ -411,6 +313,60 @@ function TablaDescartes({ a, evidencias }: { a: AnalisisCausa; evidencias: Evide
         )}
       </div>
     </section>
+  );
+}
+
+
+/**
+ * Declarar la causa raíz. Solo aparece cuando las seis condiciones se cumplen —
+ * y aun así, quien declara es la persona: el motor calculó que SE PUEDE, no
+ * QUÉ es.
+ *
+ * Se guarda además qué condiciones NO se cumplían en ese momento. Hoy son cero
+ * por construcción, pero el campo existe para el día en que alguien decida
+ * declarar con una pendiente: que quede constancia en el propio expediente y no
+ * en la memoria de nadie.
+ */
+function Declarar({ a }: { a: AnalisisCausa }) {
+  const [nodoId, setNodoId] = useState('');
+  const [enunciado, setEnunciado] = useState('');
+  const [g, setG] = useState(false);
+
+  const declarar = async () => {
+    setG(true);
+    try {
+      await almacen.guardarParte({
+        causaRaiz: {
+          nodoId, enunciado,
+          declaradaPor: a.creadoPor,
+          declaradaEn: new Date().toISOString(),
+          condicionesNoCumplidas: [],
+        },
+        estado: 'en_revision',
+      });
+    } finally { setG(false); }
+  };
+
+  return (
+    <div className="rca-declarar">
+      <p className="ok">
+        Se cumplen las seis condiciones. <b>Declarar la causa raíz sigue siendo un acto tuyo</b>:
+        el motor calculó que se puede, no cuál es.
+      </p>
+      <select className="rca-select" value={nodoId} onChange={(e) => setNodoId(e.target.value)}>
+        <option value="">— qué nodo del árbol es la causa raíz —</option>
+        {a.arbol.map((n) => (
+          <option key={n.id} value={n.id}>{n.enunciado.slice(0, 70)}</option>
+        ))}
+      </select>
+      <textarea className="rca-motivo" rows={3} value={enunciado}
+        placeholder="La causa raíz, con tus palabras. Es lo que se firma."
+        onChange={(e) => setEnunciado(e.target.value)} />
+      <button type="button" className="boton chico"
+        disabled={g || !nodoId || !enunciado.trim()} onClick={() => void declarar()}>
+        {g ? 'Declarando…' : 'Declarar la causa raíz'}
+      </button>
+    </div>
   );
 }
 

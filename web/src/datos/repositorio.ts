@@ -70,8 +70,13 @@ export interface Repositorio {
   listarAnalisis(): Promise<AnalisisCausa[]>;
   /** Abre un análisis. Devuelve su id, o `null` si no hay sesión u organización. */
   crearAnalisis(datos: { titulo: string; lineaId?: string; apoyoId?: string; investigacionId?: string; sinActivo?: string }): Promise<string | null>;
-  /** Guarda la tabla de descartes completa. Nunca a trozos. */
-  guardarEspinas(analisisId: string, espinas: unknown[], revision: number): Promise<void>;
+  /**
+   * Guarda una PARTE completa del análisis (las espinas, las cadenas, el árbol,
+   * las hipótesis…). Cada parte se manda entera, nunca a trozos: son listas con
+   * sentido propio y guardarlas por pedazos abriría un estado a medias entre dos
+   * escrituras.
+   */
+  guardarParte(analisisId: string, parche: Record<string, unknown>, revision: number): Promise<void>;
   /** Las evidencias que un análisis puede enlazar: las de sus investigaciones y las suyas propias. */
   evidenciasDeAnalisis(analisisId: string, investigacionIds: string[]): Promise<Evidencia[]>;
 }
@@ -96,7 +101,7 @@ export const repositorioSinSesion: Repositorio = {
   async crearAnalisis() {
     return null;
   },
-  async guardarEspinas() {
+  async guardarParte() {
     /* sin sesión no se escribe nada */
   },
   async evidenciasDeAnalisis() {
