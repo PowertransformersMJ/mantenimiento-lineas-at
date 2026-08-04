@@ -1474,3 +1474,130 @@ encontraron por separado, cada uno ejecutando el motor:
 ### Crudo de respaldo
 
 `research-archive/2026-08-03-workflow-capacidad-longitudinal.json`
+
+---
+
+## ADR-018 · 2026-08-04 · La carcasa «El Horizonte»: la piel clara como control de calidad, no como gusto
+
+**Estado:** ✅ Cerrado · `TODO-47` completo · 6 fases en producción · 687 pruebas en verde
+**Revisión externa:** ⚠️ **NO revisada externamente.** Hubo comité adversarial propio (4 críticos
+Opus + sintetizador) pero **no** Consejo Externo. La decisión es reversible fase a fase.
+
+### Contexto
+
+El Ingeniero pidió la carcasa con estas palabras: *«Necesito un entorno muy similar al de mi MacBook
+M4 Pro, es muy oscuro. También que todo lo que hemos consolidado se pueda apreciar al momento de yo
+seleccionar LN-627, que todo se condense ahí, como un sidebar. Recuerda que se irán consolidando más
+líneas de alta tensión en el proyecto.»*
+
+Se entregaron cuatro maquetas navegables (`disenos/1..4`), **las cuatro oscuras**: se leyó «es muy
+oscuro» como una petición de tema oscuro cuando era una **descripción** de su Mac. Al verlas corrigió:
+*«sigue oscuro el entorno, necesito algo más armonioso, como paisajes»*. De ahí nace `5-horizonte.html`
+y la partición de la elección en **dos decisiones separadas: el esqueleto y la piel**.
+
+### Lo que la crítica de oficio encontró, y que gobierna la decisión
+
+Cuatro críticos Opus adversariales, uno por maqueta, con el criterio *«cuál hace más difícil olvidar
+que 0 de 24 apoyos tienen veredicto»*. Hallazgo **común a las cuatro**, re-verificado leyendo el
+código y no aceptado del subagente:
+
+> **Ninguna impedía que una línea se mostrara «sana» con CERO apoyos dictaminados, y dos lo
+> afirmaban activamente.** En `2-tablero`, `estado: "firmable"` es una **cadena escrita a mano en los
+> datos** que gobierna el punto verde, el sello y los contadores. En `3-expediente`,
+> `firmable = !!(h && h.congelada) && L.estado === 'bien'` — no mira la capacidad de los apoyos en
+> ningún punto. En `1-columnas` es omisión: `avisos()` suma evento, GPS, vanos fuera, amplificación,
+> vanos largos, hipótesis y parcial, y **nunca** el veredicto; `estadoDe()` puede devolver `'ok'`.
+
+### La decisión
+
+> **Piel LUMINOSA sobre esqueleto de TRES COLUMNAS** (parque → secciones → contenido).
+
+> **La piel clara no es una preferencia estética: es un control de calidad.** En pantalla oscura un
+> dato que falta se ve oscuro y se confunde con el fondo; en pantalla clara se ve como un **agujero
+> de luz** y el ojo va solo. Siendo el riesgo nº1 del producto *certificar sobre un hueco*, la piel
+> que hace visible el hueco es parte del control, no del decorado. Motivo operativo adicional: bajo
+> el sol del Caribe una pantalla oscura es un espejo, y cuando llegue la captura en campo (F4) el
+> modo claro será el único legible.
+
+> **El paisaje CARGA INFORMACIÓN, no decora.** El cielo codifica el estado de la línea; el horizonte
+> dibuja los apoyos reales en su orden y a su distancia; **un apoyo sin veredicto se dibuja HUECO**.
+
+### Las invariantes que quedan establecidas — y que no se pueden relajar
+
+1. **`amanecer` es INALCANZABLE si falta un apoyo.** El único estado que dice «al día» exige
+   cobertura completa. Prueba dedicada: 23 de 24 dictaminados, nada por revisar, hipótesis
+   congelada — y aun así no amanece.
+2. **La cobertura se cruza POR APOYO, jamás comparando dos conteos.** Cinco apoyos con veredicto
+   transversal y cinco con longitudinal pueden ser diez apoyos distintos y **cero** dictaminados;
+   el menor de los conteos daría 5, que es una **cota superior**. Prueba con ese caso exacto.
+3. **El veredicto se lee de `utilizacion_pct !== null`** —lo que el núcleo concluyó—, **nunca de
+   `cargaRotura_kgf`**: que un apoyo declare su carga de rotura no significa que se le pueda
+   dictaminar. Leer el campo sería reimplementar el dictamen en la capa de pintura.
+4. **Un hecho, un dueño.** `vistas/ejesLinea.ts` es el único dueño de los dos ejes;
+   `vistas/vanosLinea.ts`, de la numeración corrida de vanos. El propio `Cargas.tsx` ya advertía
+   contra la alternativa: *«si cada pestaña calculara su propio tiro, bastaría un cambio en una para
+   que la app se contradijera a sí misma ante el cliente»*.
+
+### Cómo se ejecutó, y por qué en seis fases
+
+Cada fase es un commit atómico, desplegable y reversible por separado. **F0** línea base de
+visibilidad medida contra producción · **F1** tokenizar (113 literales → 61 tokens, probado byte a
+byte idéntico) · **F2/F2b** higiene y contraste · **F3** la paleta · **F4** las tres columnas ·
+**F5** el cielo · **F6** el horizonte.
+
+La partición no fue burocracia: el conteo inicial de «14 colores quemados» **era falso** (la búsqueda
+excluía la propia hoja de estilos; eran ~100 en 46 tonos, ocho de ellos mezclados con variables
+dentro de degradados). Redefinir `:root` de golpe habría dejado media aplicación oscura sin forma de
+saber si la regresión vino de la paleta o de la tokenización.
+
+**Los valores de color no se eligieron a ojo ni se copiaron de la maqueta** (que solo define 3 de los
+20 tokens que consume la app, y cuyo gris daba 3,34:1). Se inyectó la paleta candidata en la página
+real de producción, se midió el contraste de cada texto contra su fondo efectivo en las 11 pestañas y
+se corrigió hasta cero: el ámbar bajó a `#87540c` (5,07 en el peor de ocho fondos) y `--falla-tx` se
+partió en dos —blanco sobre los círculos rojos, tinta oscura sobre las tarjetas ya claras—.
+
+### Consecuencias
+
+- **Medido contra producción, las 11 pestañas:** elementos bajo el mínimo de contraste **2 → 0**;
+  ningún elemento perdido (los deltas fueron constantes: +5 en F4 y +6 en F5, exactamente los textos
+  que cada fase añade).
+- **Tres defectos preexistentes corregidos por el camino:** `.kpi-v.gris` no existía y el hueco
+  central del producto se pintaba del **ámbar de una cifra buena**; la banda de estado contaba los
+  expedientes **cerrados** como abiertos; el `@media print` era un **tema claro paralelo** que ya
+  mentía (le faltaban `.fund-figura-caja` y `.calc-campo select`).
+- **La lista de líneas ya existía y se descartaba** (`enlace.ts` la pedía para saber cuál abrir y
+  tiraba el resto). Ahora viaja con el estado; con una sola línea la columna muestra una **y lo dice
+  en pantalla**: «no se rellena con líneas de ejemplo».
+- **14 pruebas nuevas** (673 → 687), incluidas cinco guardias del tablero de color y nueve del cielo.
+  La guardia principal se probó por mutación: al retirar `.kpi-v.gris` se pone roja.
+- **Código muerto retirado en el mismo cambio:** 11 tokens redefinidos del bloque de impresión, sus
+  `!important` de color, y 7 imports huérfanos entre `Cargas.tsx` y `Linea.tsx`.
+- **Lección nueva `32 · L-35`:** `deploy` no construye. Se desplegó un `dist/` rancio y la
+  comprobación de propagación lo dio por bueno **porque comparaba producción contra ese mismo `dist`
+  viejo**: el oráculo contaminado por la misma causa que el defecto.
+
+### Huecos honestos — lo que la maqueta pedía y el dato de hoy no da
+
+- **Zona y subestaciones origen→destino:** no existen en el contrato. Se eliminó el agrupador por
+  zonas en vez de inventarlo.
+- **Relieve:** plano, y rotulado en pantalla. La cota es GPS de mano con ±8 m declarados y el propio
+  sistema se niega a dictaminar con ella; dibujar un perfil con eso sería inventar una montaña. El
+  orden y las distancias de los vanos **sí** son reales.
+- **El visor de fotos sigue oscuro a propósito:** una foto de campo se juzga sobre negro. Aclararlo
+  por coherencia habría sido una regresión de producto disfrazada de coherencia.
+
+### Deuda declarada
+
+- Quedan sin portar 4 de los 6 bloqueantes que la crítica señaló como comunes: el contador de
+  **parque** («X de N apoyos con veredicto en TODO el parque») no existe con una sola línea; el hueco
+  todavía **no lleva a su evidencia con un clic** desde la carcasa; **Exportar no declara** la
+  cobertura de veredicto en su tabla de completitud; y el salto por dirección web (mandar «mira
+  LN-627 en Cargas») sigue sin existir.
+- El horizonte no dibuja los **dos ejes por separado** en cada torre: hoy una torre está hueca si le
+  falta el veredicto en cualquiera de los dos. Con 0 de 24 en ambos no cambia nada; el día que un eje
+  avance antes que el otro, sí.
+
+### Crudo de respaldo
+
+`research-archive/2026-08-04-workflow-critica-carcasa.json` (la crítica de oficio, 4+1 agentes)
+`research-archive/2026-08-04-workflow-carcasa-horizonte.json` (reconocimiento, plan IAP y línea base)

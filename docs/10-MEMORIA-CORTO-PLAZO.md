@@ -19,7 +19,8 @@ longitudinal llegando al producto. Detalle en `99`; aquí solo lo que cambia dec
 1. **CARCASA «EL HORIZONTE» — LAS 6 FASES EN PRODUCCIÓN Y VERIFICADAS.** Elegida el 04-08 (piel
    luminosa + esqueleto de 3 columnas). F0 línea base · F1 tokenizar (113 literales → 61 tokens,
    probado byte a byte) · F2/F2b higiene y contraste · F3 paleta clara · F4 tres columnas ·
-   F5 cielo derivado · F6 horizonte. **Falta solo escribir el `ADR-018`.**
+   F5 cielo derivado · F6 horizonte. Decisión cerrada en **`99 §ADR-018`** (⚠️ NO revisada
+   externamente: hubo comité propio, no Consejo Externo).
    Lo que NO se puede romper al tocar esto: `amanecer` es INALCANZABLE si falta un apoyo (prueba
    que lo vigila); la cobertura se cruza POR APOYO, nunca comparando dos conteos; el veredicto se
    lee de `utilizacion_pct !== null` —lo que el núcleo concluyó—, **jamás de `cargaRotura_kgf`**;
@@ -62,7 +63,7 @@ longitudinal llegando al producto. Detalle en `99`; aquí solo lo que cambia dec
 
 | # | Qué | Dónde está el plan |
 |---|---|---|
-| **TODO-47** | ⚠️ Carcasa IMPLEMENTADA y desplegada (F0-F6). **Falta el `ADR-018`**: la decisión aún no está escrita en el historial | `disenos/README.md` |
+| **TODO-49** | **Los 4 bloqueantes de la crítica sin portar** (`99 §ADR-018`): contador de PARQUE · el hueco no lleva a su evidencia con un clic · Exportar no declara la cobertura · sin estado en la dirección web | `99 §ADR-018` |
 | **TODO-48** | **Deuda de ADR-017**: el criterio del veredicto longitudinal no menciona el ruido de tendido ni el piso de validez; `funcionProcedencia` no viaja a la fila (en LN-627 vale «deducido_geometria») | `99 §ADR-017` |
 | **TODO-42/37** | **Informe gerencial** del expediente (10 secciones especificadas) | crudo de **ADR-012** |
 | **TODO-30** | CI: validación XSD real de GPX/KML | crudo de **ADR-013** |
