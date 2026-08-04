@@ -21,7 +21,7 @@
 // ============================================================================
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -67,6 +67,33 @@ describe('estilo.css — el tablero de color no tiene agujeros', () => {
     for (const v of ['--bg', '--pnl', '--tx', '--mut', '--acc', '--bd']) {
       assert.ok(dec.has(v), `el :root base no declara ${v}`);
     }
+  });
+
+  test('todo tono de indicador que piden los componentes existe en la hoja', () => {
+    // El defecto que originó esta prueba: `Cargas.tsx` pedía tono «gris» para
+    // el indicador «apoyos con capacidad declarada: ninguna» y `.kpi-v.gris`
+    // no existía. Sin clase, la regla base manda: color ámbar de acento. O sea
+    // el hueco central del producto pintado como una cifra buena, en
+    // producción, sin que ninguna prueba se pusiera roja.
+    const dirComp = join(aqui, '..', 'web', 'src', 'componentes');
+    const pedidos = new Set();
+    for (const f of readdirSync(dirComp).filter((n) => n.endsWith('.tsx'))) {
+      const txt = readFileSync(join(dirComp, f), 'utf8');
+      // Solo lo que de verdad viaja como prop `tono`: el literal directo
+      // (tono="rojo") y cualquier cadena dentro de la expresión de un
+      // tono={...}, incluidos los ternarios con `undefined` en una rama.
+      for (const m of txt.matchAll(/\btono=(?:"([\w-]+)"|'([\w-]+)'|\{([^}]*)\})/g)) {
+        if (m[1] || m[2]) { pedidos.add(m[1] ?? m[2]); continue; }
+        for (const s of m[3].matchAll(/['"]([\w-]+)['"]/g)) pedidos.add(s[1]);
+      }
+    }
+    const definidos = new Set([...css.matchAll(/\.kpi-v\.([\w-]+)/g)].map((m) => m[1]));
+    const faltan = [...pedidos].filter((t) => !definidos.has(t));
+    assert.deepEqual(
+      faltan, [],
+      'tonos de indicador pedidos por un componente y NO definidos en estilo.css ' +
+      `(el navegador los ignora en silencio y cae al ámbar de acento): ${faltan.join(', ')}`,
+    );
   });
 
   test('ningún degradado mezcla literal y variable', () => {

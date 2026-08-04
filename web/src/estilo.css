@@ -27,6 +27,10 @@
   --rd:   #e05252;
   --az:   #5b8dd9;
   --radio: 10px;
+  /* Canal de color del calor de la matriz de distancias. Va como triplete
+     RGB, no como hex, porque `Distancias.tsx` le compone la opacidad al
+     vuelo según la distancia: rgba(var(--calor-rgb), α). */
+  --calor-rgb: 240,165,0;
   /* Superficies tintadas del original: dan riqueza sin aclarar el tema. */
   --t-ambar: #2a2113;
   --t-rojo:  #2a1616;
@@ -342,6 +346,13 @@ body {
 .kpi-v.rojo { color: var(--rd); }
 .kpi-v.azul { color: var(--az); }
 .kpi-v.neutro { color: var(--tx); }
+/* NO EVALUABLE. Faltaba, y su ausencia era el peor defecto vivo de la hoja:
+   `Cargas.tsx` pide tono «gris» para el indicador «apoyos con capacidad
+   declarada: ninguna» —el hueco central del proyecto— y al no existir la clase
+   caía a la regla base `.kpi-v { color: var(--acc) }`. Resultado: el hueco se
+   pintaba del MISMO ámbar que una cifra buena. Un hueco disfrazado de valor es
+   exactamente lo que este producto existe para impedir. */
+.kpi-v.gris { color: var(--tx-pendiente); font-weight: 500; }
 .rojo { color: var(--rd-claro); }
 .azul { color: var(--az-claro); }
 .dist-nota { margin: 11px 0 0; font-size: 11.6px; color: var(--mut); line-height: 1.65; }

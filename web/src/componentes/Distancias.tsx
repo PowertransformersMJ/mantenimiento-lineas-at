@@ -49,8 +49,10 @@ export function Distancias({ apoyos }: { apoyos: Apoyo[] }) {
   const rodeo = r.d > 0 ? porLinea / r.d : 1;
 
   // Tono de la celda: más oscuro cuanto más lejos. Solo presentación.
+  // El color sale del tablero (--calor-rgb), no de un ámbar escrito aquí: si
+  // se escribe a mano, el día que cambie la paleta esta matriz se queda sola.
   const tono = (d: number) => d === 0 ? undefined
-    : { background: `rgba(240,165,0,${0.06 + 0.30 * (d / max)})` };
+    : { background: `rgba(var(--calor-rgb), ${(0.06 + 0.30 * (d / max)).toFixed(3)})` };
 
   return (
     <>
