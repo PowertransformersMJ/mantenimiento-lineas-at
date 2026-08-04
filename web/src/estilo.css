@@ -619,6 +619,36 @@ p.fund-vivo + .sello-calculo { margin-top: 5px; }
   .col-secciones .pestana.activa { border-left-color: transparent; border-bottom-color: var(--acc); background: none; }
 }
 
+/* ── ACCESO — correo y contraseña, sin registro ──────────────────────────
+   La ausencia de un enlace «crear cuenta» NO es un olvido: es el control. Las
+   cuentas las crea el administrador con `herramientas/usuarios.mjs`, porque la
+   forma canónica de impedir el alta (una blocking function) exige el plan de
+   pago y este proyecto no factura. */
+.acceso {
+  display: flex; flex-direction: column; gap: 11px;
+  max-width: 320px; margin: 18px auto 0; text-align: left;
+}
+.acceso-campo { display: flex; flex-direction: column; gap: 4px; }
+.acceso-campo span {
+  font-size: 10px; color: var(--mut); text-transform: uppercase; letter-spacing: .5px;
+}
+.acceso-campo input {
+  background: var(--campo); color: var(--tx);
+  border: 1px solid var(--bd); border-radius: 6px;
+  padding: 9px 11px; font: 400 13px/1.3 inherit; font-family: inherit;
+}
+.acceso-campo input:focus { outline: none; border-color: var(--acc); box-shadow: 0 0 0 3px var(--acc-halo); }
+.acceso-campo input:disabled { opacity: .55; }
+.acceso .boton { margin-top: 3px; width: 100%; text-align: center; }
+/* El fallo va JUNTO a los campos, no en la pantalla de error general: mandarlo
+   allí obligaría a recargar para reintentar. */
+.acceso-fallo {
+  margin: 0; padding: 8px 11px; border-radius: 0 6px 6px 0;
+  background: var(--t-rojo); border-left: 3px solid var(--rd);
+  color: var(--tx-alerta); font-size: 12px;
+}
+.acceso-reserva { margin-top: 16px; opacity: .75; }
+
 /* ── LA BANDA DE CIELO — el estado de la línea, derivado (F5) ─────────────
    La crítica de oficio encontró que las CUATRO maquetas dejaban mostrarse
    «sana» una línea con cero apoyos dictaminados. Aquí eso es imposible por

@@ -120,23 +120,42 @@ function Pie() {
 function Contenido() {
   const d = useDatos();
 
-  async function entrar() {
+  /**
+   * Acceso con correo y contraseña — la vía definitiva.
+   *
+   * El fallo NO va al estado global: se devuelve al formulario, que lo pinta
+   * junto a los campos. Mandar «correo o contraseña incorrectos» a la pantalla
+   * de error general obligaría a recargar para reintentar, y además borraría
+   * de la vista lo que la persona acaba de escribir.
+   */
+  async function entrar(correo: string, contrasena: string) {
+    // El SDK de Firebase pesa cerca de 1 MB. Se carga SOLO cuando alguien va
+    // a entrar, no al abrir la página: la cuadrilla no debe pagar esa
+    // descarga con dos rayas de señal para ver una pantalla de acceso.
+    const { cargarFirebase } = await import('./datos/cargar');
+    const { entrarConContrasena, motivoDeFallo } = await cargarFirebase();
     try {
-      // El SDK de Firebase pesa cerca de 1 MB. Se carga SOLO cuando alguien va
-      // a entrar, no al abrir la página: la cuadrilla no debe pagar esa
-      // descarga con dos rayas de señal para ver una pantalla de acceso.
+      await entrarConContrasena(correo, contrasena);
+    } catch (e) {
+      throw new Error(motivoDeFallo(e));
+    }
+    await almacen.cargar();
+  }
+
+  /** Salida de reserva mientras se completa el cambio. Se retira después. */
+  async function entrarConGoogle() {
+    try {
       const { cargarFirebase } = await import('./datos/cargar');
-      const { entrarConGoogle } = await cargarFirebase();
-      await entrarConGoogle();
+      const f = await cargarFirebase();
+      await f.entrarConGoogle();
       await almacen.cargar();
     } catch (e) {
-      // Un fallo de inicio de sesión NO deja la pantalla en blanco: se dice.
       almacen.poner({ fase: 'error', mensaje: e instanceof Error ? e.message : 'no se pudo iniciar sesión' });
     }
   }
 
   switch (d.fase) {
-    case 'sin_sesion': return <SinSesion onEntrar={entrar} />;
+    case 'sin_sesion': return <SinSesion onEntrar={entrar} onEntrarConGoogle={() => void entrarConGoogle()} />;
     case 'cargando':   return <Cargando />;
     case 'vacio':      return <Vacio />;
     case 'error':      return <Error_ mensaje={d.mensaje} onReintentar={() => void almacen.cargar()} />;

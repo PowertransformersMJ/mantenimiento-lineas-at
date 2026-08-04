@@ -188,6 +188,44 @@ async function alta() {
   console.log('   La aplicación le obligará a cambiarla en el primer acceso.\n');
 }
 
+/**
+ * Pone o repone la contraseña de una cuenta que YA existe.
+ *
+ * Es la orden que hace falta cuando alguien entró por Google y hay que pasarlo a
+ * correo/contraseña: `alta` se niega —y debe negarse— porque crear encima de una
+ * cuenta viva sería pisar a alguien. Aquí el uid NO cambia, así que la persona
+ * conserva sus reclamos, su historial y todo lo que haya creado.
+ *
+ * También sirve para reponer la contraseña de quien la olvidó, sin borrar nada.
+ */
+async function contrasena() {
+  const correo = arg('correo');
+  if (!correo) salir('Falta --correo');
+  const u = await auth.getUserByEmail(correo);
+  const previos = u.customClaims ?? {};
+
+  console.log(`\n  Contraseña para ${correo}`);
+  console.log(`  uid ${u.uid} · rol ${previos.rol ?? '(sin rol)'} · ${previos.orgId ?? 'SIN ORGANIZACIÓN'}`);
+  console.log('  El uid no cambia: conserva reclamos e historial.\n');
+
+  const c1 = await leerOculto('  Contraseña: ');
+  const fallos = revisarContrasena(c1, correo);
+  if (fallos.length) salir('Contraseña rechazada: ' + fallos.join(' · '));
+  const c2 = await leerOculto('  Repítela:   ');
+  if (c1 !== c2) salir('Las dos no coinciden. No se cambió nada.');
+
+  await auth.updateUser(u.uid, { password: c1 });
+  // Se marca provisional salvo que se pida lo contrario: quien no teclea su
+  // propia contraseña debe cambiarla al entrar. El administrador poniéndose la
+  // suya es el único caso en que eso sobra, y por eso existe --definitiva.
+  const definitiva = process.argv.includes('--definitiva');
+  await auth.setCustomUserClaims(u.uid, { ...previos, passwordProvisional: !definitiva });
+  await auth.revokeRefreshTokens(u.uid);
+
+  console.log(`\n✅ Contraseña establecida${definitiva ? '' : ' · marcada PROVISIONAL: la app exigirá cambiarla'}`);
+  console.log('   Sesiones revocadas: las que estuvieran abiertas ya no valen.\n');
+}
+
 async function rol() {
   const correo = arg('correo');
   const nuevo = arg('rol');
@@ -274,7 +312,7 @@ async function auditar() {
 }
 
 // ── Reparto ─────────────────────────────────────────────────────────────────
-const ORDENES = { alta, rol, baja, restituir, auditar };
+const ORDENES = { alta, contrasena, rol, baja, restituir, auditar };
 
 if (!ORDEN || !(ORDEN in ORDENES)) {
   console.log(`
@@ -282,8 +320,9 @@ if (!ORDEN || !(ORDEN in ORDENES)) {
 
   GOOGLE_APPLICATION_CREDENTIALS=/ruta/clave.json node herramientas/usuarios.mjs <orden>
 
-    alta      --correo a@b.com --rol <rol> [--nombre "Nombre"]
-    rol       --correo a@b.com --rol <rol>
+    alta       --correo a@b.com --rol <rol> [--nombre "Nombre"]
+    contrasena --correo a@b.com [--definitiva]   (cuenta que YA existe)
+    rol        --correo a@b.com --rol <rol>
     baja      --correo a@b.com
     restituir --correo a@b.com
     auditar

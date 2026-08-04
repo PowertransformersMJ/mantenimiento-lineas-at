@@ -134,6 +134,43 @@ export async function entrarConGoogle(): Promise<User | null> {
 }
 
 /**
+ * Entra con correo y contraseña. Es la vía DEFINITIVA de esta herramienta.
+ *
+ * No hay registro: las cuentas las crea el administrador con
+ * `herramientas/usuarios.mjs`. Aquí no existe —ni existirá— una función de alta,
+ * y eso no es un olvido: es el control. El 31-07-2026 una cuenta ajena se dio
+ * de alta sola por «Entrar con Google»; no pudo leer nada porque las reglas
+ * exigen `orgId`, pero no debió poder crearse.
+ */
+export async function entrarConContrasena(correo: string, contrasena: string): Promise<User> {
+  const { signInWithEmailAndPassword } = await import('firebase/auth');
+  const { user } = await signInWithEmailAndPassword(autenticacion(), correo.trim(), contrasena);
+  olvidarSesion();
+  return user;
+}
+
+/**
+ * Traduce el fallo de acceso a algo que una persona entienda —y que NO revele
+ * si la cuenta existe—.
+ *
+ * Firebase unifica a propósito «no existe» y «contraseña mala» en un solo
+ * código: distinguirlos permitiría averiguar qué correos están dados de alta
+ * probando uno a uno. Aquí se respeta esa unificación en vez de deshacerla por
+ * ser más amable.
+ */
+export function motivoDeFallo(e: unknown): string {
+  const c = (e as { code?: string })?.code ?? '';
+  if (c === 'auth/invalid-credential' || c === 'auth/wrong-password' || c === 'auth/user-not-found') {
+    return 'Correo o contraseña incorrectos.';
+  }
+  if (c === 'auth/user-disabled') return 'Esta cuenta está deshabilitada. Avise al administrador.';
+  if (c === 'auth/too-many-requests') return 'Demasiados intentos. Espere unos minutos.';
+  if (c === 'auth/invalid-email') return 'Ese correo no tiene un formato válido.';
+  if (c === 'auth/network-request-failed') return 'Sin conexión con el servidor de acceso.';
+  return 'No se pudo entrar. Inténtelo de nuevo.';
+}
+
+/**
  * Recoge el resultado cuando se volvió de Google por redirección. Se llama al
  * arrancar; si no hubo redirección, devuelve null sin hacer ruido.
  */

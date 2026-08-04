@@ -8,6 +8,8 @@
 // choque.
 // ============================================================================
 
+import { useState } from 'react';
+
 interface Props {
   titulo: string;
   children?: React.ReactNode;
@@ -26,16 +28,79 @@ export function Estado({ titulo, children, nota, accion }: Props) {
   );
 }
 
-export function SinSesion({ onEntrar }: { onEntrar: () => void }) {
+/**
+ * Acceso con correo y contraseña. NO hay registro, y su ausencia es el control:
+ * las cuentas las crea el administrador con `herramientas/usuarios.mjs`.
+ *
+ * Google sigue de momento como salida de reserva, y está anunciado que se
+ * retira. Se quita en cuanto la contraseña del administrador esté probada:
+ * retirarlo antes lo dejaría a él fuera de su propio sistema.
+ */
+export function SinSesion({ onEntrar, onEntrarConGoogle }: {
+  onEntrar: (correo: string, contrasena: string) => Promise<void>;
+  onEntrarConGoogle?: () => void;
+}) {
+  const [correo, setCorreo] = useState('');
+  const [contrasena, setContrasena] = useState('');
+  const [fallo, setFallo] = useState<string | null>(null);
+  const [enviando, setEnviando] = useState(false);
+
+  const enviar = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (enviando) return;
+    setFallo(null);
+    setEnviando(true);
+    try {
+      await onEntrar(correo, contrasena);
+    } catch (err) {
+      setFallo(err instanceof Error ? err.message : 'No se pudo entrar.');
+      // La contraseña se borra al fallar: no se deja escrita en pantalla.
+      setContrasena('');
+    } finally {
+      setEnviando(false);
+    }
+  };
+
   return (
-    <Estado
-      titulo="Inicie sesión para ver sus líneas"
-      accion={<button className="boton" onClick={onEntrar}>Entrar con Google</button>}
-    >
-      Esta página no contiene ningún dato: las líneas reales se leen de la base después de
-      autenticarse. Es deliberado — el sitio es público, y las coordenadas de la infraestructura
-      de un cliente no pueden viajar dentro de lo que se publica en internet.
-    </Estado>
+    <section className="panel vacio">
+      <div className="vacio-t">Acceso</div>
+      <p className="vacio-c">
+        Esta página no contiene ningún dato: las líneas reales se leen de la base después de
+        autenticarse. Es deliberado — el sitio es público, y las coordenadas de la infraestructura
+        de un cliente no pueden viajar dentro de lo que se publica en internet.
+      </p>
+
+      <form className="acceso" onSubmit={(e) => void enviar(e)}>
+        <label className="acceso-campo">
+          <span>Correo</span>
+          <input type="email" autoComplete="username" required value={correo}
+            onChange={(e) => setCorreo(e.target.value)} disabled={enviando} />
+        </label>
+        <label className="acceso-campo">
+          <span>Contraseña</span>
+          <input type="password" autoComplete="current-password" required value={contrasena}
+            onChange={(e) => setContrasena(e.target.value)} disabled={enviando} />
+        </label>
+        {fallo && <p className="acceso-fallo" role="alert">{fallo}</p>}
+        <button className="boton" type="submit" disabled={enviando}>
+          {enviando ? 'Entrando…' : 'Entrar'}
+        </button>
+      </form>
+
+      <p className="fine">
+        <b>No hay registro.</b> Las cuentas las crea el administrador. Si necesita acceso o ha
+        olvidado su contraseña, avísele: nadie puede darse de alta por su cuenta.
+      </p>
+
+      {onEntrarConGoogle && (
+        <p className="fine acceso-reserva">
+          <button className="boton chico" type="button" onClick={onEntrarConGoogle}>
+            Entrar con Google
+          </button>
+          {' '}Vía en retirada, disponible mientras se completa el cambio a contraseña.
+        </p>
+      )}
+    </section>
   );
 }
 
