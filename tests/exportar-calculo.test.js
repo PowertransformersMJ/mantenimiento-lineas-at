@@ -40,6 +40,7 @@ import {
   csvCantidades, SECCIONES_BOM,
   COLUMNAS_CONTINUAS, COLUMNAS_CONTEOS, COLUMNAS_NO_CUANTIFICABLE,
 } from '../exportar/bom.js';
+import { CRITERIO_UTILIZACION_LONGITUDINAL } from '../nucleo/longitudinal.js';
 import { dialectoCsv } from '../exportar/dialecto.js';
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -478,6 +479,106 @@ describe('exportar/mecanica.js — la sección de CARGAS sobre las estructuras',
     assert.match(excel, /CARGA TRANSVERSAL/);
     assert.match(excel, /CARGA[\s\S]{0,20}LONGITUDINAL/);
     assert.match(excel, /Los dos ejes de carga NO se suman entre sí/);
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════════════════
+// El VEREDICTO del eje longitudinal en la hoja de cálculo.
+//
+// ⚠️ Estas filas son SINTÉTICAS y con nombres inventados. En el inventario real
+// no hay ni una capacidad longitudinal declarada, así que hoy la columna sale
+// vacía en todas las filas de todas las líneas; sembrar una capacidad «para
+// poder verlo funcionar» sería publicar un «cumple» sobre un número que nadie
+// firmó, y es el error exacto que este sistema existe para no cometer. Aquí —y
+// solo aquí— es donde se ve funcionar (CLAUDE.md §3.1, repositorio público).
+// ════════════════════════════════════════════════════════════════════════════
+describe('exportar/mecanica.js — el veredicto del eje longitudinal llega al CSV', () => {
+  const BASE = {
+    funcionEstructural: 'Terminal', caso: 'terminal',
+    deflexion_grados: 0, factorLongitudinal: 1,
+    flAdelanteMax_kgf: 1500, estadoAdelante: 'Mínima temperatura',
+    flAtrasMax_kgf: null, estadoAtras: null,
+    sensibilidadTendido_kgf: 60, sentidoResoluble: true, inversionResoluble: false,
+    roturaAtras_kgf: null, roturaAdelante_kgf: null, notas: [], noEvaluable: null,
+  };
+  const FILAS_LONGITUDINAL = [
+    // CON capacidad declarada: el día que el inventario la traiga.
+    { ...BASE, n: 1, apoyo: 'AP-A',
+      utilizacion_pct: 22.5, umbralAplicado_pct: 50, estadoUtilizacion: 'cumple',
+      criterioUtilizacion: 'CRITERIO SINTÉTICO: capacidad de rotura de 20.000 kgf a 12,0 m.' },
+    // Con capacidad declarada y por encima del tope.
+    { ...BASE, n: 2, apoyo: 'AP-B',
+      utilizacion_pct: 63.25, umbralAplicado_pct: 50, estadoUtilizacion: 'revisar',
+      criterioUtilizacion: 'CRITERIO SINTÉTICO: capacidad de rotura de 8.000 kgf a 12,0 m.' },
+    // SIN capacidad: el estado de HOY en el 100 % del inventario.
+    { ...BASE, n: 3, apoyo: 'AP-C',
+      utilizacion_pct: null, umbralAplicado_pct: null,
+      estadoUtilizacion: null, criterioUtilizacion: null,
+      notas: ['Sin veredicto en el eje longitudinal: nadie ha declarado la capacidad del apoyo.'] },
+  ];
+  const ENTRADA = { ...ENTRADA_MECANICA, longitudinal: FILAS_LONGITUDINAL };
+  const datos = csvVerificacionMecanica(ENTRADA, { dialecto: 'datos', ...META });
+  const excel = csvVerificacionMecanica(ENTRADA, { dialecto: 'excel', ...META });
+  const F = filasDeSeccion(datos, SECCIONES_MECANICA.longitudinal).map((f) => celdas(f, ','));
+  const col = (fila, nombre) => fila[COLUMNAS_LONGITUDINAL.indexOf(nombre)];
+
+  test('la fila conserva sus columnas y la cabecera sigue siendo la declarada', () => {
+    assert.deepEqual(celdas(cabeceraDeSeccion(datos, SECCIONES_MECANICA.longitudinal), ','),
+      COLUMNAS_LONGITUDINAL);
+    for (const f of F) assert.equal(f.length, COLUMNAS_LONGITUDINAL.length);
+  });
+
+  test('con capacidad declarada salen el porcentaje, el TOPE aplicado y el estado', () => {
+    assert.equal(col(F[0], 'Utilizacion_pct'), '22.50');
+    assert.equal(col(F[0], 'Umbral_aplicado_pct'), '50');
+    assert.equal(col(F[0], 'Estado_utilizacion'), 'cumple');
+    assert.equal(col(F[1], 'Estado_utilizacion'), 'revisar');
+  });
+
+  test('el TOPE viaja en su propia columna: aquí no es una constante', () => {
+    // En el otro eje el 50 % es fijo y basta declararlo una vez al pie. Aquí
+    // depende del TIPO de capacidad declarada, así que una hoja que publicara el
+    // porcentaje sin el tope obligaría a adivinar contra qué se comparó — y esa
+    // adivinanza es un factor 2 sobre el veredicto de un apoyo.
+    assert.ok(COLUMNAS_LONGITUDINAL.includes('Umbral_aplicado_pct'));
+    assert.equal(col(F[2], 'Umbral_aplicado_pct'), '', 'sin veredicto no se inventa un tope');
+  });
+
+  test('sin capacidad declarada la celda queda VACÍA y el estado es «no_evaluable»', () => {
+    // El estado se escribe crudo y con la MISMA llave que la sección anterior:
+    // el sistema tiene que decir lo mismo del mismo apoyo en los dos ejes.
+    assert.equal(col(F[2], 'Utilizacion_pct'), '');
+    assert.equal(col(F[2], 'Criterio_utilizacion'), '');
+    assert.equal(col(F[2], 'Estado_utilizacion'), 'no_evaluable');
+    for (const f of F) assert.match(col(f, 'Estado_utilizacion'), /^(cumple|revisar|no_evaluable)$/);
+  });
+
+  test('el motivo de la ausencia viaja en la fila, no en un anexo', () => {
+    assert.match(col(F[2], 'Motivo'), /nadie ha declarado la capacidad del apoyo/);
+  });
+
+  test('cada fila declara CONTRA QUÉ se comparó: un número sin origen no es firmable', () => {
+    assert.match(col(F[0], 'Criterio_utilizacion'), /20\.000 kgf a 12,0 m/);
+    assert.notEqual(col(F[0], 'Criterio_utilizacion'), col(F[1], 'Criterio_utilizacion'),
+      'el criterio es de cada apoyo: capacidades distintas, textos distintos');
+  });
+
+  test('el criterio del eje va PEGADO al título de la sección, y es el del núcleo', () => {
+    // Mismo patrón que la sección de carga transversal (§ADR-013): un veredicto
+    // sin decir contra qué se comparó es una opinión con formato de dato. Y el
+    // texto se IMPORTA: copiarlo es cómo la hoja y el papel firmado acaban
+    // diciendo cosas distintas.
+    for (const texto of [datos, excel]) {
+      const titulo = texto.split(/\r?\n/).find((f) => f.includes(SECCIONES_MECANICA.longitudinal));
+      assert.ok(titulo.includes(CRITERIO_UTILIZACION_LONGITUDINAL),
+        'el título de la sección longitudinal tiene que llevar el criterio del núcleo');
+    }
+  });
+
+  test('el dialecto Excel escribe coma decimal también en la utilización', () => {
+    const fExcel = celdas(filasDeSeccion(excel, SECCIONES_MECANICA.longitudinal)[1], ';');
+    assert.equal(fExcel[COLUMNAS_LONGITUDINAL.indexOf('Utilizacion_pct')], '63,25');
   });
 });
 

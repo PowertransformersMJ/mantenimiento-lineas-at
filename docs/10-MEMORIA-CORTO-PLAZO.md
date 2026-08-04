@@ -8,7 +8,7 @@
 ## 🎯 Dónde estamos
 
 **11 pestañas vivas**: Resumen · Distancias · Fichas · **Falla** · Fundamentos · Mecánico ·
-Térmica · Viento · **Cargas** (los DOS ejes) · Cantidades · Exportar. **601 pruebas** en verde.
+Térmica · Viento · **Cargas** (los DOS ejes) · Cantidades · Exportar. **673 pruebas** en verde.
 Producción al día y **verificada en pantalla**, no solo por hash.
 
 **La auditoría está cerrada (ADR-014).** Los 20 hallazgos de la ola 4, resueltos. Lo último en
@@ -53,7 +53,7 @@ de Descargas, **sin respaldo** (TODO-34). Detalle en `99 §ADR-015`.
 3. **Verificar contra PRODUCCIÓN con el Chrome del Ingeniero** y **preguntarle a la pestaña qué
    bundle cargó** — `curl` prueba el borde, el navegador tiene su propia caché (`L-18`, tres cachés
    en serie). Esta sesión verificó dos veces una pantalla vieja por saltarse esto.
-4. Antes de CADA push: auditoría de coordenadas + `npm test` (601) + `contrato:verificar` +
+4. Antes de CADA push: auditoría de coordenadas + `npm test` (673) + `contrato:verificar` +
    `brain:check`. Documentar TODO fallo en `30` ANTES de commitear.
 5. Autenticado en esta Mac: `gh`, `wrangler` (cuenta ajimenezp99), `firebase`. Llave admin de
    Firebase en Descargas. Cuenta Cloudflare `ecc6a431234e4ef7f57f36a022ebff8f`.
@@ -74,24 +74,24 @@ de Descargas, **sin respaldo** (TODO-34). Detalle en `99 §ADR-015`.
 
 | # | Qué | Dónde está el plan |
 |---|---|---|
-| **TODO-41** | Alta ADITIVA en el contrato: `capacidadLongitudinal {valor_kgf, tipo, alturaReferencia_m, fuente}`. Sin ella NINGÚN apoyo tiene veredicto en el eje longitudinal | **ADR-012** |
 | **TODO-42/37** | **Informe gerencial** del expediente (10 secciones especificadas) | crudo de **ADR-012** |
 | **TODO-30** | CI: validación XSD real de GPX/KML (xmllint + esquemas versionados en el repo) | crudo de **ADR-013** |
 | **TODO-11** | F1 · Nota técnica LN-627 con las correcciones de la auditoría | — |
 | **TODO-13/14/15/16/21/22/23** | F3-F5: invalidación por tramo · sincronización bifurcada · Firestore vs D1 · flujo IA con `ProveedorFalso` · prueba de navegador · secretos para despliegue automático | — |
 
-## ✅ Consolidado (detalle → ADR-001…015)
+## ✅ Consolidado (detalle → ADR-001…017)
 
 - **Modelo**: 24 estructuras + 2 empalmes (NO son apoyos), 23 vanos, tramos 1-2-2-14-1-3 (`40 §10`).
 - **Workspaces**: `nucleo/` (geodesia, mecánica, térmica, estadísticas, vanos, umbrales, cantidades,
-  coherencia, **cargas**, **longitudinal**) · `contratos/` (v0.2.0) · `exportar/` (+ mecanica de 5
+  coherencia, **cargas**, **longitudinal**) · `contratos/` (v0.3.0) · `exportar/` (+ mecanica de 5
   secciones, informe de 11) · `web/` · `evidencias/` (Worker, **en producción**).
 - **Hallazgos de ingeniería reales**: 14 de 23 vanos fuera de la banda 0,7–1,3 del VIR · parábola
   admisible aquí (−0,100 %) · **3 apoyos amplifican la tensión** (E06 ×1,716 = 72 % más, con 118,2°) ·
   **los 2 terminales soportan el tiro entero** (2.339 kgf/conductor), un orden por encima de
   cualquier desequilibrio.
 - **Deuda declarada**: fluencia · vano peso (falta cota de sujeción) · despeje al terreno · ficha
-  real del proveedor · **ningún apoyo tiene veredicto en el eje longitudinal** (falta TODO-41).
+  real del proveedor. El eje longitudinal YA puede dictaminar (ADR-017): lo que falta es el DATO —
+  ningún apoyo del inventario declara `capacidadLongitudinal` ni `nFasesAmarradas`.
 - **Cerebro**: **33 lecciones** (los ids llegan a 34; el 14 se fusionó en el 13). Madre `30` = índice
   + 7 de método; hijos `31` proveedores · `32` pantalla · `33` núcleo y dato. Ya hay sitio (ADR-016).
 

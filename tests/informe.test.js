@@ -23,6 +23,7 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { informeHtml, limitacionesDeclaradas, TITULO_LIMITACIONES } from '../exportar/informe.js';
+import { CRITERIO_CAPACIDAD_LONGITUDINAL } from '../nucleo/longitudinal.js';
 
 // ── Un expediente sintético mínimo pero completo ────────────────────────────
 
@@ -429,5 +430,146 @@ describe('informe — el texto de los datos va escapado', () => {
     assert.ok(/Causa probable/.test(h), 'la hipótesis causal llega al informe');
     assert.ok(/Oscilograf/.test(h), 'y las verificaciones pendientes también');
     assert.ok(!h.includes('<atornillado>'), 'el texto del componente va escapado');
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// EL VEREDICTO DEL EJE LONGITUDINAL, Y SOBRE TODO SU AUSENCIA (§ADR-012)
+//
+// El informe declaraba en sus límites, con texto FIJO, que «ningún apoyo tiene
+// veredicto en el eje longitudinal». Hoy es verdad —nadie ha declarado la
+// capacidad longitudinal de ningún apoyo del inventario—, pero una frase fija es
+// una frase que envejece mal: el día que un apoyo la declare, la última página
+// afirmaría lo que la tabla de la sección 7 desmiente. Es el fallo que §ADR-014
+// tuvo que arreglar en cinco sitios.
+//
+// ⚠️ Las filas CON capacidad son SINTÉTICAS y solo viven aquí. Sembrar una
+// capacidad en el fixture o en los datos de demostración para «poder verlo
+// funcionar» publicaría un «cumple» sobre un número que nadie firmó — y a
+// diferencia de un número mal calculado, ése no deja rastro.
+// ════════════════════════════════════════════════════════════════════════════
+describe('informe — el eje longitudinal: veredicto, ausencia y textos que no envejecen', () => {
+  const BASE_LONG = {
+    funcionEstructural: 'Terminal', caso: 'terminal',
+    deflexion_grados: 0, factorLongitudinal: 1,
+    flAdelanteMax_kgf: 1500, flAtrasMax_kgf: null,
+    sensibilidadTendido_kgf: 60, sentidoResoluble: true, inversionResoluble: false,
+    roturaAtras_kgf: null, roturaAdelante_kgf: null, notas: [], noEvaluable: null,
+  };
+  /** El estado de HOY en el 100 % del inventario: cifras sí, dictamen no. */
+  const SIN_CAPACIDAD = [
+    { ...BASE_LONG, n: 1, apoyo: 'AP-A', utilizacion_pct: null, umbralAplicado_pct: null,
+      estadoUtilizacion: null, criterioUtilizacion: null,
+      notas: ['Sin veredicto en el eje longitudinal: nadie ha declarado la capacidad del apoyo.'] },
+    { ...BASE_LONG, n: 2, apoyo: 'AP-B', utilizacion_pct: null, umbralAplicado_pct: null,
+      estadoUtilizacion: null, criterioUtilizacion: null,
+      notas: ['Sin veredicto en el eje longitudinal: nadie ha declarado la capacidad del apoyo.'] },
+  ];
+  /** El día que el inventario traiga el dato: uno con veredicto, otro sin él. */
+  const CON_CAPACIDAD = [
+    { ...SIN_CAPACIDAD[0], utilizacion_pct: 63.25, umbralAplicado_pct: 50,
+      estadoUtilizacion: 'revisar', notas: [],
+      criterioUtilizacion: 'CRITERIO SINTÉTICO: capacidad de rotura de 8.000 kgf a 12,0 m, '
+        + 'ficha del fabricante.' },
+    SIN_CAPACIDAD[1],
+  ];
+
+  test('la sección 7 tiene columna de utilización y de estado, como la transversal', () => {
+    const h = informeHtml(base({ longitudinal: CON_CAPACIDAD }));
+    assert.match(h, /<th class="num">Utilización<\/th><th>Estado<\/th>/,
+      'sin columna en el papel, el trabajo vuelve a ser código muerto');
+    assert.match(h, /63,3 % \/ 50 %/, 'el porcentaje va con el TOPE contra el que se comparó');
+    assert.match(h, /sello-revisar/, 'y el semáforo marca el que pide revisión');
+  });
+
+  test('sin capacidad declarada la celda es un GUION, nunca un cero', () => {
+    const h = informeHtml(base({ longitudinal: SIN_CAPACIDAD }));
+    assert.match(h, /<th class="num">Utilización<\/th>/);
+    assert.match(h, /sello-nulo/, 'el estado es «no evaluable», que es un hecho sobre los datos');
+    assert.match(h, /Ningún apoyo declara su capacidad longitudinal/);
+  });
+
+  test('el porqué de la ausencia lo escribe el NÚCLEO, no este archivo', () => {
+    // Un criterio copiado a mano es un criterio que algún día dice una cosa en
+    // la pantalla y otra en el papel firmado.
+    const h = informeHtml(base({ longitudinal: SIN_CAPACIDAD }));
+    assert.ok(h.includes(CRITERIO_CAPACIDAD_LONGITUDINAL.slice(0, 80)),
+      'el motivo del hueco tiene que ser el del núcleo, palabra por palabra');
+  });
+
+  test('el criterio de cada apoyo con veredicto llega al papel: sin origen no es firmable', () => {
+    const h = informeHtml(base({ longitudinal: CON_CAPACIDAD }));
+    assert.match(h, /capacidad de rotura de 8\.000 kgf a 12,0 m/);
+    assert.match(h, /ficha del fabricante/);
+  });
+
+  test('SIN veredicto en ninguna fila, el límite dice hoy la verdad de hoy', () => {
+    const lim = limitacionesDeclaradas(base({ longitudinal: SIN_CAPACIDAD }));
+    const l = lim.find((x) => /veredicto en el eje longitudinal/.test(x.titulo));
+    assert.ok(l, 'mientras nadie declare la capacidad, el límite tiene que estar');
+    assert.equal(l.titulo, 'Ningún apoyo tiene veredicto en el eje longitudinal');
+  });
+
+  test('CON veredicto en alguna fila, el mismo límite se cuenta solo', () => {
+    // Éste es el corazón del cambio: la frase deja de ser una constante y pasa a
+    // derivarse. Si no, el informe firmado afirma en su última página lo que su
+    // propia tabla desmiente dos páginas antes.
+    const lim = limitacionesDeclaradas(base({ longitudinal: CON_CAPACIDAD }));
+    const l = lim.find((x) => /veredicto en el eje longitudinal/.test(x.titulo));
+    assert.equal(l.titulo, '1 de 2 apoyos siguen sin veredicto en el eje longitudinal');
+    assert.doesNotMatch(l.titulo, /^Ningún apoyo/);
+  });
+
+  test('con TODAS las filas con veredicto, el límite desaparece del todo', () => {
+    const todas = CON_CAPACIDAD.map((c) => ({
+      ...c, utilizacion_pct: 22.5, umbralAplicado_pct: 50, estadoUtilizacion: 'cumple',
+      criterioUtilizacion: 'CRITERIO SINTÉTICO: capacidad admisible de 20.000 kgf a 12,0 m.',
+    }));
+    const lim = limitacionesDeclaradas(base({ longitudinal: todas }));
+    assert.equal(lim.find((x) => /veredicto en el eje longitudinal/.test(x.titulo)), undefined,
+      'una lista de límites que enumera un hueco ya tapado desacredita a los que siguen abiertos');
+    const h = informeHtml(base({ longitudinal: todas }));
+    // ⚠️ El texto dice «llevan VEREDICTO», no «declaran capacidad»: son dos
+    // hechos distintos y confundirlos mete una afirmación falsa sobre el
+    // inventario del cliente en un documento firmado (§ADR-017). Un apoyo puede
+    // declarar su capacidad y no llevar veredicto por otra razón — y entonces
+    // decir «ningún apoyo declara su capacidad» manda a corregir el inventario,
+    // que es justo donde NO está el hueco.
+    assert.match(h, /2 de 2 apoyos<\/b> llevan veredicto en este eje/);
+    assert.doesNotMatch(h, /Ningún apoyo declara su capacidad longitudinal/);
+  });
+
+  test('capacidad DECLARADA y sin veredicto: el informe NO manda a corregir el inventario', () => {
+    // El caso que producía la mentira. Los dos apoyos declaran su capacidad, y
+    // aun así ninguno lleva veredicto porque falta otra pieza. El informe
+    // contaba VEREDICTOS y de ahí concluía qué trae el inventario, así que
+    // imprimía «Ningún apoyo declara su capacidad longitudinal» sobre un
+    // inventario que sí la declaraba — y mandaba a arreglar el sitio equivocado.
+    const declaranSinVeredicto = CON_CAPACIDAD.map((c) => ({
+      ...c, capacidadDeclarada: true,
+      utilizacion_pct: null, umbralAplicado_pct: null, estadoUtilizacion: 'no_evaluable',
+    }));
+    const h = informeHtml(base({ longitudinal: declaranSinVeredicto }));
+    assert.doesNotMatch(h, /Ningún apoyo declara su capacidad longitudinal/,
+      'afirmar eso sobre un inventario que SÍ la declara es falso, y en un papel que se firma');
+    assert.match(h, /declaran su capacidad longitudinal/);
+    assert.match(h, /El hueco NO está en el inventario de capacidades/,
+      'y tiene que decir dónde NO está el problema, o el ingeniero lo busca donde no es');
+  });
+
+  test('los otros DOS textos que afirmaban lo mismo también se cuentan solos', () => {
+    // Eran tres frases fijas diciendo «sin veredicto» en la misma sección. Se
+    // condicionan en el mismo commit que las puede volver falsas.
+    const sin = limitacionesDeclaradas(base({ longitudinal: SIN_CAPACIDAD }));
+    assert.match(sin.find((x) => /carga VERTICAL/.test(x.titulo)).detalle,
+      /pero sin veredicto: hay cifras, no dictamen/);
+    assert.match(sin.find((x) => /apoyo extremo/i.test(x.titulo)).detalle,
+      /pero SIN veredicto: falta la capacidad declarada/);
+
+    const con = limitacionesDeclaradas(base({ longitudinal: CON_CAPACIDAD }));
+    assert.match(con.find((x) => /carga VERTICAL/.test(x.titulo)).detalle,
+      /con veredicto en 1 de 2 apoyos; los otros 1 siguen sin veredicto/);
+    assert.match(con.find((x) => /apoyo extremo/i.test(x.titulo)).detalle,
+      /con veredicto en 1 de 2 apoyos/);
   });
 });

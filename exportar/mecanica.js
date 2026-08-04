@@ -49,6 +49,12 @@ import { VERSION_EXPORTADOR } from './version.js';
 // El criterio de utilización tiene UN dueño: el núcleo. Copiarlo aquí sería
 // tener dos textos que algún día dicen cosas distintas sobre el mismo semáforo.
 import { CRITERIO_UTILIZACION } from '@lineas/nucleo/cargas';
+// El criterio del OTRO eje es OTRO criterio, con su propio dueño y su propio
+// texto: el 50 % de la sección anterior se adoptó contra una rotura ensayada en
+// el eje TRANSVERSAL. Reutilizar aquel texto haría pasar por herencia lo que es
+// una decisión distinta — y aquí, además, el tope depende del tipo de capacidad
+// que se haya declarado.
+import { CRITERIO_UTILIZACION_LONGITUDINAL } from '@lineas/nucleo/longitudinal';
 
 // ── Rótulos de sección ──────────────────────────────────────────────────────
 // Se exportan como constantes para que la interfaz y las pruebas no tengan que
@@ -128,12 +134,37 @@ export const COLUMNAS_CARGAS = [
  * `Rotura_*` es el caso ACCIDENTAL, sin veredicto: este proyecto no ha adoptado
  * criterio de aceptación para él. No se suma con las columnas permanentes.
  */
+/**
+ * `Utilizacion_pct` y `Estado_utilizacion` son el VEREDICTO de este eje, y van
+ * acompañados de `Umbral_aplicado_pct` a propósito: aquí el tope NO es una
+ * constante como en la sección anterior. Depende del TIPO de capacidad que
+ * declaró el inventario —una carga de rotura lleva su coeficiente de seguridad;
+ * una capacidad ya admisible o de diseño lo trae dentro—, así que una hoja que
+ * publicara el porcentaje sin el tope obligaría a adivinar contra qué se
+ * comparó, y esa adivinanza es un factor 2 sobre el veredicto de un apoyo.
+ *
+ * `Criterio_utilizacion` es el texto del propio núcleo, fila por fila: qué se
+ * declaró, cuánto, a qué altura, de qué fuente y con qué tope. Un número sin
+ * origen no es firmable, y quien revisa la hoja tiene que poder discutirlo sin
+ * abrir el código.
+ */
 export const COLUMNAS_LONGITUDINAL = [
   'N', 'Apoyo', 'Funcion_estructural', 'Caso',
   'Deflexion_grados', 'Factor_cos_mitad',
   'FL_adelante_kgf', 'Estado_adelante', 'FL_atras_kgf', 'Estado_atras',
   'Sensibilidad_tendido_kgf', 'Sentido_resoluble', 'Inversion_afirmable',
-  'Rotura_lado_atras_kgf', 'Rotura_lado_adelante_kgf', 'Motivo',
+  'Rotura_lado_atras_kgf', 'Rotura_lado_adelante_kgf',
+  // ⚠️ `FL_total_kgf` y `N_fases_amarradas` van JUNTO al porcentaje porque son
+  // su numerador. Las dos columnas de FL de arriba son POR CONDUCTOR y la
+  // utilización se calcula sobre el TOTAL: sin ellas, quien revise la hoja con
+  // una calculadora obtiene un tercio de lo publicado y concluye que el cálculo
+  // está mal (§ADR-017 — el mismo fallo que §ADR-013 arregló en el eje
+  // transversal, repetido aquí). `Capacidad_declarada` es un hecho del
+  // INVENTARIO y no del resultado: con él se puede filtrar la hoja por «declaran
+  // capacidad y aun así no llevan veredicto», que es donde está el trabajo.
+  'FL_total_kgf', 'N_fases_amarradas', 'Capacidad_declarada', 'Margen_kgf',
+  'Utilizacion_pct', 'Umbral_aplicado_pct', 'Estado_utilizacion', 'Criterio_utilizacion',
+  'Motivo',
 ];
 
 export const COLUMNAS_UMBRALES = [
@@ -375,7 +406,14 @@ export function csvVerificacionMecanica(entrada, opciones = {}) {
   }
 
   // ══ 4 · CARGA LONGITUDINAL ═══════════════════════════════════════════════
-  abrirSeccion(SECCIONES_MECANICA.longitudinal, COLUMNAS_LONGITUDINAL);
+  //
+  // El criterio va PEGADO al título, igual que en la sección anterior y por la
+  // misma razón (§ADR-013): `Estado_utilizacion` emite un veredicto, y un
+  // veredicto sin decir contra QUÉ se comparó es una opinión con formato de
+  // dato. Va en el renglón del título y no en uno propio para no romper la
+  // estructura «título · cabecera · filas» de todos los bloques del archivo.
+  abrirSeccion(`${SECCIONES_MECANICA.longitudinal} — ${CRITERIO_UTILIZACION_LONGITUDINAL}`,
+    COLUMNAS_LONGITUDINAL);
   if (!longitudinal.length) {
     seccionVacia('(sin filas) — no llegó la carga longitudinal. La sección anterior dice cuánto'
       + ' empuja el apoyo de LADO; sin ésta el archivo no dice cuánto tira a lo LARGO de la línea,'
@@ -391,6 +429,15 @@ export function csvVerificacionMecanica(entrada, opciones = {}) {
         num(c?.sensibilidadTendido_kgf, 1),
         q(siNo(c?.sentidoResoluble ?? null)), q(siNo(c?.inversionResoluble ?? null)),
         num(c?.roturaAtras_kgf, 1), num(c?.roturaAdelante_kgf, 1),
+        num(c?.flTotalPeor_kgf, 1), ent(c?.nFasesAmarradas),
+        q(siNo(c?.capacidadDeclarada ?? null)), num(c?.margen_kgf, 1),
+        num(c?.utilizacion_pct, 2), num(c?.umbralAplicado_pct, 0),
+        // Valor CRUDO ('no_evaluable') y el MISMO que usa la sección anterior:
+        // es la llave con la que se filtra la hoja, y el sistema tiene que decir
+        // lo mismo del mismo apoyo en los dos ejes. Hoy sale 'no_evaluable' en
+        // todas las filas de este eje, y su porqué va en la columna `Motivo`.
+        q(c?.estadoUtilizacion ?? 'no_evaluable'),
+        q(c?.criterioUtilizacion ?? ''),
         q([c?.noEvaluable, ...(Array.isArray(c?.notas) ? c.notas : [])].filter(Boolean).join(' · ')),
       ]));
     });

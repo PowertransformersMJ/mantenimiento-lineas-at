@@ -96,6 +96,59 @@ export const CRITERIO_CAPACIDAD_LONGITUDINAL =
   'del apoyo y de si hay retenida — ninguna de las dos está declarada. Sin ese dato la fila queda ' +
   'no evaluable, que es un hecho sobre el inventario y no un fallo del cálculo.';
 
+/**
+ * Encabeza TODOS los motivos de este eje. Una sola forma de decirlo: el revisor
+ * tiene que poder encontrar los huecos de un vistazo, en la pantalla y en el
+ * papel, sin que cada rama los llame de una manera.
+ */
+const PREFIJO_SIN_VEREDICTO = 'Sin veredicto en el eje longitudinal: ';
+
+/**
+ * El hueco que hoy tiene el 100 % de los apoyos: nadie declaró la capacidad.
+ *
+ * Vive aquí, con un solo dueño, para que la pantalla, el informe firmable y el
+ * CSV digan LA MISMA frase del mismo apoyo. Tres copias de una frase que
+ * envejece son tres páginas que acaban contradiciéndose (ADR-014).
+ */
+const HUECO_CAPACIDAD_AUSENTE =
+  'nadie ha declarado la capacidad del apoyo para este eje (`capacidadLongitudinal`). No se ' +
+  'deduce de la carga de rotura del inventario, que es ensayo TRANSVERSAL en punta y cuya ' +
+  'validez a lo largo de la línea depende de la sección del apoyo y de si hay retenida — ' +
+  'ninguna de las dos está declarada. Es un hueco del INVENTARIO, no un fallo del cálculo: el ' +
+  'día que la ficha del apoyo traiga la capacidad y cuántas fases amarran, el veredicto sale ' +
+  'solo. Los dos campos existen en el contrato y el motor los lee del apoyo.';
+
+export const SIN_CAPACIDAD_LONGITUDINAL = PREFIJO_SIN_VEREDICTO + HUECO_CAPACIDAD_AUSENTE;
+
+/**
+ * El OTRO hueco que hoy tienen todos los apoyos, y que llega antes que el de la
+ * capacidad: sin saber cuántas fases amarran no hay carga TOTAL que comparar.
+ *
+ * Es una deuda de contrato distinta y declarada (`nFasesAmarradas` no existe por
+ * apoyo), no parte del veredicto: se nombra aparte para que no se confunda con
+ * la capacidad ni se «arregle» heredando el conteo del eje transversal.
+ */
+const HUECO_CONTEO_FASES =
+  'hay carga longitudinal por conductor, pero no el TOTAL sobre el apoyo — nadie declaró ' +
+  'cuántas fases amarran aquí (`nFasesAmarradas`). La capacidad del apoyo se consume con la ' +
+  'suma de todos los conductores, no con uno solo: comparar el valor por conductor dividiría la ' +
+  'carga entre 3 o 4 y sacaría un «cumple» falso. El conteo NO se hereda de la carga ' +
+  'transversal, que cuenta 3 por circuito con el cable de guarda declaradamente fuera — y en ' +
+  'este eje el guarda va más alto y manda el momento.';
+
+/**
+ * Por qué un apoyo de suspensión no recibe «cumple al 0 %», que sería el
+ * veredicto más peligroso que este sistema podría emitir: certificaría, con un
+ * número impecable, los apoyos sobre los que este módulo declara no saber nada.
+ */
+export const SIN_VEREDICTO_SUSPENSION =
+  'Sin veredicto en el eje longitudinal: en un apoyo de suspensión la carga longitudinal ' +
+  'permanente es CERO DEL MODELO, no medido — dentro de un tramo de tensión la tensión es común ' +
+  'a los dos lados. Ese cero no cubre el tendido real, ni el rozamiento de la grapa, ni la ' +
+  'rotura de conductor, que es justamente lo que carga longitudinalmente a un apoyo de ' +
+  'suspensión y que este sistema no resuelve. Un «cumple» al 0 % certificaría un apoyo sobre el ' +
+  'que este módulo declara no saber nada.';
+
 /** El cero de un apoyo de suspensión: de dónde sale y qué deja fuera. */
 export const CERO_DEL_MODELO =
   'Cero DEL MODELO, no medido: dentro de un tramo de tensión la tensión es común por definición, ' +
@@ -122,18 +175,43 @@ export const PISO_VALIDEZ_PCT_EDS = 25;
 export const DESAJUSTE_TENDIDO_PCT_RTS = 1;
 
 /**
- * Umbral PROPIO de utilización longitudinal, con su propio texto, aunque hoy
- * valga lo mismo que el de `cargas.js`. Son dos decisiones distintas y una de
- * ellas no se ha tomado: aquel 50 se adoptó contra una rotura ensayada en el eje
- * TRANSVERSAL. Solo se aplica a capacidades declaradas de tipo 'rotura'.
+ * Umbral PROPIO de utilización longitudinal para capacidades de tipo 'rotura',
+ * con su propio texto, aunque hoy valga lo mismo que el de `cargas.js`. Son dos
+ * decisiones distintas: aquel 50 se adoptó contra una rotura ensayada en el eje
+ * TRANSVERSAL, y reutilizar su nombre haría pasar por herencia lo que es una
+ * decisión nueva de este eje.
+ *
+ * El 50 % NO es un porcentaje genérico: es el coeficiente de seguridad 2 sobre
+ * una carga de FALLA. Por eso solo se aplica cuando la capacidad declara ser de
+ * rotura (ver `UMBRAL_UTILIZACION_LONGITUDINAL_DECLARADA_PCT`).
  */
 export const UMBRAL_UTILIZACION_LONGITUDINAL_PCT = 50;
 
+/**
+ * Umbral de las capacidades que YA son de trabajo: 'admisible' y 'diseno'.
+ *
+ * El 100 % no es laxitud: es la lectura correcta del número que entregaron. Esos
+ * valores ya llevan su factor de seguridad DENTRO —el de la ficha del fabricante
+ * o el de la norma con la que se dimensionó el proyecto—, y partirlos otra vez
+ * por la mitad aplicaría dos veces el mismo margen y sacaría «revisar» sobre
+ * apoyos sanos.
+ *
+ * Dos umbrales, dos constantes, dos textos. Cuál se aplicó viaja en cada
+ * resultado (`umbralAplicado_pct`): no se deduce ni se supone.
+ */
+export const UMBRAL_UTILIZACION_LONGITUDINAL_DECLARADA_PCT = 100;
+
 export const CRITERIO_UTILIZACION_LONGITUDINAL =
-  `CRITERIO ADOPTADO (sin norma citada): la carga longitudinal permanente no debe superar el ` +
-  `${UMBRAL_UTILIZACION_LONGITUDINAL_PCT} % de la capacidad longitudinal declarada del apoyo, ` +
-  `referida a la altura a la que esa capacidad fue declarada. Solo se aplica a capacidades de ` +
-  `tipo «rotura»: aplicarlo a una capacidad ya ADMISIBLE la partiría por la mitad dos veces.`;
+  `CRITERIO ADOPTADO (sin norma citada): la carga longitudinal PERMANENTE se compara, por ` +
+  `MOMENTO en el empotramiento, contra la capacidad longitudinal declarada del apoyo y referida ` +
+  `a la altura a la que esa capacidad fue declarada. El porcentaje que no debe superarse depende ` +
+  `de QUÉ ES el número declarado: ${UMBRAL_UTILIZACION_LONGITUDINAL_PCT} % si la capacidad es de ` +
+  `tipo «rotura» —es carga de FALLA, y ese porcentaje es el coeficiente de seguridad 2 sobre ` +
+  `ella—, y ${UMBRAL_UTILIZACION_LONGITUDINAL_DECLARADA_PCT} % si es «admisible» o «diseno», ` +
+  `porque esos valores ya llevan su factor de seguridad DENTRO y volver a castigarlos aplicaría ` +
+  `dos veces el mismo margen. Sin tipo declarado NO hay veredicto: elegir mal entre los dos ` +
+  `umbrales es un factor 2 sobre el resultado de un apoyo. El caso ACCIDENTAL (rotura de ` +
+  `conductor) nunca entra en esta comparación.`;
 
 /**
  * Juego CERRADO de claves de estado, congelado — misma doctrina que
@@ -174,6 +252,46 @@ const nombreDe = (a, i) =>
  */
 const ANCLAN = Object.freeze(['Terminal', 'Retención / anclaje', 'Ángulo', 'Derivación']);
 const ancla = (fn) => ANCLAN.includes(fn);
+
+/**
+ * Qué puede SER una capacidad longitudinal declarada. Lista CERRADA, nunca una
+ * coincidencia de texto (`33 · L-19`).
+ *
+ * De esto —y solo de esto— depende contra qué porcentaje se compara, así que
+ * confundir 'rotura' con 'admisible' es un factor 2 sobre el veredicto de un
+ * apoyo. Un tipo que no esté en la lista ('ultima', 'nominal', 'ROTURA' en
+ * mayúsculas, un typo) NO se aproxima al más parecido: deja la fila sin
+ * veredicto y con el motivo escrito.
+ *
+ * Sin eñe a propósito en 'diseno': es una CLAVE, y una clave no lleva acentos ni
+ * caracteres que cada exportador escriba de una manera.
+ *
+ * ⚠️ ESTA LISTA ESTÁ DUPLICADA en `contratos/src/activos.ts`
+ * (`TipoCapacidadLongitudinal`), porque el núcleo no importa nada — ni siquiera
+ * el contrato. Nace CON su guardián: una prueba lee el otro archivo como TEXTO y
+ * compara, igual que la que ya protege a `ANCLAN`. La única lista duplicada del
+ * sistema que nació SIN guardián fue precisamente `ANCLAN`, divergió, y publicó
+ * un cero falso en un informe firmable durante semanas con la suite en verde
+ * (ADR-013).
+ */
+const TIPOS_CAPACIDAD_LONGITUDINAL = Object.freeze(['rotura', 'admisible', 'diseno']);
+
+/** Qué umbral gobierna cada tipo. Un tipo sin umbral no existe: devuelve null. */
+const UMBRAL_POR_TIPO_CAPACIDAD = Object.freeze({
+  rotura: UMBRAL_UTILIZACION_LONGITUDINAL_PCT,
+  admisible: UMBRAL_UTILIZACION_LONGITUDINAL_DECLARADA_PCT,
+  diseno: UMBRAL_UTILIZACION_LONGITUDINAL_DECLARADA_PCT,
+});
+
+/**
+ * Umbral aplicable a una capacidad, o `null` si el tipo falta o no es uno de los
+ * tres. El `null` es una negativa deliberada, no un descuido: sin saber qué es
+ * el número declarado no hay contra qué compararlo.
+ */
+const umbralDeCapacidad = (tipo) =>
+  (typeof tipo === 'string' && TIPOS_CAPACIDAD_LONGITUDINAL.includes(tipo)
+    ? UMBRAL_POR_TIPO_CAPACIDAD[tipo] ?? null
+    : null);
 
 // ════════════════════════════════════════════════════════════════════════════
 // 1 · LOS DOS FACTORES GEOMÉTRICOS
@@ -489,36 +607,298 @@ export function roturaEnAnclaje(entrada) {
 /**
  * ¿Cuánta capacidad longitudinal del apoyo consume la carga PERMANENTE?
  *
- * Devuelve `null` en cuanto falte cualquier pieza, y en particular si la
- * capacidad no declara su TIPO: aplicar el 50 % a una capacidad que ya es
- * admisible la parte por la mitad una segunda vez y saca del papel un apoyo que
- * cumple. Solo se evalúa contra capacidades de tipo `'rotura'`.
+ *     utilizacion_pct = (|FL_total| · h_aplicación) / (capacidad · h_referencia) · 100
  *
- * @param {{fl_kgf:number, capacidad:{valor_kgf:number, tipo:string,
- *          alturaReferencia_m?:number}, alturaAplicacion_m?:number}} entrada
+ * Se comparan MOMENTOS, no fuerzas: lo que rompe un apoyo no es la fuerza sino
+ * el momento en el empotramiento, así que comparar kgf contra kgf solo valdría
+ * si las dos actuaran a la misma altura — y no se supone que lo hagan.
+ *
+ * **EL UMBRAL LO GOBIERNA EL TIPO DE LA CAPACIDAD, y por eso sin tipo no hay
+ * veredicto:** el 50 % no es un porcentaje genérico, es el coeficiente de
+ * seguridad 2 sobre una carga de FALLA. Aplicarlo a una capacidad que ya es
+ * admisible o de diseño la parte por la mitad una segunda vez y saca del papel
+ * un apoyo que cumple; no aplicarlo a una de rotura firma un apoyo al borde de
+ * la falla. Entre los dos umbrales hay un factor 2 sobre el veredicto.
+ *
+ * `fl_kgf` es el TOTAL sobre el apoyo (todos los conductores), nunca el valor
+ * por conductor: la capacidad se consume con la suma, y comparar el valor por
+ * conductor dividiría la carga entre 3 o 4 y sacaría un «cumple» falso.
+ *
+ * Devuelve `null` —sin excepción y sin aproximar— en cuanto falte o se
+ * contradiga cualquier pieza. El motivo publicable de cada `null` lo redacta
+ * `avisoDeUtilizacionLongitudinal`, que acompaña a la fila: un null mudo no es
+ * un resultado, es un hueco sin dueño.
+ *
+ * ⚠️ NO lee `cargaRotura_kgf` en ningún punto: es ensayo TRANSVERSAL en punta.
+ * ⚠️ NO acepta una capacidad de LÍNEA: va por apoyo, o no va.
+ *
+ * @param {{fl_kgf:number,
+ *          capacidad:{valor_kgf:number, tipo:string, alturaReferencia_m?:number, fuente?:string},
+ *          alturaAplicacion_m?:number, alturaLibre_m?:number,
+ *          nFasesAmarradas?:number, conteoFasesDeLinea?:boolean}} entrada
+ * @returns {{utilizacion_pct:number, margen_kgf:number, estado:'cumple'|'revisar',
+ *           umbralAplicado_pct:number, criterio:string}|null}
  */
 export function utilizacionLongitudinal(entrada) {
-  const F = entrada?.fl_kgf;
+  const F = numero(entrada?.fl_kgf);
   const cap = entrada?.capacidad;
+  // Un cero o un negativo NO es «sin capacidad»: es un error de captura, y se
+  // trata como hueco para que nadie lea un apoyo sin ninguna resistencia.
   const valor = positivo(cap?.valor_kgf);
-  if (numero(F) === null || valor === null) return null;
-  if (cap?.tipo !== 'rotura') return null;
+  const umbral = umbralDeCapacidad(cap?.tipo);
+  if (F === null || valor === null || umbral === null) return null;
 
   const hRef = positivo(cap?.alturaReferencia_m);
   const hApl = positivo(entrada?.alturaAplicacion_m);
   // Con las dos alturas se comparan MOMENTOS; sin ellas no se compara nada, y
   // NO se supone que la carga actúe a la altura de referencia.
   if (hRef === null || hApl === null) return null;
+
+  // La punta del apoyo, cuando está declarada, es la que caza las dos
+  // contradicciones que ninguna otra guardia ve. Es opcional a propósito: sin
+  // ella no se inventa una punta, solo se dejan de hacer estos dos chequeos.
+  const hLibre = positivo(entrada?.alturaLibre_m);
+  if (hLibre !== null && hApl > hLibre) return null;  // amarre por encima de la punta
+  if (hLibre !== null && hRef > hLibre) return null;  // capacidad referida por encima de la punta
+  // Dar el número exigiría extrapolar la capacidad HACIA ARRIBA, que es
+  // exactamente el reescalado que esta comprobación se niega a hacer.
   if (hApl > hRef) return null;
 
   const utilizacion_pct = ((Math.abs(F) * hApl) / (valor * hRef)) * 100;
-  const admisible_kgf = ((UMBRAL_UTILIZACION_LONGITUDINAL_PCT / 100) * valor * hRef) / hApl;
+  // Carga total que todavía admite el umbral APLICADO, referida a la altura
+  // donde la carga actúa. Se calcula con el mismo umbral que decide el estado:
+  // con dos umbrales distintos, la misma fila publicaría «cumple» y un margen
+  // negativo, y esa contradicción se discute en vez de discutirse el cálculo.
+  const admisible_kgf = ((umbral / 100) * valor * hRef) / hApl;
 
   return {
     utilizacion_pct,
     margen_kgf: admisible_kgf - Math.abs(F),
-    estado: utilizacion_pct <= UMBRAL_UTILIZACION_LONGITUDINAL_PCT ? 'cumple' : 'revisar',
+    estado: utilizacion_pct <= umbral ? 'cumple' : 'revisar',
+    umbralAplicado_pct: umbral,
+    criterio: criterioDeEsteVeredicto({
+      cap, umbral, hRef, hApl, hLibre,
+      nFases: enteroPositivo(entrada?.nFasesAmarradas),
+      conteoDeLinea: entrada?.conteoFasesDeLinea === true,
+    }),
   };
+}
+
+/**
+ * El texto que declara contra QUÉ se comparó esta fila en concreto.
+ *
+ * No es decoración: va al informe firmable. Quien revisa tiene que poder
+ * discutir el número —qué capacidad, de qué tipo, a qué altura, de dónde salió y
+ * contra qué porcentaje— sin abrir el código. Y tiene que ver los supuestos que
+ * el porcentaje arrastra, porque un porcentaje que no los declara aparenta más
+ * precisión de la que tiene.
+ */
+function criterioDeEsteVeredicto(d) {
+  const porQueElUmbral = d.umbral === UMBRAL_UTILIZACION_LONGITUDINAL_PCT
+    ? 'es carga de FALLA, y ese porcentaje es el coeficiente de seguridad 2 adoptado sobre ella'
+    : 'ese valor ya lleva su factor de seguridad DENTRO, así que se compara contra el 100 %: no '
+      + 'es laxitud, es la lectura correcta del número declarado — volver a castigarlo aplicaría '
+      + 'dos veces el mismo margen';
+
+  const partes = [
+    'CRITERIO ADOPTADO (sin norma citada): se comparó la carga longitudinal PERMANENTE del apoyo '
+    + '(la peor de la envolvente, por MOMENTO en el empotramiento) contra su capacidad '
+    + `longitudinal DECLARADA: ${f(d.cap?.valor_kgf, 0)} kgf de tipo «${d.cap?.tipo}», referida a `
+    + `${f(d.hRef, 2)} m sobre el terreno`
+    + (typeof d.cap?.fuente === 'string' && d.cap.fuente.trim()
+      ? `, según «${d.cap.fuente.trim()}»`
+      : '. La capacidad NO declara su fuente: el número se publica, pero quien revise no puede '
+        + 'rastrear de dónde salió')
+    + '.',
+    `Umbral aplicado: ${d.umbral} % — ${porQueElUmbral}.`,
+    `La carga se supone actuando a ${f(d.hApl, 2)} m (\`alturaAplicacion_m\`)`
+    + (d.hLibre === null
+      ? ', y la punta del apoyo no está declarada, así que no se pudo comprobar que ninguna de '
+        + 'las dos alturas quede por debajo de ella.'
+      : `, con la punta del apoyo a ${f(d.hLibre, 2)} m.`),
+    'NO interviene `cargaRotura_kgf`: es ensayo TRANSVERSAL en punta y su validez en este eje '
+    + 'depende de la sección del apoyo y de si hay retenida, que el sistema no conoce.',
+    d.nFases === 1
+      ? 'El total lo forma UN solo conductor, así que el momento no arrastra ningún supuesto '
+        + 'sobre alturas de amarre distintas.'
+      : 'SUPUESTO HEREDADO: el momento supone que los conductores amarran TODOS A LA MISMA '
+        + 'ALTURA, porque el sistema no tiene la altura por conductor. Con dos niveles de cruceta '
+        + 'y el cable de guarda más arriba, la suma de momentos reales no es la del total a una '
+        + 'sola altura.',
+  ];
+
+  if (d.nFases !== null) {
+    partes.push(`El total se formó con ${d.nFases} conductor(es) amarrado(s)`
+      + (d.conteoDeLinea
+        ? ', y ese conteo se tomó de la LÍNEA, no del apoyo: si algún apoyo amarra un número '
+          + 'distinto, su total está mal en la misma proporción.'
+        : '.'));
+  }
+
+  partes.push('El caso ACCIDENTAL (rotura de conductor) NO entra en esta comparación: es otra '
+    + 'hipótesis de carga y este proyecto no ha adoptado criterio de aceptación para ella.');
+
+  return partes.join(' ');
+}
+
+/**
+ * POR QUÉ esta fila no tiene veredicto en el eje longitudinal.
+ *
+ * Mismo papel que `avisoDeCapacidad` en `cargas.js`: cada hueco de este eje es
+ * una decisión de ingeniería, y su motivo se publica. No basta con un `null`
+ * mudo — el Ingeniero necesita saber CUÁL de los huecos tiene, porque cada uno
+ * se corrige en un sitio distinto: «nadie declaró la capacidad» se arregla en el
+ * inventario, «falta el tipo» en la ficha, y «la carga actúa por encima de la
+ * punta» es un dato contradictorio del levantamiento.
+ *
+ * El orden de los chequeos es EL MISMO que el de `utilizacionLongitudinal`: si
+ * divergen, la fila publicaría un motivo que no es el que dejó el número en
+ * null.
+ *
+ * @returns {string|null} el motivo publicable, o null si no hacía falta ninguno
+ */
+function avisoDeUtilizacionLongitudinal(fila, a) {
+  // 1) No hay carga que comparar. El motivo NO se reescribe con otras palabras:
+  //    su dueño es el guardián que dejó la fila sin número. Dos frases distintas
+  //    para el mismo hecho es como dos páginas del mismo informe se contradicen.
+  if (fila.caso === 'no_evaluable') {
+    return `${PREFIJO_SIN_VEREDICTO}primero falta la carga longitudinal (ver el motivo de esta `
+      + 'fila).';
+  }
+  if (fila.caso === 'suspension') return SIN_VEREDICTO_SUSPENSION;
+
+  // 1b) DERIVACIÓN: la cifra que sale es el desequilibrio entre los dos tramos
+  //     de la línea principal, pero lo que de verdad carga este apoyo a lo largo
+  //     de la línea es el TIRO DEL RAMAL que sale de él — y ese tercer tiro el
+  //     sistema no lo ve. Se publica la parte que sí se calcula y se niega el
+  //     dictamen, con el motivo escrito: un «cumple» aquí afirmaría que el apoyo
+  //     aguanta una carga que nadie ha mirado entera (§ADR-017).
+  if (a?.funcionEstructural === 'Derivación') {
+    return `${PREFIJO_SIN_VEREDICTO}es un apoyo de DERIVACIÓN y el sistema no ve el tiro del `
+      + 'ramal que sale de él, que es justamente lo que más lo carga en este eje. La cifra '
+      + 'publicada es solo el desequilibrio entre los dos tramos de la línea principal: '
+      + 'dictaminar sobre ella sería afirmar que el apoyo aguanta una carga que no se ha mirado '
+      + 'entera. Se cierra el día que el modelo capture el ramal como un tramo más.';
+  }
+
+  const capacidad = huecoDeCapacidadLongitudinal(a);
+
+  // 2) Hay número POR CONDUCTOR, pero no el total sobre el apoyo. Es el hueco
+  //    que llega primero, y hoy lo tienen TODOS los apoyos.
+  //
+  //    ⚠️ Se nombra también el hueco de capacidad si además falta. Publicar solo
+  //    el primero escondería el hallazgo de fondo —que NADIE ha declarado una
+  //    capacidad longitudinal— detrás de una deuda de contrato distinta, y
+  //    mandaría a corregir el inventario dos veces: se declara el conteo, se
+  //    vuelve a mirar, y el veredicto sigue sin salir por otra razón.
+  if (peorTotalPermanente(fila.permanente) === null) {
+    return PREFIJO_SIN_VEREDICTO + HUECO_CONTEO_FASES
+      + (capacidad
+        ? ` Y NO ES EL ÚNICO HUECO: aunque se declarara el conteo, este apoyo seguiría sin `
+          + `veredicto porque ${capacidad}`
+        : '');
+  }
+
+  return capacidad === null ? null : PREFIJO_SIN_VEREDICTO + capacidad;
+}
+
+/**
+ * Qué le falta —o qué se contradice— a la capacidad declarada de ESTE apoyo, en
+ * las palabras del núcleo y sin el encabezado, para que se pueda encadenar.
+ *
+ * Cada hueco se nombra distinto a propósito: se corrigen en sitios distintos y
+ * por personas distintas. «Nadie la declaró» es el inventario; «le falta el
+ * tipo» es la ficha del fabricante; «el amarre queda por encima de la punta» es
+ * un dato contradictorio del levantamiento.
+ *
+ * El orden es EL MISMO que el de `utilizacionLongitudinal`: si divergen, la fila
+ * publicaría un motivo que no es el que dejó el número en null.
+ *
+ * @returns {string|null} el motivo, o null si a la capacidad no le falta nada
+ */
+function huecoDeCapacidadLongitudinal(a) {
+  const cap = a?.capacidadLongitudinal;
+  if (cap === null || cap === undefined) return HUECO_CAPACIDAD_AUSENTE;
+
+  if (positivo(cap.valor_kgf) === null) {
+    return 'la capacidad longitudinal está declarada en cero, en negativo o sin un número — y eso '
+      + 'no es un dato, es un error de captura. Un cero se leería como un apoyo sin ninguna '
+      + 'resistencia y sacaría «revisar» sobre cualquier carga, por pequeña que fuera. Hay que '
+      + 'corregirlo en el inventario.';
+  }
+  if (cap.tipo === null || cap.tipo === undefined || cap.tipo === '') {
+    return 'la capacidad no dice QUÉ es — si es carga de rotura, admisible o de diseño. El '
+      + `${UMBRAL_UTILIZACION_LONGITUDINAL_PCT} % no es un porcentaje genérico: es un coeficiente `
+      + 'de seguridad 2 sobre la ROTURA. Aplicarlo a una capacidad que ya es admisible la parte '
+      + 'por la mitad una segunda vez y saca del papel un apoyo que cumple. Sin el tipo no hay '
+      + 'contra qué comparar.';
+  }
+  if (umbralDeCapacidad(cap.tipo) === null) {
+    return `el tipo de capacidad declarado («${cap.tipo}») no es ninguno de los tres que el `
+      + `sistema sabe interpretar (${TIPOS_CAPACIDAD_LONGITUDINAL.join(', ')}). No se adivina el `
+      + `más parecido: elegir mal entre el ${UMBRAL_UTILIZACION_LONGITUDINAL_PCT} % y el `
+      + `${UMBRAL_UTILIZACION_LONGITUDINAL_DECLARADA_PCT} % es un factor 2 sobre el veredicto de `
+      + 'un apoyo.';
+  }
+
+  // Las alturas: sin ellas no se comparan momentos, y no se supone ninguna.
+  const hRef = positivo(cap.alturaReferencia_m);
+  if (hRef === null) {
+    return 'la capacidad está declarada sin la altura a la que vale (`alturaReferencia_m`), y no '
+      + 'se supone que sea la punta. Ese convenio existe para la carga de rotura del contrato, '
+      + 'que está definida como ensayo EN LA PUNTA; una capacidad longitudinal se declara '
+      + 'referida a una altura concreta —normalmente el nivel de la cruceta—, y reescalarla en '
+      + 'silencio devolvería un porcentaje impecable y falso, con veredicto encima.';
+  }
+  const hApl = positivo(a?.alturaAplicacion_m);
+  if (hApl === null) {
+    return 'falta la altura a la que el conductor amarra (`alturaAplicacion_m`). Lo que rompe un '
+      + 'apoyo no es la fuerza sino el MOMENTO en el empotramiento, así que comparar kgf contra '
+      + 'kgf solo vale si las dos fuerzas actúan a la misma altura. No se supone que la carga '
+      + 'actúe justo en la altura de referencia de la capacidad: sería regalar o castigar brazo '
+      + 'sin que nada avise. Es un hueco de CAPTURA, no de desarrollo.';
+  }
+
+  // Las tres alturas tienen que ser coherentes entre sí.
+  const hLibre = positivo(a?.alturaLibre_m);
+  if (hLibre !== null && hApl > hLibre) {
+    // Misma frase y misma doctrina que `cargas.js · avisoDeCapacidad`, para que
+    // el sistema diga lo MISMO del mismo apoyo en los dos ejes.
+    return `el punto de sujeción (${f(hApl, 2)} m) queda por encima de la punta del apoyo `
+      + `(${f(hLibre, 2)} m). Con esa geometría el cálculo del momento no significa nada; hay que `
+      + 'corregir el dato del inventario.';
+  }
+  if (hLibre !== null && hRef > hLibre) {
+    return `la capacidad dice estar referida a ${f(hRef, 2)} m, por encima de la punta del apoyo `
+      + `(${f(hLibre, 2)} m). Uno de los dos datos del inventario está mal, y el sistema no elige `
+      + 'cuál: la contradicción produciría un porcentaje bajo —favorable— sobre una geometría que '
+      + 'no existe.';
+  }
+  if (hApl > hRef) {
+    return `la carga actúa a ${f(hApl, 2)} m, por encima de los ${f(hRef, 2)} m a los que la `
+      + 'capacidad fue declarada. Dar el número exigiría extrapolar la capacidad hacia arriba, '
+      + 'que es exactamente el reescalado que esta comprobación se niega a hacer. Si la capacidad '
+      + 'de verdad vale a esa altura, hay que declararla ahí.';
+  }
+
+  return null;
+}
+
+/**
+ * El peor FL TOTAL de la envolvente permanente, en valor absoluto.
+ *
+ * ⚠️ TOTAL, nunca por conductor: `flAdelanteMax_kgf`/`flAtrasMax_kgf` son por
+ * conductor, y usarlos aquí dividiría la carga entre n y sacaría un «cumple»
+ * falso justo en los apoyos que soportan el tiro entero. `null` cuando ningún
+ * sentido trajo total —que es el estado de HOY, porque nadie declara cuántas
+ * fases amarran.
+ */
+function peorTotalPermanente(permanente) {
+  const xs = [permanente?.flTotalAdelante_kgf, permanente?.flTotalAtras_kgf]
+    .map((x) => numero(x))
+    .filter((x) => x !== null)
+    .map((x) => Math.abs(x));
+  return xs.length ? Math.max(...xs) : null;
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -541,7 +921,11 @@ export function utilizacionLongitudinal(entrada) {
  * @property {boolean|null} sentidoResoluble   ¿el sentido DOMINANTE supera el ruido de obra?
  * @property {boolean|null} inversionResoluble ¿lo superan LOS DOS sentidos? Solo entonces se
  *   puede afirmar que el apoyo tira de verdad hacia ambos lados.
- * @property {Object|null} utilizacion
+ * @property {ReturnType<typeof utilizacionLongitudinal>} utilizacion  veredicto del eje
+ *   longitudinal, SOLO sobre el caso permanente y SOLO contra una capacidad declarada en el
+ *   apoyo. Es `null` mientras nadie declare esa capacidad — que hoy es SIEMPRE, en el 100 % del
+ *   inventario. Cuando es `null`, el motivo va escrito en `notas`: no hay huecos mudos en este
+ *   eje. El caso accidental NUNCA alimenta este campo.
  * @property {string[]} notas
  * @property {string|null} noEvaluable
  */
@@ -560,6 +944,14 @@ export function utilizacionLongitudinal(entrada) {
  *                  `estadosDelTramo` — la forma aplanada de la vista se rechaza.
  * @param opciones  `{rts_kgf, nFasesAmarradas, kRes}`. Todo opcional: sin ellas
  *                  el módulo publica lo que sí sabe y declara lo que no.
+ *
+ * ⚠️ `opciones` NO admite capacidad longitudinal, ni con nota ni sin ella. Es
+ * propiedad del APOYO (`Apoyo.capacidadLongitudinal`) y se lee solo de ahí: si
+ * alguien la pasa aquí, se ignora en silencio y las filas siguen diciendo que
+ * falta la capacidad del apoyo. Un veredicto heredado de otro apoyo es peor que
+ * no tener veredicto en una línea donde conviven concreto, metálico, madera,
+ * torre y torreta.
+ *
  * @returns {FilaLongitudinal[]}
  */
 export function longitudinalDeLaLinea(apoyos, tramos, opciones = {}) {
@@ -608,7 +1000,53 @@ export function longitudinalDeLaLinea(apoyos, tramos, opciones = {}) {
   const tramoQueLlega = (nombre) => buscar('hasta', nombre);
   const tramoQueSale = (nombre) => buscar('desde', nombre);
 
-  return E.map((a, i) => {
+  /**
+   * Entrada de la utilización para un apoyo concreto. La capacidad y las dos
+   * alturas se leen SIEMPRE del apoyo, nunca de `opciones`: un veredicto que
+   * pudiera entrar por parámetro de línea sería un veredicto heredado.
+   */
+  const veredictoDe = (a, permanente, n, conteoDeLinea) => {
+    // ⛔ DERIVACIÓN: NO se dictamina. La fila se calcula como el desequilibrio
+    // entre los dos tramos de la línea principal, pero lo que de verdad carga
+    // longitudinalmente a un apoyo de derivación es el TIRO DEL RAMAL que sale
+    // de él — y ese tercer tiro el sistema no lo ve. Publicar la cifra es
+    // legítimo (es la parte que sí se calcula); publicar un «cumple» verde
+    // sobre ella sería afirmar que el apoyo aguanta una carga que no se ha
+    // mirado entera. La rama del Terminal ya declara este punto ciego con estas
+    // mismas palabras; aquí faltaba que la advertencia llegara al VEREDICTO
+    // (§ADR-017). Misma doctrina que la suspensión: antes sin dictamen que con
+    // uno indefendible.
+    if (a?.funcionEstructural === 'Derivación') return null;
+    // APOYO PRIMERO, LÍNEA DESPUÉS — el mismo patrón que `cargas.js` con
+    // `nConductores`, y por la misma razón: un terminal amarra todas las fases y
+    // un apoyo de paso puede no amarrar ninguna, así que un conteo de línea es
+    // una suposición sobre cada estructura. Cuando el número sale de la línea,
+    // el criterio lo DICE (`conteoFasesDeLinea`) en vez de esconderlo.
+    //
+    // ⚠️ Esto no estaba, y sin ello todo este eje era código muerto EN EL
+    // PRODUCTO: el contrato no tenía `nFasesAmarradas` y la vista no lo pasaba,
+    // así que el total era null siempre y la utilización también — por muy bien
+    // declarada que estuviera la capacidad. Cazado por los tres auditores de
+    // §ADR-017 y reproducido ejecutando el camino real de la aplicación.
+    return utilizacionLongitudinal({
+      // TOTAL sobre el apoyo, no por conductor.
+      fl_kgf: peorTotalPermanente(permanente),
+      capacidad: a?.capacidadLongitudinal,
+      alturaAplicacion_m: a?.alturaAplicacion_m,
+      alturaLibre_m: a?.alturaLibre_m,
+      nFasesAmarradas: n,
+      conteoFasesDeLinea: conteoDeLinea,
+    });
+  };
+
+  const filaDe = (a, i) => {
+    // ⚠️ El conteo se resuelve AQUÍ, por apoyo, y se usa en todo el cálculo de
+    // esta fila. Resolverlo más abajo —al emitir el veredicto— no habría
+    // servido: los totales ya vienen multiplicados desde las funciones por
+    // estado, así que el conteo tiene que entrar ANTES, no después.
+    const nDelApoyo = enteroPositivo(a?.nFasesAmarradas);
+    const nAmarradas = nDelApoyo ?? nFases;
+    const conteoDeLinea = nDelApoyo === null && nFases !== null;
     const nombre = nombres[i];
     const notas = [];
     const motivos = [];
@@ -645,6 +1083,12 @@ export function longitudinalDeLaLinea(apoyos, tramos, opciones = {}) {
       sentidoResoluble: null,
       inversionResoluble: null,
       utilizacion: null,
+      // Presentes en TODA fila, también en las que no llevan veredicto: los
+      // consumidores tienen que poder contar cuántos apoyos DECLARAN capacidad
+      // sin deducirlo del número de veredictos, que es otro hecho distinto.
+      flTotalPeor_kgf: null,
+      nFasesAmarradas: nAmarradas,
+      capacidadDeclarada: a?.capacidadLongitudinal != null,
       notas,
       noEvaluable: null,
     };
@@ -672,9 +1116,14 @@ export function longitudinalDeLaLinea(apoyos, tramos, opciones = {}) {
         ...base,
         caso: 'suspension',
         permanente: {
-          flPorConductor_kgf: 0, fl_kgf: nFases === null ? null : 0,
+          flPorConductor_kgf: 0, fl_kgf: nAmarradas === null ? null : 0,
           flAdelanteMax_kgf: null, flAtrasMax_kgf: null, sentido: 'nulo',
         },
+        // Negativa DELIBERADA, no un olvido: aunque el apoyo trajera capacidad
+        // declarada, un «cumple al 0 %» aquí certificaría con un número
+        // impecable el apoyo del que este módulo declara no saber nada. El
+        // motivo se publica en `notas` (SIN_VEREDICTO_SUSPENSION).
+        utilizacion: null,
         notas: [CERO_DEL_MODELO],
       };
     }
@@ -706,7 +1155,7 @@ export function longitudinalDeLaLinea(apoyos, tramos, opciones = {}) {
       const env = envolventePorSentido(CLAVES_ESTADO.map((k) => {
         const s = unico.estados[k];
         return s?.H === null || s?.H === undefined ? null
-          : terminalLongitudinal({ tiro_kgf: s.H, estadoTiro: s.nombre, lado, nFasesAmarradas: nFases });
+          : terminalLongitudinal({ tiro_kgf: s.H, estadoTiro: s.nombre, lado, nFasesAmarradas: nAmarradas });
       }).filter(Boolean));
 
       // ⚠️ Si el único tramo contiguo no trajo tiro en NINGÚN estado, aquí no hay
@@ -729,7 +1178,7 @@ export function longitudinalDeLaLinea(apoyos, tramos, opciones = {}) {
       notas.push('NO se verifica contra lo que haya más allá del último apoyo: si la bajante o el '
         + 'puente al pórtico está tenso, esto no es un terminal sino un anclaje con dos tiros, y el '
         + 'sistema no ve ese lado.');
-      if (nFases === null) {
+      if (nAmarradas === null) {
         motivos.push('no se declaró cuántas fases amarran en el apoyo (`nFasesAmarradas`): el '
           + 'número por conductor sí sale; el total, no. No se hereda el conteo de la carga '
           + 'transversal, que cuenta 3·circuitos con el cable de guarda declaradamente fuera');
@@ -741,6 +1190,27 @@ export function longitudinalDeLaLinea(apoyos, tramos, opciones = {}) {
         // que esto es `true` de verdad y nunca un `false` que signifique «falta».
         sentidoResoluble: true,
         inversionResoluble: false,
+        // Es el caso más severo del eje: si algún apoyo va a salir en rojo, es
+        // éste. Se evalúa sobre el FL TOTAL de la envolvente permanente.
+        utilizacion: veredictoDe(a, env, nAmarradas, conteoDeLinea),
+        // El NUMERADOR del porcentaje, publicado al lado del porcentaje.
+        // Las columnas «adelante» y «atrás» son POR CONDUCTOR, y la
+        // utilización se calcula sobre el TOTAL: sin este número, quien
+        // revise con una calculadora obtiene un tercio de lo impreso y
+        // concluye que el cálculo está mal (§ADR-017, mismo fallo que
+        // §ADR-013 tuvo que arreglar en el eje transversal).
+        flTotalPeor_kgf: peorTotalPermanente(env),
+        nFasesAmarradas: nAmarradas,
+        capacidadDeclarada: a?.capacidadLongitudinal != null,
+      // El NUMERADOR del porcentaje, publicado al lado del porcentaje.
+      // Las columnas «adelante» y «atrás» son POR CONDUCTOR, y la
+      // utilización se calcula sobre el TOTAL: sin este número, quien
+      // revise con una calculadora obtiene un tercio de lo impreso y
+      // concluye que el cálculo está mal (§ADR-017, mismo fallo que
+      // §ADR-013 tuvo que arreglar en el eje transversal).
+      flTotalPeor_kgf: peorTotalPermanente(env),
+      nFasesAmarradas: nAmarradas,
+      capacidadDeclarada: a?.capacidadLongitudinal != null,
         noEvaluable: motivos.length ? motivos.join(' · ') : null };
     }
 
@@ -769,7 +1239,7 @@ export function longitudinalDeLaLinea(apoyos, tramos, opciones = {}) {
       }
       porEstado.push(desequilibrioLongitudinal({
         tiroAtras_kgf: s1.H, tiroAdelante_kgf: s2.H,
-        deflexion_grados, estadoTiro: s1.nombre, nFasesAmarradas: nFases,
+        deflexion_grados, estadoTiro: s1.nombre, nFasesAmarradas: nAmarradas,
       }));
 
       // Piso de validez: un lado cuya tensión MODELADA se derrumbó no sirve para
@@ -883,7 +1353,7 @@ export function longitudinalDeLaLinea(apoyos, tramos, opciones = {}) {
         estadoTiro: picoAtras.nombre }) : null,
     } : null;
 
-    if (nFases === null) {
+    if (nAmarradas === null) {
       motivos.push('no se declaró cuántas fases amarran en el apoyo (`nFasesAmarradas`): el número '
         + 'por conductor sí sale; el total, no');
     }
@@ -895,9 +1365,32 @@ export function longitudinalDeLaLinea(apoyos, tramos, opciones = {}) {
       accidental,
       sentidoResoluble,
       inversionResoluble,
+      // SOLO la envolvente PERMANENTE. El accidental (`accidental`) mantiene su
+      // veredicto en null y nunca se suma ni se compara con este umbral: son
+      // hipótesis de carga distintas y este proyecto no ha adoptado criterio de
+      // aceptación para la rotura de conductor.
+      utilizacion: veredictoDe(a, env, nAmarradas, conteoDeLinea),
+      // El NUMERADOR del porcentaje, al lado del porcentaje: las columnas
+      // «adelante» y «atrás» son POR CONDUCTOR y la utilización se calcula
+      // sobre el TOTAL (§ADR-017).
+      flTotalPeor_kgf: peorTotalPermanente(env),
+      nFasesAmarradas: nAmarradas,
+      capacidadDeclarada: a?.capacidadLongitudinal != null,
       notas,
       noEvaluable: motivos.length ? motivos.join(' · ') : null,
     };
+  };
+
+  // Ninguna fila sale sin decir si tiene veredicto y, si no lo tiene, POR QUÉ.
+  // Aquí es donde este eje deja de ser código muerto: la función existía desde
+  // ADR-012, probada y sin que nadie la llamara (`30 · L-28`).
+  return E.map((a, i) => {
+    const fila = filaDe(a, i);
+    if (fila.utilizacion === null) {
+      const aviso = avisoDeUtilizacionLongitudinal(fila, a);
+      if (aviso) fila.notas.push(aviso);
+    }
+    return fila;
   });
 }
 

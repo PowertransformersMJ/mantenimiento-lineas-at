@@ -30,6 +30,32 @@ export const FUNCIONES_ANCLA: readonly string[] = Object.freeze([
   'Ángulo', 'Retención / anclaje', 'Terminal', 'Derivación',
 ]);
 
+/**
+ * Qué ES el número que alguien declaró como capacidad longitudinal. De esto —y
+ * solo de esto— depende contra qué porcentaje se compara, así que sin tipo no
+ * hay veredicto:
+ *   · 'rotura'    — carga de FALLA. Se le aplica el coeficiente de seguridad 2
+ *                   (umbral 50 %).
+ *   · 'admisible' — carga de trabajo que YA lleva su factor de seguridad
+ *                   dentro. Umbral 100 %.
+ *   · 'diseno'    — la carga con la que el proyecto dimensionó el apoyo, ya
+ *                   afectada por sus factores. Umbral 100 %.
+ *
+ * Es lista CERRADA a propósito: entre el 50 % y el 100 % hay un factor 2 sobre
+ * el veredicto de un apoyo, y ante un texto que no sea uno de estos tres
+ * ('ultima', 'nominal', 'ROTURA' en mayúsculas, un error de tecleo) el sistema
+ * no adivina el más parecido — deja el apoyo sin veredicto y lo dice.
+ *
+ * Sin eñe a propósito: es una CLAVE del contrato, y una clave no lleva acentos
+ * ni caracteres que cada exportador escriba de una manera.
+ *
+ * ⚠️ Esta lista se DUPLICA en `nucleo/longitudinal.js`, que no puede importar
+ * del contrato (el núcleo no importa nada). Toda lista de dominio duplicada
+ * lleva su guardián: una prueba lee los dos archivos como TEXTO y compara,
+ * igual que la que ya protege `FUNCIONES_ANCLA` (`33 · L-19`, ADR-013).
+ */
+export const TipoCapacidadLongitudinal = z.enum(['rotura', 'admisible', 'diseno']);
+
 export const MaterialConductor = z.enum(['ACSR', 'AAAC', 'ACAR', 'ACSS / ACCC', 'Otro']);
 
 export const TipoApoyo = z.enum([
@@ -183,6 +209,83 @@ export const Apoyo = Base.extend({
    * confundir con `cotaSujecion_m`, que es la del vano peso.
    */
   alturaAplicacion_m: z.number().positive().optional(),
+  /**
+   * Capacidad del apoyo EN EL EJE DE LA LÍNEA (longitudinal), tal como la
+   * declaró quien la conoce: la ficha del fabricante, la memoria de cálculo del
+   * proyecto o un cálculo estructural firmado.
+   *
+   * Es el dato que hoy no tiene NINGÚN apoyo, y por eso ningún apoyo tiene
+   * veredicto en este eje (ADR-012). Mientras falte, `nucleo/longitudinal.js`
+   * deja la utilización en NO EVALUABLE con el motivo escrito — que es un hecho
+   * sobre el INVENTARIO, no un fallo del cálculo. El día que el inventario lo
+   * traiga —esta capacidad y `nFasesAmarradas`, que es su compañero obligado—, el
+   * veredicto sale solo.
+   *
+   * ⚠️ NO se deduce de `cargaRotura_kgf`, y el sistema no lo intenta jamás:
+   * aquélla es la carga de ensayo TRANSVERSAL aplicada en la punta, y su
+   * validez a lo largo de la línea depende de la sección del apoyo (circular u
+   * omnidireccional frente a eje fuerte y eje débil) y de si hay retenida —
+   * ninguna de las dos está declarada en este contrato. Los dos errores caben
+   * en el mismo número: «revisar» sobre un terminal retenido sano y «cumple»
+   * sobre un poste con el eje débil hacia la línea.
+   *
+   * ⚠️ Es propiedad del APOYO, nunca de la línea, y no se acepta por parámetro
+   * de línea en ningún punto del sistema. Un veredicto heredado de otro apoyo
+   * es peor que no tener veredicto, en una línea donde conviven concreto,
+   * metálico, madera, torre y torreta.
+   */
+  capacidadLongitudinal: z.object({
+    /**
+     * La capacidad, en kgf. Positiva de verdad: un cero o un negativo no es un
+     * dato, es un error de captura, y no se trata como «sin capacidad».
+     */
+    valor_kgf: z.number().positive(),
+    /** Contra qué porcentaje se compara. Sin él no hay veredicto (ver arriba). */
+    tipo: TipoCapacidadLongitudinal,
+    /**
+     * Altura sobre el terreno A LA QUE ESA CAPACIDAD ESTÁ REFERIDA, en metros
+     * — normalmente el nivel de la cruceta.
+     *
+     * Es obligatoria DENTRO del objeto porque lo que rompe un apoyo no es la
+     * fuerza sino el MOMENTO: la utilización compara momento contra momento
+     * —(FL · altura de amarre) frente a (capacidad · esta altura)— y sin ella
+     * no hay con qué comparar.
+     *
+     * ⚠️ NO se supone que sea la punta. El convenio de `alturaLibre_m` existe
+     * porque `cargaRotura_kgf` está definida como ensayo EN LA PUNTA; una
+     * capacidad longitudinal se declara referida a una altura concreta, y
+     * reescalarla en silencio devolvería un porcentaje impecable y falso, con
+     * veredicto encima. Sin este dato el apoyo se queda sin veredicto.
+     */
+    alturaReferencia_m: z.number().positive(),
+    /**
+     * De dónde salió el número: ficha del fabricante con su referencia, acta de
+     * montaje, memoria de cálculo. Opcional en el esquema, pero el informe lo
+     * imprime: un número sin origen no es firmable, y quien revisa tiene que
+     * poder discutirlo sin abrir el código.
+     */
+    fuente: z.string().min(1).optional(),
+  }).optional(),
+
+  /**
+   * Cuántos conductores AMARRAN en este apoyo — fases y, si lo lleva, el cable
+   * de guarda. Es el multiplicador que convierte la carga longitudinal POR
+   * CONDUCTOR en la carga total sobre la estructura, y sin él no hay total: sin
+   * total no hay nada contra qué comparar la capacidad, y por tanto no hay
+   * veredicto por muy bien declarada que esté (ADR-017).
+   *
+   * ⚠️ NO se hereda del conteo de la carga TRANSVERSAL (`nConductores`). Aquél
+   * cuenta 3·circuitos con el cable de guarda declaradamente FUERA; aquí el
+   * guarda —que va más alto y por tanto hace más momento— manda. Heredarlo
+   * dejaría la carga corta justo en el apoyo más cargado, y el porcentaje
+   * saldría por el lado favorable.
+   *
+   * ⚠️ Va por APOYO. Un terminal amarra todas las fases; un apoyo de paso puede
+   * amarrar ninguna. Un conteo de línea sería una suposición sobre cada
+   * estructura, y el veredicto que sale de él no lo puede defender nadie.
+   */
+  nFasesAmarradas: z.number().int().positive().optional(),
+
   anioInstalacion: z.number().int().min(1900).max(2200).optional(),
   codigoInventario: z.string().optional(),
 
@@ -263,3 +366,4 @@ export type Conductor = z.infer<typeof Conductor>;
 export type Hipotesis = z.infer<typeof Hipotesis>;
 export type Coordenada = z.infer<typeof Coordenada>;
 export type FuncionEstructural = z.infer<typeof FuncionEstructural>;
+export type TipoCapacidadLongitudinal = z.infer<typeof TipoCapacidadLongitudinal>;

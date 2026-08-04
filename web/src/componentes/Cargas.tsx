@@ -32,6 +32,9 @@ import { calcularTramos } from '../vistas/tramos';
 import { cargasParaPantalla, agruparNotas } from '../vistas/cargasDatos';
 import { longitudinalParaPantalla } from '../vistas/longitudinalDatos';
 import { tramosDeTension, estadosDelTramo } from '@lineas/nucleo/mecanica';
+// El motivo por el que hoy ningún apoyo tiene veredicto en el eje longitudinal
+// tiene UN dueño, y es el núcleo. Aquí se pinta, no se redacta.
+import { CRITERIO_CAPACIDAD_LONGITUDINAL } from '@lineas/nucleo/longitudinal';
 import { vanos, soloEstructuras, nombreVisible } from '../vistas/planta';
 import { conductorParaNucleo, paramsParaNucleo } from '../vistas/tramos';
 import { nf, textoNucleo } from '../vistas/formato';
@@ -94,6 +97,22 @@ function selloSentido(f: {
   if (f.inversionResoluble === null) return <span className="sello gris">sin medir el ruido</span>;
 
   return <span className="sello verde">definido</span>;
+}
+
+/**
+ * El veredicto del eje LONGITUDINAL, con el mismo lenguaje de sellos que la
+ * tabla de arriba: verde cumple, ámbar revisar, gris no evaluable.
+ *
+ * El gris es lo que sale HOY en toda la línea, y no es un fallo de la
+ * aplicación: nadie ha declarado la capacidad longitudinal de ningún apoyo, y
+ * ese dato no se deduce de la carga de rotura del inventario (que es ensayo
+ * TRANSVERSAL en punta). El motivo lo escribe el propio cálculo y se lee en el
+ * panel de abajo — aquí NO se reescribe, para que la pantalla y el papel
+ * firmado no puedan decir cosas distintas.
+ */
+function selloUtilizacion(estado: 'cumple' | 'revisar' | null) {
+  const clase = estado === 'cumple' ? 'verde' : estado === 'revisar' ? 'ambar' : 'gris';
+  return <span className={`sello ${clase}`}>{ROTULO[estado ?? 'no_evaluable']}</span>;
 }
 
 function Tarjeta({ valor, etiqueta, explica, tono }:
@@ -324,6 +343,23 @@ export function Cargas({ linea, apoyos, conductor, hipotesis }:
                 valor={nf(lg.cuantosSentidoDudoso)}
                 etiqueta="apoyos con sentido NO concluyente"
                 explica="el número sale, pero en el terreno podría apuntar al otro lado" />
+              {/* DOS tarjetas, porque son DOS hechos. La de arriba rotulaba
+                  «apoyos con capacidad declarada» y mostraba el conteo de
+                  VEREDICTOS: con el inventario lleno seguiría diciendo
+                  «ninguno», y el ingeniero iría a arreglar el sitio equivocado
+                  (§ADR-017). */}
+              <Tarjeta
+                valor={lg.conCapacidadDeclarada ? `${nf(lg.conCapacidadDeclarada)} / ${nf(lg.total)}` : 'ninguno'}
+                etiqueta="apoyos que DECLARAN capacidad longitudinal"
+                tono={lg.conCapacidadDeclarada ? undefined : 'gris'}
+                explica="es un dato del inventario; no se deduce de la carga de rotura, que es ensayo transversal" />
+              <Tarjeta
+                valor={lg.conVeredicto ? `${nf(lg.conVeredicto)} / ${nf(lg.total)}` : 'ninguno'}
+                etiqueta="apoyos con VEREDICTO en este eje"
+                tono={lg.conVeredicto ? (lg.aRevisar ? 'rojo' : undefined) : 'gris'}
+                explica={lg.conCapacidadDeclarada > lg.conVeredicto
+                  ? 'hay capacidades declaradas sin veredicto: a esos apoyos les falta otra cosa, y el motivo va en su fila'
+                  : 'declarar la capacidad es necesario, pero no siempre basta: el motivo de cada hueco va en su fila'} />
             </div>
           </section>
 
@@ -344,11 +380,14 @@ export function Cargas({ linea, apoyos, conductor, hipotesis }:
                     <th>Deflexión</th><th>cos(α/2)</th>
                     <th>Hacia adelante (kgf)</th><th>Hacia atrás (kgf)</th>
                     <th>Sentido</th><th>Rotura, lado atrás (kgf)</th><th>Rotura, lado adelante (kgf)</th>
+                    <th>Utilización</th><th>Estado</th>
                   </tr>
                 </thead>
                 <tbody>
                   {lg.filas.map((f) => (
-                    <tr key={f.n} className={f.caso === 'terminal' ? 'excede' : undefined}>
+                    <tr key={f.n}
+                        className={f.estadoUtilizacion === 'revisar' || f.caso === 'terminal'
+                          ? 'excede' : undefined}>
                       <td className="num">{f.n}</td>
                       <td><b>{f.apoyo}</b></td>
                       <td>{CASO[f.caso]}</td>
@@ -361,6 +400,19 @@ export function Cargas({ linea, apoyos, conductor, hipotesis }:
                       <td>{selloSentido(f)}</td>
                       <td className="num">{val(f.roturaAtras_kgf)}</td>
                       <td className="num">{val(f.roturaAdelante_kgf)}</td>
+                      {/* El guion no es un cero: es una casilla que los datos de
+                          hoy no permiten llenar, y su motivo va en el panel de
+                          abajo. El tope aplicado viaja al lado del porcentaje
+                          porque NO es fijo — depende de qué tipo de capacidad
+                          declaró el inventario. */}
+                      <td className="num" title={f.criterioUtilizacion ?? undefined}>
+                        {f.utilizacion_pct === null ? '—'
+                          : `${nf(f.utilizacion_pct, 1)} %`}
+                        {f.umbralAplicado_pct !== null && (
+                          <span className="fine"> / {nf(f.umbralAplicado_pct)} %</span>
+                        )}
+                      </td>
+                      <td>{selloUtilizacion(f.estadoUtilizacion)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -372,6 +424,28 @@ export function Cargas({ linea, apoyos, conductor, hipotesis }:
               quiebre de la tabla de arriba — <b>el mismo ángulo, los dos ejes</b>. Ninguna de las
               dos cifras se suma con la otra.
             </p>
+            <p className="fine">
+              <b>Utilización</b> es cuánta capacidad longitudinal del apoyo consume la carga
+              permanente, comparando <b>momentos</b> —la carga por la altura a la que amarra el
+              conductor, contra la capacidad por la altura a la que fue declarada—. El segundo
+              número es el <b>tope</b> con el que se comparó, y no es siempre el mismo: una carga de
+              rotura lleva su coeficiente de seguridad; una capacidad ya admisible o de diseño ya lo
+              trae dentro, y volver a partirla sacaría «revisar» sobre apoyos sanos. Contra qué se
+              comparó <b>exactamente</b> cada apoyo —qué capacidad, de qué tipo, a qué altura y de
+              qué fuente— sale al pasar el cursor por la celda, y va impreso en el CSV y en el
+              informe: un número sin origen no se puede discutir.
+            </p>
+
+            {lg.conVeredicto === 0 && (
+              <p className="advertencia">
+                <b>Ningún apoyo tiene veredicto en este eje.</b> La tabla dice cuánto se le está
+                pidiendo a cada estructura a lo largo de la línea; no puede decir cuánto aguanta,
+                porque <b>nadie ha declarado su capacidad longitudinal</b>. El porqué lo escribe el
+                propio cálculo, y va aquí sin retocar —una explicación reescrita a mano es la que
+                algún día dice una cosa en la pantalla y otra en el papel firmado—:{' '}
+                {textoNucleo(CRITERIO_CAPACIDAD_LONGITUDINAL)}
+              </p>
+            )}
             <p className="advertencia">
               <b>El mayor desequilibrio NO está en el estado de mayor tiro.</b> Comprobado con el
               motor: el tiro máximo ocurre a mínima temperatura, pero la mayor diferencia entre

@@ -50,6 +50,14 @@ import { calidadLevantamiento } from './calidad.js';
 // reescriben a mano — un criterio copiado es un criterio que algún día dice una
 // cosa en la pantalla y otra en el papel firmado.
 import { CRITERIO_UTILIZACION, UMBRAL_UTILIZACION_PCT } from '@lineas/nucleo/cargas';
+// El eje longitudinal tiene sus PROPIOS textos, y son de su propio módulo: el
+// criterio con el que se compara cuando hay capacidad declarada, y el motivo por
+// el que hoy no hay veredicto en ninguna fila. Los dos vivían copiados a mano en
+// este archivo; una copia es lo que hace que el papel firmado y la pantalla
+// acaben diciendo cosas distintas el día que uno de los dos cambie.
+import {
+  CRITERIO_UTILIZACION_LONGITUDINAL, CRITERIO_CAPACIDAD_LONGITUDINAL,
+} from '@lineas/nucleo/longitudinal';
 
 // ── Escapado ────────────────────────────────────────────────────────────────
 
@@ -696,8 +704,10 @@ function seccionLongitudinal(filas) {
   const terminales = filas.filter((c) => c?.caso === 'terminal');
   const invierten = filas.filter((c) => c?.inversionResoluble === true);
   const dudosos = filas.filter((c) => c?.sentidoResoluble === false);
+  const conUtil = filas.filter((c) => Number.isFinite(c?.utilizacion_pct));
+  const revisar = filas.filter((c) => c?.estadoUtilizacion === 'revisar');
 
-  const cuerpo = filas.map((c) => `<tr${c?.caso === 'terminal' ? ' class="revisar"' : ''}>
+  const cuerpo = filas.map((c) => `<tr${c?.estadoUtilizacion === 'revisar' || c?.caso === 'terminal' ? ' class="revisar"' : ''}>
     <td class="num">${n(c?.n)}</td>
     <td><b>${esc(c?.apoyo)}</b></td>
     <td>${esc(CASO_LONGITUDINAL[c?.caso] ?? c?.caso ?? SIN_DATO)}</td>
@@ -706,7 +716,12 @@ function seccionLongitudinal(filas) {
     <td class="num">${Number.isFinite(c?.flAdelanteMax_kgf) ? n(c.flAdelanteMax_kgf) : SIN_DATO}</td>
     <td class="num">${Number.isFinite(c?.flAtrasMax_kgf) ? n(c.flAtrasMax_kgf) : SIN_DATO}</td>
     <td class="num">${Number.isFinite(c?.roturaAtras_kgf) ? n(c.roturaAtras_kgf) : SIN_DATO}</td>
-    <td class="num">${Number.isFinite(c?.roturaAdelante_kgf) ? n(c.roturaAdelante_kgf) : SIN_DATO}</td></tr>`);
+    <td class="num">${Number.isFinite(c?.roturaAdelante_kgf) ? n(c.roturaAdelante_kgf) : SIN_DATO}</td>
+    <td class="num">${Number.isFinite(c?.utilizacion_pct)
+      ? `${n(c.utilizacion_pct, 1)} %${Number.isFinite(c?.umbralAplicado_pct)
+        ? ` / ${n(c.umbralAplicado_pct)} %` : ''}`
+      : SIN_DATO}</td>
+    <td>${sello(c?.estadoUtilizacion ?? 'no_evaluable')}</td></tr>`);
 
   const titular = terminales.length
     ? `<b>Los ${n(terminales.length)} apoyos terminales soportan el tiro ENTERO del conductor</b> `
@@ -723,27 +738,81 @@ function seccionLongitudinal(filas) {
     : 'Ningún apoyo invierte su sentido de forma afirmable: donde el cálculo da los dos sentidos, '
       + 'el menor no supera lo que pesaría una diferencia de tendido de obra.';
 
+  // El veredicto de este eje —y sobre todo su AUSENCIA— se cuenta en prosa antes
+  // de la tabla, igual que en la sección anterior: quien hojea el informe en una
+  // reunión no va a recorrer veinticuatro filas para descubrir que la última
+  // columna está entera en gris. Y se DERIVA de las filas: el día que el
+  // inventario traiga la capacidad, el párrafo cambia solo.
+  // ⚠️ DOS CUENTAS DISTINTAS, y confundirlas mete una afirmación FALSA sobre el
+  // inventario del cliente en un documento firmado. «Declarar capacidad» se mira
+  // en el APOYO; «llevar veredicto» es el resultado. Un apoyo puede declarar su
+  // capacidad y no llevar veredicto por otra razón —falta el conteo de fases,
+  // falta la altura de amarre, es una suspensión, es una derivación— y entonces
+  // decir «ningún apoyo declara su capacidad» manda a corregir el inventario,
+  // que es justo donde NO está el hueco. Es el patrón de frases que envejecen
+  // mal que §ADR-014 tuvo que arreglar en cinco sitios, y se coló otra vez con
+  // otro predicado (§ADR-017).
+  const declaran = filas.filter((c) => c?.capacidadDeclarada === true);
+  const sinVeredictoPeroDeclarada = declaran.length - conUtil.length;
+
+  const capacidad = conUtil.length
+    ? `<b>${n(conUtil.length)} de ${n(filas.length)} apoyos</b> llevan veredicto en este eje`
+      + (declaran.length > conUtil.length
+        ? `; ${n(declaran.length)} declaran su capacidad longitudinal, así que a `
+          + `${n(sinVeredictoPeroDeclarada)} le(s) falta OTRA cosa —el motivo va en su fila, y no `
+          + 'es el inventario de capacidades'
+        : '')
+      + `${revisar.length ? `. ${n(revisar.length)} pide(n) revisión` : ', y todos cumplen'}. `
+      + 'El tope contra el que se compara <b>no es el mismo para todos</b>: depende del tipo de '
+      + 'capacidad que se haya declarado, y por eso va impreso al lado de cada porcentaje.'
+    : declaran.length
+      ? `<b>${n(declaran.length)} de ${n(filas.length)} apoyos declaran su capacidad longitudinal, `
+        + 'y aun así ninguno lleva veredicto</b>: falta otra pieza en cada uno, y el motivo va '
+        + 'escrito en su fila. <b>El hueco NO está en el inventario de capacidades</b> — corregirlo '
+        + 'ahí no cambiaría nada.'
+      : '<b>Ningún apoyo declara su capacidad longitudinal</b>, así que ninguna fila lleva veredicto '
+        + 'en este eje. La tabla dice cuánto se le está pidiendo a cada estructura a lo largo de la '
+        + 'línea; no puede decir cuánto aguanta. El porqué, con las palabras del propio motor, va al '
+        + 'pie de la tabla — y no se estima: un apoyo que «cumple» contra una capacidad supuesta es '
+        + 'un informe firmado sobre una suposición.';
+
   return parrafo('El desequilibrio de un anclaje es la <b>diferencia</b> de los tiros de sus dos '
     + 'tramos, proyectada sobre el eje de la línea; en un apoyo de suspensión vale cero porque la '
     + 'tensión es común a los dos lados. <b>Estas cifras NO se suman con las de la sección '
     + 'anterior:</b> son cargas sobre ejes distintos.')
     + parrafo(titular)
     + parrafo(inversion)
+    + parrafo(capacidad)
     + (dudosos.length ? parrafo(`<b>Aviso:</b> en ${n(dudosos.length)} apoyo(s) el número sale pero `
       + 'el SENTIDO no es concluyente — queda por debajo de lo que pesaría una diferencia de '
       + 'tendido de obra, así que en el terreno podría apuntar al lado contrario.') : '')
     + tabla({
       leyenda: 'Carga longitudinal por conductor, CON SIGNO: «adelante» es hacia el apoyo siguiente. '
         + 'La rotura de conductor es caso ACCIDENTAL y se publica SIN veredicto: este proyecto no ha '
-        + 'adoptado criterio de aceptación para ella.',
+        + 'adoptado criterio de aceptación para ella. La <b>utilización</b> compara MOMENTOS —la '
+        + 'carga por la altura a la que amarra el conductor, contra la capacidad por la altura a la '
+        + 'que fue declarada—, y su segunda cifra es el tope aplicado.',
       cabecera: '<th class="num">#</th><th>Apoyo</th><th>Caso</th><th class="num">Deflexión</th>'
         + '<th class="num">cos(α/2)</th><th class="num">Adelante (kgf)</th><th class="num">Atrás (kgf)</th>'
-        + '<th class="num">Rotura atrás (kgf)</th><th class="num">Rotura adelante (kgf)</th>',
+        + '<th class="num">Rotura atrás (kgf)</th><th class="num">Rotura adelante (kgf)</th>'
+        + '<th class="num">Utilización</th><th>Estado</th>',
       filas: cuerpo,
+      // El texto del criterio NO se escribe aquí: se importa del núcleo. Y cuál
+      // de los dos se imprime lo deciden los datos — el criterio de comparación
+      // cuando hay algo comparado, y el motivo de la negativa cuando no lo hay.
       pie: `El mayor desequilibrio NO ocurre en el estado de mayor tiro: el tiro máximo es a mínima `
-        + `temperatura, pero la mayor diferencia entre tramos es a MÁXIMA. ${NOTA_HUECO}`,
+        + `temperatura, pero la mayor diferencia entre tramos es a MÁXIMA. `
+        + `${conUtil.length ? CRITERIO_UTILIZACION_LONGITUDINAL : CRITERIO_CAPACIDAD_LONGITUDINAL} `
+        + `${NOTA_HUECO}`,
     })
-    + observacionesDeFilas(filas, 'Lo que el cálculo del eje longitudinal supuso o no pudo resolver, '
+    // El criterio de cada apoyo CON veredicto viaja con las observaciones, que
+    // ya agrupan por texto idéntico: así el papel dice de dónde salió el número
+    // —qué capacidad, de qué tipo, a qué altura y de qué fuente— sin repetir
+    // veinticuatro veces la misma frase. Un número sin origen no es firmable.
+    + observacionesDeFilas(
+      filas.map((c) => (c?.criterioUtilizacion
+        ? { ...c, notas: [...lista(c?.notas), c.criterioUtilizacion] } : c)),
+      'Lo que el cálculo del eje longitudinal supuso o no pudo resolver, '
       + 'y en qué apoyos. Escrito por el propio motor, no redactado a mano.');
 }
 
@@ -1089,6 +1158,17 @@ export function limitacionesDeclaradas(entrada) {
   // haber dicho una palabra sobre si el apoyo aguanta lo que se le está pidiendo.
   const cargas = lista(e.cargas);
   const longitudinal = lista(e.longitudinal);
+
+  // ⚠️ Cuántas filas del eje longitudinal tienen VEREDICTO. Se cuenta UNA vez y
+  // gobierna los TRES párrafos de esta sección que hablan de ese eje. Los tres
+  // eran texto fijo que afirmaba, sin condición, que no hay veredicto — cierto
+  // hoy, y falso el mismo día que un apoyo declare su capacidad longitudinal. Es
+  // literalmente el fallo que §ADR-014 tuvo que arreglar en cinco sitios: el
+  // informe afirmando en su última página lo que su propia tabla desmiente dos
+  // páginas antes. Se derivan de los datos y dejan de envejecer.
+  const longConVeredicto = longitudinal.filter((c) => Number.isFinite(c?.utilizacion_pct));
+  const longSinVeredicto = longitudinal.length - longConVeredicto.length;
+
   if (!cargas.length) {
     add('No se evaluó la carga sobre las estructuras',
       'Este documento verifica el CONDUCTOR —tiro, flecha, vano—, no el APOYO. Un conductor dentro '
@@ -1132,9 +1212,13 @@ export function limitacionesDeclaradas(entrada) {
         `${nombresExtremos}: un extremo no tiene deflexión definida y su caso de carga dominante es `
         + 'el LONGITUDINAL —el conductor tirando en la dirección de la línea sin nada que lo '
         + 'compense al otro lado—, que es otro eje. ' + (longitudinal.length
-          ? 'Esa carga longitudinal SÍ se calcula y se publica en la sección 7 de este informe, pero '
-            + 'SIN veredicto: falta la capacidad declarada para ese eje. Que no tengan fila en esta '
-            + 'tabla no significa que estén holgados.'
+          ? 'Esa carga longitudinal SÍ se calcula y se publica en la sección 7 de este informe, '
+            + (longConVeredicto.length
+              ? `con veredicto en ${n(longConVeredicto.length)} de ${n(longitudinal.length)} `
+                + 'apoyos —los que declaran su capacidad para ese eje—. Que no tengan fila en esta '
+                + 'tabla no significa que estén holgados en ésta.'
+              : 'pero SIN veredicto: falta la capacidad declarada para ese eje. Que no tengan fila '
+                + 'en esta tabla no significa que estén holgados.')
           : 'Que no tengan fila no significa que estén holgados: significa que su verificación es '
             + 'otra y está pendiente.'),
         'carga sobre las estructuras');
@@ -1148,9 +1232,13 @@ export function limitacionesDeclaradas(entrada) {
       longitudinal.length
         ? 'La vertical (vano peso) depende de la cota del punto de sujeción, que no está levantada, '
           + 'así que este informe no dice nada de ella. La LONGITUDINAL sí se calculó y se publica '
-          + 'en la sección 7, pero sin veredicto: hay cifras, no dictamen. Los tres ejes no se '
-          + 'suman entre sí, y un apoyo con la transversal holgada puede estar comprometido en '
-          + 'cualquiera de los otros dos.'
+          + 'en la sección 7, ' + (longConVeredicto.length
+            ? `con veredicto en ${n(longConVeredicto.length)} de ${n(longitudinal.length)} apoyos`
+              + `${longSinVeredicto ? `; los otros ${n(longSinVeredicto)} siguen sin veredicto` : ''}`
+              + '. '
+            : 'pero sin veredicto: hay cifras, no dictamen. ')
+          + 'Los tres ejes no se suman entre sí, y un apoyo con la transversal holgada puede estar '
+          + 'comprometido en cualquiera de los otros dos.'
         : 'La vertical (vano peso) depende de la cota del punto de sujeción, que no está levantada; '
           + 'la longitudinal es el desequilibrio de tiros entre tramos contiguos y la rotura de '
           + 'conductor. Son otros ejes y no se suman a estas cifras. Un apoyo con la transversal '
@@ -1202,11 +1290,20 @@ export function limitacionesDeclaradas(entrada) {
       + 'que produce la GEOMETRÍA, no el que dejó el tendido real de obra: en el estado de cada '
       + 'día vale cero exacto por construcción, y eso es un cero del modelo, no una medición.',
       'carga longitudinal');
-    add('Ningún apoyo tiene veredicto en el eje longitudinal',
-      'La utilización exige una capacidad DECLARADA para el eje de la línea, con su tipo y la '
-      + 'altura a la que está referida. La carga de rotura del inventario no sirve: es ensayo '
-      + 'TRANSVERSAL en punta, y su validez en el eje longitudinal depende de la sección del apoyo '
-      + 'y de si hay retenida — ninguna de las dos está declarada.', 'carga longitudinal');
+    // El título y el cuerpo salen del CONTEO, no de una frase escrita hace tres
+    // versiones, y el motivo es el del propio núcleo — aquí estaba copiado a
+    // mano, que es como el papel firmado y la pantalla acaban divergiendo. Si un
+    // día ningún apoyo se queda sin veredicto, esta limitación desaparece sola:
+    // una lista de límites que enumera un hueco ya tapado desacredita a los que
+    // siguen abiertos.
+    if (longSinVeredicto) {
+      add(longConVeredicto.length
+        ? `${n(longSinVeredicto)} de ${n(longitudinal.length)} apoyos siguen sin veredicto en el `
+          + 'eje longitudinal'
+        : 'Ningún apoyo tiene veredicto en el eje longitudinal',
+        `${CRITERIO_CAPACIDAD_LONGITUDINAL} El motivo de cada fila va escrito bajo la tabla de la `
+        + 'sección 7, con las palabras del propio motor.', 'carga longitudinal');
+    }
     add('La rotura de conductor se publica SIN criterio de aceptación',
       'Es caso ACCIDENTAL: se da la fuerza y sus dos componentes, pero este proyecto no ha '
       + 'adoptado ningún tope contra el que compararla, y las normas que lo tratan aplican '

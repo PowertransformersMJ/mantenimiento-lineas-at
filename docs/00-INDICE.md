@@ -79,6 +79,7 @@ Guarda `research-archive/` (crudos de deliberación: comités, consejos externos
 | `ADR-014` | 2026-08-03 | Los once menores cerrados: un dueño único para la deflexión y para el dialecto CSV, el tope de tiro con su procedencia verdadera, y las barreras imaginarias del portero corregidas | `research-archive/2026-08-03-auditoria-ola-4.json` |
 | `ADR-015` | 2026-08-03 | Una foto puede colgar de un APOYO; y el número del archivo es el del PUNTO del levantamiento, no el de la estructura: `e07` es E06 | `research-archive/2026-08-03-auditoria-ola-4.json` |
 | `ADR-016` | 2026-08-03 | El nodo de lecciones partido en madre-índice + 3 hijos por tema; los `L-NN` no se renumeran porque los cita el código fuente | `research-archive/2026-08-03-workflow-shard-nodo-30.json` |
+| `ADR-017` | 2026-08-03 | La capacidad longitudinal entra al contrato (umbral 50/100 según el tipo) y el veredicto llega al producto: sin `nFasesAmarradas` era inalcanzable | `research-archive/2026-08-03-workflow-capacidad-longitudinal.json` |
 
 > Toda decisión cara de revertir entra aquí con su ADR y su crudo enlazado. Si hubo comité o consejo
 > externo y el crudo no está archivado, la tarea **no está cerrada** (`CLAUDE.md §G.4`).

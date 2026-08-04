@@ -18,8 +18,15 @@ import { z } from 'zod';
  * tipo): `Apoyo.alturaLibre_m` y `Apoyo.alturaAplicacion_m`, que son los dos
  * datos que le faltaban a `nucleo/cargas.js` para poder decir si un apoyo
  * aguanta. Un documento escrito con 0.1.0 sigue validando sin tocarlo.
+ *
+ * 0.3.0 — MENOR (un solo campo opcional añadido, nada renombrado ni cambiado de
+ * tipo): `Apoyo.capacidadLongitudinal`, que es el dato que le faltaba a
+ * `nucleo/longitudinal.js` para poder decir si un apoyo aguanta a lo LARGO de
+ * la línea (ADR-012). Un documento escrito con 0.2.0 sigue validando sin
+ * tocarlo. La cifra se imprime en el pie de la aplicación: si no se sube, la
+ * pantalla declara una versión que ya no es la que valida.
  */
-export const VERSION_CONTRATO = '0.2.0';
+export const VERSION_CONTRATO = '0.3.0';
 
 // ── Identificadores ─────────────────────────────────────────────────────────
 

@@ -19,6 +19,7 @@
 import {
   longitudinalDeLaLinea, DESAJUSTE_TENDIDO_PCT_RTS, PISO_VALIDEZ_PCT_EDS,
   HIPOTESIS_DESEQUILIBRIO, SIN_CRITERIO_ACCIDENTAL, CRITERIO_CAPACIDAD_LONGITUDINAL,
+  CRITERIO_UTILIZACION_LONGITUDINAL,
 } from '@lineas/nucleo/longitudinal';
 import type { Apoyo, Conductor } from '@lineas/contratos';
 import type { AvisoCarga } from './cargasDatos';
@@ -47,6 +48,44 @@ export interface FilaLongitudinal {
   /** Rotura de conductor: fuerza y sus dos componentes, por lado roto. */
   roturaAtras_kgf: number | null;
   roturaAdelante_kgf: number | null;
+  /**
+   * El veredicto de ESTE eje, o su ausencia. Cuatro campos y no uno, porque un
+   * porcentaje solo no es firmable:
+   *
+   * · `utilizacion_pct` — cuánta capacidad longitudinal consume la carga
+   *   PERMANENTE del apoyo, comparando MOMENTOS (fuerza × altura), no fuerzas.
+   * · `estadoUtilizacion` — `null` es «no evaluable», y es lo que sale HOY en
+   *   toda la línea: ningún apoyo del inventario declara su capacidad para este
+   *   eje. Es un hueco del INVENTARIO, no un fallo del cálculo, y su motivo
+   *   viaja en `notas` con las palabras del propio núcleo.
+   * · `umbralAplicado_pct` — contra qué porcentaje se comparó. No es fijo:
+   *   depende del TIPO de capacidad declarada (una carga de rotura lleva su
+   *   coeficiente de seguridad; una capacidad ya admisible o de diseño ya lo
+   *   trae dentro y volver a partirla sacaría «revisar» sobre apoyos sanos).
+   * · `criterioUtilizacion` — el texto que declara contra QUÉ se comparó: tipo,
+   *   valor, altura de referencia, fuente y umbral. Lo escribe el núcleo; aquí
+   *   NO se reescribe. Un número sin origen no se puede discutir sin abrir el
+   *   código, y quien firma tiene que poder discutirlo.
+   */
+  utilizacion_pct: number | null;
+  estadoUtilizacion: 'cumple' | 'revisar' | null;
+  umbralAplicado_pct: number | null;
+  criterioUtilizacion: string | null;
+  /**
+   * ⚠️ Si el APOYO trae capacidad declarada. Es un hecho DISTINTO de «lleva
+   * veredicto», y confundirlos hace que la pantalla y el informe afirmen que el
+   * inventario no tiene el dato cuando sí lo tiene — mandando a corregir el
+   * sitio equivocado (§ADR-017).
+   */
+  capacidadDeclarada: boolean;
+  /** Cuánta carga admite todavía el umbral aplicado. Simétrico con el eje transversal. */
+  margen_kgf: number | null;
+  /**
+   * El NUMERADOR del porcentaje: la carga TOTAL sobre el apoyo. Las columnas
+   * «adelante» y «atrás» son por CONDUCTOR, así que sin este número la
+   * utilización no se puede reproducir con una calculadora.
+   */
+  flTotalPeor_kgf: number | null;
   notas: string[];
   noEvaluable: string | null;
 }
@@ -60,6 +99,17 @@ export interface LongitudinalEnPantalla {
   /** Cuántos tienen número pero con el sentido no concluyente. */
   cuantosSentidoDudoso: number;
   conCarga: number;
+  /**
+   * Cuántos apoyos tienen VEREDICTO en este eje. Hoy vale cero en toda línea
+   * real, y por eso existe: la pantalla y el informe tienen que poder decir «de
+   * 24, ninguno» sin que nadie lo escriba a mano — y tienen que dejar de
+   * decirlo solos el día que el inventario traiga la capacidad.
+   */
+  conVeredicto: number;
+  /** Cuántos APOYOS declaran capacidad longitudinal. NO es lo mismo que llevar veredicto. */
+  conCapacidadDeclarada: number;
+  /** De los que tienen veredicto, cuántos piden revisión. */
+  aRevisar: number;
   total: number;
   avisos: AvisoCarga[];
 }
@@ -108,6 +158,17 @@ export function longitudinalParaPantalla(
     inversionResoluble: r.inversionResoluble,
     roturaAtras_kgf: r.accidental?.atras?.fuerza_kgf ?? null,
     roturaAdelante_kgf: r.accidental?.adelante?.fuerza_kgf ?? null,
+    // El veredicto NO se calcula aquí ni se completa con valores por defecto:
+    // se echa lo que el núcleo publicó, y cuando no publicó nada la celda queda
+    // vacía. Rellenar un umbral «por si acaso» sería inventar contra qué se
+    // comparó una cifra que nadie comparó.
+    capacidadDeclarada: r.capacidadDeclarada === true,
+    margen_kgf: r.utilizacion?.margen_kgf ?? null,
+    flTotalPeor_kgf: r.flTotalPeor_kgf ?? null,
+    utilizacion_pct: r.utilizacion?.utilizacion_pct ?? null,
+    estadoUtilizacion: (r.utilizacion?.estado as 'cumple' | 'revisar' | undefined) ?? null,
+    umbralAplicado_pct: r.utilizacion?.umbralAplicado_pct ?? null,
+    criterioUtilizacion: r.utilizacion?.criterio ?? null,
     notas: r.notas ?? [],
     noEvaluable: r.noEvaluable,
   }));
@@ -141,6 +202,9 @@ function resumir(filas: FilaLongitudinal[]) {
     cuantosInvierten: filas.filter((r) => r.inversionResoluble === true).length,
     cuantosSentidoDudoso: filas.filter((r) => r.sentidoResoluble === false).length,
     conCarga: conCargaFilas.length,
+    conVeredicto: filas.filter((r) => r.utilizacion_pct !== null).length,
+    conCapacidadDeclarada: filas.filter((r) => r.capacidadDeclarada).length,
+    aRevisar: filas.filter((r) => r.estadoUtilizacion === 'revisar').length,
     total: filas.length,
   };
 }
@@ -186,6 +250,20 @@ function redactarAvisos(filas: FilaLongitudinal[]): AvisoCarga[] {
     });
   }
 
+  // El veredicto, cuando lo hay, manda sobre todo lo demás de esta pantalla: es
+  // la única línea que dice que a un apoyo se le está pidiendo más de lo que el
+  // proyecto adoptó como tope. Va con los hallazgos, no con los límites.
+  const aRevisar = filas.filter((r) => r.estadoUtilizacion === 'revisar');
+  if (aRevisar.length) {
+    avisos.push({
+      severidad: 'atencion',
+      concepto: `${aRevisar.length} apoyo(s) superan el tope adoptado en el eje longitudinal`,
+      motivo: `${listar(aRevisar.map((r) =>
+        `${r.apoyo} (${f(r.utilizacion_pct, 1)} % de un tope del ${f(r.umbralAplicado_pct)} %)`))}. `
+        + CRITERIO_UTILIZACION_LONGITUDINAL,
+    });
+  }
+
   // ── LÍMITES Y HUECOS ─────────────────────────────────────────────────────
 
   const dudoso = filas.filter((r) => r.sentidoResoluble === false);
@@ -225,6 +303,38 @@ function redactarAvisos(filas: FilaLongitudinal[]): AvisoCarga[] {
     });
   }
 
+  // ── EL VEREDICTO DE ESTE EJE: lo que hay y lo que falta para que lo haya ──
+  //
+  // Este aviso era FIJO: afirmaba sin condición que no hay utilización
+  // longitudinal. Hoy es verdad —ningún apoyo del inventario declara su
+  // capacidad para este eje—, pero el día que uno la declare la frase pasaría a
+  // contradecir a la tabla que está justo encima. Es exactamente el fallo que
+  // §ADR-014 tuvo que arreglar en cinco sitios: frases que envejecen mal por
+  // construcción. Derivado de las filas, deja de ser falso solo.
+  const sinVeredicto = filas.filter((r) => r.utilizacion_pct === null);
+  const conVeredicto = filas.length - sinVeredicto.length;
+
+  if (sinVeredicto.length === filas.length) {
+    avisos.push({
+      severidad: 'info',
+      concepto: 'No hay utilización longitudinal: falta una capacidad declarada para este eje',
+      motivo: CRITERIO_CAPACIDAD_LONGITUDINAL,
+    });
+  } else if (sinVeredicto.length) {
+    avisos.push({
+      severidad: 'aviso',
+      concepto: `${sinVeredicto.length} de ${filas.length} apoyos siguen sin veredicto en este eje`,
+      motivo: `${listar(sinVeredicto.map((r) => r.apoyo))}. ${CRITERIO_CAPACIDAD_LONGITUDINAL}`,
+    });
+  }
+  if (conVeredicto) {
+    avisos.push({
+      severidad: 'info',
+      concepto: `${conVeredicto} apoyo(s) con veredicto: contra qué se comparó su carga`,
+      motivo: CRITERIO_UTILIZACION_LONGITUDINAL,
+    });
+  }
+
   // ── LÍMITES DEL MÉTODO: van siempre ──────────────────────────────────────
 
   avisos.push({
@@ -236,11 +346,6 @@ function redactarAvisos(filas: FilaLongitudinal[]): AvisoCarga[] {
     severidad: 'info',
     concepto: 'La rotura de conductor se publica SIN veredicto',
     motivo: SIN_CRITERIO_ACCIDENTAL,
-  });
-  avisos.push({
-    severidad: 'info',
-    concepto: 'No hay utilización longitudinal: falta una capacidad declarada para este eje',
-    motivo: CRITERIO_CAPACIDAD_LONGITUDINAL,
   });
   avisos.push({
     severidad: 'info',
@@ -274,6 +379,25 @@ interface CrudaLongitudinal {
     flAtrasMax_kgf?: number | null; estadoAtras?: string | null;
   } | null;
   accidental: { atras?: { fuerza_kgf: number | null }; adelante?: { fuerza_kgf: number | null } } | null;
+  /** Si el APOYO trae capacidad declarada — distinto de llevar veredicto (§ADR-017). */
+  capacidadDeclarada?: boolean;
+  /** El numerador del porcentaje: la carga TOTAL sobre el apoyo, no la de un conductor. */
+  flTotalPeor_kgf?: number | null;
+  /**
+   * El veredicto del eje, o `null` cuando el núcleo se negó a emitirlo — que es
+   * lo normal hoy. Los campos van opcionales a propósito: esta interfaz es un
+   * espejo escrito a mano de lo que devuelve un módulo JS, y una forma rígida
+   * convertiría en error de compilación lo que sería, como mucho, una celda
+   * vacía. El motivo de la negativa NO viaja aquí: viaja en `notas`, que es
+   * donde ya lo lee la pantalla, el informe y el CSV.
+   */
+  utilizacion: {
+    utilizacion_pct?: number | null;
+    margen_kgf?: number | null;
+    estado?: string | null;
+    umbralAplicado_pct?: number | null;
+    criterio?: string | null;
+  } | null;
   sensibilidadTendido_kgf: number | null;
   sentidoResoluble: boolean | null;
   inversionResoluble: boolean | null;

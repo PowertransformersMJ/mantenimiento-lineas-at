@@ -29,8 +29,10 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { cargasParaPantalla, agruparNotas } from '../web/src/vistas/cargasDatos.ts';
+import { longitudinalParaPantalla } from '../web/src/vistas/longitudinalDatos.ts';
 import { vincenty } from '../nucleo/geodesia.js';
 import { derivarLevantamiento } from '../exportar/levantamiento.js';
+import { CRITERIO_CAPACIDAD_LONGITUDINAL } from '../nucleo/longitudinal.js';
 
 const cerca = (real, esperado, tol, msg) =>
   assert.ok(Number.isFinite(real) && Math.abs(real - esperado) <= tol,
@@ -566,5 +568,117 @@ describe('sin cálculo mecánico no se inventa carga', () => {
       'el factor del quiebre es geometría: se sabe aunque no haya cálculo mecánico');
     assert.equal(f.ftAngulo_kgf, null, 'pero sin tiro no hay kgf que publicar');
     assert.equal(r.peorFactor.apoyo, 'S3', 'y el hallazgo del quiebre sigue en pie');
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// EL OTRO EJE EN PANTALLA: `longitudinalParaPantalla`
+//
+// Lo que se vigila aquí no es un número: es que el veredicto del eje —y sobre
+// todo SU AUSENCIA— cruce del núcleo a la pantalla sin perderse por el camino, y
+// que el aviso de línea diga la verdad en vez de una frase fija.
+//
+// El hecho de HOY, y hay que decirlo sin adornos: ninguna fila de ninguna línea
+// real tiene veredicto en este eje, y este trabajo no se lo da. Faltan DOS datos
+// y ninguno es de desarrollo: la `capacidadLongitudinal` del apoyo (que no
+// declara ni un apoyo del inventario) y cuántas fases amarran (`nFasesAmarradas`,
+// que ni está en el contrato ni esta vista pasa a propósito — heredarlo del
+// conteo de la carga transversal metería el cable de guarda por la puerta de
+// atrás, y en este eje el guarda va más alto y manda el momento). Lo que sí
+// cambia es que ahora se dice POR QUÉ, con las palabras del propio cálculo.
+// ════════════════════════════════════════════════════════════════════════════
+describe('el eje longitudinal en pantalla: el veredicto y su ausencia', () => {
+  const estado = (nombre, H, t = 25) => ({ nombre, H, t, w: 1 });
+  const tramoRico = (desde, hasta, tiros) => ({
+    desde: { nombre: desde }, hasta: { nombre: hasta },
+    estados: {
+      eds: estado('EDS / cada día', tiros.eds, 25),
+      tMax: estado('Máxima temperatura', tiros.tMax, 75),
+      viento: estado('Máximo viento', tiros.viento, 25),
+      tMin: estado('Mínima temperatura', tiros.tMin, 10),
+    },
+  });
+  const ap = (nombre, funcionEstructural, extra = {}) => ({
+    nombre, funcionEstructural, tipoPunto: 'Estructura', ...extra,
+  });
+
+  /**
+   * Capacidad SINTÉTICA. Sembrarla en el fixture de una línea real, en la base o
+   * en los datos de demostración publicaría un «cumple» sobre un número que
+   * nadie firmó — el único error de este sistema que no deja rastro, porque se
+   * lee igual de bien que uno bueno.
+   */
+  const CAPACIDAD = {
+    valor_kgf: 20000, tipo: 'rotura', alturaReferencia_m: 12,
+    fuente: 'ficha sintética de prueba',
+  };
+  const TRAMOS = [
+    tramoRico('A', 'C', { eds: 1200, tMax: 700, viento: 1230, tMin: 1500 }),
+    tramoRico('C', 'D', { eds: 1200, tMax: 1000, viento: 1255, tMin: 1290 }),
+  ];
+  const CONDUCTOR = { rts_kgf: 6000 };
+  const linea = (extraA = {}) => [
+    ap('A', 'Terminal', extraA),
+    ap('B', 'Suspensión', { deflexion_grados: 2 }),
+    ap('C', 'Retención / anclaje', { deflexion_grados: 40 }),
+    ap('D', 'Terminal'),
+  ];
+  const correr = (apoyos) => longitudinalParaPantalla(apoyos, TRAMOS, CONDUCTOR);
+  const de = (r, nombre) => r.filas.find((f) => f.apoyo === nombre);
+
+  test('los cuatro campos del veredicto existen en TODAS las filas', () => {
+    // Si el mapeo se cae, la tabla no falla: enseña una columna en blanco y
+    // nadie se entera. Por eso se comprueba la CLAVE, no solo el valor.
+    const r = correr(linea());
+    for (const f of r.filas) {
+      for (const k of ['utilizacion_pct', 'estadoUtilizacion', 'umbralAplicado_pct',
+        'criterioUtilizacion']) {
+        assert.ok(k in f, `la fila de ${f.apoyo} perdió ${k} al cruzar a la pantalla`);
+      }
+    }
+  });
+
+  test('HOY ninguna fila tiene veredicto, y el resumen lo cuenta', () => {
+    const r = correr(linea());
+    assert.equal(r.conVeredicto, 0);
+    assert.equal(r.aRevisar, 0);
+    for (const f of r.filas) {
+      assert.equal(f.utilizacion_pct, null);
+      assert.equal(f.estadoUtilizacion, null, 'null es «no evaluable», no «cumple»');
+      assert.equal(f.umbralAplicado_pct, null, 'sin veredicto no se inventa un tope');
+    }
+  });
+
+  test('el aviso de línea es CONDICIONAL, y hoy dice la verdad de hoy', () => {
+    const r = correr(linea());
+    const a = r.avisos.find((x) => /No hay utilización longitudinal/.test(x.concepto));
+    assert.ok(a, 'mientras nadie declare la capacidad, el aviso tiene que estar');
+    assert.equal(a.motivo, CRITERIO_CAPACIDAD_LONGITUDINAL,
+      'el motivo es el del núcleo, palabra por palabra: copiarlo es cómo la pantalla '
+      + 'y el papel firmado acaban diciendo cosas distintas');
+    assert.equal(r.avisos.filter((x) => /con veredicto/.test(x.concepto)).length, 0);
+  });
+
+  test('una capacidad declarada NO basta todavía, y el motivo se publica', () => {
+    // El hueco que queda declarado como deuda, no tapado: sin saber cuántas
+    // fases amarran no hay TOTAL sobre el apoyo, y comparar el valor POR
+    // CONDUCTOR contra la capacidad dividiría la carga entre 3 o 4 y sacaría un
+    // «cumple» falso justo en los apoyos que soportan el tiro entero.
+    const f = de(correr(linea({
+      capacidadLongitudinal: CAPACIDAD, alturaAplicacion_m: 12, alturaLibre_m: 14,
+    })), 'A');
+    assert.equal(f.utilizacion_pct, null);
+    assert.ok(f.notas.some((t) => /nFasesAmarradas|fases amarran/.test(t)),
+      'la fila tiene que decir QUÉ le falta, no callarse');
+  });
+
+  test('la carga de rotura del inventario NO alimenta este eje, ni con alturas', () => {
+    // Es ensayo TRANSVERSAL en punta: su validez a lo largo de la línea depende
+    // de la sección del apoyo y de si hay retenida, y ninguna está declarada.
+    const f = de(correr(linea({
+      cargaRotura_kgf: 20000, alturaLibre_m: 14, alturaAplicacion_m: 12,
+    })), 'A');
+    assert.equal(f.utilizacion_pct, null);
+    assert.equal(f.estadoUtilizacion, null);
   });
 });

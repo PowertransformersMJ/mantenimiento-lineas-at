@@ -1391,3 +1391,86 @@ lección, y eso se edita en el kernel (`../brain-private/kernel/`), nunca aquí.
 ### Crudo de respaldo
 
 `research-archive/2026-08-03-workflow-shard-nodo-30.json`
+
+---
+
+## ADR-017 · 2026-08-03 · La capacidad longitudinal entra al contrato, y el veredicto llega al producto
+
+**Estado:** ✅ Cerrado · `TODO-41` completo · contrato **v0.3.0** · 673 pruebas en verde
+
+### Contexto
+
+`ADR-012` construyó el eje longitudinal y dejó escrita su deuda: **ningún apoyo tiene veredicto en
+este eje** porque falta un campo, `capacidadLongitudinal`. Su forma se deliberó allí con un workflow
+de 7 agentes y quedó especificada; esta tanda la ejecuta con otro workflow de 8 agentes Opus
+(especificación · 3 constructores · pruebas · 3 auditores adversariales).
+
+### La decisión
+
+> **`Apoyo.capacidadLongitudinal { valor_kgf, tipo, alturaReferencia_m, fuente }`**, aditivo y
+> opcional. **El umbral depende del TIPO**: 50 % si es carga de *rotura* (coeficiente de seguridad
+> 2), **100 %** si es *admisible* o de *diseño* —esos valores ya llevan su factor dentro, y volver a
+> castigarlos aplicaría dos veces el mismo margen—. La lista de tipos es CERRADA: entre el 50 % y el
+> 100 % hay un factor 2 sobre el veredicto de un apoyo, y ante un texto que no sea uno de los tres el
+> sistema **no adivina el más parecido**.
+
+> **`alturaReferencia_m` es obligatoria dentro del objeto.** Lo que rompe un apoyo es el MOMENTO, no
+> la fuerza; una capacidad sin la altura a la que se ensayó no permite compararlos, y reescalarla en
+> silencio devolvería un porcentaje impecable y falso, con veredicto encima.
+
+> **NUNCA se deduce de `cargaRotura_kgf` ni se acepta un valor de LÍNEA.** Aquélla es ensayo
+> TRANSVERSAL en punta; su validez en este eje depende de la sección del apoyo y de si hay retenida,
+> y ninguna de las dos está declarada. Un veredicto heredado de otro apoyo es peor que no tenerlo.
+
+### Lo que la auditoría adversarial cazó, y sin lo cual esto no valía nada
+
+**Un agente murió a mitad de la fase de presentación** (`30 · L-24`) y dejó el trabajo entregado en
+un estado que pasaba las 667 pruebas y **no servía para nada en producción**. Los tres auditores lo
+encontraron por separado, cada uno ejecutando el motor:
+
+| Hallazgo | Por qué las pruebas no lo veían |
+|---|---|
+| **El veredicto era INALCANZABLE desde la aplicación.** La utilización se calcula sobre el total, que exige `nFasesAmarradas` — un campo que NO existía en el contrato y que la vista no pasaba. Con la capacidad perfectamente declarada, las 24 filas seguían en «no evaluable» | Las pruebas llamaban al núcleo **directamente**, pasando el conteo por `opciones`. El camino real de la aplicación no lo hace. Es `L-28` por segunda vez en este proyecto |
+| El informe firmable afirmaba **«Ningún apoyo declara su capacidad longitudinal»** contando VEREDICTOS, no capacidades. Con el inventario lleno seguiría negándolo — y mandando a corregir donde no está el hueco | Ninguna prueba ejercía «capacidad declarada **y sin** veredicto», que es justo el caso que produce la mentira |
+| Un apoyo de **DERIVACIÓN** recibía un «cumple» verde. La cifra es el desequilibrio de la línea principal; lo que de verdad lo carga es el tiro del ramal, **que el sistema no ve** | La rama del Terminal ya declaraba ese punto ciego con esas palabras, pero la advertencia no viajaba al veredicto |
+| El porcentaje **no se podía comprobar con una calculadora**: se calcula sobre el total y las columnas publicadas son POR CONDUCTOR | Es el mismo fallo que `ADR-013` arregló en el eje transversal, repetido aquí |
+
+### Decisiones nuevas que salieron de arreglarlo
+
+> **`Apoyo.nFasesAmarradas`** entra también al contrato, y se lee **del apoyo primero, de la línea
+> después** — el patrón que ya usa `cargas.js` con `nConductores`. Un terminal amarra todas las fases
+> y un apoyo de paso puede no amarrar ninguna: un conteo de línea es una suposición sobre cada
+> estructura, y cuando se usa, **el criterio lo dice**. NO se hereda del conteo transversal: aquél
+> cuenta 3·circuitos con el cable de guarda declaradamente fuera, y aquí el guarda —que va más
+> alto— manda el momento.
+
+> **La derivación NO se dictamina** mientras el modelo no capture el ramal. Se publica la cifra que
+> sí se calcula y se niega el veredicto con el motivo escrito. Misma doctrina que la suspensión.
+
+> **Se publican los dos hechos por separado**, en pantalla, CSV e informe: cuántos apoyos DECLARAN
+> capacidad y cuántos llevan VEREDICTO. Un apoyo puede declararla y no llevar veredicto por otra
+> razón, y decir lo contrario es una afirmación falsa sobre el inventario del cliente dentro de un
+> papel que se firma.
+
+> **El numerador viaja con el porcentaje**: `FL_total_kgf`, `N_fases_amarradas` y `Margen_kgf` en el
+> CSV y en la fila. Sin ellos la cifra no es auditable, y la frase que gobierna el producto dice
+> justo lo contrario.
+
+### Consecuencias
+
+- **Esto NO le da veredicto a LN-627, y así debe ser.** Ningún apoyo del inventario declara su
+  capacidad longitudinal ni cuántas fases amarra. Las 24 filas siguen sin dictamen — pero ahora
+  cada una dice CUÁL de los huecos tiene, y cada hueco se corrige en un sitio distinto. **No se
+  sembró ni un dato** para «poder verlo funcionar»: eso está en las pruebas, con datos sintéticos.
+- La promesa que el informe imprimía —«el día que el dato llegue, el veredicto sale solo, sin tocar
+  código»— **era falsa cuando se escribió** y ahora es cierta: los dos campos existen y el motor los
+  lee del apoyo. Verificado ejecutando los tres escenarios.
+- **Deuda declarada:** el criterio impreso junto a un veredicto no menciona todavía dos supuestos
+  que este eje arrastra —que el desequilibrio quede por debajo del ruido de tendido, y que lo domine
+  un tramo que en el MODELO se derrumba bajo el 25 % de su EDS—. Los dos van hoy en las notas de la
+  fila, que sí se publican; llevarlos al texto del veredicto queda pendiente. Tampoco viaja
+  `funcionProcedencia`, y en LN-627 vale «deducido_geometria».
+
+### Crudo de respaldo
+
+`research-archive/2026-08-03-workflow-capacidad-longitudinal.json`
