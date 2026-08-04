@@ -63,7 +63,7 @@ longitudinal llegando al producto. Detalle en `99`; aquí solo lo que cambia dec
 
 | # | Qué | Dónde está el plan |
 |---|---|---|
-| **TODO-49** | **Los 4 bloqueantes de la crítica sin portar** (`99 §ADR-018`): contador de PARQUE · el hueco no lleva a su evidencia con un clic · Exportar no declara la cobertura · sin estado en la dirección web | `99 §ADR-018` |
+| **TODO-49** | ⏳ De los 4 bloqueantes, **3 portados y verificados en producción** (clic del hueco → Cargas · Exportar declara «0 de 24 con veredicto» · estado en la dirección `#/LN-627/cargas`, Atrás incluido). Queda el **contador de PARQUE**, NO construible hoy: solo se carga la línea abierta | `99 §ADR-018` |
 | **TODO-48** | **Deuda de ADR-017**: el criterio del veredicto longitudinal no menciona el ruido de tendido ni el piso de validez; `funcionProcedencia` no viaja a la fila (en LN-627 vale «deducido_geometria») | `99 §ADR-017` |
 | **TODO-42/37** | **Informe gerencial** del expediente (10 secciones especificadas) | crudo de **ADR-012** |
 | **TODO-30** | CI: validación XSD real de GPX/KML | crudo de **ADR-013** |
