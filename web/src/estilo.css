@@ -644,10 +644,17 @@ p.fund-vivo + .sello-calculo { margin-top: 5px; }
 /* El medidor: SIEMPRE a la vista, nunca detrás del ratón. Era el bloqueante
    nº3 de la crítica — dos maquetas lo escondían en el texto emergente. */
 .cielo-medidor {
+  appearance: none; cursor: pointer; font: inherit; font-family: inherit;
   flex: none; text-align: right;
   padding: 5px 11px; border-radius: var(--radio);
   background: var(--pnl-alto); border: 1px solid var(--bd);
+  transition: border-color .15s var(--curva), transform .15s var(--curva);
 }
+/* El hueco LLEVA A SU EVIDENCIA con un clic. Era el bloqueante nº6 de la
+   crítica: en las cuatro maquetas solo navegaban los indicadores verdes —
+   lo que grita invitaba a profundizar y lo que calla, no. */
+.cielo-medidor:hover { border-color: var(--acc); transform: translateY(-1px); }
+.cielo-medidor:focus-visible { outline: 2px solid var(--acc); outline-offset: 3px; }
 .cielo-medidor b {
   display: block; font-size: 16px; font-weight: 660; font-variant-numeric: tabular-nums;
   color: var(--tx); line-height: 1.2;
@@ -701,6 +708,10 @@ p.fund-vivo + .sello-calculo { margin-top: 5px; }
 .hz-sw-hueca { background: var(--hz-hueca-fondo); border: 1.4px dashed var(--hz-hueca-bd); }
 .hz-sw-fuera { background: var(--rd); }
 .hz-nota { margin-left: auto; color: var(--mut); }
+/* Una cifra que es un HUECO dentro de un párrafo: no puede leerse igual
+   que las de al lado. */
+.alerta-en-linea { color: var(--rd); }
+
 .hz-lectura {
   margin: 0; padding: 8px 13px; font-size: 11.4px; line-height: 1.5;
   color: var(--tx2); border-top: 1px solid var(--bd);

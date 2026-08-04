@@ -34,6 +34,7 @@ import { conductorParaNucleo, paramsParaNucleo, calcularTramos } from '../vistas
 import { cargasParaPantalla } from '../vistas/cargasDatos';
 import { longitudinalParaPantalla } from '../vistas/longitudinalDatos';
 import { descargar, selloFecha } from '../exportar/descargar';
+import { ejesDeLinea } from '../vistas/ejesLinea';
 import { nf } from '../vistas/formato';
 
 export function Exportar({ linea, apoyos, conductor, hipotesis, investigaciones = [] }:
@@ -110,8 +111,26 @@ export function Exportar({ linea, apoyos, conductor, hipotesis, investigaciones 
     const conCota = lev.puntos.filter((p) => p.cota_m != null).length;
     const conHora = lev.puntos.filter((p) => p.local != null).length;
     const sinCanonico = apoyos.filter((a) => !a.nombreNormalizado).length;
-    return { n, conCota, conHora, sinCanonico };
-  }, [lev, apoyos]);
+
+    // LA COBERTURA DE VEREDICTO TAMBIÉN SE DECLARA AQUÍ. Era el bloqueante nº5
+    // de la crítica de oficio, y el sitio importa: ésta es la pantalla por la
+    // que el número SALE del sistema y entra en un correo. Una tabla de
+    // completitud que cuenta cotas y horas y calla que ningún apoyo tiene
+    // veredicto declara lo accesorio y omite lo principal.
+    // Se deriva del motor (`utilizacion_pct !== null`), nunca de los campos.
+    // Sin conductor o sin hipótesis no hay motor que pueda dictaminar nada, y
+    // entonces la cifra no se estima: sencillamente no se declara.
+    let dictaminados = 0, estructuras = 0;
+    if (conductor && hipotesis) {
+      const ejes = ejesDeLinea(apoyos, conductor, hipotesis, linea.circuitos);
+      const trans = new Set(ejes.transversal.filas.filter((f) => f.utilizacion_pct !== null).map((f) => f.apoyo));
+      const long = new Set((ejes.longitudinal?.filas ?? []).filter((f) => f.utilizacion_pct !== null).map((f) => f.apoyo));
+      for (const a of trans) if (long.has(a)) dictaminados++;
+      estructuras = Math.max(ejes.transversal.total, ejes.longitudinal?.total ?? 0);
+    }
+
+    return { n, conCota, conHora, sinCanonico, dictaminados, estructuras };
+  }, [lev, apoyos, conductor, hipotesis, linea.circuitos]);
 
   const bajar = (contenido: string, extension: string, mime: string, generar: (meta: { generadoEn: string; hipotesisNombre?: string }) => string) => {
     try {
@@ -151,6 +170,18 @@ export function Exportar({ linea, apoyos, conductor, hipotesis, investigaciones 
         Completitud del dato: {nf(completitud.conCota)} de {nf(completitud.n)} puntos con cota GPS ·{' '}
         {nf(completitud.conHora)} con hora de toma
         {completitud.sinCanonico > 0 && <> · {nf(completitud.sinCanonico)} sin nombre canónico</>}.
+        {completitud.estructuras > 0 && (
+          <>
+            {' '}
+            <b className={completitud.dictaminados === 0 ? 'alerta-en-linea' : undefined}>
+              {nf(completitud.dictaminados)} de {nf(completitud.estructuras)} apoyos con veredicto
+              estructural en los dos ejes
+            </b>
+            {completitud.dictaminados === 0
+              ? ' — lo que salga de aquí NO lleva dictamen de apoyo, y así debe leerse en destino.'
+              : '.'}
+          </>
+        )}
       </p>
 
       <div className="exportar-botones">

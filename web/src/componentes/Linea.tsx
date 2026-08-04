@@ -8,7 +8,7 @@
 //
 // Aquí NO hay ni una fórmula. Todo el cálculo se le pide a @lineas/nucleo.
 // ============================================================================
-import { Component, Suspense, lazy, useMemo, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { Component, Suspense, lazy, useEffect, useMemo, useState, type KeyboardEvent, type ReactNode } from 'react';
 import type { Apoyo, Conductor, Evidencia, Hipotesis, Investigacion, Linea as TLinea } from '@lineas/contratos';
 import { vincenty, vanoIdealRegulacion } from '@lineas/nucleo/geodesia';
 import { ampacidad, temperaturaLimite } from '@lineas/nucleo/termica';
@@ -519,7 +519,37 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
   { linea: TLinea; apoyos: Apoyo[]; conductor: Conductor; hipotesis: Hipotesis;
     investigaciones?: Investigacion[]; evidencias?: Evidencia[]; lineas?: TLinea[] }) {
 
-  const [activa, setActiva] = useState<IdPestana>('resumen');
+  // ── El estado VIVE EN LA DIRECCIÓN WEB ──────────────────────────────────
+  // Era el bloqueante nº6 de la crítica: sin esto no se puede mandar «mira
+  // LN-627 en Cargas» por chat, y en una herramienta cuyo oficio es hacer
+  // BARATO comprobar al ingeniero, encarecer justo la comprobación es un
+  // contrasentido. De paso, Atrás/Adelante dejan de mentir.
+  const leerHash = (): IdPestana | null => {
+    const m = /^#\/[^/]*\/([a-z]+)$/.exec(location.hash);
+    const id = m?.[1];
+    return PESTANAS.some((p) => p.id === id && p.lista) ? (id as IdPestana) : null;
+  };
+  const [activa, setActiva] = useState<IdPestana>(() => leerHash() ?? 'resumen');
+
+  const irA = (id: IdPestana) => {
+    setActiva(id);
+    const nuevo = `#/${encodeURIComponent(linea.codigo)}/${id}`;
+    if (location.hash !== nuevo) history.pushState(null, '', nuevo);
+  };
+
+  useEffect(() => {
+    // Atrás/Adelante: la dirección manda, no el estado de React.
+    const alVolver = () => setActiva(leerHash() ?? 'resumen');
+    addEventListener('popstate', alVolver);
+    return () => removeEventListener('popstate', alVolver);
+  }, []);
+
+  useEffect(() => {
+    // Al abrir sin hash (o con otra línea), se escribe el actual SIN empujar
+    // historia: entrar en la app no debe dejar un paso atrás fantasma.
+    const esperado = `#/${encodeURIComponent(linea.codigo)}/${activa}`;
+    if (location.hash !== esperado) history.replaceState(null, '', esperado);
+  }, [linea.codigo, activa]);
 
   // Patrón ARIA de pestañas: flechas ←/→ recorren solo las pestañas LISTAS.
   const conFlechas = (e: KeyboardEvent<HTMLElement>) => {
@@ -527,7 +557,7 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
     const listas = PESTANAS.filter((p) => p.lista);
     const i = listas.findIndex((p) => p.id === activa);
     const j = (i + (e.key === 'ArrowRight' ? 1 : listas.length - 1)) % listas.length;
-    setActiva(listas[j].id);
+    irA(listas[j].id);
     document.getElementById(`pestana-${listas[j].id}`)?.focus();
     e.preventDefault();
   };
@@ -607,7 +637,7 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
                 className={'pestana' + (activa === p.id ? ' activa' : '') + ('roja' in p && p.roja ? ' roja' : '')}
                 disabled={!p.lista}
                 title={p.lista ? undefined : 'En construcción'}
-                onClick={() => p.lista && setActiva(p.id)}
+                onClick={() => p.lista && irA(p.id)}
               >
                 {p.rotulo}
               </button>
@@ -621,10 +651,16 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
               <span className="cielo-rotulo">{estado.rotulo}</span>
               <span className="cielo-porque">{estado.porQue}</span>
             </div>
-            <div className="cielo-medidor" data-cero={estado.dictaminados === 0}>
+            <button
+              type="button"
+              className="cielo-medidor"
+              data-cero={estado.dictaminados === 0}
+              onClick={() => irA('cargas')}
+              title="Ver los apoyos uno por uno, con lo que le falta a cada uno"
+            >
               <b>{nf(estado.dictaminados)} / {nf(estado.total)}</b>
-              <span>apoyos con veredicto · los dos ejes</span>
-            </div>
+              <span>apoyos con veredicto · los dos ejes →</span>
+            </button>
           </div>
 
           <Horizonte ejes={ejes} vanos={vanosLinea}
@@ -633,7 +669,7 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
       <div id="panel-linea" role="tabpanel" aria-labelledby={`pestana-${activa}`}>
         {activa === 'resumen' && (
           <Resumen apoyos={apoyos} investigaciones={investigaciones}
-            alVerEvento={() => setActiva('falla')}
+            alVerEvento={() => irA('falla')}
             hipotesis={hipotesis} conductor={conductor} />
         )}
         {activa === 'falla' && <Falla investigaciones={investigaciones} apoyos={apoyos} evidencias={evidencias} />}
