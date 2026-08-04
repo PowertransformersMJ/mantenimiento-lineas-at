@@ -134,6 +134,24 @@
   acaba de imprimir `vite build` — **no con el contenido de `dist/`**. El navegador es el único
   testigo que no comparte la causa del fallo con el artefacto que se está juzgando.
 
+### L-36 · Las reglas de Firestore viven en el repo y NO se despliegan solas
+- **Síntoma:** se añade una colección nueva (`analisis`), se escribe su regla en `firestore.rules`,
+  se commitea, se despliega la aplicación… y la pantalla dice **«Missing or insufficient
+  permissions»**. Todo el código estaba bien.
+- **Causa:** `npm run deploy` despliega el SITIO (Cloudflare Pages). Las reglas van por otro canal
+  —`firebase deploy --only firestore:rules`— y nadie lo había corrido. En producción seguía
+  mandando la regla final `match /{document=**} { allow read, write: if false; }`, que es
+  exactamente lo que debe hacer con una colección que no conoce.
+- **Por qué se pasa por alto:** el archivo está versionado, se ve en el diff y compila. Todo indica
+  que «ya está». Pero el repositorio y la base son **dos sistemas distintos**, y solo uno se
+  actualizó. Es la misma familia de `L-35`: creer que porque el artefacto está bien, el sistema
+  que lo consume también.
+- **Regla:** toda colección nueva se despliega DOS veces — el código y las reglas. La segunda es
+  `npx firebase deploy --only firestore:rules --project mantenimiento-lineas-at`.
+- **Cómo se detecta en 5 segundos:** si una consulta nueva falla con «insufficient permissions» y
+  el código es correcto, la regla NO está en producción. No se depura el cliente: se despliegan
+  las reglas y se reintenta.
+
 ### L-30 · `loading="lazy"` no carga URLs `blob:` — y el fallo se lee como «faltan los datos»
 - **Síntoma:** la galería del expediente pintaba los cuatro marcos con sus pies de foto y **ninguna
   imagen**. Todo lo demás estaba bien: el token, el portero, R2 y la red.

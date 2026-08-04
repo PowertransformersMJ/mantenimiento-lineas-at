@@ -7,7 +7,7 @@
 
 ## 🎯 Dónde estamos
 
-**673 pruebas en verde · contrato v0.3.0 · cerebro sano · todo empujado y desplegado.**
+**714 pruebas en verde · contrato v0.4.0 · cerebro sano · todo empujado y desplegado.**
 11 pestañas vivas. Producción verificada EN PANTALLA con el Chrome del Ingeniero, no solo por hash.
 
 **La ola de auditoría está cerrada entera (ADR-013…017).** En una sola jornada: los 11 hallazgos
@@ -42,9 +42,10 @@ longitudinal llegando al producto. Detalle en `99`; aquí solo lo que cambia dec
    cliente, ni en las pruebas** (`33 · L-23`). Desplegar: `npm run build && npm run deploy --workspace web`.
 3. **Verificar contra PRODUCCIÓN con el Chrome del Ingeniero** y **preguntarle a la pestaña qué
    bundle cargó** (`32 · L-18`). Esta sesión sirvió caché vieja dos veces por saltarse esto.
-4. Antes de CADA push: auditoría de coordenadas + `npm test` (673) + `contrato:verificar` +
+4. Reglas de Firestore: van por SU canal, `npx firebase deploy --only firestore:rules` (`32 · L-36`).
+5. Antes de CADA push: auditoría de coordenadas + `npm test` (714) + `contrato:verificar` +
    `brain:check`. Documentar TODO fallo en su nodo de lecciones ANTES de commitear.
-5. Autenticado en esta Mac: `gh`, `wrangler` (ajimenezp99), `firebase`. Llave admin en Descargas.
+6. Autenticado en esta Mac: `gh`, `wrangler` (ajimenezp99), `firebase`. Llave admin en Descargas.
 
 ## 🔲 Pendientes del INGENIERO
 
@@ -64,6 +65,7 @@ longitudinal llegando al producto. Detalle en `99`; aquí solo lo que cambia dec
 
 | # | Qué | Dónde está el plan |
 |---|---|---|
+| **TODO-51** | **Segmento RCA** (`99 §ADR-020` pendiente): ✅ F0 contrato v0.4.0 + reglas · ✅ F1 motor puro `nucleo/rca.js` con 27 pruebas (incl. «la tormenta que no fue») · ✅ F2 pantalla, hermana del parque, verificada en producción · ⬜ F3 clima IDEAM · ⬜ F4 abrir RCA desde un evento + informe. IDEAM verificado: API Socrata abierta, datos al 24-07-2026 (~11 días de desfase), **sin rayos utilizables** (`kscf-fk2u` es de otro operador, eje cafetero, termina en 2024) | este chat |
 | **TODO-49** | ⏳ De los 4 bloqueantes, **3 portados y verificados en producción** (clic del hueco → Cargas · Exportar declara «0 de 24 con veredicto» · estado en la dirección `#/LN-627/cargas`, Atrás incluido). Queda el **contador de PARQUE**, NO construible hoy: solo se carga la línea abierta | `99 §ADR-018` |
 | **TODO-50** | **Blindaje de acceso** (`herramientas/usuarios.mjs`): ✅ fase 1 aprovisionamiento+auditoría · ✅ 2a correo/contraseña desplegado (Google aún como reserva) · ⬜ 2b retirar Google · ⬜ 3 cambio obligatorio de contraseña provisional + filtrado de vistas por rol · ⬜ 4 rol en el portero + App Check · ⬜ 5 `ADR-019`. Cuenta ajena `djrome014` deshabilitada (uid RsXHPB0YisSmpXOzkQAqBFiVnMp2), tenía reclamos `null`: no leyó nada | este chat |
 | **TODO-48** | **Deuda de ADR-017**: el criterio del veredicto longitudinal no menciona el ruido de tendido ni el piso de validez; `funcionProcedencia` no viaja a la fila (en LN-627 vale «deducido_geometria») | `99 §ADR-017` |
@@ -75,7 +77,7 @@ longitudinal llegando al producto. Detalle en `99`; aquí solo lo que cambia dec
 ## ✅ Consolidado (detalle → ADR-001…017)
 
 - **Modelo**: 24 estructuras + 2 empalmes (NO son apoyos), 23 vanos, tramos 1-2-2-14-1-3 (`40 §10`).
-- **Workspaces**: `nucleo/` · `contratos/` **(v0.3.0)** · `exportar/` · `web/` · `evidencias/` (en producción).
+- **Workspaces**: `nucleo/` · `contratos/` **(v0.4.0)** · `exportar/` · `web/` · `evidencias/` (en producción).
 - **Hallazgos reales**: 14 de 23 vanos fuera de la banda del VIR · **3 apoyos amplifican** (E06
   ×1,716 = 72 % más, con 118,2°) · los 2 terminales soportan el tiro entero (2.339 kgf/conductor).
 - **EL HUECO MAYOR, y hay que verlo siempre**: **0 de 24 apoyos tienen veredicto, en LOS DOS EJES**.
