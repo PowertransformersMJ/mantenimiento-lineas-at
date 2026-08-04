@@ -24,6 +24,7 @@ import { calcularTramos, conductorParaNucleo, paramsParaNucleo } from '../vistas
 import { nombreVisible } from '../vistas/planta';
 import { textoNucleo } from '../vistas/formato';
 import { conReintentos } from '../datos/cargar';
+import { almacen } from '../datos/enlace';
 import { Distribucion } from './Distribucion';
 import { Distancias } from './Distancias';
 import { Fichas } from './Fichas';
@@ -544,9 +545,9 @@ function DetalleVanos({ apoyos, conductor, hipotesis }:
 
 // ── Vista principal ─────────────────────────────────────────────────────────
 
-export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigaciones = [], evidencias = [] }:
+export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigaciones = [], evidencias = [], lineas }:
   { linea: TLinea; apoyos: Apoyo[]; conductor: Conductor; hipotesis: Hipotesis;
-    investigaciones?: Investigacion[]; evidencias?: Evidencia[] }) {
+    investigaciones?: Investigacion[]; evidencias?: Evidencia[]; lineas?: TLinea[] }) {
 
   const [activa, setActiva] = useState<IdPestana>('resumen');
 
@@ -561,30 +562,64 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
     e.preventDefault();
   };
 
+  // El PARQUE: las líneas que el usuario tiene permiso de ver. Si la lista no
+  // llegó, la única que consta es la que está abierta. No se inventa un parque.
+  const parque = lineas?.length ? lineas : [linea];
+
   return (
     <>
       <div className="linea-cab">
         <h2 className="linea-titulo">{linea.codigo} — {nf(linea.tensionNominal_kV)} kV</h2>
-        <nav className="pestanas" role="tablist" aria-label="Secciones de la línea" onKeyDown={conFlechas}>
-          {PESTANAS.map((p) => (
-            <button
-              key={p.id}
-              id={`pestana-${p.id}`}
-              role="tab"
-              aria-selected={activa === p.id}
-              aria-controls="panel-linea"
-              tabIndex={activa === p.id ? 0 : -1}
-              className={'pestana' + (activa === p.id ? ' activa' : '') + ('roja' in p && p.roja ? ' roja' : '')}
-              disabled={!p.lista}
-              title={p.lista ? undefined : 'En construcción'}
-              onClick={() => p.lista && setActiva(p.id)}
-            >
-              {p.rotulo}
-            </button>
-          ))}
-        </nav>
       </div>
 
+      <div className="cuerpo">
+        <nav className="col-parque" aria-label="Parque de líneas">
+          <div className="col-rotulo">Parque · {parque.length}</div>
+          <div className="parque-lista">
+            {parque.map((l) => (
+              <button
+                key={l.id}
+                type="button"
+                className="parque-linea"
+                aria-current={l.id === linea.id}
+                onClick={() => { if (l.id !== linea.id) void almacen.abrir(l.id); }}
+              >
+                <span className="parque-id">{l.codigo}</span>
+                <span className="parque-sub">{nf(l.tensionNominal_kV)} kV</span>
+              </button>
+            ))}
+          </div>
+          {parque.length === 1 && (
+            <p className="parque-nota">
+              Una sola línea consolidada. Esta columna crece sola cuando entren más:
+              no se rellena con líneas de ejemplo.
+            </p>
+          )}
+        </nav>
+
+        <nav className="col-secciones" aria-label="Secciones">
+          <div className="col-rotulo">Secciones</div>
+          <div className="pestanas" role="tablist" aria-label="Secciones de la línea" onKeyDown={conFlechas}>
+            {PESTANAS.map((p) => (
+              <button
+                key={p.id}
+                id={`pestana-${p.id}`}
+                role="tab"
+                aria-selected={activa === p.id}
+                aria-controls="panel-linea"
+                tabIndex={activa === p.id ? 0 : -1}
+                className={'pestana' + (activa === p.id ? ' activa' : '') + ('roja' in p && p.roja ? ' roja' : '')}
+                disabled={!p.lista}
+                title={p.lista ? undefined : 'En construcción'}
+                onClick={() => p.lista && setActiva(p.id)}
+              >
+                {p.rotulo}
+              </button>
+            ))}
+          </div>
+        </nav>
+
+        <div className="col-contenido">
       <div id="panel-linea" role="tabpanel" aria-labelledby={`pestana-${activa}`}>
         {activa === 'resumen' && (
           <Resumen apoyos={apoyos} investigaciones={investigaciones}
@@ -601,6 +636,8 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
         {activa === 'cargas' && <Cargas linea={linea} apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} />}
         {activa === 'cantidades' && <Cantidades linea={linea} apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} />}
         {activa === 'exportar' && <Exportar linea={linea} apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} investigaciones={investigaciones} />}
+      </div>
+        </div>
       </div>
     </>
   );

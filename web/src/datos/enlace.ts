@@ -17,6 +17,7 @@
 // la pestaña — sin avisar, con el técnico en mitad de una inspección.
 // ============================================================================
 import { useSyncExternalStore } from 'react';
+import type { Linea } from '@lineas/contratos';
 import { cargarFirebase } from './cargar';
 import { repositorio, usarRepositorio, type EstadoDatos } from './repositorio';
 import { repositorioFirestore } from './firestore';
@@ -71,7 +72,25 @@ class Almacen {
       const lineas = await repositorio.listarLineas();
       if (!lineas.length) return this.poner({ fase: 'vacio' });
 
-      this.poner(await repositorio.cargarLinea(lineas[0].id));
+      await this.abrir(lineas[0].id, lineas);
+    } catch (e) {
+      this.poner({ fase: 'error', mensaje: e instanceof Error ? e.message : 'error desconocido' });
+    }
+  }
+
+  /**
+   * Abre una línea del parque conservando la LISTA. Antes se pedía la lista
+   * solo para saber cuál abrir y se tiraba; por eso la pantalla no podía
+   * enseñar el parque. La lista viaja con el estado, no se vuelve a pedir.
+   */
+  async abrir(lineaId: string, lineas?: Linea[]): Promise<void> {
+    const previo = this.#estado;
+    const conocidas = lineas ?? (previo.fase === 'listo' ? previo.lineas : undefined);
+    this.poner({ fase: 'cargando' });
+    try {
+      conectarBase();
+      const e = await repositorio.cargarLinea(lineaId);
+      this.poner(e.fase === 'listo' ? { ...e, lineas: conocidas } : e);
     } catch (e) {
       this.poner({ fase: 'error', mensaje: e instanceof Error ? e.message : 'error desconocido' });
     }

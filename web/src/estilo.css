@@ -473,10 +473,17 @@ code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: .92em;
 p.fund-vivo + .sello-calculo { margin-top: 5px; }
 
 /* ── adaptación a pantallas pequeñas ──────────────────────────────────── */
+/* El alto SÍ es cosa de la ventana: un mapa se mide contra la pantalla. */
 @media (max-width: 1100px) {
+  .mapa-lienzo { height: 52vh; min-height: 360px; }
+}
+/* El ANCHO no. Con el caparazón de tres columnas comiéndose ~400 px, una
+   ventana de 1280 deja al contenido en ~860: la regla de ventana NUNCA se
+   dispararía y el mapa quedaría espachurrado contra el panel de cifras. Se
+   pregunta por el ancho de la COLUMNA, que es lo que de verdad manda. */
+@container contenido (max-width: 900px) {
   .resumen-grilla { grid-template-columns: 1fr; }
   .resumen-panel { position: static; }
-  .mapa-lienzo { height: 52vh; min-height: 360px; }
 }
 @media (max-width: 640px) {
   .contenido { padding: 0 12px 40px; }
@@ -514,6 +521,80 @@ p.fund-vivo + .sello-calculo { margin-top: 5px; }
   .tabla-caja, .matriz-caja { overflow: visible !important; max-height: none !important; }
   .mapa-real { display: none !important; }   /* el lienzo WebGL sale en blanco: se imprime el esquema SVG */
   a { text-decoration: none; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   CAPARAZÓN DE TRES COLUMNAS — «El Horizonte», F4
+   ──────────────────────────────────────────────────────────────────────────
+   Parque → secciones → contenido, al estilo Finder. Responde a lo que pidió el
+   Ingeniero: «que todo se condense ahí, como un sidebar» y «se irán
+   consolidando más líneas». Once pestañas en una fila horizontal no escalan a
+   veinte líneas; una columna sí, y la sección elegida SOBREVIVE al cambio de
+   línea.
+   ═══════════════════════════════════════════════════════════════════════ */
+.cuerpo {
+  display: grid;
+  grid-template-columns: 214px 182px minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+  margin-top: 12px;
+}
+.col-parque, .col-secciones { position: sticky; top: 12px; min-width: 0; }
+.col-contenido {
+  min-width: 0;
+  container-type: inline-size;
+  container-name: contenido;
+}
+
+.col-rotulo {
+  font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase;
+  color: var(--mut); padding: 0 4px 7px;
+}
+
+/* ── la columna del parque ───────────────────────────────────────────────── */
+.parque-lista { display: flex; flex-direction: column; gap: 4px; }
+.parque-linea {
+  appearance: none; cursor: pointer; text-align: left; width: 100%;
+  font: 400 12px/1.35 inherit; font-family: inherit;
+  background: var(--pnl); color: var(--tx);
+  border: 1px solid var(--bd); border-radius: var(--radio);
+  padding: 8px 10px 9px;
+  box-shadow: var(--luz-arriba), var(--sombra-1);
+  transition: border-color .15s var(--curva);
+}
+.parque-linea:hover { border-color: var(--acc-borde); }
+.parque-linea[aria-current="true"] { border-color: var(--acc); background: var(--pnl-alto); }
+.parque-id { display: block; font-weight: 600; font-size: 12.6px; font-variant-numeric: tabular-nums; }
+.parque-linea[aria-current="true"] .parque-id { color: var(--acc); }
+.parque-sub { display: block; margin-top: 2px; font-size: 10.5px; color: var(--mut); font-variant-numeric: tabular-nums; }
+.parque-nota { margin: 8px 4px 0; font-size: 10.5px; color: var(--mut); line-height: 1.5; }
+
+/* ── la columna de secciones: las MISMAS pestañas, en vertical ───────────── */
+.col-secciones .pestanas { flex-direction: column; flex-wrap: nowrap; gap: 1px; margin-bottom: 0; }
+.col-secciones .pestana {
+  width: 100%; text-align: left; text-transform: none; letter-spacing: .2px;
+  font-size: 12.2px; padding: 7px 10px; border-radius: 6px;
+  border-bottom: 0; border-left: 2px solid transparent;
+}
+.col-secciones .pestana.activa {
+  border-bottom-color: transparent; border-left-color: var(--acc);
+  background: var(--acc-suave);
+}
+
+/* ── pantallas donde tres columnas no caben ──────────────────────────────── */
+@media (max-width: 1080px) {
+  /* NO se ocultan: se acuestan. Esconder la navegación para «que quepa» es
+     perder función, no ganar espacio. */
+  .cuerpo { grid-template-columns: 1fr; gap: 10px; }
+  .col-parque, .col-secciones { position: static; }
+  .parque-lista { flex-direction: row; flex-wrap: wrap; }
+  .parque-linea { width: auto; }
+  .col-secciones .pestanas { flex-direction: row; flex-wrap: wrap; gap: 0; }
+  .col-secciones .pestana {
+    width: auto; text-transform: uppercase; letter-spacing: .6px; font-size: 11.5px;
+    border-left: 0; border-bottom: 2px solid transparent; border-radius: 0;
+  }
+  .col-secciones .pestana.activa { border-left-color: transparent; border-bottom-color: var(--acc); background: none; }
 }
 
 /* ══════════════════════════════════════════════════════════════════════════

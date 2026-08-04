@@ -26,8 +26,16 @@ export type EstadoDatos =
   | { fase: 'sin_sesion' }
   | { fase: 'cargando' }
   | { fase: 'vacio' }
-  /** `investigaciones` puede venir vacío: una línea sin eventos es lo normal. */
-  | { fase: 'listo'; linea: Linea; apoyos: Apoyo[]; conductor: Conductor; hipotesis: Hipotesis; investigaciones: Investigacion[]; evidencias: Evidencia[] }
+  /**
+   * `investigaciones` puede venir vacío: una línea sin eventos es lo normal.
+   *
+   * `lineas` es el PARQUE: todas las que el usuario tiene permiso de ver, para
+   * que la columna izquierda las liste. Es opcional porque quien la rellena es
+   * `enlace.ts` —que ya las pidió para saber cuál abrir y hasta ahora las
+   * tiraba—, no cada implementación del repositorio. Si falta, la pantalla
+   * lista únicamente la línea abierta: no se inventa un parque que no consta.
+   */
+  | { fase: 'listo'; linea: Linea; apoyos: Apoyo[]; conductor: Conductor; hipotesis: Hipotesis; investigaciones: Investigacion[]; evidencias: Evidencia[]; lineas?: Linea[] }
   | { fase: 'error'; mensaje: string };
 
 /**
