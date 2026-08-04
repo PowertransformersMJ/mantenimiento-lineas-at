@@ -34,7 +34,10 @@ longitudinal llegando al producto. Detalle en `99`; aquí solo lo que cambia dec
    · F2+F2b higiene y contraste · F3 la paleta clara · **F4 el caparazón de 3 columnas**
    (parque→secciones→contenido; la lista de líneas YA existía y `enlace.ts` la tiraba; ARIA y
    flechas ←/→ intactos; el resumen mide su columna vía `@container`, no la ventana).
-   Faltan: ⬜ F5 cielo derivado del veredicto · ⬜ F6 horizonte. Plan y línea base:
+   · **F5 el cielo** (`vistas/estadoLinea.ts` puro + `vistas/ejesLinea.ts` como dueño único de
+   los dos ejes; `amanecer` INALCANZABLE si falta un apoyo, con prueba que lo vigila; la
+   cobertura se cruza por apoyo, no se comparan conteos; corregido el conteo de expedientes que
+   sumaba los CERRADOS). Falta: ⬜ F6 horizonte. Plan y línea base:
    `research-archive/2026-08-04-workflow-carcasa-horizonte.json`.
 2. **El tope de tiro sigue sin decidir (TODO-33).** Único bloqueo original que queda. Desde ADR-014
    `tiroAdmisible_pct` y `criterioTiroQueRige` YA existen en el contrato: su decisión ya tiene por
