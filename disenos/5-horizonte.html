@@ -144,6 +144,22 @@ body::before{
   padding:5px 9px;background:var(--papel-alto);
 }
 
+/* La cifra del PARQUE ENTERO, siempre a la vista. Es la que dice a dónde
+   mandas la cuadrilla el mes que viene, y ninguna de las 4 maquetas la tenía. */
+.parque-total{
+  display:flex;align-items:center;gap:8px;
+  border-radius:var(--r-pill);padding:4px 11px 4px 9px;
+  background:var(--hueco-fondo);
+  border:1.4px dashed var(--tierra);
+}
+.parque-total.completo{border:var(--hairline) solid var(--sabana-b);background:var(--sabana-t)}
+.parque-total .n{
+  font:12.5px/1 var(--mono);font-weight:700;color:var(--tierra);
+  font-variant-numeric:var(--num);
+}
+.parque-total.completo .n{color:#3d5c2c}
+.parque-total .r{font-size:var(--t-micro);color:var(--tinta2);letter-spacing:.2px}
+
 .cuerpo{
   display:grid;
   grid-template-columns:246px 194px 1fr;
@@ -305,6 +321,15 @@ body::before{
   margin-top:7px;font-size:var(--t-micro);color:var(--mut);
   border-left:2px solid var(--hueco-borde);padding-left:9px;
 }
+/* El hueco DEBE llevar a su evidencia con un clic: en las 4 maquetas
+   anteriores solo navegaban los indicadores verdes. */
+.aviso[data-ir]{cursor:pointer;transition:box-shadow .13s,transform .13s;width:calc(100% - 44px)}
+.aviso[data-ir]:hover{box-shadow:var(--s2);transform:translateY(-1px)}
+.aviso[data-ir]:hover h3{text-decoration:underline;text-underline-offset:2px}
+.aviso .ir{
+  margin-top:8px;font-size:var(--t-micro);font-weight:660;color:var(--tierra);
+  display:flex;align-items:center;gap:5px;
+}
 
 /* ── rejilla de cifras ──────────────────────────────────────────────────── */
 .zona-c{padding:16px 22px 26px}
@@ -432,6 +457,7 @@ td.id{font-weight:620;color:var(--tinta)}
   <header class="barra">
     <div class="marca"><b>Mantenimiento Líneas AT</b><span>El Horizonte</span></div>
     <div class="sep"></div>
+    <div class="parque-total" id="parque-total"></div>
     <div class="motor" id="motor">motor v0.9.3</div>
   </header>
 
@@ -886,7 +912,8 @@ function pintarContenido(){
 
   /* el aviso: siempre lo primero que se lee */
   if (sinVer){
-    h += `<div class="aviso">
+    const irApoyos = SEC !== 'apoyos';
+    h += `<div class="aviso"${irApoyos?' data-ir="apoyos" role="button" tabindex="0"':''}>
       <div class="g">${sinVer}</div>
       <div>
         <h3>${sinVer} de ${L.est} apoyos no tienen veredicto — en los dos ejes</h3>
@@ -896,6 +923,7 @@ function pintarContenido(){
         y lo que se firmaría sería una opinión.</p>
         <div class="q">Este hueco es del <b>inventario</b>, no del programa. Se cierra pidiéndole a
         AFINIA la ficha estructural de cada apoyo, o levantándola en campo.</div>
+        ${irApoyos?'<div class="ir">Ver los apoyos uno por uno →</div>':''}
       </div>
     </div>`;
   }
@@ -1117,7 +1145,21 @@ function pintarContenido(){
   c.scrollTop = 0;
 }
 
-function pintar(){ pintarParque(); pintarSecciones(); pintarContenido(); }
+/* ── la cifra del parque entero ────────────────────────────────────────────
+   Va en la barra superior, que nunca se va de pantalla. Es la única cifra que
+   contesta «¿a dónde mando la cuadrilla el mes que viene?». Se DERIVA de los
+   apoyos, nunca se escribe a mano: si mañana entran 6 fichas, baja sola. */
+function pintarParqueTotal(){
+  let con = 0, tot = 0;
+  PARQUE.forEach(L => { con += Math.min(L.ver||0, L.est); tot += L.est; });
+  const el = document.getElementById('parque-total');
+  el.className = 'parque-total' + (con===tot ? ' completo' : '');
+  el.innerHTML = `<span class="n">${F(con)} / ${F(tot)}</span>`
+    + `<span class="r">apoyos con veredicto en todo el parque</span>`;
+  el.title = `${F(tot-con)} de ${F(tot)} apoyos del parque siguen sin dictaminar`;
+}
+
+function pintar(){ pintarParqueTotal(); pintarParque(); pintarSecciones(); pintarContenido(); }
 
 /* ── eventos ────────────────────────────────────────────────────────────── */
 document.getElementById('lista').addEventListener('click', ev=>{
@@ -1132,6 +1174,17 @@ document.getElementById('secs').addEventListener('click', ev=>{
 });
 document.getElementById('q').addEventListener('input', ev=>{
   FILTRO = ev.target.value; pintarParque();
+});
+/* el aviso del hueco lleva a su evidencia: un clic, no una adivinanza */
+document.getElementById('cont').addEventListener('click', ev=>{
+  const a = ev.target.closest('[data-ir]'); if(!a) return;
+  SEC = a.dataset.ir; pintarSecciones(); pintarContenido();
+});
+document.getElementById('cont').addEventListener('keydown', ev=>{
+  if (ev.key!=='Enter' && ev.key!==' ') return;
+  const a = ev.target.closest('[data-ir]'); if(!a) return;
+  ev.preventDefault();
+  SEC = a.dataset.ir; pintarSecciones(); pintarContenido();
 });
 
 pintar();

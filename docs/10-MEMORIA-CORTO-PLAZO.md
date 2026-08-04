@@ -23,7 +23,13 @@ longitudinal llegando al producto. Detalle en `99`; aquí solo lo que cambia dec
    con los apoyos reales y **el apoyo sin veredicto dibujado HUECO**. Su argumento no es estético:
    en pantalla clara un dato que falta se ve como agujero de luz; en oscura se confunde con el fondo.
    La piel es independiente del esqueleto — se puede montar sobre cualquiera de las 4.
-   Al cerrar ambas → implementar + `ADR-018` + crudo a la bóveda.
+   **La crítica de oficio ya corrió** (crudo: `research-archive/2026-08-04-workflow-critica-carcasa.json`).
+   Su hallazgo manda sobre la elección: **las 4 dejan que una línea salga «sana» con 0 apoyos
+   dictaminados**, y 2 lo AFIRMAN — en `2-tablero` «firmable» es una cadena a mano que gobierna el
+   sello; en `3-expediente` `firmable = hip.congelada && estado==='bien'`, sin mirar capacidad. En
+   `1-columnas` es omisión: `avisos()` nunca cuenta el veredicto. Verificado leyendo el código, no
+   fiado del subagente. Ranking: 1 · 4 · 3 · 2, con 6 bloqueantes comunes.
+   Al cerrar ambas → implementar + `ADR-018` + crudo ya archivado.
 2. **El tope de tiro sigue sin decidir (TODO-33).** Único bloqueo original que queda. Desde ADR-014
    `tiroAdmisible_pct` y `criterioTiroQueRige` YA existen en el contrato: su decisión ya tiene por
    dónde entrar. Ojo: `vistas/tramos.ts`, `vientoDatos.ts` y `Fundamentos.tsx` siguen leyendo
