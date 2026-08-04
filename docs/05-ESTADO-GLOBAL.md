@@ -5,7 +5,7 @@
 | Señal | Valor (al **2026-07-29**) |
 |---|---|
 | **Misión ahora** | **F0 · Verificación.** Repo creado, cerebro cableado, `nucleo/` portado y verificado. Arquitectura **decidida y revisada externamente**: comité ×3 (ADR-001) + Consejo Externo Gemini 3.1 Pro (ADR-002, confirma en 7 puntos y enmienda 3). Pendientes → `10`. |
-| **Build** | 🟢 `npm test` **678 pass / 0 fail** (núcleo + exportes + vistas puras + 5 guardias del tablero de color). · verificado-vivo: 2026-08-04 |
+| **Build** | 🟢 `npm test` **714 pass / 0 fail** (núcleo + exportes + vistas + 5 guardias del tablero de color + 27 del método RCA). · verificado-vivo: 2026-08-04 |
 | **Repo** | `main` · https://github.com/PowertransformersMJ/mantenimiento-lineas-at · **PÚBLICO** (decisión del Ingeniero 2026-07-29) |
 | **Producción** | 🟢 **https://mantenimiento-lineas-at.pages.dev** — Cloudflare Pages, cuenta `ajimenezp99@gmail.com`. **Piel CLARA** desde el 04-08 («El Horizonte» F3): contraste medido en las 11 pestañas, **0 bajo el mínimo** (antes 2) y ningún elemento perdido; el visor de fotos sigue oscuro a propósito. Despliegue a mano (`npm run deploy --workspace web`); el automático espera los 2 secretos. · verificado-vivo: 2026-08-04 |
 | **Backend** | 🟢 **Un solo trabajador**: el portero de fotos (`evidencias/`), delante de un depósito R2 privado. Adelanta cómputo en servidor a conciencia (ADR-010): es la única forma de no exponer material de cliente. |
@@ -21,4 +21,4 @@
 - **Workflows y subagentes:** siempre acotados y con `model: 'opus'` (orden del Ingeniero).
 
 ## 🧩 Sub-sistemas
-`nucleo/` ✅ · `exportar/` ✅ (workspace puro, ADR-006/007) · pruebas de oro ✅ · cerebro ✅ · CI ✅ · **pestañas 11/11** ✅ (Cargas: los DOS ejes, ADR-011/012) · `evidencias/` (portero de fotos) ✅ **en producción** (ADR-010) · generador de línea ⬜ F2 · base local ⬜ F3 · captura en campo ⬜ F4 · nube ⬜ F5 · mapas offline ⬜ F4+
+`nucleo/` ✅ · `exportar/` ✅ (workspace puro, ADR-006/007) · pruebas de oro ✅ · cerebro ✅ · CI ✅ · **pestañas 11/11** ✅ · **segmento RCA** ✅ (ADR-020: fuera de la línea, con clima IDEAM sin servidor) · `evidencias/` (portero de fotos) ✅ **en producción** (ADR-010) · generador de línea ⬜ F2 · base local ⬜ F3 · captura en campo ⬜ F4 · nube ⬜ F5 · mapas offline ⬜ F4+
