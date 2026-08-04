@@ -18,7 +18,7 @@
 // mostrando lo que se consultó el día que se firmó — por eso las reglas hacen
 // `sondeos_clima` inmutable.
 // ============================================================================
-import { CONJUNTOS, cajaConsulta, elegirEstacion, ventana, cobertura, redactarNota, resumirSerie }
+import { CONJUNTOS, CATALOGO_ESTACIONES, cajaConsulta, elegirEstacion, ventana, cobertura, redactarNota, resumirSerie }
   from '@lineas/nucleo/clima';
 
 const BASE = 'https://www.datos.gov.co/resource';
@@ -56,12 +56,14 @@ export async function sondearClima(lat: number, lon: number, ocurrioEn: string):
   const caja = cajaConsulta(lat, lon);
   const v = ventana(ocurrioEn);
 
-  // 1 · Estaciones del entorno. Se usa temperatura como censo porque es la red
-  //     más densa; la estación elegida se reutiliza para todas las variables.
-  const candidatas = await pedir(CONJUNTOS.temperatura.id, {
-    $where: `latitud between ${caja.latMin} and ${caja.latMax} and longitud between ${caja.lonMin} and ${caja.lonMax}`,
-    $select: 'codigoestacion,nombreestacion,municipio,departamento,latitud,longitud',
-    $limit: '2000',
+  // 1 · Estaciones del entorno, del CATÁLOGO — no de una serie de observaciones.
+  //     Filtrar veinte millones de lecturas por coordenada agota el tiempo de
+  //     espera (comprobado: 90 s sin respuesta); el catálogo contesta en menos
+  //     de un segundo. Solo activas: una estación clausurada no midió nada.
+  const candidatas = await pedir(CATALOGO_ESTACIONES, {
+    $where: `latitud between ${caja.latMin} and ${caja.latMax} and longitud between ${caja.lonMin} and ${caja.lonMax} and estado='Activa'`,
+    $select: 'codigo,nombre,categoria,departamento,municipio,latitud,longitud',
+    $limit: '500',
   });
   const estacion = elegirEstacion(candidatas, lat, lon);
 

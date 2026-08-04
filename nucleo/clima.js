@@ -29,6 +29,12 @@
 import { vincenty } from './geodesia.js';
 
 /** Los conjuntos de datos.gov.co, verificados uno a uno el 2026-08-04. */
+/** El catálogo de estaciones. Se consulta ÉSTE y no una serie de observaciones:
+ *  filtrar 20 millones de lecturas por coordenada agota el tiempo de espera —
+ *  comprobado el 2026-08-04, 90 s sin respuesta—, mientras que el catálogo
+ *  responde en menos de un segundo. */
+export const CATALOGO_ESTACIONES = 'hp9r-jxuu';
+
 export const CONJUNTOS = Object.freeze({
   temperatura:      { id: 'sbwg-7ju4', unidad: '°C',   rotulo: 'Temperatura del aire' },
   precipitacion:    { id: 's54a-sgyg', unidad: 'mm',   rotulo: 'Precipitación' },
@@ -57,20 +63,47 @@ export function cajaConsulta(lat, lon, paso = 0.5) {
 }
 
 /**
- * La estación más cercana de las que hayan venido, con su distancia REAL.
+ * ⚠️ NO TODA ESTACIÓN MIDE CLIMA. El catálogo del IDEAM mezcla redes: junto a
+ * las climatológicas hay LIMNIMÉTRICAS y LIMNIGRÁFICAS, que miden el nivel de un
+ * río, y mareográficas, que miden la marea. Cerca del evento de LN-627 tres de
+ * las cinco estaciones más próximas son limnimétricas.
+ *
+ * Elegir una de ésas como «la estación meteorológica» daría un hueco disfrazado
+ * de dato: la consulta devolvería cero lecturas de viento y nadie sabría si es
+ * que no hubo viento o que esa estación nunca lo midió.
+ */
+const MIDE_CLIMA = /climatol|sinóptic|sinoptic|meteorol|pluviom|agromet/i;
+
+export function estacionSirve(categoria) {
+  return MIDE_CLIMA.test(String(categoria ?? ''));
+}
+
+/**
+ * La estación de clima más cercana, con su distancia REAL.
  *
  * La distancia no es un adorno: una estación a 40 km no dice lo mismo que una a
  * 3, y el que lee el informe tiene que verlo junto al número, no en una nota.
+ *
+ * Acepta las dos formas de nombrar los campos que usa datos.gov.co: la del
+ * catálogo de estaciones (`codigo`/`nombre`) y la de las series de observación
+ * (`codigoestacion`/`nombreestacion`).
+ *
+ * ⚠️ Se leen SIEMPRE los campos sueltos `latitud`/`longitud`. El objeto
+ * `ubicaci_n` del catálogo los trae INTERCAMBIADOS —pone la longitud en
+ * `latitude`— y usarlo mandaría a buscar estaciones al otro lado del mundo.
  */
 export function elegirEstacion(estaciones, lat, lon) {
   let mejor = null;
   for (const e of estaciones) {
+    if (e.categoria !== undefined && !estacionSirve(e.categoria)) continue;
     const la = Number(e.latitud), lo = Number(e.longitud);
     if (!isFinite(la) || !isFinite(lo)) continue;
     const d = vincenty(lat, lon, la, lo).d / 1000;
     if (!mejor || d < mejor.distancia_km) {
       mejor = {
-        codigo: String(e.codigoestacion), nombre: String(e.nombreestacion ?? '').trim(),
+        codigo: String(e.codigo ?? e.codigoestacion),
+        nombre: String(e.nombre ?? e.nombreestacion ?? '').trim(),
+        categoria: e.categoria ?? null,
         municipio: e.municipio, departamento: e.departamento,
         lat: la, lon: lo, distancia_km: +d.toFixed(1),
       };
@@ -130,8 +163,9 @@ export function redactarNota({ estacion, cobertura: c, ocurrioEn, ultimoDatoDisp
 
   if (estacion) {
     partes.push(
-      `Estación ${estacion.nombre} a ${estacion.distancia_km} km del punto. Son observaciones DE `
-      + 'ESA ESTACIÓN, no del vano: una tormenta local puede no aparecer aquí.',
+      `Estación ${estacion.nombre} a ${estacion.distancia_km} km del punto`
+      + (estacion.categoria ? ` (${estacion.categoria})` : '')
+      + '. Son observaciones DE ESA ESTACIÓN, no del vano: una tormenta local puede no aparecer aquí.',
     );
   } else {
     partes.push('No se encontró ninguna estación con datos en el entorno del evento.');
