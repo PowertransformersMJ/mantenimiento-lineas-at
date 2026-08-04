@@ -16,10 +16,14 @@ longitudinal llegando al producto. Detalle en `99`; aquí solo lo que cambia dec
 
 ## 🛑 LO PRIMERO AL RETOMAR
 
-1. **ELEGIR CARCASA — es lo que el Ingeniero está esperando.** Hay 4 maquetas navegables en
-   `disenos/` (léete su `README.md`: trae el encargo con sus palabras y qué se verificó de cada
-   una). Falta que él elija; **los 2 críticos del workflow NO corrieron** (límite de sesión), así
-   que la crítica de oficio está a medias. Al elegir → implementar + `ADR-018` + crudo a la bóveda.
+1. **ELEGIR CARCASA — y ahora son DOS decisiones, no una** (`disenos/README.md`):
+   **(a) el esqueleto**, una de las 4 tesis de navegación; **(b) la piel**, oscura o luminosa.
+   La (b) ya la contestó él el 04-08: vio las 4 y dijo *«sigue oscuro, necesito algo más armonioso,
+   como paisajes»* → nace **`5-horizonte.html`**: cielo que codifica el estado de la línea, horizonte
+   con los apoyos reales y **el apoyo sin veredicto dibujado HUECO**. Su argumento no es estético:
+   en pantalla clara un dato que falta se ve como agujero de luz; en oscura se confunde con el fondo.
+   La piel es independiente del esqueleto — se puede montar sobre cualquiera de las 4.
+   Al cerrar ambas → implementar + `ADR-018` + crudo a la bóveda.
 2. **El tope de tiro sigue sin decidir (TODO-33).** Único bloqueo original que queda. Desde ADR-014
    `tiroAdmisible_pct` y `criterioTiroQueRige` YA existen en el contrato: su decisión ya tiene por
    dónde entrar. Ojo: `vistas/tramos.ts`, `vientoDatos.ts` y `Fundamentos.tsx` siguen leyendo
@@ -43,7 +47,8 @@ longitudinal llegando al producto. Detalle en `99`; aquí solo lo que cambia dec
 
 | # | Qué | Por qué importa |
 |---|---|---|
-| **NUEVO** | **Elegir carcasa** entre las 4 de `disenos/` | Es lo que pidió y está entregado, a la espera |
+| **NUEVO** | **Elegir ESQUELETO** entre las 4 de `disenos/` | Es lo que pidió y está entregado, a la espera |
+| **NUEVO** | **Confirmar la PIEL luminosa** de `5-horizonte.html` | Responde a su «como paisajes»; falta su ojo |
 | **TODO-33** | **Decidir 50 % o 25 % de RTS** como tope de tiro | El motor calcula con 50 % y la doctrina dice 25 % |
 | **TODO-44** | **Alerta de presupuesto** en Cloudflare (sugerido 1 USD) | R2 no apaga: factura |
 | **TODO-34** | **Respaldo de la bóveda**: sin remoto, 337 MB. **SUBIÓ DE PRIORIDAD**: la única prueba de que `e07` es E06 vive en un HTML de 30 MB en Descargas, sin copia | Sin él, la asignación de las 99 fotos deja de ser reproducible |
@@ -56,7 +61,7 @@ longitudinal llegando al producto. Detalle en `99`; aquí solo lo que cambia dec
 
 | # | Qué | Dónde está el plan |
 |---|---|---|
-| **TODO-47** | **Implementar la carcasa elegida** + ADR-018 + crudo. Antes: correr la crítica de oficio que quedó sin hacer | `disenos/README.md` |
+| **TODO-47** | **Implementar la carcasa elegida** (esqueleto + piel) + ADR-018 + crudo. La crítica de oficio pendiente **ya se relanzó el 04-08** (4 críticos Opus + síntesis, solo eje esqueleto) | `disenos/README.md` |
 | **TODO-48** | **Deuda de ADR-017**: el criterio del veredicto longitudinal no menciona el ruido de tendido ni el piso de validez; `funcionProcedencia` no viaja a la fila (en LN-627 vale «deducido_geometria») | `99 §ADR-017` |
 | **TODO-42/37** | **Informe gerencial** del expediente (10 secciones especificadas) | crudo de **ADR-012** |
 | **TODO-30** | CI: validación XSD real de GPX/KML | crudo de **ADR-013** |

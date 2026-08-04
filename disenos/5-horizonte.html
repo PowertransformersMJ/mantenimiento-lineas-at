@@ -1,0 +1,1140 @@
+<!doctype html>
+<html lang="es-CO">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Líneas AT — El Horizonte (luz y paisaje)</title>
+<style>
+/* ============================================================================
+   «EL HORIZONTE» — quinta maqueta.
+
+   Nace de una corrección del Ingeniero (2026-08-04): las cuatro anteriores eran
+   oscuras y pidió «algo más armonioso, como paisajes».
+
+   La tesis NO es «poner una foto de fondo». Es esta:
+
+     Una línea de alta tensión ES un objeto del paisaje. Cruza sabana, ciénaga y
+     monte. La interfaz debe sentirse como estar parado en la línea, no como
+     mirar una terminal. Y el paisaje no decora: CARGA INFORMACIÓN. El cielo
+     dice en qué estado está la línea; el horizonte dibuja los apoyos reales; y
+     un apoyo sin veredicto se dibuja HUECO — un fantasma en el horizonte.
+
+   El argumento duro, el que decide:
+     En una interfaz OSCURA, un dato que falta se ve oscuro: se esconde en el
+     fondo. En una interfaz LUMINOSA, un dato que falta se ve como un agujero de
+     luz: el ojo va solo. Como el riesgo nº1 del producto es certificar sobre un
+     hueco, la piel clara no es gusto: es control.
+
+   Cero recursos externos · cero coordenadas reales · abre sin internet.
+   ========================================================================= */
+:root{
+  color-scheme: light;
+
+  /* ── el papel: luz de las siete de la mañana, no blanco de oficina ──────── */
+  --papel:      #f5f1e8;
+  --papel-hond: #ede7db;
+  --papel-alto: #fdfbf6;
+  --panel:      #fbf8f1;
+  --panel2:     #f2ede2;
+
+  /* ── la tinta: negro cálido, nunca #000 ─────────────────────────────────── */
+  --tinta:  #2c2a24;
+  --tinta2: #555147;
+  --mut:    #8a8375;
+  --tenue:  #aea798;
+
+  /* ── la paleta del paisaje ──────────────────────────────────────────────── */
+  --cielo:     #6f93b3;
+  --sabana:    #62864f;
+  --arena:     #d6c49f;
+  --tierra:    #ab5b37;
+  --atardecer: #cf8b2c;
+  --tormenta:  #4a6580;
+
+  --sabana-t:  #eef2e7;  --sabana-b:  #cbd9c0;
+  --tierra-t:  #f8ece5;  --tierra-b:  #e8c9b8;
+  --ambar-t:   #fbf1de;  --ambar-b:   #edd9b1;
+  --cielo-t:   #eaf0f5;  --cielo-b:   #c7d7e4;
+
+  /* ── los cuatro cielos: cada uno es un ESTADO, no un adorno ─────────────── */
+  --cielo-amanecer:  linear-gradient(178deg,#a9c4d8 0%,#c9d7dd 38%,#e6d9c2 74%,#efe2ca 100%);
+  --cielo-atardecer: linear-gradient(178deg,#8ba5bb 0%,#cdb49c 42%,#e3ac74 74%,#eac296 100%);
+  --cielo-tormenta:  linear-gradient(178deg,#566a7c 0%,#82909c 38%,#aeaaa2 76%,#c2bcb0 100%);
+  --cielo-niebla:    linear-gradient(178deg,#c8cfd2 0%,#dbdad3 48%,#e7e2d7 100%);
+
+  /* ── filetes: casi invisibles, como en el papel bueno ───────────────────── */
+  --bd:        rgba(58,50,36,.11);
+  --bd-suave:  rgba(58,50,36,.065);
+  --bd-fuerte: rgba(58,50,36,.20);
+  --hairline:.5px;
+
+  /* ── el acento: ámbar del atardecer, heredado del módulo de campo ───────── */
+  --acc:        #b5761c;
+  --acc-tx:     #fffaf0;
+  --acc-suave:  rgba(181,118,28,.11);
+  --acc-borde:  rgba(181,118,28,.34);
+  --anillo:     0 0 0 3px rgba(181,118,28,.22);
+
+  /* ── EL HUECO: no es gris apagado, es luz en blanco ─────────────────────── */
+  --hueco-fondo:  #fffdf8;
+  --hueco-borde:  #c8bfa9;
+  --hueco-tx:     #9a917e;
+
+  --fuente: -apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",system-ui,sans-serif;
+  --mono:   ui-monospace,"SF Mono",SFMono-Regular,Menlo,monospace;
+
+  --t-base:13px; --t-prosa:12.4px; --t-fino:11.4px; --t-rotulo:11px;
+  --t-micro:10px; --t-tabla:11.9px; --t-cifra:23px;
+  --ls-rotulo:.9px; --lh:1.55; --num:tabular-nums;
+
+  --r-xs:4px; --r-sm:6px; --r-md:9px; --r-lg:13px; --r-pill:999px;
+
+  --s1: 0 1px 2px rgba(72,60,38,.07);
+  --s2: 0 4px 16px -6px rgba(72,60,38,.16);
+  --s3: 0 18px 44px -14px rgba(72,60,38,.26);
+  --luz: inset 0 1px 0 rgba(255,255,255,.7);
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font:var(--t-base)/var(--lh) var(--fuente);
+  color:var(--tinta);
+  background:var(--papel);
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+  overflow:hidden;
+}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+input{font:inherit;color:inherit}
+::selection{background:var(--acc-suave)}
+
+/* ── el lienzo: una atmósfera muy tenue detrás de todo ────────────────────── */
+body::before{
+  content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(900px 420px at 76% -8%, rgba(150,180,205,.20), transparent 68%),
+    radial-gradient(760px 380px at 6% 104%, rgba(180,160,110,.16), transparent 66%);
+}
+
+/* ═══ ESTRUCTURA ══════════════════════════════════════════════════════════ */
+.app{
+  position:relative;z-index:1;
+  height:100vh;
+  display:grid;
+  grid-template-rows:auto 1fr auto;
+}
+
+.barra{
+  display:flex;align-items:center;gap:14px;
+  padding:0 16px;height:46px;
+  background:rgba(251,248,241,.82);
+  backdrop-filter:saturate(150%) blur(20px);
+  -webkit-backdrop-filter:saturate(150%) blur(20px);
+  border-bottom:var(--hairline) solid var(--bd);
+  box-shadow:var(--luz);
+}
+.marca{display:flex;align-items:baseline;gap:9px}
+.marca b{font-size:13.5px;font-weight:650;letter-spacing:-.2px}
+.marca span{font-size:var(--t-micro);color:var(--mut);letter-spacing:var(--ls-rotulo);text-transform:uppercase}
+.barra .sep{flex:1}
+.motor{
+  font:var(--t-micro)/1 var(--mono);color:var(--mut);
+  border:var(--hairline) solid var(--bd);border-radius:var(--r-pill);
+  padding:5px 9px;background:var(--papel-alto);
+}
+
+.cuerpo{
+  display:grid;
+  grid-template-columns:246px 194px 1fr;
+  min-height:0;
+}
+@media (max-width:1180px){ .cuerpo{grid-template-columns:214px 168px 1fr} }
+@media (max-width:920px){  .cuerpo{grid-template-columns:1fr}
+  .col-sec,.col-parque{display:none} }
+
+.col{min-height:0;display:flex;flex-direction:column;overflow:hidden}
+.col-parque{background:var(--panel2);border-right:var(--hairline) solid var(--bd)}
+.col-sec{background:var(--panel);border-right:var(--hairline) solid var(--bd)}
+.col-cont{background:var(--papel);overflow-y:auto}
+
+.rotulo{
+  font-size:var(--t-rotulo);font-weight:640;letter-spacing:var(--ls-rotulo);
+  text-transform:uppercase;color:var(--mut);
+  padding:13px 14px 6px;
+}
+
+/* ═══ COLUMNA 1 · EL PARQUE ═══════════════════════════════════════════════ */
+.buscador{padding:9px 11px 8px}
+.buscador input{
+  width:100%;padding:6px 10px;border-radius:var(--r-sm);
+  border:var(--hairline) solid var(--bd-fuerte);
+  background:var(--papel-alto);font-size:var(--t-prosa);
+  box-shadow:var(--luz);
+}
+.buscador input:focus{outline:none;border-color:var(--acc-borde);box-shadow:var(--anillo)}
+.buscador input::placeholder{color:var(--tenue)}
+
+.lista{overflow-y:auto;flex:1;padding:0 7px 16px}
+.zona{
+  font-size:var(--t-micro);font-weight:660;letter-spacing:var(--ls-rotulo);
+  text-transform:uppercase;color:var(--tenue);
+  padding:12px 7px 5px;
+}
+
+.ln{
+  display:block;width:100%;text-align:left;
+  border-radius:var(--r-md);padding:0;margin-bottom:4px;
+  border:var(--hairline) solid transparent;
+  background:transparent;overflow:hidden;
+  transition:background .13s, border-color .13s;
+}
+.ln:hover{background:rgba(255,255,255,.62)}
+.ln.on{background:var(--papel-alto);border-color:var(--bd);box-shadow:var(--s1)}
+
+/* la banda de cielo: 4 px que dicen en qué estado está la línea */
+.ln .cielo{height:4px;width:100%;display:block}
+.ln.on .cielo{height:6px}
+
+.ln .in{padding:7px 9px 8px}
+.ln .l1{display:flex;align-items:baseline;gap:7px}
+.ln .id{font-weight:640;font-size:12.6px;letter-spacing:-.1px;font-variant-numeric:var(--num)}
+.ln.on .id{color:var(--acc)}
+.ln .kv{font-size:var(--t-micro);color:var(--mut);font-variant-numeric:var(--num)}
+.ln .l2{font-size:var(--t-micro);color:var(--tenue);margin-top:1px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* el medidor de veredicto: siempre visible, en TODAS las líneas */
+.ver{display:flex;align-items:center;gap:6px;margin-top:6px}
+.ver .barra-v{
+  flex:1;height:3px;border-radius:var(--r-pill);
+  background:var(--hueco-fondo);
+  border:var(--hairline) solid var(--hueco-borde);
+  overflow:hidden;
+}
+.ver .barra-v i{display:block;height:100%;background:var(--sabana)}
+.ver .n{font:var(--t-micro)/1 var(--mono);color:var(--mut);font-variant-numeric:var(--num)}
+.ver.cero .n{color:var(--tierra);font-weight:650}
+.ver.cero .barra-v{border-color:var(--tierra);border-style:dashed}
+
+/* ═══ COLUMNA 2 · LAS SECCIONES ═══════════════════════════════════════════ */
+.secs{overflow-y:auto;flex:1;padding:2px 7px 16px}
+.sec{
+  display:flex;align-items:center;gap:9px;width:100%;text-align:left;
+  padding:6px 9px;border-radius:var(--r-sm);margin-bottom:1px;
+  color:var(--tinta2);font-size:var(--t-prosa);
+  transition:background .12s,color .12s;
+}
+.sec:hover{background:rgba(255,255,255,.66)}
+.sec.on{background:var(--acc-suave);color:var(--acc);font-weight:620}
+.sec .ico{width:15px;text-align:center;opacity:.62;font-size:12px}
+.sec.on .ico{opacity:1}
+.sec .cnt{
+  margin-left:auto;font:var(--t-micro)/1 var(--mono);
+  color:var(--tenue);font-variant-numeric:var(--num);
+}
+.sec .alerta{
+  margin-left:auto;width:6px;height:6px;border-radius:50%;
+  background:var(--hueco-fondo);border:1.4px dashed var(--tierra);
+}
+
+/* ═══ COLUMNA 3 · EL CONTENIDO ════════════════════════════════════════════ */
+
+/* ── el hero: el cielo y el horizonte de la línea ───────────────────────── */
+.hero{position:relative;isolation:isolate}
+.hero .sky{position:absolute;inset:0;z-index:-2}
+.hero .grad{position:absolute;inset:0}
+.hero .txt{padding:17px 22px 0;position:relative}
+.hero h1{
+  font-size:25px;font-weight:660;letter-spacing:-.5px;
+  font-variant-numeric:var(--num);
+  color:#1e2a33;
+  text-shadow:0 1px 0 rgba(255,255,255,.42);
+}
+.hero .sub{
+  font-size:var(--t-prosa);color:#2f3c46;opacity:.86;margin-top:2px;
+  text-shadow:0 1px 0 rgba(255,255,255,.3);
+}
+.hero .tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+.tag{
+  font-size:var(--t-micro);font-weight:600;letter-spacing:.3px;
+  padding:3px 8px;border-radius:var(--r-pill);
+  background:rgba(255,255,255,.62);color:#2c3a44;
+  border:var(--hairline) solid rgba(255,255,255,.8);
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  font-variant-numeric:var(--num);
+}
+.tag.alarma{background:rgba(171,91,55,.14);color:#7c3d20;border-color:rgba(171,91,55,.3)}
+.tag.hueco{
+  background:var(--hueco-fondo);color:var(--tierra);
+  border:1px dashed var(--tierra);font-weight:660;
+}
+.hero svg{display:block;width:100%;height:auto}
+
+/* el pie del horizonte: la lectura del dibujo, en palabras */
+.pie-horizonte{
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  padding:8px 22px 10px;
+  background:linear-gradient(180deg,#e6dcc6 0%,var(--papel) 100%);
+  border-bottom:var(--hairline) solid var(--bd);
+  font-size:var(--t-micro);color:var(--tinta2);
+}
+.leyenda{display:flex;align-items:center;gap:5px}
+.leyenda .sw{width:11px;height:11px;border-radius:2px;flex:none}
+.leyenda .sw.llena{background:var(--sabana)}
+.leyenda .sw.hueca{background:var(--hueco-fondo);border:1.4px dashed var(--tierra)}
+.leyenda .sw.fuera{background:var(--tierra)}
+.leyenda .sw.dentro{background:var(--cielo)}
+
+/* ── el aviso del hueco: lo primero que se lee, siempre ─────────────────── */
+.aviso{
+  margin:16px 22px 0;padding:13px 15px;
+  border-radius:var(--r-lg);
+  background:var(--hueco-fondo);
+  border:1.5px dashed var(--tierra);
+  box-shadow:var(--s1);
+  display:flex;gap:13px;align-items:flex-start;
+}
+.aviso .g{
+  font-size:22px;line-height:1;color:var(--tierra);
+  font-variant-numeric:var(--num);font-weight:300;
+}
+.aviso h3{font-size:13px;font-weight:660;color:#7c3d20;margin-bottom:3px}
+.aviso p{font-size:var(--t-prosa);color:var(--tinta2);max-width:74ch}
+.aviso .q{
+  margin-top:7px;font-size:var(--t-micro);color:var(--mut);
+  border-left:2px solid var(--hueco-borde);padding-left:9px;
+}
+
+/* ── rejilla de cifras ──────────────────────────────────────────────────── */
+.zona-c{padding:16px 22px 26px}
+.h2{
+  font-size:var(--t-rotulo);font-weight:660;letter-spacing:var(--ls-rotulo);
+  text-transform:uppercase;color:var(--mut);margin:22px 0 9px;
+}
+.h2:first-child{margin-top:0}
+
+.cifras{display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:9px}
+.cif{
+  background:var(--papel-alto);border:var(--hairline) solid var(--bd);
+  border-radius:var(--r-md);padding:11px 13px 12px;box-shadow:var(--s1);
+}
+.cif .r{font-size:var(--t-micro);color:var(--mut);letter-spacing:.4px;
+  text-transform:uppercase;font-weight:600}
+.cif .v{font-size:var(--t-cifra);font-weight:600;letter-spacing:-.6px;
+  font-variant-numeric:var(--num);margin-top:3px;line-height:1.15}
+.cif .u{font-size:11px;color:var(--mut);font-weight:500;margin-left:3px}
+.cif .n{font-size:var(--t-micro);color:var(--tenue);margin-top:3px}
+.cif.mal .v{color:var(--tierra)}
+.cif.bien .v{color:var(--sabana)}
+.cif.vacio{background:var(--hueco-fondo);border:1.5px dashed var(--hueco-borde)}
+.cif.vacio .v{color:var(--hueco-tx);font-weight:400}
+
+/* ── tablas ─────────────────────────────────────────────────────────────── */
+.tabla-caja{
+  border:var(--hairline) solid var(--bd);border-radius:var(--r-md);
+  overflow:hidden;background:var(--papel-alto);box-shadow:var(--s1);
+}
+table{width:100%;border-collapse:collapse;font-size:var(--t-tabla)}
+thead th{
+  text-align:left;font-size:var(--t-micro);font-weight:660;
+  letter-spacing:.5px;text-transform:uppercase;color:var(--mut);
+  padding:8px 11px;background:var(--panel2);
+  border-bottom:var(--hairline) solid var(--bd);
+  position:sticky;top:0;z-index:1;white-space:nowrap;
+}
+tbody td{
+  padding:7px 11px;border-bottom:var(--hairline) solid var(--bd-suave);
+  font-variant-numeric:var(--num);color:var(--tinta2);
+}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover{background:rgba(181,118,28,.045)}
+td.n{text-align:right}
+td.id{font-weight:620;color:var(--tinta)}
+.mal{color:var(--tierra);font-weight:600}
+.bien{color:var(--sabana)}
+.amb{color:var(--acc)}
+
+/* la píldora del hueco: la pieza más importante de toda la maqueta */
+.h-pill{
+  display:inline-block;padding:1px 8px;border-radius:var(--r-pill);
+  background:var(--hueco-fondo);border:1.2px dashed var(--hueco-borde);
+  color:var(--hueco-tx);font-size:var(--t-micro);font-weight:600;
+  letter-spacing:.2px;white-space:nowrap;
+}
+.h-pill.grave{border-color:var(--tierra);color:var(--tierra)}
+.pill{
+  display:inline-block;padding:1px 8px;border-radius:var(--r-pill);
+  font-size:var(--t-micro);font-weight:640;letter-spacing:.2px;white-space:nowrap;
+}
+.pill.ok{background:var(--sabana-t);color:#3d5c2c;border:var(--hairline) solid var(--sabana-b)}
+.pill.no{background:var(--tierra-t);color:#8a4322;border:var(--hairline) solid var(--tierra-b)}
+.pill.av{background:var(--ambar-t);color:#8a5c14;border:var(--hairline) solid var(--ambar-b)}
+.pill.inf{background:var(--cielo-t);color:#345067;border:var(--hairline) solid var(--cielo-b)}
+
+.nota{font-size:var(--t-micro);color:var(--mut);margin-top:7px;max-width:80ch}
+
+/* ── fotografías ────────────────────────────────────────────────────────── */
+.fotos{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:7px}
+.foto{
+  aspect-ratio:4/3;border-radius:var(--r-sm);
+  border:var(--hairline) solid var(--bd);
+  background:var(--cielo-amanecer);
+  position:relative;overflow:hidden;box-shadow:var(--s1);
+}
+.foto::after{
+  content:attr(data-n);position:absolute;left:5px;bottom:4px;
+  font:var(--t-micro)/1 var(--mono);color:#fff;
+  text-shadow:0 1px 3px rgba(0,0,0,.6);
+}
+.foto .suelo{position:absolute;left:0;right:0;bottom:0;height:34%;
+  background:linear-gradient(180deg,#9aa878,#7d8b5e)}
+.foto.sin{background:var(--hueco-fondo);border:1.4px dashed var(--hueco-borde)}
+.foto.sin .suelo{display:none}
+.foto.sin::after{color:var(--hueco-tx);text-shadow:none}
+
+/* ── vacío ──────────────────────────────────────────────────────────────── */
+.vacio{
+  padding:44px 22px;text-align:center;color:var(--mut);
+}
+.vacio .g{font-size:34px;opacity:.32;margin-bottom:8px}
+.vacio p{font-size:var(--t-prosa);max-width:52ch;margin:0 auto}
+
+/* ═══ PIE PLEGABLE ════════════════════════════════════════════════════════ */
+.pie{
+  border-top:var(--hairline) solid var(--bd);
+  background:var(--panel);
+  max-height:47vh;overflow-y:auto;
+}
+.pie summary{
+  padding:9px 16px;cursor:pointer;list-style:none;
+  font-size:var(--t-prosa);font-weight:620;color:var(--tinta2);
+  display:flex;align-items:center;gap:8px;
+}
+.pie summary::-webkit-details-marker{display:none}
+.pie summary::before{content:'▸';color:var(--acc);transition:transform .15s}
+.pie[open] summary::before{transform:rotate(90deg)}
+.pie summary:hover{color:var(--acc)}
+.pie .txt{padding:2px 22px 22px;max-width:88ch}
+.pie .txt h4{font-size:12.5px;font-weight:660;margin:15px 0 5px;color:var(--tinta)}
+.pie .txt h4:first-child{margin-top:4px}
+.pie .txt p{font-size:var(--t-prosa);color:var(--tinta2);margin-bottom:7px}
+.pie .txt li{font-size:var(--t-prosa);color:var(--tinta2);margin:0 0 5px 17px}
+.pie .txt em{color:var(--tierra);font-style:normal;font-weight:600}
+.pie .txt code{font:var(--t-micro)/1 var(--mono);background:var(--papel-hond);
+  padding:1px 5px;border-radius:var(--r-xs);color:var(--tinta2)}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <header class="barra">
+    <div class="marca"><b>Mantenimiento Líneas AT</b><span>El Horizonte</span></div>
+    <div class="sep"></div>
+    <div class="motor" id="motor">motor v0.9.3</div>
+  </header>
+
+  <div class="cuerpo">
+    <nav class="col col-parque">
+      <div class="rotulo">Parque</div>
+      <div class="buscador"><input id="q" type="search" placeholder="Buscar línea, subestación, zona…" autocomplete="off"></div>
+      <div class="lista" id="lista"></div>
+    </nav>
+
+    <nav class="col col-sec">
+      <div class="rotulo" id="rot-sec">Secciones</div>
+      <div class="secs" id="secs"></div>
+    </nav>
+
+    <main class="col col-cont" id="cont"></main>
+  </div>
+
+  <details class="pie">
+    <summary>Qué propone este diseño</summary>
+    <div class="txt">
+      <h4>La corrección que lo origina</h4>
+      <p>Las cuatro maquetas anteriores eran oscuras. El encargo original decía «un entorno muy
+      similar al de mi MacBook, es muy oscuro», y se leyó como una petición de tema oscuro. Era una
+      descripción. Al verlas, la orden fue clara: <em>«sigue oscuro, necesito algo más armonioso,
+      como paisajes»</em>. Esta quinta maqueta responde a eso.</p>
+
+      <h4>La tesis: el paisaje no decora, informa</h4>
+      <p>Una línea de alta tensión <b>es</b> un objeto del paisaje: cruza sabana, ciénaga y monte.
+      La pantalla debería sentirse como estar parado en la línea, no como mirar una terminal negra.
+      Pero un fondo bonito que no dice nada es ruido. Aquí cada pieza de paisaje carga un dato:</p>
+      <ul>
+        <li><b>El cielo dice el estado de la línea.</b> Cuatro cielos, y ninguno es decorativo:
+        <i>amanecer</i> (al día) · <i>atardecer</i> (hay hallazgos que mirar) · <i>tormenta</i>
+        (evento activo en campo) · <i>niebla</i> (no hay datos suficientes ni para opinar). Se
+        reconocen de lejos, sin leer una palabra, y viajan a la lista del parque como una banda de
+        color: <b>el estado de veinte líneas se ve de un vistazo</b>.</li>
+        <li><b>El horizonte dibuja los apoyos de verdad.</b> No es un adorno: son las 24 estructuras
+        de LN-627, en su orden, con el conductor colgando entre ellas. Los vanos fuera de la banda
+        de cálculo se dibujan en terracota — <b>14 de 23</b>, y se ven.</li>
+        <li><b>Un apoyo sin veredicto se dibuja HUECO</b>, con línea punteada. En LN-627 salen las
+        24 huecas: el horizonte es una fila de fantasmas. Esa imagen es el estado real del proyecto.</li>
+      </ul>
+
+      <h4>Por qué la luz, y no el gusto</h4>
+      <p>Este es el argumento que decide, y no tiene que ver con la estética:</p>
+      <p>En una interfaz <b>oscura</b>, un dato que falta se ve oscuro — se confunde con el fondo,
+      se esconde. En una interfaz <b>luminosa</b>, un dato que falta se ve como un <b>agujero de
+      luz</b>: el ojo va solo, sin que nadie lo dirija. Como el riesgo número uno de este producto
+      es <em>certificar sobre un hueco</em> —el motor puede estar mal y el sistema no fallaría:
+      firmaría—, la piel clara deja de ser una preferencia y pasa a ser un <b>control de calidad</b>.</p>
+      <p>Hay un segundo motivo, operativo: bajo el sol del Caribe una pantalla oscura es un espejo.
+      Cuando llegue la captura en campo, el modo claro no será más bonito: será el único legible.</p>
+
+      <h4>Qué se conserva de lo anterior</h4>
+      <p>El <b>esqueleto</b> de la maqueta 1 (parque → secciones → contenido), porque es el que
+      responde a lo que pediste: <code>«como un sidebar»</code> y <code>«se irán consolidando más
+      líneas»</code>. La sección elegida sobrevive al cambio de línea: si estás viendo Apoyos en
+      LN-627 y saltas a LN-201, sigues en Apoyos. Con 40 líneas funciona igual que con una.</p>
+      <p>La piel es independiente del esqueleto: <b>este mismo tratamiento se puede montar sobre
+      cualquiera de las cuatro anteriores</b>. Elegir el esqueleto y elegir la piel son dos
+      decisiones separadas, y esta maqueta solo cierra la segunda.</p>
+
+      <h4>Lo que NO está resuelto</h4>
+      <ul>
+        <li>El perfil del horizonte usa el <b>orden</b> de los apoyos, no su altura real de terreno:
+        el relieve es sintético. Con las cotas reales, el dibujo sería el perfil verdadero de la línea.</li>
+        <li>Sigue faltando el dato que lo desbloquea todo: <b>ningún apoyo declara su carga de
+        rotura, su capacidad longitudinal ni cuántas fases tiene amarradas</b>. El motor ya sabe
+        dictaminar; el hueco es del inventario, no del programa.</li>
+        <li>Ni una coordenada real de LN-627 vive en este archivo. Las cifras de LN-627 son las
+        públicas del proyecto; las demás líneas son inventadas para probar la escala.</li>
+      </ul>
+    </div>
+  </details>
+
+</div>
+
+<script>
+'use strict';
+/* ============================================================================
+   DATOS — Las cifras de LN-627 son las PÚBLICAS del proyecto (24 estructuras,
+   2 empalmes, 23 vanos, 2.929 m, 66 kV, 103 fotografías, AAAC Darien, 14 vanos
+   fuera de banda, E06 amplifica ×1,716 con 118,2°, terminales a 2.339 kgf).
+   Las demás líneas y TODA coordenada son SINTÉTICAS: aquí no vive ni un dato
+   de campo real. Este repositorio es público.
+   ========================================================================= */
+
+const F = (v,d=0)=> (v===null||v===undefined||!isFinite(v))
+  ? '—' : Number(v).toLocaleString('es-CO',{minimumFractionDigits:d,maximumFractionDigits:d});
+const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const rng = s => () => (s = (s*1103515245 + 12345) & 0x7fffffff, s/0x7fffffff);
+const HUECO = '<span class="h-pill">sin dato</span>';
+const HUECO_G = '<span class="h-pill grave">sin dato</span>';
+
+const COND = {
+  darien:  {nom:'AAAC Darien 559,5 MCM', rts:8528, sec:283.5, diam:0.02179, w:0.780, amp:718},
+  alliance:{nom:'AAAC Alliance 394,5 MCM',rts:6120, sec:199.9, diam:0.01829, w:0.550, amp:570},
+  hawk:    {nom:'ACSR Hawk 477 MCM',      rts:8710, sec:281.1, diam:0.02177, w:0.978, amp:659},
+  grosbeak:{nom:'ACSR Grosbeak 636 MCM',  rts:11430,sec:374.7, diam:0.02514, w:1.302, amp:795},
+  acar750: {nom:'ACAR 750 MCM',           rts:9070, sec:380.0, diam:0.02525, w:1.048, amp:838},
+};
+
+const PARQUE = [
+  {id:'LN-627', kv:66,  circ:1, est:24, emp:2, m:2929.35, cond:COND.darien, zona:'Norte',
+   sub:'S/E Bahía → S/E Palmar', vanos:23, fuera:14, ver:0, evento:false, sem:7,
+   fotos:{total:103, est:99, sin:12}, act:'2026-08-02 21:40',
+   hip:{nom:'Hipótesis del módulo de campo', proc:'supuesto', firme:false, fecha:null,
+        eds:20, tMax:75, tMin:15, viento:80}},
+
+  {id:'LN-201', kv:110, circ:1, est:61, emp:1, m:14803, cond:COND.hawk, zona:'Norte',
+   sub:'S/E Palmar → S/E Salinas', vanos:60, fuera:5, ver:58, evento:false, sem:11,
+   fotos:{total:412, est:412, sin:14}, act:'2026-07-30 08:12',
+   hip:{nom:'H-2026-04 · viento regional', proc:'norma', firme:true, fecha:'2026-05-12',
+        eds:18, tMax:75, tMin:15, viento:95}},
+
+  {id:'LN-208', kv:110, circ:1, est:48, emp:0, m:11264, cond:COND.hawk, zona:'Norte',
+   sub:'S/E Salinas → S/E Manglar', vanos:47, fuera:3, ver:48, evento:false, sem:13,
+   fotos:{total:301, est:301, sin:7}, act:'2026-07-30 08:19',
+   hip:{nom:'H-2026-04 · viento regional', proc:'norma', firme:true, fecha:'2026-05-12',
+        eds:18, tMax:75, tMin:15, viento:95}},
+
+  {id:'LN-233', kv:66,  circ:1, est:33, emp:1, m:5412, cond:null, zona:'Centro',
+   sub:'S/E Manglar → S/E Sabana', vanos:32, fuera:null, ver:0, evento:false, sem:17,
+   fotos:{total:0, est:0, sin:33}, act:'2026-06-18 16:03', hip:null},
+
+  {id:'LN-310', kv:110, circ:2, est:74, emp:2, m:18921, cond:COND.acar750, zona:'Centro',
+   sub:'S/E Sabana → S/E Bahía', vanos:73, fuera:22, ver:31, evento:false, sem:19,
+   fotos:{total:588, est:577, sin:12}, act:'2026-07-28 11:47',
+   hip:{nom:'H-2026-01 · adoptada del proyecto original', proc:'supuesto', firme:false, fecha:null,
+        eds:20, tMax:75, tMin:15, viento:80}},
+
+  {id:'LN-344', kv:34.5,circ:1, est:27, emp:0, m:3884, cond:COND.darien, zona:'Centro',
+   sub:'S/E Sabana → derivación Bloque C', vanos:26, fuera:2, ver:27, evento:false, sem:23,
+   fotos:{total:188, est:188, sin:2}, act:'2026-08-01 07:22',
+   hip:{nom:'H-2026-06 · ficha de proveedor', proc:'proveedor', firme:true, fecha:'2026-06-30',
+        eds:20, tMax:75, tMin:15, viento:80}},
+
+  {id:'LN-402', kv:110, circ:2, est:96, emp:3, m:24152, cond:COND.grosbeak, zona:'Sur',
+   sub:'S/E Bahía → S/E Alto', vanos:95, fuera:17, ver:44, evento:true, sem:29,
+   fotos:{total:702, est:679, sin:18}, act:'2026-07-25 19:05',
+   hip:{nom:'H-2025-11 · heredada, sin revisar', proc:'supuesto', firme:false, fecha:null,
+        eds:20, tMax:75, tMin:15, viento:80}},
+
+  {id:'LN-455', kv:66,  circ:1, est:41, emp:1, m:7641, cond:COND.alliance, zona:'Sur',
+   sub:'S/E Alto → S/E Palmar', vanos:40, fuera:4, ver:40, evento:false, sem:31,
+   fotos:{total:266, est:266, sin:6}, act:'2026-07-31 09:58',
+   hip:{nom:'H-2026-03 · viento regional', proc:'norma', firme:true, fecha:'2026-04-21',
+        eds:18, tMax:75, tMin:15, viento:95}},
+
+  {id:'LN-487', kv:66,  circ:1, est:19, emp:0, m:2173, cond:null, zona:'Sur',
+   sub:'S/E Alto → derivación Bloque D', vanos:18, fuera:null, ver:0, evento:false, sem:37,
+   fotos:{total:0, est:0, sin:19}, act:'2026-05-09 10:31', hip:null},
+
+  {id:'LN-512', kv:110, circ:1, est:58, emp:1, m:13045, cond:COND.hawk, zona:'Sabana',
+   sub:'S/E Manglar → S/E Ribera', vanos:57, fuera:6, ver:55, evento:false, sem:41,
+   fotos:{total:355, est:355, sin:9}, act:'2026-07-29 14:26',
+   hip:{nom:'H-2026-04 · viento regional', proc:'norma', firme:true, fecha:'2026-05-12',
+        eds:18, tMax:75, tMin:15, viento:95}},
+
+  {id:'LN-533', kv:34.5,circ:1, est:22, emp:0, m:3110, cond:COND.alliance, zona:'Sabana',
+   sub:'S/E Ribera → derivación Bloque E', vanos:21, fuera:1, ver:22, evento:false, sem:43,
+   fotos:{total:141, est:141, sin:1}, act:'2026-08-01 11:04',
+   hip:{nom:'H-2026-06 · ficha de proveedor', proc:'proveedor', firme:true, fecha:'2026-06-30',
+        eds:20, tMax:75, tMin:15, viento:80}},
+
+  {id:'LN-561', kv:110, circ:1, est:83, emp:2, m:20477, cond:COND.grosbeak, zona:'Sabana',
+   sub:'S/E Ribera → S/E Alto', vanos:82, fuera:9, ver:19, evento:true, sem:47,
+   fotos:{total:498, est:481, sin:26}, act:'2026-07-27 06:41',
+   hip:{nom:'H-2025-08 · heredada, sin revisar', proc:'supuesto', firme:false, fecha:null,
+        eds:20, tMax:75, tMin:15, viento:80}},
+
+  {id:'LN-604', kv:66,  circ:1, est:36, emp:1, m:6288, cond:COND.darien, zona:'Norte',
+   sub:'S/E Bahía → derivación Bloque A', vanos:35, fuera:3, ver:36, evento:false, sem:53,
+   fotos:{total:231, est:231, sin:0}, act:'2026-08-03 09:15',
+   hip:{nom:'H-2026-03 · viento regional', proc:'norma', firme:true, fecha:'2026-04-21',
+        eds:18, tMax:75, tMin:15, viento:95}},
+
+  {id:'LN-712', kv:34.5,circ:1, est:15, emp:0, m:1842, cond:null, zona:'Centro',
+   sub:'S/E Sabana → derivación Bloque F', vanos:14, fuera:null, ver:0, evento:false, sem:59,
+   fotos:{total:0, est:0, sin:15}, act:'2026-04-22 15:50', hip:null},
+];
+
+const ZONAS = ['Norte','Centro','Sur','Sabana'];
+
+/* ── el estado de una línea → su cielo ─────────────────────────────────────
+   Cuatro cielos, y el orden de prioridad importa: primero lo que urge. */
+function estado(L){
+  if (L.evento) return 'tormenta';               // hay gente y equipo en campo AHORA
+  if (!L.hip || !L.cond) return 'niebla';        // no hay ni con qué opinar
+  const sinVer = L.ver < L.est;
+  const fueraAlto = L.fuera !== null && L.fuera / L.vanos > 0.12;
+  if (sinVer || fueraAlto) return 'atardecer';   // hay algo que mirar
+  return 'amanecer';                             // al día
+}
+const CIELO_NOM = {
+  amanecer:'Al día', atardecer:'Con hallazgos',
+  tormenta:'Evento activo en campo', niebla:'Sin datos para dictaminar'
+};
+
+/* ── los apoyos ───────────────────────────────────────────────────────────
+   Ninguno declara carga de rotura ni capacidad longitudinal: ese es EL hueco,
+   y es del inventario del cliente, no del programa. */
+function apoyosDe(L){
+  const r = rng(L.sem*97 + 11);
+  const out = [];
+  for (let i=1;i<=L.est;i++){
+    const term = (i===1 || i===L.est);
+    let ang = term ? 0 : (r()<0.18 ? +(r()*118+4).toFixed(1) : +(r()*5.2).toFixed(1));
+    const vano = +(L.m/L.vanos * (0.7 + r()*0.62)).toFixed(1);
+    let ft = Math.round(vano * (L.cond?L.cond.w:0.78) * 1.9 + (term?1600:0) + r()*180);
+    let ampl = ang>10 ? +(2*Math.sin(ang*Math.PI/360)).toFixed(3) : null;
+    out.push({
+      id:'E'+String(i).padStart(2,'0'), i, term, ang, vano, ft,
+      ampl: ampl && ampl>0.15 ? +(1+ampl).toFixed(3) : null,
+      // EL HUECO — los cuatro campos que harían posible el veredicto:
+      rotura:null, capLong:null, fases:null, veredicto:null,
+      fotos: Math.round(r()*6)+1,
+    });
+  }
+  /* Los apoyos que SÍ traen ficha de inventario. Regla del producto, y por eso
+     está escrita como una sola condición: el veredicto SOLO puede existir donde
+     existen los tres datos. Donde no hay ficha no hay dictamen — nunca al revés.
+     En LN-627 no hay ninguna: por eso salen los 24 huecos. */
+  const conFicha = Math.min(L.ver||0, out.length);
+  if (conFicha){
+    const paso = out.length / conFicha;
+    for (let k=0;k<conFicha;k++){
+      const a = out[Math.floor(k*paso)];
+      if (!a || a.veredicto!==null) continue;
+      a.rotura  = Math.round((3400 + r()*5600)/50)*50;
+      a.capLong = Math.round((1500 + r()*3600)/50)*50;
+      a.fases   = 3;
+      const uso = a.ft / (a.rotura*0.5);
+      a.uso = Math.round(uso*100);
+      a.veredicto = uso <= 1 ? 'cumple' : 'no cumple';
+    }
+  }
+
+  // LN-627: los hechos públicos verificados del levantamiento
+  if (L.id==='LN-627'){
+    out[0].ft = 2339;  out[0].term = true;
+    out[L.est-1].ft = 2339; out[L.est-1].term = true;
+    out[5].ang = 118.2; out[5].ampl = 1.716;          // E06
+    out[11].ang = 41.6; out[11].ampl = 1.184;
+    out[17].ang = 33.9; out[17].ampl = 1.146;
+    out.forEach((a,k)=>{ if (k!==5 && k!==11 && k!==17 && !a.term){ a.ang = +(r()*4.4).toFixed(1); a.ampl=null; } });
+  }
+  return out;
+}
+
+/* ── los vanos ────────────────────────────────────────────────────────── */
+function vanosDe(L){
+  const r = rng(L.sem*31 + 5);
+  const out = [];
+  const med = L.m / L.vanos;
+  for (let i=1;i<=L.vanos;i++){
+    const largo = +(med * (0.62 + r()*0.78)).toFixed(1);
+    const flecha = +(largo*largo * (L.cond?L.cond.w:0.78) / (8 * (L.cond?L.cond.rts*0.5:4000)) * 100).toFixed(2);
+    out.push({id:i, de:'E'+String(i).padStart(2,'0'), a:'E'+String(i+1).padStart(2,'0'),
+              largo, flecha, fuera:false});
+  }
+  // marcar los que caen fuera de la banda
+  if (L.fuera !== null){
+    const idx = out.map((v,k)=>({k, d:Math.abs(v.largo-med)})).sort((a,b)=>b.d-a.d);
+    for (let j=0;j<L.fuera && j<idx.length;j++) out[idx[j].k].fuera = true;
+  }
+  return out;
+}
+
+/* ══ EL HORIZONTE ═════════════════════════════════════════════════════════
+   El dibujo que da nombre a la maqueta. No es un adorno: es el inventario.
+   Torre llena = tiene veredicto. Torre HUECA y punteada = no lo tiene.
+   ======================================================================== */
+function horizonteSVG(L, apoyos, vanos){
+  const W = 1240, H = 176;
+  const mI = 30, mD = 30;
+  const n = apoyos.length;
+  const suelo = H - 26;
+  const r = rng(L.sem*13 + 2);
+
+  // relieve sintético, suave: el orden es real, la cota no (aún no la tenemos)
+  const cota = [];
+  let y = suelo - 16;
+  for (let i=0;i<n;i++){
+    y += (r()-0.48)*13;
+    y = Math.max(suelo-46, Math.min(suelo-4, y));
+    cota.push(y);
+  }
+
+  const paso = n>1 ? (W-mI-mD)/(n-1) : 0;
+  const X = i => mI + i*paso;
+  const alto = n>60 ? 22 : n>36 ? 28 : 34;
+
+  let torres = '', cables = '', marcas = '';
+
+  // los conductores, colgando entre apoyo y apoyo
+  for (let i=0;i<n-1;i++){
+    const x1=X(i), x2=X(i+1);
+    const y1=cota[i]-alto*0.86, y2=cota[i+1]-alto*0.86;
+    const sag = Math.min(26, (x2-x1)*0.20);
+    const cx=(x1+x2)/2, cy=(y1+y2)/2 + sag;
+    const fuera = vanos[i] && vanos[i].fuera;
+    cables += `<path d="M${x1.toFixed(1)},${y1.toFixed(1)} Q${cx.toFixed(1)},${cy.toFixed(1)} ${x2.toFixed(1)},${y2.toFixed(1)}" `
+           +  `fill="none" stroke="${fuera?'var(--tierra)':'rgba(52,72,92,.5)'}" `
+           +  `stroke-width="${fuera?1.7:1.1}" ${fuera?'':'stroke-opacity=".8"'}/>`;
+  }
+
+  // los apoyos
+  for (let i=0;i<n;i++){
+    const a = apoyos[i], x = X(i), b = cota[i];
+    const hueco = a.veredicto === null;
+    const w = Math.max(6, alto*0.30), wt = w*0.34;
+    const cuerpo = `M${(x-w/2).toFixed(1)},${b.toFixed(1)} L${(x-wt/2).toFixed(1)},${(b-alto).toFixed(1)} `
+                 + `L${(x+wt/2).toFixed(1)},${(b-alto).toFixed(1)} L${(x+w/2).toFixed(1)},${b.toFixed(1)} Z`;
+    const col = hueco ? 'var(--tierra)' : 'var(--sabana)';
+    torres += `<g class="t" data-i="${i}">`
+      + `<path d="${cuerpo}" fill="${hueco?'var(--hueco-fondo)':'rgba(98,134,79,.9)'}" `
+      +   `stroke="${col}" stroke-width="1.2" ${hueco?'stroke-dasharray="2.6 2"':''}/>`
+      + `<line x1="${(x-w*0.9).toFixed(1)}" y1="${(b-alto*0.86).toFixed(1)}" x2="${(x+w*0.9).toFixed(1)}" y2="${(b-alto*0.86).toFixed(1)}" `
+      +   `stroke="${col}" stroke-width="1.2" ${hueco?'stroke-dasharray="2.6 2"':''}/>`
+      + `<line x1="${(x-w*0.66).toFixed(1)}" y1="${(b-alto*0.64).toFixed(1)}" x2="${(x+w*0.66).toFixed(1)}" y2="${(b-alto*0.64).toFixed(1)}" `
+      +   `stroke="${col}" stroke-width="1" ${hueco?'stroke-dasharray="2.6 2"':''}/>`
+      + `<title>${esc(a.id)} — ${hueco?'SIN VEREDICTO: no declara carga de rotura ni capacidad longitudinal':'con veredicto'}`
+      +   `${a.ampl?` · amplifica ×${F(a.ampl,3)} (${F(a.ang,1)}°)`:''}</title>`
+      + `</g>`;
+
+    // el apoyo que amplifica lleva su marca en el cielo
+    if (a.ampl && a.ampl > 1.4){
+      marcas += `<g><line x1="${x.toFixed(1)}" y1="${(b-alto-6).toFixed(1)}" x2="${x.toFixed(1)}" y2="${(b-alto-19).toFixed(1)}" `
+        + `stroke="var(--tierra)" stroke-width="1" stroke-dasharray="2 2"/>`
+        + `<text x="${x.toFixed(1)}" y="${(b-alto-23).toFixed(1)}" text-anchor="middle" `
+        + `font-size="9.5" font-weight="700" fill="var(--tierra)" font-family="var(--mono)">×${F(a.ampl,2)}</text></g>`;
+    }
+  }
+
+  // la tierra
+  let terreno = `M0,${H} L0,${(cota[0]+2).toFixed(1)} `;
+  for (let i=0;i<n;i++) terreno += `L${X(i).toFixed(1)},${(cota[i]+2).toFixed(1)} `;
+  terreno += `L${W},${(cota[n-1]+2).toFixed(1)} L${W},${H} Z`;
+
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img"
+    aria-label="Perfil de la línea: ${n} apoyos; los de contorno punteado no tienen veredicto">
+    <defs>
+      <linearGradient id="g-suelo" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#93a475"/><stop offset="100%" stop-color="#6f7f55"/>
+      </linearGradient>
+    </defs>
+    <path d="${terreno}" fill="url(#g-suelo)" opacity=".92"/>
+    ${cables}${torres}${marcas}
+  </svg>`;
+}
+
+/* ══ RENDER ═══════════════════════════════════════════════════════════════ */
+let SEL = PARQUE[0];
+let SEC = 'resumen';
+let FILTRO = '';
+
+const SECCIONES = [
+  {id:'resumen',   n:'Resumen',        ico:'◧'},
+  {id:'apoyos',    n:'Apoyos',         ico:'⌷'},
+  {id:'vanos',     n:'Vanos y flecha', ico:'∿'},
+  {id:'cargas',    n:'Cargas',         ico:'⤢'},
+  {id:'hipotesis', n:'Hipótesis',      ico:'≋'},
+  {id:'conductor', n:'Conductor',      ico:'⌁'},
+  {id:'fotos',     n:'Fotografías',    ico:'▤'},
+  {id:'informe',   n:'Informe',        ico:'✎'},
+];
+
+/* ── columna 1 ──────────────────────────────────────────────────────────── */
+function pintarParque(){
+  const q = FILTRO.trim().toLowerCase();
+  const vis = PARQUE.filter(L => !q ||
+    (L.id+' '+L.sub+' '+L.zona+' '+L.kv+' kV').toLowerCase().includes(q));
+  let h = '';
+  ZONAS.forEach(z=>{
+    const ls = vis.filter(L=>L.zona===z);
+    if (!ls.length) return;
+    h += `<div class="zona">${esc(z)} · ${ls.length}</div>`;
+    ls.forEach(L=>{
+      const e = estado(L);
+      const pct = L.est ? Math.round(L.ver/L.est*100) : 0;
+      const cero = L.ver === 0;
+      h += `<button class="ln ${L.id===SEL.id?'on':''}" data-id="${L.id}" title="${esc(CIELO_NOM[e])}">
+        <span class="cielo" style="background:var(--cielo-${e})"></span>
+        <span class="in">
+          <span class="l1"><span class="id">${esc(L.id)}</span><span class="kv">${F(L.kv, L.kv===34.5?1:0)} kV</span></span>
+          <span class="l2">${esc(L.sub)}</span>
+          <span class="ver ${cero?'cero':''}">
+            <span class="barra-v"><i style="width:${pct}%"></i></span>
+            <span class="n">${L.ver}/${L.est}</span>
+          </span>
+        </span>
+      </button>`;
+    });
+  });
+  if (!h) h = `<div class="zona">Sin resultados</div>`;
+  document.getElementById('lista').innerHTML = h;
+}
+
+/* ── columna 2 ──────────────────────────────────────────────────────────── */
+function pintarSecciones(){
+  const L = SEL;
+  const ap = apoyosDe(L);
+  const sinVer = ap.filter(a=>a.veredicto===null).length;
+  document.getElementById('rot-sec').textContent = L.id;
+  document.getElementById('secs').innerHTML = SECCIONES.map(s=>{
+    let extra = '';
+    if (s.id==='apoyos' && sinVer) extra = `<span class="alerta" title="${sinVer} apoyos sin veredicto"></span>`;
+    else if (s.id==='vanos' && L.fuera) extra = `<span class="cnt">${L.fuera}/${L.vanos}</span>`;
+    else if (s.id==='fotos') extra = `<span class="cnt">${L.fotos.total||'—'}</span>`;
+    else if (s.id==='cargas' && sinVer) extra = `<span class="alerta"></span>`;
+    else if (s.id==='hipotesis' && (!L.hip || !L.hip.firme)) extra = `<span class="alerta"></span>`;
+    return `<button class="sec ${s.id===SEC?'on':''}" data-sec="${s.id}">
+      <span class="ico">${s.ico}</span><span>${esc(s.n)}</span>${extra}</button>`;
+  }).join('');
+}
+
+/* ── columna 3 ──────────────────────────────────────────────────────────── */
+function pintarContenido(){
+  const L = SEL;
+  const ap = apoyosDe(L);
+  const vn = vanosDe(L);
+  const e = estado(L);
+  const sinVer = ap.filter(a=>a.veredicto===null).length;
+
+  /* el hero: cielo + horizonte */
+  let h = `<section class="hero">
+    <div class="sky"><div class="grad" style="background:var(--cielo-${e})"></div></div>
+    <div class="txt">
+      <h1>${esc(L.id)}</h1>
+      <div class="sub">${esc(L.sub)}</div>
+      <div class="tags">
+        <span class="tag">${F(L.kv, L.kv===34.5?1:0)} kV</span>
+        <span class="tag">${L.circ} circuito${L.circ>1?'s':''}</span>
+        <span class="tag">${F(L.m)} m</span>
+        <span class="tag">${L.est} estructuras${L.emp?` + ${L.emp} empalme${L.emp>1?'s':''}`:''}</span>
+        <span class="tag">${esc(CIELO_NOM[e])}</span>
+        ${sinVer?`<span class="tag hueco">${sinVer} sin veredicto</span>`:''}
+        ${L.fuera?`<span class="tag alarma">${L.fuera} vanos fuera de banda</span>`:''}
+      </div>
+    </div>
+    ${horizonteSVG(L, ap, vn)}
+  </section>
+  <div class="pie-horizonte">
+    <span class="leyenda"><span class="sw hueca"></span>apoyo sin veredicto (${sinVer})</span>
+    <span class="leyenda"><span class="sw llena"></span>apoyo dictaminado (${L.est-sinVer})</span>
+    <span class="leyenda"><span class="sw fuera"></span>vano fuera de banda (${L.fuera===null?'—':L.fuera})</span>
+    <span class="leyenda"><span class="sw dentro"></span>vano en banda</span>
+    <span style="margin-left:auto;color:var(--tenue)">relieve ilustrativo · el orden de los apoyos es real</span>
+  </div>`;
+
+  /* el aviso: siempre lo primero que se lee */
+  if (sinVer){
+    h += `<div class="aviso">
+      <div class="g">${sinVer}</div>
+      <div>
+        <h3>${sinVer} de ${L.est} apoyos no tienen veredicto — en los dos ejes</h3>
+        <p>El motor ya sabe dictaminar. Lo que falta es el <b>dato</b>: ningún apoyo de esta línea
+        declara su <b>carga de rotura</b>, su <b>capacidad longitudinal</b> ni <b>cuántas fases
+        tiene amarradas</b>. Sin esos tres números, la comparación contra norma no se puede hacer,
+        y lo que se firmaría sería una opinión.</p>
+        <div class="q">Este hueco es del <b>inventario</b>, no del programa. Se cierra pidiéndole a
+        AFINIA la ficha estructural de cada apoyo, o levantándola en campo.</div>
+      </div>
+    </div>`;
+  }
+
+  h += `<div class="zona-c">`;
+
+  if (SEC==='resumen'){
+    const amp = ap.filter(a=>a.ampl && a.ampl>1.05);
+    const term = ap.filter(a=>a.term);
+    h += `<div class="h2">Lo que ya se sabe</div><div class="cifras">
+      <div class="cif"><div class="r">Longitud</div><div class="v">${F(L.m)}<span class="u">m</span></div>
+        <div class="n">${L.vanos} vanos</div></div>
+      <div class="cif ${L.fuera?'mal':''}"><div class="r">Vanos fuera de banda</div>
+        <div class="v">${L.fuera===null?'—':L.fuera+' / '+L.vanos}</div>
+        <div class="n">${L.fuera===null?'sin hipótesis con qué comparar':'contra el cálculo de referencia'}</div></div>
+      <div class="cif ${amp.length?'mal':''}"><div class="r">Apoyos que amplifican</div>
+        <div class="v">${amp.length}</div>
+        <div class="n">${amp.length?'mayor: '+amp.sort((a,b)=>b.ampl-a.ampl)[0].id+' ×'+F(amp[0].ampl,3):'ninguno'}</div></div>
+      <div class="cif"><div class="r">Tiro en terminales</div>
+        <div class="v">${term.length?F(term[0].ft):'—'}<span class="u">kgf</span></div>
+        <div class="n">por conductor, los ${term.length} extremos</div></div>
+      <div class="cif"><div class="r">Fotografías</div><div class="v">${F(L.fotos.total)}</div>
+        <div class="n">${L.fotos.sin} apoyos sin foto</div></div>
+      <div class="cif vacio"><div class="r">Apoyos con veredicto</div>
+        <div class="v">${L.ver} / ${L.est}</div>
+        <div class="n">${sinVer?'falta el dato del inventario':'completo'}</div></div>
+    </div>`;
+
+    h += `<div class="h2">Estado del cielo</div>
+      <div class="tabla-caja"><table><tbody>
+      <tr><td class="id">Estado</td><td>${esc(CIELO_NOM[e])}</td></tr>
+      <tr><td class="id">Hipótesis</td><td>${L.hip?esc(L.hip.nom)+(L.hip.firme?' <span class="pill ok">firme</span>':' <span class="pill av">sin validar</span>'):HUECO_G}</td></tr>
+      <tr><td class="id">Conductor</td><td>${L.cond?esc(L.cond.nom):HUECO_G}</td></tr>
+      <tr><td class="id">Último cálculo</td><td>${esc(L.act)}</td></tr>
+      </tbody></table></div>
+      <div class="nota">El cielo de esta línea no es decorativo: lo fija el estado de arriba. Cuando
+      los ${sinVer||0} apoyos tengan veredicto y no queden vanos fuera de banda, amanece.</div>`;
+  }
+
+  else if (SEC==='apoyos'){
+    h += `<div class="h2">Los ${L.est} apoyos</div><div class="tabla-caja"><table>
+      <thead><tr><th>Apoyo</th><th class="n">Deflexión</th><th class="n">Amplificación</th>
+      <th class="n">Carga recibida</th><th>Carga de rotura</th><th>Cap. longitudinal</th>
+      <th>Fases</th><th>Veredicto</th></tr></thead><tbody>`;
+    ap.forEach(a=>{
+      const ficha = a.rotura !== null;
+      h += `<tr>
+        <td class="id">${esc(a.id)}${a.term?' <span class="pill inf">terminal</span>':''}</td>
+        <td class="n">${F(a.ang,1)}°</td>
+        <td class="n ${a.ampl&&a.ampl>1.4?'mal':''}">${a.ampl?'×'+F(a.ampl,3):'—'}</td>
+        <td class="n">${F(a.ft)} kgf</td>
+        <td class="n">${ficha?F(a.rotura)+' kgf':HUECO}</td>
+        <td class="n">${ficha?F(a.capLong)+' kgf':HUECO}</td>
+        <td class="n">${ficha?a.fases:HUECO}</td>
+        <td>${a.veredicto
+              ? `<span class="pill ${a.veredicto==='cumple'?'ok':'no'}">${a.veredicto} · ${a.uso} %</span>`
+              : HUECO_G}</td></tr>`;
+    });
+    h += `</tbody></table></div>`;
+    if (sinVer === L.est){
+      h += `<div class="nota">Las cuatro columnas de la derecha son <b>el hueco entero del
+      proyecto</b>. Las tres primeras son datos que debe traer el inventario; la cuarta es el
+      veredicto que el motor produciría en cuanto las tenga. Fíjate en que el hueco se ve
+      <b>blanco</b>: en una pantalla oscura estas celdas se confundirían con el fondo.</div>`;
+    } else if (sinVer){
+      h += `<div class="nota">Aquí se ve la regla entera del producto en una sola tabla:
+      <b>hay veredicto exactamente donde hay ficha de inventario</b>, y ni uno más. ${sinVer} de
+      ${L.est} apoyos siguen sin las tres columnas que lo harían posible; en el horizonte de
+      arriba son los que se dibujan huecos.</div>`;
+    } else {
+      h += `<div class="nota">Esta línea tiene ficha de inventario en los ${L.est} apoyos, y por
+      eso los ${L.est} tienen veredicto. Es el aspecto que tendría LN-627 el día que AFINIA
+      entregue las fichas estructurales.</div>`;
+    }
+  }
+
+  else if (SEC==='vanos'){
+    h += `<div class="h2">Los ${L.vanos} vanos</div>`;
+    if (L.fuera===null){
+      h += `<div class="vacio"><div class="g">≋</div><p>Esta línea no tiene hipótesis de cálculo:
+        no hay banda de referencia contra la cual comparar los vanos.</p></div>`;
+    } else {
+      h += `<div class="tabla-caja"><table>
+      <thead><tr><th>Vano</th><th>Entre</th><th class="n">Longitud</th><th class="n">Flecha estimada</th><th>Banda</th></tr></thead><tbody>`;
+      vn.forEach(v=>{
+        h += `<tr><td class="id">V${String(v.id).padStart(2,'0')}</td>
+          <td>${esc(v.de)} → ${esc(v.a)}</td>
+          <td class="n ${v.fuera?'mal':''}">${F(v.largo,1)} m</td>
+          <td class="n">${F(v.flecha,2)} m</td>
+          <td>${v.fuera?'<span class="pill no">fuera</span>':'<span class="pill ok">dentro</span>'}</td></tr>`;
+      });
+      h += `</tbody></table></div>
+        <div class="nota">${L.fuera} de ${L.vanos} vanos caen fuera de la banda del cálculo de
+        referencia. En el horizonte de arriba son los tramos dibujados en terracota.</div>`;
+    }
+  }
+
+  else if (SEC==='cargas'){
+    const conF = ap.filter(a=>a.rotura!==null);
+    const nf = conF.length;
+    h += `<div class="h2">Los dos ejes</div><div class="cifras">
+      <div class="cif"><div class="r">Eje transversal · carga recibida</div>
+        <div class="v">${F(Math.max(...ap.map(a=>a.ft)))}<span class="u">kgf</span></div>
+        <div class="n">el máximo del recorrido</div></div>
+      <div class="cif ${nf?'':'vacio'}"><div class="r">Eje transversal · capacidad</div>
+        <div class="v">${nf?F(Math.min(...conF.map(a=>a.rotura))):'sin dato'}${nf?'<span class="u">kgf</span>':''}</div>
+        <div class="n">${nf?`la menor de los ${nf} apoyos con ficha`:'ningún apoyo declara carga de rotura'}</div></div>
+      <div class="cif"><div class="r">Eje longitudinal · tiro</div>
+        <div class="v">${F(ap.filter(a=>a.term)[0]?.ft||0)}<span class="u">kgf</span></div>
+        <div class="n">por conductor, en terminales</div></div>
+      <div class="cif ${nf?'':'vacio'}"><div class="r">Eje longitudinal · capacidad</div>
+        <div class="v">${nf?F(Math.min(...conF.map(a=>a.capLong))):'sin dato'}${nf?'<span class="u">kgf</span>':''}</div>
+        <div class="n">${nf?`la menor de los ${nf} apoyos con ficha`:'ningún apoyo declara capacidad longitudinal'}</div></div>
+    </div>
+    <div class="nota">${nf===0
+      ? `Los dos ejes se calculan y los dos se quedan a medias por la misma razón: hay
+         <b>solicitación</b> y no hay <b>capacidad</b>. Una carga sin capacidad contra la cual
+         compararla no es un dictamen; es media ecuación.`
+      : `${nf} de ${L.est} apoyos tienen las dos mitades de la ecuación: lo que reciben y lo que
+         aguantan. Los ${L.est-nf} restantes solo tienen la primera, y por eso no se pueden
+         dictaminar.`}</div>`;
+  }
+
+  else if (SEC==='hipotesis'){
+    if (!L.hip){
+      h += `<div class="vacio"><div class="g">≋</div><p>Esta línea no tiene hipótesis de cálculo
+        cargada. Sin ella no hay banda de referencia, no hay flecha y no hay veredicto posible.</p></div>`;
+    } else {
+      h += `<div class="h2">${esc(L.hip.nom)}</div><div class="tabla-caja"><table><tbody>
+        <tr><td class="id">Procedencia</td><td>${esc(L.hip.proc)}</td></tr>
+        <tr><td class="id">Estado</td><td>${L.hip.firme?'<span class="pill ok">firme desde '+esc(L.hip.fecha)+'</span>':'<span class="pill av">sin validar</span>'}</td></tr>
+        <tr><td class="id">Tensión EDS</td><td>${F(L.hip.eds)} %</td></tr>
+        <tr><td class="id">Temperatura máxima</td><td>${F(L.hip.tMax)} °C</td></tr>
+        <tr><td class="id">Temperatura mínima</td><td>${F(L.hip.tMin)} °C</td></tr>
+        <tr><td class="id">Viento de diseño</td><td>${F(L.hip.viento)} km/h</td></tr>
+        </tbody></table></div>
+        ${L.hip.firme?'':'<div class="nota">Esta hipótesis viene heredada y <b>no ha sido validada</b>. Todo número calculado con ella arrastra esa advertencia hasta el informe.</div>'}`;
+    }
+  }
+
+  else if (SEC==='conductor'){
+    if (!L.cond){
+      h += `<div class="vacio"><div class="g">⌁</div><p>Esta línea no tiene conductor declarado.</p></div>`;
+    } else {
+      const c = L.cond;
+      h += `<div class="h2">${esc(c.nom)}</div><div class="cifras">
+        <div class="cif"><div class="r">Carga de rotura</div><div class="v">${F(c.rts)}<span class="u">kgf</span></div></div>
+        <div class="cif"><div class="r">Sección</div><div class="v">${F(c.sec,1)}<span class="u">mm²</span></div></div>
+        <div class="cif"><div class="r">Diámetro</div><div class="v">${F(c.diam*1000,2)}<span class="u">mm</span></div></div>
+        <div class="cif"><div class="r">Peso</div><div class="v">${F(c.w,3)}<span class="u">kg/m</span></div></div>
+        <div class="cif"><div class="r">Ampacidad</div><div class="v">${F(c.amp)}<span class="u">A</span></div></div>
+        <div class="cif"><div class="r">Tope de tiro al 50 %</div><div class="v">${F(c.rts*0.5)}<span class="u">kgf</span></div>
+          <div class="n">pendiente de decisión: 50 % o 25 %</div></div>
+      </div>
+      <div class="nota">El conductor sí tiene su ficha completa. El contraste con la tabla de
+      apoyos es exactamente el problema: <b>sabemos todo del cable y casi nada de lo que lo sostiene</b>.</div>`;
+    }
+  }
+
+  else if (SEC==='fotos'){
+    if (!L.fotos.total){
+      h += `<div class="vacio"><div class="g">▤</div><p>Esta línea no tiene levantamiento
+        fotográfico cargado: ${L.est} apoyos sin una sola imagen.</p></div>`;
+    } else {
+      h += `<div class="h2">${F(L.fotos.total)} fotografías · ${L.fotos.sin} apoyos sin imagen</div><div class="fotos">`;
+      const r = rng(L.sem*7+1);
+      for (let i=1;i<=Math.min(48, L.fotos.total);i++){
+        h += `<div class="foto" data-n="${String(i).padStart(3,'0')}"
+          style="background:var(--cielo-${['amanecer','atardecer','niebla'][Math.floor(r()*3)]})">
+          <div class="suelo"></div></div>`;
+      }
+      for (let i=0;i<Math.min(6,L.fotos.sin);i++){
+        h += `<div class="foto sin" data-n="sin foto"></div>`;
+      }
+      h += `</div><div class="nota">Cada imagen sabe de qué apoyo es. Ojo con la trampa de
+        nomenclatura del levantamiento: el archivo <code>e07</code> corresponde al apoyo
+        <b>E06</b>, porque el número del archivo es el del <b>punto</b> del recorrido e incluye
+        los empalmes, que no son apoyos.</div>`;
+    }
+  }
+
+  else if (SEC==='informe'){
+    h += `<div class="h2">Lo que saldría firmado hoy</div>`;
+    if (sinVer === L.est){
+      h += `<div class="aviso" style="margin:0">
+        <div class="g">!</div>
+        <div><h3>El informe no se puede emitir completo</h3>
+        <p>De las secciones obligatorias, la de <b>dictamen estructural de apoyos</b> saldría vacía
+        en los dos ejes. El sistema no lo va a rellenar solo: esa es exactamente la conducta que
+        este producto existe para impedir.</p>
+        <div class="q">«Este sistema no certifica nada. Certifica el ingeniero que firma. El
+        trabajo del sistema es hacer barato comprobar que ese ingeniero tiene razón.»</div></div>
+      </div>`;
+    } else if (sinVer){
+      h += `<div class="aviso" style="margin:0">
+        <div class="g">${sinVer}</div>
+        <div><h3>El informe saldría con ${sinVer} apoyos sin dictaminar</h3>
+        <p>Se puede emitir, pero la sección de dictamen estructural sale <b>parcial</b>, y así
+        debe imprimirse: con los ${sinVer} apoyos declarados como no evaluables y la razón al
+        lado. Un informe que los omita en silencio es peor que uno incompleto.</p></div>
+      </div>`;
+    }
+    const dictamen = sinVer===0 ? '<span class="pill ok">completa</span>'
+      : sinVer===L.est ? '<span class="pill no">no emitible</span>'
+      : `<span class="pill av">parcial · ${L.est-sinVer}/${L.est}</span>`;
+    h += `<div class="h2">Secciones</div><div class="tabla-caja"><table><tbody>
+      <tr><td class="id">1 · Identificación de la línea</td><td><span class="pill ok">lista</span></td></tr>
+      <tr><td class="id">2 · Conductor e hipótesis</td><td>${L.cond&&L.hip?(L.hip.firme?'<span class="pill ok">lista</span>':'<span class="pill av">con advertencia</span>'):'<span class="pill no">incompleta</span>'}</td></tr>
+      <tr><td class="id">3 · Geometría y vanos</td><td>${L.fuera===null?'<span class="pill no">sin banda de referencia</span>':'<span class="pill ok">lista</span>'}</td></tr>
+      <tr><td class="id">4 · Cargas por apoyo</td><td>${sinVer===L.est?'<span class="pill av">solo solicitación</span>':'<span class="pill ok">los dos ejes</span>'}</td></tr>
+      <tr><td class="id">5 · Dictamen estructural</td><td>${dictamen}</td></tr>
+      <tr><td class="id">6 · Registro fotográfico</td><td>${L.fotos.total?'<span class="pill ok">lista</span>':'<span class="pill no">sin fotos</span>'}</td></tr>
+      </tbody></table></div>`;
+  }
+
+  h += `</div>`;
+  const c = document.getElementById('cont');
+  c.innerHTML = h;
+  c.scrollTop = 0;
+}
+
+function pintar(){ pintarParque(); pintarSecciones(); pintarContenido(); }
+
+/* ── eventos ────────────────────────────────────────────────────────────── */
+document.getElementById('lista').addEventListener('click', ev=>{
+  const b = ev.target.closest('.ln'); if(!b) return;
+  const L = PARQUE.find(x=>x.id===b.dataset.id); if(!L) return;
+  SEL = L;                      // la SECCIÓN sobrevive al cambio de línea
+  pintar();
+});
+document.getElementById('secs').addEventListener('click', ev=>{
+  const b = ev.target.closest('.sec'); if(!b) return;
+  SEC = b.dataset.sec; pintarSecciones(); pintarContenido();
+});
+document.getElementById('q').addEventListener('input', ev=>{
+  FILTRO = ev.target.value; pintarParque();
+});
+
+pintar();
+</script>
+</body>
+</html>
