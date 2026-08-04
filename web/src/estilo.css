@@ -41,6 +41,19 @@
   --b-azul:  #c3d5e4;
 
 
+  /* ── Los cuatro cielos (F5) ──────────────────────────────────────────────
+     No son decoración: cada uno ES un estado, derivado en `estadoLinea.ts`.
+     Se reconocen de lejos sin leer, y su rótulo lo dice con palabras para
+     quien no distingue el color. */
+  --cielo-amanecer:  linear-gradient(100deg, #dbe8f2 0%, #edf0e1 100%);
+  --cielo-atardecer: linear-gradient(100deg, #f6e2c8 0%, #faecd8 100%);
+  --cielo-tormenta:  linear-gradient(100deg, #d5dde3 0%, #e4e0d7 100%);
+  --cielo-niebla:    linear-gradient(100deg, #e4e4df 0%, #eeebe3 100%);
+  --cielo-bd-amanecer:  #bcd0dd;
+  --cielo-bd-atardecer: #e3c69c;
+  --cielo-bd-tormenta:  #bcc6cd;
+  --cielo-bd-niebla:    #d5d3ca;
+
   /* ── Tokenización (fase 1) ──────────────────────────────────────────────
      Cada uno de estos era un color escrito a mano en una regla suelta. Aquí
      conservan su valor OSCURO EXACTO: esta fase no cambia ni un píxel. Existen
@@ -596,6 +609,53 @@ p.fund-vivo + .sello-calculo { margin-top: 5px; }
   }
   .col-secciones .pestana.activa { border-left-color: transparent; border-bottom-color: var(--acc); background: none; }
 }
+
+/* ── LA BANDA DE CIELO — el estado de la línea, derivado (F5) ─────────────
+   La crítica de oficio encontró que las CUATRO maquetas dejaban mostrarse
+   «sana» una línea con cero apoyos dictaminados. Aquí eso es imposible por
+   construcción: el color y el rótulo salen de `estadoDeLinea()`, y su prueba
+   vigila que «al día» sea inalcanzable mientras falte un apoyo. */
+.cielo {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding: 11px 15px; margin-bottom: 12px;
+  border: 1px solid var(--bd); border-radius: var(--radio);
+  box-shadow: var(--luz-arriba), var(--sombra-1);
+}
+.cielo-amanecer  { background: var(--cielo-amanecer);  border-color: var(--cielo-bd-amanecer); }
+.cielo-atardecer { background: var(--cielo-atardecer); border-color: var(--cielo-bd-atardecer); }
+.cielo-tormenta  { background: var(--cielo-tormenta);  border-color: var(--cielo-bd-tormenta); }
+.cielo-niebla    { background: var(--cielo-niebla);    border-color: var(--cielo-bd-niebla); }
+.cielo-txt { min-width: 0; flex: 1; }
+.cielo-rotulo {
+  display: block; font-size: 12.5px; font-weight: 660; color: var(--tx);
+  letter-spacing: .2px;
+}
+.cielo-porque { display: block; margin-top: 2px; font-size: 11.4px; color: var(--tx2); line-height: 1.5; }
+
+/* El medidor: SIEMPRE a la vista, nunca detrás del ratón. Era el bloqueante
+   nº3 de la crítica — dos maquetas lo escondían en el texto emergente. */
+.cielo-medidor {
+  flex: none; text-align: right;
+  padding: 5px 11px; border-radius: var(--radio);
+  background: var(--pnl-alto); border: 1px solid var(--bd);
+}
+.cielo-medidor b {
+  display: block; font-size: 16px; font-weight: 660; font-variant-numeric: tabular-nums;
+  color: var(--tx); line-height: 1.2;
+}
+.cielo-medidor span { display: block; font-size: 9.6px; color: var(--mut);
+  text-transform: uppercase; letter-spacing: .5px; margin-top: 1px; }
+/* Cero dictaminados no se pinta como una cifra más: se pinta como un hueco. */
+.cielo-medidor[data-cero="true"] { background: var(--pnl-alto); border: 1.5px dashed var(--rd); }
+.cielo-medidor[data-cero="true"] b { color: var(--rd); }
+
+/* El mismo medidor, en la fila del parque */
+.parque-ver {
+  display: block; margin-top: 5px; font-size: 10px; font-variant-numeric: tabular-nums;
+  color: var(--mut); letter-spacing: .2px;
+}
+.parque-ver b { color: var(--tx2); font-weight: 660; }
+.parque-ver[data-cero="true"] b { color: var(--rd); }
 
 /* ══════════════════════════════════════════════════════════════════════════
    EVENTO DE FALLA — lo que el Ingeniero no alcanzaba a apreciar en la E02

@@ -28,15 +28,11 @@
 // ============================================================================
 import { useMemo } from 'react';
 import type { Apoyo, Conductor, Hipotesis, Linea } from '@lineas/contratos';
-import { calcularTramos } from '../vistas/tramos';
-import { cargasParaPantalla, agruparNotas } from '../vistas/cargasDatos';
-import { longitudinalParaPantalla } from '../vistas/longitudinalDatos';
-import { tramosDeTension, estadosDelTramo } from '@lineas/nucleo/mecanica';
+import { agruparNotas } from '../vistas/cargasDatos';
+import { ejesDeLinea } from '../vistas/ejesLinea';
 // El motivo por el que hoy ningún apoyo tiene veredicto en el eje longitudinal
 // tiene UN dueño, y es el núcleo. Aquí se pinta, no se redacta.
 import { CRITERIO_CAPACIDAD_LONGITUDINAL } from '@lineas/nucleo/longitudinal';
-import { vanos, soloEstructuras, nombreVisible } from '../vistas/planta';
-import { conductorParaNucleo, paramsParaNucleo } from '../vistas/tramos';
 import { nf, textoNucleo } from '../vistas/formato';
 import { Sello } from './Sello';
 
@@ -129,30 +125,14 @@ function Tarjeta({ valor, etiqueta, explica, tono }:
 export function Cargas({ linea, apoyos, conductor, hipotesis }:
   { linea: Linea; apoyos: Apoyo[]; conductor: Conductor; hipotesis: Hipotesis }) {
 
-  const r = useMemo(
-    // Los tramos NO se recalculan aquí: se piden a la misma función que alimenta
-    // Mecánico y Viento. Si cada pestaña calculara su propio tiro, bastaría un
-    // cambio en una para que la app se contradijera a sí misma ante el cliente.
-    () => cargasParaPantalla(
-      apoyos, calcularTramos(apoyos, conductor, hipotesis), conductor, hipotesis, linea.circuitos,
-    ),
+  // Los dos ejes salen de `ejesDeLinea`, que es su ÚNICO dueño. Antes esta
+  // preparación vivía aquí y la carcasa la habría tenido que copiar para pintar
+  // el cielo de la línea: dos sitios calculando la misma cobertura, y un día
+  // distinta. El comentario que había aquí ya avisaba de eso; ahora lo impide.
+  const { transversal: r, longitudinal: lg } = useMemo(
+    () => ejesDeLinea(apoyos, conductor, hipotesis, linea.circuitos),
     [apoyos, conductor, hipotesis, linea.circuitos],
   );
-
-  // El eje longitudinal necesita los tramos con sus estados RICOS (temperatura y
-  // carga unitaria incluidas): el núcleo rechaza la forma aplanada porque para
-  // RESTAR el tiro de dos tramos hay que poder comprobar que son comparables.
-  const lg = useMemo(() => {
-    const E = soloEstructuras(apoyos);
-    if (E.length < 2) return null;
-    const L = vanos(apoyos);
-    const c = conductorParaNucleo(conductor);
-    const p = paramsParaNucleo(hipotesis);
-    const ricos = tramosDeTension(
-      E.map((a) => ({ funcionEstructural: a.funcionEstructural, nombre: nombreVisible(a) })), L,
-    ).map((t: { vanos: number[] }) => ({ ...t, estados: estadosDelTramo(t, c, p) }));
-    return longitudinalParaPantalla(apoyos, ricos, conductor);
-  }, [apoyos, conductor, hipotesis]);
 
   if (!r.filas.length) {
     return (

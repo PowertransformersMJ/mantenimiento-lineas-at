@@ -25,6 +25,8 @@ import { nombreVisible } from '../vistas/planta';
 import { textoNucleo } from '../vistas/formato';
 import { conReintentos } from '../datos/cargar';
 import { almacen } from '../datos/enlace';
+import { ejesDeLinea } from '../vistas/ejesLinea';
+import { estadoDeLinea } from '../vistas/estadoLinea';
 import { Distribucion } from './Distribucion';
 import { Distancias } from './Distancias';
 import { Fichas } from './Fichas';
@@ -202,7 +204,7 @@ function Resumen({ apoyos, investigaciones, alVerEvento, hipotesis, conductor }:
   return (
     <>
       <BandaEstado
-        eventos={investigaciones.length}
+        eventos={investigaciones.filter((i) => !i.cerrada).length}
         calidad={{
           atencion: r.calidad.filter((c) => c.severidad === 'atencion').length,
           aviso: r.calidad.filter((c) => c.severidad === 'aviso').length,
@@ -566,6 +568,22 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
   // llegó, la única que consta es la que está abierta. No se inventa un parque.
   const parque = lineas?.length ? lineas : [linea];
 
+  // EL CIELO. Sale de los dos ejes REALES —los mismos que pinta la pestaña
+  // Cargas, por el mismo dueño— y de los expedientes sin cerrar. Ni un texto
+  // fijo, ni una bandera escrita a mano: si mañana el inventario trae las
+  // fichas, el cielo amanece solo.
+  const estado = useMemo(() => {
+    const ejes = ejesDeLinea(apoyos, conductor, hipotesis, linea.circuitos);
+    return estadoDeLinea({
+      transversal: { filas: ejes.transversal.filas, total: ejes.transversal.total, aRevisar: ejes.transversal.aRevisar },
+      longitudinal: ejes.longitudinal
+        ? { filas: ejes.longitudinal.filas, total: ejes.longitudinal.total, aRevisar: ejes.longitudinal.aRevisar }
+        : { filas: [], total: 0, aRevisar: 0 },
+      investigaciones,
+      hipotesis,
+    });
+  }, [apoyos, conductor, hipotesis, linea.circuitos, investigaciones]);
+
   return (
     <>
       <div className="linea-cab">
@@ -586,6 +604,11 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
               >
                 <span className="parque-id">{l.codigo}</span>
                 <span className="parque-sub">{nf(l.tensionNominal_kV)} kV</span>
+                {l.id === linea.id && (
+                  <span className="parque-ver" data-cero={estado.dictaminados === 0}>
+                    <b>{nf(estado.dictaminados)}/{nf(estado.total)}</b> con veredicto
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -620,6 +643,16 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
         </nav>
 
         <div className="col-contenido">
+          <div className={`cielo cielo-${estado.cielo}`} role="status">
+            <div className="cielo-txt">
+              <span className="cielo-rotulo">{estado.rotulo}</span>
+              <span className="cielo-porque">{estado.porQue}</span>
+            </div>
+            <div className="cielo-medidor" data-cero={estado.dictaminados === 0}>
+              <b>{nf(estado.dictaminados)} / {nf(estado.total)}</b>
+              <span>apoyos con veredicto · los dos ejes</span>
+            </div>
+          </div>
       <div id="panel-linea" role="tabpanel" aria-labelledby={`pestana-${activa}`}>
         {activa === 'resumen' && (
           <Resumen apoyos={apoyos} investigaciones={investigaciones}
