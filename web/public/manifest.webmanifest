@@ -5,9 +5,14 @@
   "lang": "es",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#10151a",
-  "theme_color": "#10151a",
+  "background_color": "#f5f1e8",
+  "theme_color": "#f5f1e8",
   "icons": [
-    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
   ]
 }

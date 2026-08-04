@@ -16,27 +16,29 @@
      · densidad: 14 px de base, no 15; paneles de 14-16 px, no de 20
    ========================================================================== */
 :root {
-  --bg:   #0f1419;
-  --pnl:  #171d24;
-  --pnl2: #1e262f;
-  --bd:   #2b353f;
-  --tx:   #e6edf3;
-  --mut:  #8b98a5;
-  --acc:  #f0a500;
-  --gr:   #7fc96a;
-  --rd:   #e05252;
-  --az:   #5b8dd9;
+  color-scheme: light;
+  --falla-tx-titulo:       #6e2a20;
+  --bg:   #f5f1e8;
+  --pnl:  #fbf8f1;
+  --pnl2: #f2ede2;
+  --bd:   #dcd3c1;
+  --tx:   #2c2a24;
+  --mut:  #665f4d;
+  --acc:  #87540c;
+  --gr:   #4e7a3a;
+  --rd:   #b03a3a;
+  --az:   #3a6ea8;
   --radio: 10px;
   /* Canal de color del calor de la matriz de distancias. Va como triplete
      RGB, no como hex, porque `Distancias.tsx` le compone la opacidad al
      vuelo según la distancia: rgba(var(--calor-rgb), α). */
-  --calor-rgb: 240,165,0;
+  --calor-rgb: 135,84,12;
   /* Superficies tintadas del original: dan riqueza sin aclarar el tema. */
-  --t-ambar: #2a2113;
-  --t-rojo:  #2a1616;
-  --t-verde: #16240f;
-  --t-azul:  #12202c;
-  --b-azul:  #24455e;
+  --t-ambar: #fdf3df;
+  --t-rojo:  #fceceb;
+  --t-verde: #eff6ea;
+  --t-azul:  #eaf1f7;
+  --b-azul:  #c3d5e4;
 
 
   /* ── Tokenización (fase 1) ──────────────────────────────────────────────
@@ -46,84 +48,84 @@
      Regla dura que se estableció aquí: un degradado NO mezcla literal y
      variable — si una parada está tokenizada, lo están todas. */
   /* superficies */
-  --cab-a:                 #12212e;
-  --cab-b:                 #1b2b1f;
-  --pnl-alto:              #1a212a;
-  --kpi-alto:              #16283a;
-  --sup-hund:              #12181e;
-  --campo:                 #0f1419;
-  --th:                    #1b242c;
-  --fila-hover:            #1f2932;
-  --pill:                  #243039;
-  --pill-alto:             #2f3d49;
-  --pill2:                 #232c35;
-  --celda-hover:           #2b3b48;
-  --t-ambar-fuerte:        #3a2c0c;
+  --cab-a:                 #e4ecf2;
+  --cab-b:                 #eaf0e0;
+  --pnl-alto:              #fdfbf6;
+  --kpi-alto:              #f4f8fb;
+  --sup-hund:              #efe9dc;
+  --campo:                 #fdfbf6;
+  --th:                    #efe9dc;
+  --fila-hover:            #f7f2e7;
+  --pill:                  #ece5d7;
+  --pill-alto:             #e3dbc9;
+  --pill2:                 #eae3d5;
+  --celda-hover:           #e6eef5;
+  --t-ambar-fuerte:        #f7e6c2;
   /* filetes y trazos */
-  --bd-fila:               #232c35;
-  --bd-matriz:             #222b34;
-  --bd-tenue:              #4a5560;
-  --bd-verde:              #33502c;
-  --traza:                 #52606d;
+  --bd-fila:               #e8e1d2;
+  --bd-matriz:             #e6dfd0;
+  --bd-tenue:              #cfc7b6;
+  --bd-verde:              #b9d0ac;
+  --traza:                 #8b93a0;
   /* tinta */
-  --tx2:                   #c6d3de;
-  --tx3:                   #9fb3c4;
-  --tx4:                   #90a0ad;
-  --tx5:                   #7d8b98;
+  --tx2:                   #555147;
+  --tx3:                   #6b6558;
+  --tx4:                   #665f4d;
+  --tx5:                   #726b5c;
   /* NO EVALUABLE. Medido contra los cuatro fondos reales de la app: el
      valor anterior (#6f7d8a) daba 3,56-4,02 y el mínimo legible es 4,5 —
      o sea que el hueco quedaba escrito en un tono que cuesta leer. Este
      da 5,63 en el peor fondo y sigue leyéndose como apagado, muy lejos
      del ámbar de acento (7,2-8,2), que es de lo que hay que distinguirlo. */
-  --tx-pendiente:          #93a0ad;
-  --tx-aviso:              #e8d9b8;
-  --tx-ok:                 #cfe8c2;
-  --tx-ok-fuerte:          #bfe6b0;
-  --tx-alerta:             #f0c9c9;
-  --tx-alerta-fuerte:      #ffb4b4;
-  --tx-info:               #cfe0ef;
-  --rd-claro:              #e08585;
-  --az-claro:              #86aae3;
-  --acc-tx:                #1a1200;
+  --tx-pendiente:          #66604f;
+  --tx-aviso:              #6b5416;
+  --tx-ok:                 #3f6030;
+  --tx-ok-fuerte:          #35542a;
+  --tx-alerta:             #8a3030;
+  --tx-alerta-fuerte:      #7a2626;
+  --tx-info:               #2f5170;
+  --rd-claro:              #a83c3c;
+  --az-claro:              #35608f;
+  --acc-tx:                #fffaf0;
   /* velos y halos */
-  --acc-suave:             rgba(240,165,0,.12);
-  --acc-borde:             rgba(240,165,0,.3);
-  --acc-borde-fuerte:      rgba(240,165,0,.5);
-  --acc-filete:            rgba(240,165,0,.28);
-  --acc-halo:              rgba(240,165,0,.18);
-  --rd-suave:              rgba(224,82,82,.12);
-  --rd-halo:               rgba(224,82,82,.2);
-  --mut-halo:              rgba(139,152,165,.16);
-  --gr-halo:               rgba(127,201,106,.16);
-  --flotante:              rgba(23,29,36,.94);
+  --acc-suave:             rgba(135,84,12,.1);
+  --acc-borde:             rgba(135,84,12,.35);
+  --acc-borde-fuerte:      rgba(135,84,12,.5);
+  --acc-filete:            rgba(135,84,12,.3);
+  --acc-halo:              rgba(135,84,12,.22);
+  --rd-suave:              rgba(176,58,58,.1);
+  --rd-halo:               rgba(176,58,58,.18);
+  --mut-halo:              rgba(111,104,87,.16);
+  --gr-halo:               rgba(78,122,58,.18);
+  --flotante:              rgba(253,251,246,.94);
   --visor-fondo:           rgba(6,9,12,.94);
-  --sombra-flotante-color: rgba(0,0,0,.45);
+  --sombra-flotante-color: rgba(72,60,38,.18);
   /* expediente de falla */
-  --falla-claro:           #ff6b6b;
-  --falla-medio:           #d64545;
+  --falla-claro:           #c0392b;
+  --falla-medio:           #a8342a;
   --falla-tx:              #fff;
-  --falla-tx-suave:        #ff8b8b;
-  --falla-tx2:             #e8c9c9;
-  --falla-tx3:             #c9b3b3;
-  --falla-bd:              #6b2b2b;
-  --falla-bd-cuerpo:       #0f1419;
-  --falla-t:               #3a1414;
-  --falla-grad-a:          #2a1616;
-  --falla-grad-b:          #3a1f10;
-  --falla-fondo-a:         #241618;
-  --falla-fondo-b:         #241a1a;
-  --falla-halo:            rgba(214,69,69,.35);
-  --falla-filete:          rgba(255,107,107,.25);
-  --falla-sombra-color:    rgba(214,69,69,.55);
-  --falla-anillo-color:    rgba(214,69,69,.22);
+  --falla-tx-suave:        #9e2f26;
+  --falla-tx2:             #7a4a45;
+  --falla-tx3:             #7d6a66;
+  --falla-bd:              #e3bdb6;
+  --falla-bd-cuerpo:       #fdfbf6;
+  --falla-t:               #fbe6e2;
+  --falla-grad-a:          #fdeeea;
+  --falla-grad-b:          #fdf0e2;
+  --falla-fondo-a:         #fdeeea;
+  --falla-fondo-b:         #fbeceb;
+  --falla-halo:            rgba(192,57,43,.3);
+  --falla-filete:          rgba(192,57,43,.25);
+  --falla-sombra-color:    rgba(192,57,43,.35);
+  --falla-anillo-color:    rgba(192,57,43,.2);
   /* ── Profundidad ────────────────────────────────────────────────────────
      Lo que separa un oscuro barato de uno de nivel no es el color: es que las
      superficies tengan CUERPO. Cada tarjeta lleva un filete de luz arriba
      (como si la iluminara algo por encima) y una sombra suave debajo. Plano y
      oscuro se lee como apagado; con capas se lee como instrumento cuidado. */
-  --luz-arriba: inset 0 1px 0 rgba(255,255,255,.045);
-  --sombra-1: 0 1px 2px rgba(0,0,0,.35);
-  --sombra-2: 0 6px 20px -6px rgba(0,0,0,.55);
+  --luz-arriba: inset 0 1px 0 rgba(255,255,255,.75);
+  --sombra-1: 0 1px 2px rgba(72,60,38,.08);
+  --sombra-2: 0 6px 20px -6px rgba(72,60,38,.2);
   --curva: cubic-bezier(.2,.7,.3,1);
 }
 
@@ -497,19 +499,21 @@ p.fund-vivo + .sello-calculo { margin-top: 5px; }
 
 /* ── Impresión: la página debe poder volverse un documento ────────────── */
 @media print {
-  :root { --bg: #fff; --pnl: #fff; --pnl2: #fff; --tx: #000; --mut: #444; --bd: #bbb;
-          --t-ambar: #fff8e8; --t-rojo: #fff0f0; --t-verde: #f0f8ec; --t-azul: #eef4fa; --b-azul: #bbb; }
-  body { background: #fff !important; color: #000 !important; }
+  /* DELTA ESTRUCTURAL, nada de color. Este bloque era un TEMA CLARO PARALELO:
+     redefinía once tokens y forzaba seis colores con !important. Existía porque
+     el tema base era oscuro y el papel no puede serlo. Ahora que el tema base ES
+     claro, mantenerlo sería sostener dos temas a la vez — y esa es justo la
+     forma en que una hoja de estilos se pudre: el paralelo deja de recibir los
+     arreglos del principal y acaba mintiendo (le faltaban ya `.fund-figura-caja`
+     y `.calc-campo select`, que salían negros sobre el papel).
+     Aquí solo queda lo que el papel SÍ necesita y la pantalla no. */
+  body { background: #fff; }                 /* tinta: el papel no lleva el tinte cálido */
   #app { max-width: none; }
-  .cab { background: #fff !important; }
   .pestanas, .mapa-capas, .exportar-botones, .salir, .chips { display: none !important; }
-  .panel, .ficha-bloque, .kpi, .calidad-item { border-color: #bbb; break-inside: avoid; }
+  .panel, .ficha-bloque, .kpi, .calidad-item { break-inside: avoid; }
   .tabla-caja, .matriz-caja { overflow: visible !important; max-height: none !important; }
   .mapa-real { display: none !important; }   /* el lienzo WebGL sale en blanco: se imprime el esquema SVG */
-  a { color: #000; text-decoration: none; }
-  .kpi-v, .fund-tarjeta h2, .linea-titulo, .resp b, .stat b { color: #000 !important; }
-  .ok { color: #1a5c1a; } .alerta, .advertencia, .aviso { color: #7a1f1f; }
-  .tabla th { background: #eee !important; color: #000 !important; }
+  a { text-decoration: none; }
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -557,7 +561,7 @@ p.fund-vivo + .sello-calculo { margin-top: 5px; }
   transition: border-color .18s var(--curva), transform .18s var(--curva);
 }
 .falla-tarjeta:hover { border-color: var(--falla-claro); transform: translateX(2px); }
-.falla-tarjeta b { color: var(--falla-tx); font-size: 13.5px; }
+.falla-tarjeta b { color: var(--falla-tx-titulo); font-size: 13.5px; }
 .falla-icono {
   flex: none; width: 26px; height: 26px; border-radius: 50%;
   background: var(--falla-medio); color: var(--falla-tx); display: grid; place-items: center; font-size: 14px;
@@ -574,7 +578,7 @@ p.fund-vivo + .sello-calculo { margin-top: 5px; }
   border-radius: var(--radio); box-shadow: var(--luz-arriba), var(--sombra-1);
 }
 .falla-rotulo { font-size: 9.5px; letter-spacing: 1.4px; color: var(--falla-claro); font-weight: 700; text-transform: uppercase; }
-.falla-titulo { margin: 3px 0 0; font-size: 19px; font-weight: 600; color: var(--falla-tx); border: 0; padding: 0; text-transform: none; letter-spacing: 0; }
+.falla-titulo { margin: 3px 0 0; font-size: 19px; font-weight: 600; color: var(--falla-tx-titulo); border: 0; padding: 0; text-transform: none; letter-spacing: 0; }
 .falla-sub { margin: 4px 0 0; font-size: 11.5px; color: var(--falla-tx2); }
 .falla-geo { margin: 7px 0 0; font-size: 11px; color: var(--falla-tx3); font-variant-numeric: tabular-nums; }
 .falla-cuando { white-space: nowrap; color: var(--acc); font-weight: 600; }
@@ -635,9 +639,10 @@ p.fund-vivo + .sello-calculo { margin-top: 5px; }
 .saludo b { color: var(--tx); }
 
 @media print {
+  /* Los tres `background: #fff !important` y los dos `color: #000 !important`
+     que había aquí sobran: el expediente de falla ya es claro por sí mismo y
+     su título ya va en tinta oscura legible (--falla-tx-titulo). */
   .marca-falla, .falla-tarjeta-ir { display: none !important; }
-  .falla-banda, .falla-tarjeta, .hip-alta { background: #fff !important; }
-  .falla-titulo, .falla-rotulo { color: #000 !important; }
   .banda-estado { break-inside: avoid; }
 }
 
