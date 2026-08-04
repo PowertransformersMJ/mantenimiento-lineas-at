@@ -5,9 +5,9 @@
 | Señal | Valor (al **2026-07-29**) |
 |---|---|
 | **Misión ahora** | **F0 · Verificación.** Repo creado, cerebro cableado, `nucleo/` portado y verificado. Arquitectura **decidida y revisada externamente**: comité ×3 (ADR-001) + Consejo Externo Gemini 3.1 Pro (ADR-002, confirma en 7 puntos y enmienda 3). Pendientes → `10`. |
-| **Build** | 🟢 `npm test` **673 pass / 0 fail** (núcleo + exportes + vistas puras). · verificado-vivo: 2026-08-03 |
+| **Build** | 🟢 `npm test` **678 pass / 0 fail** (núcleo + exportes + vistas puras + 5 guardias del tablero de color). · verificado-vivo: 2026-08-04 |
 | **Repo** | `main` · https://github.com/PowertransformersMJ/mantenimiento-lineas-at · **PÚBLICO** (decisión del Ingeniero 2026-07-29) |
-| **Producción** | 🟢 **https://mantenimiento-lineas-at.pages.dev** — Cloudflare Pages, cuenta `ajimenezp99@gmail.com`. Caparazón con línea de demostración: **cero datos de cliente**. Despliegue a mano (`npm run deploy --workspace web`); el automático espera los 2 secretos del repo. · verificado-vivo: 2026-07-29 |
+| **Producción** | 🟢 **https://mantenimiento-lineas-at.pages.dev** — Cloudflare Pages, cuenta `ajimenezp99@gmail.com`. **Piel CLARA** desde el 04-08 («El Horizonte» F3): contraste medido en las 11 pestañas, **0 bajo el mínimo** (antes 2) y ningún elemento perdido; el visor de fotos sigue oscuro a propósito. Despliegue a mano (`npm run deploy --workspace web`); el automático espera los 2 secretos. · verificado-vivo: 2026-08-04 |
 | **Backend** | 🟢 **Un solo trabajador**: el portero de fotos (`evidencias/`), delante de un depósito R2 privado. Adelanta cómputo en servidor a conciencia (ADR-010): es la única forma de no exponer material de cliente. |
 | **Coste** | **$0/mes.** R2 activo con 10 GB gratis y ~35 MB usados (0,35 %); egress gratis sin límite (verificado en la tarifa oficial, 2026-08-03). Pendiente: alerta de presupuesto. |
 | **Cerebro** | kernel íntegro == canónico (la versión la reporta `brain:check`) · bóveda con crudo del comité (477 KB) y fixture de LN-627 |

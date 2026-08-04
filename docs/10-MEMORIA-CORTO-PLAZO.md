@@ -29,12 +29,11 @@ longitudinal llegando al producto. Detalle en `99`; aquí solo lo que cambia dec
    sello; en `3-expediente` `firmable = hip.congelada && estado==='bien'`, sin mirar capacidad. En
    `1-columnas` es omisión: `avisos()` nunca cuenta el veredicto. Verificado leyendo el código, no
    fiado del subagente. Ranking: 1 · 4 · 3 · 2, con 6 bloqueantes comunes.
-   **ELEGIDA el 04-08** (piel Horizonte + esqueleto columnas). Implementación por 6 fases:
-   ✅ F1 tokenizar (113 literales → 61 tokens, probado byte a byte idéntico) · ✅ F2 higiene
-   (`.kpi-v.gris` NO existía: el hueco se pintaba de ámbar como una cifra buena) · ⬜ F3 paleta
-   · ⬜ F4 esqueleto · ⬜ F5 cielo · ⬜ F6 horizonte. F1+F2 **en producción y verificadas**.
-   **F3 exige antes la captura del ANTES en producción con el Chrome del Ingeniero** (F0).
-   Plan completo y crudo: `research-archive/2026-08-04-workflow-carcasa-horizonte.json`.
+   **ELEGIDA el 04-08** (piel Horizonte + esqueleto columnas). 6 fases; **F0-F3 EN PRODUCCIÓN
+   Y VERIFICADAS**: F0 línea base · F1 tokenizar (113 literales → 61 tokens, probado byte a byte)
+   · F2+F2b higiene y contraste · **F3 la paleta clara**. Faltan: ⬜ F4 esqueleto de 3 columnas
+   · ⬜ F5 cielo derivado · ⬜ F6 horizonte. Plan y línea base:
+   `research-archive/2026-08-04-workflow-carcasa-horizonte.json`.
 2. **El tope de tiro sigue sin decidir (TODO-33).** Único bloqueo original que queda. Desde ADR-014
    `tiroAdmisible_pct` y `criterioTiroQueRige` YA existen en el contrato: su decisión ya tiene por
    dónde entrar. Ojo: `vistas/tramos.ts`, `vientoDatos.ts` y `Fundamentos.tsx` siguen leyendo
