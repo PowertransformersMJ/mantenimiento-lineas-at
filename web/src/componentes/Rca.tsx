@@ -26,6 +26,23 @@
 import { useState } from 'react';
 import { evaluarEspinas, condicionesCausaRaiz, auditarRespaldo } from '@lineas/nucleo/rca';
 import type { AccionCapa, AnalisisCausa, Evidencia, SondeoClima } from '@lineas/contratos';
+import { descargar, selloFecha } from '../exportar/descargar';
+
+/**
+ * Genera y descarga el informe del análisis.
+ *
+ * El generador va por importación diferida: es papel imprimible que casi nunca
+ * se pide, y no tiene por qué viajar en el paquete que se descarga al abrir la
+ * aplicación.
+ */
+async function generarInforme(a: AnalisisCausa, acciones: AccionCapa[], sondeos: SondeoClima[]): Promise<void> {
+  const { informeRcaHtml } = await import('@lineas/exportar/informeRca');
+  const html = informeRcaHtml({
+    analisis: a, acciones, sondeos,
+    meta: { generadoEn: new Date().toLocaleString('es-CO') },
+  });
+  descargar(`${a.codigo ?? 'analisis'}_${selloFecha()}.html`, 'text/html', html);
+}
 import { almacen, useRca } from '../datos/enlace';
 import { EditorPorques, EditorArbol, EditorHipotesis, EditorAusencias, EditorAcciones, ClimaEvento } from './RcaEditores';
 import { nf } from '../vistas/formato';
@@ -110,6 +127,13 @@ function Abierto({ a, evidencias, acciones, sondeos }: { a: AnalisisCausa; evide
     <>
       <div className="rca-cab">
         <button type="button" className="boton chico" onClick={() => almacen.volverAlIndice()}>← Todos los análisis</button>
+        {/* El informe se puede generar SIEMPRE, esté el análisis a medias o
+            cerrado: durante semanas el estado normal es no tener causa raíz, y
+            un avance que no se puede enseñar no sirve para trabajar en equipo.
+            El propio documento dice en su portada si es AVANCE o CONCLUSIÓN. */}
+        <button type="button" className="boton chico" onClick={() => void generarInforme(a, acciones, sondeos)}>
+          Informe del análisis
+        </button>
         <h2 className="linea-titulo">{a.codigo} — {a.titulo}</h2>
       </div>
 

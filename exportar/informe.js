@@ -71,7 +71,7 @@ import {
  *   un GPX un "null" es feo; en un informe firmado es peor: se lee como si
  *   alguien hubiera medido algo y el resultado fuera «null».
  */
-const esc = (s) => String(s ?? '')
+export const esc = (s) => String(s ?? '')
   .replace(/&/g, '&amp;')
   .replace(/</g, '&lt;')
   .replace(/>/g, '&gt;')
@@ -94,7 +94,7 @@ const esc = (s) => String(s ?? '')
  * por `esc` y el informe mostrará las marcas tal cual («<b>perno</b>»): feo,
  * pero no incorrecto.
  */
-const escRico = (s) => esc(s).replace(/&lt;(\/?)(b|i|em|strong|br)\/?&gt;/g, '<$1$2>');
+export const escRico = (s) => esc(s).replace(/&lt;(\/?)(b|i|em|strong|br)\/?&gt;/g, '<$1$2>');
 
 // ── Cifras ──────────────────────────────────────────────────────────────────
 
@@ -112,7 +112,7 @@ const NOTA_HUECO = 'El guion (—) no es un cero: es una casilla que los datos d
   + 'llenar. El motivo de cada hueco se declara en la sección final del informe.';
 
 /** Número formateado a la colombiana (coma decimal), o el guion si no hay dato. */
-const n = (v, d = 0) => (Number.isFinite(v)
+export const n = (v, d = 0) => (Number.isFinite(v)
   ? v.toLocaleString('es-CO', { minimumFractionDigits: d, maximumFractionDigits: d })
   : SIN_DATO);
 
@@ -127,8 +127,8 @@ const nu = (v, d, unidad) => (Number.isFinite(v) ? `${n(v, d)} ${unidad}` : SIN_
 // excepción no le dice nada a nadie, mientras que un informe con secciones que
 // declaran «no evaluable» es, él mismo, el diagnóstico de lo que falta.
 
-const lista = (x) => (Array.isArray(x) ? x : []);
-const objeto = (x) => (x !== null && typeof x === 'object' && !Array.isArray(x) ? x : {});
+export const lista = (x) => (Array.isArray(x) ? x : []);
+export const objeto = (x) => (x !== null && typeof x === 'object' && !Array.isArray(x) ? x : {});
 
 /**
  * `lev` con la forma mínima que esperan `bloqueProcedencia` y
@@ -198,7 +198,7 @@ function rotuloTramo(t, i) {
 // ningún navegador de escritorio; el número de página lo pone el diálogo de
 // impresión (Chrome: «Encabezados y pies de página»). Se dice aquí para que
 // nadie pierda una tarde intentándolo.
-const ESTILO = `
+export const ESTILO = `
 @page { size: A4 portrait; margin: 18mm 15mm 20mm 15mm; }
 
 * { box-sizing: border-box; }
@@ -276,11 +276,11 @@ tr.revisar td:first-child::before { content: "\\25B2  "; }
 
 // ── Piezas reutilizables ────────────────────────────────────────────────────
 
-const parrafo = (t) => `<p>${t}</p>`;
-const nota = (t) => `<p class="nota">${t}</p>`;
+export const parrafo = (t) => `<p>${t}</p>`;
+export const nota = (t) => `<p class="nota">${t}</p>`;
 
 /** Tabla con su leyenda y su pie de «qué significa el guion». */
-function tabla({ leyenda, cabecera, filas, pie }) {
+export function tabla({ leyenda, cabecera, filas, pie }) {
   if (!filas.length) return '';
   return `<div class="bloque"><table>
   <caption>${leyenda}</caption>

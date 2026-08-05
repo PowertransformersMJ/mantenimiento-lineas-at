@@ -15,7 +15,8 @@
     "./package.json": "./package.json",
     "./mecanica": "./mecanica.js",
     "./bom": "./bom.js",
-    "./informe": "./informe.js"
+    "./informe": "./informe.js",
+    "./informeRca": "./informeRca.js"
   },
   "dependencies": {
     "@lineas/nucleo": "*"
