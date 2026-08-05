@@ -29,9 +29,22 @@
 //     comandos y sería visible en la lista de procesos de la máquina.
 //   · Se teclea SIN ECO y se confirma dos veces.
 //   · No se escribe en ningún fichero ni se imprime jamás.
-//   · La cuenta nace con `passwordProvisional: true`, y la aplicación obliga a
-//     cambiarla en el primer acceso: la contraseña que se teclea aquí vive
-//     minutos, no meses.
+//   · La cuenta nace con `passwordProvisional: true`.
+//
+// ⚠️ Y AQUÍ HAY UNA PROMESA QUE HOY NO SE CUMPLE — verificado el 2026-08-04.
+// Este comentario decía que «la aplicación obliga a cambiarla en el primer
+// acceso». Es FALSO: ningún archivo de `web/src` lee `passwordProvisional`, y no
+// existe ningún flujo de cambio de contraseña en la aplicación (no hay
+// `updatePassword` ni `sendPasswordResetEmail` en ninguna parte).
+//
+// La consecuencia práctica, que hay que tener delante antes de dar de alta a
+// alguien: la contraseña que se teclea aquí es la de esa persona, PERMANENTE, y
+// esa persona NO puede cambiarla — solo el administrador, con esta herramienta.
+// Sirve para probar; no sirve para gente real. Lo cierra `TODO-50` fase 3.
+//
+// Se deja escrito y no se borra la marca `passwordProvisional`: el reclamo ya
+// viaja en el token y la pantalla que falta lo encontrará puesto. Lo que no se
+// puede es seguir afirmando que algo protege cuando no protege nada.
 //
 // USO
 //   GOOGLE_APPLICATION_CREDENTIALS=/ruta/clave.json node herramientas/usuarios.mjs <orden>
