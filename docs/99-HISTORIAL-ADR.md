@@ -1940,3 +1940,77 @@ que ya estaba documentado.
 ### Crudo de respaldo
 
 `research-archive/2026-08-04-auditoria-documentacion-sesion.json` (5 lentes + diario completo)
+
+---
+
+## ADR-022 · 2026-08-05 · El Ingeniero fija el contexto real: herramienta interna, sin cliente ni contrato
+
+**Estado:** ✅ Decidido por el dueño. **Retira supuestos de `ADR-001`** y deja `TODO-02` sin objeto.
+**Revisión externa:** no aplica — es una declaración del dueño sobre su propio contexto, no una
+decisión técnica.
+
+### Contexto
+
+Durante ocho días el cerebro dio por hecho un montaje comercial que **nadie verificó jamás**: cliente
+AFINIA, contrato de mantenimiento, entregable aceptado por escrito, línea de proyecto para pagar la
+infraestructura. De ahí salieron las «preguntas a AFINIA» que `ADR-001` dejó abiertas y que `ADR-003`
+recortó a siete, y que la pizarra llevaba semanas llamando **«el cuello de botella de TODO»**.
+
+Lo detectó el Ingeniero al leerlas: *«veo que siempre me hablas de un contrato y en ningún momento te
+he enviado contrato de mantenimiento de líneas ni temas referentes»*. Tenía razón. Se rastreó el
+origen y **todo procede del comité de 29 agentes del 2026-07-28**, que asumió el montaje comercial y
+redactó las preguntas encima de ese supuesto. Ningún gate podía verlo: la estructura era impecable.
+
+### La declaración del Ingeniero (literal, 2026-08-05)
+
+> *«Una herramienta interna mía para la empresa donde trabajo, tal vez lo proponga como un ejemplo o
+> estrategia de mantenimiento.»*
+
+### Qué cambia
+
+**1. No hay cliente a quien preguntar.** `TODO-02` queda **RETIRADO por falta de objeto**, no
+completado. De sus cinco preguntas a AFINIA: la 2 ya la había cerrado `ADR-003`; la 1, la 4 y la 5
+presuponen contrato y pagador, y desaparecen; solo la 3 —formato del entregable, MAGNA-SIRGAS y
+esquema del GIS— sobrevive, y **solo si algún día se propone hacia fuera**.
+
+**2. Lo que de verdad bloquea el producto NUNCA estuvo en esa lista.** Ninguna de las preguntas pedía
+la **ficha estructural** —carga de rotura, altura libre, altura del punto de sujeción, fases
+amarradas—, que es lo único que separa «cuánta carga recibe el apoyo» de «si aguanta». La pizarra
+afirmaba que `TODO-02` la desbloqueaba. Era falso, y llevaba semanas escrito. Nace `TODO-57`, que es
+el bloqueo real y **depende del Ingeniero, no de un tercero**.
+
+**3. La residencia del dato deja de ser contractual y pasa a ser laboral.** La pregunta «¿el contrato
+permite la nube fuera de Colombia?» no tiene sentido sin contrato. La que sí lo tiene: los datos
+operativos del empleador —coordenadas reales y fotografías de infraestructura— viven hoy en Firestore
+`southamerica-east1` (São Paulo) y en R2, bajo **cuentas personales del Ingeniero**. No es un
+incumplimiento de nada conocido; es una exposición que él tiene que querer. La región de Firestore es
+**inmutable**: cambiarla es rehacer, no ajustar. Nace `TODO-58`.
+
+**4. Lo que NO cambia, y conviene decirlo:** el repositorio sigue siendo público y la regla de cero
+bytes de cliente sigue siendo condición de supervivencia — más aún ahora, porque el dato es del
+empleador y no de un cliente con contrato. El descarte de MapTiler y Stadia también se mantiene: una
+herramienta interna de una empresa **es** uso comercial en sus términos.
+
+### Alternativas descartadas, con su porqué
+
+| Alternativa | Por qué NO |
+|---|---|
+| **Dejar `TODO-02` como estaba** | Era el ítem marcado «cuello de botella de TODO» en el nodo que se auto-carga. Habría seguido orientando cada sesión hacia un correo que no hay a quién mandar |
+| **Reescribir las preguntas «por si acaso» hacia fuera** | Es inventar un destinatario. Si algún día se propone, se redactan con el interlocutor real delante |
+| **Borrar el rastro del supuesto** | El error importa más que la corrección: es la prueba de que un comité de agentes puede fabricar una premisa entera y que ningún gate la ve. Queda escrito |
+
+### Consecuencias
+
+- **La misión cambia de sujeto.** Ya no es «esperar a AFINIA»: es que el Ingeniero consiga o levante
+  la ficha estructural. El producto deja de depender de un tercero.
+- **Se confirma `ADR-021` desde otro ángulo, y peor.** Aquello eran nodos que se pudrieron con el
+  tiempo; esto **nació falso** y sobrevivió ocho días, un consejo externo y una auditoría de cinco
+  lentes. La lección va a `30 · L-42`: lo que un comité ASUME entra al cerebro con el mismo rango que
+  lo que verifica, y después es indistinguible.
+- **Si algún día se propone como estrategia**, lo que hace falta no es una pregunta: es el informe
+  gerencial (`TODO-42/37`) y un caso real terminado. Eso ya está en la cola.
+
+### Crudo de respaldo
+
+No hay crudo: es una declaración directa del dueño en la conversación del 2026-08-05. El supuesto que
+corrige sí lo tiene — `research-archive/2026-07-28-comite-vision-arquitectura.md`, sección J.

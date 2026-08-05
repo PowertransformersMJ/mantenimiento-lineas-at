@@ -64,6 +64,7 @@
 - `L-32` · Un guardián que cuenta INTENTOS no cuenta nada
 - `L-40` · Si el núcleo solo publica la PROSA de un hueco, quien la lea deducirá el hecho — y mal (y una prueba escrita sobre la deducción la BLINDA)
 - `L-41` · Un contrato que no se puede EJECUTAR en una prueba solo está revisado por el compilador
+- `L-42` · Lo que un comité SUPONE entra al cerebro con el mismo rango que lo que verifica
 
 ### `docs/30-LECCIONES.md` (este archivo) — método de trabajo: deliberar, verificar, cerrar
 
@@ -127,6 +128,31 @@
   que aparece **fuera de sí mismo y de sus pruebas**. Si el único importador es su test, está
   muerto. El gate `anti-codigo-muerto` cubre exportaciones sin uso dentro de un archivo, no módulos
   enteros huérfanos.
+
+### L-42 · Lo que un comité SUPONE entra al cerebro con el mismo rango que lo que verifica
+
+- **Síntoma:** durante ocho días el cerebro dio por hecho un cliente, un contrato de mantenimiento,
+  un entregable aceptado por escrito y una línea de proyecto que lo pagara. La pizarra llamaba a esas
+  preguntas **«el cuello de botella de TODO»**. No existía ninguna de las cuatro cosas.
+- **Causa:** el comité de 29 agentes que fundó el proyecto (`99 §ADR-001`) mezcló en un mismo
+  documento **hechos verificados con fuente** (los límites de cada plan gratuito, las cláusulas de
+  uso comercial de MapTiler) con **supuestos de contexto que nadie le dio** (que había cliente y
+  contrato). Al destilarlo a un ADR, los dos tipos de afirmación quedaron con el mismo aspecto — y a
+  partir de ahí son indistinguibles.
+- **Por qué ningún gate lo vio:** la estructura era impecable. Las referencias resolvían, el crudo
+  estaba archivado, la capacidad cabía. `brain:check` da verde porque el cerebro está bien
+  CONSTRUIDO; no puede saber si lo que dice es cierto (`99 §ADR-021`). Sobrevivió además a un consejo
+  externo y a una auditoría de cinco lentes: **ninguno cuestionó la premisa, porque los dos la
+  heredaron**.
+- **Quién lo cazó:** el dueño, leyendo. *«Veo que siempre me hablas de un contrato y en ningún
+  momento te he enviado contrato»*. Ocho días, y bastó una frase suya.
+- **Regla:** en un crudo de deliberación, un supuesto de CONTEXTO se marca como supuesto y viaja
+  marcado al ADR. Y antes de dejar que algo se convierta en «el cuello de botella de todo», hay que
+  poder decir **quién lo afirmó y con qué**. Si la respuesta es «lo asumió un comité», no es un
+  bloqueo: es una hipótesis con traje de hecho.
+- **Lo caro no fue el error, fue la dirección:** ocho días orientando la prioridad hacia un correo
+  que no había a quién mandar, mientras el bloqueo real —la ficha estructural de los apoyos— no
+  estaba en ninguna lista.
 
 ### L-33 · Escribir la prueba y auditar el resultado son dos trabajos distintos
 - **Síntoma:** 555 pruebas en verde, escritas con cuidado, ancladas a identidades físicas… y una

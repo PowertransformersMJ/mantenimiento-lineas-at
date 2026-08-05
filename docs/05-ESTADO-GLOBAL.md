@@ -4,7 +4,7 @@
 
 | Señal | Valor (al **2026-08-04**) |
 |---|---|
-| **Misión ahora** | **Cerrar el hueco del DATO, no el del código.** El producto está en producción con 11 pestañas + segmento RCA; el motor ya sabe dictaminar y **0 de 24 apoyos tienen veredicto** porque falta la ficha estructural. Todo lo demás es secundario hasta que lleguen las 7 preguntas (`TODO-02`). Arquitectura decidida y revisada externamente: comité ×3 (ADR-001) + Consejo Externo (ADR-002). Pendientes → `10`. |
+| **Misión ahora** | **Cerrar el hueco del DATO, no el del código.** El producto está en producción con 11 pestañas + segmento RCA; el motor ya sabe dictaminar y **0 de 24 apoyos tienen veredicto** porque falta la ficha estructural. Todo lo demás es secundario hasta que llegue la ficha estructural (`TODO-57`), que **no depende de terceros**: es una herramienta INTERNA del Ingeniero, sin cliente ni contrato (`ADR-022`). Arquitectura decidida y revisada externamente: comité ×3 (ADR-001) + Consejo Externo (ADR-002). Pendientes → `10`. |
 | **Build** | 🟢 `npm test` **765 pass / 0 fail** (núcleo · exportes · vistas · método RCA · y por fin el CONTRATO, que hasta el 05-08 no se podía ejecutar en una prueba, `33 · L-41`). · verificado-vivo: 2026-08-05 |
 | **Repo** | `main` · https://github.com/PowertransformersMJ/mantenimiento-lineas-at · **PÚBLICO** (decisión del Ingeniero 2026-07-29) |
 | **Producción** | 🟢 **https://mantenimiento-lineas-at.pages.dev** — Cloudflare Pages, cuenta `ajimenezp99@gmail.com`. **Piel CLARA** desde el 04-08 («El Horizonte» F3): contraste medido en las 11 pestañas, **0 bajo el mínimo** (antes 2) y ningún elemento perdido; el visor de fotos sigue oscuro a propósito. **Se despliega a mano y el procedimiento vive en `10`** (lleva `build` delante: `deploy` NO construye, `32 · L-35`); el automático espera los 2 secretos. · verificado-vivo: 2026-08-04 |
@@ -12,7 +12,7 @@
 | **Coste** | **$0/mes.** R2 activo: 10 GB gratis, ~35 MB usados (0,35 %), egress gratis sin límite (tarifa oficial, 2026-08-03). Pendiente: alerta de presupuesto. **Criterio:** se prefiere el servicio que APAGA al que COBRA; una tarjeta prepago no es un tope de gasto (`31 · L-02`). |
 | **Cerebro** | kernel íntegro == canónico (la versión la reporta `brain:check`) · bóveda con crudo del comité (477 KB) y fixture de LN-627 |
 | **Alcance** | **Plataforma COMPLETA e independiente** (ADR-003): no se integra con Maximo ni SAP, debe traer todo lo necesario. F5 (sincronización campo↔oficina) deja de ser condicional. |
-| **Deuda crítica** | 🔴 **7 preguntas a AFINIA sin enviar**: la nº 3 decide si F4 (captura en campo) existe; la nº 4 decide F5 y F6. (✅ motor de cálculo sin deuda desde 07-29, `40 §8` · ✅ Consejo Externo cerrado, ADR-002 · ✅ alcance y presupuesto fijados, ADR-003.) |
+| **Deuda crítica** | 🔴 **La ficha estructural de los 24 apoyos** (`TODO-57`): sin ella el motor no puede dictaminar ninguno. 🟡 Dónde deben vivir los datos del empleador (`TODO-58`). (✅ motor sin deuda desde 07-29, `40 §8` · ✅ Consejo Externo, ADR-002 · ✅ alcance y presupuesto, ADR-003 · ✅ contexto real fijado, **ADR-022**: sin cliente ni contrato — `TODO-02` retirado por falta de objeto.) |
 
 ## ⚠️ Flags de riesgo activos
 - **Repo PÚBLICO** → cero bytes de cliente en git, jamás. La historia de git es permanente (`33 · L-07`). Ya cazó una fuga real esta sesión.

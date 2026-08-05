@@ -67,7 +67,8 @@ motor en «baja» · el clima se consulta cuando el Ingeniero lo pide, nunca al 
 | **TODO-33** | **Decidir 50 % o 25 % de RTS** como tope de tiro | El motor calcula con 50 % y la doctrina dice 25 %: factor 2 sobre un dictamen |
 | **TODO-44** | **Alerta de presupuesto** en Cloudflare (sugerido 1 USD) | R2 no apaga: factura |
 | **TODO-34** | **Respaldo de la bóveda**: sin remoto, 337 MB. La única prueba de que `e07` es E06 vive en un HTML de 30 MB en Descargas, sin copia | Sin él, la asignación de las 99 fotos deja de ser reproducible |
-| **TODO-02** | Enviar a AFINIA las **7 preguntas** (`99 §ADR-001`) | **ES EL CUELLO DE BOTELLA DE TODO**: la 3 decide si F4 existe; la 4 decide F5/F6; y de ahí sale la ficha estructural que desbloquea los 24 veredictos |
+| **TODO-57** | **La FICHA ESTRUCTURAL de los 24 apoyos**: carga de rotura, altura libre, altura del punto de sujeción y fases amarradas. ¿Los tiene la empresa en planos o actas, o hay que levantarlos en campo? | **ES EL CUELLO DE BOTELLA REAL.** Separa «cuánta carga recibe» de «si aguanta». No depende de nadie más que de ti (`99 §ADR-022`) |
+| **TODO-58** | **¿Dónde deben vivir estos datos?** Hoy: Firestore en São Paulo y R2, bajo TUS cuentas personales, con coordenadas y fotos de infraestructura del empleador | No incumple nada conocido, pero es una exposición que tienes que querer. La región de Firestore es INMUTABLE: cambiarla es rehacer |
 | **TODO-03** | Cronometrar el proceso actual de LN-627 (20 min) | Sin eso el ahorro prometido es inventado |
 | **TODO-25** | Probar con su sesión: descargas, Fundamentos, popup, Salir | El clasificador bloquea al usuario de prueba (`30 · L-17`) |
 | **TODO-36** | **Fichas editable** (hecho fechado, no sobrescritura): DECISIÓN FUERTE | Mayor hueco de paridad que queda |
@@ -94,7 +95,7 @@ motor en «baja» · el clima se consulta cuando el Ingeniero lo pide, nunca al 
   = 72 % más, con 118,2°) · los 2 terminales soportan el tiro entero (2.339 kgf/conductor).
 - **EL HUECO MAYOR, y hay que verlo siempre**: **0 de 24 apoyos tienen veredicto, en LOS DOS EJES**. El
   motor YA sabe dictaminar; falta el DATO — nadie declara `cargaRotura_kgf`, `capacidadLongitudinal` ni
-  `nFasesAmarradas`. Es del INVENTARIO y lo cierra `TODO-02`. · **Las 103 fotos se sirven** y cada una
+  `nFasesAmarradas`. Es del INVENTARIO y lo cierra `TODO-57`. · **Las 103 fotos se sirven** y cada una
   sabe de quién es; ⚠️ `e07` es **E06** (`99 §ADR-015`).
 - **IDEAM verificado 04-08**: CORS abierto, ~11 días de desfase, **rayos sin dato utilizable** en el
   Caribe, y sus tres trampas ya son lección (`31 · L-37`) — no volver a investigarlas.
