@@ -59,9 +59,13 @@ const M_DER = 26;
 // píxel y no hay regresión que discutir.
 const SUELO = 138;
 const SUELO_ALTO = 28;
-const CARRIL_T = 186;   // marcas del eje transversal
-const CARRIL_L = 208;   // marcas del eje longitudinal
-const H = 220;
+// Cada rótulo va PEGADO a su propia fila de marcas y LEJOS de la anterior. En el
+// primer intento quedó a 13 px del carril de arriba y a 9 del suyo, o sea más
+// cerca de la fila que NO rotula: un rótulo ambiguo es peor que ninguno.
+const CARRIL_T = 184;   // marcas del eje transversal
+const CARRIL_L = 212;   // marcas del eje longitudinal
+const ROTULO_SOBRE = 8; // separación del rótulo a SUS marcas
+const H = 224;
 
 interface Torre {
   x: number; nombre: string; dosEjes: boolean;
@@ -188,13 +192,13 @@ export function Horizonte({ ejes, vanos, total }:
         ))}
 
         {/* carril del eje TRANSVERSAL */}
-        <text className="hz-carril-rot" x={M_IZQ} y={CARRIL_T - 9}>transversal (de lado)</text>
+        <text className="hz-carril-rot" x={M_IZQ} y={CARRIL_T - ROTULO_SOBRE}>transversal (de lado)</text>
         {torres.map((t) => marca(t, CARRIL_T, t.transversal, 'transversal'))}
 
         {/* carril del eje LONGITUDINAL — si no es calculable NO se pinta con
             ceros: un carril lleno de marcas vacías se leería como «se comprobó
             y no cumple ninguno», que es una afirmación que nadie ha hecho. */}
-        <text className="hz-carril-rot" x={M_IZQ} y={CARRIL_L - 9}>
+        <text className="hz-carril-rot" x={M_IZQ} y={CARRIL_L - ROTULO_SOBRE}>
           {cob.longitudinalCalculable
             ? 'longitudinal (a lo largo)'
             : 'longitudinal (a lo largo): no calculable en esta línea — hacen falta dos estructuras que comparar'}
