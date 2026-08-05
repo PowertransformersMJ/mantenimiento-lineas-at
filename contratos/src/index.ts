@@ -18,14 +18,14 @@
 //            se mergea ANTES que cualquier implementación.
 // ============================================================================
 import { z } from 'zod';
-import { Id } from './comunes.js';
-import { CasoDeUso, SolicitudIA_Cliente, Sugerencia_Cliente } from './ia.js';
+import { Id } from './comunes.ts';
+import { CasoDeUso, SolicitudIA_Cliente, Sugerencia_Cliente } from './ia.ts';
 
-export * from './comunes.js';
-export * from './activos.js';
-export * from './eventos.js';
-export * from './ia.js';
-export * from './rca.js';
+export * from './comunes.ts';
+export * from './activos.ts';
+export * from './eventos.ts';
+export * from './ia.ts';
+export * from './rca.ts';
 
 // ── Las tres funciones invocables ───────────────────────────────────────────
 // Solo `onCall`, jamás `onRequest` abierta. Con verificación de identidad y de

@@ -7,8 +7,8 @@
 // cliente, y reproducir un informe firmado años después.
 // ============================================================================
 import { z } from 'zod';
-import { Base, Id, Instante, Uid, SelloCalculo, Procedencia } from './comunes.js';
-import { Condicion } from './activos.js';
+import { Base, Id, Instante, Uid, SelloCalculo, Procedencia } from './comunes.ts';
+import { Condicion } from './activos.ts';
 
 // ── Inspección ──────────────────────────────────────────────────────────────
 

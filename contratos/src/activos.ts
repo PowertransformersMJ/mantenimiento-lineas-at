@@ -7,7 +7,7 @@
 // eventos.ts como registro inmutable.
 // ============================================================================
 import { z } from 'zod';
-import { Base, Id, Instante, Procedencia } from './comunes.js';
+import { Base, Id, Instante, Procedencia } from './comunes.ts';
 
 // ── Catálogos cerrados del dominio ──────────────────────────────────────────
 

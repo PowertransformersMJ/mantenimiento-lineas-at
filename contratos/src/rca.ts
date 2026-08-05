@@ -32,12 +32,12 @@
 // que hace valiosa la recurrencia.
 // ============================================================================
 import { z } from 'zod';
-import { Base, Id, Instante, Uid } from './comunes';
+import { Base, Id, Instante, Uid } from './comunes.ts';
 // La escala de verosimilitud NO se redefine aquí: es la misma que ya usa
 // `Investigacion`. Dos escalas con los mismos nombres divergen el día que
 // alguien añade un valor a una sola, y entonces «alta» deja de significar lo
 // mismo en dos pantallas del mismo informe. Un hecho, un dueño.
-import { Verosimilitud } from './eventos';
+import { Verosimilitud } from './eventos.ts';
 
 // ── LAS ESPINAS DEL ISHIKAWA ────────────────────────────────────────────────
 
@@ -270,7 +270,15 @@ export const EstadoAnalisis = z.enum([
   'sin_conclusion', // se cierra SIN causa raíz. Es un final válido y honesto.
 ]);
 
-export const AnalisisCausa = Base.extend({
+/**
+ * La FORMA del análisis, sin la regla de alcance.
+ *
+ * Se nombra aparte —y no es cosmético— porque `AnalisisCausa` lleva un `.refine`
+ * encima, y un esquema con `refine` ya no es un objeto: no se le puede pedir
+ * `.partial()` ni `.pick()`. Y hace falta poder pedírselo, porque las ediciones
+ * llegan por PARTES (`ParteDeAnalisis`, abajo) y hasta hoy no las validaba nadie.
+ */
+const FormaAnalisis = Base.extend({
   tipo: z.literal('analisis_causa'),
   /** Código legible para el informe («RCA-2026-004»). No es la identidad. */
   codigo: z.string().min(1).max(40),
@@ -327,7 +335,9 @@ export const AnalisisCausa = Base.extend({
   /** Límites del análisis, impresos en el informe. Se declara; no se omite. */
   limitaciones: z.array(z.string().max(1000)).default([]),
   cerrado: z.boolean().default(false),
-}).refine(
+});
+
+export const AnalisisCausa = FormaAnalisis.refine(
   (a) => a.alcance.lineaIds.length > 0
       || a.alcance.apoyoIds.length > 0
       || a.alcance.investigacionIds.length > 0
@@ -338,6 +348,43 @@ export const AnalisisCausa = Base.extend({
            + 'Lo que no vale es dejarlo vacío en silencio.',
   },
 );
+
+/**
+ * UNA PARTE del análisis, para guardar una edición.
+ *
+ * POR QUÉ EXISTE. `crearAnalisis` validaba contra el contrato antes de escribir;
+ * `guardarParte` NO validaba nada — mandaba el parche directo a la base. Así que
+ * el documento nacía protegido y **todas las ediciones posteriores no**, que es
+ * justo al revés de lo que hace falta: el análisis se crea vacío en un segundo y
+ * se edita durante semanas.
+ *
+ * Es `strict` a propósito. Una clave que no esté en esta lista se RECHAZA en vez
+ * de escribirse: hoy un nombre de campo mal escrito entraba en el documento sin
+ * que nadie se enterara, y quedaba ahí para siempre —basura silenciosa en un
+ * documento que se firma—.
+ *
+ * Los campos de identidad y propiedad (`id`, `orgId`, `creadoPor`, `creadoEn`,
+ * `codigo`, `tipo`, `abiertoEn`) NO están, y no es un olvido: no se editan. Las
+ * reglas de Firestore lo impiden además por su lado (`noTocaReservados`), pero
+ * una defensa que solo vive en el servidor da un error opaco; ésta dice cuál es
+ * el campo y por qué.
+ */
+export const ParteDeAnalisis = FormaAnalisis.pick({
+  titulo: true,
+  estado: true,
+  alcance: true,
+  espinas: true,
+  cadenas: true,
+  arbol: true,
+  hipotesis: true,
+  ausencias: true,
+  acciones: true,
+  causaRaiz: true,
+  limitaciones: true,
+  cerrado: true,
+}).partial().strict();
+
+export type ParteDeAnalisis = z.infer<typeof ParteDeAnalisis>;
 
 // ── EL SONDEO DE CLIMA ──────────────────────────────────────────────────────
 

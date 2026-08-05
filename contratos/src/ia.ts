@@ -12,7 +12,7 @@
 // doctrina se cumple porque la máquina no permite otra cosa.
 // ============================================================================
 import { z } from 'zod';
-import { Base, Id, Instante, Uid, EstadoTrabajo, MotivoRechazo } from './comunes.js';
+import { Base, Id, Instante, Uid, EstadoTrabajo, MotivoRechazo } from './comunes.ts';
 
 // ── Los cinco casos de uso, cerrados ────────────────────────────────────────
 

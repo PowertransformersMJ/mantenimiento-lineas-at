@@ -8,7 +8,7 @@
 // la frontera. Un documento que no cumple el esquema no entra al cálculo — y el
 // cálculo es lo que el Ingeniero firma.
 // ============================================================================
-import { AnalisisCausa, Apoyo, Evidencia, Hipotesis, Investigacion, Linea } from '@lineas/contratos';
+import { AnalisisCausa, Apoyo, Evidencia, Hipotesis, Investigacion, Linea, ParteDeAnalisis } from '@lineas/contratos';
 import { cargarFirebase } from './cargar';
 import type { EstadoDatos, EstadoSesion, Repositorio } from './repositorio';
 
@@ -232,6 +232,24 @@ export const repositorioFirestore: Repositorio = {
     const { doc, updateDoc } = await firestore();
     const u = await esperarSesion();
     if (!u) throw new Error('sin sesión');
+
+    // SE VALIDA ANTES DE ESCRIBIR, igual que en `crearAnalisis`. Hasta el
+    // 2026-08-05 esto no pasaba: el documento nacía validado y **todas las
+    // ediciones posteriores entraban sin mirar**, que es justo al revés de lo
+    // que hace falta — un análisis se crea vacío en un segundo y se edita
+    // durante semanas.
+    //
+    // `ParteDeAnalisis` es `strict`: una clave que no esté en la lista se
+    // rechaza en vez de escribirse. Antes, un nombre de campo mal escrito
+    // entraba en el documento y se quedaba ahí para siempre, sin que nadie lo
+    // viera, dentro de un papel que se firma.
+    const r = ParteDeAnalisis.safeParse(parche);
+    if (!r.success) {
+      const p = r.error.issues[0];
+      const donde = p?.path?.length ? ` (en «${p.path.join('.')}»)` : '';
+      throw new Error(`El cambio no cumple el contrato${donde}: ${p?.message ?? 'motivo desconocido'}`);
+    }
+
     await updateDoc(doc(await baseDatos(), 'analisis', analisisId), {
       ...parche,
       actualizadoEn: new Date().toISOString(),
