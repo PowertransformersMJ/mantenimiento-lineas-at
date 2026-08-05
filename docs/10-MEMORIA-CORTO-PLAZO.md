@@ -1,26 +1,25 @@
 # 📝 10 — MEMORIA DE CORTO PLAZO (pizarra del trabajo vivo)
 
 > Se **AUTO-CARGA**. Es pizarra, no bitácora (§G.3). Tope ~110 líneas / 16k chars.
-> **RELEVO DE SESIÓN 2026-08-04 (segunda)** — la conversación llegó al tope de contexto.
-> Este nodo ES el relevo: léelo entero antes de tocar nada. Si contradice a
-> `docs/.handoff-auto.md` (foto real de git), manda ese.
+> **RELEVO DE SESIÓN 2026-08-04.** Este nodo ES el relevo: léelo entero antes de tocar nada.
+> Si contradice a `docs/.handoff-auto.md` (foto real de git), manda ese.
 
 ## 🎯 Dónde estamos
 
 **714 pruebas en verde · contrato v0.4.0 · cerebro sano · todo empujado y desplegado.**
 11 pestañas + segmento RCA. Producción verificada EN PANTALLA con el Chrome del Ingeniero.
 
-En esta sesión se cerraron TRES olas: la **carcasa «El Horizonte»** (ADR-018), el **blindaje de
-acceso** (a medias, ver TODO-50) y el **segmento RCA** completo (ADR-020).
+Se cerraron CUATRO olas: **carcasa «El Horizonte»** (ADR-018) · **blindaje de acceso** a medias
+(TODO-50 · ADR-019) · **segmento RCA** completo (ADR-020) · **auditoría de documentación**
+(ADR-021), que halló 18 huecos **con el linter en verde** y los reparó.
 
 ## 🛑 LO PRIMERO AL RETOMAR
 
 1. **DOS COSAS ESPERAN AL INGENIERO Y BLOQUEAN TRABAJO** (detalle en su tabla):
    ponerse contraseña (bloquea retirar Google) y mirar la carcasa/el RCA con ojo de dueño.
-2. **El tope de tiro sigue sin decidir (TODO-33).** Único bloqueo original que queda. Desde ADR-014
-   `tiroAdmisible_pct` y `criterioTiroQueRige` YA existen en el contrato. Ojo: `vistas/tramos.ts`,
-   `vientoDatos.ts` y `Fundamentos.tsx` siguen leyendo `tiroMaximoAdmisible()` = 0,5·RTS fijo en
-   código — unificarlo al cerrar la decisión.
+2. **El tope de tiro sigue sin decidir (TODO-33).** El contrato ya trae `tiroAdmisible_pct` y
+   `criterioTiroQueRige` (ADR-014), pero `vistas/tramos.ts`, `vientoDatos.ts` y `Fundamentos.tsx`
+   siguen leyendo `tiroMaximoAdmisible()` = 0,5·RTS fijo — unificarlo al cerrar la decisión.
 3. **Alerta de presupuesto en Cloudflare (TODO-44).** R2 no apaga: factura. ~35 MB de 10 GB.
 
 ## 🚫 INVARIANTES QUE NO SE PUEDEN ROMPER (lo caro de esta sesión)
@@ -30,31 +29,33 @@ que lo vigila) · la cobertura se cruza POR APOYO, jamás comparando dos conteos
 de `utilizacion_pct !== null` —lo que el núcleo concluyó—, **nunca de `cargaRotura_kgf`** · dueños
 únicos: `vistas/ejesLinea.ts` (los dos ejes) y `vistas/vanosLinea.ts` (numeración corrida de vanos).
 
+**Documentación (`99 §ADR-021`):** el verde de `brain:check` dice que el cerebro está bien CONSTRUIDO,
+**no que diga la verdad**. Y **ninguna cifra se copia fuera de su nodo dueño** — las lecciones las
+cuenta `30`, las pruebas `05`: repetida en cuatro sitios, tres estarán mal.
+
 **RCA (`99 §ADR-020`):** PROHIBIDO reintroducir ranking de hipótesis (ordenar es dictaminar), causa
-raíz sugerida por IA (un borrador es un ancla), porcentaje de confianza, barra de progreso, y el
-estado «no aplica» en una espina (es el atajo que vacía un Ishikawa) · el botón de declarar la causa
-NO EXISTE mientras falte una de las seis condiciones · una hipótesis con sustento SOLO climático la
-topa el motor en «baja» · el clima se consulta cuando el Ingeniero lo pide, nunca al pintar.
+raíz sugerida por IA (un borrador es un ancla), porcentaje de confianza, barra de progreso y el estado
+«no aplica» en una espina (el atajo que vacía un Ishikawa) · el botón de declarar la causa NO EXISTE
+mientras falte una de las seis condiciones · una hipótesis con sustento SOLO climático la topa el
+motor en «baja» · el clima se consulta cuando el Ingeniero lo pide, nunca al pintar.
 
 ## 🧭 Cómo retomar
 
 1. **Abrir Claude Code DENTRO de `~/Desktop/GitHub-MJ/mantenimiento-lineas-at/`.** Desde el paraguas
    el gate bloquea el commit por canario de boot (remedio: `node scripts/session-handoff.mjs --boot-echo`;
    el mensaje engaña: dice «presupuesto de boot excedido» cuando es el canario).
-2. Producción **https://mantenimiento-lineas-at.pages.dev** · repo PÚBLICO → **cero bytes de
-   cliente, ni en las pruebas** (`33 · L-23`).
+2. Producción **https://mantenimiento-lineas-at.pages.dev** · repo PÚBLICO → **cero bytes de cliente
+   NI DATOS PERSONALES DE NADIE**, ni en las pruebas ni en un comentario (`33 · L-23`, `99 §ADR-021`).
 3. **Desplegar es `npm run build && npm run deploy --workspace web`**, en ese orden: `deploy` NO
    construye y se puede subir un `dist/` rancio (`32 · L-35`). Y las **reglas de Firestore van por
    SU canal**: `npx firebase deploy --only firestore:rules --project mantenimiento-lineas-at`
    (`31 · L-22`, del que `32 · L-36` es la recaída).
-4. **Verificar contra PRODUCCIÓN con el Chrome del Ingeniero** y **preguntarle a la pestaña qué
-   bundle cargó** — nunca comparar contra `dist/`, que comparte la causa del fallo (`32 · L-18/35`).
-   Cloudflare sirvió las dos versiones a la vez durante la propagación: esperar 5 lecturas iguales.
-5. Antes de CADA push: `npm test` + `contrato:verificar` + `brain:check` (el conteo de pruebas vivo
-   lo da `05`, no esta línea) y **buscar coordenadas a mano** — no hay comando que lo haga:
-   `git diff --cached | grep -nE '(^\+.*)(10\.[0-9]{4,}|-7[45]\.[0-9]{4,})'`. Documentar TODO fallo
-   en su nodo de lecciones ANTES de commitear.
-6. Autenticado en esta Mac: `gh`, `wrangler` (ajimenezp99), `firebase`. Llaves admin en Descargas.
+4. **Verificar contra PRODUCCIÓN con el Chrome del Ingeniero, preguntándole a la pestaña qué bundle
+   cargó** — nunca contra `dist/`, que comparte la causa del fallo (`32 · L-18/35`). Cloudflare sirve
+   dos versiones a la vez mientras propaga: esperar 5 lecturas iguales.
+5. Antes de CADA push: `npm test` + `contrato:verificar` + `brain:check`, **y buscar coordenadas a
+   mano** (no hay comando): `git diff --cached | grep -nE '(^\+.*)(10\.[0-9]{4,}|-7[45]\.[0-9]{4,})'`.
+   Todo fallo se documenta en su lección ANTES de commitear. Autenticado en esta Mac: `gh`, `wrangler` (ajimenezp99) y `firebase`; llaves admin en Descargas.
 
 ## 🔲 Pendientes del INGENIERO
 
@@ -70,6 +71,7 @@ topa el motor en «baja» · el clima se consulta cuando el Ingeniero lo pide, n
 | **TODO-03** | Cronometrar el proceso actual de LN-627 (20 min) | Sin eso el ahorro prometido es inventado |
 | **TODO-25** | Probar con su sesión: descargas, Fundamentos, popup, Salir | El clasificador bloquea al usuario de prueba (`30 · L-17`) |
 | **TODO-36** | **Fichas editable** (hecho fechado, no sobrescritura): DECISIÓN FUERTE | Mayor hueco de paridad que queda |
+| **TODO-54** | **¿Que el linter vigile la frescura semántica?** Propuesta escrita en `99 §ADR-021`, NO aplicada: se toca en `brain-private/kernel/`, afecta al proyecto hermano y obliga a repartir versión. **Es tu decisión, no mía** | Sin ella, que el cerebro diga la verdad depende de que alguien audite a mano — y hoy costó 18 huecos descubrirlo |
 
 ## 🔲 Pendientes de CLAUDE — en este orden
 
@@ -85,25 +87,23 @@ topa el motor en «baja» · el clima se consulta cuando el Ingeniero lo pide, n
 | **TODO-11** | F1 · Nota técnica LN-627 con las correcciones de la auditoría | — |
 | **TODO-13/14/15/16/21/22/23** | F3-F5: invalidación por tramo · sincronización bifurcada · Firestore vs D1 · flujo IA con `ProveedorFalso` · prueba de navegador · secretos de despliegue | — |
 
-## ✅ Consolidado (detalle → ADR-001…020)
+## ✅ Consolidado (detalle → ADR-001…021)
 
 - **Modelo**: 24 estructuras + 2 empalmes (NO son apoyos), 23 vanos, tramos 1-2-2-14-1-3 (`40 §10`).
-- **Workspaces**: `nucleo/` · `contratos/` **(v0.4.0)** · `exportar/` · `web/` · `evidencias/`.
-- **Hallazgos reales**: 14 de 23 vanos fuera de la banda del VIR · **3 apoyos amplifican** (E06
-  ×1,716 = 72 % más, con 118,2°) · los 2 terminales soportan el tiro entero (2.339 kgf/conductor).
-- **EL HUECO MAYOR, y hay que verlo siempre**: **0 de 24 apoyos tienen veredicto, en LOS DOS EJES**.
-  El motor YA puede dictaminar; falta el DATO — ningún apoyo declara `cargaRotura_kgf` ni
-  `capacidadLongitudinal` ni `nFasesAmarradas`. Es un hueco del INVENTARIO, y lo cierra `TODO-02`.
-- **Las 103 fotos se sirven** y cada una sabe de quién es. ⚠️ `e07` es **E06** (`99 §ADR-015`).
-- **IDEAM verificado 04-08**: CORS abierto, ~11 días de desfase y **rayos sin dato utilizable** en
-  el Caribe. Sus tres trampas (la consulta que se cuelga, las limnimétricas, lat/lon
-  intercambiadas) ya son lección: **`31 · L-37`** — no volver a investigarlas.
+  **Workspaces**: `nucleo/` · `contratos/` **(v0.4.0)** · `exportar/` · `web/` · `evidencias/`.
+- **Hallazgos reales**: 14 de 23 vanos fuera de la banda del VIR · **3 apoyos amplifican** (E06 ×1,716
+  = 72 % más, con 118,2°) · los 2 terminales soportan el tiro entero (2.339 kgf/conductor).
+- **EL HUECO MAYOR, y hay que verlo siempre**: **0 de 24 apoyos tienen veredicto, en LOS DOS EJES**. El
+  motor YA sabe dictaminar; falta el DATO — nadie declara `cargaRotura_kgf`, `capacidadLongitudinal` ni
+  `nFasesAmarradas`. Es del INVENTARIO y lo cierra `TODO-02`. · **Las 103 fotos se sirven** y cada una
+  sabe de quién es; ⚠️ `e07` es **E06** (`99 §ADR-015`).
+- **IDEAM verificado 04-08**: CORS abierto, ~11 días de desfase, **rayos sin dato utilizable** en el
+  Caribe, y sus tres trampas ya son lección (`31 · L-37`) — no volver a investigarlas.
 
-## 🚫 Callejones ya probados (no repetir — detalle en `30` y sus hijos)
+## 🚫 Callejones ya probados (el índice COMPLETO está en `30`; aquí solo los que más reinciden)
 
-- Un agente que muere deja código **SIN VALIDAR**, no roto (`30 · L-24`). Un módulo probado que
-  ninguna pantalla llama es invisible (`30 · L-28`). Verde no prueba nada (`30 · L-33`).
-- **Verificar contra un artefacto que comparte la causa del fallo** (`32 · L-35`): el oráculo
-  contaminado da verde siempre.
-- **Contar una cosa y decir que cuentas otra** (`99 §ADR-017`), y su gemela de esta sesión: afirmar
-  algo que la propia evidencia del expediente contradice (`99 §ADR-020`, sección final).
+- **Verde no prueba nada**, y hay TRES verdes que engañan: las pruebas (`30 · L-33`), el oráculo que
+  comparte la causa del fallo (`32 · L-35`) y el linter del cerebro (`99 §ADR-021`). · Un agente que
+  muere deja código SIN VALIDAR, no roto (`30 · L-24`); un módulo que nadie llama es invisible (`L-28`).
+- **Afirmar algo que la propia evidencia contradice**: contar una cosa y decir que cuentas otra
+  (`99 §ADR-017`) y escribir un motivo que la foto del expediente desmiente (`99 §ADR-020`, final).

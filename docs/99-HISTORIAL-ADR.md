@@ -1822,9 +1822,90 @@ se firman son del ingeniero**, no de quien escribe el código.
 - El árbol se edita como lista con padre; no hay lienzo interactivo. El dibujo saldrá del dato.
 - No hay estadística de parque ni correlación clima↔fallas: con n=1 sería un número con aspecto de
   análisis.
-- Las acciones (CAPA) se registran; su ciclo de vida y eficacia no se gestionan todavía.
+- Las acciones (CAPA) **no se pueden ni crear**: el esquema `Accion` existe en `contratos/src/rca.ts`
+  y ninguna pantalla lo escribe. No es que falte el ciclo de vida — falta entero (`TODO-52`).
 - El informe del análisis con sus límites impresos está pendiente.
 
 ### Crudo de respaldo
 
 `research-archive/2026-08-04-workflow-rca-lineas-at.json`
+
+---
+
+## ADR-021 · 2026-08-04 · El cerebro puede mentir con todos los gates en verde
+
+**Estado:** ✅ Cerrado en lo que se reparó · 🟡 abre `TODO-54`, que es la parte que NO se decidió sola.
+**Revisión externa:** ⚠️ **NO revisada externamente.** Auditoría adversarial propia de 5 lentes Opus
+en paralelo (~1,32 M tokens). El sintetizador murió a mitad de respuesta; la síntesis la hizo el
+integrador leyendo el diario, y **cada hallazgo aplicado se re-verificó abriendo el archivo citado**.
+
+### Contexto
+
+El Ingeniero preguntó, sin más: *«¿documentaste todo?»*. La respuesta no se podía dar de memoria
+—§3.2 lo prohíbe—, así que se auditó. Y el resultado es lo que hace que esto sea un ADR y no una
+nota: **de 49 hallazgos en bruto, 18 se confirmaron abriendo el archivo, y `npm run brain:check`
+estuvo en verde todo el tiempo, antes y después.**
+
+### El hallazgo que gobierna la decisión
+
+> **El linter valida la ESTRUCTURA del cerebro. No puede validar que lo que dice sea VERDAD.**
+
+Comprueba capacidad, que las referencias `L-NN` resuelvan, que no haya neuronas huérfanas, que los
+crudos estén indexados, que un hecho declarado SSoT no esté duplicado. Todo eso estaba bien. Lo que
+no vio, porque no puede:
+
+| Lo que el cerebro afirmaba | La realidad |
+|---|---|
+| `05`: «Valor al **2026-07-29**» · «Misión: F0 · Verificación» | Seis días y 34 commits después, con el producto en producción |
+| `05`: desplegar es `npm run deploy` | **Sin `build` delante** — literalmente la trampa de `L-35`, escrita en el nodo que se lee al arrancar |
+| `CLAUDE.md`: «Datos: SQLite local en la Mac» | Firestore desde `ADR-004`, hace seis días |
+| `CLAUDE.md`: «Cómputo servidor: ninguno» | El portero de fotos es un Worker vivo desde `ADR-010` |
+| `20`: «445 pruebas» · «cargas.js sin vista aún» | 714 pruebas · `Cargas.tsx` lleva semanas en producción |
+| `30`: el índice madre llega a `L-34` | `L-35` y `L-36` existían y eran **invisibles desde el índice** |
+| `10`: la trampa del `dist/` rancio es `32 · L-36` | Es `L-35`. La referencia mandaba a la lección equivocada |
+| 4 nodos: «los 33 `L-NN`» | 35 — la cifra se había copiado y se pudrió en los cuatro a la vez |
+
+Y dos que no eran de documentación: **el correo real de un tercero publicado en el repo público**, y
+`L-36` escrita ese mismo día **duplicando a `L-22`** — o sea, una tarde pagada otra vez por un error
+que ya estaba documentado.
+
+### La decisión
+
+1. **Reparar los 18, y en el nodo dueño de cada uno**, no donde fuera cómodo. Altas: `ADR-019` (que
+   no existía), `L-37`, `L-38`, `L-39`, `TODO-53`. Correcciones en `CLAUDE.md`, `05`, `10`, `20`,
+   `00`, `30`, `31`, `32`, `disenos/README.md`, la bóveda y la versión del contrato.
+2. **Toda cifra copiada se retira del nodo que no es su dueño.** El número de lecciones vive solo en
+   `30`; el de pruebas solo en `05`. Un dato repetido en cuatro sitios no es redundancia útil: es
+   garantía de que tres estarán mal.
+3. **La tabla de stack de `CLAUDE.md` pasa a decir lo que HAY, no lo que se planeó.** El plan por
+   fases vive en `99`, donde no envejece porque va fechado. Mezclar plan y estado en el router
+   always-on es lo que mandó a buscar un `.sqlite` que nunca existió.
+4. **Lo que NO se decidió aquí, a propósito:** que el linter vigile la frescura semántica. Se puede
+   hacer —el mecanismo `verificado-vivo` ya existe y el kernel comprueba que no caduque—, pero se toca en
+   `../brain-private/kernel/`, afecta al proyecto hermano y obliga a repartir versión. **Es del
+   Ingeniero, no mía.** Queda como `TODO-54` con la propuesta escrita, no aplicada.
+
+### Alternativas descartadas, con su porqué
+
+| Alternativa | Por qué NO |
+|---|---|
+| **Responder «sí, está todo documentado»** | Era lo cómodo y habría sido falso. La pregunta se contesta auditando, no recordando (`§3.2`) |
+| **Reparar solo lo grave y dejar lo menor** | Los que parecían menores eran los peores: la referencia `L-36` en vez de `L-35` manda a la lección equivocada justo al que está intentando no repetir el fallo |
+| **Reescribir la historia de git** para borrar el correo del tercero | `main` no se reescribe (regla del proyecto). El dato se retira hacia adelante y **consta que el historial lo conserva**: decirlo es parte del arreglo. Borrarlo del historial es una operación aparte, con consecuencias, y la decide el Ingeniero |
+| **Tocar el kernel para añadir el gate de frescura** | El kernel es de todo el ecosistema. Cambiarlo por iniciativa propia dentro de una tarea de documentación es exactamente el tipo de decisión cara de revertir que `§G.2` manda deliberar aparte |
+| **Aceptar los 49 hallazgos del workflow** | 31 se descartaron: sin evidencia citada, cosméticos, o falsos al abrir el archivo. Un hallazgo de subagente es una hipótesis (`§3.2`) |
+
+### Consecuencias
+
+- **Lo que este ADR deja escrito para siempre:** el verde de `brain:check` significa *«el cerebro
+  está bien construido»*, **no** *«el cerebro dice la verdad»*. Son dos preguntas distintas y solo
+  una tiene guardián. La segunda hoy depende de que alguien audite a mano.
+- **Se confirma `L-33` desde otro ángulo** («verde no prueba nada»): esta vez el verde no era de las
+  pruebas sino del linter del cerebro, y engañó igual.
+- **Y una incómoda que se registra sin adornos:** todos estos huecos los dejó Claude, en la misma
+  sesión, con la doctrina de frescura (`§G.4`) escrita y a la vista. La regla existía; no se aplicó.
+  Documentar al cerrar cada ola —y no al final— es lo que lo evita.
+
+### Crudo de respaldo
+
+`research-archive/2026-08-04-auditoria-documentacion-sesion.json` (5 lentes + diario completo)
