@@ -121,6 +121,11 @@ mantenimiento-lineas-at/
 │   │                            ninguna pantalla (`99 §ADR-018`):
 │   ├── ejesLinea.ts             los DOS ejes de carga de una línea
 │   ├── vanosLinea.ts            la numeración CORRIDA de vanos (dibujo y tabla dicen lo mismo)
+│   │                            (⚠️ colecciones de Firestore: `lineas` · `apoyos` · `hipotesis` ·
+│   │                            `investigaciones` · `evidencias` · `analisis` · `acciones_capa` ·
+│   │                            `sondeos_clima`. Las acciones CAPA van APARTE del análisis a
+│   │                            propósito: dentro de un array las reglas no distinguen «cerrar una
+│   │                            acción» de «reescribir el razonamiento tras firmar»)
 │   ├── coberturaEjes.ts         qué se sabe de CADA apoyo, eje por eje: los 4 estados
 │   │                            (ambos · solo transversal · solo longitudinal · ninguno) y los
 │   │                            textos del horizonte. Lo piden `estadoLinea` y `Horizonte`

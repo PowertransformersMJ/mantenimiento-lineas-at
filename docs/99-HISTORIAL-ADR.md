@@ -1829,8 +1829,19 @@ se firman son del ingeniero**, no de quien escribe el código.
 - El árbol se edita como lista con padre; no hay lienzo interactivo. El dibujo saldrá del dato.
 - No hay estadística de parque ni correlación clima↔fallas: con n=1 sería un número con aspecto de
   análisis.
-- Las acciones (CAPA) **no se pueden ni crear**: el esquema `Accion` existe en `contratos/src/rca.ts`
-  y ninguna pantalla lo escribe. No es que falte el ciclo de vida — falta entero (`TODO-52`).
+- ~~Las acciones (CAPA) no se pueden ni crear~~ → **SALDADA el 2026-08-05.** Viven en colección
+  PROPIA (`acciones_capa`), no dentro del análisis: dentro de un array las reglas de Firestore no
+  distinguen «cerrar una acción» de «reescribir el razonamiento tras firmar», y un análisis tiene
+  que poder congelarse mientras sus acciones siguen vivas meses. Aditivo: `AnalisisCausa.acciones`
+  se queda vacío, sin migrar nada. Tres reglas en `nucleo/rca.js`, probadas: cerrar exige quién,
+  cuándo y prueba —evidencia enlazada o comprobación escrita, distinguidas y NO igualadas—; una
+  correctiva cerrada tiene que decir qué barrera cubre; descartar exige motivo. La barrera NO es
+  obligatoria para guardar: con trece en lista cerrada, obligarla empuja a elegir una al azar, que
+  es el atajo que vaciaba el Ishikawa. Y se calcula **el hueco que más importa**: las barreras que
+  el árbol declara falladas y que nadie cubre — una lista larga de acciones lo tapa perfectamente.
+  ⚠️ El alta NO se ha ejercitado contra producción: las acciones no se borran por diseño y no se
+  quiso dejar un registro de prueba en el análisis real (decisión del Ingeniero, 05-08). Verificada
+  por pruebas y contra las reglas leídas a mano.
 - El informe del análisis con sus límites impresos está pendiente.
 
 ### Crudo de respaldo
