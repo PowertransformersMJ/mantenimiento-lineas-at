@@ -441,6 +441,14 @@ pagado por el Ingeniero.** La clave nunca se filtra y aun así vacían la cuenta
 Cierre: **App Check obligatorio** + solo funciones `onCall` (jamás `onRequest` abierta) + `auth`
 verificado + rol en *claim* + allowlist de dominio de correo. Del día 1, no de la fase 2.
 
+> ⚠️ **ENMIENDA 2026-08-04 (`§ADR-019`).** De esas cinco medidas «del día 1», al 04-08 solo una está
+> puesta: el **rol en *claim*** (`herramientas/usuarios.mjs` + `firestore.rules`). **App Check NO
+> existe** y la allowlist de dominio tampoco; las funciones `onCall` no aplican todavía porque el
+> subsistema de IA no está construido. No es que se decidiera otra cosa: es deuda, y está declarada
+> como bandera roja en `05` y como fase 4 de `TODO-50`. Lo que sí cambió por decisión es el ingreso:
+> hoy hay **contraseña y cero registro público**, que `ADR-001` y `ADR-002` aún describen de otra
+> forma porque son anteriores.
+
 ### Dónde corre cada cosa
 
 ```
@@ -1522,6 +1530,23 @@ código y no aceptado del subagente:
 > **El paisaje CARGA INFORMACIÓN, no decora.** El cielo codifica el estado de la línea; el horizonte
 > dibuja los apoyos reales en su orden y a su distancia; **un apoyo sin veredicto se dibuja HUECO**.
 
+### Alternativas descartadas, con su porqué
+
+Las cuatro maquetas anteriores compitieron de verdad; el ranking del sintetizador fue
+**1-columnas · 4-mapa · 3-expediente · 2-tablero**, con el criterio de arriba y no el gusto.
+
+| Descartada | Por qué perdió |
+|---|---|
+| `2-tablero` — una pantalla densa por activo | La peor en lo que se juzgaba: la palabra «firmable» era una **cadena escrita a mano en los datos** que gobernaba el punto verde y el sello. Afirmaba salud sin mirar un solo veredicto |
+| `3-expediente` — la línea como documento que se firma | La más honesta con lo impreso (lo que se ve es lo que sale por la impresora), pero `firmable = hipótesis congelada && estado === 'bien'`: **nunca miraba la capacidad de los apoyos**. Su virtud —el orden de firma— se conservó en la sección de Sello |
+| `4-mapa` — el trazado manda, los datos en capas | La más brutal para contestar «¿DÓNDE está el problema?», y por eso quedó segunda. Perdió porque el mapa **no escala al parque**: con veinte líneas la pregunta deja de ser dónde y pasa a ser cuál. Su capa «inventario declarado» inspiró el dibujo hueco del horizonte |
+| **La piel oscura de las cuatro** | Descartada por el Ingeniero al verlas: *«sigue oscuro, necesito algo más armonioso, como paisajes»*. Su «es muy oscuro» inicial describía su MacBook, no pedía tema oscuro — se había leído al revés |
+
+Ganó `1-columnas` **pese a que su fallo era por omisión y no por afirmación**: `avisos()` contaba
+evento, GPS, vanos fuera, amplificación, vanos largos, hipótesis y parcial, y **nunca** el veredicto.
+Un fallo de omisión se arregla añadiendo la cuenta que falta; uno de afirmación exige desmontar lo
+que el diseño promete. Por eso se eligió el esqueleto más reparable, no el más vistoso.
+
 ### Las invariantes que quedan establecidas — y que no se pueden relajar
 
 1. **`amanecer` es INALCANZABLE si falta un apoyo.** El único estado que dice «al día» exige
@@ -1601,6 +1626,87 @@ partió en dos —blanco sobre los círculos rojos, tinta oscura sobre las tarje
 
 `research-archive/2026-08-04-workflow-critica-carcasa.json` (la crítica de oficio, 4+1 agentes)
 `research-archive/2026-08-04-workflow-carcasa-horizonte.json` (reconocimiento, plan IAP y línea base)
+
+---
+
+## ADR-019 · 2026-08-04 · Cero registro público: el alta de personas es un acto administrativo
+
+**Estado:** 🟡 **Parcial** — `TODO-50` con las fases 1 y 2a en producción; 2b, 3 y 4 abiertas.
+**Revisión externa:** ⚠️ **NO revisada externamente.** Tampoco hubo comité: la decisión la fijó el
+Ingeniero en el encargo («cero registros públicos, solo el administrador aprovisiona, asignando un
+correo y una contraseña concretos»). Lo que se deliberó fue **cómo cumplirlo sin encender la
+factura**, y eso se verificó con fuente, no con opinión.
+**Escrito con retraso:** la ola se ejecutó el 04-08 y este ADR se redactó ese mismo día **al
+auditar la documentación**, no al cerrarla. Estuvo unas horas viviendo solo en una celda de la
+pizarra — la neurona que precisamente se poda. Es el fallo que `§G.3` existe para impedir.
+
+### Contexto
+
+Hasta el 31-07-2026 la única forma de entrar era «Entrar con Google». Eso no es un método de
+ingreso: es una **vía de alta pública**. Cualquiera con una cuenta de Google podía crearse una
+identidad dentro del proyecto, y ocurrió — una cuenta ajena se dio de alta sola. No llegó a leer
+nada, porque sus reclamos eran `null` y las reglas exigen `orgId`, así que el diseño aguantó. Pero
+una herramienta que va a sostener dictámenes de ingeniería no puede dejar que la lista de quién
+existe la escriba internet.
+
+*(La identidad concreta no se escribe aquí: este repositorio es público y es el dato personal de un
+tercero. Vive en `NOTAS-OPERATIVAS.md` de la bóveda.)*
+
+### La decisión
+
+1. **El alta es un acto administrativo, no un formulario.** La única vía es `herramientas/usuarios.mjs`,
+   que corre en la Mac del Ingeniero contra el Admin SDK con la llave maestra. Seis subcomandos:
+   `alta` · `contrasena` · `rol` · `baja` · `restituir` · `auditar`. No hay pantalla de registro, y
+   no la va a haber.
+2. **Contraseña, no enlace de restablecimiento.** El Ingeniero eligió asignar la contraseña él. La
+   cuenta nace con el reclamo `passwordProvisional: true` y mínimo de 12 caracteres.
+3. **RBAC por *custom claims*, no por documento.** Cuatro roles con alcance escrito:
+   `admin` (todo, incluida la bitácora de IA) · `editor` (líneas, apoyos, hipótesis, expedientes) ·
+   `cuadrilla` (inspecciones y evidencias; **no toca activos ni expedientes**) · `auditor` (lectura
+   completa, no escribe nada). Van en el token, y `firestore.rules` los lee de ahí: el permiso viaja
+   con la credencial y no se puede falsificar desde el cliente.
+4. **La organización existe desde el día 1** (`orgId`), aunque hoy solo haya una. Una columna de
+   pertenencia añadida después obliga a migrar todo lo escrito sin ella.
+5. **Las cuentas se DESHABILITAN, nunca se borran.** Borrar un usuario borra el rastro de quién
+   hizo qué, y en un sistema que sostiene firmas eso no se recupera.
+6. **Cada cambio de rol o de contraseña revoca los tokens vivos** (`revokeRefreshTokens`). Sin eso
+   `setCustomUserClaims` no surte efecto hasta que el token caduca: **el rol viejo sobrevive hasta
+   una hora**. Quitarle permisos a alguien y que los conserve una hora es peor que no quitárselos,
+   porque se cree hecho.
+
+### Alternativas descartadas, con su porqué
+
+| Alternativa | Por qué NO |
+|---|---|
+| **Blocking function `beforeUserCreated`** (la defensa canónica: impide el alta de raíz) | Verificado con fuente el 2026-08-04: exige Identity Platform y se despliega como Cloud Function o Cloud Run — *«to deploy functions, your project must be on the Blaze pricing plan»*. **Blaze factura y no apaga**, lo que `ADR-001` ya descartó. Se sustituye por `auditar`, que **detecta** en vez de prevenir: lista las cuentas activas sin `orgId` y **sale con código 1**, para que un día pueda ser un gate. Es un compromiso consciente, no un descuido — ver `31 · L-38` |
+| **Enlace de restablecimiento en vez de contraseña** | Decisión del Ingeniero: quiere asignarla él. Además el enlace viaja por correo, que es un canal que este proyecto no controla |
+| **Que la herramienta acepte la contraseña por argumento o por tubería** | **Rechazado a propósito, y el código lo hace explícito**: si no hay TTY, `leerOculto()` aborta con *«La contraseña se teclea; no se acepta por tubería ni por argumento. Si llega por ahí, es que quedó escrita en algún sitio»*. Una contraseña en un argumento queda en el historial del intérprete de órdenes y en la lista de procesos. **Es también lo que impide que Claude la maneje**, que es exactamente lo que se busca |
+| **Roles guardados en un documento de Firestore** | Un documento se lee con una consulta más, se puede quedar rancio y hay que protegerlo con sus propias reglas. El *claim* viaja firmado dentro del token |
+| **Borrar las cuentas indebidas** | Se pierde el rastro. Se deshabilitan, y `restituir` existe por si fue un error |
+
+### Consecuencias
+
+- **Lo que ya está en producción:** la herramienta de aprovisionamiento (fase 1) y el ingreso con
+  correo y contraseña (fase 2a). Las reglas con RBAC están desplegadas.
+- **Google sigue habilitado como reserva, y eso es el hueco abierto.** No se puede retirar hasta que
+  el Ingeniero se ponga contraseña: retirarlo antes lo dejaría fuera de su propio sistema. Es un
+  bloqueo que **Claude no puede resolver**, por diseño.
+- **La promesa que la herramienta hace y la aplicación aún no cumple:** `usuarios.mjs` dice por
+  pantalla que «la aplicación le obligará a cambiarla en el primer acceso». Esa pantalla **no existe
+  todavía** (fase 3). Mientras tanto, `passwordProvisional` es un reclamo que nadie mira, y
+  `auditar` es lo único que avisa de quién no la ha cambiado.
+- **App Check sigue sin existir** pese a que `CLAUDE.md §1` lo declara «obligatorio desde el día 1»
+  (fase 4). Queda como bandera roja en `05`.
+- **Enmienda a `ADR-004`:** de sus tres medidas de acceso del «día 1», el rol en *claim* ya está;
+  App Check y la lista blanca de dominio de correo **no**. `ADR-001` y `ADR-002` describen además un
+  mundo sin control de acceso que hoy ya no es cierto — la contraseña existe, el 2FA no.
+
+### Crudo de respaldo
+
+**No hay crudo: esta ola no se deliberó con comité ni workflow**, y decirlo es parte del registro.
+Lo que sí hubo fue verificación con fuente (los planes de Firebase, el requisito de Blaze de las
+blocking functions, el coste de Identity Platform), y esos hechos están arriba con su fecha. Si la
+fase 3 o la 4 abren decisión de fondo, ahí sí corresponde comité.
 
 ---
 

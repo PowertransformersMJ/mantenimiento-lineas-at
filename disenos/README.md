@@ -1,8 +1,14 @@
-# 🎨 disenos/ — maquetas de la carcasa, PENDIENTES DE ELECCIÓN
+# 🎨 disenos/ — maquetas de la carcasa · ✅ DECIDIDO el 2026-08-04
 
-> **No son código de la aplicación.** Son cuatro bocetos HTML autocontenidos que el Ingeniero pidió
+> **No son código de la aplicación.** Son cinco bocetos HTML autocontenidos que el Ingeniero pidió
 > el 2026-08-03 para elegir la carcasa del producto. Se abren con doble clic, sin internet, y son
-> navegables con el ratón. Ninguno se ha implementado todavía.
+> navegables con el ratón.
+>
+> **La decisión ya está tomada y en producción: ganó el esqueleto de `1-columnas` con la piel de
+> `5-horizonte`** (`99 §ADR-018`). Estos archivos se conservan como el RASTRO de por qué se eligió
+> —incluidas las cuatro tesis que perdieron—, no como propuestas abiertas. Si vas a cambiar la
+> carcasa, lee el ADR antes: las cuatro dejaban que una línea se mostrara «sana» con cero apoyos
+> dictaminados, y evitar eso es lo que gobernó la elección.
 
 ## El encargo, con sus palabras
 
@@ -58,7 +64,7 @@ Verificado en esta maqueta, con el DOM y no a ojo:
 
 ## Cómo se hicieron, y qué NO se verificó
 
-Workflow de 7 agentes Opus (`99 §ADR-018` — pendiente de escribir al elegir): 1 de encuadre, 4
+Workflow de 7 agentes Opus (decisión cerrada en `99 §ADR-018`): 1 de encuadre, 4
 diseñadores con tesis enfrentadas y 2 críticos. **Los dos críticos NO llegaron a correr**: se agotó
 el límite de la sesión. El 2026-08-04 se relanzó esa deuda como crítica de **4 agentes Opus, uno por
 maqueta, más un sintetizador**, juzgando **solo el esqueleto** (el color quedó fuera de alcance: la
@@ -75,17 +81,19 @@ La verificación que sí se hizo a mano sobre las cuatro:
   `2-tablero.html` están **dentro del bloque `<script>`** (línea 1844, y otros dos en `1-columnas`),
   y sirven para componer «24 estructuras + 2 empalmes». No se ven en pantalla. Las cuatro limpias.
 
-## Lo que hay que decidir — son DOS decisiones, no una
+## Cómo se decidió — fueron DOS decisiones, no una
 
-Desde el 2026-08-04 la elección se parte en dos, y conviene tomarlas por separado:
+La elección se partió en dos y se tomaron por separado. **Ambas cerradas el 2026-08-04:**
 
 1. **El esqueleto** — cuál de las cuatro tesis de navegación. El criterio que este proyecto propone
    no es cuál se ve mejor: es **cuál hace más difícil olvidar que 0 de 24 apoyos tienen veredicto**,
    en los dos ejes. Una carcasa que esconda bien ese hueco convierte una herramienta de auditoría en
    una fábrica de falsa confianza. La `4` es la más brutal en eso —enciende la capa «Inventario
    declarado» y la línea se queda hueca—; la `3` es la más honesta con lo que se firma.
-2. **La piel** — oscura (1-4) o luminosa (`5-horizonte`). Esta ya la contestó el Ingeniero al pedir
-   «algo más armonioso, como paisajes». Queda por confirmar que `5` acierta el tono.
+2. **La piel** — oscura (1-4) o luminosa (`5-horizonte`). La contestó el Ingeniero al pedir «algo
+   más armonioso, como paisajes».
 
-Cualquier combinación es posible: la piel de la `5` se puede montar sobre el esqueleto de la `3` o
-de la `4`. Al cerrar ambas → implementar + `ADR-018` + crudo a la bóveda.
+**El resultado:** esqueleto `1-columnas` + piel `5-horizonte`, implementado en seis fases y
+desplegado el 04-08. La piel es independiente del esqueleto, y por eso se pudo combinar así.
+Lo único que sigue abierto es el ojo del Ingeniero sobre el tono del papel y el ancho de columnas.
+Crudos en la bóveda: `2026-08-04-workflow-critica-carcasa.json` y `…-carcasa-horizonte.json`.

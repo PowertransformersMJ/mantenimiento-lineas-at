@@ -134,23 +134,25 @@
   acaba de imprimir `vite build` — **no con el contenido de `dist/`**. El navegador es el único
   testigo que no comparte la causa del fallo con el artefacto que se está juzgando.
 
-### L-36 · Las reglas de Firestore viven en el repo y NO se despliegan solas
-- **Síntoma:** se añade una colección nueva (`analisis`), se escribe su regla en `firestore.rules`,
-  se commitea, se despliega la aplicación… y la pantalla dice **«Missing or insufficient
-  permissions»**. Todo el código estaba bien.
-- **Causa:** `npm run deploy` despliega el SITIO (Cloudflare Pages). Las reglas van por otro canal
-  —`firebase deploy --only firestore:rules`— y nadie lo había corrido. En producción seguía
-  mandando la regla final `match /{document=**} { allow read, write: if false; }`, que es
-  exactamente lo que debe hacer con una colección que no conoce.
-- **Por qué se pasa por alto:** el archivo está versionado, se ve en el diff y compila. Todo indica
-  que «ya está». Pero el repositorio y la base son **dos sistemas distintos**, y solo uno se
-  actualizó. Es la misma familia de `L-35`: creer que porque el artefacto está bien, el sistema
-  que lo consume también.
-- **Regla:** toda colección nueva se despliega DOS veces — el código y las reglas. La segunda es
-  `npx firebase deploy --only firestore:rules --project mantenimiento-lineas-at`.
-- **Cómo se detecta en 5 segundos:** si una consulta nueva falla con «insufficient permissions» y
-  el código es correcto, la regla NO está en producción. No se depura el cliente: se despliegan
-  las reglas y se reintenta.
+### L-36 · ⇢ PUNTERO a `31 · L-22` — y la recaída, que es lo que hay que leer
+> **El cuerpo de esta lección NO vive aquí.** El dueño es
+> **`31 · L-22` · «Desplegar el código sin desplegar las reglas de Firestore: el dato existe y no
+> llega»**, que lo dice completo y con el remedio de los tres despliegues. El número `L-36` se
+> conserva porque `docs/10` y este nodo lo citan, y los `L-NN` no se renumeran jamás.
+
+- **Qué pasó de verdad el 04-08-2026:** se añadió la colección `analisis`, la pantalla dijo
+  *«Missing or insufficient permissions»*, se perdió la tarde depurando el cliente… y al final se
+  escribió esta lección **sin ver que `L-22` ya existía, escrita días antes por el mismo síntoma**.
+- **Por qué se escapó, que es lo valioso:** el síntoma es de PANTALLA y la causa es de PROVEEDOR.
+  Se buscó en el hijo equivocado. Desde que la familia de lecciones se repartió por tema
+  (`99 §ADR-016`), un gotcha con el síntoma en un tema y la causa en otro **queda invisible** para
+  quien busca por donde le duele.
+- **Regla operativa que sale de esto:** ver `30 · L-39` — antes de escribir un `L-NN` nuevo se busca
+  el mensaje de error literal en los CUATRO archivos, no el tema.
+- **El remedio, por si llegaste aquí con el error delante:**
+  `npx firebase deploy --only firestore:rules --project mantenimiento-lineas-at`. Si una consulta
+  nueva falla con «insufficient permissions» y el código es correcto, la regla no está en
+  producción: no se depura el cliente.
 
 ### L-30 · `loading="lazy"` no carga URLs `blob:` — y el fallo se lee como «faltan los datos»
 - **Síntoma:** la galería del expediente pintaba los cuatro marcos con sus pies de foto y **ninguna

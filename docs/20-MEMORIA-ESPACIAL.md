@@ -14,8 +14,12 @@
 ├── brain-private/                       🔐 bóveda LOCAL, nunca pública
 │   ├── kernel/                          🔑 kernel canónico — escritor único
 │   └── mantenimiento-lineas-at/         ← la carpeta de ESTE proyecto en la bóveda
-│       ├── research-archive/            crudos de deliberación (comités, consejo externo)
-│       └── fixtures/                    datos reales de cliente que usan las pruebas
+│       ├── NOTAS-OPERATIVAS.md          🔑 credenciales, llave admin, USUARIOS Y ROLES. Todo dato
+│       │                                personal o de acceso vive AQUÍ, nunca en el repo público
+│       ├── research-archive/            crudos de deliberación (comités, workflows, consejo
+│       │                                externo). Su README.md es el índice ÚNICO
+│       ├── fixtures/                    datos reales de cliente que usan las pruebas
+│       └── fotos/                        material de campo
 ├── powertransformersmj.github.io/       proyecto hermano (SGM · TRANSPOWER)
 └── mantenimiento-lineas-at/             ← ESTE repo
 ```
@@ -44,14 +48,27 @@ mantenimiento-lineas-at/
 │   ├── umbrales.js              los 8 indicadores con semáforo y FUENTE (ADR-009)
 │   ├── cantidades.js            BOM geométrico; lo no capturable va a `avisos`
 │   ├── coherencia.js            función declarada vs deflexión, fuga específica, tierra
-│   └── cargas.js                carga transversal y utilización del apoyo (sin vista aún)
+│   ├── cargas.js                carga TRANSVERSAL y utilización del apoyo (ADR-011)
+│   ├── longitudinal.js          carga LONGITUDINAL: el segundo eje del veredicto (ADR-017)
+│   ├── rca.js                   método de causa raíz: espinas, porqués, árbol, hipótesis,
+│   │                            y las 6 condiciones del cierre. NUNCA marca la causa (ADR-020)
+│   └── clima.js                 sondeo meteorológico de un evento Y sus límites redactados
+│
+├── contratos/                   ⭐ WORKSPACE @lineas/contratos — los esquemas Zod que ambos lados
+│                                obedecen. `comunes.ts` es el dueño de `VERSION_CONTRATO` (la cifra
+│                                que la app pinta; `package.json` de ese paquete NO manda).
+│                                activos · eventos · rca · ia · index
 │
 ├── tests/
 │   ├── nucleo.test.js           pruebas de oro del núcleo — la red de seguridad de la migración
-│   ├── estadisticas.test.js     estadísticas de vanos contra el panel original
 │   ├── exportar.test.js         GPX/KML/CSV contra la tabla del módulo original (golden, ADR-006)
-│   └── vanos · umbrales · cantidades · coherencia · cargas · diagramas · termica-vista ·
-│       viento · exportar-calculo · informe · criterios-apoyo   (445 pruebas en total)
+│   ├── estilo-tokens.test.js    5 guardias del tablero de color: ninguna variable sin declarar,
+│   │                            ningún color quemado fuera de `:root`, ningún `tono` inexistente
+│   ├── estado-linea.test.js     el «cielo»: `amanecer` es INALCANZABLE si falta un dictamen
+│   ├── rca.test.js              el método de causa raíz (27) — incluye el tope climático
+│   └── + estadisticas · vanos · umbrales · cantidades · coherencia · cargas · cargas-vista ·
+│       longitudinal · diagramas · formato · termica-vista · viento · exportar-calculo · informe ·
+│       criterios-apoyo · portero · contrato-evidencia   (el conteo vivo lo da `05`, no este mapa)
 │
 ├── docs/                        las neuronas (índice en 00-INDICE.md)
 │   ├── .brain-manifest.json     configuración del cerebro: topes, archiveDir, kernelFiles
@@ -59,7 +76,7 @@ mantenimiento-lineas-at/
 │   ├── 05-ESTADO-GLOBAL.md      signos vitales (auto-cargado)
 │   ├── 10-MEMORIA-CORTO-PLAZO.md pizarra del WIP (auto-cargado)
 │   ├── 20-MEMORIA-ESPACIAL.md   este archivo
-│   ├── 30-LECCIONES.md          MADRE: índice de los 33 L-NN + las de método
+│   ├── 30-LECCIONES.md          MADRE: índice de TODOS los L-NN + las de método
 │   ├── 31-LECCIONES-PROVEEDORES.md  ↳ factura, licencia o SDK de un tercero
 │   ├── 32-LECCIONES-PANTALLA.md     ↳ lo que se ve o se abre ≠ lo que el núcleo produjo
 │   ├── 33-LECCIONES-NUCLEO-Y-DATO.md ↳ el número que se firma · el dato que no sale
@@ -79,22 +96,47 @@ mantenimiento-lineas-at/
 ├── evidencias/                  🚪 EL PORTERO (Cloudflare Worker, ADR-010): verifica la FIRMA del
 │                                token de Firebase contra las llaves de Google y sirve las fotos
 │                                del depósito privado. No escribe, no borra, no lista.
-├── herramientas/                sembrar.mjs (línea + expediente) · subir-evidencias.mjs (fotos)
-├── web/src/componentes/         React SOLO pinta (ADR-005): Linea (11 pestañas ARIA), Mapa (popup
-│                                completo + tramos + marcador de falla), Distribucion, Distancias,
-│                                Fichas, Falla + Galeria, Fundamentos, Umbrales, Termica, Viento,
-│                                Cargas (carga sobre el apoyo, ADR-011), Cantidades, Exportar,
-│                                Sello, Estado
+├── herramientas/                sembrar.mjs (línea + expediente) · subir-evidencias.mjs (fotos) ·
+│                                ⚠️ usuarios.mjs — **la ÚNICA vía de alta de personas**: alta,
+│                                contrasena, rol, baja, restituir, auditar. Rechaza a propósito
+│                                recibir la contraseña por tubería o argumento (ADR-019)
+├── firestore.rules              🔒 parte del CONTRATO, no configuración: RBAC por *claims* y un
+│   firebase.json                catch-all que niega todo lo no declarado. **Se despliega por SU
+│   firestore.indexes.json       canal**, no con el sitio (`31 · L-22`)
+├── disenos/                     5 maquetas HTML autocontenidas de la carcasa. Ganó `5-horizonte`
+│                                y ya está implementada (ADR-018). NO es código de la aplicación
+├── web/src/estilo.css           el tablero de color: ~61 tokens en `:root`, paleta CLARA desde el
+│                                04-08. Ningún color se escribe fuera de ahí — lo vigila una prueba
+├── web/src/componentes/         React SOLO pinta (ADR-005): Linea (las 11 pestañas ARIA **y** la
+│                                carcasa de 3 columnas), Horizonte (los apoyos en su orden real),
+│                                Mapa (popup completo + tramos + marcador de falla), Distribucion,
+│                                Distancias, Fichas, FichaCriterios, Falla + Galeria, Fundamentos,
+│                                Umbrales, Termica, Viento, Cargas (los DOS ejes, ADR-011/017),
+│                                Cantidades, Exportar, Sello, Estado · **Rca + RcaEditores: NO son
+│                                una pestaña de línea — son un segmento hermano del parque, porque
+│                                un análisis puede abarcar varias líneas (ADR-020)**
 ├── web/src/contenido/           doctrina SIN datos de cliente (fundamentos.ts: 9 tarjetas + normas)
 ├── web/src/exportar/            SOLO descargar.js (Blob/DOM) — el resto vive en el workspace
 ├── web/src/vistas/              geometría para pintar + formato (nf + textoNucleo: coma decimal en
 │                                la prosa del núcleo, L-26) + tramoColores + diagramas.ts (las 9
 │                                figuras de Fundamentos) + termicaDatos / vientoDatos /
-│                                criteriosApoyo / cargasDatos. ⚠️ Las vistas que se PRUEBAN no
+│                                criteriosApoyo / cargasDatos / longitudinalDatos / planta / tramos.
+│                                🔑 **DUEÑOS ÚNICOS — si buscas esto, está AQUÍ y no en el
+│                                componente de donde salió:** `ejesLinea.ts` resuelve los DOS ejes
+│                                de carga (se extrajo de `Cargas.tsx`) · `vanosLinea.ts` lleva la
+│                                numeración corrida de vanos (se extrajo de `DetalleVanos`, para que
+│                                el dibujo y la tabla no puedan discrepar) · `estadoLinea.ts` deriva
+│                                el «cielo» de la línea cruzando la cobertura APOYO POR APOYO.
+│                                Duplicar cualquiera de los tres es reabrir un fallo ya pagado.
+│                                ⚠️ Las vistas que se PRUEBAN no
 │                                pueden importar `./planta` ni `./tramos` en ejecución: arrastran
 │                                `@lineas/contratos` (TypeScript sin compilar) y `node --test` no
 │                                lo resuelve. Solo `@lineas/nucleo/*` y tipos.
-├── web/src/datos/               repositorio, enlace (useSyncExternalStore), firebase, cargar (reintentos)
+├── web/src/datos/               repositorio · enlace (useSyncExternalStore) · firebase (ingreso:
+│                                correo+contraseña y Google de reserva) · firestore · cargar
+│                                (reintentos) · clima.ts (IDEAM **desde el navegador**, porque el
+│                                proyecto no tiene cómputo servidor que no facture; y SOLO cuando el
+│                                Ingeniero lo pide, nunca al pintar)
 ├── web/public/mapas/            recorte PMTiles metropolitano (4,3 MB, autohospedado)
 ├── web/public/basemaps-assets/  fuentes y sprites del mapa (autohospedados)
 ├── githooks/pre-commit          corre los gates y BLOQUEA el commit si el cerebro está mal

@@ -4,8 +4,8 @@
 > (trigger 🧪 de `CLAUDE.md §G.2`). Cada lección es un gotcha que ya se pagó una vez.
 > Formato: `L-NN · título` → **Síntoma** / **Causa** / **Regla**.
 >
-> **Qué es este archivo:** el ÍNDICE de las 33 lecciones —**26 repartidas por tema en tres hijos y
-> 7 de MÉTODO aquí mismo, completas**: cómo se delibera, cómo se verifica y cuándo algo está de
+> **Qué es este archivo:** el ÍNDICE de las 38 lecciones —**30 repartidas por tema en tres hijos y
+> 8 de MÉTODO aquí mismo, completas**: cómo se delibera, cómo se verifica y cuándo algo está de
 > verdad terminado—. Las de método se quedan porque no son de ninguna pieza: valen para las tres, y
 > son las que más se citan desde otras neuronas. Si el síntoma huele a un tercero, a lo que se ve o
 > se abre, o al número que se firma, el índice te manda directo al hijo: no hay que leerse los
@@ -13,11 +13,16 @@
 >
 > **Los identificadores NO se renumeran nunca.** Un `L-NN` citado en otra neurona o en un comentario
 > del código sigue apuntando al mismo gotcha, viva donde viva su cuerpo. Y ojo con la aritmética: los
-> números llegan hasta 34 pero las lecciones son 33 — el 14 se fusionó en `L-13` y no existe.
+> números llegan hasta 39 pero las lecciones son 38 — el 14 se fusionó en `L-13` y no existe.
+>
+> ⚠️ **ANTES de escribir una lección nueva, busca el SÍNTOMA en los cuatro archivos.** Desde que la
+> familia se repartió, ninguno se lee entero, y el 04-08-2026 se escribió `L-36` sin ver que `L-22`
+> ya decía lo mismo. La cuenta de arriba es la ÚNICA cifra válida de cuántas lecciones hay: los demás
+> nodos apuntan aquí y no la repiten, porque repetida se pudre (llegó a estar mal en cuatro sitios).
 
 ---
 
-## Índice de las 33 lecciones
+## Índice completo
 
 ### `docs/31-LECCIONES-PROVEEDORES.md` — lo que depende de un TERCERO: su factura, su licencia o su SDK
 
@@ -31,6 +36,8 @@
 - `L-13` · El ingreso explícito exige TRES piezas, y ninguna avisa de que falta
 - `L-22` · Desplegar el código sin desplegar las reglas de Firestore: el dato existe y no llega
 - `L-25` · Un alta «gratuita» puede esconder un formulario de pago, y ahí Claude se detiene
+- `L-37` · Un portal de datos abierto miente de tres formas: la consulta que se cuelga, la estación que no mide lo que crees, y el campo con lat/lon intercambiadas
+- `L-38` · Cuando la defensa canónica exige plan de pago, se DETECTA en vez de PREVENIR — y se escribe que es un compromiso, no un descuido
 
 ### `docs/32-LECCIONES-PANTALLA.md` — el cálculo salió bien y el usuario ve otra cosa: despliegue, cachés, mapa, imágenes, cifras
 
@@ -42,6 +49,8 @@
 - `L-26` · El núcleo escribe con PUNTO decimal, y en Colombia el punto son miles
 - `L-27` · Una nota que el núcleo escribe POR FILA no se pinta por fila
 - `L-30` · `loading="lazy"` no carga URLs `blob:` — y el fallo se lee como «faltan los datos»
+- `L-35` · `deploy` NO construye: se puede desplegar un `dist/` rancio y no enterarse
+- `L-36` · Recaída de `L-22`: las reglas de Firestore no se despliegan solas (el cuerpo vive en `31 · L-22`)
 
 ### `docs/33-LECCIONES-NUCLEO-Y-DATO.md` — el número que se firma y el dato que no puede salir de este repositorio
 
@@ -63,6 +72,7 @@
 - `L-28` · Un módulo construido y probado que ninguna pantalla llama es INVISIBLE
 - `L-33` · Escribir la prueba y auditar el resultado son dos trabajos distintos
 - `L-34` · Un fixture que DECLARA a mano lo que producción DERIVA ensaya otro camino
+- `L-39` · Con la familia repartida, una lección nueva se DUPLICA si no buscas el síntoma en los cuatro archivos
 
 ---
 
@@ -135,3 +145,22 @@
 - **Regla:** el fixture aporta el ORIGEN del dato, no el resultado; y una coordenada resuelta se fija
   con sus 17 cifras (a 15, el factor de 60° cruzó de 0,999…9 a 1,000…096 y el apoyo pasó a contarse
   como amplificador: en un criterio con forma `> 1`, el último bit ES el criterio).
+
+### L-39 · Con la familia repartida, una lección nueva se DUPLICA si no buscas el síntoma en los cuatro archivos
+- **Síntoma:** el 04-08-2026 se pagó una tarde a *«Missing or insufficient permissions»* al añadir la
+  colección `analisis`, y se escribió `L-36` para que no volviera a pasar. La lección **ya existía**:
+  `31 · L-22`, escrita días antes por el mismo síntoma, con la misma causa y hasta con el mismo
+  remedio de los tres despliegues. No solo se duplicó el texto: **se pagó otra vez un error que ya
+  estaba documentado**, que es el fallo de verdad.
+- **Causa:** desde que la familia se repartió en madre + tres hijos (`99 §ADR-016`), ningún archivo se
+  lee entero. La madre se consulta para ENRUTAR —«¿a qué hijo voy?»— y esa lectura no cruza temas: el
+  síntoma era de despliegue, así que se fue derecho a `32` (pantalla) sin mirar `31` (proveedores),
+  donde vivía porque la causa es una regla de Firebase. **El reparto por tema esconde lo que tiene un
+  síntoma en un tema y la causa en otro.**
+- **Regla:** antes de escribir un `L-NN` nuevo, `grep -rn "<síntoma>" docs/3*.md` — literalmente el
+  mensaje de error, no el tema. Cuesta cinco segundos. Y si el hallazgo es que ya existía, la lección
+  no se borra ni se renumera (la citan el código y otras neuronas): se deja como **puntero** al dueño
+  y se anota la recaída, que vale más que la lección original — demuestra que estaba escrita y aun
+  así no la leímos.
+- **Emparenta con** `L-28` (un módulo que nadie llama es invisible): una lección que el índice no
+  lista es exactamente igual de invisible.

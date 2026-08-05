@@ -4,10 +4,15 @@
 // ----------------------------------------------------------------------------
 // POR QUÉ EXISTE. Hasta hoy la única forma de entrar era «Entrar con Google», y
 // eso es una vía de alta PÚBLICA: cualquiera con una cuenta de Google podía
-// crear una identidad en el proyecto. El 31-07-2026 pasó de verdad —
-// `djrome014@gmail.com` se dio de alta sin que nadie lo invitara— y aunque no
-// pudo leer NADA (sus reclamos eran `null`, y las reglas exigen `orgId`), una
-// herramienta corporativa no debe permitir que eso ocurra.
+// crear una identidad en el proyecto. El 31-07-2026 pasó de verdad: una cuenta
+// de Google ajena al proyecto se dio de alta sin que nadie la invitara — y
+// aunque no pudo leer NADA (sus reclamos eran `null`, y las reglas exigen
+// `orgId`), una herramienta corporativa no debe permitir que eso ocurra.
+//
+// ⚠️ La identidad concreta NO se escribe aquí. Este repositorio es PÚBLICO y esa
+// dirección es el dato personal de una persona real que no pidió aparecer en él,
+// ligada además al relato de un incidente. Vive en `NOTAS-OPERATIVAS.md` de la
+// bóveda privada, que es el nodo dueño de usuarios y roles.
 //
 // LO QUE NO SE PUDO HACER, Y POR QUÉ. La forma canónica de impedirlo es una
 // «blocking function» (`beforeUserCreated`). Verificado con fuente el

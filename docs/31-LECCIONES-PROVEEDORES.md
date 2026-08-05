@@ -123,3 +123,47 @@
 - **Lo que salvó la vista:** la lectura de expedientes va en su propio `try/catch` y devuelve lista
   vacía. Entre el despliegue del código y el de las reglas, la línea **siguió viéndose completa**.
   *Una capa opcional jamás puede tener poder de veto sobre una esencial* (misma regla que `L-11`).
+- ⚠️ **Volvió a pasar el 04-08-2026** con la colección `analisis`, y se escribió otra lección sin ver
+  ésta. La recaída está anotada en `32 · L-36`, y la regla para no repetirla en `30 · L-39`.
+
+### L-37 · Un portal de datos abierto miente de tres formas distintas, y ninguna da error
+Verificado el 2026-08-04 contra `datos.gov.co` (IDEAM), integrando el clima del segmento RCA.
+
+- **Trampa 1 · la consulta que se cuelga, no que falla.** Filtrar la serie de observaciones por
+  coordenada parece lo natural: son 20 millones de lecturas y el filtro geográfico **no responde**
+  (90 s sin contestar, comprobado). No devuelve error ni lista vacía: se queda colgada, que es el
+  peor de los tres resultados porque parece red lenta. **Regla:** se consulta el CATÁLOGO de
+  estaciones (`hp9r-jxuu`, contesta en menos de un segundo) y solo después la serie, ya filtrada por
+  código de estación.
+- **Trampa 2 · la estación más cercana puede no medir lo que buscas.** El catálogo mezcla redes:
+  junto a las climatológicas hay **limnimétricas y limnigráficas, que miden el nivel de un río**, y
+  mareográficas. Cerca del evento de LN-627, **tres de las cinco más próximas eran limnimétricas**.
+  Elegir una habría devuelto cero lecturas de viento, y nadie sabría si es que no hubo viento o que
+  esa estación nunca lo midió: **un hueco disfrazado de dato**. **Regla:** filtrar por categoría
+  antes de elegir por distancia, y que ese filtro tenga prueba.
+- **Trampa 3 · el campo compuesto trae lat/lon INTERCAMBIADAS.** El objeto `ubicaci_n` del catálogo
+  pone la longitud en `latitude`. Usarlo manda a buscar estaciones al otro lado del mundo, y como
+  devuelve resultados —los hay en cualquier sitio— no se nota. **Regla:** leer SIEMPRE los campos
+  sueltos `latitud`/`longitud`, y desconfiar por defecto de todo campo compuesto de un tercero.
+- **La regla madre de las tres:** un portal abierto no valida lo que publica. Antes de creerle a
+  cualquier fuente nueva se prueban las tres preguntas — ¿responde?, ¿mide lo que digo?, ¿el campo
+  significa lo que su nombre dice? — y se escribe la respuesta, con fecha, junto al código.
+- **Y lo que el portal NO tiene también es un resultado:** IDEAM no publica descargas atmosféricas en
+  abierto. En una línea tropical el rayo es la causa nº 1, así que ese hueco se **declara siempre**;
+  una fila vacía se leería como «descartado». Detalle en `nucleo/clima.js` y `99 §ADR-020`.
+
+### L-38 · Cuando la defensa canónica exige plan de pago, se DETECTA en vez de PREVENIR — y se escribe que es un compromiso
+- **Síntoma:** «Entrar con Google» era una vía de alta pública: cualquiera con cuenta de Google podía
+  crearse una identidad en el proyecto, y el 31-07-2026 ocurrió de verdad.
+- **La defensa canónica no se podía comprar.** Impedir el alta de raíz exige una *blocking function*
+  (`beforeUserCreated`); verificado con fuente el 2026-08-04: exige Identity Platform y se despliega
+  como Cloud Function o Cloud Run — *«to deploy functions, your project must be on the Blaze pricing
+  plan»*. **Blaze factura y no apaga**, que es exactamente lo que `ADR-001` descartó.
+- **Regla:** cuando la pieza correcta obliga a facturar, no se enciende la factura ni se finge que el
+  agujero no existe. Se construye la defensa que sí cabe —aquí: (a) quitar el proveedor que permitía
+  el alta, (b) que una cuenta sin reclamos sea inerte, y (c) un comando `auditar` que **detecta** las
+  cuentas activas sin `orgId` y sale con código 1— y **se escribe en el ADR que es un compromiso
+  consciente**.
+- **Por qué lo último es la mitad de la lección:** sin esa frase, el siguiente que lea el código verá
+  una defensa a medias, la leerá como descuido y la «arreglará» encendiendo Blaze. Un compromiso sin
+  documentar no se distingue de un error, y el que viene detrás lo revierte.

@@ -31,7 +31,7 @@ El día que un número salga mal, la discusión debe ser sobre el cálculo, no s
 | `docs/10-MEMORIA-CORTO-PLAZO.md` | pizarra del trabajo vivo + `TODO-NN` | **always-on** |
 | `docs/00-INDICE.md` | enrutamiento síntoma → neurona | bajo demanda |
 | `docs/20-MEMORIA-ESPACIAL.md` | dónde vive cada cosa | trigger 🟡 |
-| `docs/30-LECCIONES.md` | madre: índice de los 33 `L-NN` + las de método | trigger 🧪 |
+| `docs/30-LECCIONES.md` | madre: índice de TODOS los `L-NN` + las de método | trigger 🧪 |
 | `docs/31-LECCIONES-PROVEEDORES.md` | ↳ factura, licencia o SDK de un tercero | trigger 🧪 |
 | `docs/32-LECCIONES-PANTALLA.md` | ↳ lo que se VE o se ABRE no es lo que el núcleo produjo (incluye el CSV en Excel) | trigger 🧪 |
 | `docs/33-LECCIONES-NUCLEO-Y-DATO.md` | ↳ el número que se firma · el dato que no sale | trigger 🧪 |
@@ -55,19 +55,21 @@ que se produjo, para siempre.
 **De dónde viene:** un módulo de campo de UNA línea (`LN-627_Modulo_Campo_10.html`, 30 MB, 92 % son
 fotos en base64). Su valor son 115 funciones de ingeniería real, ya portadas a `nucleo/`.
 
-**Stack decidido (ADR-001, comité ×3 de 29 agentes + hechos verificados con fuente):**
+**Stack REAL (ADR-001 lo decidió; ADR-004/005/010/019 lo movieron). Esta tabla dice lo que HAY, no
+lo que se planeó — el plan por fases vive en `99`, y confundirlos manda a buscar un `.sqlite` que
+no existe:**
 
-| Capa | Decisión | Desde |
+| Capa | Qué hay hoy | Estado |
 |---|---|---|
-| Cálculo | `nucleo/` — funciones **puras**, sin DOM ni red, con pruebas de oro | hoy |
-| Datos | **SQLite local** (un archivo `.sqlite` en la Mac) → **Cloudflare D1** solo si se dispara F5 | hoy |
-| Fotos | **disco del Ingeniero + segundo disco**, catalogadas por huella → **R2** solo en F6 | hoy |
-| Frontend | **Vite + TypeScript**, web instalable. Sin framework pesado | F2 |
-| Hosting | **Cloudflare Pages** | F5 |
-| Cómputo servidor | **ninguno** hasta F5 | F5 |
-| Mapas | **Protomaps / PMTiles + MapLibre**, recortes por línea | F4+ |
-| CI/CD | **GitHub Actions**, runners `ubuntu-latest` **siempre** | hoy |
-| Auth | en campo **NO hay login** (llave de dispositivo); en oficina contraseña + 2FA | F4 / F5 |
+| Cálculo | `nucleo/` — funciones **puras**, sin DOM ni red, con pruebas de oro | ✅ vivo |
+| Datos | **Firestore** (`southamerica-east1`, región INMUTABLE). El SQLite local de ADR-001 nunca llegó a existir: ADR-004 lo adelantó | ✅ vivo |
+| Fotos | **R2 privado** detrás del portero `evidencias/` (ADR-010). El disco del Ingeniero sigue siendo el original | ✅ vivo |
+| Frontend | **React 19 + Vite + TypeScript** (ADR-005), web instalable | ✅ vivo |
+| Hosting | **Cloudflare Pages** — en producción, no en el futuro | ✅ vivo |
+| Cómputo servidor | **UN Worker y solo uno**: el portero de fotos. Nada más, y nada que facture | ✅ vivo |
+| Mapas | **Protomaps / PMTiles + MapLibre**, recortes por línea | ✅ vivo |
+| CI/CD | **GitHub Actions**, runners `ubuntu-latest` **siempre** | ✅ vivo |
+| Auth | **correo + contraseña**, aprovisionada a mano, **cero registro público**; RBAC por *claims* (ADR-019). Google sigue de reserva hasta que el Ingeniero se ponga contraseña | ⚠️ a medias |
 
 **Los tres principios que gobiernan la arquitectura** (violarlos es un fallo de diseño, no un bug):
 
@@ -201,7 +203,7 @@ pida.
 - **🔴 Error/saturación:** si fallas **2 veces** con el mismo bug, DETENTE y lee `00` → `99` buscando
   el § o un bug análogo ANTES de la 3ª solución. Prohibido adivinar (§3.2).
 - **🟡 Desorientación:** ¿dónde vive esto? → `20`.
-- **🧪 Experiencia:** antes de operación riesgosa o repetitiva → `30`: índice de los 33 **y**, ahí
+- **🧪 Experiencia:** antes de operación riesgosa o repetitiva → `30`: el índice COMPLETO **y**, ahí
   mismo y completas, las de MÉTODO (verde que engaña, agente que muere, fixture que miente). Si el
   síntoma es de un tercero → `31`; de lo que se ve o se abre → `32`; del número que se firma o del
   dato que no sale → `33`. Los `L-NN` no se renumeran jamás: los cita el código fuente.
