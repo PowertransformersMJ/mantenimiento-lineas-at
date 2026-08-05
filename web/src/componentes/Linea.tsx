@@ -663,8 +663,11 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
             </button>
           </div>
 
-          <Horizonte ejes={ejes} vanos={vanosLinea}
-            dictaminados={estado.dictaminados} total={estado.total} />
+          {/* `dictaminados` ya no se pasa: el dibujo lo pide al dueño del cruce
+              (`coberturaEjes.ts`), el mismo que alimenta este contador de
+              arriba. Pasárselo por separado era la puerta a que el rótulo y el
+              dibujo dijeran cifras distintas. */}
+          <Horizonte ejes={ejes} vanos={vanosLinea} total={estado.total} />
 
       <div id="panel-linea" role="tabpanel" aria-labelledby={`pestana-${activa}`}>
         {activa === 'resumen' && (

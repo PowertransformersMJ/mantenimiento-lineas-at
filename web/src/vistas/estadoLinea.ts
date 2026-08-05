@@ -23,16 +23,19 @@
 // declare su carga de rotura no significa que se le pueda dictaminar: puede
 // faltarle otra cosa, y quien lo sabe es el motor.
 //
+// EL CRUCE YA NO SE ESCRIBE AQUÍ. Vivía en este archivo Y en `Horizonte.tsx`, y
+// el del dibujo estaba MAL (pintaba hueco lo que no tuviera veredicto en los dos
+// ejes, sin distinguir a cuál le faltaba). Ahora los dos piden el mismo cruce a
+// `coberturaEjes.ts`, que es su dueño único, y hay una prueba de amarre que se
+// pone roja si alguien vuelve a reimplementarlo en cualquiera de los dos sitios.
+//
 // Módulo PURO: no toca el DOM, ni la red, ni React.
 // ============================================================================
+import { cobertura, type FilaDeEje } from './coberturaEjes.ts';
 
 export type Cielo = 'amanecer' | 'atardecer' | 'tormenta' | 'niebla';
 
-/** Lo mínimo que se necesita de una fila de eje. Estructural a propósito. */
-export interface FilaDeEje {
-  apoyo: string;
-  utilizacion_pct: number | null;
-}
+export type { FilaDeEje };
 
 export interface EntradaEstado {
   transversal: { filas: readonly FilaDeEje[]; total: number; aRevisar: number };
@@ -70,12 +73,14 @@ const plural = (n: number, uno: string, varios: string): string => (n === 1 ? un
  * ni opinar, después lo que hay que mirar, y solo al final «al día».
  */
 export function estadoDeLinea(e: EntradaEstado): EstadoDeLinea {
+  // La intersección REAL, apoyo por apoyo — no el menor de dos conteos. La
+  // calcula el dueño único, el mismo que alimenta el dibujo del horizonte.
+  const dictaminados = cobertura(e.transversal.filas, e.longitudinal.filas).ambos;
+
+  // El censo de CADA eje es otra pregunta —cuántos apoyos de esa lista tienen
+  // veredicto— y se cuenta sobre su propia lista, no sobre el cruce.
   const trans = conVeredicto(e.transversal.filas);
   const long = conVeredicto(e.longitudinal.filas);
-
-  // La intersección REAL, apoyo por apoyo. No el menor de dos conteos.
-  let dictaminados = 0;
-  for (const a of trans) if (long.has(a)) dictaminados++;
 
   // El total honesto es el mayor de los dos censos: si un eje no produjo fila
   // para un apoyo, ese apoyo existe igual y sigue sin dictaminar.

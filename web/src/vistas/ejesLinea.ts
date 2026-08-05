@@ -28,6 +28,7 @@ import { cargasParaPantalla, type CargasEnPantalla } from './cargasDatos';
 import { longitudinalParaPantalla, type LongitudinalEnPantalla } from './longitudinalDatos';
 import { calcularTramos, conductorParaNucleo, paramsParaNucleo } from './tramos';
 import { soloEstructuras, vanos, nombreVisible } from './planta';
+import { cobertura, type CoberturaDeEjes } from './coberturaEjes.ts';
 
 export interface EjesDeLinea {
   /** Carga transversal sobre la estructura. */
@@ -57,4 +58,20 @@ export function ejesDeLinea(
   ).map((t: { vanos: number[] }) => ({ ...t, estados: estadosDelTramo(t, c, p) }));
 
   return { transversal, longitudinal: longitudinalParaPantalla(apoyos, ricos, conductor) };
+}
+
+/**
+ * La cobertura de veredicto apoyo por apoyo, en los dos ejes.
+ *
+ * Existe aquí para que nadie tenga que saber de qué campo de qué eje sale el
+ * veredicto: se pide a los ejes, que son su dueño. El cruce en sí lo hace
+ * `coberturaEjes.ts`, que es el dueño ÚNICO de esa operación.
+ *
+ * `longitudinal: null` —una línea sin dos estructuras que comparar— NO se
+ * convierte en «cero apoyos con veredicto longitudinal»: se pasa como el hueco
+ * que es, y el dibujo lo declara en vez de pintar un carril de ceros que se
+ * leería como «se comprobó y no cumple ninguno».
+ */
+export function coberturaDeEjes(ejes: EjesDeLinea): CoberturaDeEjes {
+  return cobertura(ejes.transversal.filas, ejes.longitudinal?.filas ?? null);
 }

@@ -15,6 +15,10 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "noEmit": true,
+    // Permite `import ... from './x.ts'`. Hace falta porque `node --test` corre
+    // las vistas SIN compilar y no resuelve extensiones: un import relativo sin
+    // `.ts` revienta el corredor de pruebas. Vite lo acepta igual.
+    "allowImportingTsExtensions": true,
     "isolatedModules": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
