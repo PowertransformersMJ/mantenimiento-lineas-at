@@ -62,6 +62,7 @@
 - `L-29` · Para afirmar que algo va en los DOS sentidos, mira el MENOR, no el mayor
 - `L-31` · La seguridad que depende de que una variable ESTÉ no es seguridad
 - `L-32` · Un guardián que cuenta INTENTOS no cuenta nada
+- `L-40` · Si el núcleo solo publica la PROSA de un hueco, quien la lea deducirá el hecho — y mal (y una prueba escrita sobre la deducción la BLINDA)
 
 ### `docs/30-LECCIONES.md` (este archivo) — método de trabajo: deliberar, verificar, cerrar
 

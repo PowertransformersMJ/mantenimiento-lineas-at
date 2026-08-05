@@ -100,6 +100,24 @@
   ausencia APAGA el servicio con un motivo ruidoso (503), nunca lo abre. Un 503 se arregla en un
   minuto; una fuga silenciosa no se descubre hasta que ya pasó.
 
+### L-40 · Si el núcleo solo publica la PROSA de un hueco, quien la lea deducirá el hecho — y mal
+
+- **Síntoma:** el informe imprimía *«Ningún apoyo declara su capacidad, así que ninguna fila lleva
+  veredicto»*. Con el inventario vacío del todo era cierto por casualidad. En cuanto un apoyo declare
+  su carga de rotura y le falte la altura libre, esa frase es **falsa en un papel firmado**.
+- **Causa:** el núcleo SÍ sabía qué faltaba en cada apoyo, pero lo publicaba únicamente dentro de una
+  frase (`avisoDeCapacidad`). El único dato contable a mano era «¿tiene veredicto?», así que el
+  informe contó eso y afirmó lo otro. No fue descuido de quien escribió el informe: **no tenía de
+  dónde sacar el hecho**.
+- **Regla:** todo hecho que alguien vaya a CONTAR se publica como dato —booleano o lista—, además de
+  redactarlo. La prosa es para imprimir; el dato es para contar. Si solo hay prosa, el consumidor
+  acabará infiriendo el hecho de su vecino más cercano, y el vecino no dice lo mismo.
+- **Y la parte incómoda:** había una prueba sobre esa frase, y **fijaba la deducción falsa** —
+  construía el caso poniendo `utilizacion_pct: null` sin tocar la capacidad y luego exigía el texto.
+  Una prueba que ensaya el error lo blinda: pasa a ser el guardián de la falta. Emparenta con
+  `30 · L-33` (escribir la prueba y auditar el resultado son dos trabajos distintos) y con
+  `99 §ADR-017`, que es la misma familia: **contar una cosa y decir que cuentas otra**.
+
 ### L-32 · Un guardián que cuenta INTENTOS no cuenta nada
 - **Síntoma:** `if (!porEstado.length) return no_evaluable` parecía blindar la fila. Pero
   `porEstado` recoge un objeto por cada estado PROCESADO, y esos objetos pueden traer
