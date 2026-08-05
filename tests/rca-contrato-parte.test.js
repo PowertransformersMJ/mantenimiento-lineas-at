@@ -75,3 +75,44 @@ describe('una PARTE del análisis se valida antes de tocar la base', () => {
     assert.equal(ok({}).success, true);
   });
 });
+
+describe('LOS PARCHES REALES de la pantalla siguen pasando', () => {
+  // Endurecer el camino de guardado tiene un riesgo evidente y es el contrario
+  // del que se está tapando: dejar fuera una clave que la aplicación SÍ manda, y
+  // romperle el guardar a alguien que estaba trabajando. Se comprobó a mano una
+  // vez; a mano no sirve la próxima. Aquí van las formas EXACTAS que envía cada
+  // editor hoy, copiadas de `Rca.tsx` y `RcaEditores.tsx`.
+  //
+  // Si alguien añade un editor con una clave nueva, esta prueba NO lo detecta —
+  // lo detectará el usuario al guardar. Por eso la clave nueva se añade al
+  // `pick` de `ParteDeAnalisis` Y a esta lista, en el mismo cambio.
+
+  test('la tabla de espinas (Rca.tsx)', () => {
+    const r = ok({ espinas: [
+      { espina: 'conductor', estado: 'no_evaluable', motivo: 'falta la ficha', evidenciaIds: [], datoQueFalta: 'carga de rotura' },
+      { espina: 'ambiente_clima', estado: 'abierta', motivo: 'hubo viento esa noche', evidenciaIds: [] },
+    ] });
+    assert.equal(r.success, true, r.error?.issues?.[0]?.message);
+  });
+
+  test('declarar la causa raíz (Rca.tsx · Declarar)', () => {
+    const r = ok({
+      causaRaiz: {
+        nodoId: '11111111-1111-4111-8111-111111111111',
+        enunciado: 'la especificación no exigía inhibidor en el conector',
+        declaradaPor: 'uid-de-quien-firma',
+        declaradaEn: '2026-08-05T10:00:00.000Z',
+        condicionesNoCumplidas: [],
+      },
+      estado: 'en_revision',
+    });
+    assert.equal(r.success, true, r.error?.issues?.[0]?.message);
+  });
+
+  test('los cuatro editores de RcaEditores.tsx', () => {
+    assert.equal(ok({ cadenas: [] }).success, true);
+    assert.equal(ok({ arbol: [] }).success, true);
+    assert.equal(ok({ hipotesis: [] }).success, true);
+    assert.equal(ok({ ausencias: [] }).success, true);
+  });
+});

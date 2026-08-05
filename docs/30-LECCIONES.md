@@ -63,6 +63,7 @@
 - `L-31` · La seguridad que depende de que una variable ESTÉ no es seguridad
 - `L-32` · Un guardián que cuenta INTENTOS no cuenta nada
 - `L-40` · Si el núcleo solo publica la PROSA de un hueco, quien la lea deducirá el hecho — y mal (y una prueba escrita sobre la deducción la BLINDA)
+- `L-41` · Un contrato que no se puede EJECUTAR en una prueba solo está revisado por el compilador
 
 ### `docs/30-LECCIONES.md` (este archivo) — método de trabajo: deliberar, verificar, cerrar
 

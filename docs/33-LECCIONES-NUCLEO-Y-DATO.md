@@ -100,6 +100,27 @@
   ausencia APAGA el servicio con un motivo ruidoso (503), nunca lo abre. Un 503 se arregla en un
   minuto; una fuga silenciosa no se descubre hasta que ya pasó.
 
+### L-41 · Un contrato que no se puede EJECUTAR en una prueba solo está revisado por el compilador
+
+- **Síntoma:** 735 pruebas en verde y **ni una sola había validado nunca un esquema Zod**. Lo único
+  que miraba los contratos era `tsc`, y `tsc` comprueba TIPOS: no ejecuta el `.refine`, ni el
+  `.strict`, ni el `.min(1)`, que son justamente las reglas que impiden que entre basura al
+  documento que se firma.
+- **Causa:** `node --test` no resuelve imports relativos sin extensión y **no reescribe `.js` a
+  `.ts`**. Los contratos importaban entre sí con `.js`, así que cualquier prueba que los tocara
+  moría en `ERR_MODULE_NOT_FOUND`. La consecuencia no se veía como un fallo: se veía como que
+  «los contratos no se prueban aquí», y así llevaba desde el principio.
+- **Arreglo:** extensiones `.ts` explícitas dentro de `contratos/src/` + `allowImportingTsExtensions`.
+  Mecánico, y verificable por tres lados a la vez: `tsc` del contrato, `tsc` del web y la
+  construcción real. La misma trampa vale para las vistas que se prueban (`docs/20`).
+- **Regla:** si una defensa vive en un esquema, tiene que poder ejecutarse en una prueba. Si no se
+  puede, no es una defensa verificada — es una intención bien escrita. Y comprobar que sigue
+  funcionando exige **mutarla**: quitar el `.strict()` y ver la prueba roja.
+- **El riesgo del lado contrario, que casi se paga:** endurecer el camino de guardado pudo dejar
+  fuera una clave que la pantalla sí manda, y romperle el guardar a alguien que estaba trabajando.
+  Se comprobó a mano y estaba bien; a mano no sirve la próxima vez, así que las formas exactas que
+  envía cada editor quedaron fijadas en la prueba.
+
 ### L-40 · Si el núcleo solo publica la PROSA de un hueco, quien la lea deducirá el hecho — y mal
 
 - **Síntoma:** el informe imprimía *«Ningún apoyo declara su capacidad, así que ninguna fila lleva
