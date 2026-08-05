@@ -1842,7 +1842,16 @@ se firman son del ingeniero**, no de quien escribe el código.
   ⚠️ El alta NO se ha ejercitado contra producción: las acciones no se borran por diseño y no se
   quiso dejar un registro de prueba en el análisis real (decisión del Ingeniero, 05-08). Verificada
   por pruebas y contra las reglas leídas a mano.
-- El informe del análisis con sus límites impresos está pendiente.
+- ~~El sondeo de clima no se guardaba~~ → **SALDADO el 2026-08-05.** Se congela como documento
+  inmutable (`sondeos_clima`, sin `update` ni `delete` ni para el administrador): un informe firmado
+  tiene que enseñar lo que IDEAM decía ese día aunque después corrijan la serie. Al implementarlo se
+  cazó un hueco del propio contrato: `SondeoClima` guardaba la estación pero NO la coordenada
+  consultada, así que un sondeo guardado era ininterpretable en un análisis que abarca varios apoyos
+  — la nota dice «a N km del punto» sin que conste cuál era. Se añadió `punto`. Consultar y guardar
+  son dos actos distintos: guardar al consultar llenaría el expediente de tanteos.
+- El informe del análisis con sus límites impresos está pendiente. Ya tiene todo lo que necesita:
+  los descartes con motivo, el árbol con barreras, las hipótesis con su refutación, las ausencias,
+  las acciones con sus defectos y el clima congelado con su nota de límites.
 
 ### Crudo de respaldo
 
