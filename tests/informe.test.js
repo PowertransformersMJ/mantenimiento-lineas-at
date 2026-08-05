@@ -212,18 +212,40 @@ describe('informe — la carga sobre las estructuras', () => {
     assert.match(html, /carga permanente, no depende del viento/);
   });
 
-  test('con capacidad declarada dice cuántos tienen veredicto y cuántos piden revisión', () => {
-    assert.match(html, /1 de 3 apoyos<\/b> tienen capacidad declarada/);
+  test('con veredictos dice cuántos hay y cuántos piden revisión', () => {
+    assert.match(html, /1 de 3 apoyos<\/b> llevan veredicto/);
     assert.match(html, /1 pide\(n\) revisión/);
   });
 
-  test('sin ninguna capacidad declarada, lo dice y NO estima', () => {
-    const sinCapacidad = CARGAS.map((c) => ({ ...c, utilizacion_pct: null, margen_kgf: null,
-      estadoUtilizacion: 'no_evaluable' }));
-    const h = informeHtml(base({ cargas: sinCapacidad }));
-    assert.match(h, /Ningún apoyo declara su capacidad/);
+  test('sin NADA declarado, lo dice y NO estima', () => {
+    // Se construye el hueco de verdad: ni carga de rotura ni veredicto.
+    const vacio = CARGAS.map((c) => ({ ...c, utilizacion_pct: null, margen_kgf: null,
+      estadoUtilizacion: 'no_evaluable', capacidadDeclarada: false,
+      faltaParaVeredicto: ['carga de rotura del apoyo', 'altura libre sobre el terreno'] }));
+    const h = informeHtml(base({ cargas: vacio }));
+    assert.match(h, /Ningún apoyo declara su carga de rotura/);
     assert.match(h, /informe firmado sobre una suposición/);
     assert.doesNotMatch(h, /todos cumplen/);
+  });
+
+  test('EL CASO QUE ANTES MENTÍA: hay carga de rotura declarada y CERO veredictos', () => {
+    // Este informe deducía «ningún apoyo declara su capacidad» de que no hubiera
+    // ni un veredicto. Son dos hechos distintos: un apoyo puede declarar su
+    // rotura y no ser dictaminable porque le falta la altura libre. Mientras el
+    // inventario estuvo vacío del todo la frase coincidía por casualidad; con el
+    // primer dato real habría sido FALSA en un papel firmado.
+    const conRoturaSinVeredicto = CARGAS.map((c) => ({ ...c,
+      utilizacion_pct: null, margen_kgf: null, estadoUtilizacion: 'no_evaluable',
+      capacidadDeclarada: true,
+      faltaParaVeredicto: ['altura libre sobre el terreno'] }));
+    const h = informeHtml(base({ cargas: conRoturaSinVeredicto }));
+
+    assert.doesNotMatch(h, /Ningún apoyo declara su carga de rotura/,
+      'el informe niega una capacidad que SÍ está declarada');
+    assert.match(h, /3 de 3 apoyos declaran su carga de rotura, y ninguno lleva veredicto/);
+    // Y nombra dónde está el hueco de verdad, que es lo accionable.
+    assert.match(h, /altura libre sobre el terreno/);
+    assert.match(h, /El hueco NO está en la carga de rotura/);
   });
 
   test('sin la tabla de cargas, el informe lo declara en vez de callarlo', () => {

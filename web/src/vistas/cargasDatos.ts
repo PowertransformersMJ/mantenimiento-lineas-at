@@ -78,6 +78,14 @@ export interface FilaCargaApoyo {
   utilizacion_pct: number | null;
   margen_kgf: number | null;
   estadoUtilizacion: 'cumple' | 'revisar' | 'no_evaluable';
+  /**
+   * ⚠️ NO es lo mismo que tener veredicto, y confundirlos ya produjo una frase
+   * falsa en el informe. Un apoyo puede declarar su carga de rotura y seguir sin
+   * utilización porque le falta la altura libre. Se cuenta, no se deduce.
+   */
+  capacidadDeclarada: boolean;
+  /** Qué le falta a este apoyo para poder ser dictaminado, nombrado. */
+  faltaParaVeredicto: string[];
   /** Supuestos y avisos de ESTA fila, ya redactados por el núcleo. */
   notas: string[];
   /** Motivo, cuando no se pudo calcular la carga. Prosa lista para imprimir. */
@@ -211,6 +219,8 @@ export function cargasParaPantalla(
     utilizacion_pct: r.utilizacion?.utilizacion_pct ?? null,
     margen_kgf: r.utilizacion?.margen_kgf ?? null,
     estadoUtilizacion: r.utilizacion?.estado ?? 'no_evaluable',
+    capacidadDeclarada: r.capacidadDeclarada === true,
+    faltaParaVeredicto: r.faltaParaVeredicto ?? [],
     notas: r.notas,
     noEvaluable: r.noEvaluable,
   }));
@@ -436,6 +446,8 @@ interface CrudaDelNucleo {
   ftViento_kgf: number | null;
   ftTotal_kgf: number | null;
   componentes: { amplificaTension: boolean | null; hipotesisComposicion: string };
+  capacidadDeclarada: boolean;
+  faltaParaVeredicto: string[];
   utilizacion: { utilizacion_pct: number; margen_kgf: number; estado: 'cumple' | 'revisar' } | null;
   notas: string[];
   noEvaluable: string | null;

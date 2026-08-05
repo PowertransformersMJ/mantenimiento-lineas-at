@@ -351,6 +351,11 @@ export function utilizacionApoyo(entrada) {
  * @property {number|null} ftViento_kgf
  * @property {number|null} ftTotal_kgf
  * @property {number|null} ftAnguloTiroMaximo_kgf  quiebre solo, con el tiro máximo (sin viento)
+ * @property {boolean} capacidadDeclarada    el apoyo declara una carga de rotura positiva.
+ *                                           ⚠️ NO implica que tenga veredicto: puede faltarle la
+ *                                           altura libre. Deducir uno del otro ya metió una frase
+ *                                           falsa en el informe firmado.
+ * @property {string[]} faltaParaVeredicto   qué le falta para poder ser dictaminado, nombrado
  *
  * `componentes` se describe entero y no como `Object` a secas: TypeScript lee
  * este JSDoc desde las vistas (web/ compila con `allowJs`), y un `Object` sin
@@ -526,6 +531,12 @@ export function cargasDeLaLinea(apoyos, tramos, conductor, hipotesis) {
       ftAnguloTiroMaximo_kgf,
       componentes: r.componentes,
       utilizacion,
+      // ── Los DOS hechos, publicados por separado ──────────────────────────
+      // «declara su carga de rotura» y «tiene veredicto» NO son lo mismo, y
+      // confundirlos ya produjo una frase falsa en el informe. Aquí van
+      // sueltos para que nadie tenga que deducir uno del otro.
+      capacidadDeclarada: positivo(a?.cargaRotura_kgf) !== null,
+      faltaParaVeredicto: faltaParaVeredicto(a),
       notas,
       // Prosa, para que el informe pueda imprimir el hueco tal cual. La versión
       // corta y filtrable de lo mismo está en `componentes.faltan`.
@@ -719,6 +730,28 @@ const maxNoNulo = (xs) => {
 };
 
 /**
+ * Qué le falta a este apoyo para poder ser dictaminado, en forma de LISTA — no
+ * de frase.
+ *
+ * POR QUÉ EXISTE SEPARADO DE LA PROSA, y no es un capricho: el informe imprimía
+ * «Ningún apoyo declara su capacidad» cuando NINGUNA FILA TENÍA VEREDICTO. Son
+ * dos cosas distintas. Un apoyo puede declarar su carga de rotura y seguir sin
+ * veredicto porque le falta la altura libre — y entonces esa frase es falsa en
+ * un papel firmado. Como el único sitio donde se sabía qué faltaba era una
+ * cadena de texto, el informe no tenía más remedio que deducirlo mal.
+ *
+ * Ahora el hecho se publica contable: quien quiera decir «X de Y declaran su
+ * carga de rotura» puede contarlo, en vez de inferirlo de otra cosa.
+ */
+function faltaParaVeredicto(a) {
+  const faltantes = [];
+  if (positivo(a?.cargaRotura_kgf) === null) faltantes.push('carga de rotura del apoyo');
+  if (positivo(a?.alturaLibre_m) === null) faltantes.push('altura libre sobre el terreno');
+  if (positivo(a?.alturaAplicacion_m) === null) faltantes.push('altura del punto de sujeción');
+  return faltantes;
+}
+
+/**
  * Por qué esta fila no tiene utilización. Se distingue el caso «no hay carga que
  * comparar» del caso «no hay capacidad declarada»: el primero se arregla con
  * datos de cálculo, el segundo solo con el inventario del apoyo.
@@ -727,10 +760,7 @@ function avisoDeCapacidad(a, ftTotal_kgf) {
   if (ftTotal_kgf === null) {
     return 'Sin utilización: primero falta la carga total (ver el motivo de no evaluable).';
   }
-  const faltantes = [];
-  if (positivo(a?.cargaRotura_kgf) === null) faltantes.push('carga de rotura del apoyo');
-  if (positivo(a?.alturaLibre_m) === null) faltantes.push('altura libre sobre el terreno');
-  if (positivo(a?.alturaAplicacion_m) === null) faltantes.push('altura del punto de sujeción');
+  const faltantes = faltaParaVeredicto(a);
 
   // No falta nada y aun así no hubo resultado: los datos se contradicen entre
   // sí. Se dice cuál es la contradicción, porque se corrige en el inventario.

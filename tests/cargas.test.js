@@ -374,6 +374,27 @@ const W_VIENTO = (Q_PA * 1.0 * 0.024) / 9.80665;  // ≈ 0,91774 kg/m
 
 describe('cargasDeLaLinea — la tabla que se lleva al informe', () => {
 
+  test('DECLARAR la capacidad y TENER veredicto son dos hechos distintos', () => {
+    // El informe deducía uno del otro y por eso llegó a afirmar «ningún apoyo
+    // declara su capacidad» cuando lo que pasaba era que ninguno tenía
+    // veredicto. Aquí se construye justo el caso que los separa: AP-04 declara
+    // su carga de rotura y NO puede ser dictaminado, porque no trae altura libre.
+    const linea = lineaSintetica().map((a) =>
+      a.nombre === 'AP-04' ? { ...a, alturaLibre_m: undefined } : a);
+    const filas = cargasDeLaLinea(linea, tramosSinteticos(), CONDUCTOR, HIPOTESIS);
+    const ap04 = filas.find((f) => f.apoyo === 'AP-04');
+
+    assert.equal(ap04.capacidadDeclarada, true, 'declara 9000 kgf de rotura');
+    assert.equal(ap04.utilizacion, null, 'y aun así no se le puede dictaminar');
+    assert.deepEqual(ap04.faltaParaVeredicto, ['altura libre sobre el terreno'],
+      'tiene que decir QUÉ falta, no solo que falta algo');
+
+    // El apoyo que no declara nada sí dice que no declara nada.
+    const ap01 = filas.find((f) => f.apoyo === 'AP-01');
+    assert.equal(ap01.capacidadDeclarada, false);
+    assert.ok(ap01.faltaParaVeredicto.includes('carga de rotura del apoyo'));
+  });
+
   test('una fila por ESTRUCTURA: el empalme no inventa un apoyo', () => {
     // Un empalme puede colgar a mitad de vano. Darle fila partiría el vano real
     // en dos y le atribuiría a un apoyo que no existe la carga de los que sí.

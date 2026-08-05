@@ -647,17 +647,46 @@ function seccionCargas(cargas) {
     : 'Ninguna estructura supera el factor 1: en toda la línea el quiebre deja sobre el apoyo menos '
       + 'carga transversal que la propia tensión del conductor.';
 
+  // ⚠️ «declara su carga de rotura» y «tiene veredicto» son DOS HECHOS DISTINTOS.
+  // Este párrafo deducía el primero del segundo —si ninguna fila tenía veredicto,
+  // afirmaba que ningún apoyo declaraba su capacidad— y eso es falso en cuanto un
+  // apoyo declare su rotura y le falte la altura libre. Coincidía por casualidad
+  // mientras el inventario estaba vacío del todo. Ahora cada hecho se cuenta por
+  // su lado, porque el núcleo los publica sueltos.
+  const conCapacidad = cargas.filter((c) => c?.capacidadDeclarada === true);
+  const faltas = new Map();
+  for (const c of cargas) {
+    if (c?.utilizacion_pct !== null && c?.utilizacion_pct !== undefined) continue;
+    for (const q of c?.faltaParaVeredicto ?? []) faltas.set(q, (faltas.get(q) ?? 0) + 1);
+  }
+  const detalleFaltas = [...faltas.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([q, k]) => `${q} en ${n(k)}`)
+    .join(', ');
+
+  const semaforo = `El semáforo de la última columna compara la utilización contra el `
+    + `<b>${n(UMBRAL_UTILIZACION_PCT)} % adoptado</b>, que no es una norma citada sino un criterio de `
+    + 'este proyecto: va escrito al pie de la tabla, porque un semáforo sin fuente es una opinión con '
+    + 'colores.';
+  const noSeEstima = 'No se estima: un apoyo que «cumple» contra una capacidad supuesta es un informe '
+    + 'firmado sobre una suposición.';
+
   const capacidad = conUtil.length
-    ? `<b>${n(conUtil.length)} de ${n(cargas.length)} apoyos</b> tienen capacidad declarada y por `
-      + `tanto veredicto${revisar.length ? `; ${n(revisar.length)} pide(n) revisión` : ', y todos cumplen'}. `
-      + `El semáforo de la última columna compara la utilización contra el <b>${n(UMBRAL_UTILIZACION_PCT)} % `
-      + 'adoptado</b>, que no es una norma citada sino un criterio de este proyecto: va escrito al pie '
-      + 'de la tabla, porque un semáforo sin fuente es una opinión con colores.'
-    : `<b>Ningún apoyo declara su capacidad</b>, así que ninguna fila lleva veredicto. La tabla dice `
-      + 'cuánto se les está pidiendo; no puede decir cuánto aguantan. Falta inventario —carga de '
-      + 'rotura, altura libre y altura del punto de sujeción—, y hasta que llegue el estado correcto '
-      + 'es «no evaluable». No se estima: un apoyo que «cumple» contra una capacidad supuesta es un '
-      + 'informe firmado sobre una suposición.';
+    ? `<b>${n(conUtil.length)} de ${n(cargas.length)} apoyos</b> llevan veredicto`
+      + `${revisar.length ? `; ${n(revisar.length)} pide(n) revisión` : ', y todos cumplen'}. `
+      + `De los ${n(cargas.length)}, <b>${n(conCapacidad.length)} declaran su carga de rotura</b>`
+      + `${detalleFaltas ? `; a los que siguen sin veredicto les falta ${detalleFaltas}` : ''}. `
+      + semaforo
+    : conCapacidad.length
+      // El caso que antes mentía: hay capacidad declarada y aun así cero veredictos.
+      ? `<b>${n(conCapacidad.length)} de ${n(cargas.length)} apoyos declaran su carga de rotura, y `
+        + 'ninguno lleva veredicto.</b> El hueco NO está en la carga de rotura: falta '
+        + `${detalleFaltas || 'otro dato del inventario'}. Corregir el inventario donde el hueco no `
+        + `está no cambiará nada. ${noSeEstima}`
+      : `<b>Ningún apoyo declara su carga de rotura</b>, así que ninguna fila lleva veredicto. La `
+        + 'tabla dice cuánto se les está pidiendo; no puede decir cuánto aguantan. Falta inventario '
+        + '—carga de rotura, altura libre y altura del punto de sujeción—, y hasta que llegue, el '
+        + `estado correcto es «no evaluable». ${noSeEstima}`;
 
   return parrafo('En cada quiebre el conductor deja sobre el apoyo una resultante que vale '
     + '<b>2 · tiro · sen(ángulo/2)</b> por conductor; a 60° iguala la tensión y por encima la supera. '
