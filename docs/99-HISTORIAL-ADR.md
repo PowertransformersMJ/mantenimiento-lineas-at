@@ -1849,9 +1849,13 @@ se firman son del ingeniero**, no de quien escribe el código.
   consultada, así que un sondeo guardado era ininterpretable en un análisis que abarca varios apoyos
   — la nota dice «a N km del punto» sin que conste cuál era. Se añadió `punto`. Consultar y guardar
   son dos actos distintos: guardar al consultar llenaría el expediente de tanteos.
-- El informe del análisis con sus límites impresos está pendiente. Ya tiene todo lo que necesita:
-  los descartes con motivo, el árbol con barreras, las hipótesis con su refutación, las ausencias,
-  las acciones con sus defectos y el clima congelado con su nota de límites.
+- ~~El informe del análisis está pendiente~~ → **SALDADO el 2026-08-05** (`exportar/informeRca.js`).
+  Autocontenido, y con la **sección de límites obligatoria que se arma SOLA** del dato: familias sin
+  mirar (que no es lo mismo que descartadas), condiciones sin cumplir al declarar la causa,
+  afirmaciones sin evidencia, defensas sin acción, límites del clima, y **siempre** el hueco de los
+  rayos. Se puede imprimir a medias: la portada dice AVANCE o CONCLUSIÓN con una palabra, sin barra
+  ni porcentaje. El papel se reutiliza de `informe.js` exportando sus primitivas, sin mover código.
+- Queda el lienzo del árbol, que es cosmético: en papel una lista sangrada se lee igual de bien.
 
 ### Crudo de respaldo
 
