@@ -822,6 +822,9 @@ p.fund-vivo + .sello-calculo { margin-top: 5px; }
 /* Carriles de comprobación (TODO-53): una marca por apoyo y por eje. Maciza =
    hay veredicto en ese eje; punteada = falta. Se distinguen por FORMA además de
    por tono, para que se lean sin depender del color. */
+.rca-lista { margin: 6px 0 0; padding-left: 18px; font-size: .84rem; color: var(--mut); }
+.rca-lista li { margin: 3px 0; font-variant-numeric: tabular-nums; }
+
 .hz-carril-rot { fill: var(--hz-marca-rot); font-size: 9px; letter-spacing: .02em; }
 .hz-marca-si { fill: var(--hz-marca); stroke: none; }
 .hz-marca-no { fill: none; stroke: var(--hz-marca); stroke-width: 1; stroke-dasharray: 1.8 1.6; }

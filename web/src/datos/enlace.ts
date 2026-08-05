@@ -17,7 +17,7 @@
 // la pestaña — sin avisar, con el técnico en mitad de una inspección.
 // ============================================================================
 import { useSyncExternalStore } from 'react';
-import type { AccionCapa, AnalisisCausa, Evidencia, Linea } from '@lineas/contratos';
+import type { AccionCapa, AnalisisCausa, Evidencia, Linea, SondeoClima } from '@lineas/contratos';
 import { cargarFirebase } from './cargar';
 import { repositorio, usarRepositorio, type EstadoDatos, type EstadoRca } from './repositorio';
 import { repositorioFirestore } from './firestore';
@@ -109,7 +109,12 @@ class Almacen {
       acciones = await repositorio.listarAcciones(a.id);
     } catch { /* el análisis se abre igual */ }
 
-    this.#ponerRca({ fase: 'abierto', analisis: a, indice, evidencias, acciones });
+    let sondeos: SondeoClima[] = [];
+    try {
+      sondeos = await repositorio.listarSondeos(a.id);
+    } catch { /* el análisis se abre igual */ }
+
+    this.#ponerRca({ fase: 'abierto', analisis: a, indice, evidencias, acciones, sondeos });
   }
 
   /**
@@ -140,6 +145,24 @@ class Almacen {
       this.#ponerRca({ ...r, acciones: await repositorio.listarAcciones(r.analisis.id) });
     } catch (e) {
       this.#ponerRca({ fase: 'error', mensaje: e instanceof Error ? e.message : 'no se pudo guardar la acción' });
+    }
+  }
+
+  /**
+   * Congela un sondeo de clima en el expediente y refresca la lista.
+   *
+   * Es una escritura ÚNICA: no se puede corregir después, ni por el
+   * administrador. Por eso guardar es un acto DELIBERADO y no un efecto de
+   * haber consultado — consultar es mirar; guardar es dejar constancia.
+   */
+  async guardarSondeo(sondeo: Record<string, unknown>): Promise<void> {
+    const r = this.#rca;
+    if (r.fase !== 'abierto') return;
+    try {
+      await repositorio.guardarSondeo(r.analisis.id, sondeo);
+      this.#ponerRca({ ...r, sondeos: await repositorio.listarSondeos(r.analisis.id) });
+    } catch (e) {
+      this.#ponerRca({ fase: 'error', mensaje: e instanceof Error ? e.message : 'no se pudo guardar el sondeo' });
     }
   }
 

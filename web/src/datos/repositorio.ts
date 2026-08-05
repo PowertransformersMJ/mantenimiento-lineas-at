@@ -15,7 +15,7 @@
 // Este módulo es AGNÓSTICO a la interfaz: no toca el DOM. Si mañana cambia el
 // framework de pantallas, esto sobrevive intacto.
 // ============================================================================
-import type { AccionCapa, Apoyo, AnalisisCausa, Conductor, Evidencia, Hipotesis, Investigacion, Linea } from '@lineas/contratos';
+import type { AccionCapa, Apoyo, AnalisisCausa, Conductor, Evidencia, Hipotesis, Investigacion, Linea, SondeoClima } from '@lineas/contratos';
 
 export type EstadoSesion =
   | { fase: 'comprobando' }
@@ -53,7 +53,7 @@ export type EstadoRca =
   | { fase: 'cerrado' }                                   // el segmento no está abierto
   | { fase: 'cargando' }
   | { fase: 'indice'; analisis: AnalisisCausa[] }
-  | { fase: 'abierto'; analisis: AnalisisCausa; indice: AnalisisCausa[]; evidencias: Evidencia[]; acciones: AccionCapa[] }
+  | { fase: 'abierto'; analisis: AnalisisCausa; indice: AnalisisCausa[]; evidencias: Evidencia[]; acciones: AccionCapa[]; sondeos: SondeoClima[] }
   | { fase: 'error'; mensaje: string };
 
 /**
@@ -91,6 +91,18 @@ export interface Repositorio {
   crearAccion(analisisId: string, datos: { clase: 'correctiva' | 'preventiva'; que: string }): Promise<string | null>;
   /** Guarda un cambio de una acción. Se valida contra el contrato antes de escribir. */
   guardarAccion(accionId: string, parche: Record<string, unknown>, revision: number): Promise<void>;
+
+  /** Los sondeos de clima ya guardados de un análisis. */
+  listarSondeos(analisisId: string): Promise<SondeoClima[]>;
+  /**
+   * Congela un sondeo en el expediente.
+   *
+   * NO es una caché: es un HECHO FECHADO. Si mañana IDEAM corrige la serie, el
+   * informe firmado tiene que seguir mostrando lo que se consultó el día que se
+   * firmó — por eso las reglas hacen `sondeos_clima` inmutable: se crea y no se
+   * actualiza, ni por el administrador.
+   */
+  guardarSondeo(analisisId: string, sondeo: Record<string, unknown>): Promise<string | null>;
 }
 
 /**
@@ -127,6 +139,12 @@ export const repositorioSinSesion: Repositorio = {
   },
   async guardarAccion() {
     /* sin sesión no se escribe nada */
+  },
+  async listarSondeos() {
+    return [];
+  },
+  async guardarSondeo() {
+    return null;
   },
 };
 

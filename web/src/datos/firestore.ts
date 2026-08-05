@@ -8,7 +8,7 @@
 // la frontera. Un documento que no cumple el esquema no entra al cálculo — y el
 // cálculo es lo que el Ingeniero firma.
 // ============================================================================
-import { AccionCapa, AnalisisCausa, Apoyo, Evidencia, Hipotesis, Investigacion, Linea, ParteDeAccion, ParteDeAnalisis } from '@lineas/contratos';
+import { AccionCapa, AnalisisCausa, Apoyo, Evidencia, Hipotesis, Investigacion, Linea, ParteDeAccion, ParteDeAnalisis, SondeoClima } from '@lineas/contratos';
 import { cargarFirebase } from './cargar';
 import type { EstadoDatos, EstadoSesion, Repositorio } from './repositorio';
 
@@ -342,6 +342,59 @@ export const repositorioFirestore: Repositorio = {
       actualizadoPor: u.uid,
       revision: revision + 1,
     });
+  },
+
+  /** Los sondeos de clima ya congelados de un análisis. */
+  async listarSondeos(analisisId: string): Promise<SondeoClima[]> {
+    const { esperarSesion, credenciales, baseDatos } = await cargarFirebase();
+    const { collection, getDocs, limit, query, where } = await firestore();
+    const u = await esperarSesion();
+    if (!u) return [];
+    const { orgId } = await credenciales(u);
+    if (!orgId) return [];
+
+    const s = await getDocs(query(
+      collection(await baseDatos(), 'sondeos_clima'),
+      where('orgId', '==', orgId),
+      where('analisisId', '==', analisisId),
+      limit(50),
+    ));
+    return s.docs
+      .map((d) => validar<SondeoClima>(SondeoClima, d.data()))
+      .filter((x): x is SondeoClima => x !== null);
+  },
+
+  /**
+   * Congela un sondeo en el expediente.
+   *
+   * ES UNA ESCRITURA ÚNICA. Las reglas niegan `update` y `delete` —ni el
+   * administrador— porque esto no es una caché: es la prueba de qué decía IDEAM
+   * el día que se consultó. Si mañana corrigen la serie, el informe firmado
+   * tiene que seguir enseñando lo que se vio. Permitir actualizarlo convertiría
+   * una prueba en una opinión editable.
+   *
+   * Se valida contra el contrato antes de mandarlo, como todo lo que se escribe.
+   */
+  async guardarSondeo(analisisId: string, sondeo: Record<string, unknown>): Promise<string | null> {
+    const { esperarSesion, credenciales, baseDatos } = await cargarFirebase();
+    const { doc, setDoc } = await firestore();
+    const u = await esperarSesion();
+    if (!u) return null;
+    const { orgId } = await credenciales(u);
+    if (!orgId) return null;
+
+    const id = crypto.randomUUID();
+    const doc_ = {
+      ...sondeo,
+      id, orgId, tipo: 'sondeo_clima' as const,
+      creadoEn: new Date().toISOString(), creadoPor: u.uid, revision: 0,
+      analisisId,
+    };
+    const r = SondeoClima.safeParse(doc_);
+    if (!r.success) throw new Error('El sondeo no cumple el contrato: ' + r.error.issues[0]?.message);
+
+    await setDoc(doc(await baseDatos(), 'sondeos_clima', id), doc_);
+    return id;
   },
 
   async evidenciasDeAnalisis(analisisId: string, investigacionIds: string[]): Promise<Evidencia[]> {

@@ -25,7 +25,7 @@
 // ============================================================================
 import { useState } from 'react';
 import { evaluarEspinas, condicionesCausaRaiz, auditarRespaldo } from '@lineas/nucleo/rca';
-import type { AccionCapa, AnalisisCausa, Evidencia } from '@lineas/contratos';
+import type { AccionCapa, AnalisisCausa, Evidencia, SondeoClima } from '@lineas/contratos';
 import { almacen, useRca } from '../datos/enlace';
 import { EditorPorques, EditorArbol, EditorHipotesis, EditorAusencias, EditorAcciones, ClimaEvento } from './RcaEditores';
 import { nf } from '../vistas/formato';
@@ -101,7 +101,7 @@ function Indice({ analisis }: { analisis: AnalisisCausa[] }) {
 
 // ── Un análisis abierto ─────────────────────────────────────────────────────
 
-function Abierto({ a, evidencias, acciones }: { a: AnalisisCausa; evidencias: Evidencia[]; acciones: AccionCapa[] }) {
+function Abierto({ a, evidencias, acciones, sondeos }: { a: AnalisisCausa; evidencias: Evidencia[]; acciones: AccionCapa[]; sondeos: SondeoClima[] }) {
   const cond = condicionesCausaRaiz(a);
   const respaldo = auditarRespaldo(a);
   const faltan = cond.condiciones.filter((c) => !c.cumple);
@@ -118,7 +118,7 @@ function Abierto({ a, evidencias, acciones }: { a: AnalisisCausa; evidencias: Ev
       <EditorPorques a={a} evidencias={evidencias} />
       <EditorArbol a={a} evidencias={evidencias} />
       <EditorHipotesis a={a} evidencias={evidencias} />
-      <ClimaEvento />
+      <ClimaEvento sondeos={sondeos} />
       <EditorAusencias a={a} />
       {/* Las acciones van DESPUÉS de las ausencias y ANTES de declarar la causa:
           se pueden proponer sin causa raíz declarada —en mantenimiento real las
@@ -392,7 +392,7 @@ export function Rca() {
       {r.fase === 'cargando' && <section className="panel vacio"><div className="vacio-t">Cargando…</div></section>}
       {r.fase === 'error' && <section className="panel vacio"><div className="vacio-t">No se pudo leer</div><p className="vacio-c">{r.mensaje}</p></section>}
       {r.fase === 'indice' && <Indice analisis={r.analisis} />}
-      {r.fase === 'abierto' && <Abierto a={r.analisis} evidencias={r.evidencias} acciones={r.acciones} />}
+      {r.fase === 'abierto' && <Abierto a={r.analisis} evidencias={r.evidencias} acciones={r.acciones} sondeos={r.sondeos} />}
     </div>
   );
 }

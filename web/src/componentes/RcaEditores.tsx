@@ -15,7 +15,7 @@
 // ============================================================================
 import { useState } from 'react';
 import { fuerzaCadena, diagnosticoCadena, validarArbol, resumenBarreras, revisarHipotesis, resumenAcciones } from '@lineas/nucleo/rca';
-import type { AccionCapa, AnalisisCausa, Evidencia } from '@lineas/contratos';
+import type { AccionCapa, AnalisisCausa, Evidencia, SondeoClima } from '@lineas/contratos';
 import { almacen } from '../datos/enlace';
 
 export const ESPINAS_UI: [string, string][] = [
@@ -421,13 +421,39 @@ export function EditorAusencias({ a }: { a: AnalisisCausa }) {
  * tercero es un acto deliberado que produce un hecho fechado, no un efecto
  * secundario de mirar una pantalla.
  */
-export function ClimaEvento() {
+export function ClimaEvento({ sondeos }: { sondeos: SondeoClima[] }) {
   const [lat, setLat] = useState('');
   const [lon, setLon] = useState('');
   const [cuando, setCuando] = useState('');
   const [r, setR] = useState<any>(null);
   const [cargando, setCargando] = useState(false);
   const [fallo, setFallo] = useState<string | null>(null);
+  const [guardando, setGuardando] = useState(false);
+
+  /**
+   * CONSULTAR ES MIRAR; GUARDAR ES DEJAR CONSTANCIA. Son dos actos, y el segundo
+   * no se puede deshacer: las reglas niegan `update` y `delete` sobre los
+   * sondeos, ni para el administrador. Guardar automáticamente al consultar
+   * llenaría el expediente de tanteos y convertiría la prueba en ruido.
+   */
+  const guardar = async () => {
+    if (!r) return;
+    setGuardando(true);
+    try {
+      await almacen.guardarSondeo({
+        consultadoEn: new Date().toISOString(),
+        punto: { lat: Number(lat), lon: Number(lon), ocurrioEn: new Date(cuando).toISOString() },
+        desde: r.desde, hasta: r.hasta,
+        estacion: r.estacion,
+        interpretacionHoraria: 'La hora de IDEAM viene sin zona horaria; se interpreta como hora de Colombia (UTC-5). Esa interpretación es NUESTRA, no del dato.',
+        series: r.series.map((x: any) => ({ variable: x.variable, conjunto: x.conjunto, unidad: x.unidad, n: x.n, valores: x.valores })),
+        ...(r.ultimoDatoDisponible ? { ultimoDatoDisponible: r.ultimoDatoDisponible } : {}),
+        fueraDeVentana: r.fueraDeVentana,
+        nota: r.nota,
+      });
+      setR(null);   // ya está en el expediente: se deja de enseñar como borrador
+    } finally { setGuardando(false); }
+  };
 
   const consultar = async () => {
     setFallo(null); setCargando(true); setR(null);
@@ -451,6 +477,28 @@ export function ClimaEvento() {
         exacta: el registro de consultas de un tercero no tiene por qué saber dónde está la torre.
       </p>
 
+      {sondeos.length > 0 && (
+        <div className="rca-cadena">
+          <p className="fine">
+            <b>{sondeos.length === 1 ? '1 sondeo congelado' : `${sondeos.length} sondeos congelados`} en el
+            expediente.</b> Lo que se guardó es lo que IDEAM decía ese día: si mañana corrigen la
+            serie, el informe firmado tiene que seguir enseñando esto. Por eso no se puede editar
+            ni borrar, tampoco por el administrador.
+          </p>
+          <ul className="rca-lista">
+            {sondeos.map((s) => (
+              <li key={s.id}>
+                <b>{String(s.consultadoEn).slice(0, 16).replace('T', ' ')}</b>
+                {' · '}{s.estacion.nombre} a {s.estacion.distancia_km} km
+                {' · '}punto {s.punto.lat.toFixed(4)}, {s.punto.lon.toFixed(4)}
+                {' · '}{s.series.reduce((n, x) => n + x.n, 0)} lecturas
+                {s.fueraDeVentana ? ' · el evento era posterior a lo publicado' : ''}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className="calc-fila">
         <label className="calc-campo"><span>Latitud</span>
           <input value={lat} onChange={(e) => setLat(e.target.value)} placeholder="10.42" /></label>
@@ -470,6 +518,15 @@ export function ClimaEvento() {
           {/* La nota va ARRIBA del dato, no debajo: los límites se leen antes
               que la cifra, o la cifra ya formó la conclusión. */}
           <p className="aviso">{r.nota}</p>
+
+          <div className="rca-guardar">
+            <button type="button" className="boton chico" disabled={guardando} onClick={() => void guardar()}>
+              {guardando ? 'Congelando…' : 'Congelar este sondeo en el expediente'}
+            </button>
+            <span className="fine">
+              Se guarda tal cual llegó, con su fecha. No se podrá editar ni borrar después.
+            </span>
+          </div>
 
           {r.series.length > 0 && (
             <div className="tabla-caja">

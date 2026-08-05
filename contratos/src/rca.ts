@@ -475,6 +475,23 @@ export const SondeoClima = Base.extend({
   tipo: z.literal('sondeo_clima'),
   analisisId: Id,
   consultadoEn: Instante,
+  /**
+   * QUÉ PUNTO se consultó, y cuándo se dijo que ocurrió el evento.
+   *
+   * Sin esto un sondeo guardado no se puede interpretar: un análisis puede
+   * abarcar varios apoyos de varias líneas, y la nota dice «a N km del punto»
+   * sin que conste cuál era el punto. Un dato meteorológico que no sabe de dónde
+   * es no sirve para defender nada — y este documento existe para defender.
+   *
+   * Va en la base PRIVADA, nunca en el repositorio público: es la coordenada de
+   * un activo de cliente, igual que las de `apoyos`.
+   */
+  punto: z.object({
+    lat: z.number().min(-90).max(90),
+    lon: z.number().min(-180).max(180),
+    /** La hora del evento tal como se tecleó, que es lo que gobernó la ventana. */
+    ocurrioEn: Instante,
+  }),
   /** La ventana de tiempo que se pidió, alrededor del evento. */
   desde: Instante,
   hasta: Instante,
