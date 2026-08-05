@@ -386,6 +386,81 @@ export const ParteDeAnalisis = FormaAnalisis.pick({
 
 export type ParteDeAnalisis = z.infer<typeof ParteDeAnalisis>;
 
+// ── LAS ACCIONES CAPA, COMO DOCUMENTOS PROPIOS ──────────────────────────────
+
+/**
+ * Una acción correctiva o preventiva, en su PROPIA colección.
+ *
+ * POR QUÉ NO VIVE DENTRO DEL ANÁLISIS, aunque `AnalisisCausa.acciones` exista y
+ * se quede ahí vacío: **dentro de un array las reglas de Firestore no pueden
+ * distinguir «cerrar una acción» de «reescribir el razonamiento»**. Las dos
+ * llegan como una escritura sobre el mismo documento. Y un análisis tiene que
+ * poder congelarse el día que se firma mientras sus acciones siguen vivas
+ * durante meses — que es exactamente el ciclo real del mantenimiento. Con las
+ * acciones dentro, o se congela todo o no se congela nada.
+ *
+ * ADITIVO: `AnalisisCausa.acciones` no se toca ni se migra. Nunca lo escribió
+ * ninguna pantalla, así que no hay un solo documento que convertir.
+ *
+ * LO QUE ESTE ESQUEMA **NO** HACE CUMPLIR, y es deliberado: las reglas duras
+ * («no se cierra sin prueba», «una correctiva cerrada tiene que decir qué
+ * barrera cerró») viven en `nucleo/rca.js`, probadas. Un esquema que rechaza
+ * hace DESAPARECER el documento entero en la lectura siguiente; el núcleo
+ * SEÑALA y deja el documento visible con su defecto a la vista. Aquí solo se
+ * exige lo que es cierto siempre.
+ */
+export const AccionCapa = Base.extend({
+  tipo: z.literal('accion_capa'),
+  /** De qué análisis cuelga. Una acción huérfana no se puede auditar. */
+  analisisId: Id,
+  clase: z.enum(['correctiva', 'preventiva']),
+  /** Qué se va a hacer. En imperativo y concreto: es lo que alguien ejecuta. */
+  que: z.string().min(1).max(1000),
+  /**
+   * Sobre qué barrera actúa. OPCIONAL para guardar, y no por comodidad: con el
+   * árbol vacío y trece barreras en una lista cerrada, obligarla empuja a elegir
+   * una al azar con tal de poder guardar — el mismo atajo que vaciaba el
+   * Ishikawa y por el que se eliminó «no aplica». Se vuelve obligatoria para
+   * CERRAR una correctiva: un deseo puede existir sin barrera; un hecho
+   * consumado tiene que decir qué defensa dejó cerrada.
+   */
+  barrera: Barrera.optional(),
+  responsable: z.string().max(300).optional(),
+  plazo: z.string().max(100).optional(),
+  estado: z.enum(['propuesta', 'aprobada', 'en_curso', 'cerrada', 'descartada']).default('propuesta'),
+
+  // ── El cierre, y su prueba ────────────────────────────────────────────────
+  cerradaPor: Uid.optional(),
+  cerradaEn: Instante.optional(),
+  /** Evidencias que demuestran que se hizo. */
+  evidenciaIds: z.array(Id).default([]),
+  /**
+   * Cómo se comprobó, cuando no hay evidencia enlazada: acta, orden de trabajo,
+   * informe de cuadrilla.
+   *
+   * Existe porque el contrato admite a propósito un análisis SIN investigación
+   * en el alcance (el evento de las 2 de la mañana sin activo identificado), y
+   * las evidencias solo se pueden traer de las investigaciones del alcance.
+   * Exigir evidencia enlazada dejaría esas acciones sin poder cerrarse NUNCA.
+   * No se igualan las dos pruebas: el motor distingue cuál es, y el informe
+   * imprime «cerrada, probada solo con una nota escrita».
+   */
+  comoSeComprobo: z.string().max(1000).optional(),
+  /** Por qué se descarta. Sin motivo, descartar es esconder. */
+  motivoDescarte: z.string().max(1000).optional(),
+});
+
+export type AccionCapa = z.infer<typeof AccionCapa>;
+
+/** Lo editable de una acción. Mismo razonamiento que `ParteDeAnalisis`. */
+export const ParteDeAccion = AccionCapa.pick({
+  clase: true, que: true, barrera: true, responsable: true, plazo: true,
+  estado: true, cerradaPor: true, cerradaEn: true, evidenciaIds: true,
+  comoSeComprobo: true, motivoDescarte: true,
+}).partial().strict();
+
+export type ParteDeAccion = z.infer<typeof ParteDeAccion>;
+
 // ── EL SONDEO DE CLIMA ──────────────────────────────────────────────────────
 
 /**

@@ -412,3 +412,112 @@ export function auditarRespaldo({ espinas = [], cadenas = [], arbol = [], hipote
       : null,
   };
 }
+
+// ── LAS ACCIONES CAPA ───────────────────────────────────────────────────────
+
+/**
+ * Revisa el conjunto de acciones y publica sus defectos.
+ *
+ * LA PREGUNTA QUE ESTO CONTESTA no es «¿está bien rellenado el formulario?»,
+ * sino la que hace un auditor un año después: **¿se puede demostrar que esto se
+ * hizo?** Un plan de acciones que nadie puede comprobar es una lista de buenas
+ * intenciones con fecha.
+ *
+ * LAS TRES REGLAS, y ninguna es de gusto:
+ *
+ *   1. CERRAR EXIGE PRUEBA. Una acción `cerrada` sin quién y sin cuándo es una
+ *      casilla marcada. Y sin nada que la respalde —ni evidencia enlazada ni una
+ *      comprobación escrita— es peor: parece trabajo hecho.
+ *
+ *   2. UNA CORRECTIVA CERRADA TIENE QUE DECIR QUÉ BARRERA CERRÓ. Sin barrera se
+ *      puede PROPONER —un deseo puede existir— pero no dar por consumado: si no
+ *      se sabe qué defensa quedó cubierta, nadie sabe si la falla puede repetirse.
+ *
+ *   3. DESCARTAR EXIGE MOTIVO ESCRITO. Descartar sin decir por qué no es una
+ *      decisión: es hacer desaparecer la acción de la lista.
+ *
+ * NO SE ORDENAN NI SE PUNTÚAN. Ordenar es dictaminar (ADR-020), y aquí valdría
+ * lo mismo: la acción que va primero se lee como la más importante, y eso lo
+ * decide quien firma, no un criterio escrito en el código.
+ *
+ * @param {Array} [acciones]
+ */
+export function revisarAcciones(acciones = []) {
+  return acciones.map((a) => {
+    const defectos = [];
+    const evidencias = (a.evidenciaIds ?? []).length;
+    const escrita = Boolean(a.comoSeComprobo && String(a.comoSeComprobo).trim());
+
+    // Qué respalda el cierre. Las dos formas valen, y NO se igualan: el informe
+    // tiene que poder decir «cerrada, probada solo con una nota escrita».
+    const pruebaEs = evidencias > 0 ? 'evidencia' : escrita ? 'escrita' : null;
+
+    if (a.estado === 'cerrada') {
+      if (!a.cerradaPor) defectos.push('Cerrada sin decir QUIÉN la cerró.');
+      if (!a.cerradaEn) defectos.push('Cerrada sin decir CUÁNDO se cerró.');
+      if (pruebaEs === null) {
+        defectos.push(
+          'Cerrada sin ninguna prueba de que se hizo: ni evidencia enlazada ni comprobación '
+          + 'escrita. Una acción así parece trabajo hecho y no se puede demostrar.',
+        );
+      }
+      if (a.clase === 'correctiva' && !a.barrera) {
+        defectos.push(
+          'Correctiva cerrada sin decir qué barrera queda cubierta. Sin eso nadie sabe si la '
+          + 'falla puede repetirse por el mismo camino.',
+        );
+      }
+    }
+
+    if (a.estado === 'descartada' && !(a.motivoDescarte && String(a.motivoDescarte).trim())) {
+      defectos.push('Descartada sin motivo escrito: eso no es decidir, es hacerla desaparecer.');
+    }
+
+    if (!a.que || !String(a.que).trim()) {
+      defectos.push('Sin decir qué se hace.');
+    }
+
+    return { ...a, pruebaEs, defectos };
+  });
+}
+
+/**
+ * Resumen de las acciones para el informe, y **el hueco que más importa**: las
+ * barreras que fallaron y no tienen ninguna acción encima.
+ *
+ * Ese hueco es el resultado más incómodo de un RCA bien hecho, y por eso se
+ * calcula aquí y no se deja a la vista de nadie: se identificó una defensa que
+ * no funcionó y no se hizo nada al respecto. Una lista de acciones larga puede
+ * tapar perfectamente que la barrera principal sigue abierta.
+ *
+ * @param {Array} [acciones]
+ * @param {Array} [nodosArbol]  nodos del árbol; la barrera va anidada: `{cual, estado, detalle}`
+ */
+export function resumenAcciones(acciones = [], nodosArbol = []) {
+  const revisadas = revisarAcciones(acciones);
+  const porEstado = {};
+  for (const a of revisadas) porEstado[a.estado] = (porEstado[a.estado] ?? 0) + 1;
+
+  const vivas = revisadas.filter((a) => a.estado !== 'descartada');
+  const conBarrera = new Set(vivas.map((a) => a.barrera).filter(Boolean));
+
+  // Las tres formas de que una defensa NO cortara la rama. `funciono` y
+  // `no_evaluable` quedan fuera a propósito: la primera actuó, y de la segunda
+  // no consta nada — pedir una acción sobre lo que no se sabe es inventar trabajo.
+  const NO_CORTO = ['ausente', 'inefectiva', 'no_aplicada'];
+  const falladas = [...new Set(
+    nodosArbol
+      .filter((n) => n.barrera?.cual && NO_CORTO.includes(n.barrera.estado))
+      .map((n) => n.barrera.cual),
+  )];
+  const barrerasSinAccion = falladas.filter((b) => !conBarrera.has(b));
+
+  return {
+    total: revisadas.length,
+    porEstado,
+    conDefectos: revisadas.filter((a) => a.defectos.length > 0).length,
+    cerradasSoloConNota: revisadas.filter((a) => a.estado === 'cerrada' && a.pruebaEs === 'escrita').length,
+    barrerasSinAccion,
+    acciones: revisadas,
+  };
+}

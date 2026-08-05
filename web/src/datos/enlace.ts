@@ -17,7 +17,7 @@
 // la pestaña — sin avisar, con el técnico en mitad de una inspección.
 // ============================================================================
 import { useSyncExternalStore } from 'react';
-import type { AnalisisCausa, Evidencia, Linea } from '@lineas/contratos';
+import type { AccionCapa, AnalisisCausa, Evidencia, Linea } from '@lineas/contratos';
 import { cargarFirebase } from './cargar';
 import { repositorio, usarRepositorio, type EstadoDatos, type EstadoRca } from './repositorio';
 import { repositorioFirestore } from './firestore';
@@ -100,7 +100,47 @@ class Almacen {
       // la condición para poder trabajar. Una capa opcional nunca tiene veto
       // sobre una esencial (`31 · L-11`).
     }
-    this.#ponerRca({ fase: 'abierto', analisis: a, indice, evidencias });
+
+    // Las acciones viven en su propia colección, así que son otra lectura — y va
+    // en su propio `try` por lo mismo: que las acciones no se puedan leer no
+    // puede impedir ver el razonamiento.
+    let acciones: AccionCapa[] = [];
+    try {
+      acciones = await repositorio.listarAcciones(a.id);
+    } catch { /* el análisis se abre igual */ }
+
+    this.#ponerRca({ fase: 'abierto', analisis: a, indice, evidencias, acciones });
+  }
+
+  /**
+   * Da de alta una acción CAPA y refresca la pantalla.
+   *
+   * Se releen las acciones desde la base en vez de añadir la nueva a la lista en
+   * memoria: si la escritura no llegó, la pantalla tiene que enseñar lo que hay,
+   * no lo que se pidió. Es la misma regla que se sigue al crear un análisis.
+   */
+  async crearAccion(clase: 'correctiva' | 'preventiva', que: string): Promise<void> {
+    const r = this.#rca;
+    if (r.fase !== 'abierto') return;
+    try {
+      await repositorio.crearAccion(r.analisis.id, { clase, que });
+      this.#ponerRca({ ...r, acciones: await repositorio.listarAcciones(r.analisis.id) });
+    } catch (e) {
+      this.#ponerRca({ fase: 'error', mensaje: e instanceof Error ? e.message : 'no se pudo crear la acción' });
+    }
+  }
+
+  /** Guarda un cambio de una acción y refresca la lista. */
+  async guardarAccion(accionId: string, parche: Record<string, unknown>): Promise<void> {
+    const r = this.#rca;
+    if (r.fase !== 'abierto') return;
+    const previa = r.acciones.find((x) => x.id === accionId);
+    try {
+      await repositorio.guardarAccion(accionId, parche, previa?.revision ?? 0);
+      this.#ponerRca({ ...r, acciones: await repositorio.listarAcciones(r.analisis.id) });
+    } catch (e) {
+      this.#ponerRca({ fase: 'error', mensaje: e instanceof Error ? e.message : 'no se pudo guardar la acción' });
+    }
   }
 
   /** Abre un análisis del índice. El documento ya está en memoria; sus fotos no. */

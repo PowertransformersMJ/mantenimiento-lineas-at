@@ -15,7 +15,7 @@
 // Este módulo es AGNÓSTICO a la interfaz: no toca el DOM. Si mañana cambia el
 // framework de pantallas, esto sobrevive intacto.
 // ============================================================================
-import type { Apoyo, AnalisisCausa, Conductor, Evidencia, Hipotesis, Investigacion, Linea } from '@lineas/contratos';
+import type { AccionCapa, Apoyo, AnalisisCausa, Conductor, Evidencia, Hipotesis, Investigacion, Linea } from '@lineas/contratos';
 
 export type EstadoSesion =
   | { fase: 'comprobando' }
@@ -53,7 +53,7 @@ export type EstadoRca =
   | { fase: 'cerrado' }                                   // el segmento no está abierto
   | { fase: 'cargando' }
   | { fase: 'indice'; analisis: AnalisisCausa[] }
-  | { fase: 'abierto'; analisis: AnalisisCausa; indice: AnalisisCausa[]; evidencias: Evidencia[] }
+  | { fase: 'abierto'; analisis: AnalisisCausa; indice: AnalisisCausa[]; evidencias: Evidencia[]; acciones: AccionCapa[] }
   | { fase: 'error'; mensaje: string };
 
 /**
@@ -79,6 +79,18 @@ export interface Repositorio {
   guardarParte(analisisId: string, parche: Record<string, unknown>, revision: number): Promise<void>;
   /** Las evidencias que un análisis puede enlazar: las de sus investigaciones y las suyas propias. */
   evidenciasDeAnalisis(analisisId: string, investigacionIds: string[]): Promise<Evidencia[]>;
+
+  /**
+   * Las acciones CAPA de un análisis. Viven en su PROPIA colección, no dentro
+   * del análisis: una acción sigue ejecutándose meses después de que el informe
+   * se firme, y con las acciones dentro del documento habría que elegir entre
+   * congelar el razonamiento o dejarlo editable. Se pueden las dos cosas.
+   */
+  listarAcciones(analisisId: string): Promise<AccionCapa[]>;
+  /** Da de alta una acción. Nace `propuesta` y sin barrera: nada se presupone. */
+  crearAccion(analisisId: string, datos: { clase: 'correctiva' | 'preventiva'; que: string }): Promise<string | null>;
+  /** Guarda un cambio de una acción. Se valida contra el contrato antes de escribir. */
+  guardarAccion(accionId: string, parche: Record<string, unknown>, revision: number): Promise<void>;
 }
 
 /**
@@ -106,6 +118,15 @@ export const repositorioSinSesion: Repositorio = {
   },
   async evidenciasDeAnalisis() {
     return [];
+  },
+  async listarAcciones() {
+    return [];
+  },
+  async crearAccion() {
+    return null;
+  },
+  async guardarAccion() {
+    /* sin sesión no se escribe nada */
   },
 };
 

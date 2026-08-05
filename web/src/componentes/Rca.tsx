@@ -25,9 +25,9 @@
 // ============================================================================
 import { useState } from 'react';
 import { evaluarEspinas, condicionesCausaRaiz, auditarRespaldo } from '@lineas/nucleo/rca';
-import type { AnalisisCausa, Evidencia } from '@lineas/contratos';
+import type { AccionCapa, AnalisisCausa, Evidencia } from '@lineas/contratos';
 import { almacen, useRca } from '../datos/enlace';
-import { EditorPorques, EditorArbol, EditorHipotesis, EditorAusencias, ClimaEvento } from './RcaEditores';
+import { EditorPorques, EditorArbol, EditorHipotesis, EditorAusencias, EditorAcciones, ClimaEvento } from './RcaEditores';
 import { nf } from '../vistas/formato';
 
 /** Cómo se lee cada espina en pantalla. El código interno no se le enseña a nadie. */
@@ -101,7 +101,7 @@ function Indice({ analisis }: { analisis: AnalisisCausa[] }) {
 
 // ── Un análisis abierto ─────────────────────────────────────────────────────
 
-function Abierto({ a, evidencias }: { a: AnalisisCausa; evidencias: Evidencia[] }) {
+function Abierto({ a, evidencias, acciones }: { a: AnalisisCausa; evidencias: Evidencia[]; acciones: AccionCapa[] }) {
   const cond = condicionesCausaRaiz(a);
   const respaldo = auditarRespaldo(a);
   const faltan = cond.condiciones.filter((c) => !c.cumple);
@@ -120,6 +120,11 @@ function Abierto({ a, evidencias }: { a: AnalisisCausa; evidencias: Evidencia[] 
       <EditorHipotesis a={a} evidencias={evidencias} />
       <ClimaEvento />
       <EditorAusencias a={a} />
+      {/* Las acciones van DESPUÉS de las ausencias y ANTES de declarar la causa:
+          se pueden proponer sin causa raíz declarada —en mantenimiento real las
+          correctivas urgentes se toman el mismo día— pero leerlas después de lo
+          que el análisis NO puede afirmar evita prometer sobre un hueco. */}
+      <EditorAcciones acciones={acciones} arbol={a.arbol} />
 
       {/* El respaldo, en frío: cuántas afirmaciones no se apoyan en nada. */}
       <section className="panel">
@@ -387,7 +392,7 @@ export function Rca() {
       {r.fase === 'cargando' && <section className="panel vacio"><div className="vacio-t">Cargando…</div></section>}
       {r.fase === 'error' && <section className="panel vacio"><div className="vacio-t">No se pudo leer</div><p className="vacio-c">{r.mensaje}</p></section>}
       {r.fase === 'indice' && <Indice analisis={r.analisis} />}
-      {r.fase === 'abierto' && <Abierto a={r.analisis} evidencias={r.evidencias} />}
+      {r.fase === 'abierto' && <Abierto a={r.analisis} evidencias={r.evidencias} acciones={r.acciones} />}
     </div>
   );
 }

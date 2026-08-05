@@ -8,7 +8,7 @@
 // la frontera. Un documento que no cumple el esquema no entra al cálculo — y el
 // cálculo es lo que el Ingeniero firma.
 // ============================================================================
-import { AnalisisCausa, Apoyo, Evidencia, Hipotesis, Investigacion, Linea, ParteDeAnalisis } from '@lineas/contratos';
+import { AccionCapa, AnalisisCausa, Apoyo, Evidencia, Hipotesis, Investigacion, Linea, ParteDeAccion, ParteDeAnalisis } from '@lineas/contratos';
 import { cargarFirebase } from './cargar';
 import type { EstadoDatos, EstadoSesion, Repositorio } from './repositorio';
 
@@ -251,6 +251,92 @@ export const repositorioFirestore: Repositorio = {
     }
 
     await updateDoc(doc(await baseDatos(), 'analisis', analisisId), {
+      ...parche,
+      actualizadoEn: new Date().toISOString(),
+      actualizadoPor: u.uid,
+      revision: revision + 1,
+    });
+  },
+
+  /**
+   * Las acciones CAPA de un análisis.
+   *
+   * Se filtra por `orgId` Y por `analisisId`, y el `orgId` NO es redundante: en
+   * Firestore las reglas no son filtros — la base exige poder DEMOSTRAR de
+   * antemano que todo lo devuelto cumple la regla, y si la consulta no declara
+   * la organización niega la consulta entera con «Missing or insufficient
+   * permissions». Es la trampa que ya costó una tarde en `cargarLinea`.
+   *
+   * NO se ordenan aquí ni en ningún sitio: ordenar es dictaminar (`99 §ADR-020`)
+   * y la primera de una lista se lee como la más importante. Salen en el orden
+   * en que se crearon, y eso lo decide quien las escribió.
+   */
+  async listarAcciones(analisisId: string): Promise<AccionCapa[]> {
+    const { esperarSesion, credenciales, baseDatos } = await cargarFirebase();
+    const { collection, getDocs, limit, query, where } = await firestore();
+    const u = await esperarSesion();
+    if (!u) return [];
+    const { orgId } = await credenciales(u);
+    if (!orgId) return [];
+
+    const s = await getDocs(query(
+      collection(await baseDatos(), 'acciones_capa'),
+      where('orgId', '==', orgId),
+      where('analisisId', '==', analisisId),
+      limit(200),
+    ));
+    return s.docs
+      .map((d) => validar<AccionCapa>(AccionCapa, d.data()))
+      .filter((x): x is AccionCapa => x !== null);
+  },
+
+  /**
+   * Da de alta una acción.
+   *
+   * Nace `propuesta`, SIN barrera y SIN responsable. Nada se presupone y nada se
+   * rellena por adelantado: un valor por defecto en un campo de método es un
+   * ancla, y aquí el ancla decidiría qué defensa se da por cubierta.
+   */
+  async crearAccion(analisisId: string, datos: { clase: 'correctiva' | 'preventiva'; que: string }): Promise<string | null> {
+    const { esperarSesion, credenciales, baseDatos } = await cargarFirebase();
+    const { doc, setDoc } = await firestore();
+    const u = await esperarSesion();
+    if (!u) return null;
+    const { orgId } = await credenciales(u);
+    if (!orgId) return null;
+
+    const id = crypto.randomUUID();
+    const doc_ = {
+      id, orgId, tipo: 'accion_capa' as const,
+      creadoEn: new Date().toISOString(), creadoPor: u.uid, revision: 0,
+      analisisId,
+      clase: datos.clase,
+      que: datos.que,
+      estado: 'propuesta' as const,
+      evidenciaIds: [] as string[],
+    };
+    const r = AccionCapa.safeParse(doc_);
+    if (!r.success) throw new Error('La acción no cumple el contrato: ' + r.error.issues[0]?.message);
+
+    await setDoc(doc(await baseDatos(), 'acciones_capa', id), doc_);
+    return id;
+  },
+
+  /** Guarda un cambio de una acción. Se valida ANTES de escribir, como todo. */
+  async guardarAccion(accionId: string, parche: Record<string, unknown>, revision: number): Promise<void> {
+    const { esperarSesion, baseDatos } = await cargarFirebase();
+    const { doc, updateDoc } = await firestore();
+    const u = await esperarSesion();
+    if (!u) throw new Error('sin sesión');
+
+    const r = ParteDeAccion.safeParse(parche);
+    if (!r.success) {
+      const p = r.error.issues[0];
+      const donde = p?.path?.length ? ` (en «${p.path.join('.')}»)` : '';
+      throw new Error(`El cambio no cumple el contrato${donde}: ${p?.message ?? 'motivo desconocido'}`);
+    }
+
+    await updateDoc(doc(await baseDatos(), 'acciones_capa', accionId), {
       ...parche,
       actualizadoEn: new Date().toISOString(),
       actualizadoPor: u.uid,

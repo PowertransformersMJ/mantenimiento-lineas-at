@@ -15,6 +15,7 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  revisarAcciones, resumenAcciones,
   ESPINAS, NIVEL_MINIMO_CAUSA_RAIZ,
   evaluarEspinas, fuerzaCadena, diagnosticoCadena, validarArbol,
   resumenBarreras, revisarHipotesis, condicionesCausaRaiz, auditarRespaldo,
@@ -272,5 +273,105 @@ describe('auditoría de respaldo: distinguir un análisis de una narración', ()
       ] }],
     });
     assert.equal(a.sinRespaldo, 0, 'declarar el hueco es lo correcto; no es una afirmación sin respaldo');
+  });
+});
+
+describe('las acciones CAPA: un plan que nadie puede comprobar es una lista de deseos', () => {
+  const base = { id: 'a1', clase: 'correctiva', que: 'cambiar el conector', estado: 'propuesta' };
+
+  test('propuesta sin barrera es VÁLIDA: un deseo puede existir sin defensa asignada', () => {
+    // Obligar la barrera al guardar empujaría a elegir una al azar con tal de
+    // poder guardar — el atajo que vació el Ishikawa y por el que se eliminó
+    // «no aplica». El campo mentiría, que es peor que estar vacío.
+    const [a] = revisarAcciones([base]);
+    assert.deepEqual(a.defectos, []);
+    assert.equal(a.pruebaEs, null);
+  });
+
+  test('CERRAR SIN PRUEBA se marca: parece trabajo hecho y no se puede demostrar', () => {
+    const [a] = revisarAcciones([{ ...base, estado: 'cerrada', barrera: 'termografia',
+      cerradaPor: 'uid', cerradaEn: '2026-08-05T10:00:00.000Z' }]);
+    assert.equal(a.pruebaEs, null);
+    assert.ok(a.defectos.some((d) => /sin ninguna prueba de que se hizo/i.test(d)));
+  });
+
+  test('cerrar sin QUIÉN y sin CUÁNDO es una casilla marcada', () => {
+    const [a] = revisarAcciones([{ ...base, estado: 'cerrada', barrera: 'termografia',
+      comoSeComprobo: 'acta 118' }]);
+    assert.ok(a.defectos.some((d) => /QUIÉN/.test(d)));
+    assert.ok(a.defectos.some((d) => /CUÁNDO/.test(d)));
+  });
+
+  test('las DOS pruebas valen, y NO se igualan: el informe tiene que poder distinguirlas', () => {
+    const cerrada = { ...base, estado: 'cerrada', barrera: 'termografia',
+      cerradaPor: 'uid', cerradaEn: '2026-08-05T10:00:00.000Z' };
+
+    const [conFoto] = revisarAcciones([{ ...cerrada, evidenciaIds: ['e1'] }]);
+    assert.equal(conFoto.pruebaEs, 'evidencia');
+    assert.deepEqual(conFoto.defectos, []);
+
+    const [conNota] = revisarAcciones([{ ...cerrada, comoSeComprobo: 'orden de trabajo 4471' }]);
+    assert.equal(conNota.pruebaEs, 'escrita');
+    assert.deepEqual(conNota.defectos, [], 'un análisis sin investigación en alcance no podría cerrar nunca');
+  });
+
+  test('una CORRECTIVA cerrada tiene que decir qué barrera queda cubierta', () => {
+    const [a] = revisarAcciones([{ ...base, estado: 'cerrada', cerradaPor: 'uid',
+      cerradaEn: '2026-08-05T10:00:00.000Z', evidenciaIds: ['e1'] }]);
+    assert.ok(a.defectos.some((d) => /qué barrera queda cubierta/.test(d)));
+
+    // La preventiva no lo exige: puede endurecer una regla general.
+    const [p] = revisarAcciones([{ ...base, clase: 'preventiva', estado: 'cerrada', cerradaPor: 'uid',
+      cerradaEn: '2026-08-05T10:00:00.000Z', evidenciaIds: ['e1'] }]);
+    assert.deepEqual(p.defectos, []);
+  });
+
+  test('descartar sin motivo es hacerla desaparecer', () => {
+    const [a] = revisarAcciones([{ ...base, estado: 'descartada' }]);
+    assert.ok(a.defectos.some((d) => /hacerla desaparecer/.test(d)));
+    const [b] = revisarAcciones([{ ...base, estado: 'descartada', motivoDescarte: 'la línea se repotencia en 2027' }]);
+    assert.deepEqual(b.defectos, []);
+  });
+
+  test('EL HUECO QUE MÁS IMPORTA: una barrera que falló y que nadie cubre', () => {
+    // El resultado más incómodo de un RCA bien hecho. Una lista larga de
+    // acciones puede tapar perfectamente que la barrera principal sigue abierta.
+    const arbol = [
+      { id: 'n1', barrera: { cual: 'termografia', estado: 'no_aplicada', detalle: 'no se hizo' } },
+      { id: 'n2', barrera: { cual: 'poda_servidumbre', estado: 'inefectiva', detalle: 'poda parcial' } },
+      { id: 'n3', barrera: { cual: 'proteccion_electrica', estado: 'funciono', detalle: 'despejó' } },
+    ];
+    const r = resumenAcciones([{ ...base, barrera: 'termografia' }], arbol);
+
+    assert.deepEqual(r.barrerasSinAccion, ['poda_servidumbre']);
+    assert.ok(!r.barrerasSinAccion.includes('proteccion_electrica'), 'una barrera que FUNCIONÓ no pide acción');
+  });
+
+  test('una acción DESCARTADA no cubre ninguna barrera', () => {
+    const arbol = [{ id: 'n1', barrera: { cual: 'termografia', estado: 'ausente', detalle: '—' } }];
+    const r = resumenAcciones(
+      [{ ...base, barrera: 'termografia', estado: 'descartada', motivoDescarte: 'no procede' }], arbol);
+    assert.deepEqual(r.barrerasSinAccion, ['termografia'], 'una acción descartada tapó un hueco real');
+  });
+
+  test('el resumen cuenta las cerradas que solo tienen una nota escrita', () => {
+    const r = resumenAcciones([
+      { ...base, estado: 'cerrada', barrera: 'termografia', cerradaPor: 'u', cerradaEn: '2026-08-05T10:00:00.000Z', comoSeComprobo: 'acta' },
+      { ...base, id: 'a2', estado: 'cerrada', barrera: 'recierre', cerradaPor: 'u', cerradaEn: '2026-08-05T10:00:00.000Z', evidenciaIds: ['e1'] },
+    ], []);
+    assert.equal(r.cerradasSoloConNota, 1);
+    assert.equal(r.porEstado.cerrada, 2);
+    assert.equal(r.conDefectos, 0);
+  });
+
+  test('NO se ordenan ni se puntúan: salen en el orden en que se crearon', () => {
+    // Ordenar es dictaminar (ADR-020). La que va primero se lee como la más
+    // importante, y eso lo decide quien firma.
+    const dadas = [
+      { ...base, id: 'x', que: 'tercera' },
+      { ...base, id: 'y', que: 'primera', estado: 'cerrada' },
+      { ...base, id: 'z', que: 'segunda' },
+    ];
+    assert.deepEqual(revisarAcciones(dadas).map((a) => a.id), ['x', 'y', 'z']);
   });
 });

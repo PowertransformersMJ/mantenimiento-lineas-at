@@ -14,8 +14,8 @@
 // sería del modelo con retoques.
 // ============================================================================
 import { useState } from 'react';
-import { fuerzaCadena, diagnosticoCadena, validarArbol, resumenBarreras, revisarHipotesis } from '@lineas/nucleo/rca';
-import type { AnalisisCausa, Evidencia } from '@lineas/contratos';
+import { fuerzaCadena, diagnosticoCadena, validarArbol, resumenBarreras, revisarHipotesis, resumenAcciones } from '@lineas/nucleo/rca';
+import type { AccionCapa, AnalisisCausa, Evidencia } from '@lineas/contratos';
 import { almacen } from '../datos/enlace';
 
 export const ESPINAS_UI: [string, string][] = [
@@ -498,4 +498,151 @@ export function ClimaEvento() {
       )}
     </section>
   );
+}
+
+// ── LAS ACCIONES CAPA ───────────────────────────────────────────────────────
+
+/**
+ * Correctivas y preventivas, cada una en su documento.
+ *
+ * LA PREGUNTA QUE ESTA PANTALLA TIENE QUE PODER CONTESTAR no es «¿está
+ * rellenado?», sino la que hace un auditor un año después: **¿se puede demostrar
+ * que esto se hizo?** Por eso cerrar pide prueba, y por eso el defecto se pinta
+ * al lado de la acción en vez de bloquear el guardado: el motor SEÑALA, quien
+ * firma decide (`99 §ADR-020`).
+ *
+ * LO QUE NO HACE, y es deliberado:
+ *   · No ordena ni puntúa. La primera de una lista se lee como la más
+ *     importante, y eso lo decide quien la escribió. Salen por orden de creación.
+ *   · No propone la acción a partir de la barrera. Un borrador es un ancla.
+ *   · No preselecciona barrera ni tipo: nacen vacíos.
+ */
+export function EditorAcciones({ acciones, arbol }: { acciones: AccionCapa[]; arbol: AnalisisCausa['arbol'] }) {
+  const [clase, setClase] = useState<'correctiva' | 'preventiva'>('correctiva');
+  const [que, setQue] = useState('');
+  const [creando, setCreando] = useState(false);
+
+  const r = resumenAcciones(acciones, arbol);
+
+  const crear = async () => {
+    if (!que.trim()) return;
+    setCreando(true);
+    try { await almacen.crearAccion(clase, que.trim()); setQue(''); } finally { setCreando(false); }
+  };
+
+  return (
+    <section className="panel">
+      <h2>Acciones · qué se hace con esto</h2>
+      <p className="fine">
+        Correctiva es la que actúa sobre lo que ya falló; preventiva, la que evita que vuelva a
+        pasar en otro sitio. Cerrar una acción exige decir quién, cuándo y con qué se comprueba:
+        una acción cerrada sin prueba parece trabajo hecho y no se puede demostrar.
+      </p>
+
+      {/* EL HUECO QUE MÁS IMPORTA, y va arriba del todo: una lista larga de
+          acciones puede tapar perfectamente que la barrera principal sigue
+          abierta. Solo aparece si el árbol declaró alguna defensa que no cortó. */}
+      {r.barrerasSinAccion.length > 0 && (
+        <p className="rca-aviso">
+          <b>{r.barrerasSinAccion.length === 1 ? 'Una barrera que no cortó no tiene ninguna acción'
+            : `${r.barrerasSinAccion.length} barreras que no cortaron no tienen ninguna acción`}</b>
+          {': '}{r.barrerasSinAccion.map((b) => nombreBarrera(b)).join(', ')}.
+          {' '}El árbol dice que esas defensas fallaron o no se aplicaron, y nadie ha propuesto
+          nada sobre ellas. Puede estar bien —quizá no procede— pero tiene que ser una decisión,
+          no un olvido.
+        </p>
+      )}
+
+      {r.acciones.length === 0 && (
+        <p className="fine">Todavía no hay ninguna acción. Se pueden proponer antes de declarar la
+          causa raíz: en mantenimiento real las correctivas urgentes se toman el mismo día.</p>
+      )}
+
+      {r.acciones.map((x) => (
+        <FichaAccion key={x.id} x={x} />
+      ))}
+
+      <div className="rca-cadena">
+        <div className="rca-cadena-cab">
+          <select className="rca-select rca-select-corto" value={clase}
+            onChange={(e) => setClase(e.target.value as 'correctiva' | 'preventiva')}>
+            <option value="correctiva">correctiva</option>
+            <option value="preventiva">preventiva</option>
+          </select>
+        </div>
+        <input className="rca-motivo" value={que} placeholder="Qué se hace, en imperativo y concreto"
+          onChange={(e) => setQue(e.target.value)} />
+        <div className="rca-guardar">
+          <button type="button" className="boton chico" disabled={!que.trim() || creando} onClick={crear}>
+            {creando ? 'Añadiendo…' : '+ Añadir acción'}
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/** Una acción, con sus defectos a la vista y su cierre. */
+function FichaAccion({ x }: { x: AccionCapa & { defectos: string[]; pruebaEs: string | null } }) {
+  const [abierto, setAbierto] = useState(false);
+  const [g, setG] = useState(false);
+
+  const guardar = async (parche: Record<string, unknown>) => {
+    setG(true);
+    try { await almacen.guardarAccion(x.id, parche); } finally { setG(false); }
+  };
+
+  return (
+    <div className="rca-cadena">
+      <div className="rca-cadena-cab">
+        <span className="rca-etiqueta">{x.clase}</span>
+        <select className="rca-select rca-select-corto" value={x.estado} disabled={g}
+          onChange={(e) => guardar({ estado: e.target.value })}>
+          <option value="propuesta">propuesta</option>
+          <option value="aprobada">aprobada</option>
+          <option value="en_curso">en curso</option>
+          <option value="cerrada">cerrada</option>
+          <option value="descartada">descartada</option>
+        </select>
+        <button type="button" className="rca-quitar" onClick={() => setAbierto((v) => !v)}>
+          {abierto ? 'ocultar' : 'detalle'}
+        </button>
+      </div>
+
+      <p className="rca-enunciado">{x.que}</p>
+
+      {x.estado === 'cerrada' && x.pruebaEs === 'escrita' && (
+        <p className="fine">Cerrada, probada solo con una nota escrita — no hay evidencia enlazada.</p>
+      )}
+
+      {x.defectos.map((d, i) => <p key={i} className="rca-aviso">{d}</p>)}
+
+      {abierto && (
+        <>
+          <input className="rca-motivo" defaultValue={x.responsable ?? ''} placeholder="Responsable"
+            onBlur={(e) => guardar({ responsable: e.target.value || undefined })} />
+          <input className="rca-motivo" defaultValue={x.plazo ?? ''} placeholder="Plazo (texto libre)"
+            onBlur={(e) => guardar({ plazo: e.target.value || undefined })} />
+          <select className="rca-select" value={x.barrera ?? ''} disabled={g}
+            onChange={(e) => guardar({ barrera: e.target.value || undefined })}>
+            <option value="">— sin barrera asignada —</option>
+            {BARRERAS_UI.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+          </select>
+          <textarea className="rca-motivo" rows={2} defaultValue={x.comoSeComprobo ?? ''}
+            placeholder="Cómo se comprueba que se hizo (acta, orden de trabajo, informe de cuadrilla)"
+            onBlur={(e) => guardar({ comoSeComprobo: e.target.value || undefined })} />
+          {x.estado === 'descartada' && (
+            <textarea className="rca-motivo" rows={2} defaultValue={x.motivoDescarte ?? ''}
+              placeholder="Por qué se descarta"
+              onBlur={(e) => guardar({ motivoDescarte: e.target.value || undefined })} />
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+/** El nombre legible de una barrera. Un solo sitio: `BARRERAS_UI`. */
+function nombreBarrera(clave: string): string {
+  return BARRERAS_UI.find(([v]) => v === clave)?.[1] ?? clave.replace(/_/g, ' ');
 }

@@ -138,6 +138,26 @@ service cloud.firestore {
       allow delete: if false;   // un análisis hecho no se borra: se cierra
     }
 
+    // ── ACCIONES CAPA — colección PROPIA, y no un array dentro del análisis ──
+    // Es la razón por la que existen aquí: dentro de un array, esta regla no
+    // podría distinguir «cerrar una acción» de «reescribir el razonamiento
+    // después de firmar» — las dos llegan como una escritura sobre el mismo
+    // documento. Y un análisis tiene que poder congelarse el día que se firma
+    // mientras sus acciones siguen vivas durante meses, que es el ciclo real
+    // del mantenimiento. Con las acciones dentro: o se congela todo, o nada.
+    //
+    // Por eso el `update` NO mira si el análisis está cerrado: una acción de un
+    // análisis firmado sigue ejecutándose, y tiene que poder cerrarse.
+    match /acciones_capa/{accionId} {
+      allow read:   if puedeLeer();
+      allow create: if esEditor() && altaCoherente();
+      allow update: if esEditor() && deMiOrg(resource.data) && noTocaReservados()
+                    // De qué análisis cuelga no se reescribe: mover una acción a
+                    // otro análisis borraría el rastro de por qué se tomó.
+                    && request.resource.data.analisisId == resource.data.analisisId;
+      allow delete: if false;   // una acción decidida no se borra: se descarta CON MOTIVO
+    }
+
     // 🔒 SONDEOS DE CLIMA — escritura ÚNICA, como la bitácora.
     // Un sondeo a IDEAM NO es una caché: es un HECHO FECHADO. Si mañana IDEAM
     // corrige la serie, el informe firmado tiene que seguir mostrando lo que se
