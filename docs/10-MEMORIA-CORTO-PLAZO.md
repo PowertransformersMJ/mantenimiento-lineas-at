@@ -79,12 +79,11 @@ motor en «baja» · el clima se consulta cuando el Ingeniero lo pide, nunca al 
 |---|---|---|
 | **TODO-50** | **Blindaje de acceso** (el porqué completo ya está en el ADR, aquí solo lo que falta): ✅ F1 herramienta de alta · ✅ F2a correo+contraseña en producción · ⬜ **2b retirar Google** (espera la contraseña del Ingeniero) · ⬜ 3 pantalla de cambio obligatorio + vistas filtradas por rol · ⬜ 4 rol en el portero + **App Check** | `99 §ADR-019` |
 | **TODO-52** | **RCA, lo que falta**: informe del análisis con sus límites impresos · guardar el sondeo de clima como `SondeoClima` (el contrato ya existe, la pantalla aún no lo persiste) · **las acciones CAPA no se pueden ni CREAR**: el esquema `Accion` existe en `contratos/src/rca.ts` y ninguna pantalla lo escribe — no es «falta el ciclo de vida», es que falta entero · lienzo del árbol | `99 §ADR-020` |
-| **TODO-53** | **El horizonte no distingue los dos ejes**: una torre se pinta hueca si le falta el veredicto en CUALQUIERA de los dos. Con 0 de 24 en ambos da igual; **el día que un eje avance antes que el otro, el dibujo dirá «no dictaminado» de un apoyo que sí lo está en un eje** | `99 §ADR-018` (deuda declarada) |
-| **TODO-49** | Bloqueantes de la crítica: 3 de 4 portados. Falta el **contador de PARQUE**, no construible hoy (solo se carga la línea abierta) | `99 §ADR-018` |
+| **TODO-55** | **El vano tri-valuado**: `fueraDeRango: null` (no evaluable) se pinta igual que «dentro de banda». Es la misma falta que TODO-53 en otro sujeto — un hueco disfrazado de dato bueno | `99 §ADR-021` |
+| **TODO-56** | **Dos verdades sobre «cerrado»** en el RCA: el booleano `cerrado` y el estado `'cerrado'` del árbol. Hoy no choca porque nada pone `cerrado` en verdadero; hay que reconciliarlo ANTES de que exista un botón de cerrar el análisis | `99 §ADR-021` |
+| **TODO-49** | Bloqueantes de la crítica: 3 de 4. Falta el **contador de PARQUE**, no construible hoy | `99 §ADR-018` |
 | **TODO-48** | **Deuda de ADR-017**: el criterio del veredicto longitudinal no menciona el ruido de tendido ni el piso de validez; `funcionProcedencia` no viaja a la fila | `99 §ADR-017` |
-| **TODO-42/37** | **Informe gerencial** del expediente (10 secciones especificadas) | crudo de **ADR-012** |
-| **TODO-30** | CI: validación XSD real de GPX/KML | crudo de **ADR-013** |
-| **TODO-11** | F1 · Nota técnica LN-627 con las correcciones de la auditoría | — |
+| **TODO-42/37** | **Informe gerencial** del expediente (10 secciones) · **TODO-30** XSD real de GPX/KML en CI · **TODO-11** nota técnica de LN-627 | crudos de **ADR-012/013** |
 | **TODO-13/14/15/16/21/22/23** | F3-F5: invalidación por tramo · sincronización bifurcada · Firestore vs D1 · flujo IA con `ProveedorFalso` · prueba de navegador · secretos de despliegue | — |
 
 ## ✅ Consolidado (detalle → ADR-001…021)

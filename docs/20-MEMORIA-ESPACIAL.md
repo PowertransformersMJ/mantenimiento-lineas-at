@@ -117,21 +117,31 @@ mantenimiento-lineas-at/
 │                                un análisis puede abarcar varias líneas (ADR-020)**
 ├── web/src/contenido/           doctrina SIN datos de cliente (fundamentos.ts: 9 tarjetas + normas)
 ├── web/src/exportar/            SOLO descargar.js (Blob/DOM) — el resto vive en el workspace
-├── web/src/vistas/              geometría para pintar + formato (nf + textoNucleo: coma decimal en
-│                                la prosa del núcleo, L-26) + tramoColores + diagramas.ts (las 9
-│                                figuras de Fundamentos) + termicaDatos / vientoDatos /
-│                                criteriosApoyo / cargasDatos / longitudinalDatos / planta / tramos.
-│                                🔑 **DUEÑOS ÚNICOS — si buscas esto, está AQUÍ y no en el
-│                                componente de donde salió:** `ejesLinea.ts` resuelve los DOS ejes
-│                                de carga (se extrajo de `Cargas.tsx`) · `vanosLinea.ts` lleva la
-│                                numeración corrida de vanos (se extrajo de `DetalleVanos`, para que
-│                                el dibujo y la tabla no puedan discrepar) · `estadoLinea.ts` deriva
-│                                el «cielo» de la línea cruzando la cobertura APOYO POR APOYO.
-│                                Duplicar cualquiera de los tres es reabrir un fallo ya pagado.
+├── web/src/vistas/              ⭐ DUEÑOS ÚNICOS — si un número sale de aquí, NO se recalcula en
+│   │                            ninguna pantalla (`99 §ADR-018`):
+│   ├── ejesLinea.ts             los DOS ejes de carga de una línea
+│   ├── vanosLinea.ts            la numeración CORRIDA de vanos (dibujo y tabla dicen lo mismo)
+│   ├── coberturaEjes.ts         qué se sabe de CADA apoyo, eje por eje: los 4 estados
+│   │                            (ambos · solo transversal · solo longitudinal · ninguno) y los
+│   │                            textos del horizonte. Lo piden `estadoLinea` y `Horizonte`
+│   └── estadoLinea.ts           el CIELO de la línea (amanecer/atardecer/tormenta/niebla). Pide el
+│                                cruce a `coberturaEjes.ts`: NO lo reimplementa
+│                                De dónde salió cada uno, porque duplicarlos es reabrir un fallo ya
+│                                pagado: `ejesLinea` de `Cargas.tsx` · `vanosLinea` de `DetalleVanos`
+│                                (para que dibujo y tabla no discrepen) · `coberturaEjes` de
+│                                `Horizonte.tsx`, donde el cruce estaba MAL —pintaba hueco sin
+│                                distinguir a qué eje le faltaba el dato (`TODO-53`)—.
+│                                El resto: formato (nf + textoNucleo: coma decimal en la prosa del
+│                                núcleo, L-26) + tramoColores + diagramas.ts (las 9 figuras de
+│                                Fundamentos) + termicaDatos / vientoDatos / criteriosApoyo /
+│                                cargasDatos / longitudinalDatos / planta / tramos.
 │                                ⚠️ Las vistas que se PRUEBAN no
 │                                pueden importar `./planta` ni `./tramos` en ejecución: arrastran
 │                                `@lineas/contratos` (TypeScript sin compilar) y `node --test` no
-│                                lo resuelve. Solo `@lineas/nucleo/*` y tipos.
+│                                lo resuelve. Solo `@lineas/nucleo/*` y tipos. Y si una vista
+│                                probada importa a OTRA vista, el import lleva `.ts` explícito
+│                                (`allowImportingTsExtensions` en `web/tsconfig.json`): sin la
+│                                extensión, `node --test` no resuelve y la prueba revienta.
 ├── web/src/datos/               repositorio · enlace (useSyncExternalStore) · firebase (ingreso:
 │                                correo+contraseña y Google de reserva) · firestore · cargar
 │                                (reintentos) · clima.ts (IDEAM **desde el navegador**, porque el

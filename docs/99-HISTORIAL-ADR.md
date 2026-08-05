@@ -1618,9 +1618,16 @@ partió en dos —blanco sobre los círculos rojos, tinta oscura sobre las tarje
   todavía **no lleva a su evidencia con un clic** desde la carcasa; **Exportar no declara** la
   cobertura de veredicto en su tabla de completitud; y el salto por dirección web (mandar «mira
   LN-627 en Cargas») sigue sin existir.
-- El horizonte no dibuja los **dos ejes por separado** en cada torre: hoy una torre está hueca si le
-  falta el veredicto en cualquiera de los dos. Con 0 de 24 en ambos no cambia nada; el día que un eje
-  avance antes que el otro, sí.
+- ~~El horizonte no dibuja los **dos ejes por separado**~~ → **SALDADA el 2026-08-04 (`TODO-53`).**
+  El cruce se sacó a `vistas/coberturaEjes.ts`, dueño único, con los cuatro estados por apoyo y dos
+  carriles de comprobación bajo el suelo. **La torre conserva DOS aspectos y solo dos**: rellena
+  cuando las dos preguntas están respondidas, hueca cuando falta alguna. Queda prohibido un tercer
+  aspecto —media torre, relleno parcial, opacidad intermedia—: se leería como «medio sano», y un
+  apoyo con un solo eje respondido no está a medio dictaminar, está dictaminado en una pregunta y
+  sin responder en la otra. Lo vigila `tests/horizonte-cobertura.test.js`, probado por mutación en
+  las dos direcciones: volver al «y» a secas da 5 fallos; cambiarlo por un «o» —certificar sobre un
+  hueco— da 3. Los tres estados nuevos **no son observables con el dato de hoy** (0 de 24 en ambos
+  ejes): están probados contra fixtures, no vistos en producción. Se dice, no se disimula.
 
 ### Crudo de respaldo
 
