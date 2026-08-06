@@ -1,44 +1,47 @@
 # 📝 10 — MEMORIA DE CORTO PLAZO (pizarra del trabajo vivo)
 
 > Se **AUTO-CARGA**. Es pizarra, no bitácora (§G.3). Tope ~110 líneas / 16k chars.
-> **RELEVO DE SESIÓN 2026-08-04.** Este nodo ES el relevo: léelo entero antes de tocar nada.
+> **RELEVO DE SESIÓN 2026-08-06.** Este nodo ES el relevo: léelo entero antes de tocar nada.
 > Si contradice a `docs/.handoff-auto.md` (foto real de git), manda ese.
 
 ## 🎯 Dónde estamos
 
-**Cifras vivas en `05`.** 11 pestañas + segmento RCA + los tres informes (línea, RCA, gerencial).
-Producción verificada EN PANTALLA con el Chrome del Ingeniero.
+**Cifras vivas en `05`.** 11 pestañas + segmento RCA + **tres informes** (línea, RCA, gerencial).
+Producción verificada EN PANTALLA con el Chrome del Ingeniero el 06-08.
 
-Olas cerradas: **carcasa** (ADR-018) · **blindaje de acceso** a medias (TODO-50 · ADR-019) · **RCA**
-completo (ADR-020) · **auditoría documental** (ADR-021, 18 huecos con el linter en verde) · **el
-contexto real** (ADR-022: sin cliente ni contrato) · **informe gerencial** (ADR-023).
+Olas cerradas: carcasa (ADR-018) · RCA completo (ADR-020) · auditoría documental (ADR-021) · **el
+contexto real** (ADR-022: herramienta INTERNA, sin cliente ni contrato) · informe gerencial (ADR-023)
+· **la puerta de acceso** (ADR-024).
 
 ## 🛑 LO PRIMERO AL RETOMAR
 
-1. **⚠️ COMPROBAR EN PANTALLA que entrando por Google la pantalla de contraseña NO aparece.** Es lo
-   único que ningún test puede dar, y va ANTES de que el Ingeniero se ponga la contraseña. Después:
-   ponérsela **con `--definitiva`** (sin esa bandera se marca provisional y se revocan sus sesiones).
+1. **TODO-62 · Contrastar el método RCA contra la IEC 62740.** Es lo que el Ingeniero pidió y quedó
+   sin empezar. Detalle abajo; no arrancar sin leer su fila.
 2. **El tope de tiro sigue sin decidir (TODO-33).** El contrato ya trae `tiroAdmisible_pct` y
    `criterioTiroQueRige` (ADR-014), pero `vistas/tramos.ts`, `vientoDatos.ts` y `Fundamentos.tsx`
    siguen leyendo `tiroMaximoAdmisible()` = 0,5·RTS fijo — unificarlo al cerrar la decisión.
 3. **Alerta de presupuesto en Cloudflare (TODO-44).** R2 no apaga: factura. ~35 MB de 10 GB.
 
-## 🚫 INVARIANTES QUE NO SE PUEDEN ROMPER (lo caro de esta sesión)
+## 🚫 INVARIANTES QUE NO SE PUEDEN ROMPER
 
-**Carcasa (`99 §ADR-018`):** `amanecer` es INALCANZABLE si falta un apoyo por dictaminar (hay prueba
-que lo vigila) · la cobertura se cruza POR APOYO, jamás comparando dos conteos · el veredicto se lee
-de `utilizacion_pct !== null` —lo que el núcleo concluyó—, **nunca de `cargaRotura_kgf`** · dueños
-únicos: `vistas/ejesLinea.ts` (los dos ejes) y `vistas/vanosLinea.ts` (numeración corrida de vanos).
+**Carcasa (`99 §ADR-018`):** `amanecer` es INALCANZABLE si falta un apoyo por dictaminar · la
+cobertura se cruza POR APOYO, nunca comparando dos conteos · el veredicto se lee de
+`utilizacion_pct !== null`, **jamás de `cargaRotura_kgf`** · dueños únicos: `vistas/ejesLinea.ts`,
+`vistas/vanosLinea.ts` y `vistas/coberturaEjes.ts`.
 
-**Documentación (`99 §ADR-021`):** el verde de `brain:check` dice que el cerebro está bien CONSTRUIDO,
-**no que diga la verdad**. Y **ninguna cifra se copia fuera de su nodo dueño** — las lecciones las
-cuenta `30`, las pruebas `05`: repetida en cuatro sitios, tres estarán mal.
+**RCA (`99 §ADR-020`):** PROHIBIDO ranking de hipótesis (ordenar es dictaminar), causa raíz sugerida
+por IA, porcentaje de confianza, barra de progreso y el estado «no aplica» en una espina · el botón
+de declarar NO EXISTE mientras falte una de las seis condiciones · una hipótesis con sustento SOLO
+climático la topa el motor en «baja».
 
-**RCA (`99 §ADR-020`):** PROHIBIDO reintroducir ranking de hipótesis (ordenar es dictaminar), causa
-raíz sugerida por IA (un borrador es un ancla), porcentaje de confianza, barra de progreso y el estado
-«no aplica» en una espina (el atajo que vacía un Ishikawa) · el botón de declarar la causa NO EXISTE
-mientras falte una de las seis condiciones · una hipótesis con sustento SOLO climático la topa el
-motor en «baja» · el clima se consulta cuando el Ingeniero lo pide, nunca al pintar.
+**Acceso (`99 §ADR-024`):** la pantalla de contraseña es **HIGIENE, no la frontera** — la frontera son
+las reglas y el rol · quien entra por Google pasa SIEMPRE (cerrojo que no aprovisiona nadie) · la
+marca se lee `=== true` estricto · ante cualquier duda, se deja pasar · el recibo se escribe DESPUÉS
+del cambio y solo si salió bien.
+
+**Documentación (`99 §ADR-021/022`):** el verde de `brain:check` dice que el cerebro está bien
+CONSTRUIDO, **no que diga la verdad** · ninguna cifra se copia fuera de su nodo dueño · y lo que un
+comité SUPONE entra con el mismo rango que lo que verifica (`30 · L-42`).
 
 ## 🧭 Cómo retomar
 
@@ -46,64 +49,56 @@ motor en «baja» · el clima se consulta cuando el Ingeniero lo pide, nunca al 
    el gate bloquea el commit por canario de boot (remedio: `node scripts/session-handoff.mjs --boot-echo`;
    el mensaje engaña: dice «presupuesto de boot excedido» cuando es el canario).
 2. Producción **https://mantenimiento-lineas-at.pages.dev** · repo PÚBLICO → **cero bytes de cliente
-   NI DATOS PERSONALES DE NADIE**, ni en las pruebas ni en un comentario (`33 · L-23`, `99 §ADR-021`).
-3. **Desplegar es `npm run build && npm run deploy --workspace web`**, en ese orden: `deploy` NO
-   construye y se puede subir un `dist/` rancio (`32 · L-35`). Y las **reglas de Firestore van por
-   SU canal**: `npx firebase deploy --only firestore:rules --project mantenimiento-lineas-at`
-   (`31 · L-22`, del que `32 · L-36` es la recaída).
-4. **Verificar contra PRODUCCIÓN con el Chrome del Ingeniero, preguntándole a la pestaña qué bundle
-   cargó** — nunca contra `dist/`, que comparte la causa del fallo (`32 · L-18/35`). Cloudflare sirve
-   dos versiones a la vez mientras propaga: esperar 5 lecturas iguales.
+   NI DATOS PERSONALES DE NADIE**, ni en pruebas ni en un comentario (`33 · L-23`, `99 §ADR-021`).
+3. **Desplegar es `npm run build && npm run deploy --workspace web`**, en ese orden (`32 · L-35`). Y
+   las **reglas de Firestore van por SU canal y ANTES que el código**:
+   `npx firebase deploy --only firestore:rules --project mantenimiento-lineas-at` (`31 · L-22`).
+4. **Verificar contra PRODUCCIÓN con el Chrome del Ingeniero**, preguntando a la pestaña qué bundle
+   cargó — nunca contra `dist/` (`32 · L-18/35`). Esperar 5 lecturas iguales al propagar.
 5. Antes de CADA push: `npm test` + `contrato:verificar` + `brain:check`, **y buscar coordenadas a
-   mano** (no hay comando): `git diff --cached | grep -nE '(^\+.*)(10\.[0-9]{4,}|-7[45]\.[0-9]{4,})'`.
-   Todo fallo se documenta en su lección ANTES de commitear. Autenticado en esta Mac: `gh`, `wrangler` (ajimenezp99) y `firebase`; llaves admin en Descargas.
+   mano**: `git diff --cached | grep -nE '(^\+.*)(10\.[0-9]{4,}|-7[45]\.[0-9]{4,})'`. Todo fallo se
+   documenta en su lección ANTES de commitear. Autenticado aquí: `gh`, `wrangler`, `firebase`.
 
 ## 🔲 Pendientes del INGENIERO
 
 | # | Qué | Por qué importa |
 |---|---|---|
-| **NUEVO** | **Ponerse contraseña** — ⚠️ **la llave admin ya NO está en Descargas**: regenerarla en la consola (Configuración → Cuentas de servicio → Generar nueva clave) y guardarla FUERA de Descargas. Después: `GOOGLE_APPLICATION_CREDENTIALS=<llave> node herramientas/usuarios.mjs contrasena --correo ajimenezp99@gmail.com --definitiva`. **Claude NO puede**: no maneja contraseñas | Sin eso no se puede retirar Google sin dejarte fuera (fase 2b) |
-| **NUEVO** | **Recorrer el RCA** `RCA-2026-08-04-0227` con el expediente delante · **mirar la carcasa** y decir si el tono y el ancho van | Que el MÉTODO sirva solo lo dice quien lo usa; ajustar la piel ahora es barato |
-| **TODO-59** | **Decidir qué ficha se le pide a CADA tipología.** La línea mezcla 4 (pórticos de 2 y 3 postes, torre reticulada, poste simple) y el modelo del contrato es de POSTE: no describe ni el pórtico ni la torre. Detalle y evidencia → `40 §8.3` | La ficha estructural no es un formulario, son tres o cuatro. Es decisión de ingeniería |
-| **TODO-33** | **Decidir 50 % o 25 % de RTS** como tope de tiro | El motor calcula con 50 % y la doctrina dice 25 %: factor 2 sobre un dictamen |
-| **TODO-44** | **Alerta de presupuesto** en Cloudflare (sugerido 1 USD) | R2 no apaga: factura |
-| **NUEVO** | **Faltan por fotografiar E13–E24** (la mitad de la línea). No es un hueco del dato: es recorrido de campo pendiente | Sin ellas no hay nada que leer de esos 12 apoyos, ni tipología ni estado |
-| **TODO-34** | **Respaldo de la bóveda**: sin remoto, 337 MB. La única prueba de que `e07` es E06 vive en un HTML de 30 MB en Descargas, sin copia | Sin él, la asignación de las 99 fotos deja de ser reproducible |
-| **TODO-57** | **La FICHA ESTRUCTURAL de los 24 apoyos**: carga de rotura, altura libre, altura del punto de sujeción y fases amarradas. ¿Los tiene la empresa en planos o actas, o hay que levantarlos en campo? | **ES EL CUELLO DE BOTELLA REAL.** Separa «cuánta carga recibe» de «si aguanta». No depende de nadie más que de ti (`99 §ADR-022`) |
-| **TODO-58** | **¿Dónde deben vivir estos datos?** Hoy: Firestore en São Paulo y R2, bajo TUS cuentas personales, con coordenadas y fotos de infraestructura del empleador | No incumple nada conocido, pero es una exposición que tienes que querer. La región de Firestore es INMUTABLE: cambiarla es rehacer |
-| **TODO-03/25** | Cronometrar el proceso actual de LN-627 (20 min) · probar con tu sesión descargas, Fundamentos, popup y Salir | Sin lo primero el ahorro prometido es inventado; lo segundo Claude no lo puede hacer (`30 · L-17`) |
-| **TODO-36** | **Fichas editable** (hecho fechado, no sobrescritura): DECISIÓN FUERTE | Mayor hueco de paridad que queda |
-| **TODO-61** | **¿App Check?** Se enciende en una consola, no en el repositorio: `git revert` no lo deshace y su avería deja fuera a tu único usuario. Verificar coste con fuente antes de nada | `99 §ADR-024` |
-| **TODO-54** | **¿Que el linter vigile la frescura semántica?** Propuesta escrita en `99 §ADR-021`, NO aplicada: se toca en `brain-private/kernel/`, afecta al proyecto hermano y obliga a repartir versión. **Es tu decisión, no mía** | Sin ella, que el cerebro diga la verdad depende de que alguien audite a mano — y hoy costó 18 huecos descubrirlo |
+| **NUEVO** | **Ponerse contraseña.** ⚠️ La llave admin ya NO está en Descargas: regenerarla (Consola Firebase → Configuración → Cuentas de servicio → Generar nueva clave) y guardarla FUERA de Descargas. Después: `GOOGLE_APPLICATION_CREDENTIALS=<llave> node herramientas/usuarios.mjs contrasena --correo ajimenezp99@gmail.com --definitiva`. **Sin `--definitiva` la cuenta queda marcada provisional y se revocan sus sesiones** | Desbloquea retirar Google (fase 2b). Ya está VERIFICADO que la pantalla no le aparece entrando por Google |
+| **TODO-57** | **La FICHA ESTRUCTURAL**: carga de rotura, altura libre, altura del punto de sujeción, fases amarradas. ¿Las tiene la empresa en planos o actas, o hay que levantarlas? | **EL CUELLO DE BOTELLA REAL.** Separa «cuánta carga recibe» de «si aguanta» |
+| **TODO-59** | **Qué ficha se le pide a CADA tipología.** La línea mezcla 4 (pórticos de 2 y 3 postes, torre reticulada, poste simple) y el modelo del contrato es de POSTE. Evidencia → `40 §8.3` | No es un formulario, son tres o cuatro |
+| **TODO-33** | **50 % o 25 % de RTS** como tope de tiro | Factor 2 sobre un dictamen |
+| **TODO-58** | **¿Dónde deben vivir los datos?** Hoy Firestore (São Paulo) y R2 bajo TUS cuentas personales, con coordenadas y fotos del empleador | La región de Firestore es INMUTABLE: cambiarla es rehacer |
+| **NUEVO** | **Faltan por fotografiar E13–E24.** No es hueco del dato: es recorrido de campo | Sin ellas no hay nada que leer de 12 apoyos |
+| **TODO-44/34** | Alerta de presupuesto en Cloudflare · respaldo de la bóveda (sin remoto, 337 MB) | R2 factura · sin respaldo, la asignación de las 99 fotos deja de ser reproducible |
+| **TODO-61/54** | ¿App Check? (se enciende en consola, `git revert` no lo deshace) · ¿que el linter vigile la frescura semántica? (se toca el kernel, afecta al proyecto hermano) | Las dos son TUYAS, no mías |
+| **TODO-03/25/36** | Cronometrar LN-627 · probar descargas y Salir con tu sesión · fichas editables (decisión fuerte) | — |
 
 ## 🔲 Pendientes de CLAUDE — en este orden
 
 | # | Qué | Dónde está el plan |
 |---|---|---|
-| **TODO-50** | **Blindaje de acceso**: ✅ F1 herramienta · ✅ F2a correo+contraseña · ✅ **F3 pantalla de cambio obligatorio** (orden fechada + recibo; 3 cerrojos para no encerrar a nadie) · ⬜ **2b retirar Google** — espera TU contraseña, y hazlo con `--definitiva` · ❌ filtrado por rol y rol en el portero DESCARTADOS por redundantes (`99 §ADR-024`) · ⬜ App Check → `TODO-61` | `99 §ADR-019/024` |
-| **TODO-52** | **RCA, lo que falta.** ✅ el camino de edición valida · ✅ **acciones CAPA** en colección propia · ✅ **sondeo de clima congelado** (`punto` añadido al contrato: sin él un sondeo guardado era ininterpretable) — ⚠️ **ninguna de las dos ESCRITURAS se ejercitó contra producción**: no se borran por diseño y no se quiso dejar prueba en tu análisis real (tu decisión, 05-08). Si la primera acción o el primer sondeo fallan al guardar, dímelo · ✅ **informe del análisis** con sus límites impresos y sin poder omitirlos · ⬜ lienzo del árbol (cosmético; en papel la lista sangrada se lee igual) | `99 §ADR-020` |
-| **TODO-60** | **Recorrido fotográfico** de las 12 estructuras con foto (~25 elegidas, no las 94): tipo · función CONFIRMADA vs la deducida · conductores que amarran · retenidas · estado. ⚠️ De a poco en el hilo principal, NUNCA repartido a subagentes (`30 · L-43`). Aplazado 06-08 | — |
-| **TODO-49/48** | Contador de PARQUE (no construible hoy) · deuda de ADR-017: al veredicto longitudinal le falta declarar el ruido de tendido y el piso de validez, y `funcionProcedencia` no viaja a la fila | `99 §ADR-017/018` |
-| **TODO-30** | XSD real de GPX/KML en integración continua · **TODO-11** nota técnica de LN-627 | crudos de **ADR-012/013** |
-| **TODO-13/14/15/16/21/22/23** | F3-F5: invalidación por tramo · sincronización bifurcada · Firestore vs D1 · flujo IA con `ProveedorFalso` · prueba de navegador · secretos de despliegue | — |
+| **TODO-62** | **Contrastar el método RCA contra la IEC 62740** (la norma internacional de análisis de causa raíz) y contra material CIGRE de fallas en líneas aéreas. **HOY el módulo no cita NI UNA norma** — verificado el 06-08: cero referencias a IEC/ISO/IEEE/CIGRE/RETIE en `nucleo/rca.js`, `contratos/src/rca.ts`, la pantalla y el informe. Las 11 espinas, eliminar «mano de obra», las 6 condiciones y el tope climático son **criterio propio bien razonado, no cumplimiento normativo**. Entregar: en qué coincide · en qué se aparta y POR QUÉ · qué ajustar para poder decir que se alinea. ⚠️ **Verificar con fuente, jamás de memoria** (`30 · L-09`) · workflow acotado y con Opus · **al terminar, evaluar el resultado con Fable** (orden del Ingeniero) | — |
+| **TODO-50** | **Blindaje**: ✅ F1 · ✅ F2a · ✅ F3 pantalla de cambio · ⬜ **2b retirar Google** — espera la contraseña | `99 §ADR-019/024` |
+| **TODO-52** | RCA: solo queda el **lienzo del árbol** (cosmético; en papel la lista sangrada se lee igual) | `99 §ADR-020` |
+| **TODO-49/48** | Contador de PARQUE (no construible hoy) · deuda de ADR-017: al veredicto longitudinal le falta declarar el ruido de tendido y el piso de validez | `99 §ADR-017/018` |
+| **TODO-30/11 · 13-23** | XSD real de GPX/KML en CI · nota técnica de LN-627 · y F3-F5: invalidación por tramo, sincronización, Firestore vs D1, flujo IA, prueba de navegador, secretos | crudo de **ADR-013** |
 
-## ✅ Consolidado (detalle → ADR-001…021)
+## ✅ Consolidado (detalle → ADR-001…024)
 
 - **Modelo**: 24 estructuras + 2 empalmes (NO son apoyos), 23 vanos, tramos 1-2-2-14-1-3 (`40 §10`).
   **Workspaces**: `nucleo/` · `contratos/` **(v0.4.0)** · `exportar/` · `web/` · `evidencias/`.
 - **Hallazgos reales**: 14 de 23 vanos fuera de la banda del VIR · **3 apoyos amplifican** (E06 ×1,716
   = 72 % más, con 118,2°) · los 2 terminales soportan el tiro entero (2.339 kgf/conductor).
-- **EL HUECO MAYOR, y hay que verlo siempre**: **0 de 24 apoyos tienen veredicto, en LOS DOS EJES**. El
-  motor YA sabe dictaminar; falta el DATO — nadie declara `cargaRotura_kgf`, `capacidadLongitudinal` ni
-  `nFasesAmarradas`. Es del INVENTARIO y lo cierra `TODO-57`. · **Las 103 fotos se sirven** y cada una
-  sabe de quién es; ⚠️ `e07` es **E06** (`99 §ADR-015`).
-- **IDEAM 04-08**: CORS abierto, ~11 días de desfase, **rayos sin dato utilizable** en el Caribe; sus
-  tres trampas ya son lección (`31 · L-37`) — no volver a investigarlas.
+- **EL HUECO MAYOR**: **0 de 24 apoyos tienen veredicto, en LOS DOS EJES**. El motor YA sabe
+  dictaminar; falta el DATO, y lo cierra `TODO-57`. · **103 fotos** se sirven; ⚠️ `e07` es **E06**
+  (`99 §ADR-015`) y solo cubren E01–E12.
+- **IDEAM**: CORS abierto, ~11 días de desfase, **rayos sin dato utilizable** en el Caribe; sus tres
+  trampas ya son lección (`31 · L-37`).
 
-## 🚫 Callejones ya probados (el índice COMPLETO está en `30`; aquí solo los que más reinciden)
+## 🚫 Callejones ya probados (índice completo en `30`)
 
 - **Verde no prueba nada**: las pruebas (`30 · L-33`), el oráculo contaminado (`32 · L-35`) y el
-  linter del cerebro (`99 §ADR-021`). · Un agente que muere deja código SIN VALIDAR (`30 · L-24`); un
+  linter del cerebro (`99 §ADR-021`). · Un agente que muere deja código SIN VALIDAR (`L-24`); un
   módulo que nadie llama es invisible (`L-28`); repartir imágenes a subagentes los cuelga (`L-43`).
-- **Afirmar algo que la propia evidencia contradice**: contar una cosa y decir que cuentas otra
-  (`99 §ADR-017`) y escribir un motivo que la foto del expediente desmiente (`99 §ADR-020`, final).
+- **Un fixture más completo que la realidad prueba el camino cómodo, no el borde** (`L-34`), y **un
+  tercer estado que la pantalla aplana se convierte en un aprobado** (`32 · L-44`).
