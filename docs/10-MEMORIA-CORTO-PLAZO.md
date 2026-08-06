@@ -84,7 +84,7 @@ motor en «baja» · el clima se consulta cuando el Ingeniero lo pide, nunca al 
 | **TODO-56** | **Dos verdades sobre «cerrado»** en el RCA: el booleano `cerrado` y el estado `'cerrado'` del árbol. Hoy no choca porque nada pone `cerrado` en verdadero; hay que reconciliarlo ANTES de que exista un botón de cerrar el análisis | `99 §ADR-021` |
 | **TODO-49** | Bloqueantes de la crítica: 3 de 4. Falta el **contador de PARQUE**, no construible hoy | `99 §ADR-018` |
 | **TODO-48** | **Deuda de ADR-017**: el criterio del veredicto longitudinal no menciona el ruido de tendido ni el piso de validez; `funcionProcedencia` no viaja a la fila | `99 §ADR-017` |
-| **TODO-42/37** | **Informe gerencial** del expediente (10 secciones) · **TODO-30** XSD real de GPX/KML en CI · **TODO-11** nota técnica de LN-627 | crudos de **ADR-012/013** |
+| **TODO-30** | XSD real de GPX/KML en integración continua · **TODO-11** nota técnica de LN-627 | crudos de **ADR-012/013** |
 | **TODO-13/14/15/16/21/22/23** | F3-F5: invalidación por tramo · sincronización bifurcada · Firestore vs D1 · flujo IA con `ProveedorFalso` · prueba de navegador · secretos de despliegue | — |
 
 ## ✅ Consolidado (detalle → ADR-001…021)

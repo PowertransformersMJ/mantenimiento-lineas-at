@@ -2014,3 +2014,70 @@ herramienta interna de una empresa **es** uso comercial en sus términos.
 
 No hay crudo: es una declaración directa del dueño en la conversación del 2026-08-05. El supuesto que
 corrige sí lo tiene — `research-archive/2026-07-28-comite-vision-arquitectura.md`, sección J.
+
+---
+
+## ADR-023 · 2026-08-05 · El informe GERENCIAL, y por qué no es el técnico resumido
+
+**Estado:** ✅ Cerrado · `TODO-42/37` completo · 785 pruebas en verde.
+**Revisión externa:** ⚠️ **NO revisada externamente.** Las 10 secciones venían especificadas del
+workflow de 7 agentes de `ADR-012`; la construcción y sus prohibiciones son propias.
+
+### Contexto
+
+El sistema sabía producir el informe TÉCNICO —cómo se calculó cada cifra— y no tenía nada que
+contestara las preguntas que se hacen en una reunión. Con el contexto corregido en `ADR-022`
+(herramienta interna que quizá se proponga como estrategia), este documento es justamente lo que
+hace falta para proponerla: un caso real terminado vale más que cualquier explicación del sistema.
+
+### La decisión
+
+**Un documento aparte, no un resumen.** Contesta cinco preguntas distintas: si se puede firmar hoy,
+qué se manda a hacer el lunes, qué queda abierto aunque se haga todo, qué está esperando una firma
+del Ingeniero, y dónde va a apuntar la primera pregunta del interventor.
+
+**Aquí no se calcula NADA nuevo**, y es la regla que gobierna el archivo. Cada cifra sale de una
+función ya probada. No es pereza: el día que los dos papeles digan cosas distintas de la misma
+línea, la discusión deja de ser sobre el cálculo y pasa a ser sobre cuál vale. Por eso la lista de
+límites usa `limitacionesDeclaradas()` y `TITULO_LIMITACIONES` —los MISMOS que el técnico— y hay una
+prueba que se pone roja si el gerencial se escribe la suya.
+
+**El titular es lo que NO se puede sostener.** La primera cifra de la primera página no es cuánto
+cumple: es cuántas cosas el informe todavía no puede afirmar. Un documento que abre celebrando lo
+que sabe y esconde al final lo que no, se lee como una conclusión que nadie sacó.
+
+### Las prohibiciones, todas con prueba y con mutación que la caza
+
+| Prohibido | Por qué |
+|---|---|
+| **Un NÚMERO de riesgo residual** | No hay probabilidad de falla, ni consecuencia en pesos, ni histórico con qué calibrarlos. Una etiqueta de nivel es una medición inventada — y se cita después como si fuera dato. Se entrega la lista de lo abierto, que sí es cierta |
+| **Precio o plazo** | No hay tarifas ni rendimientos de cuadrilla. En un papel de gerencia una cifra inventada acaba convertida en compromiso |
+| **Decir que la línea es segura** | El indicador que lo decidiría —el despeje al terreno— sale no evaluable por todos los caminos hoy |
+| **Decir que ningún apoyo está sobrecargado** | Se sabe cuánta carga se le PIDE a cada estructura; no cuánta aguanta |
+| **Texto escrito por un modelo de lenguaje** | `ADR-004`: la IA propone en `sugerencias/`, nunca escribe en el expediente |
+
+Y lo que **declara** en vez de disimular: el orden de la cola de atención es criterio de gerencia y
+no resultado de cálculo · la cobertura de inspección no se puede cruzar todavía, así que se dice el
+hueco en vez de publicar un porcentaje que nadie calculó · y la sección de recomendaciones avisa **en
+el propio papel** de que es la única que no se deriva sola y por tanto la única que envejece.
+
+### Lo que se cazó construyéndolo, y no leyendo
+
+- **`.find()` cogía el primer indicador con «tiro» en el id** —que en una línea normal es el que
+  cumple— y la decisión pendiente del tope de tiro desaparecía del informe sin que nada avisara.
+- **El propio papel contenía la etiqueta de nivel de riesgo, aunque fuera para negarla.** Una frase
+  entrecomillada se cita fuera de contexto: no se escribe, ni de ejemplo.
+- **Una prueba propia no vigilaba nada**: la que prohíbe columnas de costo exigía que la celda fuera
+  exactamente «Costo», así que «Costo estimado» pasaba tranquila. Se cazó mutando el código.
+
+### Consecuencias
+
+- Los tres datos que la pantalla no tenía se **derivan dentro del módulo** en vez de exigírselos: si
+  la pantalla tuviera que saber de qué función sale cada uno, un día olvidaría uno y la sección
+  saldría vacía en silencio.
+- Con esto `TODO-42/37` cierra. Del RCA queda solo el lienzo del árbol, que es cosmético.
+
+### Crudo de respaldo
+
+`research-archive/2026-08-01-workflow-eje-longitudinal.json` — clave `resultado.gerencial`: las 10
+secciones con su «qué responde» y su «de dónde sale el dato», más `datosQueYaExisten` y `noAfirmable`.
