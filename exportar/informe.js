@@ -136,7 +136,7 @@ export const objeto = (x) => (x !== null && typeof x === 'object' && !Array.isAr
  * de `lev.longitud_m.toFixed(2)` — y el usuario vería una pantalla en blanco en
  * vez de un documento que dice qué falta.
  */
-function levSeguro(lev) {
+export function levSeguro(lev) {
   const L = objeto(lev);
   return {
     puntos: lista(L.puntos),

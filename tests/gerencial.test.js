@@ -184,3 +184,27 @@ describe('el documento se sostiene solo', () => {
     assert.match(html(), /El detalle del cálculo está en el informe técnico/);
   });
 });
+
+describe('el estado cero: un levantamiento a medias no puede tumbar el documento', () => {
+  test('un `lev` SIN `puntos` genera el informe igual', () => {
+    // Cazado en ejecución, no leyendo: el informe técnico normaliza el
+    // levantamiento con `levSeguro()` antes de tocarlo y el gerencial no lo
+    // hacía, así que `calidadLevantamiento()` moría dentro de `lev.puntos.length`
+    // y el usuario veía una pantalla en blanco en vez de un documento que dice
+    // qué falta. Las 20 pruebas de arriba NO lo cazaron porque su caso traía
+    // `puntos: []` — un fixture más completo que la realidad no prueba el borde.
+    const h = gerencialHtml({
+      linea: { codigo: 'LN-627' },
+      lev: { nEstructuras: 24, nEmpalmes: 2, longitud_m: 2929 },   // sin `puntos`
+      indicadores: [], cargas: [], investigaciones: [], cantidades: {}, meta: {},
+    });
+    assert.ok(h.length > 1000, 'el documento tiene que salir igual');
+    assert.equal((h.match(/<section/g) ?? []).length, 10, 'con sus diez secciones');
+  });
+
+  test('sin NADA más que el código de la línea, tampoco explota', () => {
+    const h = gerencialHtml({ linea: { codigo: 'LN-627' } });
+    assert.match(h, /LN-627/);
+    assert.match(h, new RegExp(TITULO_LIMITACIONES), 'la sección de límites va SIEMPRE');
+  });
+});

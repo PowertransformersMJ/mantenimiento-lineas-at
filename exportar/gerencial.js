@@ -34,7 +34,7 @@
 // ============================================================================
 import {
   ESTILO, esc, escRico, n, parrafo, nota, tabla, lista, objeto,
-  limitacionesDeclaradas, TITULO_LIMITACIONES,
+  limitacionesDeclaradas, TITULO_LIMITACIONES, levSeguro,
 } from './informe.js';
 import { calidadLevantamiento } from './calidad.js';
 import { UMBRAL_UTILIZACION_PCT } from '@lineas/nucleo/cargas';
@@ -503,7 +503,12 @@ export function gerencialHtml(entrada) {
   const e = objeto(entrada);
   const linea = objeto(e.linea);
   const meta = objeto(e.meta);
-  const lev = objeto(e.lev);
+  // El MISMO normalizador que el informe técnico, no otro: `calidadLevantamiento`
+  // muere dentro de `lev.puntos.length` si le llega un levantamiento a medias, y
+  // dos guardas distintas del mismo dato es como dos papeles de la misma línea
+  // empiezan a discrepar. Se comprobó en ejecución: sin esto, un `lev` sin
+  // `puntos` tumbaba el documento entero.
+  const lev = levSeguro(e.lev);
   const indicadores = lista(e.indicadores);
   const cargas = lista(e.cargas);
   const investigaciones = lista(e.investigaciones);
