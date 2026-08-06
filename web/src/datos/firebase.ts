@@ -242,6 +242,24 @@ export function esperarSesion(): Promise<User | null> {
 export function olvidarSesion(): void { sesionCache = null; }
 
 /** El rol y la organización viven en el token, no en un documento consultable. */
+/**
+ * Los reclamos ENTEROS y CÓMO entró la persona.
+ *
+ * `signInProvider` es el cerrojo fuerte de la puerta de acceso: lo estampa
+ * Firebase y **no lo aprovisiona nadie**, así que no depende de que una marca
+ * esté bien puesta. Quien entró por Google no tiene contraseña que cambiar.
+ */
+export async function reclamosDeSesion(u: User): Promise<{ proveedor: string | null; claims: Record<string, unknown> }> {
+  try {
+    const t = await u.getIdTokenResult();
+    return { proveedor: t.signInProvider ?? null, claims: t.claims as Record<string, unknown> };
+  } catch {
+    // Sin reclamos legibles no se encierra a nadie: se declara vacío y la puerta
+    // deja pasar.
+    return { proveedor: null, claims: {} };
+  }
+}
+
 export async function credenciales(u: User): Promise<{ orgId: string; rol: string }> {
   const t = await u.getIdTokenResult();
   return {

@@ -2145,3 +2145,106 @@ dos casos del estado cero, y la mutación los pone rojos a ellos y solo a ellos.
 
 `research-archive/2026-08-01-workflow-eje-longitudinal.json` (sección `gerencial`: las 10 secciones,
 de dónde sale cada dato y la lista de lo no afirmable).
+
+---
+
+## ADR-024 · 2026-08-06 · La puerta de acceso: dos piezas, tres cerrojos, y dos controles descartados por redundantes
+
+**Estado:** ✅ Cerrado · `TODO-50` fase 3 completa · en producción.
+**Revisión externa:** ⚠️ **NO revisada externamente.** Workflow propio de 4 lentes Opus con crítico
+de veto. **Los cuatro vetos se aceptaron enteros**, y dos de ellos no eran sobre lo que se iba a
+construir: eran agujeros que ya existían.
+
+### Los dos agujeros que el diseño destapó, y que no tenían que ver con la pantalla
+
+**1 · `/config` se podía leer sin organización.** Era la única regla de lectura del archivo que decía
+`allow read: if autenticado()`. Cualquier cuenta de Google que hubiera entrado al proyecto podía
+leerla. Cerrada con `puedeLeer()`.
+
+Y convierte en **FALSA** una frase que el proyecto repetía como prueba de que el incidente del
+31-07 fue inocuo: *«no pudo leer NADA porque las reglas exigen `orgId`»*. Las demás sí lo exigían;
+ésa no. Lo honesto, y así queda: esa cuenta **no pudo tocar dato de activo ni de cliente**, pero **sí
+tuvo abierta la configuración operativa**. No consta que la leyera; consta que podía.
+
+**2 · El botón «Salir» desaparecía justo cuando más falta hace.** Solo se dibujaba en las fases
+`listo` y `vacio`; en `error` o mientras cargaba, no. O sea que la única pantalla donde de verdad
+hace falta salir era la única sin salida. La sesión y los datos estaban atados y son dos cosas
+distintas.
+
+Los dos van **antes** que la pantalla, y no por orden caprichoso: una pantalla obligatoria construida
+encima de una aplicación sin botón de salir es una puerta que se cierra por dentro.
+
+### La decisión: el mecanismo es de DOS piezas
+
+- **La ORDEN** la escribe el administrador en los reclamos del token, **con fecha**.
+- **El RECIBO** lo escribe la propia persona en `usuarios/{uid}` al cambiarla, con fecha del servidor.
+
+Con una sola pieza —solo la orden— la pantalla sería **una puerta que se cierra por dentro**: la marca
+solo la apaga la herramienta desde la Mac del administrador, así que la persona cambiaría su
+contraseña, volvería, y la misma pantalla la recibiría. Para siempre.
+
+**Y la orden lleva fecha porque `contrasena` puede reponer una provisional una segunda vez.** Con un
+recibo de sí/no, esa segunda no se exigiría cambiar nunca: el recibo viejo la taparía.
+
+### Tres cerrojos para no encerrar a nadie, y por qué son tres
+
+Hoy hay UN usuario real, es admin, entra por Google y no tiene contraseña. Cualquier fallo aquí lo
+deja fuera de su propia herramienta.
+
+1. **El proveedor.** Quien entró por Google pasa siempre. Es el cerrojo fuerte porque **no lo
+   aprovisiona nadie**: lo estampa Firebase, y no depende de que una marca esté bien puesta.
+2. **La marca se lee ESTRICTA** (`=== true`). Un reclamo con `'false'`, `1` o basura no encierra a
+   nadie — todos son verdaderos si se leen con un `if` a secas.
+3. **Ante la duda, se sigue.** La función no lanza jamás. Es fallar hacia abierto **a propósito**, y
+   la razón se escribe: esta pantalla es HIGIENE, no la frontera. La frontera son las reglas y el
+   rol. Una capa opcional nunca tiene veto sobre una esencial (`31 · L-11`).
+
+Y una cuarta salida: la pantalla lleva **«Salir sin cambiarla»**.
+
+### El orden de las tres operaciones es un invariante, y vive en el núcleo
+
+`reautenticar → actualizar → dejar recibo`. Se reautentica **siempre**, no solo cuando Firebase se
+queja: rompe de raíz el bucle «vuelva a entrar → entra → vuelva a entrar», y cierra el agujero de que
+baste un portátil abierto.
+
+**El recibo se escribe DESPUÉS y solo si el cambio salió bien.** Al revés se marcaría como hecho algo
+que no ocurrió: una contraseña provisional viviendo indefinidamente mientras la auditoría dice que ya
+se cambió. Es el único fallo de este diseño con daño de verdad, y por eso el orden está en un módulo
+probado y no en un componente.
+
+Si el recibo falla pero la contraseña sí cambió, **se entra igual**: negar la entrada por no poder
+escribir una fecha sería castigar a la persona por un fallo del sistema.
+
+### Lo que NO es, y está escrito en el propio archivo de reglas
+
+**El recibo no es un control de seguridad.** Lo escribe el navegador: cualquiera con la consola
+abierta puede escribirlo sin cambiar nada, y el daño se lo hace a su propia cuenta. Impedirlo exigiría
+un servidor, que este proyecto no tiene por la regla de coste cero. Se acepta y se dice — decir lo
+contrario sería repetir exactamente la frase que se retiró el 05-08.
+
+### Dos controles DESCARTADOS por redundantes, no por falta de tiempo
+
+| Descartado | Por qué |
+|---|---|
+| **Filtrar pestañas y datos por rol** | Esconder un botón no es seguridad: las reglas ya conceden la lectura a todos los de la organización. Y al `auditor` le recortaría justo lo que su oficio exige ver |
+| **Comprobar el rol en el portero de fotos** | Los cuatro roles tienen derecho a la misma foto, el auditor el primero. Sería una segunda cerradura en la misma puerta y con la misma llave. El portero ya verifica firma, emisor, audiencia, caducidad y **organización**, y falla CERRADO si le falta configuración |
+| **App Check** | Se enciende en una consola, no en el repositorio: `git revert` no lo deshace y su avería deja fuera al único usuario. Queda como `TODO-61`, con el coste por verificar |
+
+### Y la regla de la contraseña deja de estar escrita dos veces
+
+Firebase acepta 6 caracteres; la herramienta exige 12. Con dos copias, **la pantalla OBLIGATORIA
+habría acabado debilitando** la contraseña que el administrador puso fuerte. Ahora vive en
+`contratos/src/acceso.ts` y la importan los dos.
+
+### Consecuencias
+
+- 18 pruebas nuevas, todas sin navegador. **Las tres mutaciones se cazan**: quitar el cerrojo de
+  Google (1 fallo), leer la marca con un `if` a secas (1), y escribir el recibo antes del cambio (3).
+- El `switch` de fases de `App.tsx` **no tiene caso por defecto**: añadir una fase obliga a tratarla
+  o la compilación se cae. El compilador vigila el olvido.
+- ⚠️ **Queda por comprobar EN PANTALLA** que entrando por Google la pantalla NO aparece. Es la
+  verificación que ningún test puede dar, y va antes de que el Ingeniero se ponga la contraseña.
+
+### Crudo de respaldo
+
+`research-archive/2026-08-06-workflow-blindaje-acceso.json`

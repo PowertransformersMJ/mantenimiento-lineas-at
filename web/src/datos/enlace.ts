@@ -19,6 +19,7 @@
 import { useSyncExternalStore } from 'react';
 import type { AccionCapa, AnalisisCausa, Evidencia, Linea, SondeoClima } from '@lineas/contratos';
 import { cargarFirebase } from './cargar';
+import { puertaDeAcceso } from '@lineas/contratos';
 import { repositorio, usarRepositorio, type EstadoDatos, type EstadoRca } from './repositorio';
 import { repositorioFirestore } from './firestore';
 
@@ -228,6 +229,24 @@ class Almacen {
       await recogerRedireccion();
       const s = await repositorio.sesion();
       if (s.fase !== 'autenticado') return this.poner({ fase: 'sin_sesion' });
+
+      // LA PUERTA, y va AQUÍ a propósito: después de comprobar la sesión y
+      // ANTES de pedir un solo dato de línea. No es una ruta ni una ventana
+      // emergente — es una fase de este mismo almacén, así que no hay «detrás»
+      // al que saltar: los datos no se llegan a pedir.
+      //
+      // `puertaDeAcceso` no lanza nunca y ante la duda deja pasar. Esta pantalla
+      // es HIGIENE, no la frontera de seguridad; la frontera son las reglas de
+      // la base. Una capa opcional jamás tiene veto sobre una esencial.
+      const { esperarSesion, reclamosDeSesion } = await cargarFirebase();
+      const u = await esperarSesion();
+      if (u) {
+        const { proveedor, claims } = await reclamosDeSesion(u);
+        const recibo = await repositorio.reciboContrasena();
+        if (puertaDeAcceso({ proveedor, claims, recibo }).fase === 'cambiar_contrasena') {
+          return this.poner({ fase: 'cambiar_contrasena', correo: u.email ?? '' });
+        }
+      }
 
       const lineas = await repositorio.listarLineas();
       if (!lineas.length) return this.poner({ fase: 'vacio' });

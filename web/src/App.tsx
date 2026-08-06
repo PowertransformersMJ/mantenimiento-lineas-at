@@ -9,6 +9,7 @@ import { VERSION_CONTRATO } from '@lineas/contratos';
 import { derivarLevantamiento } from '@lineas/exportar/levantamiento';
 import { useDatos, useRca, almacen } from './datos/enlace';
 import { Rca } from './componentes/Rca';
+import { Contrasena } from './componentes/Contrasena';
 import { SinSesion, Cargando, Vacio, Error_ } from './componentes/Estado';
 import { VistaLinea } from './componentes/Linea';
 
@@ -176,6 +177,10 @@ function Contenido() {
     case 'cargando':   return <Cargando />;
     case 'vacio':      return <Vacio />;
     case 'error':      return <Error_ mensaje={d.mensaje} onReintentar={() => void almacen.cargar()} />;
+    // No es una ruta: es una fase. Y este `switch` NO tiene caso por defecto a
+    // propósito — añadir una fase OBLIGA a tratarla aquí o la compilación se
+    // cae. El compilador vigila el olvido.
+    case 'cambiar_contrasena': return <Contrasena correo={d.correo} />;
     case 'listo':      return <VistaLinea {...d} />;
   }
 }

@@ -240,6 +240,35 @@ service cloud.firestore {
       allow write: if esAdmin() && deMiOrg(resource.data);
     }
 
+    // ── EL RECIBO DEL CAMBIO DE CONTRASEÑA ─────────────────────────────────
+    // Un documento por persona, con UN SOLO CAMPO: cuándo cambió su contraseña.
+    // Ni correo, ni nombre, ni rol — todo eso ya viaja en el token, y menos dato
+    // guardado es menos dato que proteger.
+    //
+    // ⚠️ ESTO NO ES UN CONTROL DE SEGURIDAD, Y HAY QUE DECIRLO AQUÍ MISMO:
+    // cualquiera con la consola del navegador abierta puede escribir su propio
+    // recibo sin haber cambiado nada. Impedirlo exigiría un servidor, que este
+    // proyecto no tiene por la regla de coste cero. Se acepta, y el daño se lo
+    // hace a su propia cuenta.
+    //
+    // La pantalla de cambio de contraseña es HIGIENE. La frontera son las reglas
+    // de arriba y el rol. Escribir lo contrario sería repetir la frase que se
+    // retiró el 2026-08-05, cuando un comentario afirmaba que la aplicación
+    // obligaba a cambiar la contraseña provisional y no lo hacía nadie.
+    //
+    // Lo que sí se hace cumplir, porque es barato y evita un dato inútil:
+    //   · cada quien escribe SOLO su propio documento (`uid == uid`);
+    //   · un único campo permitido, ni uno más;
+    //   · y la fecha la pone EL SERVIDOR (`request.time`), no el navegador, así
+    //     que no se puede fechar hacia atrás para tapar una orden nueva.
+    match /usuarios/{uid} {
+      allow read:   if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null && request.auth.uid == uid
+                    && request.resource.data.keys().hasOnly(['contrasenaCambiadaEn'])
+                    && request.resource.data.contrasenaCambiadaEn == request.time;
+      allow delete: if false;
+    }
+
     // Todo lo no declarado queda cerrado. Añadir una colección exige añadir su
     // regla: no hay forma de colar datos por una puerta que nadie pensó.
     match /{document=**} {

@@ -345,6 +345,42 @@ export const repositorioFirestore: Repositorio = {
   },
 
   /** Los sondeos de clima ya congelados de un análisis. */
+  /**
+   * El recibo del cambio de contraseña: cuándo lo hizo esta persona.
+   *
+   * Devuelve `null` tanto si nunca lo hizo como si la lectura falla — y eso
+   * segundo es deliberado: un fallo leyendo el recibo NO puede encerrar a nadie.
+   * Quien decide es `puertaDeAcceso`, que ante la duda deja pasar.
+   */
+  async reciboContrasena(): Promise<number | null> {
+    try {
+      const { esperarSesion, baseDatos } = await cargarFirebase();
+      const { doc, getDoc } = await firestore();
+      const u = await esperarSesion();
+      if (!u) return null;
+      const d = await getDoc(doc(await baseDatos(), 'usuarios', u.uid));
+      const t = d.exists() ? d.data()?.contrasenaCambiadaEn : null;
+      // Firestore devuelve un Timestamp; `toMillis` es suyo.
+      if (t && typeof t.toMillis === 'function') return t.toMillis();
+      return typeof t === 'number' ? t : null;
+    } catch {
+      return null;
+    }
+  },
+
+  /**
+   * Deja el recibo. La fecha la pone EL SERVIDOR: las reglas exigen que el campo
+   * sea exactamente `request.time`, así que no se puede fechar hacia atrás para
+   * tapar una orden nueva.
+   */
+  async dejarReciboContrasena(): Promise<void> {
+    const { esperarSesion, baseDatos } = await cargarFirebase();
+    const { doc, setDoc, serverTimestamp } = await firestore();
+    const u = await esperarSesion();
+    if (!u) throw new Error('sin sesión');
+    await setDoc(doc(await baseDatos(), 'usuarios', u.uid), { contrasenaCambiadaEn: serverTimestamp() });
+  },
+
   async listarSondeos(analisisId: string): Promise<SondeoClima[]> {
     const { esperarSesion, credenciales, baseDatos } = await cargarFirebase();
     const { collection, getDocs, limit, query, where } = await firestore();

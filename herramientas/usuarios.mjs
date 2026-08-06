@@ -39,22 +39,24 @@
 //     comandos y sería visible en la lista de procesos de la máquina.
 //   · Se teclea SIN ECO y se confirma dos veces.
 //   · No se escribe en ningún fichero ni se imprime jamás.
-//   · La cuenta nace con `passwordProvisional: true`.
+//   · La cuenta nace con `passwordProvisional: true` y con la fecha de la orden.
 //
-// ⚠️ Y AQUÍ HAY UNA PROMESA QUE HOY NO SE CUMPLE — verificado el 2026-08-04.
-// Este comentario decía que «la aplicación obliga a cambiarla en el primer
-// acceso». Es FALSO: ningún archivo de `web/src` lee `passwordProvisional`, y no
-// existe ningún flujo de cambio de contraseña en la aplicación (no hay
-// `updatePassword` ni `sendPasswordResetEmail` en ninguna parte).
+// ✅ Y AHORA SÍ SE CUMPLE — desde el 2026-08-06. Del 04 al 06 esta cabecera
+// afirmó que «la aplicación obliga a cambiarla en el primer acceso» y era FALSO:
+// nadie leía la marca. Se retiró la frase el 05 y se construyó la pantalla el
+// 06. Queda el rastro a propósito: una promesa que el código no cumple es la
+// falta que más veces ha aparecido en este proyecto.
 //
-// La consecuencia práctica, que hay que tener delante antes de dar de alta a
-// alguien: la contraseña que se teclea aquí es la de esa persona, PERMANENTE, y
-// esa persona NO puede cambiarla — solo el administrador, con esta herramienta.
-// Sirve para probar; no sirve para gente real. Lo cierra `TODO-50` fase 3.
+// Cómo funciona, y por qué son DOS piezas: la ORDEN va aquí, en los reclamos del
+// token; el RECIBO lo escribe la propia persona en la base al cambiarla. Con una
+// sola pieza la pantalla sería una puerta que se cierra por dentro — la marca
+// solo la apaga esta herramienta, así que la persona cambiaría su contraseña,
+// volvería, y la misma pantalla la recibiría. Para siempre.
 //
-// Se deja escrito y no se borra la marca `passwordProvisional`: el reclamo ya
-// viaja en el token y la pantalla que falta lo encontrará puesto. Lo que no se
-// puede es seguir afirmando que algo protege cuando no protege nada.
+// LA DECISIÓN DE SI LA PANTALLA APARECE vive en `contratos/src/acceso.ts`,
+// probada sin navegador y con tres cerrojos para no encerrar a nadie: quien
+// entró por Google pasa siempre, la marca se lee estricta, y ante cualquier duda
+// se deja pasar. Esa pantalla es HIGIENE; la frontera son las reglas y el rol.
 //
 // USO
 //   GOOGLE_APPLICATION_CREDENTIALS=/ruta/clave.json node herramientas/usuarios.mjs <orden>
@@ -82,7 +84,7 @@ const ROLES = Object.freeze({
   auditor:   'lectura completa + la bitácora de IA; no escribe nada',
 });
 
-const MIN_CONTRASENA = 12;
+
 
 // ── Argumentos ──────────────────────────────────────────────────────────────
 const ORDEN = process.argv[2];
@@ -146,19 +148,17 @@ function leerOculto(mensaje) {
 }
 
 /**
- * Lo que se rechaza NO es un capricho: son las tres formas en que una
- * contraseña provisional se filtra de verdad — corta, adivinable, o igual al
- * correo de la persona.
+ * La regla de la contraseña NO vive aquí: vive en `contratos/src/acceso.ts`, y
+ * esta herramienta la importa.
+ *
+ * ⚠️ Estuvo escrita dos veces —aquí y, al construir la pantalla de cambio, otra
+ * vez en el navegador— y ésa es la forma exacta en que dos exigencias del mismo
+ * sistema divergen: Firebase acepta 6 caracteres y esto exige 12. Con dos
+ * copias, la pantalla OBLIGATORIA habría acabado debilitando la contraseña que
+ * el administrador puso fuerte. Una definición, dos consumidores.
  */
-function revisarContrasena(c, correo) {
-  const fallos = [];
-  if (c.length < MIN_CONTRASENA) fallos.push(`tiene ${c.length} caracteres y el mínimo es ${MIN_CONTRASENA}`);
-  if (!/[a-zá-ú]/i.test(c) || !/\d/.test(c)) fallos.push('debe mezclar letras y números');
-  const usuario = correo.split('@')[0].toLowerCase();
-  if (usuario.length > 2 && c.toLowerCase().includes(usuario)) fallos.push('contiene el propio correo');
-  if (/^(.)\1+$/.test(c)) fallos.push('es un solo carácter repetido');
-  return fallos;
-}
+const { defectosDeContrasena, MIN_CONTRASENA } = await import('../contratos/src/acceso.ts');
+const revisarContrasena = (c, correo) => defectosDeContrasena(c, correo);
 
 const salir = (mensaje) => { console.error('\n❌ ' + mensaje + '\n'); process.exit(1); };
 
@@ -206,9 +206,12 @@ async function alta() {
   await auth.setCustomUserClaims(u.uid, {
     orgId: ORG,
     rol,
-    // La aplicación exige cambiarla antes de enseñar nada. Sin esto, la
-    // contraseña que se acaba de teclear viviría indefinidamente.
     passwordProvisional: true,
+    // ⚠️ LA ORDEN LLEVA FECHA, y no es un adorno. `contrasena` puede reponer una
+    // provisional una SEGUNDA vez; con un recibo de sí/no, esa segunda no se
+    // exigiría cambiar nunca porque el recibo viejo la taparía. Con fecha, una
+    // orden nueva es más reciente que el recibo y la pantalla vuelve sola.
+    contrasenaOrdenadaEn: Date.now(),
   });
 
   console.log(`\n✅ Creada · uid ${u.uid}`);
@@ -247,7 +250,13 @@ async function contrasena() {
   // propia contraseña debe cambiarla al entrar. El administrador poniéndose la
   // suya es el único caso en que eso sobra, y por eso existe --definitiva.
   const definitiva = process.argv.includes('--definitiva');
-  await auth.setCustomUserClaims(u.uid, { ...previos, passwordProvisional: !definitiva });
+  await auth.setCustomUserClaims(u.uid, {
+    ...previos,
+    passwordProvisional: !definitiva,
+    // Una orden nueva se fecha ahora; `--definitiva` la retira del todo para que
+    // no quede una fecha huérfana que confunda a quien lea los reclamos.
+    ...(definitiva ? { contrasenaOrdenadaEn: null } : { contrasenaOrdenadaEn: Date.now() }),
+  });
   await auth.revokeRefreshTokens(u.uid);
 
   console.log(`\n✅ Contraseña establecida${definitiva ? '' : ' · marcada PROVISIONAL: la app exigirá cambiarla'}`);

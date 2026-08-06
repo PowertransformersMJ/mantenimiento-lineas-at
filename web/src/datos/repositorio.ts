@@ -36,6 +36,12 @@ export type EstadoDatos =
    * lista únicamente la línea abierta: no se inventa un parque que no consta.
    */
   | { fase: 'listo'; linea: Linea; apoyos: Apoyo[]; conductor: Conductor; hipotesis: Hipotesis; investigaciones: Investigacion[]; evidencias: Evidencia[]; lineas?: Linea[] }
+  /**
+   * La ÚNICA pantalla que se interpone antes de entrar. Es una fase del mismo
+   * almacén y no una ruta: no hay «detrás» al que saltar porque los datos de la
+   * línea **no se llegan a pedir**.
+   */
+  | { fase: 'cambiar_contrasena'; correo: string }
   | { fase: 'error'; mensaje: string };
 
 /**
@@ -92,6 +98,11 @@ export interface Repositorio {
   /** Guarda un cambio de una acción. Se valida contra el contrato antes de escribir. */
   guardarAccion(accionId: string, parche: Record<string, unknown>, revision: number): Promise<void>;
 
+  /** Cuándo cambió su contraseña esta persona, o `null`. Nunca lanza. */
+  reciboContrasena(): Promise<number | null>;
+  /** Deja constancia del cambio. La fecha la pone el servidor. */
+  dejarReciboContrasena(): Promise<void>;
+
   /** Los sondeos de clima ya guardados de un análisis. */
   listarSondeos(analisisId: string): Promise<SondeoClima[]>;
   /**
@@ -138,6 +149,12 @@ export const repositorioSinSesion: Repositorio = {
     return null;
   },
   async guardarAccion() {
+    /* sin sesión no se escribe nada */
+  },
+  async reciboContrasena() {
+    return null;
+  },
+  async dejarReciboContrasena() {
     /* sin sesión no se escribe nada */
   },
   async listarSondeos() {

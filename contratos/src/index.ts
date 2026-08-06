@@ -26,6 +26,7 @@ export * from './activos.ts';
 export * from './eventos.ts';
 export * from './ia.ts';
 export * from './rca.ts';
+export * from './acceso.ts';
 
 // ── Las tres funciones invocables ───────────────────────────────────────────
 // Solo `onCall`, jamás `onRequest` abierta. Con verificación de identidad y de
