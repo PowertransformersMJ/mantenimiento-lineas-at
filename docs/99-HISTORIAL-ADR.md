@@ -2081,3 +2081,67 @@ el propio papel** de que es la única que no se deriva sola y por tanto la únic
 
 `research-archive/2026-08-01-workflow-eje-longitudinal.json` — clave `resultado.gerencial`: las 10
 secciones con su «qué responde» y su «de dónde sale el dato», más `datosQueYaExisten` y `noAfirmable`.
+
+---
+
+## ADR-023 · 2026-08-05 · El informe gerencial: derivado entero, y con lo que NO puede afirmar de titular
+
+**Estado:** ✅ Cerrado · `TODO-42/37` completo · en producción.
+**Revisión externa:** ⚠️ **NO revisada externamente.** La especificación de 10 secciones venía del
+workflow de 7 agentes de `ADR-012`; la construcción y sus pruebas son propias.
+
+### Contexto
+
+Faltaba el documento que contesta las preguntas de una reunión, que no son las del informe técnico.
+El técnico contesta *cómo se calculó*. Éste contesta: ¿puedo firmar hoy? · ¿qué mando el lunes? ·
+¿qué queda abierto aunque lo haga todo? · ¿qué espera una firma MÍA? · ¿dónde va a apuntar la
+primera pregunta del interventor?
+
+### La decisión
+
+**Aquí no se calcula NADA nuevo.** Las diez secciones se derivan de funciones que ya existen y ya
+están probadas — `evaluarUmbrales`, `cargasDeLaLinea`, `cantidadesGeometricas`, `coherencia`,
+`calidadLevantamiento`, `limitacionesDeclaradas`. Este módulo solo ORDENA y TRADUCE.
+
+No es pereza: el día que el técnico y el gerencial digan cosas distintas de la misma línea, la
+discusión deja de ser sobre el cálculo y pasa a ser sobre cuál de los dos papeles vale. Por eso la
+sección de límites usa **la misma función y el mismo título canónico** que el técnico, y hay una
+prueba de amarre que se pone roja si alguien la duplica.
+
+**El titular de la primera página es lo que el informe NO puede sostener**, no lo que sí. Un
+documento que abre celebrando lo que sabe y esconde al final lo que no, se lee como una conclusión.
+
+### Lo que tiene PROHIBIDO, y está probado
+
+| Prohibido | Por qué |
+|---|---|
+| **Un número o etiqueta de riesgo** | No hay probabilidad de falla, ni consecuencia en pesos, ni histórico. «Riesgo residual: medio» es una medición inventada, y es peor que no poner nada. Se entrega la LISTA de lo abierto, que sí es cierta |
+| **Precio o plazo** | No hay tarifas ni rendimientos de cuadrilla. En un papel de gerencia una cifra inventada acaba convertida en compromiso |
+| **Decir que la línea es segura** | El indicador que lo decidiría —el despeje al terreno— sale «no evaluable» por todos los caminos hoy |
+| **Ordenar sin declararlo** | La cola de atención dice con esas palabras que su orden es **criterio de gerencia, no resultado de cálculo** |
+| **Un porcentaje de cobertura de inspección** | El cruce entre apoyos inspeccionados y estructuras del levantamiento no existe como función: se declara el hueco |
+| **Texto escrito por un modelo** | `ADR-004`. La única sección que no se deriva sola —recomendaciones por horizonte— **declara en el propio papel que envejece**, y cada renglón dice de qué fila nació; los que no nacen de una fila van rotulados «juicio del ingeniero», con nombre |
+
+### El fallo que encontró la ejecución, y la prueba que no lo veía
+
+`gerencialHtml` normalizaba el levantamiento con `objeto()` mientras el técnico usa `levSeguro()`.
+Con un `lev` sin `puntos`, `calidadLevantamiento()` moría dentro de `lev.puntos.length` y el usuario
+habría visto una pantalla en blanco justo cuando el documento existe para decir qué falta.
+
+**Las 20 pruebas que ya existían pasaban con el fallo dentro**, porque su fixture traía `puntos: []`.
+Un fixture más completo que la realidad no prueba el borde: prueba el camino cómodo. Se añadieron
+dos casos del estado cero, y la mutación los pone rojos a ellos y solo a ellos. Es familia de
+`30 · L-34`.
+
+### Consecuencias
+
+- Con LN-627 hoy el documento sale honesto por construcción: cero apoyos con veredicto, el despeje
+  no evaluable, el tope de tiro esperando una decisión, y **E06 con ×1,716 en la cola de atención**
+  — que es el hallazgo accionable que no necesita ficha estructural.
+- El papel se comparte con el técnico (`ESTILO`, escapes y `tabla` exportados de `informe.js`), sin
+  mover una línea de sitio: sus 42 pruebas de oro siguen verdes.
+
+### Crudo de respaldo
+
+`research-archive/2026-08-01-workflow-eje-longitudinal.json` (sección `gerencial`: las 10 secciones,
+de dónde sale cada dato y la lista de lo no afirmable).

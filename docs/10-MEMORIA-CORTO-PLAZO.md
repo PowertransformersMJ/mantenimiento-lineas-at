@@ -9,9 +9,9 @@
 **714 pruebas en verde · contrato v0.4.0 · cerebro sano · todo empujado y desplegado.**
 11 pestañas + segmento RCA. Producción verificada EN PANTALLA con el Chrome del Ingeniero.
 
-Se cerraron CUATRO olas: **carcasa «El Horizonte»** (ADR-018) · **blindaje de acceso** a medias
-(TODO-50 · ADR-019) · **segmento RCA** completo (ADR-020) · **auditoría de documentación**
-(ADR-021), que halló 18 huecos **con el linter en verde** y los reparó.
+Olas cerradas: **carcasa** (ADR-018) · **blindaje de acceso** a medias (TODO-50 · ADR-019) · **RCA**
+completo (ADR-020) · **auditoría documental** (ADR-021, 18 huecos con el linter en verde) · **el
+contexto real** (ADR-022: sin cliente ni contrato) · **informe gerencial** (ADR-023).
 
 ## 🛑 LO PRIMERO AL RETOMAR
 
