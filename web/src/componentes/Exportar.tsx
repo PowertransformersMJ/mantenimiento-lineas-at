@@ -24,6 +24,7 @@ import { generarCsv } from '@lineas/exportar/csv';
 import { csvVerificacionMecanica } from '@lineas/exportar/mecanica';
 import { csvCantidades } from '@lineas/exportar/bom';
 import { informeHtml } from '@lineas/exportar/informe';
+import { gerencialHtml } from '@lineas/exportar/gerencial';
 import { tramosDeTension, estadosDelTramo } from '@lineas/nucleo/mecanica';
 import { detalleVanos } from '@lineas/nucleo/vanos';
 import { evaluarUmbrales } from '@lineas/nucleo/umbrales';
@@ -232,6 +233,20 @@ export function Exportar({ linea, apoyos, conductor, hipotesis, investigaciones 
               cantidades: calc!.cantidades, investigaciones, meta: m,
             }))}>
           ⬇ Informe completo (HTML imprimible) — se abre sin internet
+        </button>
+        {/* El gerencial NO es el técnico resumido: contesta otras preguntas
+            —¿puedo firmar hoy?, ¿qué mando el lunes?, ¿qué queda abierto?— y
+            comparte con él el DUEÑO de la lista de límites, para que los dos
+            papeles de la misma línea no puedan decir cosas distintas. */}
+        <button type="button" disabled={sinCalculo}
+          onClick={() => bajar('informe-gerencial', 'html', 'text/html',
+            (m) => gerencialHtml({
+              linea, conductor, hipotesis, lev,
+              indicadores: calc!.indicadores, cargas: calc!.cargas,
+              cantidades: calc!.cantidades, investigaciones,
+              meta: m,
+            }))}>
+          ⬇ Informe GERENCIAL — para quien decide, no para quien calcula
         </button>
       </div>
 

@@ -16,7 +16,8 @@
     "./mecanica": "./mecanica.js",
     "./bom": "./bom.js",
     "./informe": "./informe.js",
-    "./informeRca": "./informeRca.js"
+    "./informeRca": "./informeRca.js",
+    "./gerencial": "./gerencial.js"
   },
   "dependencies": {
     "@lineas/nucleo": "*"
