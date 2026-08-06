@@ -222,9 +222,22 @@ service cloud.firestore {
 
     // ── Configuración operativa ────────────────────────────────────────────
     // Incluye el interruptor `ia.enabled`, que el Ingeniero baja sin desplegar.
+    //
+    // ⚠️ ERA LA ÚNICA REGLA DE LECTURA SIN ORGANIZACIÓN, y por eso importaba más
+    // de lo que parece. Decía `allow read: if autenticado()`, o sea que
+    // CUALQUIER cuenta de Google que hubiera entrado —incluida la ajena que se
+    // dio de alta sola el 31-07-2026— podía leer aquí. No es dato de cliente,
+    // pero convertía en FALSA una frase que este proyecto repetía como prueba de
+    // que el incidente fue inocuo: «no pudo leer NADA porque las reglas exigen
+    // orgId». Las demás sí lo exigían; ésta no.
+    //
+    // Hoy nadie la lee todavía, así que cerrarla no rompe nada: es el momento
+    // barato de arreglarla. `deMiOrg` obliga además a que el documento declare
+    // su organización — un documento de configuración sin `orgId` deja de ser
+    // legible, y eso es lo correcto: no se sabe de quién es.
     match /config/{docId} {
-      allow read:  if autenticado();
-      allow write: if esAdmin();
+      allow read:  if puedeLeer();
+      allow write: if esAdmin() && deMiOrg(resource.data);
     }
 
     // Todo lo no declarado queda cerrado. Añadir una colección exige añadir su

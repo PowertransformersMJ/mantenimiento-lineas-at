@@ -20,20 +20,28 @@ function Sesion() {
   const d = useDatos();
   const [correo, setCorreo] = useState<string | null>(null);
 
+  // ⚠️ LA SESIÓN Y LOS DATOS SON DOS COSAS DISTINTAS, y confundirlas dejaba al
+  // usuario encerrado. Esto solo preguntaba por la sesión en las fases `listo` y
+  // `vacio`; en cualquier otra —`error`, `cargando`— ponía el correo en null y
+  // el botón «Salir» desaparecía. O sea que la ÚNICA pantalla donde de verdad
+  // hace falta poder salir —la que dice que algo va mal— era justo donde no
+  // había salida: ni cerrar sesión, ni cambiar de usuario, ni reintentar limpio.
+  //
+  // Se pregunta SIEMPRE. Si no hay sesión, `esperarSesion` devuelve null y el
+  // botón no se dibuja igual; pero si la hay, se puede salir pase lo que pase
+  // con los datos.
   useEffect(() => {
     let vivo = true;
-    if (d.fase === 'listo' || d.fase === 'vacio') {
-      void (async () => {
-        try {
-          const { cargarFirebase } = await import('./datos/cargar');
-          const { esperarSesion } = await cargarFirebase();
-          const u = await esperarSesion();
-          if (vivo) setCorreo(u?.email ?? null);
-        } catch { /* sin sesión que mostrar */ }
-      })();
-    } else {
-      setCorreo(null);
-    }
+    void (async () => {
+      try {
+        const { cargarFirebase } = await import('./datos/cargar');
+        const { esperarSesion } = await cargarFirebase();
+        const u = await esperarSesion();
+        if (vivo) setCorreo(u?.email ?? null);
+      } catch {
+        if (vivo) setCorreo(null);   // sin sesión que mostrar
+      }
+    })();
     return () => { vivo = false; };
   }, [d.fase]);
 

@@ -5,9 +5,19 @@
 // POR QUÉ EXISTE. Hasta hoy la única forma de entrar era «Entrar con Google», y
 // eso es una vía de alta PÚBLICA: cualquiera con una cuenta de Google podía
 // crear una identidad en el proyecto. El 31-07-2026 pasó de verdad: una cuenta
-// de Google ajena al proyecto se dio de alta sin que nadie la invitara — y
-// aunque no pudo leer NADA (sus reclamos eran `null`, y las reglas exigen
-// `orgId`), una herramienta corporativa no debe permitir que eso ocurra.
+// de Google ajena al proyecto se dio de alta sin que nadie la invitara.
+//
+// ⚠️ Y AQUÍ HUBO UNA AFIRMACIÓN FALSA que este archivo repitió durante días:
+// «no pudo leer NADA, porque las reglas exigen orgId». Casi todas lo exigían —
+// pero `/config` NO: decía `allow read: if autenticado()`, o sea que cualquier
+// cuenta que hubiera entrado podía leerla. Se cerró el 06-08-2026, y nadie la
+// leía todavía, así que el arreglo no rompió nada.
+//
+// Lo honesto es esto: esa cuenta **no pudo tocar dato de activo ni de cliente**
+// —líneas, apoyos, evidencias, expedientes: todo eso sí exigía organización—,
+// pero sí tuvo abierta la configuración operativa. No consta que la leyera; lo
+// que consta es que podía. Y una herramienta corporativa no debe permitir ni
+// que se cree la cuenta ni que quede un hueco así.
 //
 // ⚠️ La identidad concreta NO se escribe aquí. Este repositorio es PÚBLICO y esa
 // dirección es el dato personal de una persona real que no pidió aparecer en él,
