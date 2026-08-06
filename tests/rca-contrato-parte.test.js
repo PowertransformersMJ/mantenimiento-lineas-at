@@ -116,3 +116,58 @@ describe('LOS PARCHES REALES de la pantalla siguen pasando', () => {
     assert.equal(ok({ ausencias: [] }).success, true);
   });
 });
+
+describe('TODO-56 · «cerrado» se dice UNA vez, aunque se escriba en dos campos', () => {
+  // `AnalisisCausa` lleva `estado` (con «cerrado» y «sin conclusión» entre sus
+  // valores) Y un booleano `cerrado`. El booleano existe porque las REGLAS DE LA
+  // BASE lo miran —permiten editar solo mientras sea false— y un enum no se
+  // consulta barato desde una regla. Pero dos representaciones del mismo hecho
+  // divergen en cuanto alguien escribe una y olvida la otra, y las dos
+  // consecuencias son malas y silenciosas:
+  //   · estado «cerrado» + cerrado:false → la pantalla dice cerrado y la base
+  //     DEJA SEGUIR EDITANDO el razonamiento ya firmado.
+  //   · estado «abierto» + cerrado:true → se ve abierto y no se puede tocar,
+  //     sin que nada explique por qué.
+  // Hoy no chocan porque nada pone `cerrado` en true. Se atan ANTES de que
+  // exista el botón de cerrar: después habría documentos con las dos verdades
+  // ya escritas, y eso ya no lo arregla una regla.
+
+  test('cerrar el estado SIN marcar el booleano se rechaza', () => {
+    const r = ok({ estado: 'cerrado' });
+    assert.equal(r.success, false, 'la base habría seguido dejando editar un análisis firmado');
+    assert.match(r.error.issues[0].message, /las reglas de la base miran ese booleano/);
+  });
+
+  test('marcar el booleano SIN el estado que lo justifica se rechaza', () => {
+    assert.equal(ok({ cerrado: true }).success, false);
+  });
+
+  test('pasar a un estado NO terminal no exige mandar `cerrado`', () => {
+    // La primera versión de esta regla lo exigía en CUALQUIER cambio de estado y
+    // rompía el botón de declarar la causa raíz, que manda `en_revision` a secas.
+    // Lo cazó la prueba de los parches reales: endurecer una escritura tiene el
+    // riesgo CONTRARIO al que se está tapando.
+    assert.equal(ok({ estado: 'en_revision' }).success, true);
+    assert.equal(ok({ estado: 'abierto' }).success, true);
+  });
+
+  test('los dos juntos y coherentes pasan', () => {
+    assert.equal(ok({ estado: 'cerrado', cerrado: true }).success, true);
+    assert.equal(ok({ estado: 'sin_conclusion', cerrado: true }).success, true,
+      '«sin conclusión» también es un final: se cierra sin causa raíz, y es honesto');
+    assert.equal(ok({ estado: 'en_revision', cerrado: false }).success, true);
+  });
+
+  test('los dos juntos y CONTRADICIÉNDOSE se rechazan, en las dos direcciones', () => {
+    assert.equal(ok({ estado: 'cerrado', cerrado: false }).success, false);
+    assert.equal(ok({ estado: 'abierto', cerrado: true }).success, false);
+    assert.equal(ok({ estado: 'sin_conclusion', cerrado: false }).success, false);
+  });
+
+  test('un parche que no toca ninguno de los dos sigue pasando', () => {
+    // No se puede endurecer el cierre a costa de romperle el guardar a los seis
+    // editores, que no mandan ni `estado` ni `cerrado`.
+    assert.equal(ok({ hipotesis: [] }).success, true);
+    assert.equal(ok({ espinas: [] }).success, true);
+  });
+});

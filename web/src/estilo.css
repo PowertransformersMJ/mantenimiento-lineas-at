@@ -812,6 +812,9 @@ p.fund-vivo + .sello-calculo { margin-top: 5px; }
 .hz-suelo { fill: var(--hz-suelo); }
 .hz-cable { fill: none; stroke: var(--hz-cable); stroke-width: 1.1; }
 .hz-fuera { stroke: var(--rd); stroke-width: 1.9; }
+/* Un vano que no se pudo comparar NO es uno que salió bien: se punteà, como la
+   torre sin veredicto, y por la misma razón. */
+.hz-sin-comparar { stroke: var(--hz-marca); stroke-dasharray: 3 2.5; }
 .hz-torre path { stroke-width: 1.2; }
 .hz-torre line { stroke-width: 1.1; }
 .hz-dictaminada path { fill: var(--hz-dictaminada); fill-opacity: .85; stroke: var(--hz-dictaminada); }
@@ -822,6 +825,8 @@ p.fund-vivo + .sello-calculo { margin-top: 5px; }
 /* Carriles de comprobación (TODO-53): una marca por apoyo y por eje. Maciza =
    hay veredicto en ese eje; punteada = falta. Se distinguen por FORMA además de
    por tono, para que se lean sin depender del color. */
+.tabla tr.sin-comparar td { background: var(--sup-hund); color: var(--tx-pendiente); font-style: italic; }
+
 .rca-lista { margin: 6px 0 0; padding-left: 18px; font-size: .84rem; color: var(--mut); }
 .rca-lista li { margin: 3px 0; font-variant-numeric: tabular-nums; }
 

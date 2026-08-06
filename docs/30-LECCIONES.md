@@ -51,6 +51,7 @@
 - `L-30` · `loading="lazy"` no carga URLs `blob:` — y el fallo se lee como «faltan los datos»
 - `L-35` · `deploy` NO construye: se puede desplegar un `dist/` rancio y no enterarse
 - `L-36` · Recaída de `L-22`: las reglas de Firestore no se despliegan solas (el cuerpo vive en `31 · L-22`)
+- `L-44` · Un tercer estado que la pantalla aplana se convierte en un aprobado
 
 ### `docs/33-LECCIONES-NUCLEO-Y-DATO.md` — el número que se firma y el dato que no puede salir de este repositorio
 

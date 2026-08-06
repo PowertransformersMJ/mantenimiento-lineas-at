@@ -440,7 +440,16 @@ function DetalleVanos({ apoyos, conductor, hipotesis }:
   const r = useMemo(() => vanosDeLinea(apoyos, conductor, hipotesis), [apoyos, conductor, hipotesis]);
 
   if (!r || !r.filas.length) return null;
-  const fuera = r.filas.filter((f) => f.fueraDeRango);
+
+  // ⚠️ `fueraDeRango` tiene TRES estados, no dos. `nucleo/vanos.js` devuelve
+  // `null` cuando no hubo VIR contra el que comparar, y contar solo los `true`
+  // convierte ese hueco en un aprobado: el vano se pinta exactamente igual que
+  // uno que SÍ se comprobó y salió dentro de banda. Es la misma falta que
+  // TODO-53 cerró en el horizonte, en otro sujeto. El informe ya lo distinguía
+  // —y hasta el CSV del mismo exporte escribe «no evaluable» en esa fila—, así
+  // que la pantalla era el único sitio donde el hueco se disfrazaba de dato bueno.
+  const fuera = r.filas.filter((f) => f.fueraDeRango === true);
+  const sinComparar = r.filas.filter((f) => f.fueraDeRango !== true && f.fueraDeRango !== false);
 
   return (
     <section className="panel">
@@ -465,11 +474,16 @@ function DetalleVanos({ apoyos, conductor, hipotesis }:
           </thead>
           <tbody>
             {r.filas.map((f) => (
-              <tr key={f.n} className={f.fueraDeRango ? 'excede' : undefined}>
+              <tr key={f.n} className={f.fueraDeRango === true ? 'excede'
+                : f.fueraDeRango === false ? undefined : 'sin-comparar'}>
                 <td className="num">{f.n}</td>
                 <td className="num">{f.tramo}</td>
                 <td className="num">{nf(f.a_m, 1)}</td>
-                <td className="num destaca">{f.relVir == null ? '—' : nf(f.relVir, 2)}</td>
+                <td className="num destaca" title={f.fueraDeRango === null
+                  ? 'Sin VIR del tramo contra el que comparar: este vano NO se pudo evaluar'
+                  : undefined}>
+                  {f.relVir == null ? 'no evaluable' : nf(f.relVir, 2)}
+                </td>
                 <td className="num">{nf(f.flechaEds_m, 2)}</td>
                 <td className="num">{nf(f.flechaTMax_m, 2)}</td>
                 <td className="num">{nf(f.flechaTMin_m, 2)}</td>
@@ -481,14 +495,31 @@ function DetalleVanos({ apoyos, conductor, hipotesis }:
         </table>
       </div>
 
-      {fuera.length ? (
+      {fuera.length > 0 && (
         <p className="alerta">
           <b>{nf(fuera.length)} vano(s) fuera de la banda 0,7–1,3 respecto al VIR de su tramo:</b>{' '}
           {fuera.map((f) => `#${f.n}`).join(', ')}. Fuera de esa banda la hipótesis del vano ideal
           de regulación pierde validez y el tramo debería subdividirse.
         </p>
-      ) : (
-        <p className="ok">Todos los vanos caen dentro de la banda 0,7–1,3 respecto al VIR de su tramo.</p>
+      )}
+
+      {/* Un hueco NO es un aprobado. Antes, con vanos sin VIR contra el que
+          comparar, esta pantalla cerraba con «todos dentro de la banda» — y esos
+          vanos no se habían comprobado, ni bien ni mal. */}
+      {sinComparar.length > 0 && (
+        <p className="aviso">
+          <b>{nf(sinComparar.length)} vano(s) NO se pudieron comparar</b> con el VIR de su tramo:{' '}
+          {sinComparar.map((f) => `#${f.n}`).join(', ')}. No están dentro de la banda ni fuera:
+          <b> no se han evaluado</b>. Suele ser un tramo sin VIR calculable, o dos estructuras
+          capturadas sobre la misma coordenada.
+        </p>
+      )}
+
+      {fuera.length === 0 && sinComparar.length === 0 && (
+        <p className="ok">
+          Los {nf(r.filas.length)} vanos se compararon con el VIR de su tramo y todos caen dentro de
+          la banda 0,7–1,3.
+        </p>
       )}
 
       {r.res.longitudTotal_m != null && (

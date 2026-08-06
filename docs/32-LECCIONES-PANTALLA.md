@@ -168,3 +168,22 @@
   `new Image()` con el mismo `src`. Si la copia carga y el original no, el problema es del ELEMENTO
   (atributos, estilos, ciclo de vida), no del dato ni de la red. Aquí ese contraste separó «no
   llegan las fotos» de «llegaron y no se pintan», que son dos investigaciones distintas.
+
+### L-44 · Un tercer estado que la pantalla aplana se convierte en un aprobado
+
+- **Síntoma:** la tabla «Vano a vano» cerraba con *«Todos los vanos caen dentro de la banda 0,7–1,3
+  respecto al VIR de su tramo»* — incluyendo los vanos que **nunca se compararon**. Se pintaban
+  exactamente igual que uno verificado y correcto.
+- **Causa:** `nucleo/vanos.js` devuelve `fueraDeRango` de TRES estados —`true`, `false` y `null`
+  cuando no hubo VIR contra el que comparar— y la pantalla lo leía con `if (f.fueraDeRango)`. En
+  JavaScript `null` es falso, así que «no se pudo evaluar» y «se evaluó y está bien» acababan en la
+  misma rama. El comentario del núcleo YA avisaba de que «`false` diría que está dentro de rango».
+- **Lo que hace esto especialmente sucio:** el informe imprimible **sí** los distinguía, y el CSV del
+  mismo exporte escribía «no evaluable» en esa misma fila. O sea que tres salidas del mismo dato
+  decían dos cosas distintas, y la que se mira todos los días era la que mentía.
+- **Regla:** un campo de tres estados se lee con `=== true` y `=== false`, nunca por veracidad. Y la
+  frase de cierre —«todo bien», «todos dentro», «sin hallazgos»— **solo se escribe cuando el conjunto
+  no evaluado está vacío**. Si hay huecos, se cuentan aparte y se dicen: no están dentro ni fuera,
+  no se han mirado.
+- **Hermana de `L-40`** (deducir el hecho de otra cosa) y de la falta que `99 §ADR-018` cerró en el
+  horizonte con los dos ejes: la misma familia, distinto sujeto.

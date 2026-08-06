@@ -334,10 +334,43 @@ const FormaAnalisis = Base.extend({
 
   /** Límites del análisis, impresos en el informe. Se declara; no se omite. */
   limitaciones: z.array(z.string().max(1000)).default([]),
+  /**
+   * ⚠️ REDUNDANTE CON `estado`, Y ATADO A ÉL POR CONTRATO (`TODO-56`).
+   *
+   * Este booleano existe porque **las reglas de Firestore lo miran**: la regla de
+   * `analisis` permite actualizar solo mientras `cerrado == false`. Un enum no se
+   * puede consultar tan barato desde una regla, así que el booleano se queda.
+   *
+   * Pero dos representaciones del mismo hecho divergen en cuanto alguien escribe
+   * una y olvida la otra, y aquí las dos consecuencias son malas y silenciosas:
+   * con `estado: 'cerrado'` y `cerrado: false`, la pantalla dice cerrado y **la
+   * base deja seguir editando el razonamiento que ya se firmó**; al revés, el
+   * análisis se ve abierto y no se puede tocar, sin que nada explique por qué.
+   *
+   * Hoy no choca porque NADA pone `cerrado` en verdadero. Se ata ahora, antes de
+   * que exista el botón de cerrar — después habría documentos con las dos
+   * verdades ya escritas, y eso ya no se arregla con una regla.
+   */
   cerrado: z.boolean().default(false),
 });
 
+/** Los dos estados TERMINALES: el análisis ya no se edita. */
+const ESTADOS_TERMINALES: readonly string[] = ['cerrado', 'sin_conclusion'];
+
+/** `estado` y `cerrado` dicen lo mismo, o el documento no es válido. */
+const coherenteElCierre = (estado: string | undefined, cerrado: boolean | undefined): boolean =>
+  cerrado === ESTADOS_TERMINALES.includes(String(estado));
+
 export const AnalisisCausa = FormaAnalisis.refine(
+  (a) => coherenteElCierre(a.estado, a.cerrado),
+  {
+    path: ['cerrado'],
+    message: 'El estado del análisis y la marca de cerrado se contradicen. Los estados «cerrado» y '
+           + '«sin conclusión» son finales: los dos exigen `cerrado: true`, y cualquier otro exige '
+           + '`false`. Si divergen, la pantalla y las reglas de la base dicen cosas distintas del '
+           + 'mismo documento — y una de las dos deja editar un razonamiento ya firmado.',
+  },
+).refine(
   (a) => a.alcance.lineaIds.length > 0
       || a.alcance.apoyoIds.length > 0
       || a.alcance.investigacionIds.length > 0
@@ -382,7 +415,49 @@ export const ParteDeAnalisis = FormaAnalisis.pick({
   causaRaiz: true,
   limitaciones: true,
   cerrado: true,
-}).partial().strict();
+}).partial().strict().superRefine((p, ctx) => {
+  // En un parche PARCIAL no se puede comprobar la pareja contra el documento
+  // entero, así que se exige que viajen JUNTAS — pero SOLO cuando el cambio
+  // toca el CIERRE.
+  //
+  // ⚠️ La primera versión de esta regla exigía la pareja en CUALQUIER cambio de
+  // estado, y rompía el botón de declarar la causa raíz, que manda
+  // `estado: 'en_revision'` a secas. Lo cazó la prueba de los parches reales, y
+  // por eso existe: endurecer una escritura tiene el riesgo CONTRARIO al que se
+  // está tapando — dejar fuera algo que la pantalla sí manda.
+  //
+  // Pasar a un estado NO terminal no necesita mandar `cerrado`: el documento se
+  // está pudiendo editar, luego ya era `false`. Un análisis cerrado no se puede
+  // reabrir por esta vía porque las reglas de la base ni siquiera dejan
+  // escribirlo.
+  const terminalNuevo = p.estado !== undefined && ESTADOS_TERMINALES.includes(p.estado);
+  const cierraBooleano = p.cerrado === true;
+
+  if (terminalNuevo && p.cerrado !== true) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['cerrado'],
+      message: 'Para cerrar hay que mandar también `cerrado: true`: las reglas de la base miran ese '
+             + 'booleano, no el estado. Con uno solo, la pantalla diría cerrado y la base seguiría '
+             + 'dejando editar el razonamiento ya firmado.',
+    });
+  }
+  if (cierraBooleano && !terminalNuevo) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['estado'],
+      message: 'Al marcar `cerrado: true` hay que mandar el estado terminal que lo justifica: '
+             + '«cerrado» (con causa raíz) o «sin conclusión» (cierre honesto sin ella).',
+    });
+  }
+  if (p.cerrado === false && terminalNuevo) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['cerrado'],
+      message: 'Un estado terminal con `cerrado: false` deja el documento diciendo dos cosas.',
+    });
+  }
+});
 
 export type ParteDeAnalisis = z.infer<typeof ParteDeAnalisis>;
 

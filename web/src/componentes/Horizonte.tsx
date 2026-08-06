@@ -117,6 +117,9 @@ export function Horizonte({ ejes, vanos, total }:
       x1: t.x, x2: torres[i + 1].x,
       n: vanos?.filas[i]?.n ?? i + 1,
       fuera: vanos?.filas[i]?.fueraDeRango === true,
+      // TRES estados, igual que en la tabla: `null` es «no se pudo comparar»,
+      // y pintarlo como un cable normal lo convierte en un aprobado silencioso.
+      sinComparar: vanos ? vanos.filas[i]?.fueraDeRango == null : false,
       largo: vanos?.filas[i]?.a_m ?? null,
     }));
 
@@ -157,12 +160,13 @@ export function Horizonte({ ejes, vanos, total }:
           return (
             <path
               key={`v${t.n}`}
-              className={t.fuera ? 'hz-cable hz-fuera' : 'hz-cable'}
+              className={t.fuera ? 'hz-cable hz-fuera' : t.sinComparar ? 'hz-cable hz-sin-comparar' : 'hz-cable'}
               d={`M${t.x1.toFixed(1)},${cima + 3} Q${((t.x1 + t.x2) / 2).toFixed(1)},${(cima + 3 + flecha).toFixed(1)} ${t.x2.toFixed(1)},${cima + 3}`}
             >
               <title>
                 {`Vano ${t.n}${t.largo !== null ? ` · ${nf(t.largo, 1)} m` : ''}`}
-                {t.fuera ? ' · FUERA de la banda 0,7–1,3 del vano ideal' : ''}
+                {t.fuera ? ' · FUERA de la banda 0,7–1,3 del vano ideal'
+                  : t.sinComparar ? ' · NO se pudo comparar: sin VIR del tramo contra el que medir' : ''}
               </title>
             </path>
           );
