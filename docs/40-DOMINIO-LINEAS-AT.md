@@ -353,6 +353,56 @@ apoyos de anclaje (`docs/10 · TODO-18`).
 
 ---
 
+## §8.3 — LN-627 mezcla al menos CUATRO tipologías (leído en fotografía, 2026-08-06)
+
+Leyendo las fotos del recorrido de levantamiento aparecieron **cuatro tipos de estructura distintos
+en las 12 que tienen foto**. La línea no es homogénea, y eso no es un detalle de inventario: es un
+problema de MODELO.
+
+| Apoyo | Tipología observada | Función que se ve | En qué foto |
+|---|---|---|---|
+| **E01** | Pórtico de concreto de **2 postes** | Terminal, salida de subestación: las 3 fases rematan en amarre y salen en abanico | `e01-01` |
+| **E02**, **E03** | Pórticos de concreto de **3 postes**, tres ménsulas | Amarre: cadenas horizontales en tensión, con puentes | `e02-01`, `e02-18` |
+| **E07** | **Torre metálica reticulada** autosoportada | — | `e09-05` |
+| **E12** | **Poste de concreto simple** | Suspensión | `e14-01` |
+
+⚠️ Recordar el mapeo de `99 §ADR-015`: el número del archivo es el del PUNTO, y `e07` es E06.
+
+### Por qué esto importa más que el dato suelto
+
+**El modelo de capacidad que hoy tiene el contrato es de POSTE**: una carga de rotura ensayada en la
+punta (`cargaRotura_kgf`), comparada como momento contra la altura libre (`alturaLibre_m`). Ese
+modelo describe bien un poste de concreto simple — E12 — y **no describe** los otros tres:
+
+- Una **torre reticulada autosoportada** no tiene «carga de rotura»: tiene un **árbol de cargas** por
+  punto de amarre, con transversal, longitudinal y vertical declaradas por separado. Compararla con
+  un momento único daría un porcentaje impecable y sin significado.
+- Un **pórtico de 2 o 3 postes** reparte la carga entre varios elementos y sus ménsulas. La rotura de
+  un poste aislado no es la capacidad del conjunto.
+
+**Consecuencia práctica:** la «ficha estructural» que hoy bloquea los 24 veredictos **no es un
+formulario, son tres o cuatro**. Antes de salir a buscar datos conviene decidir qué se le pide a cada
+tipo — y es decisión de ingeniería, no de programación (`TODO-59`).
+
+### Lo que la fotografía NO puede dar, y no es opinable
+
+- **La altura libre.** Depende del empotramiento, que está bajo tierra **por definición**. Ninguna
+  cámara la ve, y estimarla por comparación con una persona o un vehículo es exactamente lo que este
+  sistema rechaza.
+- **La carga de rotura.** Es un valor de ENSAYO. Solo aparecería si una foto pillara una placa de
+  fabricante; en las revisadas no hay ninguna (sí hay placas de NUMERACIÓN, que es otra cosa).
+- **La capacidad longitudinal**, que además depende de la sección y de si hay retenida.
+
+De los cinco datos de la ficha, el único observable en una fotografía es **cuántos conductores
+amarran** — y aun ése es una observación que confirma una persona (`99 §ADR-004`).
+
+### Hallazgo suelto que no necesita ficha
+
+En **E12** se ve vegetación trepando por el poste y arbolado denso bajo la línea. Es accionable hoy y
+encaja con la familia «vegetación y servidumbre» del método RCA.
+
+---
+
 ## §10 — CORRECCIÓN: no todo punto levantado es un apoyo
 
 > **Un empalme no sostiene el conductor.** Puede estar a mitad de vano. Contarlo como apoyo parte un
