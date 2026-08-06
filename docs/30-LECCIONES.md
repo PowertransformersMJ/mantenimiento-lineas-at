@@ -4,8 +4,8 @@
 > (trigger 🧪 de `CLAUDE.md §G.2`). Cada lección es un gotcha que ya se pagó una vez.
 > Formato: `L-NN · título` → **Síntoma** / **Causa** / **Regla**.
 >
-> **Qué es este archivo:** el ÍNDICE de las 38 lecciones —**30 repartidas por tema en tres hijos y
-> 8 de MÉTODO aquí mismo, completas**: cómo se delibera, cómo se verifica y cuándo algo está de
+> **Qué es este archivo:** el ÍNDICE de las 42 lecciones —**33 repartidas por tema en tres hijos y
+> 9 de MÉTODO aquí mismo, completas**: cómo se delibera, cómo se verifica y cuándo algo está de
 > verdad terminado—. Las de método se quedan porque no son de ninguna pieza: valen para las tres, y
 > son las que más se citan desde otras neuronas. Si el síntoma huele a un tercero, a lo que se ve o
 > se abre, o al número que se firma, el índice te manda directo al hijo: no hay que leerse los
@@ -13,7 +13,7 @@
 >
 > **Los identificadores NO se renumeran nunca.** Un `L-NN` citado en otra neurona o en un comentario
 > del código sigue apuntando al mismo gotcha, viva donde viva su cuerpo. Y ojo con la aritmética: los
-> números llegan hasta 39 pero las lecciones son 38 — el 14 se fusionó en `L-13` y no existe.
+> números llegan hasta 43 pero las lecciones son 42 — el 14 se fusionó en `L-13` y no existe.
 >
 > ⚠️ **ANTES de escribir una lección nueva, busca el SÍNTOMA en los cuatro archivos.** Desde que la
 > familia se repartió, ninguno se lee entero, y el 04-08-2026 se escribió `L-36` sin ver que `L-22`
@@ -76,6 +76,7 @@
 - `L-33` · Escribir la prueba y auditar el resultado son dos trabajos distintos
 - `L-34` · Un fixture que DECLARA a mano lo que producción DERIVA ensaya otro camino
 - `L-39` · Con la familia repartida, una lección nueva se DUPLICA si no buscas el síntoma en los cuatro archivos
+- `L-43` · Un subagente que tiene que abrir muchas IMÁGENES se cuelga: eso se lee de a poco y en el hilo principal
 
 ---
 
@@ -166,6 +167,23 @@
   de refutar, no el mismo que lo escribió — y sus hallazgos se **reproducen ejecutando** antes de
   aceptarlos (§3.2). Barato de comprobar: si al fixture le cambias un valor y ninguna prueba se pone
   roja, esa prueba no estaba midiendo lo que crees.
+
+### L-43 · Un subagente que tiene que abrir muchas IMÁGENES se cuelga: eso se lee de a poco y en el hilo principal
+
+- **Síntoma:** un workflow de 6 lectores + 1 sintetizador para leer 94 fotografías de estructura.
+  **Los 7 agentes murieron.** Cuatro se colgaron sin avanzar (180 s × 6 reintentos cada uno), tres
+  cayeron a mitad de respuesta. **3,5 millones de tokens, 1.089 llamadas, tres horas y CERO
+  resultados** — el diario no tenía ni una línea recuperable.
+- **Causa:** a cada lector le tocaban entre 8 y 20 imágenes. Leer una fotografía es caro y lento, y
+  acumuladas en un solo agente lo ahogan. No es un fallo del encargo ni del prompt: es el volumen.
+- **La prueba de que el trabajo sí se podía hacer:** las mismas fotos, abiertas de una en una desde
+  el hilo principal, se leen sin problema y dan hallazgos reales al primer intento.
+- **Regla:** el trabajo con imágenes **no se reparte a subagentes por lotes**. Se hace en el hilo
+  principal, de una en una o de dos en dos, entregando resultados a medida — que además es mejor
+  para quien espera, porque ve avance en vez de un todo-o-nada de tres horas.
+- **Y la regla general que hay detrás:** antes de repartir N unidades de trabajo a subagentes, haz
+  UNA tú mismo y mira cuánto cuesta. Si una sola ya es pesada, N en un agente no es N veces más
+  lento: es un cuelgue. Emparenta con `L-24` (un agente que muere deja trabajo sin validar).
 
 ### L-34 · Un fixture que DECLARA a mano lo que producción DERIVA ensaya otro camino
 - **Síntoma:** al unificar las dos políticas opuestas de la deflexión cayeron 10 pruebas: su fixture
