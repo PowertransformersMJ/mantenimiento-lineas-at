@@ -119,6 +119,54 @@ const SONDEO = {
   nota: 'Estación a 42.3 km del punto. Son observaciones DE ESA ESTACIÓN, no del vano.',
 };
 
+describe('el aviso de la cadena lo juzga el NÚCLEO, no el informe', () => {
+  // El informe miraba el ÚLTIMO eslabón y lo comparaba a mano con
+  // «mecanismo_fisico». Fallaba en los dos sentidos, y los dos salían al papel.
+  const cadena = (eslabones) => ({ analisis: { cadenas: [{ id: 'c1', espina: 'conductor', eslabones }] } });
+
+  test('FALSO POSITIVO: llegó a «condición» y volvió atrás — no debe avisar', () => {
+    // `fuerzaCadena` contempla a propósito que una cadena vuelva atrás para
+    // explicar una rama: el nivel alcanzado es el MÁS ALTO, no el último.
+    const h = html(cadena([
+      { nivel: 'efecto', enunciado: 'la línea se abrió', evidenciaIds: ['e1'] },
+      { nivel: 'condicion', enunciado: 'herraje fuera de su función', evidenciaIds: ['e1'] },
+      { nivel: 'mecanismo_fisico', enunciado: 'y además hubo ciclado térmico', evidenciaIds: ['e1'] },
+    ]));
+    // Se anda sobre «Eso describe qué pasó», que estaba en el texto VIEJO del
+    // aviso y sigue en el nuevo: si se ancla en una frase que solo existe hoy,
+    // la prueba pasa también con el defecto puesto y no demuestra nada.
+    assert.doesNotMatch(h, /Eso describe qué pasó/,
+      'una cadena accionable no puede salir avisada por el orden de sus eslabones');
+  });
+
+  test('FALSO NEGATIVO: muere en el modo de falla — antes NO avisaba nada', () => {
+    const h = html(cadena([
+      { nivel: 'efecto', enunciado: 'la línea se abrió', evidenciaIds: ['e1'] },
+      { nivel: 'modo_falla', enunciado: 'el conector perdió continuidad', evidenciaIds: ['e1'] },
+    ]));
+    assert.match(h, /y ahí se detiene/,
+      'quedarse en el modo de falla está MÁS lejos de una causa raíz que el mecanismo');
+  });
+
+  test('la cadena cortada por falta de dato se declara, no se disfraza', () => {
+    const h = html(cadena([
+      { nivel: 'efecto', enunciado: 'la línea se abrió', evidenciaIds: ['e1'] },
+      { nivel: 'modo_falla', enunciado: 'el conector perdió continuidad', evidenciaIds: ['e1'], cortadaPorFaltaDeDato: 'no se recuperó la pieza' },
+    ]));
+    assert.match(h, /Cadena cortada por falta de dato/);
+    assert.match(h, /no se recuperó la pieza/);
+  });
+
+  test('una cadena que llega a la regla sale sin aviso', () => {
+    const h = html(cadena([
+      { nivel: 'efecto', enunciado: 'la línea se abrió', evidenciaIds: ['e1'] },
+      { nivel: 'regla', enunciado: 'la especificación no exigía inhibidor', evidenciaIds: ['e1'] },
+    ]));
+    assert.doesNotMatch(h, /y ahí se detiene/);
+    assert.doesNotMatch(h, /Cadena cortada/);
+  });
+});
+
 describe('las ramas que mueren en la física llegan al papel', () => {
   // El cálculo existía en `nucleo/rca.js` desde el primer día y NADIE lo
   // consumía: ni la pantalla ni el informe. Un aviso que el motor calcula y

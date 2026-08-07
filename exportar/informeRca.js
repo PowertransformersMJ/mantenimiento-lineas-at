@@ -34,7 +34,7 @@
 import { ESTILO, esc, escRico, n, parrafo, nota, tabla, lista, objeto } from './informe.js';
 import {
   evaluarEspinas, validarArbol, resumenBarreras, revisarHipotesis,
-  condicionesCausaRaiz, auditarRespaldo, resumenAcciones,
+  condicionesCausaRaiz, auditarRespaldo, resumenAcciones, fuerzaCadena,
 } from '@lineas/nucleo/rca';
 
 const SIN_DATO = '—';
@@ -124,6 +124,31 @@ function seccionEspinas(espinas) {
     : '');
 }
 
+/**
+ * El aviso que acompaña a una cadena, a partir del juicio del núcleo.
+ *
+ * Cubre los tres finales que NO sostienen una causa raíz, y no solo el que salta
+ * a la vista: cortada por falta de dato, y detenida en CUALQUIERA de los tres
+ * niveles bajos —efecto, modo de falla o mecanismo físico—, no únicamente el
+ * último. Una cadena que se queda en el modo de falla está más lejos de una
+ * causa raíz que una que llega al mecanismo, y hasta hoy salía sin una palabra.
+ */
+function avisoCadena(f) {
+  if (!f.nivelAlcanzado) return '';
+  if (f.cortada) {
+    return nota(`<b>Cadena cortada por falta de dato</b> en «${escRico(f.cortada.enunciado)}»: `
+      + `${escRico(f.cortada.motivo)}. Declararlo es preferible a inventar el último eslabón, que es `
+      + 'como se fabrica una causa raíz falsa.');
+  }
+  if (!f.esAccionable) {
+    return nota(`<b>Esta cadena llega hasta ${esc(NIVEL[f.nivelAlcanzado] ?? legible(f.nivelAlcanzado))} `
+      + 'y ahí se detiene.</b> Eso describe qué pasó, no por qué se pudo dar: sobre la física no se '
+      + 'puede actuar. Una causa raíz vive en la condición que lo permitió o en la regla que lo '
+      + 'consintió — en por qué ESE componente, en ESA función, sin ESE control.');
+  }
+  return '';
+}
+
 /** Las cadenas de porqués, con su nivel y dónde se cortaron. */
 function seccionPorques(cadenas) {
   if (!cadenas.length) return parrafo('No se ha construido ninguna cadena de porqués.');
@@ -136,18 +161,20 @@ function seccionPorques(cadenas) {
       e.evidenciaIds?.length ? `${n(e.evidenciaIds.length)}` : SIN_DATO,
       e.cortadaPorFaltaDeDato ? escRico(e.cortadaPorFaltaDeDato) : '',
     ]));
-    const ultimo = lista(c.eslabones).at(-1);
-    const paraEnFisica = ultimo && ultimo.nivel === 'mecanismo_fisico';
+    // Quién juzga la cadena es el NÚCLEO, no este archivo. Antes se miraba aquí
+    // el ÚLTIMO eslabón y se comparaba con «mecanismo_fisico» a mano, y eso
+    // fallaba en los dos sentidos: una cadena que llegó a «condición» y volvió
+    // atrás para explicar una rama —caso que `fuerzaCadena` contempla a
+    // propósito— salía avisada por error, y una que moría en el modo de falla no
+    // recibía aviso ninguno, siendo aún MENOS accionable. Reimplementar una regla
+    // del núcleo es tenerla dos veces y que diverjan (`33 · L-45`).
+    const f = fuerzaCadena({ eslabones: lista(c.eslabones) });
 
     return tabla({
       leyenda: `Cadena · ${ESPINAS[c.espina] ?? legible(c.espina)}`,
       cabecera: cab(['#', 'Nivel', 'Porqué', 'Evidencias', 'Cortada por falta de dato']),
       filas,
-    }) + (paraEnFisica
-      ? nota('<b>Esta cadena termina en el mecanismo físico.</b> Eso describe qué pasó, no por qué '
-        + 'se pudo dar: sobre la física no se puede actuar. La causa raíz está en por qué ESE '
-        + 'componente, en ESA función, sin ESE control.')
-      : '');
+    }) + avisoCadena(f);
   }).join('\n');
 }
 

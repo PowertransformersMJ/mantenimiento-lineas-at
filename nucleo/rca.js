@@ -169,9 +169,24 @@ export function diagnosticoCadena(cadena) {
 // ── EL ÁRBOL ────────────────────────────────────────────────────────────────
 
 /**
- * Comprueba que el árbol sea un árbol y no un dibujo bonito: sin ciclos, sin
- * huérfanos, con una sola raíz, y sin la trampa que más ensucia un RCA — un nodo
- * que culpa a una persona sin colgar de él la condición que lo permitió.
+ * Comprueba que el árbol sea un árbol y no un dibujo bonito: **una sola raíz,
+ * sin ciclos, sin huérfanos, y con el tipo de cada relación declarado**. Además
+ * cuenta los nodos sin evidencia y señala las ramas que terminan por debajo del
+ * nivel accionable (`hojasNoAccionables`).
+ *
+ * ⚠️ LO QUE **NO** COMPRUEBA, Y ANTES ESTE COMENTARIO DECÍA QUE SÍ. Durante meses
+ * aquí ponía que la validación detecta «un nodo que culpa a una persona sin
+ * colgar de él la condición que lo permitió». **Ese control no existe** —ni aquí
+ * ni en ningún otro sitio— y el comentario estaba en el archivo que se cita como
+ * prueba del método, que es el peor lugar posible para una promesa sin cumplir.
+ *
+ * La protección contra terminar el análisis en un nombre propio **sí existe, pero
+ * no es un control: es la TAXONOMÍA**. «Mano de obra» no está entre las once
+ * familias de causa, así que el error humano no tiene dónde entrar como persona y
+ * entra como PROCESO (montaje, operación, inspección) o como REGLA (diseño,
+ * especificación) (`contratos/src/rca.ts` · `99 §ADR-020`). Detectar por texto si
+ * un enunciado culpa a alguien exigiría leer prosa libre, que es justo lo que
+ * este módulo no hace: aquí se mide, no se interpreta.
  */
 /** @param {Array} [nodos] */
 export function validarArbol(nodos = []) {
