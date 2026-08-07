@@ -2353,3 +2353,91 @@ decidió el `ADR-020`.
 
 `research-archive/2026-08-06-workflow-rca-vs-iec62740.json` (crudo) ·
 `research-archive/2026-08-06-informe-rca-vs-iec62740.md` (síntesis corregida)
+
+---
+
+## ADR-026 · 2026-08-07 · Varias causas raíz, cinco familias nuevas y la séptima condición
+
+**Estado:** ✅ Cerrado · `TODO-63` y `TODO-65` (4 de 5) completos · 849 pruebas en verde · en producción
+**Revisión externa:** ⚠️ **NO revisada externamente.** Las tres decisiones las tomó el Ingeniero
+sobre el catálogo de huecos de `ADR-025`; el diseño de cada una es propio.
+
+### Contexto
+
+`ADR-025` dejó un catálogo de huecos priorizado. El Ingeniero eligió tres y **descartó uno**
+—verificar la EFICACIA de las acciones, que queda pendiente y sin fecha—. Todo lo que sigue es
+**ADITIVO**: no se renombró ni una clave, así que ningún expediente escrito migra ni se rompe.
+
+### 1 · Varias causas raíz
+
+> **`causasRaiz` es una lista**, y cada entrada lleva su **tipo** según la tipología de
+> IEC 62740:2015 cláusula 4 —leída en el texto público, no citada de memoria—: `unica` (caso a),
+> `multiple` (caso b: eliminar cualquiera evita el evento) y `contribuyente` (caso c: eliminarla
+> **cambia la probabilidad pero puede no evitarlo**). Esa tercera distinción es la que impide
+> prometer que la falla no vuelve, y por eso el motor publica un aviso cuando todas las causas
+> declaradas son contribuyentes.
+
+**No lo pedía la norma: lo pedía el propio sistema.** `resumenBarreras` avisaba desde el primer día
+de que «este evento atravesó N defensas: corregir solo la causa deja las otras abiertas», y el
+formulario obligaba a comprimirlo en una línea. El motor afirmaba una cosa y exigía la contraria.
+
+- **`causaRaiz` singular se queda de SOLO LECTURA.** Cero migración.
+- **Dueño único de la precedencia: `causasDeclaradas()`.** Si la pantalla y el informe eligieran cada
+  uno entre el campo viejo y el nuevo, llegaría el día en que enseñan causas distintas del mismo
+  expediente. Lo que devuelve del campo viejo se marca `esLegado`, y el informe imprime que ese
+  expediente se firmó cuando solo cabía una — **que aparezca una sola no significa que se
+  descartaran otras**.
+- **CANDADO:** `ParteDeAnalisis` rechaza un parche que traiga los dos campos a la vez. Es exactamente
+  la trampa `estado`/`cerrado` que ese mismo archivo ya documentaba.
+- **Por qué AHORA:** con cero causas declaradas en producción esto es cambiar un formulario; con una
+  sola ya escrita, habría sido migrar un documento firmado.
+
+### 2 · Cinco familias nuevas (once → dieciséis)
+
+> **`proteccion_control` era el hueco grave.** Hasta hoy la protección existía SOLO como barrera y
+> nunca como causa, así que un análisis nuestro **no podía concluir «la línea no falló: falló el
+> relé»** — un desenlace corriente. Ajuste mal coordinado, teleprotección que no llegó, alimentación
+> de corriente continua caída: ninguno tenía dónde alojarse.
+
+> **`terceros_accidentales`, `acto_malicioso`, `fauna` y `fuego` salen de dentro de «vegetación y
+> servidumbre»**, donde vivían escondidos en un comentario. Se separan porque **la acción que sale de
+> cada una es distinta** —podar, señalizar y coordinar obras, vigilar y denunciar, controlar quemas—:
+> una familia que mezcla las cuatro produce un plan de acción que no sirve para ninguna. Y un
+> atentado no es vegetación.
+
+⚠️ **`vegetacion_servidumbre` NO se renombró ni se partió: se ESTRECHÓ.** Un expediente anterior al
+2026-08-07 puede tener ahí dentro un tercero o una quema, y **eso es un hecho fechado, no un error
+que haya que ir a corregir**. Nueva barrera además: `contencion_falla` — la pregunta que ninguna de
+las trece hacía, *¿por qué cayeron seis apoyos y no uno?*
+
+### 3 · La séptima condición para declarar
+
+> **Ninguna hipótesis rival se queda viva y callada.** Se podía declarar la causa raíz con cuatro
+> rivales sin tocar, que es justo lo que produce **informes convincentes y equivocados**. Ahora cada
+> rival exige `queSeHizo` y `resultado`.
+
+**`no_concluyente` CUENTA como cerrada, y no es una puerta trasera:** la condición no obliga a tener
+un veredicto, obliga a que alguien haya ido a mirar y haya escrito qué pasó. Exigir un veredicto
+fabricaría la certeza que este método existe para impedir — y además dejaría **atrapada para
+siempre** a cualquier hipótesis topada por el tope climático, que nunca puede pasar de «baja». Hay
+una prueba dedicada a esa trampa.
+
+### Consecuencias
+
+- El informe decía «de 11 familias» con el número clavado a mano, y ya mentía. Ahora lo lee de la
+  lista del núcleo.
+- **Coste real de la decisión, que conviene tener presente:** son cinco filas más que recorrer antes
+  de poder cerrar un análisis. El descarte razonado es el producto, pero el trabajo sube.
+- Verificado por MUTACIÓN dos veces: séptima condición sin dientes → 2 rojas; precedencia ignorando
+  la lista nueva → 4 rojas.
+
+### Deuda declarada
+
+- **Verificar la EFICACIA de las acciones sigue sin hacerse** (el Ingeniero lo dejó fuera): hoy una
+  acción que se ejecutó y no sirvió es indistinguible de una que funcionó.
+- Las reglas de Firestore **no filtran campos** por nombre, así que `causasRaiz` no necesitó tocarlas.
+  Es cómodo hoy y es una puerta abierta: conviene revisarlo cuando el molde se estabilice.
+
+### Crudo de respaldo
+
+`research-archive/2026-08-06-workflow-rca-vs-iec62740.json` (de donde salió el catálogo de huecos)
