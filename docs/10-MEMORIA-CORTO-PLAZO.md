@@ -15,8 +15,11 @@ contexto real** (ADR-022: herramienta INTERNA, sin cliente ni contrato) · infor
 
 ## 🛑 LO PRIMERO AL RETOMAR
 
-1. **TODO-62 · Contrastar el método RCA contra la IEC 62740.** Es lo que el Ingeniero pidió y quedó
-   sin empezar. Detalle abajo; no arrancar sin leer su fila.
+1. **TODO-63 · DECISIÓN DEL INGENIERO: ¿una causa raíz o varias?** TODO-62 (contraste IEC 62740) ya
+   se entregó y destapó una contradicción INTERNA: `nucleo/rca.js:237` avisa de que corregir una
+   sola causa deja las demás defensas abiertas, y `contratos/src/rca.ts:326` solo deja declarar UNA.
+   La norma dice lo contrario (3.1.12 Nota 1, verificada en fuente). **Ventana abierta: con 0
+   causas declaradas en producción es cambio de esquema; con 1 ya es migración.** Detalle abajo.
 2. **El tope de tiro sigue sin decidir (TODO-33).** El contrato ya trae `tiroAdmisible_pct` y
    `criterioTiroQueRige` (ADR-014), pero `vistas/tramos.ts`, `vientoDatos.ts` y `Fundamentos.tsx`
    siguen leyendo `tiroMaximoAdmisible()` = 0,5·RTS fijo — unificarlo al cerrar la decisión.
@@ -77,7 +80,9 @@ comité SUPONE entra con el mismo rango que lo que verifica (`30 · L-42`).
 
 | # | Qué | Dónde está el plan |
 |---|---|---|
-| **TODO-62** | **Contrastar el método RCA contra la IEC 62740** (la norma internacional de análisis de causa raíz) y contra material CIGRE de fallas en líneas aéreas. **HOY el módulo no cita NI UNA norma** — verificado el 06-08: cero referencias a IEC/ISO/IEEE/CIGRE/RETIE en `nucleo/rca.js`, `contratos/src/rca.ts`, la pantalla y el informe. Las 11 espinas, eliminar «mano de obra», las 6 condiciones y el tope climático son **criterio propio bien razonado, no cumplimiento normativo**. Entregar: en qué coincide · en qué se aparta y POR QUÉ · qué ajustar para poder decir que se alinea. ⚠️ **Verificar con fuente, jamás de memoria** (`30 · L-09`) · workflow acotado y con Opus · **al terminar, evaluar el resultado con Fable** (orden del Ingeniero) | — |
+| **TODO-63** | **Varias causas raíz (decisión del Ingeniero, luego código).** Recomendado por Fable: campo NUEVO `causasRaiz` (lista), `causaRaiz` singular queda como legado de solo lectura — **aditivo**. ⚠️ Dos campos para el mismo hecho es la trampa `estado`/`cerrado` ya documentada en `contratos/src/rca.ts:336-355`: exige regla de coherencia en `ParteDeAnalisis`. Es **decisión fuerte** (modelo de datos) → §G.2 🛰️ antes de tocar | crudo IEC en la bóveda |
+| **TODO-64** | **El desplegable de declarar causa raíz NO filtra por nivel** (`web/src/componentes/Rca.tsx:387`): hoy ofrece «el conector se corroyó», que es mecanismo físico y el propio método declara NO accionable. Es el agujero por el que la regla de oro se viola desde su propia pantalla. **Código menor, y no es trabajo desechable**: la misma validación sirve cuando `causasRaiz` sea lista | — |
+| **TODO-62** | ✅ **ENTREGADO 06-08.** Contraste RCA ↔ IEC 62740, verificado en el preview oficial (13 de 151 pp.) + evaluado con Fable. **Veredicto: NO se puede escribir «conforme a IEC 62740»** — y la razón de fondo NO es nuestro método: la propia IEC dice *«IEC itself does not provide any attestation of conformity»* (prólogo) y en el cuerpo del método **no hay un solo requisito** («should», nunca «shall»; los 3 `shall` del PDF son boilerplate legal). La fórmula que SÍ se puede firmar: **«contrastado contra IEC 62740»**. Informe → bóveda | `research-archive/2026-08-06-informe-rca-vs-iec62740.md` |
 | **TODO-50** | **Blindaje**: ✅ F1 · ✅ F2a · ✅ F3 pantalla de cambio · ⬜ **2b retirar Google** — espera la contraseña | `99 §ADR-019/024` |
 | **TODO-52** | RCA: solo queda el **lienzo del árbol** (cosmético; en papel la lista sangrada se lee igual) | `99 §ADR-020` |
 | **TODO-49/48** | Contador de PARQUE (no construible hoy) · deuda de ADR-017: al veredicto longitudinal le falta declarar el ruido de tendido y el piso de validez | `99 §ADR-017/018` |
