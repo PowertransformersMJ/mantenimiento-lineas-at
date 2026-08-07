@@ -19,6 +19,7 @@ import {
   ESPINAS, NIVEL_MINIMO_CAUSA_RAIZ,
   evaluarEspinas, fuerzaCadena, diagnosticoCadena, validarArbol,
   resumenBarreras, revisarHipotesis, condicionesCausaRaiz, auditarRespaldo,
+  candidatosCausaRaiz,
 } from '../nucleo/rca.js';
 
 const ID = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
@@ -211,6 +212,64 @@ describe('el árbol es un árbol, no un dibujo', () => {
     assert.equal(v.valido, true, 'una rama a medias no invalida el árbol');
     assert.equal(v.hojasNoAccionables.length, 1);
     assert.equal(v.hojasNoAccionables[0].enunciado, 'corrosión');
+  });
+});
+
+describe('qué nodo puede ser declarado causa raíz', () => {
+  // El árbol del caso real: la línea se abrió porque el conector se corroyó.
+  // «Corrosión» es mecanismo físico, y el método dice que eso NO es causa raíz.
+  const ARBOL = [
+    { id: ID(1), enunciado: 'la línea se abrió', padreId: null, nivel: 'efecto', evidenciaIds: [ID(9)] },
+    { id: ID(2), enunciado: 'el conector perdió continuidad', padreId: ID(1), tipoArista: 'necesaria', nivel: 'modo_falla', evidenciaIds: [ID(9)] },
+    { id: ID(3), enunciado: 'corrosión galvánica', padreId: ID(2), tipoArista: 'necesaria', nivel: 'mecanismo_fisico', evidenciaIds: [ID(9)] },
+    { id: ID(4), enunciado: 'herraje fuera de su función', padreId: ID(3), tipoArista: 'necesaria', nivel: 'condicion', evidenciaIds: [ID(9)] },
+    { id: ID(5), enunciado: 'la especificación no exigía inhibidor', padreId: ID(4), tipoArista: 'necesaria', nivel: 'regla', evidenciaIds: [] },
+  ];
+
+  test('el efecto, el modo y el mecanismo NO pueden ser causa raíz', () => {
+    const { candidatos } = candidatosCausaRaiz(ARBOL);
+    const porNivel = Object.fromEntries(candidatos.map((c) => [c.nivel, c]));
+
+    assert.equal(porNivel.efecto.puedeSerCausaRaiz, false);
+    assert.equal(porNivel.modo_falla.puedeSerCausaRaiz, false);
+    assert.equal(porNivel.mecanismo_fisico.puedeSerCausaRaiz, false);
+    assert.match(porNivel.mecanismo_fisico.motivo, /física, no gestión/);
+  });
+
+  test('la condición y la regla sí, que es donde se puede actuar', () => {
+    const { candidatos, declarables } = candidatosCausaRaiz(ARBOL);
+    const porNivel = Object.fromEntries(candidatos.map((c) => [c.nivel, c]));
+
+    assert.equal(porNivel.condicion.puedeSerCausaRaiz, true);
+    assert.equal(porNivel.regla.puedeSerCausaRaiz, true);
+    assert.equal(porNivel.condicion.motivo, null);
+    assert.equal(declarables, 2);
+  });
+
+  test('NO esconde los nodos que no califican: los devuelve marcados', () => {
+    const { candidatos } = candidatosCausaRaiz(ARBOL);
+    assert.equal(candidatos.length, ARBOL.length,
+      'un nodo que desaparece de la pantalla se lee como que no existe');
+  });
+
+  test('señala la falta de evidencia, pero NO bloquea por ella', () => {
+    const { candidatos } = candidatosCausaRaiz(ARBOL);
+    const regla = candidatos.find((c) => c.nivel === 'regla');
+    assert.equal(regla.sinEvidencia, true);
+    assert.equal(regla.puedeSerCausaRaiz, true,
+      'bloquear por evidencia sería inventar una séptima condición de cierre');
+  });
+
+  test('EL ESTADO CERO: árbol entero en la física y ni un candidato', () => {
+    const r = candidatosCausaRaiz(ARBOL.slice(0, 3));
+    assert.equal(r.declarables, 0);
+    assert.match(r.aviso, /Ningún nodo del árbol puede sostener una causa raíz/);
+  });
+
+  test('sin árbol no hay aviso: no hay nada de qué avisar', () => {
+    const r = candidatosCausaRaiz([]);
+    assert.equal(r.declarables, 0);
+    assert.equal(r.aviso, null);
   });
 });
 

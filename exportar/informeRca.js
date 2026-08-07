@@ -176,6 +176,15 @@ function seccionArbol(arbol) {
     filas,
   })
   + (v.problemas?.length ? nota(`<b>Defectos de estructura:</b> ${escRico(v.problemas.join(' · '))}`) : '')
+  // Las ramas que mueren en la física. NO es un defecto del árbol —una rama puede
+  // estar a medias— pero ninguna de ellas puede sostener una causa raíz, y quien
+  // lee el informe tiene que saber cuáles son sin ir a contarlas a mano.
+  + (v.hojasNoAccionables?.length
+    ? nota(`<b>${n(v.hojasNoAccionables.length)} rama(s) terminan sin llegar a algo accionable:</b> `
+      + `${escRico(v.hojasNoAccionables.map((x) => `«${x.enunciado}» (${NIVEL[x.nivel] ?? legible(x.nivel)})`).join(' · '))}. `
+      + 'Describen física, no gestión: ninguna puede sostener una causa raíz. No es un defecto del '
+      + 'árbol —una rama puede estar a medias—, pero mientras sigan así el análisis no puede cerrar por ahí.')
+    : '')
   + (b.fallaron > 0
     ? parrafo(`<b>${n(b.fallaron)} defensa(s) no cortaron la rama:</b> `
       + `${esc(b.cuales.map((x) => `${legible(x.cual)} (${ESTADO_BARRERA[x.estado] ?? legible(x.estado)})`).join(', '))}.`

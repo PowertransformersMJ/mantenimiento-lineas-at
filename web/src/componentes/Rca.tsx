@@ -24,7 +24,7 @@
 // pinta; no se decide.
 // ============================================================================
 import { useState } from 'react';
-import { evaluarEspinas, condicionesCausaRaiz, auditarRespaldo } from '@lineas/nucleo/rca';
+import { evaluarEspinas, condicionesCausaRaiz, auditarRespaldo, candidatosCausaRaiz } from '@lineas/nucleo/rca';
 import type { AccionCapa, AnalisisCausa, Evidencia, SondeoClima } from '@lineas/contratos';
 import { descargar, selloFecha } from '../exportar/descargar';
 
@@ -376,25 +376,58 @@ function Declarar({ a }: { a: AnalisisCausa }) {
     } finally { setG(false); }
   };
 
+  // Qué nodos pueden sostener una causa raíz. Lo decide el núcleo, no esta
+  // pantalla: aquí solo se pinta la marca y el motivo.
+  const { candidatos, declarables, aviso } = candidatosCausaRaiz(a.arbol);
+  // Cinturón: si el nodo elegido dejara de calificar —el árbol se edita en otra
+  // pestaña—, el botón no puede seguir vivo con la selección vieja dentro.
+  const elegido = candidatos.find((c) => c.id === nodoId);
+  const eligeValido = Boolean(elegido?.puedeSerCausaRaiz);
+
   return (
     <div className="rca-declarar">
       <p className="ok">
         Se cumplen las seis condiciones. <b>Declarar la causa raíz sigue siendo un acto tuyo</b>:
         el motor calculó que se puede, no cuál es.
       </p>
-      <select className="rca-select" value={nodoId} onChange={(e) => setNodoId(e.target.value)}>
-        <option value="">— qué nodo del árbol es la causa raíz —</option>
-        {a.arbol.map((n) => (
-          <option key={n.id} value={n.id}>{n.enunciado.slice(0, 70)}</option>
-        ))}
-      </select>
+
+      {aviso ? <p className="alerta">{aviso}</p> : (
+        <select className="rca-select" value={nodoId} onChange={(e) => setNodoId(e.target.value)}>
+          <option value="">— qué nodo del árbol es la causa raíz —</option>
+          {candidatos.map((c) => (
+            // Los que no califican se pintan igual, pero no se pueden elegir. Un
+            // nodo que desaparece se lee como que se perdió el trabajo; uno que
+            // dice por qué no puede serlo manda a seguir preguntando.
+            <option key={c.id} value={c.id} disabled={!c.puedeSerCausaRaiz}>
+              {c.enunciado.slice(0, 70)}
+              {c.puedeSerCausaRaiz
+                ? (c.sinEvidencia ? '  ⚠️ sin evidencia enlazada' : '')
+                : `  — no puede serlo: ${c.motivo}`}
+            </option>
+          ))}
+        </select>
+      )}
+
+      {elegido?.sinEvidencia && eligeValido && (
+        <p className="alerta">
+          Ese nodo no tiene ninguna evidencia enlazada. Puedes declararlo igual —quien firma eres
+          tú—, pero el informe lo va a decir con esas palabras.
+        </p>
+      )}
+
       <textarea className="rca-motivo" rows={3} value={enunciado}
         placeholder="La causa raíz, con tus palabras. Es lo que se firma."
         onChange={(e) => setEnunciado(e.target.value)} />
       <button type="button" className="boton chico"
-        disabled={g || !nodoId || !enunciado.trim()} onClick={() => void declarar()}>
+        disabled={g || !eligeValido || !enunciado.trim()} onClick={() => void declarar()}>
         {g ? 'Declarando…' : 'Declarar la causa raíz'}
       </button>
+      {declarables > 0 && (
+        <p className="fine">
+          {declarables} de {candidatos.length} nodos del árbol pueden sostener una causa raíz. Los
+          demás se quedan en el efecto, el modo de falla o el mecanismo físico.
+        </p>
+      )}
     </div>
   );
 }

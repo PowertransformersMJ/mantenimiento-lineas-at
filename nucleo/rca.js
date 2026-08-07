@@ -221,6 +221,81 @@ export function validarArbol(nodos = []) {
   };
 }
 
+/**
+ * Qué nodos del árbol PUEDEN sostener una causa raíz declarada, y cuáles no y
+ * por qué.
+ *
+ * POR QUÉ EXISTE. La regla «una cadena que termina en el mecanismo físico no es
+ * causa raíz» estaba escrita en el contrato, explicada en el diagnóstico de cada
+ * cadena y **calculada** en `validarArbol` (`hojasNoAccionables`)… y no la
+ * aplicaba nadie en el único sitio donde se puede violar: el momento de
+ * declarar. El desplegable ofrecía los nodos del árbol enteros, así que se podía
+ * firmar «el conector se corroyó» como causa raíz — que es exactamente lo que
+ * este método declara que NO lo es. Una regla que el motor calcula y la pantalla
+ * ignora no es una regla: es un comentario.
+ *
+ * POR QUÉ NO ESCONDE LOS NODOS QUE NO CALIFICAN. Devolverlos marcados, y no
+ * omitirlos, es deliberado y es la misma línea que las once espinas: **lo que
+ * desaparece de una pantalla se lee como que no existe**, y aquí el nodo sí
+ * existe — lo que pasa es que la cadena todavía no llegó lo bastante hondo. Ver
+ * «corrosión — no puede serlo: describe física, no gestión» manda a seguir
+ * preguntando; ver la lista sin ese nodo manda a pensar que se perdió el trabajo.
+ *
+ * LO QUE **NO** BLOQUEA, y es deliberado: la falta de evidencia en el nodo. Se
+ * SEÑALA, porque declarar una causa raíz sobre un nodo sin nada detrás es
+ * justamente lo que este módulo existe para hacer visible; pero bloquearlo sería
+ * inventar una séptima condición de cierre, y las seis las decidió un ADR. El
+ * motor mide, el ingeniero decide.
+ *
+ * @param {Array} [nodos] nodos del árbol de causas
+ */
+export function candidatosCausaRaiz(nodos = []) {
+  const candidatos = nodos.map((n) => {
+    const puedeSerCausaRaiz = rango(n.nivel) >= rango(NIVEL_MINIMO_CAUSA_RAIZ);
+    return {
+      id: n.id,
+      enunciado: n.enunciado,
+      nivel: n.nivel,
+      puedeSerCausaRaiz,
+      motivo: puedeSerCausaRaiz ? null : motivoNoDeclarable(n.nivel),
+      /** No impide declarar; se pinta al lado. Una causa raíz sin respaldo se firma igual de fácil. */
+      sinEvidencia: (n.evidenciaIds ?? []).length === 0,
+    };
+  });
+
+  const declarables = candidatos.filter((c) => c.puedeSerCausaRaiz);
+
+  return {
+    candidatos,
+    declarables: declarables.length,
+    /**
+     * El estado cero que importa: hay árbol, y ni un solo nodo puede ser causa
+     * raíz. Es alcanzable aunque se cumplan las seis condiciones, porque la
+     * condición de «cadena accionable» mira las CADENAS y esto mira el ÁRBOL:
+     * son dos estructuras distintas y pueden ir a distinta profundidad.
+     */
+    aviso: nodos.length > 0 && declarables.length === 0
+      ? 'Ningún nodo del árbol puede sostener una causa raíz todavía: todos se quedan en el '
+        + 'efecto, el modo de falla o el mecanismo físico. Falta bajar al menos una rama hasta la '
+        + 'condición que lo permitió o la regla que lo consintió.'
+      : null,
+  };
+}
+
+/** Por qué un nivel no puede sostener una causa raíz. Mismo vocabulario que `diagnosticoCadena`. */
+function motivoNoDeclarable(nivel) {
+  if (nivel === 'efecto') {
+    return 'es el efecto observado: el punto de partida del análisis, no su conclusión.';
+  }
+  if (nivel === 'modo_falla') {
+    return 'dice qué pieza falló y cómo, pero no por qué esa condición existía aquí.';
+  }
+  if (nivel === 'mecanismo_fisico') {
+    return 'describe física, no gestión — y sobre la física no se puede actuar.';
+  }
+  return 'no alcanza el nivel mínimo para ser causa raíz.';
+}
+
 /** Las barreras que se analizaron, y cuántas fallaron. La pregunta que suele valer más que la causa. */
 /** @param {Array} [nodos] */
 export function resumenBarreras(nodos = []) {

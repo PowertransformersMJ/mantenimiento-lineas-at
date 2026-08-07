@@ -119,6 +119,36 @@ const SONDEO = {
   nota: 'Estación a 42.3 km del punto. Son observaciones DE ESA ESTACIÓN, no del vano.',
 };
 
+describe('las ramas que mueren en la física llegan al papel', () => {
+  // El cálculo existía en `nucleo/rca.js` desde el primer día y NADIE lo
+  // consumía: ni la pantalla ni el informe. Un aviso que el motor calcula y
+  // nadie imprime no protege de nada.
+  const ARBOL = [
+    { id: 'n1', enunciado: 'la línea se abrió', padreId: null, nivel: 'efecto', evidenciaIds: ['e1'] },
+    { id: 'n2', enunciado: 'corrosión galvánica', padreId: 'n1', tipoArista: 'necesaria', nivel: 'mecanismo_fisico', evidenciaIds: ['e1'] },
+  ];
+
+  test('el informe NOMBRA la rama que no puede sostener una causa raíz', () => {
+    const h = html({ analisis: { arbol: ARBOL } });
+    assert.match(h, /corrosión galvánica/);
+    assert.match(h, /sin llegar a algo accionable/);
+    assert.match(h, /física, no gestión/);
+  });
+
+  test('y NO la llama defecto del árbol: una rama puede estar a medias', () => {
+    const h = html({ analisis: { arbol: ARBOL } });
+    assert.match(h, /No es un defecto del/);
+  });
+
+  test('un árbol que sí llega a la regla no dispara el aviso', () => {
+    const h = html({ analisis: { arbol: [
+      { id: 'n1', enunciado: 'la línea se abrió', padreId: null, nivel: 'efecto', evidenciaIds: ['e1'] },
+      { id: 'n2', enunciado: 'la especificación no exigía inhibidor', padreId: 'n1', tipoArista: 'necesaria', nivel: 'regla', evidenciaIds: ['e1'] },
+    ] } });
+    assert.doesNotMatch(h, /sin llegar a algo accionable/);
+  });
+});
+
 describe('el clima se imprime con sus límites, nunca como causa', () => {
   test('la nota del núcleo viaja al papel tal cual', () => {
     const h = html({ sondeos: [SONDEO] });
