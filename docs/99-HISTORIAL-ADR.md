@@ -2248,3 +2248,108 @@ habría acabado debilitando** la contraseña que el administrador puso fuerte. A
 ### Crudo de respaldo
 
 `research-archive/2026-08-06-workflow-blindaje-acceso.json`
+
+---
+
+## ADR-025 · 2026-08-06 · El método RCA contrastado contra IEC 62740: qué se puede firmar, y los tres defectos que destapó
+
+**Estado:** ✅ Cerrado · `TODO-62` y `TODO-64` completos · 824 pruebas en verde · en producción
+**Revisión externa:** ⚠️ **NO revisada externamente.** Workflow propio de 10 agentes Opus (4 de
+fuente + 3 lentes + 3 auditores adversariales) y evaluación posterior con Fable, que corrigió tres
+afirmaciones del informe. No hubo Consejo Externo.
+
+### Contexto
+
+El Ingeniero pidió contrastar el método RCA (`ADR-020`) contra la IEC 62740, la norma internacional
+de análisis de causa raíz. Punto de partida verificado el 06-08: **el módulo no citaba NI UNA
+norma** — cero referencias a IEC/ISO/IEEE/CIGRE/RETIE en `nucleo/rca.js`, `contratos/src/rca.ts`,
+la pantalla y el informe. Las once espinas, eliminar «mano de obra», las seis condiciones y el tope
+climático eran **criterio propio bien razonado, no cumplimiento normativo**.
+
+### La decisión
+
+> **La fórmula firmable es «método contrastado contra IEC 62740:2015», NUNCA «conforme a».** Y la
+> razón de fondo no es un defecto nuestro sino la naturaleza de la norma: **la propia IEC declara en
+> su prólogo que no atestigua conformidad** (*«IEC itself does not provide any attestation of
+> conformity»*), y en todo el cuerpo verificable del método **no hay un solo requisito** — dice
+> «should», nunca «shall». Es una guía de método, no un pliego que se cumpla o se incumpla. Nadie
+> puede estar «conforme» a la IEC 62740.
+
+> **Alcance de la verificación, declarado y no disimulado: se leyeron 13 de las 151 páginas** — el
+> preview oficial gratuito, que cubre las cláusulas 1 a 4 y las quince definiciones completas. Del
+> resto solo se conoce el índice. **Ninguna afirmación de este ADR se apoya en lo que no se leyó**, y
+> por eso queda prohibido citar cualquier cláusula por encima de la 5.1.
+
+> **NO se compra la norma** (CHF 380 / ~92 €). Es una herramienta INTERNA sin cliente ni contrato
+> (`ADR-022`): nadie va a auditarnos contra IEC 62740, el valor de conformidad es cero, y el gasto
+> choca con el free-tier sagrado. Lo que queda al otro lado del corte del texto público es
+> curiosidad, no bloqueo.
+
+### Lo que la norma SÍ respalda, verificado palabra por palabra
+
+| Lo verificado | Dónde |
+|---|---|
+| *«root causes and conclusions backed up by documented evidence»* — y nosotros lo exigimos **también para los descartes**, que la norma no cubre | cl. 5.1 |
+| **Regla de parada** (*«reasoned and explicit means of determining when a causal factor is defined as being a root cause»*): la norma exige que el criterio EXISTA y sea explícito, y **no prescribe cuál**. Nuestras seis condiciones lo son | 3.1.15 |
+| Factor causal **necesario** y **contribuyente**, con nuestra misma definición. `suficiente` es extensión propia, NO normalizada | 3.1.9 / 3.1.3 |
+| *«not designed to assign responsibility or liability»* — respalda haber eliminado «mano de obra» | cl. 1 |
+| Los cinco pasos (iniciación, hechos, análisis, validación, presentación) y que los **cinco anexos A–E son INFORMATIVOS**: coincidir con un anexo informativo no es cumplir nada | Tabla 1 · índice |
+| *priority*, *rank*, *confidence*: **CERO apariciones**. La prohibición de rankear del `ADR-020` no choca con nada | búsqueda en todo el texto |
+
+### El hallazgo que valió el trabajo, y es INTERNO, no normativo
+
+> *«A focus event normally has more than one root cause»* (3.1.12, Nota 1). Y **el sistema ya se
+> contradecía a sí mismo antes de conocer la norma**: `nucleo/rca.js` imprime «este evento atravesó
+> N defensas; corregir solo la causa deja las otras abiertas», y el molde de los datos solo deja
+> declarar UNA (`contratos/src/rca.ts`, campo `causaRaiz` en singular). El motor afirma
+> multi-causalidad y el formulario impone lo contrario. **Se resuelve con o sin IEC** → `TODO-63`,
+> decisión fuerte, con ventana: con 0 causas declaradas es cambio de formulario; con 1, migración.
+
+### Los tres defectos de código que destapó, y que YA están cerrados
+
+1. **El desplegable de declarar no filtraba por nivel.** Ofrecía el árbol entero, así que se podía
+   firmar «el conector se corroyó» —mecanismo físico— como causa raíz: exactamente lo que este
+   método declara que NO lo es. Era el único sitio donde la regla de oro se podía violar, **y estaba
+   en su propia pantalla**. Cerrado con `candidatosCausaRaiz()` en el núcleo.
+2. **El informe reimplementaba el juicio de las cadenas, y lo reimplementaba mal.** Miraba el ÚLTIMO
+   eslabón; el núcleo mira el MÁS ALTO. Falso positivo (cadena que llegó a «condición» y volvió atrás
+   —caso contemplado a propósito— salía avisada) y falso negativo (cadena muerta en el modo de falla,
+   sin aviso ninguno). Ahora consume `fuerzaCadena`.
+3. **Un comentario del núcleo prometía un control inexistente**: que `validarArbol` detecta «un nodo
+   que culpa a una persona». No existe. La protección real es la TAXONOMÍA —«mano de obra» no está
+   entre las once familias—, no un control. Se corrige el comentario; **no se implementa el control**,
+   porque exigiría interpretar prosa libre y este módulo mide, no interpreta.
+
+**Las dos decisiones de diseño del arreglo, que no son de gusto:** los nodos que no califican **se
+pintan y no se pueden elegir**, no se esconden (lo que desaparece de una pantalla se lee como que no
+existe — la misma razón por la que las once espinas salen siempre); y la falta de evidencia **señala
+pero no bloquea**, porque bloquear sería inventar una séptima condición de cierre y las seis las
+decidió el `ADR-020`.
+
+### Lo que Fable corrigió del informe, y por qué queda escrito
+
+- **«No hay ni un solo *shall*»: falso.** Hay 3, todos en el boilerplate legal de la IEC (patentes,
+  responsabilidad civil). La conclusión de fondo aguanta; la afirmación literal no. En un trabajo
+  cuya tesis es «no afirmes sin verificar», una afirmación universal falsa sale cara.
+- **«El evento foco es singular, y eso respalda nuestro árbol de una sola raíz»: sobrelectura a favor
+  propio.** 3.1.4 Nota 1 dice que un evento *«can have several causes»*. Vestir una decisión nuestra
+  con respaldo normativo prestado es justo lo que el informe reprochaba en otros.
+- **El argumento más barato y demoledor estaba sin usar**: que la IEC no atestigua conformidad, en el
+  prólogo que el propio informe había leído.
+
+### Consecuencias
+
+- `nucleo/rca.js` gana `candidatosCausaRaiz()`; el informe consume `fuerzaCadena` y por fin imprime
+  `hojasNoAccionables`, que llevaba desde el día 1 calculado, probado y **sin un solo consumidor**.
+- Lección nueva `33 · L-45`: **una regla que el motor calcula y nadie consume no es una regla, es un
+  comentario** — y el remedio de `L-28` (grep del módulo) da luz verde, porque el módulo SÍ se
+  llamaba: lo que se caía al suelo era un campo de la respuesta.
+- Las dos olas se verificaron **por mutación**, no por verde: 3 pruebas rojas cada vez.
+- Queda un catálogo de huecos priorizado en el crudo, del que salen `TODO-63` y los pendientes de
+  método que decide el Ingeniero (familia de protección y control, separar acto malicioso de
+  vegetación, séptima condición de cierre, verificación de eficacia de las acciones).
+
+### Crudo de respaldo
+
+`research-archive/2026-08-06-workflow-rca-vs-iec62740.json` (crudo) ·
+`research-archive/2026-08-06-informe-rca-vs-iec62740.md` (síntesis corregida)

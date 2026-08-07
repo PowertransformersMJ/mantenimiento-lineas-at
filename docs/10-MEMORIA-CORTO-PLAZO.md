@@ -15,11 +15,11 @@ contexto real** (ADR-022: herramienta INTERNA, sin cliente ni contrato) · infor
 
 ## 🛑 LO PRIMERO AL RETOMAR
 
-1. **TODO-63 · DECISIÓN DEL INGENIERO: ¿una causa raíz o varias?** TODO-62 (contraste IEC 62740) ya
-   se entregó y destapó una contradicción INTERNA: `nucleo/rca.js:237` avisa de que corregir una
-   sola causa deja las demás defensas abiertas, y `contratos/src/rca.ts:326` solo deja declarar UNA.
-   La norma dice lo contrario (3.1.12 Nota 1, verificada en fuente). **Ventana abierta: con 0
-   causas declaradas en producción es cambio de esquema; con 1 ya es migración.** Detalle abajo.
+1. **TODO-63 · DECISIÓN DEL INGENIERO: ¿una causa raíz o varias?** El contraste IEC (cerrado,
+   `99 §ADR-025`) destapó una contradicción INTERNA: `nucleo/rca.js` avisa de que corregir una sola
+   causa deja las demás defensas abiertas, y el molde de los datos (`contratos/src/rca.ts`) solo deja
+   declarar UNA. **Ventana abierta: con 0 causas declaradas en producción es cambio de formulario;
+   con 1 ya es migración.** Y `TODO-65` trae otras cinco decisiones de método que son suyas.
 2. **El tope de tiro sigue sin decidir (TODO-33).** El contrato ya trae `tiroAdmisible_pct` y
    `criterioTiroQueRige` (ADR-014), pero `vistas/tramos.ts`, `vientoDatos.ts` y `Fundamentos.tsx`
    siguen leyendo `tiroMaximoAdmisible()` = 0,5·RTS fijo — unificarlo al cerrar la decisión.
@@ -81,8 +81,7 @@ comité SUPONE entra con el mismo rango que lo que verifica (`30 · L-42`).
 | # | Qué | Dónde está el plan |
 |---|---|---|
 | **TODO-63** | **Varias causas raíz (decisión del Ingeniero, luego código).** Recomendado por Fable: campo NUEVO `causasRaiz` (lista), `causaRaiz` singular queda como legado de solo lectura — **aditivo**. ⚠️ Dos campos para el mismo hecho es la trampa `estado`/`cerrado` ya documentada en `contratos/src/rca.ts:336-355`: exige regla de coherencia en `ParteDeAnalisis`. Es **decisión fuerte** (modelo de datos) → §G.2 🛰️ antes de tocar | crudo IEC en la bóveda |
-| **TODO-64** | ✅ **CERRADO 06-08 y EN PRODUCCIÓN** (bundle `index-CoXBrX3z`, 8 lecturas iguales). `nucleo/rca.js` gana `candidatosCausaRaiz()`: la pantalla ya no deja declarar un mecanismo físico y el informe imprime las ramas que mueren en la física (`hojasNoAccionables` llevaba desde el día 1 calculado y **sin consumir**). No esconde los nodos que no califican: los pinta con el motivo. Verificado por MUTACIÓN (3 rojas al retirar el tope) · 820 pruebas · lección nueva `33 · L-45` | `33 · L-45` |
-| **TODO-62** | ✅ **ENTREGADO 06-08.** Contraste RCA ↔ IEC 62740, verificado en el preview oficial (13 de 151 pp.) + evaluado con Fable. **Veredicto: NO se puede escribir «conforme a IEC 62740»** — y la razón de fondo NO es nuestro método: la propia IEC dice *«IEC itself does not provide any attestation of conformity»* (prólogo) y en el cuerpo del método **no hay un solo requisito** («should», nunca «shall»; los 3 `shall` del PDF son boilerplate legal). La fórmula que SÍ se puede firmar: **«contrastado contra IEC 62740»**. Informe → bóveda | `research-archive/2026-08-06-informe-rca-vs-iec62740.md` |
+| **TODO-65** | **Método RCA: cinco decisiones del INGENIERO** que salieron del contraste IEC y son de DOMINIO, no de código (detalle y esfuerzo en el crudo): ① familia de causa **PROTECCIÓN Y CONTROL** — hoy la protección solo existe como barrera, así que un RCA nuestro **no puede concluir «la línea no falló: falló el relé»**; ② partir «vegetación y servidumbre» en vegetación · terceros accidentales · **acto malicioso** (el CNO lo nombra AMI, y en el Caribe no es teórico); ③ barrera de **contención** («¿por qué cayeron seis torres y no una?»); ④ **séptima condición** de cierre: no declarar con hipótesis rivales sin cerrar; ⑤ que una acción pruebe que **FUNCIONÓ**, no solo que se hizo. ①②③ tocan listas cerradas del `ADR-020` | `99 §ADR-025` |
 | **TODO-50** | **Blindaje**: ✅ F1 · ✅ F2a · ✅ F3 pantalla de cambio · ⬜ **2b retirar Google** — espera la contraseña | `99 §ADR-019/024` |
 | **TODO-52** | RCA: solo queda el **lienzo del árbol** (cosmético; en papel la lista sangrada se lee igual) | `99 §ADR-020` |
 | **TODO-49/48** | Contador de PARQUE (no construible hoy) · deuda de ADR-017: al veredicto longitudinal le falta declarar el ruido de tendido y el piso de validez | `99 §ADR-017/018` |
