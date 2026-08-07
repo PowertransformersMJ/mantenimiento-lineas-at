@@ -69,12 +69,47 @@ export const Espina = z.enum([
   'estructura_cimentacion', // el apoyo y su fundación: pandeo, corrosión, socavación
   'tierra_apantallamiento', // puesta a tierra e hilo de guarda: el camino del rayo
   'ambiente_clima',         // viento, lluvia, temperatura, salinidad, descarga atmosférica
-  'vegetacion_servidumbre', // árboles, invasión, quemas, terceros
+  'vegetacion_servidumbre', // árboles e invasión de la franja. Ver la nota de abajo: ya NO carga terceros ni quemas
   'diseno_hipotesis',       // la línea se calculó con supuestos que quizá no valen
   'montaje_tendido',        // cómo se construyó: par de apriete, poleas, torsión
   'operacion_maniobra',     // recierres, sobrecargas, maniobras
   'inspeccion_mantenimiento', // lo que debió detectarse y no se detectó
+
+  // ── Las cinco de 2026-08-07 (`99 §ADR-026`). ADITIVAS: ni una clave se
+  //    renombró, así que ningún documento existente migra ni se rompe.
+  'proteccion_control',     // relé, teleprotección, coordinación de ajustes, alimentación CC
+  'terceros_accidentales',  // vehículo, excavación, tala, izaje: daño de un tercero SIN intención
+  'acto_malicioso',         // atentado, hurto de conductor o de ángulos, sabotaje
+  'fauna',                  // aves y otros animales: contorneo, nidos, excrementos
+  'fuego',                  // quema bajo la línea: el aire ionizado y el hollín tumban el aislamiento
 ]);
+
+/**
+ * POR QUÉ LAS CINCO NUEVAS, y por qué NO se renombró ninguna de las once viejas.
+ *
+ * **`proteccion_control` era el hueco más grave frente a la práctica del sector.**
+ * Hasta hoy la protección existía SOLO como barrera —algo que debió detener el
+ * evento— y nunca como causa. La consecuencia era muda y grande: **un análisis
+ * nuestro no podía concluir «la línea no falló: falló el relé»**, que es un
+ * desenlace corriente. Un ajuste mal coordinado, un esquema de teleprotección
+ * que no llegó o una alimentación de corriente continua caída no tenían dónde
+ * alojarse.
+ *
+ * **`terceros_accidentales`, `acto_malicioso`, `fauna` y `fuego` salen de dentro
+ * de «vegetación y servidumbre»**, donde vivían escondidos en un comentario. Un
+ * atentado no es vegetación, y en el Caribe colombiano eso no es un matiz
+ * académico: se separan porque **la acción que sale de cada uno es distinta** —de
+ * la vegetación se sale podando, del tercero accidental señalizando y coordinando
+ * obras, del acto malicioso con vigilancia y con denuncia, y del fuego con
+ * control de quemas—. Una familia que mezcla las cuatro produce un plan de
+ * acción que no sirve para ninguna.
+ *
+ * ⚠️ **`vegetacion_servidumbre` NO se renombró ni se partió: se ESTRECHÓ.** La
+ * clave es la misma y los documentos viejos siguen siendo válidos, pero desde el
+ * 2026-08-07 significa solo vegetación e invasión de la franja. Un expediente
+ * anterior a esa fecha puede tener ahí dentro un tercero o una quema, y eso es un
+ * hecho fechado, no un error que haya que ir a corregir.
+ */
 
 /**
  * El estado de una espina. **NINGUNO DE LOS CUATRO ES UNA APROBACIÓN.**
@@ -182,6 +217,15 @@ export const Barrera = z.enum([
   'control_calidad_montaje',  // la recepción de obra debió rechazarlo
   'especificacion_diseno',    // la especificación debió exigirlo
   'gestion_repuestos',      // debió haber la pieza correcta disponible
+  /**
+   * CONTENCIÓN DE LA FALLA (`99 §ADR-026`). La pregunta que ninguna de las trece
+   * anteriores hacía: **¿por qué cayeron seis apoyos y no uno?** Confiabilidad y
+   * contención son cosas distintas — que la línea falle es un suceso, que la
+   * falla se propague en cascada es otro, y se defienden con medidas distintas
+   * (retenidas, apoyos de anclaje cada N vanos, herrajes de rotura controlada).
+   * Un evento con esta barrera ausente no cambia la causa: cambia el TAMAÑO.
+   */
+  'contencion_falla',
 ]);
 
 export const EstadoBarrera = z.enum([
@@ -232,6 +276,28 @@ export const HipotesisRca = z.object({
    * viento la causara, y el clima es la correlación más tentadora que existe.
    */
   sustentoSoloClimatico: z.boolean().default(false),
+
+  /**
+   * QUÉ SE HIZO para ponerla a prueba. El compañero de `queLaRefutaria`, y sin él
+   * aquel campo era una promesa: se declaraba qué la tumbaría y nadie iba a
+   * mirarlo nunca.
+   */
+  queSeHizo: z.string().max(1000).optional(),
+  /**
+   * CÓMO QUEDÓ tras la prueba. Es lo que exige la séptima condición de cierre
+   * (`99 §ADR-026`) para cada hipótesis RIVAL.
+   *
+   * `no_concluyente` cuenta como cerrada **a propósito**, y no es una puerta
+   * trasera: la condición no obliga a tener un veredicto, obliga a que alguien
+   * haya ido a mirar y haya escrito qué pasó. Exigir un veredicto sí o sí
+   * fabricaría certeza donde no la hay, que es justo lo que este método existe
+   * para impedir. Lo que ya no se puede es dejar la rival en silencio.
+   */
+  resultado: z.enum([
+    'resistio',        // se puso a prueba y la hipótesis siguió en pie
+    'refutada',        // la prueba la tumbó
+    'no_concluyente',  // se intentó y no se pudo concluir. Honesto, y cuenta.
+  ]).optional(),
 });
 
 // ── LO QUE NO SE PUEDE AFIRMAR ──────────────────────────────────────────────
@@ -332,6 +398,54 @@ const FormaAnalisis = Base.extend({
     condicionesNoCumplidas: z.array(z.string()).default([]),
   }).optional(),
 
+  /**
+   * LAS CAUSAS RAÍZ, EN PLURAL (`99 §ADR-026`). Sustituye en la práctica al campo
+   * de arriba, que se queda **de solo lectura** para no migrar nada.
+   *
+   * POR QUÉ. El motor ya avisaba —desde antes de que nadie mirara una norma— de
+   * que «este evento atravesó N defensas: corregir solo la causa deja las otras
+   * abiertas», y el formulario obligaba a comprimir todo en una sola línea. El
+   * sistema afirmaba una cosa y exigía la contraria. En una salida por contorneo,
+   * la puesta a tierra deficiente Y la especificación que no la exigía son dos
+   * causas raíz: elegir una y fundir la otra en prosa la saca del expediente como
+   * nodo con evidencia, y con ella se va la posibilidad de contarla el día que
+   * exista la consulta de recurrencia.
+   *
+   * Se cambió AHORA y no después por una razón de coste: con cero causas
+   * declaradas en producción esto es cambiar un formulario; con una sola ya
+   * escrita, es migrar un documento firmado.
+   *
+   * ⚠️ **DOS CAMPOS PARA EL MISMO HECHO ES LA TRAMPA `estado`/`cerrado`** que este
+   * mismo archivo documenta más abajo, y por eso lleva candado: `ParteDeAnalisis`
+   * RECHAZA un parche que traiga los dos a la vez, y quien lee no elige — usa
+   * `causasDeclaradas()` de `nucleo/rca.js`, que es el dueño único de la
+   * precedencia. Si la pantalla y el informe resolvieran cada uno por su cuenta,
+   * acabarían enseñando causas distintas del mismo expediente.
+   */
+  causasRaiz: z.array(z.object({
+    nodoId: Id,
+    enunciado: z.string().min(1).max(1000),
+    /**
+     * Qué papel tiene esta causa, con la tipología de IEC 62740:2015, cláusula 4
+     * —verificada en el texto público, no de memoria—. La distinción NO es
+     * cosmética: manda sobre qué se puede prometer al corregirla.
+     */
+    tipo: z.enum([
+      /** Caso a): es la única. */
+      'unica',
+      /** Caso b): son varias, y eliminar CUALQUIERA de ellas evita el evento. */
+      'multiple',
+      /**
+       * Caso c): eliminarla cambia la PROBABILIDAD de que ocurra, pero puede no
+       * evitarlo. Corregir solo ésta y prometer que no se repite es el error.
+       */
+      'contribuyente',
+    ]),
+    declaradaPor: Uid,
+    declaradaEn: Instante,
+    condicionesNoCumplidas: z.array(z.string()).default([]),
+  })).default([]),
+
   /** Límites del análisis, impresos en el informe. Se declara; no se omite. */
   limitaciones: z.array(z.string().max(1000)).default([]),
   /**
@@ -413,9 +527,23 @@ export const ParteDeAnalisis = FormaAnalisis.pick({
   ausencias: true,
   acciones: true,
   causaRaiz: true,
+  causasRaiz: true,
   limitaciones: true,
   cerrado: true,
 }).partial().strict().superRefine((p, ctx) => {
+  // EL CANDADO DE LAS DOS CAUSAS. Un parche que traiga el campo viejo y el nuevo
+  // a la vez deja el documento diciendo dos cosas del mismo hecho, y es
+  // exactamente el fallo silencioso de `estado`/`cerrado`: la pantalla enseña
+  // una causa y el informe imprime otra, sin que nada explique por qué.
+  if (p.causaRaiz !== undefined && p.causasRaiz !== undefined) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['causasRaiz'],
+      message: 'No se pueden escribir a la vez la causa raíz vieja (una sola) y la lista de causas. '
+             + 'La lista es la que vale desde el 2026-08-07; el campo viejo se conserva solo para '
+             + 'leer lo ya declarado. Manda una o la otra.',
+    });
+  }
   // En un parche PARCIAL no se puede comprobar la pareja contra el documento
   // entero, así que se exige que viajen JUNTAS — pero SOLO cuando el cambio
   // toca el CIERRE.

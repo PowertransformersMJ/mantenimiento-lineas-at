@@ -171,3 +171,38 @@ describe('TODO-56 · «cerrado» se dice UNA vez, aunque se escriba en dos campo
     assert.equal(ok({ espinas: [] }).success, true);
   });
 });
+
+describe('el candado de las DOS causas raíz', () => {
+  // Dos campos para el mismo hecho es la trampa `estado`/`cerrado`, y aquí las
+  // consecuencias serían igual de silenciosas: la pantalla enseñando una causa y
+  // el informe imprimiendo otra, sin que nada explique por qué.
+  const CAUSA = {
+    nodoId: '00000000-0000-4000-8000-000000000004',
+    enunciado: 'la especificación no exigía inhibidor',
+    declaradaPor: '00000000-0000-4000-8000-000000000099',
+    declaradaEn: '2026-08-07T10:00:00.000Z',
+    condicionesNoCumplidas: [],
+  };
+
+  test('mandar la lista sola vale: es la que manda desde el 2026-08-07', () => {
+    assert.equal(ok({ causasRaiz: [{ ...CAUSA, tipo: 'multiple' }] }).success, true);
+  });
+
+  test('mandar el campo viejo solo sigue valiendo: no se rompe lo que ya existía', () => {
+    assert.equal(ok({ causaRaiz: CAUSA }).success, true);
+  });
+
+  test('mandar LOS DOS a la vez se RECHAZA', () => {
+    const r = ok({ causaRaiz: CAUSA, causasRaiz: [{ ...CAUSA, tipo: 'unica' }] });
+    assert.equal(r.success, false);
+    assert.match(JSON.stringify(r.error.issues), /No se pueden escribir a la vez/);
+  });
+
+  test('un tipo que no es de la tipología de la cláusula 4 se rechaza', () => {
+    assert.equal(ok({ causasRaiz: [{ ...CAUSA, tipo: 'probable' }] }).success, false);
+  });
+
+  test('una causa sin tipo se rechaza: el tipo manda sobre qué se puede prometer', () => {
+    assert.equal(ok({ causasRaiz: [CAUSA] }).success, false);
+  });
+});

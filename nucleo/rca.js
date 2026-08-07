@@ -25,7 +25,14 @@
 // Módulo PURO: sin DOM, sin red, sin base. Igual que el resto de `nucleo/`.
 // ============================================================================
 
-/** Las once espinas, en el orden en que SIEMPRE se pintan. */
+/**
+ * Las DIECISÉIS espinas, en el orden en que SIEMPRE se pintan.
+ *
+ * Eran once hasta el 2026-08-07 (`99 §ADR-026`). Las cinco nuevas son ADITIVAS
+ * —ninguna clave vieja se renombró— y el orden importa: las nuevas van al final
+ * para que un informe de hace un mes y uno de hoy se lean con las mismas once
+ * primeras filas en el mismo sitio.
+ */
 export const ESPINAS = Object.freeze([
   'conductor',
   'conexiones_empalmes',
@@ -38,6 +45,11 @@ export const ESPINAS = Object.freeze([
   'montaje_tendido',
   'operacion_maniobra',
   'inspeccion_mantenimiento',
+  'proteccion_control',
+  'terceros_accidentales',
+  'acto_malicioso',
+  'fauna',
+  'fuego',
 ]);
 
 /** La escalera de los porqués, de lo que se ve a lo que se puede cambiar. */
@@ -369,6 +381,63 @@ export function revisarHipotesis(hipotesis = []) {
   });
 }
 
+// ── LAS CAUSAS DECLARADAS ───────────────────────────────────────────────────
+
+/**
+ * Las causas raíz declaradas de un análisis, **vengan del campo nuevo o del
+ * viejo**. Dueño ÚNICO de esa precedencia, y por eso existe.
+ *
+ * Desde el 2026-08-07 un análisis guarda `causasRaiz` (lista). Antes guardaba
+ * `causaRaiz` (una sola), y esos documentos no se migran: se leen. Si la pantalla
+ * y el informe resolvieran cada uno por su cuenta cuál de los dos campos mirar,
+ * llegaría el día en que enseñan causas distintas del mismo expediente — que es
+ * la familia de fallo de `33 · L-45`, pero al revés: aquí el riesgo no es que
+ * nadie consuma el dato, sino que **dos lo consuman de dos maneras**.
+ *
+ * La lista manda si trae algo. El campo viejo solo se mira cuando la lista está
+ * vacía, y lo que devuelve se marca `esLegado: true` para que el informe pueda
+ * decir que ese expediente se firmó cuando solo cabía una.
+ *
+ * @param {Object} [analisis]
+ */
+export function causasDeclaradas(analisis = {}) {
+  const lista = analisis.causasRaiz ?? [];
+  if (lista.length) {
+    return lista.map((c) => ({ ...c, tipo: c.tipo ?? 'unica', esLegado: false }));
+  }
+  if (analisis.causaRaiz) {
+    // Un expediente viejo no dice de qué tipo era su causa, y NO se le inventa:
+    // se declara `unica` porque es lo único que el formulario de entonces
+    // permitía afirmar, y se marca como legado para que el informe lo diga.
+    return [{ ...analisis.causaRaiz, tipo: 'unica', esLegado: true }];
+  }
+  return [];
+}
+
+/**
+ * El aviso que acompaña a un conjunto de causas declaradas.
+ *
+ * Una causa `contribuyente` no promete lo mismo que una `multiple`, y esa
+ * diferencia se pierde entera si el informe las imprime en una lista plana:
+ * eliminar una contribuyente cambia la probabilidad del evento, **pero puede no
+ * evitarlo** (IEC 62740:2015, cl. 4, caso c). Prometer que no se repite tras
+ * corregir solo esa es el error que este aviso existe para impedir.
+ */
+export function avisoCausas(causas = []) {
+  if (!causas.length) return null;
+  const contribuyentes = causas.filter((c) => c.tipo === 'contribuyente').length;
+  if (contribuyentes === causas.length) {
+    return 'TODAS las causas declaradas son factores contribuyentes: corregirlas cambia la '
+      + 'probabilidad de que el evento vuelva, pero ninguna promete evitarlo. El expediente no '
+      + 'puede afirmar que la falla no se repetirá.';
+  }
+  if (contribuyentes > 0) {
+    return `${contribuyentes} de las ${causas.length} causas declaradas son factores `
+      + 'contribuyentes: corregirlas cambia la probabilidad, no garantiza la prevención.';
+  }
+  return null;
+}
+
 // ── LAS CONDICIONES PARA DECLARAR UNA CAUSA RAÍZ ────────────────────────────
 
 /**
@@ -398,6 +467,15 @@ export function condicionesCausaRaiz({ espinas = [], cadenas = [], arbol = [], h
   const accionables = cadenas.map(fuerzaCadena).filter((f) => f.esAccionable);
   const sostenidas = revisadas.filter((h) => ['alta', 'confirmada'].includes(h.verosimilitudEfectiva));
   const pendientesCriticas = ausencias.filter((a) => a.estado === 'pendiente' || a.estado === 'solicitado');
+
+  // Una RIVAL es toda hipótesis que ni sostiene la conclusión ni se descartó: es
+  // la que sigue viva y callada. Se cierra diciendo qué se hizo y cómo quedó —no
+  // con un veredicto—, y por eso basta con que consten las dos cosas.
+  const rivalesAbiertas = revisadas.filter((h) => (
+    !['alta', 'confirmada'].includes(h.verosimilitudEfectiva)
+    && h.verosimilitudEfectiva !== 'descartada'
+    && !(h.resultado && String(h.queSeHizo ?? '').trim())
+  ));
 
   const condiciones = [
     {
@@ -439,6 +517,27 @@ export function condicionesCausaRaiz({ espinas = [], cadenas = [], arbol = [], h
       texto: 'Lo que faltaba por verificar se resolvió, o se declaró como no disponible.',
       cumple: pendientesCriticas.length === 0,
       detalle: pendientesCriticas.length ? `${pendientesCriticas.length} verificación(es) siguen pendientes.` : null,
+    },
+    {
+      /**
+       * LA SÉPTIMA (`99 §ADR-026`). Es el hueco que produce **informes
+       * convincentes y equivocados**: un análisis con una hipótesis fuerte y
+       * cuatro rivales que nadie fue a probar se lee como concluyente y no lo es.
+       * Hasta hoy se podía declarar la causa raíz dejándolas todas vivas y en
+       * silencio.
+       *
+       * NO exige un veredicto: exige que conste QUÉ SE HIZO y CÓMO QUEDÓ.
+       * `no_concluyente` vale — obligar a concluir fabricaría la certeza que este
+       * método existe para impedir, y además dejaría atrapada para siempre a
+       * cualquier hipótesis topada por el tope climático.
+       */
+      clave: 'rivales_cerradas',
+      texto: 'Las hipótesis rivales se cerraron: de cada una consta qué se hizo para probarla y cómo quedó.',
+      cumple: rivalesAbiertas.length === 0,
+      detalle: rivalesAbiertas.length
+        ? `${rivalesAbiertas.length} hipótesis rival(es) sin decir qué se hizo para probarlas: `
+          + `${rivalesAbiertas.map((h) => `«${h.enunciado}»`).join(' · ')}.`
+        : null,
     },
   ];
 

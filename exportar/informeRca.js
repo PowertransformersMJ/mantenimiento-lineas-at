@@ -22,7 +22,7 @@
 //   · No presenta una correlación climática como causa. El motor ya topa en
 //     «baja» la hipótesis con sustento solo meteorológico; aquí se imprime el
 //     tope, no se disimula.
-//   · No omite una espina sin evaluar. Las once salen siempre, incluso las que
+//   · No omite una espina sin evaluar. Salen TODAS siempre, incluso las que
 //     nadie ha mirado: una espina que desaparece se lee como «eso ya no aplica».
 //
 // SE PUEDE IMPRIMIR UN ANÁLISIS A MEDIAS, y debe poder. El estado normal de un
@@ -35,7 +35,11 @@ import { ESTILO, esc, escRico, n, parrafo, nota, tabla, lista, objeto } from './
 import {
   evaluarEspinas, validarArbol, resumenBarreras, revisarHipotesis,
   condicionesCausaRaiz, auditarRespaldo, resumenAcciones, fuerzaCadena,
+  causasDeclaradas, avisoCausas, ESPINAS as ESPINAS_CANON,
 } from '@lineas/nucleo/rca';
+
+/** Cuántas familias hay. Se lee de la lista del núcleo: clavarlo a mano ya mintió una vez. */
+const ESPINAS_N = ESPINAS_CANON.length;
 
 const SIN_DATO = '—';
 
@@ -52,6 +56,12 @@ const ESPINAS = {
   montaje_tendido: 'Montaje y tendido',
   operacion_maniobra: 'Operación y maniobra',
   inspeccion_mantenimiento: 'Inspección y mantenimiento',
+  // Las cinco de `99 §ADR-026`.
+  proteccion_control: 'Protección y control',
+  terceros_accidentales: 'Terceros accidentales',
+  acto_malicioso: 'Acto malicioso',
+  fauna: 'Fauna',
+  fuego: 'Fuego',
 };
 
 const ESTADO_ESPINA = {
@@ -79,6 +89,13 @@ const ESTADO_BARRERA = {
 
 const legible = (s) => String(s ?? '').replace(/_/g, ' ');
 
+/** La tipología de IEC 62740:2015 cl. 4, en cristiano. Manda sobre qué se puede prometer. */
+const TIPO_CAUSA = {
+  unica: 'única',
+  multiple: 'múltiple — corregir cualquiera evita el evento',
+  contribuyente: 'contribuyente — cambia la probabilidad, puede no evitarlo',
+};
+
 /**
  * `tabla()` recibe HTML YA ARMADO, no arreglos: la cabecera son `<th>` y las
  * filas son `<tr>` completos. Estos dos ayudantes lo hacen, para que las
@@ -90,10 +107,10 @@ const fila = (celdas) => `<tr>${celdas.map((c) => `<td>${c}</td>`).join('')}</tr
 // ── LAS SECCIONES ───────────────────────────────────────────────────────────
 
 /**
- * La tabla de descartes, con las ONCE familias siempre.
+ * La tabla de descartes, con TODAS las familias siempre.
  *
- * El descarte razonado es el PRODUCTO, no el residuo: saber que once familias se
- * miraron y por qué diez se cayeron vale más que la que quedó en pie.
+ * El descarte razonado es el PRODUCTO, no el residuo: saber que se miraron todas
+ * y por qué se cayeron casi todas vale más que la que quedó en pie.
  */
 function seccionEspinas(espinas) {
   const t = evaluarEspinas(espinas);
@@ -108,7 +125,8 @@ function seccionEspinas(espinas) {
   const conDefecto = t.filter((e) => e.defectos?.length).length;
 
   return parrafo(
-    'Las once familias de causas de una línea de alta tensión. <b>Salen las once, siempre</b>, '
+    `Las ${n(ESPINAS_N)} familias de causas de una línea de alta tensión. <b>Salen todas, siempre</b>, ` +
+    ''
     + 'incluidas las que nadie ha mirado todavía: una familia que desaparece de la tabla se lee '
     + 'como «eso ya no aplica», y eso es una afirmación que nadie ha hecho. No existe el estado '
     + '«no aplica»; si de verdad no aplica, es <i>descartada</i> y hay que decir con qué evidencia.',
@@ -357,20 +375,29 @@ function seccionLimites({ a, sondeos }) {
   const sinEvaluar = espinas.filter((e) => e.estado === 'no_evaluable');
   if (sinEvaluar.length) {
     bloques.push(
-      `<b>${n(sinEvaluar.length)} de 11 familias no se pudieron evaluar</b> por falta de dato: `
+      `<b>${n(sinEvaluar.length)} de ${n(ESPINAS_N)} familias no se pudieron evaluar</b> por falta de dato: `
       + `${esc(sinEvaluar.map((e) => ESPINAS[e.espina] ?? legible(e.espina)).join(', '))}. `
       + 'No están descartadas: no se han podido mirar, que es distinto.',
     );
   }
 
   // 2 · Las condiciones que NO se cumplían al declarar la causa.
-  if (a.causaRaiz) {
-    const noCumplidas = lista(a.causaRaiz.condicionesNoCumplidas);
+  const causas = causasDeclaradas(a);
+  if (causas.length) {
+    const noCumplidas = [...new Set(causas.flatMap((c) => lista(c.condicionesNoCumplidas)))];
     bloques.push(noCumplidas.length
       ? `<b>La causa raíz se declaró con ${n(noCumplidas.length)} condición(es) sin cumplir:</b> `
         + `${escRico(noCumplidas.join(' · '))}. Queda registrado porque es la defensa del informe: `
         + 'quien lo lea tiene que poder juzgar con qué se firmó.'
-      : 'La causa raíz se declaró con las seis condiciones cumplidas.');
+      : 'La causa raíz se declaró con todas las condiciones cumplidas.');
+    // El aviso que impide prometer de más: una causa contribuyente cambia la
+    // probabilidad del evento, pero puede no evitarlo (IEC 62740, cl. 4 c).
+    const av = avisoCausas(causas);
+    if (av) bloques.push(`<b>${escRico(av)}</b>`);
+    if (causas.some((c) => c.esLegado)) {
+      bloques.push('Este expediente se firmó cuando el sistema solo admitía UNA causa raíz. '
+        + 'Que aparezca una sola no significa que se descartaran otras: significa que no se podían escribir.');
+    }
   } else {
     const faltan = lista(cond.condiciones).filter((c) => !c.cumple);
     bloques.push(
@@ -541,7 +568,7 @@ function seccionAlcance(a) {
 }
 
 function seccionCausaRaiz(a) {
-  if (!a.causaRaiz) {
+  if (!causasDeclaradas(a).length) {
     const cond = condicionesCausaRaiz(a);
     const faltan = lista(cond.condiciones).filter((c) => !c.cumple);
     return parrafo(
@@ -554,20 +581,32 @@ function seccionCausaRaiz(a) {
         cabecera: cab(['Condición']),
         filas: faltan.map((c) => fila([escRico(c.texto ?? c.clave ?? '')])),
       })
-      : parrafo('Las seis condiciones se cumplen: falta que una persona la declare.'));
+      : parrafo('Las condiciones se cumplen: falta que una persona la declare.'));
   }
 
-  const c = objeto(a.causaRaiz);
-  return parrafo(`<b>${escRico(c.enunciado)}</b>`)
+  const causas = causasDeclaradas(a);
+  const av = avisoCausas(causas);
+
+  return parrafo(causas.length > 1
+    ? `<b>Este evento tiene ${n(causas.length)} causas raíz declaradas.</b> No es una lista de `
+      + 'candidatas: son las que se firmaron. Corregir una sola deja las demás abiertas.'
+    : '<b>Una sola causa raíz declarada.</b>')
     + tabla({
-      leyenda: 'Declaración',
-      cabecera: cab(['Concepto', 'Valor']),
-      filas: [
-        ['Declarada por', esc(c.declaradaPor ?? SIN_DATO)],
-        ['Fecha', esc(String(c.declaradaEn ?? '').slice(0, 16).replace('T', ' ') || SIN_DATO)],
-        ['Condiciones sin cumplir al declararla', `${n(lista(c.condicionesNoCumplidas).length)}`],
-      ].map(fila),
-    });
+      leyenda: causas.length > 1 ? 'Las causas raíz declaradas' : 'Declaración',
+      cabecera: cab(['Causa raíz', 'Tipo', 'Declarada por', 'Fecha', 'Condiciones sin cumplir']),
+      filas: causas.map((c) => fila([
+        escRico(c.enunciado ?? ''),
+        esc(TIPO_CAUSA[c.tipo] ?? legible(c.tipo)),
+        esc(c.declaradaPor ?? SIN_DATO),
+        esc(String(c.declaradaEn ?? '').slice(0, 16).replace('T', ' ') || SIN_DATO),
+        `${n(lista(c.condicionesNoCumplidas).length)}`,
+      ])),
+    })
+    + (av ? nota(`<b>${escRico(av)}</b>`) : '')
+    + (causas.some((c) => c.esLegado)
+      ? nota('Este expediente se firmó cuando el sistema solo admitía UNA causa raíz. Que aparezca '
+        + 'una sola no significa que se descartaran otras: significa que no se podían escribir.')
+      : '');
 }
 
 /**
@@ -577,7 +616,7 @@ function seccionCausaRaiz(a) {
  * hay, y están prohibidos por `99 §ADR-020`. Una palabra basta.
  */
 function portadaRca(a, meta, indice) {
-  const esConclusion = Boolean(a.causaRaiz);
+  const esConclusion = causasDeclaradas(a).length > 0;
   return `<header class="portada">
   <p class="sello">${esConclusion ? 'CONCLUSIÓN' : 'AVANCE — sin causa raíz declarada'}</p>
   <h1>Análisis de causa raíz · ${esc(a.codigo ?? 'sin identificar')}</h1>

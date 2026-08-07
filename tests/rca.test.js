@@ -19,15 +19,18 @@ import {
   ESPINAS, NIVEL_MINIMO_CAUSA_RAIZ,
   evaluarEspinas, fuerzaCadena, diagnosticoCadena, validarArbol,
   resumenBarreras, revisarHipotesis, condicionesCausaRaiz, auditarRespaldo,
-  candidatosCausaRaiz,
+  candidatosCausaRaiz, causasDeclaradas, avisoCausas,
 } from '../nucleo/rca.js';
 
 const ID = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 
 describe('la tabla de descartes: el hueco tiene que verse', () => {
-  test('devuelve SIEMPRE las once espinas, incluso sin un solo dato', () => {
+  test('devuelve SIEMPRE todas las espinas, incluso sin un solo dato', () => {
     const t = evaluarEspinas([]);
-    assert.equal(t.length, 11);
+    // Eran once hasta el 2026-08-07; son dieciséis desde `99 §ADR-026`. Se lee de
+    // ESPINAS a propósito: clavar el número aquí obliga a tocar la prueba cada
+    // vez que la lista crece, y una prueba que se retoca a menudo deja de vigilar.
+    assert.equal(t.length, ESPINAS.length);
     assert.deepEqual(t.map((e) => e.espina), [...ESPINAS]);
     assert.ok(t.every((e) => e.estado === 'no_evaluable'),
       'una espina que desaparece al faltar el dato se lee como «eso ya no aplica»');
@@ -215,6 +218,129 @@ describe('el árbol es un árbol, no un dibujo', () => {
   });
 });
 
+describe('las DIECISÉIS familias, y que las cinco nuevas son aditivas', () => {
+  test('las once viejas siguen en su sitio y en su orden', () => {
+    const viejas = [
+      'conductor', 'conexiones_empalmes', 'aislamiento_herrajes', 'estructura_cimentacion',
+      'tierra_apantallamiento', 'ambiente_clima', 'vegetacion_servidumbre', 'diseno_hipotesis',
+      'montaje_tendido', 'operacion_maniobra', 'inspeccion_mantenimiento',
+    ];
+    assert.deepEqual(ESPINAS.slice(0, 11), viejas,
+      'renombrar o mover una clave vieja rompería los expedientes ya escritos');
+  });
+
+  test('están las cinco nuevas, y PROTECCIÓN Y CONTROL la primera', () => {
+    assert.equal(ESPINAS.length, 16);
+    assert.deepEqual(ESPINAS.slice(11), [
+      'proteccion_control', 'terceros_accidentales', 'acto_malicioso', 'fauna', 'fuego',
+    ]);
+  });
+
+  test('las dieciséis se pintan SIEMPRE, incluso sin datos', () => {
+    const t = evaluarEspinas([]);
+    assert.equal(t.length, 16);
+    assert.ok(t.every((e) => e.estado === 'no_evaluable'));
+  });
+});
+
+describe('varias causas raíz, sin migrar lo ya escrito', () => {
+  const CAUSA = (extra = {}) => ({
+    nodoId: ID(4), enunciado: 'la especificación no exigía inhibidor',
+    declaradaPor: ID(99), declaradaEn: '2026-08-07T10:00:00.000Z', condicionesNoCumplidas: [],
+    ...extra,
+  });
+
+  test('la LISTA manda cuando trae algo', () => {
+    const c = causasDeclaradas({
+      causasRaiz: [CAUSA({ tipo: 'multiple' }), CAUSA({ tipo: 'contribuyente', enunciado: 'otra' })],
+      causaRaiz: CAUSA({ enunciado: 'la vieja' }),
+    });
+    assert.equal(c.length, 2);
+    assert.ok(c.every((x) => x.esLegado === false));
+    assert.ok(!c.some((x) => x.enunciado === 'la vieja'));
+  });
+
+  test('un expediente VIEJO se lee, no se migra, y se marca como legado', () => {
+    const c = causasDeclaradas({ causaRaiz: CAUSA() });
+    assert.equal(c.length, 1);
+    assert.equal(c[0].esLegado, true);
+    assert.equal(c[0].tipo, 'unica', 'no se le inventa un tipo que su formulario no permitía');
+  });
+
+  test('sin causa declarada no hay causas: es el estado normal durante semanas', () => {
+    assert.deepEqual(causasDeclaradas({}), []);
+    assert.deepEqual(causasDeclaradas(), []);
+  });
+
+  test('AVISA cuando todas son contribuyentes: no se puede prometer que no vuelva', () => {
+    const aviso = avisoCausas([CAUSA({ tipo: 'contribuyente' }), CAUSA({ tipo: 'contribuyente' })]);
+    assert.match(aviso, /TODAS/);
+    assert.match(aviso, /no puede afirmar que la falla no se repetirá/);
+  });
+
+  test('avisa también en la mezcla, y calla cuando ninguna es contribuyente', () => {
+    assert.match(avisoCausas([CAUSA({ tipo: 'multiple' }), CAUSA({ tipo: 'contribuyente' })]), /1 de las 2/);
+    assert.equal(avisoCausas([CAUSA({ tipo: 'multiple' })]), null);
+    assert.equal(avisoCausas([]), null);
+  });
+});
+
+describe('la SÉPTIMA condición: las hipótesis rivales no se dejan vivas y calladas', () => {
+  const SOSTENIDA = {
+    id: ID(1), enunciado: 'conector mal apretado', espina: 'conexiones_empalmes',
+    verosimilitud: 'alta', sustento: 'termografía', queLaRefutaria: 'par de apriete correcto',
+    evidenciaIds: [ID(9)],
+  };
+  const RIVAL = (extra = {}) => ({
+    id: ID(2), enunciado: 'contorneo por contaminación', espina: 'aislamiento_herrajes',
+    verosimilitud: 'media', sustento: 'salinidad alta', queLaRefutaria: 'aisladores limpios',
+    evidenciaIds: [ID(9)], ...extra,
+  });
+  const cond = (hipotesis) => condicionesCausaRaiz({ hipotesis })
+    .condiciones.find((c) => c.clave === 'rivales_cerradas');
+
+  test('una rival viva y sin probar BLOQUEA, y dice cuál', () => {
+    const c = cond([SOSTENIDA, RIVAL()]);
+    assert.equal(c.cumple, false);
+    assert.match(c.detalle, /contorneo por contaminación/);
+  });
+
+  test('se cierra diciendo qué se hizo y cómo quedó', () => {
+    const c = cond([SOSTENIDA, RIVAL({ queSeHizo: 'se lavaron y se midió corriente de fuga', resultado: 'refutada' })]);
+    assert.equal(c.cumple, true);
+  });
+
+  test('«no concluyente» CUENTA: no se obliga a fabricar un veredicto', () => {
+    const c = cond([SOSTENIDA, RIVAL({ queSeHizo: 'se pidió la muestra y no llegó', resultado: 'no_concluyente' })]);
+    assert.equal(c.cumple, true, 'obligar a concluir fabricaría la certeza que el método impide');
+  });
+
+  test('un resultado SIN decir qué se hizo no cierra nada', () => {
+    assert.equal(cond([SOSTENIDA, RIVAL({ resultado: 'refutada' })]).cumple, false);
+    assert.equal(cond([SOSTENIDA, RIVAL({ queSeHizo: '   ', resultado: 'refutada' })]).cumple, false);
+  });
+
+  test('una rival ya DESCARTADA no es rival', () => {
+    assert.equal(cond([SOSTENIDA, RIVAL({ verosimilitud: 'descartada' })]).cumple, true);
+  });
+
+  test('LA TRAMPA: la topada por clima no queda atrapada para siempre', () => {
+    // El tope climático la baja a «baja» pase lo que pase. Si la séptima
+    // condición exigiera un veredicto, ese expediente no se podría cerrar nunca.
+    const topada = RIVAL({
+      verosimilitud: 'alta', sustentoSoloClimatico: true,
+      queSeHizo: 'se buscó daño mecánico en el vano y no apareció', resultado: 'no_concluyente',
+    });
+    const c = cond([SOSTENIDA, topada]);
+    assert.equal(c.cumple, true);
+  });
+
+  test('ahora son SIETE condiciones, no seis', () => {
+    const r = condicionesCausaRaiz({});
+    assert.equal(r.total, 7);
+  });
+});
+
 describe('qué nodo puede ser declarado causa raíz', () => {
   // El árbol del caso real: la línea se abrió porque el conector se corroyó.
   // «Corrosión» es mecanismo físico, y el método dice que eso NO es causa raíz.
@@ -296,7 +422,7 @@ describe('declarar una causa raíz cuesta, y así debe ser', () => {
   test('un análisis vacío NO puede declararla', () => {
     const r = condicionesCausaRaiz({});
     assert.equal(r.puedeDeclararse, false);
-    assert.equal(r.total, 6);
+    assert.equal(r.total, 7, 'la séptima entró con `99 §ADR-026`: cerrar las hipótesis rivales');
   });
 
   test('cada condición que falla dice POR QUÉ, no solo que falla', () => {

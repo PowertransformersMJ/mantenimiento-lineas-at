@@ -8,8 +8,8 @@
 //
 // LO QUE ESTA PANTALLA HACE DISTINTO, y es todo el punto:
 //
-//   · El objeto central NO es la causa: es la TABLA DE DESCARTES. Las once
-//     familias de causas se pintan siempre, todas, en el mismo orden, aunque
+//   · El objeto central NO es la causa: es la TABLA DE DESCARTES. TODAS las
+//     familias de causas se pintan siempre, en el mismo orden, aunque
 //     nadie las haya mirado. Una espina que desaparece al faltar el dato se lee
 //     como «eso ya no aplica».
 //   · Hay un bloque fijo con LO QUE ESTE ANÁLISIS NO PUEDE AFIRMAR. Un informe
@@ -24,7 +24,10 @@
 // pinta; no se decide.
 // ============================================================================
 import { useState } from 'react';
-import { evaluarEspinas, condicionesCausaRaiz, auditarRespaldo, candidatosCausaRaiz } from '@lineas/nucleo/rca';
+import {
+  evaluarEspinas, condicionesCausaRaiz, auditarRespaldo, candidatosCausaRaiz,
+  causasDeclaradas, avisoCausas,
+} from '@lineas/nucleo/rca';
 import type { AccionCapa, AnalisisCausa, Evidencia, SondeoClima } from '@lineas/contratos';
 import { descargar, selloFecha } from '../exportar/descargar';
 
@@ -60,6 +63,34 @@ const ROTULO_ESPINA: Record<string, string> = {
   montaje_tendido: 'Montaje y tendido',
   operacion_maniobra: 'Operación y maniobra',
   inspeccion_mantenimiento: 'Inspección y mantenimiento',
+  // Las cinco de `99 §ADR-026`.
+  proteccion_control: 'Protección y control',
+  terceros_accidentales: 'Terceros accidentales',
+  acto_malicioso: 'Acto malicioso',
+  fauna: 'Fauna',
+  fuego: 'Fuego',
+};
+
+/**
+ * Una causa raíz ya declarada, tal como la devuelve `causasDeclaradas()` del
+ * núcleo — que es JavaScript, así que el tipo se declara aquí. `esLegado` marca
+ * las que vienen del campo viejo de una sola causa.
+ */
+type CausaDeclarada = {
+  nodoId?: string;
+  enunciado?: string;
+  tipo?: string;
+  declaradaEn?: string;
+  declaradaPor?: string;
+  condicionesNoCumplidas?: string[];
+  esLegado?: boolean;
+};
+
+/** La tipología de IEC 62740:2015 cl. 4. Manda sobre qué se puede prometer al corregir. */
+const TIPO_CAUSA: Record<string, string> = {
+  unica: 'Única',
+  multiple: 'Múltiple — corregir cualquiera evita el evento',
+  contribuyente: 'Contribuyente — cambia la probabilidad, puede no evitarlo',
 };
 
 // ── El índice del segmento ──────────────────────────────────────────────────
@@ -122,6 +153,10 @@ function Abierto({ a, evidencias, acciones, sondeos }: { a: AnalisisCausa; evide
   const cond = condicionesCausaRaiz(a);
   const respaldo = auditarRespaldo(a);
   const faltan = cond.condiciones.filter((c) => !c.cumple);
+  // Quién decide qué causas hay es el núcleo, no esta pantalla: si aquí se
+  // eligiera entre el campo viejo y el nuevo, pantalla e informe acabarían
+  // enseñando causas distintas del mismo expediente.
+  const declaradas: CausaDeclarada[] = causasDeclaradas(a);
 
   return (
     <>
@@ -163,14 +198,33 @@ function Abierto({ a, evidencias, acciones, sondeos }: { a: AnalisisCausa; evide
       {/* EL CIERRE — sin botón mientras falte algo */}
       <section className="panel">
         <h2>Causa raíz</h2>
-        {a.causaRaiz ? (
+        {declaradas.length > 0 ? (
           <>
-            <p className="ok"><b>{a.causaRaiz.enunciado}</b></p>
-            <p className="fine">Declarada por una persona el {a.causaRaiz.declaradaEn?.slice(0, 10)}.</p>
-            {a.causaRaiz.condicionesNoCumplidas.length > 0 && (
-              <p className="alerta">
-                Se declaró con {a.causaRaiz.condicionesNoCumplidas.length} condición(es) sin cumplir.
-                Queda constancia: {a.causaRaiz.condicionesNoCumplidas.join(' · ')}
+            {declaradas.length > 1 && (
+              <p className="fine">
+                <b>{declaradas.length} causas raíz declaradas.</b> No son candidatas: son las que se
+                firmaron. Corregir una sola deja las demás abiertas.
+              </p>
+            )}
+            {declaradas.map((c, i) => (
+              <div key={c.nodoId ?? i}>
+                <p className="ok"><b>{c.enunciado}</b></p>
+                <p className="fine">
+                  {(c.tipo && TIPO_CAUSA[c.tipo]) ?? c.tipo} · declarada por una persona el {c.declaradaEn?.slice(0, 10)}.
+                </p>
+                {(c.condicionesNoCumplidas?.length ?? 0) > 0 && (
+                  <p className="alerta">
+                    Se declaró con {c.condicionesNoCumplidas?.length} condición(es) sin cumplir.
+                    Queda constancia: {c.condicionesNoCumplidas?.join(' · ')}
+                  </p>
+                )}
+              </div>
+            ))}
+            {avisoCausas(declaradas) && <p className="alerta">{avisoCausas(declaradas)}</p>}
+            {declaradas.some((c) => c.esLegado) && (
+              <p className="fine">
+                Este expediente se firmó cuando solo cabía UNA causa raíz. Que aparezca una sola no
+                significa que se descartaran otras: significa que no se podían escribir.
               </p>
             )}
           </>
@@ -359,20 +413,28 @@ function TablaDescartes({ a, evidencias }: { a: AnalisisCausa; evidencias: Evide
 function Declarar({ a }: { a: AnalisisCausa }) {
   const [nodoId, setNodoId] = useState('');
   const [enunciado, setEnunciado] = useState('');
+  const [tipo, setTipo] = useState<'unica' | 'multiple' | 'contribuyente'>('unica');
   const [g, setG] = useState(false);
 
   const declarar = async () => {
     setG(true);
     try {
+      // Se escribe SOLO la lista: mandar los dos campos a la vez lo rechaza el
+      // molde de los datos a propósito, porque dejaría el documento diciendo dos
+      // cosas del mismo hecho (la trampa `estado`/`cerrado`).
       await almacen.guardarParte({
-        causaRaiz: {
-          nodoId, enunciado,
-          declaradaPor: a.creadoPor,
-          declaradaEn: new Date().toISOString(),
-          condicionesNoCumplidas: [],
-        },
+        causasRaiz: [
+          ...(a.causasRaiz ?? []),
+          {
+            nodoId, enunciado, tipo,
+            declaradaPor: a.creadoPor,
+            declaradaEn: new Date().toISOString(),
+            condicionesNoCumplidas: [],
+          },
+        ],
         estado: 'en_revision',
       });
+      setNodoId(''); setEnunciado('');
     } finally { setG(false); }
   };
 
@@ -415,12 +477,19 @@ function Declarar({ a }: { a: AnalisisCausa }) {
         </p>
       )}
 
+      {/* El TIPO no es burocracia: manda sobre qué se puede prometer. Corregir
+          una contribuyente cambia la probabilidad de que vuelva, pero puede no
+          evitarlo — prometer lo contrario es el error que esto impide. */}
+      <select className="rca-select" value={tipo}
+        onChange={(e) => setTipo(e.target.value as 'unica' | 'multiple' | 'contribuyente')}>
+        {Object.entries(TIPO_CAUSA).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+      </select>
       <textarea className="rca-motivo" rows={3} value={enunciado}
         placeholder="La causa raíz, con tus palabras. Es lo que se firma."
         onChange={(e) => setEnunciado(e.target.value)} />
       <button type="button" className="boton chico"
         disabled={g || !eligeValido || !enunciado.trim()} onClick={() => void declarar()}>
-        {g ? 'Declarando…' : 'Declarar la causa raíz'}
+        {g ? 'Declarando…' : (a.causasRaiz ?? []).length ? 'Añadir otra causa raíz' : 'Declarar la causa raíz'}
       </button>
       {declarables > 0 && (
         <p className="fine">

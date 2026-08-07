@@ -119,6 +119,52 @@ const SONDEO = {
   nota: 'Estación a 42.3 km del punto. Son observaciones DE ESA ESTACIÓN, no del vano.',
 };
 
+describe('varias causas raíz en el papel que se firma', () => {
+  const CAUSA = (enunciado, tipo) => ({
+    nodoId: `n-${enunciado}`, enunciado, tipo,
+    declaradaPor: 'u-1', declaradaEn: '2026-08-07T10:00:00.000Z', condicionesNoCumplidas: [],
+  });
+
+  test('las imprime TODAS, y dice que corregir una deja las demás abiertas', () => {
+    const h = html({ analisis: { causasRaiz: [
+      CAUSA('la puesta a tierra estaba deficiente', 'multiple'),
+      CAUSA('la especificación no exigía medirla', 'multiple'),
+    ] } });
+    assert.match(h, /la puesta a tierra estaba deficiente/);
+    assert.match(h, /la especificación no exigía medirla/);
+    assert.match(h, /2 causas raíz declaradas/);
+    assert.match(h, /Corregir una sola deja las demás abiertas/);
+  });
+
+  test('con una CONTRIBUYENTE avisa de que no se puede prometer prevención', () => {
+    const h = html({ analisis: { causasRaiz: [
+      CAUSA('el conector estaba flojo', 'multiple'),
+      CAUSA('la salinidad acelera la corrosión', 'contribuyente'),
+    ] } });
+    assert.match(h, /cambia la probabilidad/);
+  });
+
+  test('un expediente VIEJO se imprime y se dice que entonces solo cabía una', () => {
+    const h = html({ analisis: { causaRaiz: {
+      nodoId: 'n1', enunciado: 'el conector se aflojó', declaradaPor: 'u-1',
+      declaradaEn: '2026-08-01T10:00:00.000Z', condicionesNoCumplidas: [],
+    } } });
+    assert.match(h, /el conector se aflojó/);
+    assert.match(h, /solo admitía UNA causa raíz/);
+    assert.match(h, /no significa que se descartaran otras/);
+  });
+
+  test('la portada dice CONCLUSIÓN también cuando la causa viene de la lista', () => {
+    const h = html({ analisis: { causasRaiz: [CAUSA('x', 'unica')] } });
+    assert.match(h, /CONCLUSIÓN/);
+    assert.doesNotMatch(h, /AVANCE — sin causa raíz declarada/);
+  });
+
+  test('sin ninguna causa sigue siendo un AVANCE', () => {
+    assert.match(html(), /AVANCE — sin causa raíz declarada/);
+  });
+});
+
 describe('el aviso de la cadena lo juzga el NÚCLEO, no el informe', () => {
   // El informe miraba el ÚLTIMO eslabón y lo comparaba a mano con
   // «mecanismo_fisico». Fallaba en los dos sentidos, y los dos salían al papel.
