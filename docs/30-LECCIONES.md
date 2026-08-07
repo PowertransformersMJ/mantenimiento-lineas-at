@@ -66,6 +66,7 @@
 - `L-40` · Si el núcleo solo publica la PROSA de un hueco, quien la lea deducirá el hecho — y mal (y una prueba escrita sobre la deducción la BLINDA)
 - `L-41` · Un contrato que no se puede EJECUTAR en una prueba solo está revisado por el compilador
 - `L-42` · Lo que un comité SUPONE entra al cerebro con el mismo rango que lo que verifica
+- `L-45` · Una regla que el motor CALCULA y nadie consume no es una regla: es un comentario (y el grep de `L-28` da luz verde)
 
 ### `docs/30-LECCIONES.md` (este archivo) — método de trabajo: deliberar, verificar, cerrar
 

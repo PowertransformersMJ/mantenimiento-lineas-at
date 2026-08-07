@@ -148,3 +148,25 @@
 - **Regla:** el guardián se pone sobre el RESULTADO que se va a publicar, no sobre la colección
   intermedia. Y el patrón `x ?? 0` merece sospecha permanente en este proyecto: es la forma más
   corta de convertir «no se sabe» en «vale cero».
+
+### L-45 · Una regla que el motor CALCULA y nadie consume no es una regla: es un comentario
+- **Síntoma:** el método declara desde el primer día que «una cadena que termina en el mecanismo
+  físico NO es causa raíz». Estaba escrito en el contrato, explicado en `diagnosticoCadena`,
+  **calculado** en `validarArbol` (`hojasNoAccionables`) y **probado** (`tests/rca.test.js:212`).
+  Y no lo aplicaba nadie: el desplegable de declarar ofrecía el árbol entero, así que se podía
+  firmar «el conector se corroyó» como causa raíz, y el informe calculaba el aviso y no lo imprimía.
+  La regla de oro del segmento se podía violar **desde su propia pantalla**.
+- **Por qué se cuela, y por qué `L-28` NO lo cubre:** allí el módulo entero era huérfano y su
+  remedio es `grep` del nombre. Aquí `validarArbol` **sí** se llama —desde la pantalla y desde el
+  informe—, así que ese grep da **luz verde**. Lo que se caía al suelo era **un campo de la
+  respuesta**: `const v = validarArbol(arbol)` seguido de usar solo `v.problemas`. Verde en las
+  pruebas (el cálculo es correcto), verde en el grep (el módulo se llama), y la regla sin efecto.
+- **Regla:** cuando el núcleo devuelve un objeto con varios campos, **cada campo tiene que tener un
+  consumidor o no debe existir**. Antes de cerrar: `grep -rn "<campo>" web/src exportar` y comprobar
+  que aparece fuera del núcleo y de sus pruebas. Y el sitio donde comprobarlo es el **punto de
+  decisión** —el formulario que firma, no la tabla que informa—: un cálculo que solo se pinta en una
+  tabla no impide nada. Emparenta con `30 · L-28` (módulo huérfano) y con `L-32`: las tres son la
+  misma familia — **el motor sabe y el humano no se entera**.
+- **Cómo se probó que ahora sí protege:** por MUTACIÓN. Al retirar el tope de nivel, 3 pruebas se
+  ponen rojas (`99 §ADR-020` usa la misma técnica con el tope climático). Verde sin mutante no
+  demuestra que la regla haga algo.
