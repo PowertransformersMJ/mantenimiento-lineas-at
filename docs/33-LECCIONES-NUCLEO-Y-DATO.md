@@ -170,3 +170,23 @@
 - **Cómo se probó que ahora sí protege:** por MUTACIÓN. Al retirar el tope de nivel, 3 pruebas se
   ponen rojas (`99 §ADR-020` usa la misma técnica con el tope climático). Verde sin mutante no
   demuestra que la regla haga algo.
+
+### L-46 · Un MÁXIMO DE VENTANA DESLIZANTE no es una medida de régimen
+- **Síntoma:** al leer la oscilografía COMTRADE de LN-627 se publicaron como «corriente de falla»
+  los máximos de una ventana RMS deslizante: **13.965 A** en la fase fallada y **475 A** en la fase
+  A. Ambos entraron al expediente y a una presentación de gerencia. Medidos sobre **ciclos completos
+  que no cruzan la transición**, los valores reales son **13.700 A** y **379 A** — y el segundo va en
+  el sentido CONTRARIO: la fase A no sube, **baja**.
+- **Por qué engaña:** la ventana deslizante busca el máximo en todo el registro, así que se coloca a
+  caballo entre el régimen de carga y el de falla y promedia dos estados que no coexisten. El número
+  sale plausible, del orden correcto, y por eso nadie lo cuestiona. Lo cazó el Ingeniero preguntando
+  si una cifra concreta era correcta.
+- **Regla:** una corriente de falla se mide sobre **ciclos enteros dentro de un solo régimen**, y se
+  declara la ventana usada. Nunca el máximo global de un registro que contiene la transición.
+- **La comprobación que valida la escala, y es barata:** en un registro trifásico con canal residual,
+  **IA + IB + IC debe igualar IN**. Aquí cerró con **0,1 %**, lo que confirma de una vez que los
+  factores de escala de los cuatro canales son correctos. Hazla siempre antes de publicar cifras.
+- **Lo que apareció por mirar bien:** la corriente a tierra **ya venía subiendo antes del disparo**,
+  de 28 A a 195 A en el medio segundo previo y de forma monótona. Ese dato —que el máximo deslizante
+  escondía— es el que sostiene la degradación progresiva frente a cualquier causa externa súbita.
+  Emparenta con `L-32`: el guardián va sobre el resultado que se publica, no sobre el intermedio.
