@@ -206,7 +206,14 @@ class Almacen {
       const indice = await repositorio.listarAnalisis();
       const a = indice.find((x) => x.codigo === codigo);
       if (a) await this.#abrirAnalisis(a, indice);
-      else this.#ponerRca({ fase: 'indice', analisis: indice, avisoRuta: `No existe ningún análisis con el código ${codigo}. Puede que se haya borrado o que el enlace esté mal.` });
+      else {
+        // La dirección tiene que quedar coherente con lo que se ve. Sin esto la
+        // vista de línea —que se monta antes— deja su hash puesto, y recargar
+        // llevaría a la línea perdiendo el aviso: el enlace roto se volvería
+        // invisible en el segundo intento.
+        irA('#/rca', true);
+        this.#ponerRca({ fase: 'indice', analisis: indice, avisoRuta: `No existe ningún análisis con el código ${codigo}. Puede que se haya borrado o que el enlace esté mal.` });
+      }
     } catch (e) {
       this.#ponerRca({ fase: 'error', mensaje: e instanceof Error ? e.message : 'no se pudo abrir el análisis' });
     }
