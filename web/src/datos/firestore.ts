@@ -241,7 +241,7 @@ export const repositorioFirestore: Repositorio = {
    */
   async guardarParte(analisisId: string, parche: Record<string, unknown>, revision: number): Promise<void> {
     const { esperarSesion, baseDatos } = await cargarFirebase();
-    const { doc, updateDoc } = await firestore();
+    const { doc, getDoc, updateDoc } = await firestore();
     const u = await esperarSesion();
     if (!u) throw new Error('sin sesión');
 
@@ -262,7 +262,29 @@ export const repositorioFirestore: Repositorio = {
       throw new Error(`El cambio no cumple el contrato${donde}: ${p?.message ?? 'motivo desconocido'}`);
     }
 
-    await updateDoc(doc(await baseDatos(), 'analisis', analisisId), {
+    // ANTES DE ESCRIBIR, se comprueba que nadie haya guardado por en medio.
+    //
+    // Cada parte se manda ENTERA, no como delta: sin esta comprobación, quien
+    // guarde el árbol a las 10:00 sustituye completo el que un compañero guardó
+    // a las 09:40, y los dos ven que se guardó bien. Razonamiento perdido que
+    // nadie sabe que perdió, dentro de un expediente que se firma.
+    //
+    // El cerrojo DE VERDAD es la regla de la base (revisión nueva == vieja + 1),
+    // porque entre esta lectura y la escritura hay una ventana. Esto de aquí
+    // existe para que el caso normal dé un mensaje que se entienda en vez de una
+    // denegación opaca.
+    const ref = doc(await baseDatos(), 'analisis', analisisId);
+    const actual = await getDoc(ref);
+    const revisionEnLaBase = (actual.data()?.revision as number | undefined) ?? 0;
+    if (revisionEnLaBase !== revision) {
+      throw new Error(
+        'Otra persona guardó cambios en este análisis mientras lo tenías abierto. '
+        + 'No se ha escrito nada para no borrar su trabajo. Copia lo que hayas escrito, '
+        + 'recarga el expediente y vuelve a ponerlo.',
+      );
+    }
+
+    await updateDoc(ref, {
       ...parche,
       actualizadoEn: new Date().toISOString(),
       actualizadoPor: u.uid,

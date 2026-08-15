@@ -133,8 +133,24 @@ service cloud.firestore {
       allow create: if esEditor() && altaCoherente();
       // Un análisis CERRADO respalda un informe entregado: ya no se toca. Misma
       // regla que las investigaciones y las hipótesis congeladas.
+      // EL CERROJO CONTRA EL BORRADO SILENCIOSO ENTRE COMPAÑEROS.
+      //
+      // Cada parte se guarda ENTERA, no como delta: quien guarde el árbol a las
+      // 10:00 sustituye completo el que otro guardó a las 09:40, y los dos ven
+      // que se guardó bien. El número de revisión ya existía en cada documento
+      // pero se incrementaba a ciegas y nadie lo comprobaba: era un contador,
+      // no un cerrojo.
+      //
+      // Exigir revisión nueva == vieja + 1 convierte la última escritura en un
+      // fallo RUIDOSO en vez de un borrado callado. La comprobación vive AQUÍ y
+      // no solo en el cliente porque entre leer y escribir hay una ventana, y
+      // un cerrojo que el cliente puede saltarse no es un cerrojo.
+      //
+      // `get('revision', 0)` tolera un documento antiguo sin el campo: sin eso,
+      // una regla nueva dejaría inservible un expediente ya creado.
       allow update: if esEditor() && deMiOrg(resource.data)
-                    && resource.data.cerrado == false && noTocaReservados();
+                    && resource.data.cerrado == false && noTocaReservados()
+                    && request.resource.data.revision == resource.data.get('revision', 0) + 1;
       allow delete: if false;   // un análisis hecho no se borra: se cierra
     }
 
