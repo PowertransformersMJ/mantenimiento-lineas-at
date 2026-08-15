@@ -9,6 +9,15 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './estilo.css';
 import { App } from './App';
+import { RedDeSeguridad } from './componentes/RedDeSeguridad';
 
 const raiz = document.getElementById('app');
-if (raiz) createRoot(raiz).render(<StrictMode><App /></StrictMode>);
+// La red va DENTRO de StrictMode y FUERA de App: si envolviera solo una parte,
+// un tropiezo en la cabecera o en el ruteo seguiría dejando la página en blanco.
+if (raiz) createRoot(raiz).render(
+  <StrictMode>
+    <RedDeSeguridad>
+      <App />
+    </RedDeSeguridad>
+  </StrictMode>,
+);

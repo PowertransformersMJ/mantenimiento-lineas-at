@@ -1036,3 +1036,30 @@ p.fund-vivo + .sello-calculo { margin-top: 5px; }
   color: var(--tx-alerta); font-size: 13.5px; line-height: 1.5;
 }
 .rca-fallo-guardar p { margin: 6px 0 0; font-size: 12.5px; }
+
+/* ── Red de seguridad: lo último antes de la página en blanco ───────────────
+   Sin tokens de color propios: usa los del tablero. Una red que depende de que
+   la hoja de estilos esté bien es media red. */
+.red-seguridad {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  padding: 24px; background: var(--bg);
+}
+.red-seguridad-caja {
+  max-width: 620px; width: 100%; padding: 22px 24px; border-radius: 10px;
+  background: var(--pnl); border: 1px solid var(--bd);
+  border-top: 4px solid var(--rd);
+}
+.red-seguridad-caja h1 {
+  margin: 0 0 10px; font-size: 20px; font-weight: 650; color: var(--tx);
+}
+.red-seguridad-caja p { margin: 0 0 10px; font-size: 13.5px; line-height: 1.55; color: var(--tx); }
+.red-seguridad-que-hacer { color: var(--tx2); }
+.red-seguridad-botones { display: flex; gap: 10px; margin: 16px 0 4px; flex-wrap: wrap; align-items: center; }
+.red-seguridad-detalle { margin-top: 14px; font-size: 12px; color: var(--tx2); }
+.red-seguridad-detalle summary { cursor: pointer; padding: 6px 0; }
+.red-seguridad-detalle pre {
+  margin: 8px 0 0; padding: 10px; border-radius: 6px; overflow: auto; max-height: 260px;
+  background: var(--bg); border: 1px solid var(--bd);
+  font-size: 11px; line-height: 1.45; white-space: pre-wrap; word-break: break-word;
+  user-select: text;
+}
