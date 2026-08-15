@@ -59,7 +59,23 @@ export type EstadoRca =
   | { fase: 'cerrado' }                                   // el segmento no está abierto
   | { fase: 'cargando' }
   | { fase: 'indice'; analisis: AnalisisCausa[] }
-  | { fase: 'abierto'; analisis: AnalisisCausa; indice: AnalisisCausa[]; evidencias: Evidencia[]; acciones: AccionCapa[]; sondeos: SondeoClima[] }
+  | { fase: 'abierto'; analisis: AnalisisCausa; indice: AnalisisCausa[]; evidencias: Evidencia[]; acciones: AccionCapa[]; sondeos: SondeoClima[];
+      /**
+       * Un fallo al GUARDAR. Vive dentro de la fase «abierto» a propósito.
+       *
+       * Antes, cualquier fallo de escritura ponía la fase en 'error', y la
+       * pantalla solo monta el editor si la fase es 'abierto': el componente se
+       * desmontaba y se llevaba TODO lo que el ingeniero acababa de teclear.
+       * Media mañana de razonamiento perdida por un parpadeo de red — y encima
+       * el cartel decía «No se pudo leer» cuando lo que había fallado era
+       * escribir.
+       *
+       * Leer y escribir fallan distinto y se cuentan distinto: si no se puede
+       * LEER no hay nada que enseñar y la pantalla entera es el error; si no se
+       * puede ESCRIBIR, lo que hay en pantalla sigue siendo válido y es justo lo
+       * que no se debe tirar.
+       */
+      falloAlGuardar?: { mensaje: string; queSeIntentaba: string } }
   | { fase: 'error'; mensaje: string };
 
 /**

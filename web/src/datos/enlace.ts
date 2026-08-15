@@ -130,9 +130,9 @@ class Almacen {
     if (r.fase !== 'abierto') return;
     try {
       await repositorio.crearAccion(r.analisis.id, { clase, que });
-      this.#ponerRca({ ...r, acciones: await repositorio.listarAcciones(r.analisis.id) });
+      this.#ponerRca({ ...r, falloAlGuardar: undefined, acciones: await repositorio.listarAcciones(r.analisis.id) });
     } catch (e) {
-      this.#ponerRca({ fase: 'error', mensaje: e instanceof Error ? e.message : 'no se pudo crear la acción' });
+      this.#ponerRca({ ...r, falloAlGuardar: { mensaje: e instanceof Error ? e.message : 'fallo desconocido', queSeIntentaba: 'crear la acción' } });
     }
   }
 
@@ -143,9 +143,9 @@ class Almacen {
     const previa = r.acciones.find((x) => x.id === accionId);
     try {
       await repositorio.guardarAccion(accionId, parche, previa?.revision ?? 0);
-      this.#ponerRca({ ...r, acciones: await repositorio.listarAcciones(r.analisis.id) });
+      this.#ponerRca({ ...r, falloAlGuardar: undefined, acciones: await repositorio.listarAcciones(r.analisis.id) });
     } catch (e) {
-      this.#ponerRca({ fase: 'error', mensaje: e instanceof Error ? e.message : 'no se pudo guardar la acción' });
+      this.#ponerRca({ ...r, falloAlGuardar: { mensaje: e instanceof Error ? e.message : 'fallo desconocido', queSeIntentaba: 'guardar la acción' } });
     }
   }
 
@@ -161,9 +161,9 @@ class Almacen {
     if (r.fase !== 'abierto') return;
     try {
       await repositorio.guardarSondeo(r.analisis.id, sondeo);
-      this.#ponerRca({ ...r, sondeos: await repositorio.listarSondeos(r.analisis.id) });
+      this.#ponerRca({ ...r, falloAlGuardar: undefined, sondeos: await repositorio.listarSondeos(r.analisis.id) });
     } catch (e) {
-      this.#ponerRca({ fase: 'error', mensaje: e instanceof Error ? e.message : 'no se pudo guardar el sondeo' });
+      this.#ponerRca({ ...r, falloAlGuardar: { mensaje: e instanceof Error ? e.message : 'fallo desconocido', queSeIntentaba: 'congelar el sondeo de clima' } });
     }
   }
 
@@ -196,7 +196,7 @@ class Almacen {
       const id = await repositorio.crearAnalisis(datos);
       const indice = await repositorio.listarAnalisis();
       const a = indice.find((x) => x.id === id);
-      if (a) await this.#abrirAnalisis(a, indice);
+      if (a) await this.#abrirAnalisis(a, indice);   // reabrir limpia el aviso: ya no hay fallo
       else this.#ponerRca({ fase: 'indice', analisis: indice });
     } catch (e) {
       this.#ponerRca({ fase: 'error', mensaje: e instanceof Error ? e.message : 'no se pudo abrir el análisis' });
@@ -212,9 +212,9 @@ class Almacen {
       await repositorio.guardarParte(previo.id, parche, previo.revision ?? 0);
       const indice = await repositorio.listarAnalisis();
       const a = indice.find((x) => x.id === previo.id);
-      if (a) await this.#abrirAnalisis(a, indice);
+      if (a) await this.#abrirAnalisis(a, indice);   // reabrir limpia el aviso: ya no hay fallo
     } catch (e) {
-      this.#ponerRca({ fase: 'error', mensaje: e instanceof Error ? e.message : 'no se pudo guardar' });
+      this.#ponerRca({ ...r, falloAlGuardar: { mensaje: e instanceof Error ? e.message : 'fallo desconocido', queSeIntentaba: 'guardar los cambios del análisis' } });
     }
   }
 

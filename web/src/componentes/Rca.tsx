@@ -133,7 +133,7 @@ function Indice({ analisis }: { analisis: AnalisisCausa[] }) {
 
 // ── Un análisis abierto ─────────────────────────────────────────────────────
 
-function Abierto({ a, evidencias, acciones, sondeos }: { a: AnalisisCausa; evidencias: Evidencia[]; acciones: AccionCapa[]; sondeos: SondeoClima[] }) {
+function Abierto({ a, evidencias, acciones, sondeos, fallo }: { a: AnalisisCausa; evidencias: Evidencia[]; acciones: AccionCapa[]; sondeos: SondeoClima[]; fallo?: { mensaje: string; queSeIntentaba: string } }) {
   const cond = condicionesCausaRaiz(a);
   const respaldo = auditarRespaldo(a);
   const faltan = cond.condiciones.filter((c) => !c.cumple);
@@ -155,6 +155,20 @@ function Abierto({ a, evidencias, acciones, sondeos }: { a: AnalisisCausa; evide
         </button>
         <h2 className="linea-titulo">{a.codigo} — {a.titulo}</h2>
       </div>
+
+      {/* Un fallo al GUARDAR no tira la pantalla: lo tecleado sigue delante y
+          esta franja dice que NO se guardó. Antes esto ponía el expediente en
+          estado de error y desmontaba el editor entero, y el texto se perdía. */}
+      {fallo && (
+        <section className="rca-fallo-guardar" role="alert">
+          <b>No se guardó.</b> Falló al {fallo.queSeIntentaba}: {fallo.mensaje}
+          <p>
+            <b>Lo que escribiste sigue en pantalla y no se ha perdido.</b> Vuelve a pulsar
+            «Guardar» cuando tengas conexión. Si el fallo se repite, copia el texto antes de
+            recargar: recargar sí lo borra.
+          </p>
+        </section>
+      )}
 
       <TablaDescartes a={a} evidencias={evidencias} />
 
@@ -500,9 +514,9 @@ export function Rca() {
         </button>
       </div>
       {r.fase === 'cargando' && <section className="panel vacio"><div className="vacio-t">Cargando…</div></section>}
-      {r.fase === 'error' && <section className="panel vacio"><div className="vacio-t">No se pudo leer</div><p className="vacio-c">{r.mensaje}</p></section>}
+      {r.fase === 'error' && <section className="panel vacio"><div className="vacio-t">No se pudieron leer los análisis</div><p className="vacio-c">{r.mensaje}</p></section>}
       {r.fase === 'indice' && <Indice analisis={r.analisis} />}
-      {r.fase === 'abierto' && <Abierto a={r.analisis} evidencias={r.evidencias} acciones={r.acciones} sondeos={r.sondeos} />}
+      {r.fase === 'abierto' && <Abierto a={r.analisis} evidencias={r.evidencias} acciones={r.acciones} sondeos={r.sondeos} fallo={r.falloAlGuardar} />}
     </div>
   );
 }
