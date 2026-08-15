@@ -35,7 +35,7 @@ import { ESTILO, esc, escRico, n, parrafo, nota, tabla, lista, objeto } from './
 import {
   evaluarEspinas, validarArbol, resumenBarreras, revisarHipotesis,
   condicionesCausaRaiz, auditarRespaldo, resumenAcciones, fuerzaCadena,
-  causasDeclaradas, avisoCausas, ESPINAS as ESPINAS_CANON,
+  causasDeclaradas, avisoCausas, ESPINAS as ESPINAS_CANON, ROTULO_ESPINA,
 } from '@lineas/nucleo/rca';
 
 /** Cuántas familias hay. Se lee de la lista del núcleo: clavarlo a mano ya mintió una vez. */
@@ -43,26 +43,8 @@ const ESPINAS_N = ESPINAS_CANON.length;
 
 const SIN_DATO = '—';
 
-/** Los nombres legibles. Un solo sitio, y el mismo vocabulario de la pantalla. */
-const ESPINAS = {
-  conductor: 'Conductor',
-  conexiones_empalmes: 'Conexiones y empalmes',
-  aislamiento_herrajes: 'Aislamiento y herrajes',
-  estructura_cimentacion: 'Estructura y cimentación',
-  tierra_apantallamiento: 'Puesta a tierra y apantallamiento',
-  ambiente_clima: 'Ambiente y clima',
-  vegetacion_servidumbre: 'Vegetación y servidumbre',
-  diseno_hipotesis: 'Diseño e hipótesis',
-  montaje_tendido: 'Montaje y tendido',
-  operacion_maniobra: 'Operación y maniobra',
-  inspeccion_mantenimiento: 'Inspección y mantenimiento',
-  // Las cinco de `99 §ADR-026`.
-  proteccion_control: 'Protección y control',
-  terceros_accidentales: 'Terceros accidentales',
-  acto_malicioso: 'Acto malicioso',
-  fauna: 'Fauna',
-  fuego: 'Fuego',
-};
+/** El rótulo lo publica `nucleo/rca.js`: un hecho, un dueño (`33 · L-19`). */
+const ESPINAS = ROTULO_ESPINA;
 
 const ESTADO_ESPINA = {
   descartada: 'descartada',

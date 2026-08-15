@@ -370,7 +370,7 @@ const FormaAnalisis = Base.extend({
   }),
 
   /**
-   * LA TABLA DE DESCARTES. Se guardan las 11, siempre, incluso las que nadie ha
+   * LA TABLA DE DESCARTES. Se guardan TODAS, siempre, incluso las que nadie ha
    * mirado — `nucleo/rca.js` las completa como `no_evaluable`. Una espina que
    * desaparece cuando falta el dato se lee como «eso ya no aplica».
    */

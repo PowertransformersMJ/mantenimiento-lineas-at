@@ -14,23 +14,19 @@
 // sería del modelo con retoques.
 // ============================================================================
 import { useState } from 'react';
-import { fuerzaCadena, diagnosticoCadena, validarArbol, resumenBarreras, revisarHipotesis, resumenAcciones } from '@lineas/nucleo/rca';
+import { fuerzaCadena, diagnosticoCadena, validarArbol, resumenBarreras, revisarHipotesis, resumenAcciones, ESPINAS_CON_ROTULO } from '@lineas/nucleo/rca';
 import type { AccionCapa, AnalisisCausa, Evidencia, SondeoClima } from '@lineas/contratos';
 import { almacen } from '../datos/enlace';
 
-export const ESPINAS_UI: [string, string][] = [
-  ['conductor', 'Conductor'],
-  ['conexiones_empalmes', 'Conexiones y empalmes'],
-  ['aislamiento_herrajes', 'Aislamiento y herrajes'],
-  ['estructura_cimentacion', 'Estructura y cimentación'],
-  ['tierra_apantallamiento', 'Puesta a tierra y apantallamiento'],
-  ['ambiente_clima', 'Ambiente y clima'],
-  ['vegetacion_servidumbre', 'Vegetación y servidumbre'],
-  ['diseno_hipotesis', 'Diseño e hipótesis de cálculo'],
-  ['montaje_tendido', 'Montaje y tendido'],
-  ['operacion_maniobra', 'Operación y maniobra'],
-  ['inspeccion_mantenimiento', 'Inspección y mantenimiento'],
-];
+/**
+ * Las familias, tal como se ofrecen en los desplegables.
+ *
+ * NO se escriben aquí. Se derivan de `nucleo/rca.js`, que es el dueño de la
+ * lista y del rótulo. Esta constante era una copia a mano y se quedó en once
+ * cuando el núcleo pasó a dieciséis: se podían evaluar las dieciséis familias y
+ * solo se podía razonar sobre once (`33 · L-19`).
+ */
+export const ESPINAS_UI: [string, string][] = ESPINAS_CON_ROTULO as [string, string][];
 
 const NIVELES_UI: [string, string][] = [
   ['efecto', '1 · efecto — lo que se ve'],

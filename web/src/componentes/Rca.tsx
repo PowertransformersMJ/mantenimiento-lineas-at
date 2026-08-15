@@ -26,7 +26,7 @@
 import { useState } from 'react';
 import {
   evaluarEspinas, condicionesCausaRaiz, auditarRespaldo, candidatosCausaRaiz,
-  causasDeclaradas, avisoCausas,
+  causasDeclaradas, avisoCausas, ESPINAS, ROTULO_ESPINA,
 } from '@lineas/nucleo/rca';
 import type { AccionCapa, AnalisisCausa, Evidencia, SondeoClima } from '@lineas/contratos';
 import { descargar, selloFecha } from '../exportar/descargar';
@@ -50,26 +50,10 @@ import { almacen, useRca } from '../datos/enlace';
 import { EditorPorques, EditorArbol, EditorHipotesis, EditorAusencias, EditorAcciones, ClimaEvento } from './RcaEditores';
 import { nf } from '../vistas/formato';
 
-/** Cómo se lee cada espina en pantalla. El código interno no se le enseña a nadie. */
-const ROTULO_ESPINA: Record<string, string> = {
-  conductor: 'Conductor',
-  conexiones_empalmes: 'Conexiones y empalmes',
-  aislamiento_herrajes: 'Aislamiento y herrajes',
-  estructura_cimentacion: 'Estructura y cimentación',
-  tierra_apantallamiento: 'Puesta a tierra y apantallamiento',
-  ambiente_clima: 'Ambiente y clima',
-  vegetacion_servidumbre: 'Vegetación y servidumbre',
-  diseno_hipotesis: 'Diseño e hipótesis de cálculo',
-  montaje_tendido: 'Montaje y tendido',
-  operacion_maniobra: 'Operación y maniobra',
-  inspeccion_mantenimiento: 'Inspección y mantenimiento',
-  // Las cinco de `99 §ADR-026`.
-  proteccion_control: 'Protección y control',
-  terceros_accidentales: 'Terceros accidentales',
-  acto_malicioso: 'Acto malicioso',
-  fauna: 'Fauna',
-  fuego: 'Fuego',
-};
+/** El rótulo de una familia. El mapa lo publica el núcleo; aquí solo se indexa con tipo. */
+const rotuloEspina = (e: string): string => (ROTULO_ESPINA as Record<string, string>)[e] ?? e;
+
+// El rótulo de cada familia lo publica `nucleo/rca.js`: una lista, un dueño.
 
 /**
  * Una causa raíz ya declarada, tal como la devuelve `causasDeclaradas()` del
@@ -318,7 +302,7 @@ function TablaDescartes({ a, evidencias }: { a: AnalisisCausa; evidencias: Evide
 
   return (
     <section className="panel">
-      <h2>Las once familias de causas</h2>
+      <h2>Las {ESPINAS.length} familias de causas</h2>
       <p className="fine">
         Se recorren <b>todas</b>, siempre. Descartar o sostener una familia exige evidencia
         enlazada; decir «no evaluable» exige nombrar el dato que falta. No existe el estado
@@ -342,7 +326,7 @@ function TablaDescartes({ a, evidencias }: { a: AnalisisCausa; evidencias: Evide
               const j = juicio.get(x.espina);
               return (
                 <tr key={x.espina}>
-                  <td className="destaca">{ROTULO_ESPINA[x.espina] ?? x.espina}</td>
+                  <td className="destaca">{rotuloEspina(x.espina)}</td>
                   <td>
                     <select className="rca-select" value={x.estado}
                       onChange={(e) => tocar(x.espina, 'estado', e.target.value)}>
@@ -387,7 +371,7 @@ function TablaDescartes({ a, evidencias }: { a: AnalisisCausa; evidencias: Evide
       <div className="rca-guardar">
         <button type="button" className="boton chico" onClick={() => void guardar()}
           disabled={guardando || sinMotivo > 0}>
-          {guardando ? 'Guardando…' : `Guardar ${conEstado.length} de 11`}
+          {guardando ? 'Guardando…' : `Guardar ${conEstado.length} de ${ESPINAS.length}`}
         </button>
         {sinMotivo > 0 && (
           <span className="fine">

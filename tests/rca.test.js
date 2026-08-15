@@ -20,6 +20,7 @@ import {
   evaluarEspinas, fuerzaCadena, diagnosticoCadena, validarArbol,
   resumenBarreras, revisarHipotesis, condicionesCausaRaiz, auditarRespaldo,
   candidatosCausaRaiz, causasDeclaradas, avisoCausas,
+  ROTULO_ESPINA, ESPINAS_CON_ROTULO,
 } from '../nucleo/rca.js';
 
 const ID = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
@@ -558,5 +559,35 @@ describe('las acciones CAPA: un plan que nadie puede comprobar es una lista de d
       { ...base, id: 'z', que: 'segunda' },
     ];
     assert.deepEqual(revisarAcciones(dadas).map((a) => a.id), ['x', 'y', 'z']);
+  });
+});
+
+
+describe('el rótulo de cada familia: una lista, un dueño', () => {
+  // El 07-08 se pasó de 11 a 16 familias y el selector de la cadena de porqués
+  // se quedó en 11, porque su lista era una copia a mano. Se podían EVALUAR las
+  // dieciséis y solo se podía RAZONAR sobre once. Esto es el guardián que pedía
+  // `33 · L-19` y que no existía.
+  test('TODAS las familias tienen rótulo: ninguna se queda sin nombre', () => {
+    const sinRotulo = ESPINAS.filter((e) => !ROTULO_ESPINA[e]);
+    assert.deepEqual(sinRotulo, [],
+      'una familia sin rótulo sale en pantalla con su clave interna cruda');
+  });
+
+  test('no hay rótulos HUÉRFANOS: ninguno sobra sobre la lista canónica', () => {
+    const sobran = Object.keys(ROTULO_ESPINA).filter((k) => !ESPINAS.includes(k));
+    assert.deepEqual(sobran, [],
+      'un rótulo que no corresponde a ninguna familia es una que se renombró a medias');
+  });
+
+  test('la lista con rótulo respeta el ORDEN canónico y su longitud', () => {
+    assert.equal(ESPINAS_CON_ROTULO.length, ESPINAS.length);
+    assert.deepEqual(ESPINAS_CON_ROTULO.map(([id]) => id), [...ESPINAS],
+      'el orden manda: un informe de hace un mes y uno de hoy deben leerse igual');
+  });
+
+  test('los rótulos no se repiten: dos familias con el mismo nombre son indistinguibles', () => {
+    const vistos = Object.values(ROTULO_ESPINA);
+    assert.equal(new Set(vistos).size, vistos.length);
   });
 });

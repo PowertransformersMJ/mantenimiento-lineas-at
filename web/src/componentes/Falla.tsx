@@ -87,7 +87,7 @@ export function Falla({ investigaciones, apoyos, evidencias = [] }:
                 <b>Análisis de causa raíz</b>
                 <p className="fine">
                   Este expediente registra lo que PASÓ. Un análisis de causa raíz razona sobre
-                  ello con método —once familias de causas, porqués con nivel, barreras— y vive
+                  ello con método —familias de causas, porqués con nivel, barreras— y vive
                   fuera de la línea, porque una misma causa puede repetirse en varias.
                 </p>
               </div>

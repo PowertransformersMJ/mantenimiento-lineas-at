@@ -52,6 +52,45 @@ export const ESPINAS = Object.freeze([
   'fuego',
 ]);
 
+/**
+ * Cómo se lee cada familia en pantalla y en papel. Vive AQUÍ, pegado a `ESPINAS`,
+ * y no en cada consumidor.
+ *
+ * POR QUÉ. Hasta el 09-08 el rótulo estaba copiado a mano en tres sitios
+ * (`web/.../Rca.tsx`, `web/.../RcaEditores.tsx` y `exportar/informeRca.js`). Al
+ * añadir las cinco familias nuevas se actualizaron dos de las tres, y la que se
+ * quedó atrás era justo el selector de la cadena de porqués: se podían EVALUAR
+ * las dieciséis familias pero solo se podía razonar sobre once. No se podía
+ * construir una cadena que colgara de «protección y control» ni de «acto
+ * malicioso» — las dos que más falta hacen en el Caribe.
+ *
+ * Es la lección `33 · L-19` en su forma pura: la misma lista en varios sitios
+ * diverge, y el día que lo hace nadie se entera. Aquí hay UNA lista y UN rótulo
+ * por familia, y `tests/rca.test.js` vigila que no aparezca ninguna sin rótulo
+ * ni ningún rótulo huérfano.
+ */
+export const ROTULO_ESPINA = Object.freeze({
+  conductor:               'Conductor',
+  conexiones_empalmes:     'Conexiones y empalmes',
+  aislamiento_herrajes:    'Aislamiento y herrajes',
+  estructura_cimentacion:  'Estructura y cimentación',
+  tierra_apantallamiento:  'Puesta a tierra y apantallamiento',
+  ambiente_clima:          'Ambiente y clima',
+  vegetacion_servidumbre:  'Vegetación y servidumbre',
+  diseno_hipotesis:        'Diseño e hipótesis de cálculo',
+  montaje_tendido:         'Montaje y tendido',
+  operacion_maniobra:      'Operación y maniobra',
+  inspeccion_mantenimiento:'Inspección y mantenimiento',
+  proteccion_control:      'Protección y control',
+  terceros_accidentales:   'Terceros accidentales',
+  acto_malicioso:          'Acto malicioso',
+  fauna:                   'Fauna',
+  fuego:                   'Fuego',
+});
+
+/** Las familias con su rótulo, en el orden en que SIEMPRE se pintan. */
+export const ESPINAS_CON_ROTULO = Object.freeze(ESPINAS.map((e) => [e, ROTULO_ESPINA[e]]));
+
 /** La escalera de los porqués, de lo que se ve a lo que se puede cambiar. */
 export const NIVELES = Object.freeze(['efecto', 'modo_falla', 'mecanismo_fisico', 'condicion', 'regla']);
 
@@ -64,7 +103,7 @@ export const NIVEL_MINIMO_CAUSA_RAIZ = 'condicion';
 // ── LA TABLA DE DESCARTES ───────────────────────────────────────────────────
 
 /**
- * Devuelve SIEMPRE las once espinas, en el mismo orden, con datos o sin ellos.
+ * Devuelve SIEMPRE todas las espinas de `ESPINAS`, en el mismo orden, con datos o sin ellos.
  *
  * La trampa que evita es la misma que ya evita `umbrales.js`: una espina que
  * desaparece cuando falta el dato se lee como «eso ya no aplica», y el informe
@@ -450,7 +489,7 @@ export function avisoCausas(causas = []) {
  */
 /**
  * @param {Object}  [a]
- * @param {Array}   [a.espinas]    evaluaciones de las once familias
+ * @param {Array}   [a.espinas]    evaluaciones de las familias de causa (`ESPINAS`)
  * @param {Array}   [a.cadenas]    cadenas de porqués
  * @param {Array}   [a.arbol]      nodos del árbol de causas
  * @param {Array}   [a.hipotesis]  hipótesis con su sustento y su refutación
@@ -480,7 +519,7 @@ export function condicionesCausaRaiz({ espinas = [], cadenas = [], arbol = [], h
   const condiciones = [
     {
       clave: 'espinas_recorridas',
-      texto: 'Las once familias de causas se recorrieron: ninguna quedó sin mirar en silencio.',
+      texto: `Las ${ESPINAS.length} familias de causas se recorrieron: ninguna quedó sin mirar en silencio.`,
       cumple: sinMirar.length === 0 && conDefectos.length === 0,
       detalle: sinMirar.length
         ? `${sinMirar.length} espina(s) sin mirar y sin decir qué dato falta.`
