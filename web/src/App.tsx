@@ -188,6 +188,16 @@ function Contenido() {
 export function App() {
   useEffect(() => { void almacen.cargar(); }, []);
 
+  // Atrás/Adelante, a nivel de APLICACIÓN. Antes el único oyente vivía dentro
+  // de la vista de línea, así que al entrar al segmento de causa raíz —que la
+  // sustituye— el botón Atrás dejaba de mover nada, y agotados sus pasos sacaba
+  // de la aplicación con el trabajo dentro.
+  useEffect(() => {
+    const alVolver = () => { void almacen.sincronizarConRuta(); };
+    addEventListener('popstate', alVolver);
+    return () => removeEventListener('popstate', alVolver);
+  }, []);
+
   return (
     <>
       <Cabecera />

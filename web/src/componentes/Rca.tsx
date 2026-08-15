@@ -79,7 +79,7 @@ const TIPO_CAUSA: Record<string, string> = {
 
 // ── El índice del segmento ──────────────────────────────────────────────────
 
-function Indice({ analisis }: { analisis: AnalisisCausa[] }) {
+function Indice({ analisis, avisoRuta }: { analisis: AnalisisCausa[]; avisoRuta?: string }) {
   if (!analisis.length) {
     return (
       <section className="panel vacio">
@@ -102,6 +102,9 @@ function Indice({ analisis }: { analisis: AnalisisCausa[] }) {
   return (
     <section className="panel">
       <h2>Análisis de causa raíz · {nf(analisis.length)}</h2>
+      {/* El enlace pedía un expediente concreto y no está. No se abre «uno
+          parecido»: se dice qué pasó y se deja elegir. */}
+      {avisoRuta && <p className="alerta" role="status">{avisoRuta}</p>}
       <div className="tabla-caja">
         <table className="tabla">
           <thead>
@@ -515,7 +518,7 @@ export function Rca() {
       </div>
       {r.fase === 'cargando' && <section className="panel vacio"><div className="vacio-t">Cargando…</div></section>}
       {r.fase === 'error' && <section className="panel vacio"><div className="vacio-t">No se pudieron leer los análisis</div><p className="vacio-c">{r.mensaje}</p></section>}
-      {r.fase === 'indice' && <Indice analisis={r.analisis} />}
+      {r.fase === 'indice' && <Indice analisis={r.analisis} avisoRuta={r.avisoRuta} />}
       {r.fase === 'abierto' && <Abierto a={r.analisis} evidencias={r.evidencias} acciones={r.acciones} sondeos={r.sondeos} fallo={r.falloAlGuardar} />}
     </div>
   );

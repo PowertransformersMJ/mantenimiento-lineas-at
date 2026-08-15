@@ -546,11 +546,13 @@ function DetalleVanos({ apoyos, conductor, hipotesis }:
 
 // ── Vista principal ─────────────────────────────────────────────────────────
 
-export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigaciones = [], evidencias = [], lineas, noSePudoLeer }:
+export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigaciones = [], evidencias = [], lineas, noSePudoLeer, avisoRuta }:
   { linea: TLinea; apoyos: Apoyo[]; conductor: Conductor; hipotesis: Hipotesis;
     investigaciones?: Investigacion[]; evidencias?: Evidencia[];
     /** Qué NO se pudo leer, para no afirmar «no hay» cuando fue «no se pudo mirar». */
-    noSePudoLeer?: { investigaciones?: string; evidencias?: string }; lineas?: TLinea[] }) {
+    noSePudoLeer?: { investigaciones?: string; evidencias?: string };
+    /** Por qué se abrió esta línea y no la que pedía el enlace. */
+    avisoRuta?: string; lineas?: TLinea[] }) {
 
   // ── El estado VIVE EN LA DIRECCIÓN WEB ──────────────────────────────────
   // Era el bloqueante nº6 de la crítica: sin esto no se puede mandar «mira
@@ -571,7 +573,8 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
   };
 
   useEffect(() => {
-    // Atrás/Adelante: la dirección manda, no el estado de React.
+    // Atrás/Adelante DENTRO de la línea: solo la pestaña. El salto entre línea y
+    // segmento de causa raíz lo lleva el oyente de `App`, que no se desmonta.
     const alVolver = () => setActiva(leerHash() ?? 'resumen');
     addEventListener('popstate', alVolver);
     return () => removeEventListener('popstate', alVolver);
@@ -625,6 +628,10 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
       <div className="linea-cab">
         <h2 className="linea-titulo">{linea.codigo} — {nf(linea.tensionNominal_kV)} kV</h2>
       </div>
+
+      {/* Un enlace que abre otra línea EN SILENCIO es peor que uno roto: dos
+          ingenieros pueden discutir cifras creyendo que miran la misma. */}
+      {avisoRuta && <p className="alerta" role="status">{avisoRuta}</p>}
 
       <div className="cuerpo">
         <nav className="col-parque" aria-label="Parque de líneas">

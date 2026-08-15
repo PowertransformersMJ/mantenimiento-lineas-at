@@ -36,6 +36,8 @@ export type EstadoDatos =
    * lista únicamente la línea abierta: no se inventa un parque que no consta.
    */
   | { fase: 'listo'; linea: Linea; apoyos: Apoyo[]; conductor: Conductor; hipotesis: Hipotesis; investigaciones: Investigacion[]; evidencias: Evidencia[]; lineas?: Linea[];
+      /** Por qué se abrió esta línea y no la que pedía el enlace. */
+      avisoRuta?: string;
       /**
        * QUÉ NO SE PUDO LEER. Existe porque «vino vacío» y «no se pudo mirar» son
        * cosas distintas y la pantalla las estaba aplanando en la misma.
@@ -76,7 +78,7 @@ export type EstadoDatos =
 export type EstadoRca =
   | { fase: 'cerrado' }                                   // el segmento no está abierto
   | { fase: 'cargando' }
-  | { fase: 'indice'; analisis: AnalisisCausa[] }
+  | { fase: 'indice'; analisis: AnalisisCausa[]; /** Por qué se quedó en el índice viniendo de un enlace. */ avisoRuta?: string }
   | { fase: 'abierto'; analisis: AnalisisCausa; indice: AnalisisCausa[]; evidencias: Evidencia[]; acciones: AccionCapa[]; sondeos: SondeoClima[];
       /**
        * Un fallo al GUARDAR. Vive dentro de la fase «abierto» a propósito.

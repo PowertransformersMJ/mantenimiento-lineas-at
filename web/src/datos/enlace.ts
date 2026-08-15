@@ -21,6 +21,7 @@ import type { AccionCapa, AnalisisCausa, Evidencia, Linea, SondeoClima } from '@
 import { cargarFirebase } from './cargar';
 import { puertaDeAcceso } from '@lineas/contratos';
 import { repositorio, usarRepositorio, type EstadoDatos, type EstadoRca } from './repositorio';
+import { leerRuta } from './ruta';
 import { repositorioFirestore } from './firestore';
 
 /**
@@ -37,6 +38,13 @@ function conectarBase(): void {
 
 type Oyente = () => void;
 
+/** Escribe la dirección sin ensuciar el historial cuando no cambia nada. */
+function irA(hash: string, reemplazar = false): void {
+  if (location.hash === hash) return;
+  if (reemplazar) history.replaceState(null, '', hash);
+  else history.pushState(null, '', hash);
+}
+
 /**
  * Almacén mínimo, fuera de React. Guarda el estado actual y avisa a quien
  * escuche. Es deliberadamente aburrido: cuanto menos haga, menos hay que
@@ -50,6 +58,8 @@ class Almacen {
    * Sigue habiendo un solo almacén y un solo puente (ADR-005).
    */
   #rca: EstadoRca = { fase: 'cerrado' };
+  /** La dirección de la línea desde la que se abrió el RCA, para volver al sitio exacto. */
+  #hashPrevio: string | null = null;
   #oyentes = new Set<Oyente>();
 
   leer = (): EstadoDatos => this.#estado;
@@ -74,6 +84,8 @@ class Almacen {
 
   /** Abre el segmento y trae el índice. El estado de la línea NO se toca. */
   async abrirRca(): Promise<void> {
+    if (this.#rca.fase === 'cerrado') this.#hashPrevio = location.hash || null;
+    irA('#/rca');
     this.#ponerRca({ fase: 'cargando' });
     try {
       conectarBase();
@@ -93,6 +105,10 @@ class Almacen {
    * enlazar y nadie entendiera por qué.
    */
   async #abrirAnalisis(a: AnalisisCausa, indice: AnalisisCausa[]): Promise<void> {
+    // La dirección nombra el análisis por su CÓDIGO, no por su identificador
+    // interno: un enlace que un ingeniero pega en un chat tiene que decir de qué
+    // expediente habla («RCA-2026-08-04-0227»), no un UUID sin significado.
+    if (a.codigo) irA(`#/rca/${encodeURIComponent(a.codigo)}`);
     let evidencias: Evidencia[] = [];
     try {
       evidencias = await repositorio.evidenciasDeAnalisis(a.id, a.alcance.investigacionIds);
@@ -175,14 +191,69 @@ class Almacen {
     if (a) await this.#abrirAnalisis(a, indice);
   }
 
+  /**
+   * Abre un análisis por su CÓDIGO, que es lo que viaja en el enlace.
+   *
+   * Si el código no existe —expediente borrado, enlace viejo, error al teclear—
+   * NO se falla en silencio ni se abre otro: se deja el índice y se dice qué
+   * pasó. Abrir «uno parecido» sería lo peor posible en un expediente que se
+   * firma.
+   */
+  async abrirAnalisisPorCodigo(codigo: string): Promise<void> {
+    this.#ponerRca({ fase: 'cargando' });
+    try {
+      conectarBase();
+      const indice = await repositorio.listarAnalisis();
+      const a = indice.find((x) => x.codigo === codigo);
+      if (a) await this.#abrirAnalisis(a, indice);
+      else this.#ponerRca({ fase: 'indice', analisis: indice, avisoRuta: `No existe ningún análisis con el código ${codigo}. Puede que se haya borrado o que el enlace esté mal.` });
+    } catch (e) {
+      this.#ponerRca({ fase: 'error', mensaje: e instanceof Error ? e.message : 'no se pudo abrir el análisis' });
+    }
+  }
+
   /** Vuelve al índice del segmento. */
   volverAlIndice(): void {
     const r = this.#rca;
-    if (r.fase === 'abierto') this.#ponerRca({ fase: 'indice', analisis: r.indice });
+    if (r.fase !== 'abierto') return;
+    irA('#/rca');
+    this.#ponerRca({ fase: 'indice', analisis: r.indice });
+  }
+
+  /**
+   * Aplica la dirección actual al estado. La usa el botón Atrás/Adelante.
+   *
+   * Es IDEMPOTENTE a propósito: si el estado ya coincide con la dirección no
+   * hace nada. Sin eso, cada transición escribiría la dirección, la dirección
+   * dispararía la sincronización y volvería a transicionar — un bucle.
+   */
+  async sincronizarConRuta(): Promise<void> {
+    const ruta = leerRuta();
+    const r = this.#rca;
+
+    if (ruta?.tipo === 'rca') {
+      if (ruta.codigo) {
+        if (r.fase === 'abierto' && r.analisis.codigo === ruta.codigo) return;
+        await this.abrirAnalisisPorCodigo(ruta.codigo);
+      } else {
+        if (r.fase === 'indice') return;
+        await this.abrirRca();
+      }
+      return;
+    }
+
+    // La dirección ya no habla del segmento: si estaba abierto, se cierra.
+    if (r.fase !== 'cerrado') this.#ponerRca({ fase: 'cerrado' });
   }
 
   /** Cierra el segmento y devuelve la pantalla a la línea, sin recargarla. */
-  cerrarRca(): void { this.#ponerRca({ fase: 'cerrado' }); }
+  cerrarRca(): void {
+    // Devuelve a la línea Y a la pestaña de la que se vino. Sin esto, cerrar el
+    // segmento dejaba la dirección en `#/rca` y recargar volvía a abrirlo.
+    irA(this.#hashPrevio ?? '#/');
+    this.#hashPrevio = null;
+    this.#ponerRca({ fase: 'cerrado' });
+  }
 
   /**
    * Abre un análisis desde un evento de falla y lo deja en pantalla.
@@ -251,7 +322,32 @@ class Almacen {
       const lineas = await repositorio.listarLineas();
       if (!lineas.length) return this.poner({ fase: 'vacio' });
 
-      await this.abrir(lineas[0].id, lineas);
+      // LA DIRECCIÓN MANDA. Antes se abría siempre `lineas[0]` y el código que
+      // venía en la dirección se descartaba: con dos líneas, dos ingenieros
+      // podían discutir cifras creyendo que miraban la misma.
+      const ruta = leerRuta();
+      let aviso: string | undefined;
+      let objetivo = lineas[0];
+
+      if (ruta?.tipo === 'linea') {
+        const pedida = lineas.find((l) => l.codigo === ruta.codigo);
+        if (pedida) objetivo = pedida;
+        else {
+          // NUNCA en silencio: si el enlace pedía una línea que este usuario no
+          // tiene asignada, se abre otra y se dice cuál y por qué.
+          aviso = `El enlace pedía la línea ${ruta.codigo}, que no está entre las tuyas. `
+                + `Se abrió ${lineas[0].codigo}.`;
+        }
+      }
+
+      await this.abrir(objetivo.id, lineas, aviso);
+
+      // El segmento de causa raíz se pinta ENCIMA de la línea, así que la línea
+      // se carga primero y el expediente después.
+      if (ruta?.tipo === 'rca') {
+        if (ruta.codigo) await this.abrirAnalisisPorCodigo(ruta.codigo);
+        else await this.abrirRca();
+      }
     } catch (e) {
       this.poner({ fase: 'error', mensaje: e instanceof Error ? e.message : 'error desconocido' });
     }
@@ -262,14 +358,14 @@ class Almacen {
    * solo para saber cuál abrir y se tiraba; por eso la pantalla no podía
    * enseñar el parque. La lista viaja con el estado, no se vuelve a pedir.
    */
-  async abrir(lineaId: string, lineas?: Linea[]): Promise<void> {
+  async abrir(lineaId: string, lineas?: Linea[], avisoRuta?: string): Promise<void> {
     const previo = this.#estado;
     const conocidas = lineas ?? (previo.fase === 'listo' ? previo.lineas : undefined);
     this.poner({ fase: 'cargando' });
     try {
       conectarBase();
       const e = await repositorio.cargarLinea(lineaId);
-      this.poner(e.fase === 'listo' ? { ...e, lineas: conocidas } : e);
+      this.poner(e.fase === 'listo' ? { ...e, avisoRuta, lineas: conocidas } : e);
     } catch (e) {
       this.poner({ fase: 'error', mensaje: e instanceof Error ? e.message : 'error desconocido' });
     }
