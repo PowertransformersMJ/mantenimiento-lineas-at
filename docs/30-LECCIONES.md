@@ -80,6 +80,7 @@
 - `L-34` · Un fixture que DECLARA a mano lo que producción DERIVA ensaya otro camino
 - `L-39` · Con la familia repartida, una lección nueva se DUPLICA si no buscas el síntoma en los cuatro archivos
 - `L-43` · Un subagente que tiene que abrir muchas IMÁGENES se cuelga: eso se lee de a poco y en el hilo principal
+- `L-47` · Un número de ADR duplicado no lo caza ningún gate, y la historia de decisiones se FUSIONA, nunca se elige
 
 ---
 
@@ -213,3 +214,28 @@
   así no la leímos.
 - **Emparenta con** `L-28` (un módulo que nadie llama es invisible): una lección que el índice no
   lista es exactamente igual de invisible.
+
+### L-47 · Un número de ADR duplicado no lo caza ningún gate, y la historia de decisiones se FUSIONA, nunca se elige
+- **Síntoma:** el `ADR-023` estaba escrito **dos veces** en `99` —misma fecha, mismo `TODO-42/37`,
+  mismo crudo, títulos distintos— y sus dos filas convivían en `00` junto a un `ADR-024` repetido.
+  Sobrevivió desde el 06-08-2026 con `brain:check` **verde** en todas las sesiones intermedias, y lo
+  cazó el Ingeniero leyendo, no el linter.
+- **Causa:** dos sesiones documentaron la MISMA decisión sin verse (`34b3d7e` del 05-08, al cerrar la
+  ola; `7c41e7c` del 06-08, tras arreglar el levantamiento a medias). Ningún control lo detecta: el
+  gate 3 (desync `00`→`99`) solo mira filas con forma `| §X | … | línea |`, y la tabla de ADR de este
+  proyecto es `| ADR-NNN | fecha | … |`, así que sale *«índice sin filas § — omitido»* y nadie
+  comprueba **unicidad**. Es `L-39` un piso más arriba: allí se duplicó una lección, aquí una
+  decisión — y los ADR se citan **por número** desde el código y desde otras neuronas, así que un
+  número ambiguo rompe la cita.
+- **Regla:** antes de abrir un `## ADR-NNN`, `grep -o "^## ADR-[0-9]*" docs/99-HISTORIAL-ADR.md |
+  sort | uniq -d` — si devuelve algo, hay un número repetido. Y cuando aparezca: **se FUSIONA, no se
+  elige.** Dos redacciones de la misma decisión casi nunca contienen la una a la otra —aquí cada una
+  tenía material exclusivo— así que quedarse con la «mejor» pierde contenido (§3.6: en borrados, el
+  defecto es conservador). La fusión se verifica **con un script que aborte** si desaparece alguna
+  frase exclusiva de cualquiera de las dos; lo único que sí se retira es la cifra congelada que no es
+  de este nodo (`ADR-021`), y el § fusionado deja escrito qué se unió, de qué commits y qué se quitó:
+  la historia no se borra, se hace auditable.
+- **Emparenta con** `L-39` (la lección duplicada) y `99 §ADR-021` (el cerebro puede mentir con todos
+  los gates en verde). Cerrado el 15-08-2026: `ea1c283` (índice) y `44559ba` (historial). El gate que
+  lo detectaría vive en el KERNEL y afecta al proyecto hermano → es decisión del Ingeniero
+  (`10 · TODO-61/54`).

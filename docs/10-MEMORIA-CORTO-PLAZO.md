@@ -77,7 +77,7 @@ comité SUPONE entra con el mismo rango que lo que verifica (`30 · L-42`).
 | **TODO-58** | **¿Dónde deben vivir los datos?** Hoy Firestore (São Paulo) y R2 bajo TUS cuentas personales, con coordenadas y fotos del empleador | La región de Firestore es INMUTABLE: cambiarla es rehacer |
 | **NUEVO** | **Faltan por fotografiar E13–E24.** No es hueco del dato: es recorrido de campo | Sin ellas no hay nada que leer de 12 apoyos |
 | **TODO-44/34** | Alerta de presupuesto en Cloudflare · respaldo de la bóveda (sin remoto, 337 MB) | R2 factura · sin respaldo, la asignación de las 99 fotos deja de ser reproducible |
-| **TODO-61/54** | ¿App Check? (se enciende en consola, `git revert` no lo deshace) · ¿que el linter vigile la frescura semántica? (se toca el kernel, afecta al proyecto hermano) | Las dos son TUYAS, no mías |
+| **TODO-61/54/68** | ¿App Check? (se enciende en consola, `git revert` no lo deshace) · ¿que el linter vigile la frescura semántica? · **`TODO-68`: ¿que el linter cace un número de ADR repetido?** — el `ADR-023` estuvo duplicado 9 días con todo en verde (`30 · L-47`). Las dos últimas tocan el KERNEL y afectan al proyecto hermano | Las TRES son TUYAS, no mías |
 | **TODO-03/25/36** | Cronometrar LN-627 · probar descargas y Salir con tu sesión · fichas editables (decisión fuerte) | — |
 
 ## 🔲 Pendientes de CLAUDE — en este orden
@@ -104,7 +104,6 @@ comité SUPONE entra con el mismo rango que lo que verifica (`30 · L-42`).
 
 ## 🚫 Callejones ya probados (índice completo en `30`)
 
-- **Verde no prueba nada**: pruebas (`30 · L-33`), oráculo contaminado (`32 · L-35`), linter del
-  cerebro (`99 §ADR-021`). Agente que muere deja código sin validar (`L-24`); módulo huérfano es
-  invisible (`L-28`); **campo del núcleo que nadie consume, igual** (`33 · L-45`).
+- **Verde no prueba nada**: pruebas (`30 · L-33`), oráculo contaminado (`32 · L-35`), linter del cerebro (`99 §ADR-021`) — que tampoco caza un **ADR con número repetido** (`30 · L-47`).
+  Agente que muere deja código sin validar (`L-24`); módulo huérfano es invisible (`L-28`); **campo del núcleo que nadie consume, igual** (`33 · L-45`).
 - **Un fixture más completo que la realidad prueba el camino cómodo** (`L-34`); **un tercer estado que la pantalla aplana se lee como aprobado** (`32 · L-44`).
