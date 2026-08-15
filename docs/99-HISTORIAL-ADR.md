@@ -2017,49 +2017,57 @@ corrige sí lo tiene — `research-archive/2026-07-28-comite-vision-arquitectura
 
 ---
 
-## ADR-023 · 2026-08-05 · El informe GERENCIAL, y por qué no es el técnico resumido
+## ADR-023 · 2026-08-05 · El informe GERENCIAL: derivado entero, y con lo que NO puede afirmar de titular
 
-**Estado:** ✅ Cerrado · `TODO-42/37` completo · 785 pruebas en verde.
+**Estado:** ✅ Cerrado · `TODO-42/37` completo · en producción.
 **Revisión externa:** ⚠️ **NO revisada externamente.** Las 10 secciones venían especificadas del
-workflow de 7 agentes de `ADR-012`; la construcción y sus prohibiciones son propias.
+workflow de 7 agentes de `ADR-012`; la construcción, sus prohibiciones y sus pruebas son propias.
+**Nota de historial (2026-08-15):** este § fusiona DOS redacciones de la misma decisión, escritas en
+sesiones distintas —`34b3d7e` (2026-08-05, al cerrar la ola) y `7c41e7c` (2026-08-06, tras el arreglo
+del levantamiento a medias)—. No hubo dos decisiones: hubo un ADR documentado dos veces, y el número
+`ADR-023` quedó duplicado en `99` y en `00`. Se fusionó sin perder contenido de ninguna de las dos;
+lo único retirado es el conteo de pruebas congelado de la primera («785 pruebas en verde»), porque
+una cifra copiada se retira del nodo que no es su dueño (`ADR-021`).
 
 ### Contexto
 
 El sistema sabía producir el informe TÉCNICO —cómo se calculó cada cifra— y no tenía nada que
-contestara las preguntas que se hacen en una reunión. Con el contexto corregido en `ADR-022`
-(herramienta interna que quizá se proponga como estrategia), este documento es justamente lo que
-hace falta para proponerla: un caso real terminado vale más que cualquier explicación del sistema.
+contestara las preguntas de una reunión, que no son las mismas: ¿puedo firmar hoy? · ¿qué mando el
+lunes? · ¿qué queda abierto aunque lo haga todo? · ¿qué espera una firma MÍA? · ¿dónde va a apuntar
+la primera pregunta del interventor? Con el contexto corregido en `ADR-022` (herramienta interna que
+quizá se proponga como estrategia), este documento es justamente lo que hace falta para proponerla:
+un caso real terminado vale más que cualquier explicación del sistema.
 
 ### La decisión
 
-**Un documento aparte, no un resumen.** Contesta cinco preguntas distintas: si se puede firmar hoy,
-qué se manda a hacer el lunes, qué queda abierto aunque se haga todo, qué está esperando una firma
-del Ingeniero, y dónde va a apuntar la primera pregunta del interventor.
+**Un documento aparte, no un resumen.** Contesta esas cinco preguntas, y ninguna de ellas la
+contesta el informe técnico.
 
-**Aquí no se calcula NADA nuevo**, y es la regla que gobierna el archivo. Cada cifra sale de una
-función ya probada. No es pereza: el día que los dos papeles digan cosas distintas de la misma
-línea, la discusión deja de ser sobre el cálculo y pasa a ser sobre cuál vale. Por eso la lista de
-límites usa `limitacionesDeclaradas()` y `TITULO_LIMITACIONES` —los MISMOS que el técnico— y hay una
-prueba que se pone roja si el gerencial se escribe la suya.
+**Aquí no se calcula NADA nuevo**, y es la regla que gobierna el archivo. Las diez secciones se
+derivan de funciones que ya existen y ya están probadas — `evaluarUmbrales`, `cargasDeLaLinea`,
+`cantidadesGeometricas`, `coherencia`, `calidadLevantamiento`, `limitacionesDeclaradas`. Este módulo
+solo ORDENA y TRADUCE.
 
-**El titular es lo que NO se puede sostener.** La primera cifra de la primera página no es cuánto
-cumple: es cuántas cosas el informe todavía no puede afirmar. Un documento que abre celebrando lo
-que sabe y esconde al final lo que no, se lee como una conclusión que nadie sacó.
+No es pereza: el día que los dos papeles digan cosas distintas de la misma línea, la discusión deja
+de ser sobre el cálculo y pasa a ser sobre cuál vale. Por eso la lista de límites usa
+`limitacionesDeclaradas()` y `TITULO_LIMITACIONES` —**la misma función y el mismo título canónico**
+que el técnico— y hay una prueba de amarre que se pone roja si el gerencial se escribe la suya.
 
-### Las prohibiciones, todas con prueba y con mutación que la caza
+**El titular de la primera página es lo que el informe NO puede sostener**, no lo que sí. La primera
+cifra no es cuánto cumple: es cuántas cosas todavía no puede afirmar. Un documento que abre
+celebrando lo que sabe y esconde al final lo que no, se lee como una conclusión que nadie sacó.
+
+### Lo que tiene PROHIBIDO — todo con prueba, y con mutación que caza la prueba floja
 
 | Prohibido | Por qué |
 |---|---|
-| **Un NÚMERO de riesgo residual** | No hay probabilidad de falla, ni consecuencia en pesos, ni histórico con qué calibrarlos. Una etiqueta de nivel es una medición inventada — y se cita después como si fuera dato. Se entrega la lista de lo abierto, que sí es cierta |
+| **Un número o etiqueta de riesgo residual** | No hay probabilidad de falla, ni consecuencia en pesos, ni histórico con qué calibrarlos. «Riesgo residual: medio» es una medición inventada —peor que no poner nada— y se cita después como si fuera dato. Se entrega la LISTA de lo abierto, que sí es cierta |
 | **Precio o plazo** | No hay tarifas ni rendimientos de cuadrilla. En un papel de gerencia una cifra inventada acaba convertida en compromiso |
-| **Decir que la línea es segura** | El indicador que lo decidiría —el despeje al terreno— sale no evaluable por todos los caminos hoy |
+| **Decir que la línea es segura** | El indicador que lo decidiría —el despeje al terreno— sale «no evaluable» por todos los caminos hoy |
 | **Decir que ningún apoyo está sobrecargado** | Se sabe cuánta carga se le PIDE a cada estructura; no cuánta aguanta |
-| **Texto escrito por un modelo de lenguaje** | `ADR-004`: la IA propone en `sugerencias/`, nunca escribe en el expediente |
-
-Y lo que **declara** en vez de disimular: el orden de la cola de atención es criterio de gerencia y
-no resultado de cálculo · la cobertura de inspección no se puede cruzar todavía, así que se dice el
-hueco en vez de publicar un porcentaje que nadie calculó · y la sección de recomendaciones avisa **en
-el propio papel** de que es la única que no se deriva sola y por tanto la única que envejece.
+| **Ordenar sin declararlo** | La cola de atención dice con esas palabras que su orden es **criterio de gerencia, no resultado de cálculo** |
+| **Un porcentaje de cobertura de inspección** | El cruce entre apoyos inspeccionados y estructuras del levantamiento no existe como función: se declara el hueco en vez de publicar un número que nadie calculó |
+| **Texto escrito por un modelo de lenguaje** | `ADR-004`: la IA propone en `sugerencias/`, nunca escribe en el expediente. La única sección que no se deriva sola —recomendaciones por horizonte— **declara en el propio papel que envejece**, y cada renglón dice de qué fila nació; los que no nacen de una fila van rotulados «juicio del ingeniero», con nombre |
 
 ### Lo que se cazó construyéndolo, y no leyendo
 
@@ -2069,82 +2077,30 @@ el propio papel** de que es la única que no se deriva sola y por tanto la únic
   entrecomillada se cita fuera de contexto: no se escribe, ni de ejemplo.
 - **Una prueba propia no vigilaba nada**: la que prohíbe columnas de costo exigía que la celda fuera
   exactamente «Costo», así que «Costo estimado» pasaba tranquila. Se cazó mutando el código.
+- **`gerencialHtml` normalizaba el levantamiento con `objeto()` mientras el técnico usa
+  `levSeguro()`.** Con un `lev` sin `puntos`, `calidadLevantamiento()` moría dentro de
+  `lev.puntos.length` y el usuario habría visto una pantalla en blanco justo cuando el documento
+  existe para decir qué falta. **Las 20 pruebas que ya existían pasaban con el fallo dentro**, porque
+  su fixture traía `puntos: []`: un fixture más completo que la realidad no prueba el borde, prueba
+  el camino cómodo. Se añadieron dos casos del estado cero, y la mutación los pone rojos a ellos y
+  solo a ellos. Es familia de `30 · L-34`.
 
 ### Consecuencias
 
 - Los tres datos que la pantalla no tenía se **derivan dentro del módulo** en vez de exigírselos: si
   la pantalla tuviera que saber de qué función sale cada uno, un día olvidaría uno y la sección
   saldría vacía en silencio.
+- Con LN-627 hoy el documento sale honesto por construcción: cero apoyos con veredicto, el despeje
+  no evaluable, el tope de tiro esperando una decisión, y **E06 con ×1,716 en la cola de atención**
+  — que es el hallazgo accionable que no necesita ficha estructural.
+- El papel se comparte con el técnico (`ESTILO`, escapes y `tabla` exportados de `informe.js`), sin
+  mover una línea de sitio: sus 42 pruebas de oro siguen verdes.
 - Con esto `TODO-42/37` cierra. Del RCA queda solo el lienzo del árbol, que es cosmético.
 
 ### Crudo de respaldo
 
 `research-archive/2026-08-01-workflow-eje-longitudinal.json` — clave `resultado.gerencial`: las 10
 secciones con su «qué responde» y su «de dónde sale el dato», más `datosQueYaExisten` y `noAfirmable`.
-
----
-
-## ADR-023 · 2026-08-05 · El informe gerencial: derivado entero, y con lo que NO puede afirmar de titular
-
-**Estado:** ✅ Cerrado · `TODO-42/37` completo · en producción.
-**Revisión externa:** ⚠️ **NO revisada externamente.** La especificación de 10 secciones venía del
-workflow de 7 agentes de `ADR-012`; la construcción y sus pruebas son propias.
-
-### Contexto
-
-Faltaba el documento que contesta las preguntas de una reunión, que no son las del informe técnico.
-El técnico contesta *cómo se calculó*. Éste contesta: ¿puedo firmar hoy? · ¿qué mando el lunes? ·
-¿qué queda abierto aunque lo haga todo? · ¿qué espera una firma MÍA? · ¿dónde va a apuntar la
-primera pregunta del interventor?
-
-### La decisión
-
-**Aquí no se calcula NADA nuevo.** Las diez secciones se derivan de funciones que ya existen y ya
-están probadas — `evaluarUmbrales`, `cargasDeLaLinea`, `cantidadesGeometricas`, `coherencia`,
-`calidadLevantamiento`, `limitacionesDeclaradas`. Este módulo solo ORDENA y TRADUCE.
-
-No es pereza: el día que el técnico y el gerencial digan cosas distintas de la misma línea, la
-discusión deja de ser sobre el cálculo y pasa a ser sobre cuál de los dos papeles vale. Por eso la
-sección de límites usa **la misma función y el mismo título canónico** que el técnico, y hay una
-prueba de amarre que se pone roja si alguien la duplica.
-
-**El titular de la primera página es lo que el informe NO puede sostener**, no lo que sí. Un
-documento que abre celebrando lo que sabe y esconde al final lo que no, se lee como una conclusión.
-
-### Lo que tiene PROHIBIDO, y está probado
-
-| Prohibido | Por qué |
-|---|---|
-| **Un número o etiqueta de riesgo** | No hay probabilidad de falla, ni consecuencia en pesos, ni histórico. «Riesgo residual: medio» es una medición inventada, y es peor que no poner nada. Se entrega la LISTA de lo abierto, que sí es cierta |
-| **Precio o plazo** | No hay tarifas ni rendimientos de cuadrilla. En un papel de gerencia una cifra inventada acaba convertida en compromiso |
-| **Decir que la línea es segura** | El indicador que lo decidiría —el despeje al terreno— sale «no evaluable» por todos los caminos hoy |
-| **Ordenar sin declararlo** | La cola de atención dice con esas palabras que su orden es **criterio de gerencia, no resultado de cálculo** |
-| **Un porcentaje de cobertura de inspección** | El cruce entre apoyos inspeccionados y estructuras del levantamiento no existe como función: se declara el hueco |
-| **Texto escrito por un modelo** | `ADR-004`. La única sección que no se deriva sola —recomendaciones por horizonte— **declara en el propio papel que envejece**, y cada renglón dice de qué fila nació; los que no nacen de una fila van rotulados «juicio del ingeniero», con nombre |
-
-### El fallo que encontró la ejecución, y la prueba que no lo veía
-
-`gerencialHtml` normalizaba el levantamiento con `objeto()` mientras el técnico usa `levSeguro()`.
-Con un `lev` sin `puntos`, `calidadLevantamiento()` moría dentro de `lev.puntos.length` y el usuario
-habría visto una pantalla en blanco justo cuando el documento existe para decir qué falta.
-
-**Las 20 pruebas que ya existían pasaban con el fallo dentro**, porque su fixture traía `puntos: []`.
-Un fixture más completo que la realidad no prueba el borde: prueba el camino cómodo. Se añadieron
-dos casos del estado cero, y la mutación los pone rojos a ellos y solo a ellos. Es familia de
-`30 · L-34`.
-
-### Consecuencias
-
-- Con LN-627 hoy el documento sale honesto por construcción: cero apoyos con veredicto, el despeje
-  no evaluable, el tope de tiro esperando una decisión, y **E06 con ×1,716 en la cola de atención**
-  — que es el hallazgo accionable que no necesita ficha estructural.
-- El papel se comparte con el técnico (`ESTILO`, escapes y `tabla` exportados de `informe.js`), sin
-  mover una línea de sitio: sus 42 pruebas de oro siguen verdes.
-
-### Crudo de respaldo
-
-`research-archive/2026-08-01-workflow-eje-longitudinal.json` (sección `gerencial`: las 10 secciones,
-de dónde sale cada dato y la lista de lo no afirmable).
 
 ---
 
