@@ -68,8 +68,8 @@ export interface RotulosGaleria {
   alt?: string;
 }
 
-export function Galeria({ evidencias, rotulos = {} }:
-  { evidencias: Evidencia[]; rotulos?: RotulosGaleria }) {
+export function Galeria({ evidencias, rotulos = {}, noSePudoLeer }:
+  { evidencias: Evidencia[]; rotulos?: RotulosGaleria; noSePudoLeer?: string }) {
   const titulo = rotulos.titulo ?? 'Evidencia fotográfica';
   const deQue = rotulos.deQue ?? 'del evento';
   const alt = rotulos.alt ?? 'Fotografía del evento';
@@ -98,6 +98,22 @@ export function Galeria({ evidencias, rotulos = {} }:
   }, [evidencias]);
 
   if (evidencias.length === 0) {
+    // No es lo mismo «no hay fotos» que «no se pudieron traer». Lo segundo, dicho
+    // como lo primero, hace que alguien descarte una familia de causas por falta
+    // de evidencia cuando la evidencia existía (`32 · L-44`).
+    if (noSePudoLeer) {
+      return (
+        <section className="panel">
+          <h2>{titulo}</h2>
+          <p className="alerta">
+            <b>No se pudieron leer las fichas de fotografía.</b> Eso NO significa que no haya
+            fotos: significa que no se pudo comprobar. No apoyes en esta pantalla ningún
+            descarte por «falta de evidencia».
+          </p>
+          <p className="fine">Motivo técnico: {noSePudoLeer}</p>
+        </section>
+      );
+    }
     return (
       <section className="panel">
         <h2>{titulo}</h2>

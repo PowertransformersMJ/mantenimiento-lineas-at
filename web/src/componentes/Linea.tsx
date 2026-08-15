@@ -546,9 +546,11 @@ function DetalleVanos({ apoyos, conductor, hipotesis }:
 
 // ── Vista principal ─────────────────────────────────────────────────────────
 
-export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigaciones = [], evidencias = [], lineas }:
+export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigaciones = [], evidencias = [], lineas, noSePudoLeer }:
   { linea: TLinea; apoyos: Apoyo[]; conductor: Conductor; hipotesis: Hipotesis;
-    investigaciones?: Investigacion[]; evidencias?: Evidencia[]; lineas?: TLinea[] }) {
+    investigaciones?: Investigacion[]; evidencias?: Evidencia[];
+    /** Qué NO se pudo leer, para no afirmar «no hay» cuando fue «no se pudo mirar». */
+    noSePudoLeer?: { investigaciones?: string; evidencias?: string }; lineas?: TLinea[] }) {
 
   // ── El estado VIVE EN LA DIRECCIÓN WEB ──────────────────────────────────
   // Era el bloqueante nº6 de la crítica: sin esto no se puede mandar «mira
@@ -706,7 +708,7 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
             alVerEvento={() => irA('falla')}
             hipotesis={hipotesis} conductor={conductor} />
         )}
-        {activa === 'falla' && <Falla investigaciones={investigaciones} apoyos={apoyos} evidencias={evidencias} />}
+        {activa === 'falla' && <Falla investigaciones={investigaciones} apoyos={apoyos} evidencias={evidencias} noSePudoLeer={noSePudoLeer?.investigaciones} noSePudoLeerFotos={noSePudoLeer?.evidencias} />}
         {activa === 'distancias' && <Distancias apoyos={apoyos} />}
         {activa === 'fichas' && <Fichas apoyos={apoyos} linea={linea} evidencias={evidencias} />}
         {activa === 'mecanico' && <Mecanico apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} />}

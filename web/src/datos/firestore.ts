@@ -105,6 +105,7 @@ export const repositorioFirestore: Repositorio = {
     // normal, y un fallo leyéndolos no puede tumbar la vista entera de la
     // línea — el cálculo mecánico no depende de ellos.
     let investigaciones: Investigacion[] = [];
+    let falloInvestigaciones: string | undefined;
     try {
       const sInv = await getDocs(query(
         collection(db, 'investigaciones'),
@@ -115,7 +116,10 @@ export const repositorioFirestore: Repositorio = {
         .map((d) => validar<Investigacion>(Investigacion, d.data()))
         .filter((x): x is Investigacion => x !== null);
     } catch (e) {
+      // Se sigue adelante a propósito (el cálculo no depende de esto), pero el
+      // hueco QUEDA DECLARADO: sin esto la pantalla afirma que no hay ninguno.
       console.warn('[datos] no se pudieron leer los expedientes de falla:', e);
+      falloInvestigaciones = e instanceof Error ? e.message : 'fallo desconocido';
     }
 
     // Fichas de evidencia (NUNCA los binarios: la foto vive en almacenamiento
@@ -128,6 +132,7 @@ export const repositorioFirestore: Repositorio = {
     // normal— habría mostrado cero fotos sin un solo error, y el fallo no
     // aparecería hasta la segunda línea (plan de TODO-43, paso 7).
     let evidencias: Evidencia[] = [];
+    let falloEvidencias: string | undefined;
     try {
       const sEv = await getDocs(query(
         collection(db, 'evidencias'),
@@ -139,9 +144,16 @@ export const repositorioFirestore: Repositorio = {
         .filter((x): x is Evidencia => x !== null);
     } catch (e) {
       console.warn('[datos] no se pudieron leer las fichas de evidencia:', e);
+      falloEvidencias = e instanceof Error ? e.message : 'fallo desconocido';
     }
 
-    return { fase: 'listo', linea, apoyos, conductor: linea.conductor, hipotesis, investigaciones, evidencias };
+    // El hueco viaja con el dato. Si no se pudo leer algo, la pantalla tiene que
+    // poder decirlo en vez de afirmar que no hay nada (`32 · L-44`).
+    const noSePudoLeer = (falloInvestigaciones || falloEvidencias)
+      ? { investigaciones: falloInvestigaciones, evidencias: falloEvidencias }
+      : undefined;
+
+    return { fase: 'listo', linea, apoyos, conductor: linea.conductor, hipotesis, investigaciones, evidencias, noSePudoLeer };
   },
 
   /**

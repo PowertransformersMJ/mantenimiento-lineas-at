@@ -35,7 +35,25 @@ export type EstadoDatos =
    * tiraba—, no cada implementación del repositorio. Si falta, la pantalla
    * lista únicamente la línea abierta: no se inventa un parque que no consta.
    */
-  | { fase: 'listo'; linea: Linea; apoyos: Apoyo[]; conductor: Conductor; hipotesis: Hipotesis; investigaciones: Investigacion[]; evidencias: Evidencia[]; lineas?: Linea[] }
+  | { fase: 'listo'; linea: Linea; apoyos: Apoyo[]; conductor: Conductor; hipotesis: Hipotesis; investigaciones: Investigacion[]; evidencias: Evidencia[]; lineas?: Linea[];
+      /**
+       * QUÉ NO SE PUDO LEER. Existe porque «vino vacío» y «no se pudo mirar» son
+       * cosas distintas y la pantalla las estaba aplanando en la misma.
+       *
+       * Los expedientes y las fichas de foto se leen en su propio `try`, y que un
+       * fallo ahí NO tumbe la vista de la línea es una decisión CORRECTA: el
+       * cálculo mecánico no depende de ellos. Pero la consecuencia era que la
+       * pantalla afirmaba, con estilo de estado bueno, «esta línea no tiene ningún
+       * expediente de falla registrado. No es un hueco de la aplicación: es el
+       * estado de la línea» — una afirmación FALSA cuando lo que pasó es que no se
+       * pudo comprobar.
+       *
+       * Es `32 · L-44` en su forma pura: un tercer estado que la pantalla aplana
+       * se convierte en un aprobado. Y aquí el aprobado puede acabar en un informe
+       * firmado: alguien descarta una familia de causas «sin evidencia» cuando las
+       * fotos existían y solo no se pudieron traer.
+       */
+      noSePudoLeer?: { investigaciones?: string; evidencias?: string } }
   /**
    * La ÚNICA pantalla que se interpone antes de entrar. Es una fase del mismo
    * almacén y no una ruta: no hay «detrás» al que saltar porque los datos de la

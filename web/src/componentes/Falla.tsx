@@ -33,12 +33,29 @@ const ROTULO_VEROSIMILITUD: Record<string, string> = {
   baja: 'Verosimilitud baja',
 };
 
-export function Falla({ investigaciones, apoyos, evidencias = [] }:
-  { investigaciones: Investigacion[]; apoyos: Apoyo[]; evidencias?: Evidencia[] }) {
+export function Falla({ investigaciones, apoyos, evidencias = [], noSePudoLeer, noSePudoLeerFotos }:
+  { investigaciones: Investigacion[]; apoyos: Apoyo[]; evidencias?: Evidencia[];
+    noSePudoLeer?: string; noSePudoLeerFotos?: string }) {
 
   const lev = useMemo(() => derivarLevantamiento(apoyos), [apoyos]);
 
   if (!investigaciones.length) {
+    // TRES estados, no dos. «Vino vacío» y «no se pudo mirar» son cosas
+    // distintas, y aplanarlas convierte un hueco en un aprobado (`32 · L-44`).
+    if (noSePudoLeer) {
+      return (
+        <section className="panel">
+          <h2>Eventos de falla</h2>
+          <p className="alerta">
+            <b>No se pudieron leer los expedientes de esta línea.</b> Eso NO significa que no
+            haya: significa que no se pudo comprobar. Vuelve a cargar la línea; si el fallo
+            persiste, no descartes una familia de causas por «falta de evidencia» apoyándote
+            en esta pantalla.
+          </p>
+          <p className="fine">Motivo técnico: {noSePudoLeer}</p>
+        </section>
+      );
+    }
     return (
       <section className="panel">
         <h2>Eventos de falla</h2>
@@ -105,7 +122,7 @@ export function Falla({ investigaciones, apoyos, evidencias = [] }:
               </button>
             </section>
 
-            <Galeria evidencias={evidencias.filter((x) => x.investigacionId === ev.id)} />
+            <Galeria evidencias={evidencias.filter((x) => x.investigacionId === ev.id)} noSePudoLeer={noSePudoLeerFotos} />
 
             {ev.cronologia.length > 0 && (
               <section className="panel">
