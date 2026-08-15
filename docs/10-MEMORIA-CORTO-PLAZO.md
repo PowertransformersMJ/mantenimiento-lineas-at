@@ -84,7 +84,7 @@ comité SUPONE entra con el mismo rango que lo que verifica (`30 · L-42`).
 
 | # | Qué | Dónde está el plan |
 |---|---|---|
-| **TODO-67** | 🔴 **REGRESIÓN de las 16 familias: la cadena de porqués solo ofrece 11.** Verificado EN PRODUCCIÓN con el Chrome del Ingeniero (07-08): el selector de espina de la cadena NO lista `proteccion_control`, `terceros_accidentales`, `acto_malicioso`, `fauna` ni `fuego` → **no se puede colgar una cadena de ninguna familia nueva**. Es funcional, no cosmético. Con él, dos literales que ya mienten: el botón «Guardar N de **11**» y el rótulo «Las **once** familias». Barrer TODOS los conteos y listas clavados a mano (misma familia que `33 · L-45`). **Ninguna de las 824 pruebas lo cazó: solo se vio mirando la pantalla** | — |
+| **TODO-67** | ✅ **CERRADO 09-08 y EN PRODUCCIÓN** (`index-BPlGLjn5`). El rótulo de las familias vivía copiado en TRES sitios y uno se quedó en 11: se evaluaban 16 y solo se razonaba sobre 11. Ahora vive en `nucleo/rca.js` junto a `ESPINAS` y los tres consumidores lo leen de ahí. **Con guardián**: 4 pruebas que vigilan la coincidencia (lo que `33 · L-19` pedía y no existía), verificadas por mutación | `33 · L-19` |
 | **TODO-66** | **Que una acción pruebe que FUNCIONÓ**, no solo que se hizo. Lo dejó fuera el Ingeniero el 07-08 y queda como deuda declarada en `99 §ADR-026`: bloque de verificación posterior (cuándo, quién, si fue eficaz y cómo se comprobó); la cerrada queda «pendiente de verificar eficacia» hasta esa fecha | `99 §ADR-026` |
 | **TODO-50** | **Blindaje**: ✅ F1 · ✅ F2a · ✅ F3 pantalla de cambio · ⬜ **2b retirar Google** — espera la contraseña | `99 §ADR-019/024` |
 | **TODO-52** | RCA: solo queda el **lienzo del árbol** (cosmético; en papel la lista sangrada se lee igual) | `99 §ADR-020` |
