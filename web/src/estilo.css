@@ -1063,3 +1063,47 @@ p.fund-vivo + .sello-calculo { margin-top: 5px; }
   font-size: 11px; line-height: 1.45; white-space: pre-wrap; word-break: break-word;
   user-select: text;
 }
+
+/* ── Píldoras y avisos del segmento RCA ────────────────────────────────────
+   POR QUÉ ESTABAN AUSENTES Y POR QUÉ IMPORTA. Estas siete clases se usaban en
+   `Rca.tsx` y `RcaEditores.tsx` y NO existían en esta hoja. El navegador
+   descarta en silencio lo que no encuentra, así que salían como texto corriente
+   — y con una consecuencia perversa: `.ok` sí existe (es un estilo de PÁRRAFO),
+   de modo que «cerrado» heredaba fondo verde por casualidad mientras «sin
+   conclusión», «sin activo identificado» y los DEFECTOS DEL MÉTODO salían sin
+   nada. La pantalla gritaba cuando todo estaba bien y se callaba cuando faltaba
+   algo, que es justo al revés de lo que este producto quiere.
+
+   Se apoyan en `.sello`, que ya es la familia de la casa para esto: no se
+   inventa un lenguaje visual nuevo. */
+.pill {
+  display: inline-block; font-size: 10.5px; font-weight: 600; border-radius: 20px;
+  padding: 3px 10px; text-transform: uppercase; letter-spacing: .5px; white-space: nowrap;
+  background: var(--pill2); color: var(--mut); border: 1px solid var(--bd);
+}
+.pill.ok  { background: var(--t-verde); color: var(--tx-ok-fuerte); border-color: var(--bd-verde); }
+.pill.av  { background: var(--t-ambar-fuerte); color: var(--tx-aviso); border-color: var(--acc-borde-fuerte); }
+.pill.inf { background: var(--t-azul); color: var(--tx-info); border-color: var(--b-azul); }
+
+/* El HUECO se marca punteado, igual que `.sello.gris` y que los apoyos sin
+   veredicto: un hueco nunca se pinta como un estado alcanzado. */
+.h-pill {
+  display: inline-block; font-size: 10.5px; font-weight: 600; border-radius: 20px;
+  padding: 3px 10px; white-space: nowrap;
+  background: var(--pill2); color: var(--mut); border: 1px dashed var(--bd);
+}
+
+/* El aviso de un DEFECTO DEL MÉTODO. Es de lo más importante que dice el
+   expediente —«descartada sin evidencia enlazada»— y salía como párrafo suelto. */
+.rca-aviso {
+  margin: 7px 0 0; padding: 8px 11px; border-radius: 0 6px 6px 0;
+  background: var(--t-ambar); border-left: 3px solid var(--acc);
+  color: var(--tx-aviso); font-size: 12px; line-height: 1.5;
+}
+.rca-etiqueta {
+  display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: .6px;
+  text-transform: uppercase; color: var(--mut);
+  background: var(--pill2); border: 1px solid var(--bd);
+  border-radius: 4px; padding: 2px 7px;
+}
+.rca-enunciado { margin: 6px 0 0; font-size: 13px; line-height: 1.5; color: var(--tx); }
