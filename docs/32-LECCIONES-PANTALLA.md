@@ -187,3 +187,45 @@
   no se han mirado.
 - **Hermana de `L-40`** (deducir el hecho de otra cosa) y de la falta que `99 §ADR-018` cerró en el
   horizonte con los dos ejes: la misma familia, distinto sujeto.
+
+### L-48 · Silenciar `stderr` convirtió un guion que reventó en un guion que "funcionó"
+
+- **Síntoma:** corregí cuatro afirmaciones falsas del mazo de gerencia y sustituí su mapa. El guion
+  imprimió *«textos corregidos · imagen sustituida en sitio»*, LibreOffice convirtió el archivo sin
+  quejarse — y la lámina seguía diciendo lo viejo. Tres intentos dando por hecho que se había
+  guardado.
+- **Causa:** lo lancé como `python3 2>/dev/null << 'PY'`. El guion abortaba a mitad, ANTES del
+  `save()`, y el traceback iba al agujero. Lo que yo leí como confirmación era un `print` de una
+  línea anterior al fallo: **el mensaje de éxito lo emitía código que se ejecuta antes de que exista
+  el éxito.**
+- **Por qué costó tanto verlo:** el archivo SÍ existía, SÍ abría y SÍ se convertía. Nada estaba roto;
+  simplemente nada había cambiado. Un fallo que no deja rastro se parece muchísimo a un acierto.
+- **Reglas:**
+  1. **Nunca `2>/dev/null` en algo que escribe.** Si el ruido molesta, se filtra por patrón, no se
+     tira entero.
+  2. **El mensaje de éxito se imprime DESPUÉS de releer lo guardado**, y dice lo que se leyó, no lo
+     que se pretendía escribir. Aquí el guion definitivo termina reabriendo el `.pptx` y afirmando
+     que los textos viejos ya NO están: eso es lo que hizo caer la siguiente tanda de fallos.
+  3. **Lo que no se puede comprobar, se hace fallar:** `assert viejo in s` antes de sustituir. La
+     segunda vez que me equivoqué de imagen, el `assert` no existía y por eso el error salió mudo.
+- **Hermana de `L-35`** (desplegar un `dist/` rancio): las dos son «miré la salida equivocada y la
+  di por buena». Y del mismo tronco que `30 · L-33`: el verde no prueba nada por sí solo.
+
+### L-49 · Volver a guardar un `.pptx` clonado con python-pptx lo deja inservible
+
+- **Síntoma:** abrir el mazo con `Presentation()` y hacer `save()` — sin tocar una sola forma —
+  produce un archivo que python-pptx relee tan campante y que **LibreOffice rechaza**: *«no se pudo
+  cargar el archivo de origen»*.
+- **Causa:** el aviso lo daba el propio `zipfile` y yo lo estaba tapando (ver `L-48`):
+  `UserWarning: Duplicate name: 'ppt/slides/slide6.xml'`. El mazo se construyó CLONANDO una lámina
+  de la plantilla del Ingeniero, y al reescribir el paquete dos partes reclaman el mismo nombre. El
+  zip acepta duplicados; el lector de OOXML, no.
+- **Cómo se detecta en un segundo:** `len(nombres)` contra `len(set(nombres))` sobre el `.pptx`. El
+  respaldo previo daba 0 duplicados y el recién guardado, 2: eso señaló el guardado, no el origen.
+- **Regla:** en un mazo con láminas clonadas, **se edita a nivel de zip** — reescribir entrada por
+  entrada y sustituir solo el XML o el binario que toca. Preserva todas las relaciones, no renumera
+  nada y no puede duplicar partes. El guion queda en la bóveda (`entregables/armar.py`) y reconstruye
+  siempre desde el respaldo limpio, nunca encima de su propia salida.
+- **Corolario que casi cuesta otro error:** al sustituir una imagen, identificarla por el `r:embed`
+  de SU forma, no por «el PNG más grande de la lámina». Con ese criterio cambié `image32.png`
+  mientras el mapa era `image9.png`, y el resultado fue un archivo correcto con la figura vieja.
