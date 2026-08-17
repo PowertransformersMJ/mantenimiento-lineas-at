@@ -95,7 +95,8 @@ comité SUPONE entra con el mismo rango que lo que verifica (`30 · L-42`).
 - **Modelo**: 24 estructuras + 2 empalmes (NO son apoyos), 23 vanos, tramos 1-2-2-14-1-3 (`40 §10`).
   **Workspaces**: `nucleo/` · `contratos/` **(v0.4.0)** · `exportar/` · `web/` · `evidencias/`.
 - **Hallazgos reales**: 14 de 23 vanos fuera de la banda del VIR · **3 apoyos amplifican** (E06 ×1,716
-  = 72 % más, con 118,2°) · los 2 terminales soportan el tiro entero (2.339 kgf/conductor).
+  = 72 % más, con 118,2°) · los 2 terminales del LEVANTAMIENTO soportan el tiro entero (2.339
+  kgf/conductor) — al sembrar la ampliación, el del extremo final pasa a ser el pórtico, no E24.
 - **EL HUECO MAYOR**: **0 de 24 apoyos tienen veredicto, en LOS DOS EJES**. El motor YA sabe
   dictaminar; falta el DATO, y lo cierra `TODO-57`. · **103 fotos** se sirven; ⚠️ `e07` es **E06**
   (`99 §ADR-015`) y solo cubren E01–E12.

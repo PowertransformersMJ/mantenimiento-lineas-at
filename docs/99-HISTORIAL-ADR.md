@@ -2507,9 +2507,20 @@ apoyo que la línea llama E07 quedó grabado como "E02", y donde la línea tiene
 - **Tipificar el pórtico como 'Terminal'** es decisión de ingeniería declarada por el sembrador, aún
   **no firmada** por el Ingeniero: mueve los tramos de 6 a 7 y las anclas de 7 a 8, que son entrada
   del cálculo mecánico.
-- **E24 se queda como está sembrado ('Terminal')** aunque la línea ya siga más allá. Re-tipificarlo es
-  decisión del Ingeniero. Consecuencia aceptada: un tramo final de un solo vano (94,65 m) entre dos
-  terminales consecutivos.
+  **CERRADO el 2026-08-17.** El Ingeniero lo declaró: *«el pórtico de Membrillal es el final de la
+  línea»*. Su función Terminal pasa a `confirmado_humano`, declarado en el fixture de la bóveda con
+  la fecha — no en el código: el defecto del sembrador sigue siendo `'supuesto'`, y la firma se pone
+  una a una. Lo que confirma es la TIPIFICACIÓN, no la geometría: el vano de 94,65 m y el corte de
+  tramos ya estaban verificados con el motor.
+- **E24 se queda como está sembrado ('Terminal')** aunque la línea ya siga más allá, y esto SIGUE
+  ABIERTO tras la confirmación del 17-08: que el pórtico sea el final dice que E24 deja de serlo, no
+  qué pasa a ser. Re-tipificarlo es decisión del Ingeniero. Consecuencia aceptada mientras tanto: un
+  tramo final de un solo vano (94,65 m) entre dos anclas consecutivas —que es válido y es lo
+  conservador, porque no mueve ninguno de los seis tramos existentes—. Lo que sí cambia el día que se
+  siembre: E24 deja de ser extremo y **le aparece un quiebre de 72,1°** que hoy no tiene, de modo que
+  `nucleo/cargas.js` empieza a calcularle una carga transversal que hasta ahora dejaba en NO
+  EVALUABLE por falta de ángulo, con un factor de amplificación de ×1,18. Es un apoyo más en la lista
+  de los que amplifican, donde hoy hay tres.
 - **Los 28 ids no son UUID RFC-4122 válidos** (fallan versión y variante). Hoy pasan porque la zod
   instalada usa la expresión laxa; una subida los tumbaría en la validación y la línea se quedaría
   vacía sin error visible. No se arreglan —cambiarlos movería los 26— y se blindan con una aserción
