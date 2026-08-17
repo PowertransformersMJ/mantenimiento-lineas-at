@@ -14,11 +14,12 @@ carcasa (ADR-018) · RCA (ADR-020) · documental (ADR-021) · contexto real (ADR
 
 ## 🛑 LO PRIMERO AL RETOMAR
 
-1. **Los 3 puntos GPS de agosto NO están en producción — y NO es solo la llave.** Verificado en
-   pantalla el 16-08: sigue `0/24`, tramos E01→E24. `herramientas/sembrar.mjs` ata la identidad a
-   la POSICIÓN (`idEstable('apoyo-'+i)`, `orden: i`, `CANONICOS[i]`, y la falla apunta a
-   `estructuraOrden`). El empalme nuevo entra entre E03 y E04: insertarlo corre un puesto todo lo
-   que sigue y **E04 pasaría a llamarse E05** → rompe el invariante de identidad. `TODO-69`.
+1. **Los puntos GPS de agosto siguen SIN estar en producción, pero ya no por el código.**
+   La identidad se desató de la posición el 16-08 (`99 §ADR-027`): los 26 ids de producción salen
+   byte a byte y el `orden` de nadie se mueve. Quedan **dos llaves ajenas al código**: desplegar la
+   web con el **contrato 0.5.0** (antes de sembrar, o el punto intercalado desaparece sin error) y
+   la **llave admin**. Y una deuda que hay que pagar ANTES de cargar el pórtico de ORIGEN:
+   `subir-evidencias.mjs` todavía resuelve la foto por `orden`. `TODO-69`.
 2. **Verificar que una acción FUNCIONÓ**, no solo que se hizo (`TODO-66`, deuda de `99 §ADR-026`).
    Una acción ejecutada que no sirvió es hoy indistinguible de una que sirvió.
 3. **El tope de tiro sigue sin decidir (TODO-33).** El molde de los datos ya trae
@@ -84,7 +85,7 @@ comité SUPONE entra con el mismo rango que lo que verifica (`30 · L-42`).
 
 | # | Qué | Dónde está el plan |
 |---|---|---|
-| **TODO-69** | **Sembrar los 3 puntos de agosto.** Antes hay que **desatar la identidad de la posición** en `herramientas/sembrar.mjs` (id y nombre canónico salen del PUNTO, no del índice), con prueba que falle si insertar un punto en medio mueve un id existente. Luego dar al pórtico de Proeléctrica una representación propia: está a 4.604 m de E01 con línea SIN levantar en medio, y meterlo en la secuencia fabricaría un vano de 4.604 m (13× el máximo real) que envenena vano promedio y VIR. El de Membrillal sí es limpio: vano real de 94,65 m tras E24. Datos ya resueltos y fechados en la bóveda: `fixtures/LN-627-geometria-ampliacion-2026-08.json`. **Sembrar exige la llave admin del Ingeniero** | fixture citado |
+| **TODO-69** | **Sembrar los 2 puntos aprobados de agosto** (el 3º lo dejó PENDIENTE el Ingeniero). **El código ya está listo y en verde** (`99 §ADR-027`): identidad por nombre canónico, registro de semillas, bisección del `orden`, la falla atada por nombre, y el sembrador imprime el pórtico de origen como ignorado. Faltan DOS cosas, en este orden y sin saltárselo: **(1) desplegar la web con el contrato `0.5.0`** —con el anterior el punto de `orden` 2,5 se descarta EN SILENCIO— y **(2) la llave admin del Ingeniero**, pendiente de regenerar. Primer sembrado: `--seco` y comparar los 26 ids contra los documentos existentes antes de escribir | `99 §ADR-027` |
 | **TODO-66** | **Que una acción pruebe que FUNCIONÓ**, no solo que se hizo. Lo dejó fuera el Ingeniero el 07-08 y queda como deuda declarada en `99 §ADR-026`: bloque de verificación posterior (cuándo, quién, si fue eficaz y cómo se comprobó); la cerrada queda «pendiente de verificar eficacia» hasta esa fecha | `99 §ADR-026` |
 | **TODO-50** | **Blindaje**: ✅ F1 · ✅ F2a · ✅ F3 pantalla de cambio · ⬜ **2b retirar Google** — espera la contraseña | `99 §ADR-019/024` |
 | **TODO-52** | RCA: solo queda el **lienzo del árbol** (cosmético; en papel la lista sangrada se lee igual) | `99 §ADR-020` |

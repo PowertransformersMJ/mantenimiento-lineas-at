@@ -24,6 +24,7 @@ import assert from 'node:assert/strict';
 
 import { informeHtml, limitacionesDeclaradas, TITULO_LIMITACIONES } from '../exportar/informe.js';
 import { CRITERIO_CAPACIDAD_LONGITUDINAL } from '../nucleo/longitudinal.js';
+import { derivarLevantamiento } from '../exportar/levantamiento.js';
 
 // ── Un expediente sintético mínimo pero completo ────────────────────────────
 
@@ -452,6 +453,44 @@ describe('informe — el texto de los datos va escapado', () => {
     assert.ok(/Causa probable/.test(h), 'la hipótesis causal llega al informe');
     assert.ok(/Oscilograf/.test(h), 'y las verificaciones pendientes también');
     assert.ok(!h.includes('<atornillado>'), 'el texto del componente va escapado');
+  });
+
+  // ── El bug que llevaba vivo desde que existe la sección 10 ────────────────
+  //
+  // `informe.js` casa el expediente con su apoyo buscando `x.id` o `x.apoyoId`
+  // dentro de los puntos del levantamiento — y `exportar/levantamiento.js` no
+  // emitía ninguno de los dos. Resultado: la sección 10 del documento que el
+  // Ingeniero FIRMA imprimía siempre «Estructura no identificada en este
+  // levantamiento», aunque el apoyo estuviera en la misma página. Ninguna
+  // prueba lo cazaba porque el levantamiento de este archivo se escribe a mano;
+  // ésta lo construye con la derivación real, que es por donde pasa el informe
+  // de verdad.
+  test('la sección 10 NOMBRA el apoyo del expediente cuando está en el levantamiento', () => {
+    const apoyo = (id, orden, nombre, lat, lon) => ({
+      id, orden, tipoPunto: 'Estructura', nombreCampo: nombre, nombreNormalizado: nombre,
+      coordenada: { lat, lon, cotaTerreno_m: 10, precision_m: 8, metodo: 'gps_mano', sistemaReferencia: 'WGS84' },
+      funcionEstructural: 'Terminal', funcionProcedencia: 'confirmado_humano',
+    });
+    const lev = derivarLevantamiento([
+      apoyo('uuid-de-P-01', 0, 'P-01', 4.6, -74.08),
+      apoyo('uuid-de-P-02', 1, 'P-02', 4.602, -74.082),
+    ]);
+    assert.equal(lev.puntos[1].id, 'uuid-de-P-02', 'el punto exportado lleva el id del apoyo');
+
+    const expediente = (apoyoId) => ({
+      id: 'i1', apoyoId, fechaTexto: '22 de julio', componenteAfectado: 'Conector',
+      cronologia: [], observaciones: [], hipotesis: [], verificacionesPendientes: [], cerrada: false,
+    });
+    const h = informeHtml(base({ lev, investigaciones: [expediente('uuid-de-P-02')] }));
+    assert.ok(h.includes('P-02'), 'el informe dice de qué apoyo se trata');
+    assert.ok(!h.includes('Estructura no identificada en este levantamiento'),
+      'y ya no se declara ciego teniendo el apoyo delante');
+
+    // Y lo honesto se conserva: si el expediente apunta a un apoyo que NO está
+    // en este levantamiento, se dice, en vez de rellenar con el más parecido.
+    const fuera = informeHtml(base({ lev, investigaciones: [expediente('uuid-de-otra-linea')] }));
+    assert.ok(fuera.includes('Estructura no identificada en este levantamiento'),
+      'un apoyo ausente se declara ausente');
   });
 });
 

@@ -2397,3 +2397,172 @@ una prueba dedicada a esa trampa.
 ### Crudo de respaldo
 
 `research-archive/2026-08-06-workflow-rca-vs-iec62740.json` (de donde salió el catálogo de huecos)
+
+---
+
+## ADR-027 · 2026-08-16 · La identidad de un punto nace de su NOMBRE CANÓNICO; las semillas posicionales de julio quedan ancladas en un registro que solo crece
+
+### Contexto
+
+La cuadrilla volvió a campo el **11 y 12 de agosto de 2026** y trajo tres puntos que el
+levantamiento de julio no tenía. El Ingeniero decidió el **2026-08-16**: se cargan dos —el
+**empalme** que cae dentro del vano E03→E04 y el **pórtico del extremo final**, un apoyo real con un
+vano de 94,65 m después de E24— y el tercero, el **pórtico del extremo de origen**, queda
+**PENDIENTE DE VERIFICACIÓN**, no descartado.
+
+Cargarlos era imposible sin romper algo. `herramientas/sembrar.mjs` ataba la identidad de un apoyo a
+su POSICIÓN en el array del levantamiento por **tres vías distintas a la vez**: el id
+(`idEstable('apoyo-' + i)`), el `orden` (`orden: i`) y el nombre canónico (`CANONICOS[i]`). Un punto
+intercalado corría las tres. Y el id de un apoyo es el **único** enlace con sus **99 fotos**
+(`Evidencia.apoyoId`) y con el **expediente de la falla** (`Investigacion.apoyoId`): si se mueve, no
+revienta nada — las fotos quedan huérfanas y la aplicación dibuja «no identificada», un marcador que
+desaparece o un apoyo sin fotos. Fallo silencioso, el peor que hay. Encima **`npm test` habría
+seguido verde**: no existía en el repositorio ningún listado de los ids emitidos.
+
+Sobre los nombres, palabras del Ingeniero: *«interpretemos las estructuras como yo las tipifiqué en
+el módulo; la fuente original tuve un error al nombrarla, pero si analizas el recorrido de la línea
+de principio a fin, el orden está correcto»*. El nombre grabado en el GPS **no es identidad**: el
+apoyo que la línea llama E07 quedó grabado como "E02", y donde la línea tiene su E02 el GPS guardó
+"LN 627 E022".
+
+### Decisión
+
+**La semilla del id sale del NOMBRE CANÓNICO. Nunca del índice del array, nunca del nombre de campo.**
+
+1. **`herramientas/identidad.mjs`** (nuevo, puro, sin `firebase-admin`): dueño único de la fórmula
+   del id, que **no se tocó ni un byte** (`sha256("org|línea|semilla")` recortado a 32 hex). Lo único
+   que cambia es quién produce la cadena `semilla`.
+2. **`herramientas/semillas-emitidas.json`** (nuevo, en el repo **PÚBLICO** a propósito): registro
+   **que solo crece**, con las 28 filas emitidas. Las 26 de julio conservan su semilla posicional
+   legada (`apoyo-0`…`apoyo-25`) y por eso devuelven **exactamente los mismos 26 ids**, byte a byte.
+   Los puntos nuevos reciben `punto:<nombre canónico>` — el espacio legado es exactamente
+   `/^apoyo-\d+$/`, así que un nombre canónico es *sintácticamente* incapaz de robar la semilla de
+   otro apoyo. Está en el repo público porque la prueba que fija los 26 ids **tiene que correr en
+   CI**, que es justo donde la bóveda no está; y no publica nada de cliente: los nombres canónicos ya
+   estaban en el sembrador y los ids son hashes de una cadena pública.
+   Una vez escrita una fila, **manda el registro y ya no el nombre**: renombrar mañana un punto no
+   mueve su id.
+3. **Orden por BISECCIÓN**: el empalme entra con `orden = (2 + 3) / 2 = 2,5` y el pórtico con
+   `26`. Los 26 documentos de producción **no se reescriben**.
+4. **`contratos`**: `Apoyo.orden` pasa de `z.number().int().nonnegative()` a
+   `z.number().nonnegative()` y `VERSION_CONTRATO` de `0.4.0` a **`0.5.0`**.
+5. **El expediente de la falla se ata por `apoyoCanonico`** (`LN-627 E02`), con `estructuraOrden: 1`
+   conservado como control cruzado contra la lista de julio. Sigue colgando del **mismo apoyo**:
+   `24e428a7-021e-6fbf-15de-60d95fcd8c33`.
+6. **Nada por defecto en un punto nuevo**: sin `funcionEstructural` declarada, la construcción
+   **aborta** en vez de caer a `'Suspensión'`. Y el tipo de punto sale del campo `rol` del fixture, no
+   del regex `/EMP/i` — el código del pórtico no contiene "EMP", y que eso funcionara era
+   casualidad.
+7. **Lo no aprobado no se carga y SE DICE**: el sembrador imprime el pórtico de origen como ignorado
+   en cada corrida, con su motivo, y no lo borra del fixture.
+
+### Alternativas descartadas
+
+- **Correr los `orden`** (renumerar al insertar). `subir-evidencias.mjs` resuelve la foto por este
+  campo: insertar el empalme en la posición 3 movería **64 de las 99 fotos**, y como la ficha se
+  escribe con `merge` sobre un id derivado del hash del ARCHIVO, el re-run **pisaría** la asignación
+  correcta sin dejar rastro. Renumerar con huecos de 10 tiene el mismo defecto y solo lo aplaza.
+- **Poner el empalme al final** (orden 26,5). La posición en la secuencia ES el dato: de ella se
+  deduce en qué vano vive un empalme. Al final daría `enVano: null` y la traza dibujaría un salto
+  hacia atrás.
+- **Re-sembrar con ids nuevos.** `firestore.rules` tiene `allow delete: if false` en `apoyos` y el
+  sembrador escribe con `merge`: una resiembra **no reemplaza, AÑADE**. La aplicación cargaría 26
+  viejos más los nuevos a la vez y los vanos saldrían duplicados sin un solo error.
+- **Llamar «E25» al pórtico.** Le atribuiría al Ingeniero una tipificación que no hizo (su lista
+  termina en E24), un pórtico de subestación no pertenece a la serie numerada, y el de origen no
+  admitiría número alguno. Además `exportar/calidad.js` saca el número final del nombre para detectar
+  huecos: con "E25" aparecería un hueco inventado el día que se cargue el otro pórtico. Sin tilde
+  ("PORTICO") a propósito: el nombre es la clave del hash y NFC ≠ NFD.
+- **Fusionar los dos fixtures de la bóveda.** El de julio es la línea base de no regresión contra el
+  módulo de campo original; mezclarlos la destruiría. Ampliar es un **hecho fechado**, no una
+  sobrescritura (`CLAUDE.md §3.1`).
+
+### Consecuencias
+
+- **Cifras nuevas del levantamiento** (derivadas ejecutando el motor, ver `40 §10`): 28 puntos ·
+  **25 estructuras** · 3 empalmes · **24 vanos** · promedio **125,99 m** · mediana **99,89 m** ·
+  desviación **77,30 m** · CV **61,35 %** · longitud levantada **3.023,67 m** · **7 tramos**
+  `[1,2,2,14,1,3,1]` · 8 anclas. Vano máximo (336,70 m) y mínimo (13,35 m) **no cambian**.
+- **Las cifras de julio siguen vivas e intactas** en `tests/estadisticas.test.js` y
+  `tests/exportar.test.js`, que leen SOLO el fixture de julio. Que sigan verdes sin cambiarles una
+  cifra ES la prueba de que julio no se sobrescribió.
+- **ORDEN DE OPERACIONES OBLIGATORIO**: desplegar la web con el contrato **0.5.0** y **solo después**
+  sembrar. Con el contrato anterior, un `orden` fraccionario se descarta en silencio
+  (`web/src/datos/firestore.ts` valida y filtra). Se hace cumplir en código: el sembrador se niega sin
+  la bandera `--contrato-050-desplegado`.
+- **113 pruebas nuevas** (900 → 1.014), tres archivos nuevos: `tests/identidad-apoyos.test.js` (los
+  26 ids escritos literales, registro auto-verificable y guardián por TEXTO contra volver a atar la
+  identidad a la posición), `tests/sembrar-mapeo.test.js` y `tests/ampliacion-2026-08.test.js`.
+- **Bug ya vivo, arreglado y declarado**: `exportar/levantamiento.js` no emitía el `id` del apoyo, y
+  `exportar/informe.js` lo busca para casar el expediente ⇒ la **sección 10 del informe firmable
+  imprimía SIEMPRE «Estructura no identificada en este levantamiento»**. Un campo aditivo lo cierra,
+  con prueba que se pone roja sin él.
+
+### Deuda declarada
+
+- **`subir-evidencias.mjs` sigue resolviendo la foto por `orden`.** Con bisección ningún orden se
+  corre y las 99 fotos no se mueven, así que hoy es seguro — pero el acoplamiento sigue vivo y **hay
+  que romperlo (resolver por nombre canónico) ANTES de cargar el pórtico de ORIGEN**, que va antes de
+  E01.
+- **Tipificar el pórtico como 'Terminal'** es decisión de ingeniería declarada por el sembrador, aún
+  **no firmada** por el Ingeniero: mueve los tramos de 6 a 7 y las anclas de 7 a 8, que son entrada
+  del cálculo mecánico.
+- **E24 se queda como está sembrado ('Terminal')** aunque la línea ya siga más allá. Re-tipificarlo es
+  decisión del Ingeniero. Consecuencia aceptada: un tramo final de un solo vano (94,65 m) entre dos
+  terminales consecutivos.
+- **Los 28 ids no son UUID RFC-4122 válidos** (fallan versión y variante). Hoy pasan porque la zod
+  instalada usa la expresión laxa; una subida los tumbaría en la validación y la línea se quedaría
+  vacía sin error visible. No se arreglan —cambiarlos movería los 26— y se blindan con una aserción
+  que se pondrá roja en CI, no en producción.
+- **La placa física «002» del expediente no se ha leído en campo**, y en el levantamiento conviven un
+  apoyo cuyo canónico es E02 y otro cuyo nombre de GPS es "E02". La atadura actual está corroborada
+  de forma independiente (la deflexión calculada del apoyo da 64,68°, el mismo número que el pie de
+  la foto de la falla), pero la ambigüedad queda como verificación pendiente del expediente.
+- **Nada de esto se ha contrastado contra Firestore**: la llave de administrador está pendiente de
+  regenerar. Las pruebas fijan lo que el sembrador PRODUCE, no lo que hay escrito en producción. El
+  primer sembrado real debe correrse en **modo seco** y comparar los 26 ids contra los documentos
+  existentes antes de escribir.
+
+**NO revisada externamente.**
+
+### Lo que cazó la auditoría adversarial, con todo en verde
+
+Tres lentes adversariales revisaron lo construido y las tres dijeron **«no se puede commitear»**, con
+1.014 pruebas en verde. Los cuatro defectos se corrigieron antes del commit, cada uno con su prueba:
+
+1. **Una hora real de la cuadrilla dentro de un mundo declarado sintético.** `tests/sembrar-mapeo.test.js`
+   inventaba las coordenadas y lo decía en su cabecera, pero **copiaba los instantes de captura** de
+   los GPX de la bóveda, byte a byte, junto con los códigos de waypoint de las dos subestaciones. Es
+   dato de cliente —dice cuándo estuvo la cuadrilla en campo— en un repositorio **público**, y la
+   historia de git es permanente (`33 · L-07`). La cabecera que promete «esto es sintético» es
+   precisamente lo que impide releerlo con sospecha: → **`33 · L-50`**.
+2. **La firma del Ingeniero puesta sobre lo que no firmó.** Un punto nuevo se sembraba con
+   `funcionProcedencia: 'confirmado_humano'` por defecto, así que la ficha habría impreso «Terminal ·
+   confirmada por el Ingeniero» sobre una tipificación que él **no ha confirmado** —de hecho está
+   entre las preguntas abiertas— y la memoria de cantidades habría contado esa ancla como verificada
+   en campo. El molde ya tenía el valor exacto (`'supuesto'` — «⚠️ nadie lo verificó») y no se usaba.
+   Hoy el defecto es `'supuesto'` y hay que declarar la confirmación explícitamente. Agravante: los
+   apoyos **no se pueden borrar** (`firestore.rules`), así que el documento con la atribución falsa
+   se habría quedado.
+3. **La bisección repartía hacia atrás.** Dos puntos intercalados en el mismo vano salían en orden de
+   recorrido **invertido** (`E03 · B · A · E04`) porque el segundo bisecaba contra el primero en vez
+   de detrás de él. Y una prueba recién escrita **sellaba la inversión como correcta**. Contradecía lo
+   único que el Ingeniero declaró verdad de la fuente original: *«si analizas el recorrido de la línea
+   de principio a fin, el orden está correcto»*. Hoy el orden de declaración es el de recorrido.
+4. **Un punto que va ANTES del primero no tenía camino, y se colocaba igual.** Es el caso del pórtico
+   de origen. Marcarlo «al final» lo dejaba detrás del pórtico del otro extremo, con la longitud
+   saltando de 3.024 m a 16.080 m y dos vanos falsos de 6,6 km, **sin un solo aviso**. Hoy aborta con
+   el motivo escrito: bisecar por delante daría `orden` −1 (el molde exige no negativo) y renumerar es
+   justo lo que esta decisión evita. Cuando el punto se apruebe, se construye el camino a propósito.
+
+**La lección de método:** las tres lentes leyeron el mismo código verde y las tres encontraron cosas
+distintas. El verde de `npm test` dice que lo que se probó pasa, no que lo que importa esté probado
+(`30 · L-33`); aquí lo que faltaba probar era, entre otras, **la pieza del contrato que sostiene toda
+la ola** — desactivarla dejaba las 1.014 en verde y hacía desaparecer el empalme del mapa.
+
+### Crudo de respaldo
+
+`research-archive/2026-08-16-workflow-mapa-identidad-apoyos.json` (el mapa del terreno, verificado
+archivo:línea) · `research-archive/2026-08-16-workflow-identidad-canonica.json` (diseño, construcción
+en cadena y las tres lentes adversariales) · fixtures `LN-627-geometria-ampliacion-2026-08.json` (con
+el acta de aprobación fechada del 2026-08-16) y `LN-627-falla.json` en la bóveda.

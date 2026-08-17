@@ -43,9 +43,21 @@ LÍNEA  (p.ej. LN-627)
 > El **VIR** es la pieza que hace que el cálculo por tramo funcione: se calcula un solo estado
 > mecánico con el VIR y ese resultado gobierna todos los vanos del tramo.
 
-**Dato real verificado de LN-627:** **24 estructuras** (más 2 empalmes, que NO son apoyos — ver §10)
-· **23 vanos** · 2,929 km · vano medio 127,35 m (mínimo 13,35 m — el par de retención E20–E21 —
-máximo 336,70 m) · **VIR = 198,20 m**.
+**Dato real verificado de LN-627 (levantamiento de JULIO):** **24 estructuras** (más 2 empalmes, que
+NO son apoyos — ver §10) · **23 vanos** · 2,929 km · vano medio 127,35 m (mínimo 13,35 m — el par de
+retención E20–E21 — máximo 336,70 m) · **VIR = 198,20 m**.
+Con la **ampliación fechada del 11-12 AGO 2026** son **25 estructuras · 24 vanos · 3,024 km · vano
+medio 125,99 m**, y el máximo y el mínimo no cambian. La tabla completa y lo que deja de ser cierto
+decir, en **§10**.
+
+> ⚠️ **El VIR de la línea completa SÍ cambia: 198,20 → 195,79 m** (verificado con el motor el
+> 2026-08-16). No aparece arriba junto al vano medio porque no es la misma clase de cifra, y
+> confundirlas hace firmar un número equivocado: **el VIR que gobierna el cálculo es el de CADA
+> TRAMO DE TENSIÓN, no el de la línea**. Los seis tramos de hoy **no cambian ni uno** —el pórtico
+> entra detrás de E24, que sigue siendo ancla— y aparece un **séptimo tramo** de un solo vano de
+> 94,65 m. El 195,79 es descriptivo del conjunto; el que entra en la ecuación de cambio de estado
+> sigue siendo el del tramo. Nada de esto está sembrado todavía: hasta que se cargue la ampliación,
+> lo que la aplicación produce son las cifras de julio.
 
 ---
 
@@ -450,6 +462,47 @@ mínimo (13,35), mediana (99,91), relación máx/mín (25,2×), y el par de vano
 como población. El original usa la fórmula de **muestra** (÷ n−1). Se adopta la del original por
 coherencia con lo que el Ingeniero ya validó, y queda anotado que para una enumeración completa de
 los vanos la de población sería la defendible.
+
+### AMPLIACIÓN fechada del 11-12 AGO 2026 — no es una corrección
+
+> Todo lo de arriba es el levantamiento del **25-26 de julio** y **sigue siendo cierto de él**.
+> La línea no estaba mal medida: estaba **incompleta**. Ampliar es un hecho fechado (`CLAUDE.md §3.1`).
+
+La cuadrilla volvió el 11 y 12 de agosto. El Ingeniero aprobó **dos** puntos el **2026-08-16** —un
+**empalme** dentro del vano E03→E04 y el **pórtico del extremo final**, apoyo real a 94,65 m de E24—
+y dejó el **pórtico del extremo de origen PENDIENTE DE VERIFICACIÓN** (no descartado). Cifras
+derivadas ejecutando el motor, selladas en `tests/ampliacion-2026-08.test.js`:
+
+| | JULIO (25-26 JUL) | + AMPLIACIÓN (11-12 AGO) |
+|---|---|---|
+| Puntos levantados | 26 | **28** |
+| Estructuras | 24 | **25** |
+| Empalmes | 2 | **3** |
+| Vanos | 23 | **24** |
+| Vano promedio | 127,35 m | **125,99 m** |
+| Mediana | 99,91 m | **99,89 m** |
+| Desviación (muestra) | 78,74 m | **77,30 m** |
+| Coeficiente de variación | 61,83 % | **61,35 %** |
+| Vano máximo / mínimo | 336,70 / 13,35 m | **los mismos** — el vano nuevo no es extremo |
+| Longitud levantada | 2.929,02 m | **3.023,67 m** |
+| Tramos de tensión | 6 · `1-2-2-14-1-3` | **7 · `1-2-2-14-1-3-1`** |
+| Anclas | 7 | **8** |
+
+**Lo que deja de ser cierto decir:** que LN-627 mide 2.929 m (es lo LEVANTADO, no la línea) · que
+tiene 24 estructuras (son las levantadas) · que E01 y E24 son los terminales (son los extremos del
+LEVANTAMIENTO; los terminales son los pórticos) · que E02 es «la segunda estructura saliendo de la
+subestación» — es la segunda del levantamiento, y antes hay **entre 14 y 35 estructuras sin levantar**.
+
+**El tramo que falta NO es un vano.** Del pórtico de origen a E01 hay **4.604 m en recta** con la
+línea intermedia sin levantar. Meterlo como vano daría 13,7 veces el vano máximo real —imposible en
+66 kV— y llevaría el promedio de 127,3 a 305,1 m (+140 %), envenenando flecha, viento y veredicto
+mecánico. Es **recorrido de campo pendiente**, no un hueco de la aplicación.
+
+**Pregunta abierta, no decidida:** el pórtico final se tipifica **'Terminal'** (un pórtico de
+subestación ancla el conductor por definición) y **E24 se queda como está sembrado, también
+'Terminal'**, aunque ahora la línea siga más allá de él. Re-tipificar un apoyo es decisión del
+**Ingeniero**, no del sembrador, y arrastra el cálculo mecánico. Mientras tanto queda un tramo final
+de un solo vano entre dos terminales consecutivos. → `99 §ADR-027`.
 
 ---
 

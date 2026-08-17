@@ -32,8 +32,19 @@ import { z } from 'zod';
  * también de un análisis. `Investigacion` NO se toca: sigue exigiendo `lineaId`
  * y `apoyoId`, porque un expediente de HECHO sí ocurre en un sitio concreto.
  * Aflojar un `refine` solo admite más documentos: cero migración.
+ *
+ * 0.5.0 — MENOR (una restricción que se AFLOJA; nada renombrado ni cambiado de
+ * tipo): `Apoyo.orden` deja de exigir entero. Sigue siendo `number` y sigue
+ * siendo no negativo, así que los documentos escritos con 0.4.0 validan sin
+ * tocarlos: cero migración de datos. Lo que habilita es intercalar un punto
+ * nuevo por BISECCIÓN (orden 2,5 entre el 2 y el 3) en vez de renumerar la
+ * línea entera, que reescribiría 26 documentos de producción y movería las
+ * fotos de apoyo. ⚠️ El cambio es de UNA SOLA DIRECCIÓN: un documento con
+ * `orden` fraccionario NO valida contra un bundle con el contrato anterior, y
+ * se descarta en silencio. Hay que DESPLEGAR la web con esta versión ANTES de
+ * sembrar ningún punto intercalado.
  */
-export const VERSION_CONTRATO = '0.4.0';
+export const VERSION_CONTRATO = '0.5.0';
 
 // ── Identificadores ─────────────────────────────────────────────────────────
 

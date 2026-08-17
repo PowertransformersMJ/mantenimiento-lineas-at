@@ -60,8 +60,20 @@ describe('estadísticas de vanos — aritmética verificable a mano', () => {
 // ════════════════════════════════════════════════════════════════════════════
 // Contra los números que el módulo del Ingeniero YA muestra para LN-627.
 // El fixture vive en la bóveda (coordenadas de cliente) y se salta en CI.
+//
+// ⚠️ ESTAS CIFRAS SON LAS DEL LEVANTAMIENTO DEL 25-26 DE JULIO DE 2026 Y NO SE
+//    TOCAN. La línea creció el 11-12 de agosto (un empalme dentro del vano
+//    E03→E04 y el pórtico del extremo final, aprobados por el Ingeniero el
+//    2026-08-16): con ellos son 25 estructuras · 24 vanos · promedio 125,99 m ·
+//    mediana 99,89 m. Eso es una AMPLIACIÓN FECHADA, no la corrección de un
+//    error, así que vive en su propio archivo —`tests/ampliacion-2026-08.test.js`—
+//    y NO reescribe éste. Este bloque lee SOLO `LN-627-geometria.json`, que es
+//    el registro congelado de julio y la línea base contra el módulo de campo
+//    original; que siga verde sin cambiarle una cifra es precisamente la prueba
+//    de que julio no se sobrescribió. Los dos fixtures no se fusionan jamás (lo
+//    prohíbe el `_nota` del de agosto).
 // ════════════════════════════════════════════════════════════════════════════
-describe('no regresión — distribución de vanos de LN-627', () => {
+describe('no regresión — distribución de vanos de LN-627 (levantamiento de JULIO)', () => {
   const fixture = join(AQUI, '..', '..', 'brain-private', 'mantenimiento-lineas-at',
                        'fixtures', 'LN-627-geometria.json');
 

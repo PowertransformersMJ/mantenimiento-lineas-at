@@ -190,3 +190,28 @@
   de 28 A a 195 A en el medio segundo previo y de forma monótona. Ese dato —que el máximo deslizante
   escondía— es el que sostiene la degradación progresiva frente a cualquier causa externa súbita.
   Emparenta con `L-32`: el guardián va sobre el resultado que se publica, no sobre el intermedio.
+
+### L-50 · Un archivo que se DECLARA sintético es donde mejor se esconde un dato real
+
+- **Síntoma:** `tests/sembrar-mapeo.test.js` abría con una cabecera explícita —*«EL MUNDO DE ESTA
+  PRUEBA ES SINTÉTICO… Las coordenadas son inventadas (lat/lon en torno a 1, que no es ningún sitio
+  de esta línea)»*— y era verdad: las coordenadas estaban inventadas. Pero dos campos `utc` llevaban
+  **las horas exactas de captura de los waypoints reales**, copiadas byte a byte de los GPX de la
+  bóveda, junto a los códigos de waypoint de las dos subestaciones del cliente. Nada en el archivo
+  desentonaba: el gate de coordenadas de `docs/10` busca `10.xxxx` y `-75.xxxx` y no mira una fecha.
+  Lo cazó un auditor adversarial comparando el archivo con la bóveda, con 1.014 pruebas en verde.
+- **Causa:** la cabecera hace el trabajo de la sospecha. Quien escribe se acuerda de inventar
+  **aquello de lo que la regla habla** —la coordenada, que es lo que todos citan— y arrastra lo demás
+  del fixture que tiene delante, porque «total, es una prueba». Y quien revisa lee la promesa del
+  encabezado y da por sintético el archivo entero. Es `L-23` un piso más arriba: allí la fuga era una
+  coordenada dentro de una prueba; aquí es una fuga **dentro de un archivo que ya declaraba no
+  tenerla**.
+- **Regla:** en un archivo declarado sintético, **todo campo copiado es sospechoso, no solo la
+  coordenada**. Una hora de captura dice cuándo estuvo la cuadrilla en el sitio; un código de
+  waypoint puede descifrar el nombre de la instalación. La comprobación no es leer la cabecera: es
+  **buscar cada valor literal en la bóveda** (`grep` del valor exacto sobre `fixtures/`) — si aparece,
+  es real, lo diga quien lo diga. Y se hace **antes del commit**: la historia de git es permanente
+  (`L-07`), así que un `git commit` es el punto de no retorno, no el `git push`.
+- **Emparenta con** `L-23` (la coordenada en la prueba), `L-07` (la historia de git no se borra) y
+  `30 · L-33` (escribir la prueba y auditarla son dos trabajos distintos). Cazado y cerrado el
+  16-08-2026 antes del primer commit, en `99 §ADR-027`.

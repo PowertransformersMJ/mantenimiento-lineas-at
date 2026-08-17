@@ -127,6 +127,15 @@ export function derivarLevantamiento(apoyos) {
 
     return {
       n: i + 1,
+      // El id INMUTABLE del apoyo, tal cual está en la base. Es aditivo y no lo
+      // formatea ningún exportador, pero sin él la sección 10 del informe
+      // firmable no podía casar el expediente de falla con su apoyo: busca
+      // `x.id`/`x.apoyoId` en este objeto (informe.js) y aquí no había ninguno
+      // de los dos, así que imprimía SIEMPRE «Estructura no identificada en
+      // este levantamiento» aunque el apoyo estuviera delante. Un punto sin id
+      // (uno sintético, o uno de un levantamiento importado) sigue saliendo
+      // como null y el informe lo dice, que era el comportamiento honesto.
+      id: a.id ?? null,
       tipo: a.tipoPunto ?? 'Estructura',
       nombre: nombreVisible(a),
       nombreCampo: a.nombreCampo,

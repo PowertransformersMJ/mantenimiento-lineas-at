@@ -30,6 +30,7 @@ import { dirname, join, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { initializeApp, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
+import { idDeSemilla } from './identidad.mjs';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
 const RAIZ = join(AQUI, '..');
@@ -106,9 +107,22 @@ if (!clave && !SECO) {
   process.exit(1);
 }
 
-const idEstable = (semilla) =>
-  createHash('sha256').update(`${ORG}|${CODIGO_LINEA}|${semilla}`).digest('hex').slice(0, 32)
-    .replace(/^(.{8})(.{4})(.{4})(.{4})(.{12})$/, '$1-$2-$3-$4-$5');
+/**
+ * El id de la línea, del expediente y de cada ficha de evidencia.
+ *
+ * La fórmula estaba COPIADA aquí, byte a byte igual que en `sembrar.mjs`. Dos
+ * copias de la misma fórmula pueden divergir sin que nadie lo note, y divergir
+ * aquí significa que este script escribiría fichas colgando de un `lineaId` que
+ * el sembrador no reconoce: las fotos existirían y la pantalla no las vería.
+ * Ahora hay UN solo sitio donde vive (herramientas/identidad.mjs) y una prueba
+ * que se pone roja si vuelve a copiarse.
+ *
+ * Las semillas de este archivo NO son posicionales y nunca lo fueron ('linea',
+ * 'investigacion-falla', 'evidencia-<huella del archivo>'), así que se pasan tal
+ * cual por `idDeSemilla`. Los IDS DE APOYO no se calculan aquí: se leen del
+ * documento que ya está en la base.
+ */
+const idEstable = (semilla) => idDeSemilla(CODIGO_LINEA, semilla, ORG);
 
 /**
  * La conexión a la base. Se abre ANTES de subir cuando hay que resolver apoyos

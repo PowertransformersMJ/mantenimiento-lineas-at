@@ -4,7 +4,7 @@
 > (trigger 🧪 de `CLAUDE.md §G.2`). Cada lección es un gotcha que ya se pagó una vez.
 > Formato: `L-NN · título` → **Síntoma** / **Causa** / **Regla**.
 >
-> **Qué es este archivo:** el ÍNDICE de las 44 lecciones —**35 repartidas por tema en tres hijos y
+> **Qué es este archivo:** el ÍNDICE de las 45 lecciones —**36 repartidas por tema en tres hijos y
 > 9 de MÉTODO aquí mismo, completas**: cómo se delibera, cómo se verifica y cuándo algo está de
 > verdad terminado—. Las de método se quedan porque no son de ninguna pieza: valen para las tres, y
 > son las que más se citan desde otras neuronas. Si el síntoma huele a un tercero, a lo que se ve o
@@ -13,7 +13,7 @@
 >
 > **Los identificadores NO se renumeran nunca.** Un `L-NN` citado en otra neurona o en un comentario
 > del código sigue apuntando al mismo gotcha, viva donde viva su cuerpo. Y ojo con la aritmética: los
-> números llegan hasta 46 pero las lecciones son 44 — el 14 se fusionó en `L-13` y no existe.
+> números llegan hasta 50 pero las lecciones son 45 — el 14 se fusionó en `L-13` y no existe.
 >
 > ⚠️ **ANTES de escribir una lección nueva, busca el SÍNTOMA en los cuatro archivos.** Desde que la
 > familia se repartió, ninguno se lee entero, y el 04-08-2026 se escribió `L-36` sin ver que `L-22`
@@ -69,6 +69,7 @@
 - `L-41` · Un contrato que no se puede EJECUTAR en una prueba solo está revisado por el compilador
 - `L-42` · Lo que un comité SUPONE entra al cerebro con el mismo rango que lo que verifica
 - `L-45` · Una regla que el motor CALCULA y nadie consume no es una regla: es un comentario (y el grep de `L-28` da luz verde)
+- `L-50` · Un archivo que se DECLARA sintético es donde mejor se esconde un dato real: la cabecera hace el trabajo de la sospecha
 - `L-46` · Un MÁXIMO DE VENTANA DESLIZANTE no es una medida de régimen (y `IA+IB+IC = IN` valida la escala en un minuto)
 
 ### `docs/30-LECCIONES.md` (este archivo) — método de trabajo: deliberar, verificar, cerrar

@@ -153,8 +153,22 @@ export const Apoyo = Base.extend({
    * Posición en la línea. Es lo que ORDENA los vanos. Se separa del nombre a
    * propósito: el nombre puede ser irregular (en LN-627 conviven "E022",
    * "EMP TUB" y "EMPT"), y ordenar por nombre daría vanos equivocados.
+   *
+   * NO es entero desde 0.5.0, y es a propósito. Un punto que se descubre DENTRO
+   * de un vano ya levantado (un empalme a mitad de camino) entra por BISECCIÓN:
+   * recibe el orden que hay entre sus vecinos —(2+3)/2 = 2,5— en vez de correr
+   * una posición a todos los que van detrás. Renumerar obligaría a reescribir
+   * los 26 documentos ya en producción para registrar un hecho que no cambió, y
+   * movería las fotos de apoyo, que se resuelven por este mismo campo.
+   *
+   * El cambio es ADITIVO: `z.number()` admite todo lo que admitía
+   * `z.number().int()`, así que los documentos ya escritos siguen validando sin
+   * tocarlos. Pero es de una sola dirección: un documento con `orden: 2.5` NO
+   * valida contra un bundle desplegado con el contrato anterior, y ahí no da
+   * error — se descarta EN SILENCIO. Por eso se despliega la web primero y se
+   * siembra después.
    */
-  orden: z.number().int().nonnegative(),
+  orden: z.number().nonnegative(),
   /**
    * Qué es este punto. **Decide si entra o no al cálculo.** Por defecto se
    * asume `Estructura`, pero si el levantamiento trae empalmes hay que

@@ -10,6 +10,18 @@
 //
 // ⚠️ Los datos reales viven en la bóveda privada; estas pruebas se SALTAN
 // solas cuando la bóveda no está (p. ej. en CI), y lo dicen.
+//
+// ⚠️ ESTE ARCHIVO MIDE EL LEVANTAMIENTO DEL 25-26 DE JULIO DE 2026, Y SUS
+//    CIFRAS NO SE TOCAN. El 11 y 12 de agosto la cuadrilla trajo puntos nuevos
+//    y el Ingeniero aprobó dos el 2026-08-16 (el empalme del vano E03→E04 y el
+//    pórtico del extremo final): con ellos son 28 puntos · 25 estructuras ·
+//    3 empalmes · 7 tramos [1,2,2,14,1,3,1]. Eso es una AMPLIACIÓN FECHADA, no
+//    la corrección de un error, y por eso vive en
+//    `tests/ampliacion-2026-08.test.js` en vez de reescribir estos números.
+//    Aquí se lee SOLO `LN-627-geometria.json` (línea 30), que es el registro
+//    congelado de julio; los dos fixtures NO se fusionan jamás —lo prohíbe el
+//    campo `_nota` del de agosto— porque éste es la línea base de no regresión
+//    contra el módulo de campo original.
 // ============================================================================
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
@@ -24,6 +36,7 @@ import { generarGpx } from '../exportar/gpx.js';
 import { generarKml } from '../exportar/kml.js';
 import { generarCsv, COLUMNAS_CSV } from '../exportar/csv.js';
 import { calidadLevantamiento } from '../exportar/calidad.js';
+import { CANONICOS as CANONICOS_SEMBRADOS } from '../herramientas/identidad.mjs';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
 const fixture = join(AQUI, '..', '..', 'brain-private', 'mantenimiento-lineas-at',
@@ -35,7 +48,14 @@ const cerca = (real, esperado, tol, msg) =>
   assert.ok(Math.abs(real - esperado) <= tol,
     `${msg}: ${real} vs ${esperado} esperado (tolerancia ${tol})`);
 
-// Nombres canónicos, los mismos que siembra herramientas/sembrar.mjs.
+// Nombres canónicos del levantamiento de JULIO: los mismos 26 que produce
+// `herramientas/identidad.mjs`. La lista está duplicada aquí a propósito —cada
+// archivo de prueba fabrica su mundo, que es el patrón del repositorio— pero
+// una copia que se desvía en silencio compararía contra una línea que ya no
+// existe, así que hay abajo una prueba que exige que las dos sean idénticas.
+// Los puntos añadidos en agosto NO entran en esta lista: traen su nombre
+// canónico declarado en su propio fixture fechado, y se prueban en
+// `tests/ampliacion-2026-08.test.js`.
 const CANONICOS = [
   'LN-627 E01', 'LN-627 E02', 'LN-627 E03', 'LN-627 E04', 'LN-627 E05',
   'LN-627 EMP E05-E06', 'LN-627 E06', 'LN-627 EMP E06-E07', 'LN-627 E07',
@@ -227,6 +247,19 @@ describe('exportadores — contra la tabla del módulo original', () => {
     assert.equal(filas[1][cDef], '', 'el primer apoyo no tiene deflexión');
     const anclas = filas.slice(1).filter((f) => f[cAncla] === 'si').length;
     assert.equal(anclas, 7, 'las 7 estructuras que cortan los 6 tramos');
+    // ⚠️ PREGUNTA ABIERTA, QUE AQUÍ NO SE DECIDE. Este 7 sale del levantamiento
+    // de JULIO, donde E24 es el último punto y está sembrado como 'Terminal'.
+    // Desde el 12 de agosto la línea sigue más allá de E24 hasta el pórtico del
+    // extremo final, así que cabe preguntarse si E24 debería dejar de ser
+    // terminal. NO SE HA DECIDIDO: re-tipificar un apoyo es decisión del
+    // INGENIERO, no del sembrador, y arrastra el corte de tramos de tensión y
+    // con él el cálculo mecánico, que es un número que se firma. Mientras
+    // tanto se deja EXACTAMENTE como está —lo conservador, que no mueve ningún
+    // tramo ya existente— y la consecuencia queda declarada: en el
+    // levantamiento ampliado hay un tramo final de un solo vano (94,65 m) entre
+    // dos terminales consecutivos, y las anclas son 8 sobre 7 tramos
+    // (`tests/ampliacion-2026-08.test.js`). El día que el Ingeniero decida,
+    // estas dos cifras cambiarán a propósito y con su firma.
   });
 
   test('progresivas: iguales al original hasta el primer empalme; el total es la línea', { skip: SIN_BOVEDA }, () => {
@@ -302,6 +335,16 @@ describe('calidad del levantamiento — las observaciones se CALCULAN', () => {
 
 // ════════════════════════════════════════════════════════════════════════════
 describe('exportadores — fronteras del estado cero (sin bóveda también corren)', () => {
+
+  test('la lista canónica de este archivo NO se ha desviado de la del sembrador', () => {
+    // El nombre canónico es la semilla del id de cada apoyo (herramientas/
+    // identidad.mjs). Si esta copia y la de allí divergieran, esta prueba
+    // seguiría verde midiendo una línea imaginaria — y el día que se sembrara
+    // de verdad, los ids no serían los que aquí se dan por buenos.
+    assert.deepEqual(CANONICOS, CANONICOS_SEMBRADOS['LN-627'],
+      'los dos sitios se cambian en el MISMO cambio, nunca uno solo');
+  });
+
   test('sin apoyos: documentos válidos y vacíos, sin explotar', () => {
     const lev = derivarLevantamiento([]);
     assert.equal(lev.puntos.length, 0);
