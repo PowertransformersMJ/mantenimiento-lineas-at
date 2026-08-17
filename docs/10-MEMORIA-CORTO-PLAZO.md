@@ -6,8 +6,7 @@
 
 ## 🎯 Dónde estamos
 
-**Cifras vivas en `05`.** 11 pestañas + RCA + tres informes (línea, RCA, gerencial). Producción
-verificada en pantalla el 16-08. **Mazo de gerencia de la falla E02 listo** (9 láminas; bóveda
+**Cifras vivas en `05`.** 12 pestañas + RCA + tres informes. Producción verificada en pantalla el 17-08. **Mazo de gerencia de la falla E02 listo** (9 láminas; bóveda
 `entregables/`, se rearma con su `armar.py` — a nivel de zip, ver `32 · L-49`). Olas cerradas:
 carcasa (ADR-018) · RCA (ADR-020) · documental (ADR-021) · contexto real (ADR-022) · gerencial
 (ADR-023) · acceso (ADR-024).
@@ -20,9 +19,7 @@ carcasa (ADR-018) · RCA (ADR-020) · documental (ADR-021) · contexto real (ADR
    RECUERDA lo que ya firmó** (`99 §ADR-027/029`), así que no repite pórtico ni empalme. **Falta que
    él suba el GPX y cargue.** Deuda ANTES del pórtico de ORIGEN: la foto se resuelve por `orden`.
 2. **Verificar que una acción FUNCIONÓ**, no solo que se hizo (`TODO-66`, `99 §ADR-026`): una acción que no sirvió es hoy indistinguible de una que sirvió.
-3. **El tope de tiro sigue sin decidir (TODO-33).** El molde de los datos ya trae
-   `tiroAdmisible_pct` y `criterioTiroQueRige` (ADR-014), pero `vistas/tramos.ts`, `vientoDatos.ts`
-   y `Fundamentos.tsx` leen `tiroMaximoAdmisible()` = 0,5·RTS fijo. **TODO-44:** R2 factura.
+3. **El tope de tiro sigue sin decidir (TODO-33):** el molde ya trae `tiroAdmisible_pct` y `criterioTiroQueRige` (ADR-014), pero `vistas/tramos.ts`, `vientoDatos.ts` y `Fundamentos.tsx` leen `tiroMaximoAdmisible()` = 0,5·RTS fijo. **TODO-44:** R2 factura.
 
 ## 🚫 INVARIANTES QUE NO SE PUEDEN ROMPER
 
@@ -72,7 +69,7 @@ comité SUPONE entra con el mismo rango que lo que verifica (`30 · L-42`).
 
 | # | Qué | Por qué importa |
 |---|---|---|
-| **NUEVO** | **Ponerse contraseña.** ⚠️ La llave admin ya NO está en Descargas: regenerarla (Consola Firebase → Configuración → Cuentas de servicio → Generar nueva clave) y guardarla FUERA de Descargas. Después: `GOOGLE_APPLICATION_CREDENTIALS=<llave> node herramientas/usuarios.mjs contrasena --correo ajimenezp99@gmail.com --definitiva`. **Sin `--definitiva` la cuenta queda marcada provisional y se revocan sus sesiones** | Desbloquea retirar Google (fase 2b). Ya está VERIFICADO que la pantalla no le aparece entrando por Google |
+| **NUEVO** | **Ponerse contraseña.** ⚠️ La llave admin ya NO está en Descargas: regenerarla (Consola Firebase → Configuración → Cuentas de servicio → Generar nueva clave) y guardarla FUERA de Descargas. Después: `usuarios.mjs contrasena … --definitiva` (sin `--definitiva` la cuenta queda provisional y se revocan sus sesiones) | Desbloquea retirar Google (fase 2b). Ya está VERIFICADO que la pantalla no le aparece entrando por Google |
 | **TODO-57** | **La FICHA ESTRUCTURAL**: carga de rotura, altura libre, altura del punto de sujeción, fases amarradas. ¿Las tiene la empresa en planos o actas, o hay que levantarlas? | **EL CUELLO DE BOTELLA REAL.** Separa «cuánta carga recibe» de «si aguanta» |
 | **TODO-59** | **Qué ficha se le pide a CADA tipología.** La línea mezcla 4 (pórticos de 2 y 3 postes, torre reticulada, poste simple) y el modelo del contrato es de POSTE. Evidencia → `40 §8.3` | No es un formulario, son tres o cuatro |
 | **TODO-33** | **50 % o 25 % de RTS** como tope de tiro | Factor 2 sobre un dictamen |

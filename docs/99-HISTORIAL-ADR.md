@@ -2507,8 +2507,9 @@ apoyo que la línea llama E07 quedó grabado como "E02", y donde la línea tiene
 - **Tipificar el pórtico como 'Terminal'** es decisión de ingeniería declarada por el sembrador, aún
   **no firmada** por el Ingeniero: mueve los tramos de 6 a 7 y las anclas de 7 a 8, que son entrada
   del cálculo mecánico.
-  **CERRADO el 2026-08-17.** El Ingeniero lo declaró: *«el pórtico de Membrillal es el final de la
-  línea»*. Su función Terminal pasa a `confirmado_humano`, declarado en el fixture de la bóveda con
+  **CERRADO el 2026-08-17.** El Ingeniero declaró que **el pórtico del extremo FINAL es el final de
+  la línea** (dijo el nombre de la subestación; aquí no se escribe — por eso los nombres canónicos
+  son ORIGEN y FIN). Su función Terminal pasa a `confirmado_humano`, declarado en el fixture de la bóveda con
   la fecha — no en el código: el defecto del sembrador sigue siendo `'supuesto'`, y la firma se pone
   una a una. Lo que confirma es la TIPIFICACIÓN, no la geometría: el vano de 94,65 m y el corte de
   tramos ya estaban verificados con el motor.
@@ -2678,8 +2679,9 @@ crítico con veto y el plan) · `research-archive/2026-08-17-workflow-construir-
 
 La pestaña «Cargar» (ADR-028) parte del GPX **crudo** y no conoce nada anterior: le volvería a
 preguntar las cinco cosas de cada punto, **incluida la que confirmó el día antes**. El Ingeniero lo
-señaló con esas palabras: *«líneas anteriores te indiqué que confirmaba el pórtico de Membrillal y
-el nuevo empalme, lo único pendiente es el pórtico de Proelectrica»*. Y tenía razón: sus tres
+señaló él mismo: había confirmado el pórtico del extremo FINAL y el empalme nuevo, y lo único
+pendiente era el pórtico del extremo de ORIGEN (lo dijo nombrando las subestaciones; aquí no se
+escriben). Y tenía razón: sus tres
 decisiones están tomadas y **fechadas** en el fixture de la bóveda desde el 16-08 (la del papel
 Terminal del pórtico del extremo final, del 17-08). En un sistema cuyo oficio es *hacerle barato
 comprobar que tiene razón*, hacerle repetir decisiones ya firmadas es exactamente lo contrario.

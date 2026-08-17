@@ -179,12 +179,39 @@ const NOTAS = Object.freeze({
  * listas negras se quedan cortas: la defensa de verdad es la lista blanca de
  * arriba. Esto solo caza el descuido.
  */
+/**
+ * Lo que NUNCA puede salir en lo publicado.
+ *
+ * Las FORMAS (una coordenada, una hora) se reconocen por su pinta y viven aquí:
+ * describirlas no publica nada.
+ *
+ * Los NOMBRES PROPIOS (subestaciones, cliente, códigos del GPS) viven en la
+ * BÓVEDA, no aquí. Un guardián que deletrea lo que prohíbe **publica justo lo
+ * que venía a impedir**: el 2026-08-17 esta lista llevaba escritos los nombres
+ * de las dos subestaciones, en el repositorio PÚBLICO, tres líneas por encima
+ * de la prueba que los prohibía. Es `33 · L-50` por segunda vez.
+ */
 const FORMAS_PROHIBIDAS = Object.freeze([
   [/\d+[.,]\d{4,}/, 'un número con cuatro o más decimales: eso tiene forma de coordenada, de distancia medida o de azimut'],
   [/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/, 'una fecha CON HORA: las horas de captura no salen de la bóveda'],
-  [/\bSSEE\b/i, 'una referencia a instalación'],
-  [/MEMBRILLAL|PROELECTRICA|PROELÉCTRICA/i, 'el nombre de una subestación del cliente'],
 ]);
+
+/**
+ * Los nombres prohibidos, leídos de la bóveda. Este guion SIEMPRE corre en la
+ * máquina del Ingeniero —es donde está la bóveda y donde se genera lo que se
+ * publica—, así que aquí la comprobación es fuerte: si la lista no aparece, se
+ * ABORTA en vez de publicar a ciegas.
+ */
+function nombresProhibidos() {
+  const ruta = join(RAIZ, '..', 'brain-private', 'mantenimiento-lineas-at', 'fixtures', 'nombres-prohibidos.json');
+  if (!existsSync(ruta)) {
+    console.error(`\n❌ No está la lista de nombres prohibidos en la bóveda:\n   ${ruta}\n`
+      + '   Sin ella no se publica nada: publicar sin saber qué está prohibido es\n'
+      + '   exactamente el accidente que esta lista existe para impedir.\n');
+    process.exit(1);
+  }
+  return leerJson(ruta).prohibidos.map((p) => [new RegExp(p.patron, 'i'), p.que]);
+}
 
 // ── Utilidades ──────────────────────────────────────────────────────────────
 
@@ -430,10 +457,14 @@ export function motivosParaNoPublicar(libro, fixture) {
   });
   if (numeros.length) motivos.push(`el libro trae números en JSON (${numeros.join(', ')}), y no puede traer ninguno`);
 
-  // 2. Formas prohibidas sobre el texto entero.
-  for (const [forma, queEs] of FORMAS_PROHIBIDAS) {
+  // 2. Formas y NOMBRES prohibidos sobre el texto entero. Los nombres se leen de
+  //    la bóveda, no de aquí: ver el comentario de FORMAS_PROHIBIDAS.
+  for (const [forma, queEs] of [...FORMAS_PROHIBIDAS, ...nombresProhibidos()]) {
     const m = forma.exec(texto);
-    if (m) motivos.push(`aparece «${m[0]}», que es ${queEs}`);
+    // El motivo NO repite lo encontrado: sería escribir en la consola —y en
+    // cualquier registro que la recoja— justo el nombre que se está impidiendo
+    // publicar. Se dice QUÉ es y dónde mirar.
+    if (m) motivos.push(`aparece ${queEs} (posición ${m.index} del libro)`);
   }
 
   // 3. Contra la BÓVEDA: ninguna hoja sensible del fixture puede aparecer en lo

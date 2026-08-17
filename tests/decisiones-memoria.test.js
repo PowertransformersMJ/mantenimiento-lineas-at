@@ -49,6 +49,15 @@ import { FuncionEstructural, TipoPunto } from '../contratos/src/activos.ts';
 const AQUI = dirname(fileURLToPath(import.meta.url));
 const RUTA_LIBRO = join(AQUI, '..', 'herramientas', 'decisiones-firmadas.json');
 const CRUDO = readFileSync(RUTA_LIBRO, 'utf-8');
+/**
+ * La lista de nombres prohibidos vive en la BÓVEDA, no aquí: escribir en un
+ * archivo público el nombre que se quiere impedir lo publica igual. Sin bóveda
+ * —en CI— esa comprobación se SALTA, y es correcto: el generador ya la aplicó
+ * en la máquina donde se creó el libro, y allí aborta si la lista no está.
+ */
+const RUTA_PROHIBIDOS = join(AQUI, '..', '..', 'brain-private', 'mantenimiento-lineas-at', 'fixtures', 'nombres-prohibidos.json');
+const SIN_BOVEDA = !existsSync(RUTA_PROHIBIDOS)
+  && 'la lista de nombres prohibidos vive en la bóveda privada (esperado en CI)';
 const LIBRO = JSON.parse(CRUDO);
 const SEMILLAS = leerRegistro(RUTA_REGISTRO);
 const LINEA = 'LN-627';
@@ -101,17 +110,30 @@ describe('EL LIBRO NO LLEVA NI UN BYTE DE CLIENTE', () => {
     }
   });
 
-  test('ningún nombre de instalación del cliente', () => {
-    assert.doesNotMatch(CRUDO, /\bSSEE\b/i, 'ni una referencia a instalación');
-    assert.doesNotMatch(CRUDO, /MEMBRILLAL|PROEL[EÉ]CTRICA/i, 'el nombre de una subestación del cliente');
+  // ⚠️ LA LISTA DE NOMBRES PROHIBIDOS NO PUEDE VIVIR AQUÍ.
+  //
+  // Este archivo está en el repositorio PÚBLICO, así que escribir aquí el nombre
+  // que se quiere impedir lo publica igual. Pasó el 2026-08-17: la comprobación
+  // llevaba dentro los nombres de las dos subestaciones, y la prueba pasaba en
+  // verde mientras el nombre estaba a tres líneas de distancia (`33 · L-50`,
+  // segunda vez). La lista vive ahora en la bóveda y la aplica el generador
+  // —`herramientas/publicar-decisiones.mjs`, que corre en la máquina del
+  // Ingeniero y ABORTA si la lista no está—, es decir, ANTES de que exista nada
+  // que publicar. Aquí solo se comprueba lo que se puede describir sin nombrar.
+  test('ninguna referencia a instalación, y los pórticos por extremo y no por nombre', { skip: SIN_BOVEDA }, () => {
+    const prohibidos = JSON.parse(readFileSync(RUTA_PROHIBIDOS, 'utf-8')).prohibidos;
+    for (const { patron, que } of prohibidos) {
+      assert.doesNotMatch(CRUDO, new RegExp(patron, 'i'), que);
+    }
     // Y por eso los nombres canónicos de los pórticos son ORIGEN y FIN.
     assert.ok(TODAS.some((f) => f.sobre.endsWith('PORTICO FIN')));
   });
 
   test('ningún código de waypoint del GPS suelto', () => {
-    // El aparato graba códigos como «627 EPPRO»/«627 EPMBR», que pueden
-    // descifrar el nombre de la instalación. El libro se lee por NOMBRE
-    // CANÓNICO, así que el nombre de campo no hace ninguna falta aquí.
+    // El aparato graba códigos que abrevian el nombre de la instalación y lo
+    // dejan descifrable. El libro se lee por NOMBRE CANÓNICO, así que el nombre
+    // de campo del GPS no hace ninguna falta aquí — y no se escribe ni siquiera
+    // como ejemplo en un comentario (`33 · L-50`).
     for (const fila of TODAS) {
       assert.equal(fila.nombreCampo, undefined, 'el nombre de campo del GPS no se publica');
       assert.equal(fila.name, undefined);
