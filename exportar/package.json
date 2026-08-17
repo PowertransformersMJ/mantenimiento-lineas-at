@@ -17,6 +17,7 @@
     "./bom": "./bom.js",
     "./informe": "./informe.js",
     "./informeRca": "./informeRca.js",
+    "./acta": "./acta.js",
     "./gerencial": "./gerencial.js"
   },
   "dependencies": {

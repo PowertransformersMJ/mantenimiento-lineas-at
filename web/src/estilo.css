@@ -798,6 +798,69 @@ p.fund-vivo + .sello-calculo { margin-top: 5px; }
 .rca-declarar { display: grid; gap: 8px; margin-top: 12px; max-width: 620px; }
 .rca-declarar .boton { margin-top: 0; justify-self: start; }
 
+/* ── LA PANTALLA DE CARGA ─────────────────────────────────────────────────
+   La única que CREA activos, y por tanto la única cuyo efecto no se deshace.
+   El diseño lo dice antes que el texto: la ficha de cada punto es una caja
+   cerrada con su propio filete, para que no se pueda contestar una pregunta
+   creyendo que se contesta la de otro punto; la consecuencia de cada respuesta
+   va PEGADA debajo de ella, no en una ayuda aparte; y lo que falta se pinta con
+   el ámbar de aviso, no en gris de nota al pie. */
+.cargar-quien {
+  margin: 0 0 4px; padding: 9px 12px;
+  background: var(--t-azul); border-left: 3px solid var(--az);
+  border-radius: 0 6px 6px 0; color: var(--tx); font-size: 12.5px;
+}
+.cargar-quien b { color: var(--tx); font-weight: 600; }
+
+/* El selector de archivo se deja con la caja del sistema a propósito: es el
+   único control que el navegador dibuja con su propio diálogo, y disfrazarlo
+   confunde sobre qué va a pasar al pulsarlo. */
+.cargar-archivo { font: 400 12px/1.4 inherit; font-family: inherit; color: var(--tx); text-transform: none; letter-spacing: 0; }
+
+.cargar-ficha {
+  margin: 12px 0 0; padding: 12px 14px;
+  background: var(--pnl); border: 1px solid var(--bd); border-radius: var(--radio);
+  box-shadow: var(--luz-arriba), var(--sombra-1);
+}
+.cargar-cab { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; font-size: 13px; }
+
+.cargar-pregunta { display: block; margin-top: 11px; max-width: 640px; }
+.cargar-rotulo {
+  display: block; margin-bottom: 4px;
+  font-size: 10px; text-transform: uppercase; letter-spacing: .6px;
+  color: var(--mut); font-weight: 600;
+}
+/* La consecuencia de una respuesta NO es una nota al pie: es la mitad de la
+   pregunta. Por eso va debajo del control y no en un asterisco. */
+.cargar-consecuencia {
+  display: block; margin: 4px 0 0;
+  font-size: 11.2px; line-height: 1.55; color: var(--tx3);
+}
+/* Un hueco declarado. Nunca un cero, nunca un silencio. */
+.cargar-hueco {
+  display: block; margin-top: 3px;
+  font-size: 11.2px; line-height: 1.5; color: var(--tx-aviso);
+}
+.cargar-falta {
+  margin: 10px 0 0; padding: 7px 11px; border-radius: 0 6px 6px 0;
+  background: var(--t-ambar); border-left: 3px solid var(--acc);
+  color: var(--tx-aviso); font-size: 11.8px;
+}
+.cargar-lista { margin: 6px 0 0; padding-left: 18px; line-height: 1.6; }
+.cargar-lista li { margin-bottom: 3px; }
+
+/* La confirmación en frío. Va tintada de ROJO, que en esta hoja no significa
+   «error» sino «sin vuelta atrás», y es exactamente lo que hay que decir. */
+.cargar-confirmar {
+  margin-top: 14px; padding: 13px 15px;
+  background: var(--t-rojo); border: 1px solid var(--rd);
+  border-radius: var(--radio); color: var(--tx-alerta); font-size: 12.5px; line-height: 1.6;
+}
+.cargar-confirmar p { margin: 0 0 8px; }
+.cargar-confirmar-t {
+  font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .8px;
+}
+
 /* ── EL HORIZONTE (F6) ────────────────────────────────────────────────────
    Los apoyos en su orden y a su distancia real, el conductor colgando y —lo
    que importa— el apoyo sin veredicto dibujado HUECO. En pantalla clara un

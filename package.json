@@ -13,6 +13,7 @@
     "contratos",
     "nucleo",
     "exportar",
+    "importar",
     "web"
   ],
   "scripts": {

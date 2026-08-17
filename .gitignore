@@ -67,3 +67,6 @@ LN-*.html
 
 # Build del frontend
 web/dist/
+
+# Sello de compilación incremental de TypeScript: se regenera solo y no es del proyecto.
+*.tsbuildinfo

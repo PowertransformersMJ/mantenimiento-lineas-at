@@ -29,9 +29,9 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import { dirname, join, relative } from 'node:path';
 
 import {
   CANONICOS, ORG_POR_DEFECTO, RUTA_REGISTRO,
@@ -40,7 +40,32 @@ import {
 import { Id } from '../contratos/src/comunes.ts';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
-const leerFuente = (p) => readFileSync(join(AQUI, '..', p), 'utf-8');
+const RAIZ = join(AQUI, '..');
+const leerFuente = (p) => readFileSync(join(RAIZ, p), 'utf-8');
+
+/**
+ * Todos los archivos de código de una carpeta, hasta el último rincón.
+ *
+ * Se recorre el árbol en vez de escribir las rutas a mano por una razón muy
+ * concreta: un guardián con la lista escrita a mano deja de vigilar el día que
+ * alguien añade un archivo, y no avisa de que ha dejado de hacerlo. Los estilos
+ * y lo que no es código se quedan fuera.
+ */
+const CODIGO = /\.(js|mjs|cjs|ts|tsx|jsx)$/;
+const archivosDeCodigo = (carpeta) => {
+  const absoluta = join(RAIZ, carpeta);
+  const salida = [];
+  const bajar = (dir) => {
+    for (const entrada of readdirSync(dir, { withFileTypes: true })) {
+      if (entrada.name === 'node_modules' || entrada.name.startsWith('.')) continue;
+      const ruta = join(dir, entrada.name);
+      if (entrada.isDirectory()) bajar(ruta);
+      else if (CODIGO.test(entrada.name)) salida.push(relative(RAIZ, ruta));
+    }
+  };
+  bajar(absoluta);
+  return salida.sort();
+};
 
 const LINEA = 'LN-627';
 const REGISTRO = leerRegistro();
@@ -348,20 +373,90 @@ describe('GUARDIÁN POR TEXTO — que nadie vuelva a atar la identidad a la posi
     });
   }
 
-  test('la fórmula del id vive en UN solo sitio', () => {
+  // La FIRMA del id: recortar a 32 hex y darle forma de UUID. Se busca esto y no
+  // `createHash` a secas porque `subir-evidencias.mjs` calcula además la huella
+  // del ARCHIVO, y ese uso es legítimo y tiene que seguir ahí.
+  const FIRMA_DEL_ID = /slice\(\s*0\s*,\s*32\s*\)[\s\S]{0,120}\{12\}/;
+
+  // Todo lo que se ejecuta FUERA de la máquina del Ingeniero: el paquete que
+  // lee los archivos del GPS y la aplicación entera. Es el territorio nuevo, y
+  // es justo donde la tentación de «calcular el id aquí mismo» aparece.
+  const FUERA_DE_LA_MAQUINA = [...archivosDeCodigo('importar'), ...archivosDeCodigo('web/src')];
+
+  test('el guardián está barriendo archivos de verdad, no una lista vacía', () => {
+    // Un guardián que no encuentra nada pasa siempre, y nadie se entera de que
+    // dejó de vigilar. Estas cuentas son el pulso del propio guardián.
+    assert.ok(archivosDeCodigo('importar').length >= 4,
+      'no se están encontrando los módulos de importar/: el barrido está roto o la carpeta se movió');
+    assert.ok(archivosDeCodigo('web/src').length >= 20,
+      'no se está encontrando el código de la aplicación: el barrido está roto');
+    assert.ok(FUERA_DE_LA_MAQUINA.every((a) => /\.(js|mjs|cjs|ts|tsx|jsx)$/.test(a)));
+  });
+
+  test('la fórmula del id vive en UN solo sitio — tampoco reaparece en importar/ ni en web/src', () => {
     // Estaba copiada en sembrar.mjs y en subir-evidencias.mjs, byte a byte. Dos
     // copias pueden divergir sin que nadie lo note, y divergir aquí significa
     // que un script escribe fichas colgando de un `lineaId` que el otro no
     // reconoce: las fotos existen y la pantalla no las ve.
     //
-    // Se busca la FIRMA del id —recortar a 32 hex y darle forma de UUID—, no
-    // `createHash` a secas: `subir-evidencias.mjs` calcula además la huella del
-    // ARCHIVO, y ese uso es legítimo y tiene que seguir ahí.
-    const FIRMA_DEL_ID = /slice\(\s*0\s*,\s*32\s*\)[\s\S]{0,120}\{12\}/;
-    const apariciones = HERRAMIENTAS.filter((a) => FIRMA_DEL_ID.test(leerFuente(a)));
+    // Desde que existe la pantalla de carga, el sitio donde eso volvería a pasar
+    // ya no es `herramientas/`: es el navegador. La identidad de un punto se
+    // BUSCA en el registro del repositorio; si alguien la calculara aquí, serían
+    // dos fórmulas que coinciden hasta el día que dejen de coincidir, y ese día
+    // no revienta nada visible — se escriben puntos con id nuevo y las fotos se
+    // quedan colgando del viejo.
+    const apariciones = [...HERRAMIENTAS, ...FUERA_DE_LA_MAQUINA]
+      .filter((a) => FIRMA_DEL_ID.test(leerFuente(a)));
     assert.deepEqual(apariciones, [],
-      `${apariciones.join(', ')} vuelve(n) a construir el id por su cuenta: debe importarse de herramientas/identidad.mjs`);
-    assert.match(leerFuente('herramientas/identidad.mjs'), FIRMA_DEL_ID);
+      `${apariciones.join(', ')} vuelve(n) a construir el id por su cuenta. En herramientas/ debe importarse de identidad.mjs; ` +
+      'en el navegador NO se calcula: se busca en el registro con importar/identidad.js.');
+    assert.match(leerFuente('herramientas/identidad.mjs'), FIRMA_DEL_ID,
+      'y el único sitio donde sí vive tiene que seguir teniéndola');
+  });
+
+  test('el navegador no acuña identidad: ni criptografía propia ni el sha del sistema', () => {
+    // Los dos caminos por los que volvería a haber una segunda fórmula: el
+    // módulo nativo (que ni siquiera existe en el navegador) y la criptografía
+    // del propio navegador, que además es asíncrona y contagiaría de asincronía
+    // a todo lo que la toque.
+    const CALCULAR_HASH = /createHash|crypto\.subtle|subtle\.digest|\bsha256\b/i;
+    const culpables = FUERA_DE_LA_MAQUINA.filter((a) => {
+      // Los comentarios se ignoran: la cabecera de importar/identidad.js EXPLICA
+      // por qué no hay criptografía, y contarlo no es cometerlo.
+      const codigo = leerFuente(a)
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .split('\n').filter((l) => !/^\s*(\/\/|\*)/.test(l)).join('\n');
+      return CALCULAR_HASH.test(codigo);
+    });
+    assert.deepEqual(culpables, [],
+      `${culpables.join(', ')} calcula(n) un hash. Desde la aplicación no se estrena identidad: el id de un punto ya está ` +
+      'emitido en herramientas/semillas-emitidas.json y solo se BUSCA.');
+  });
+
+  test('NINGÚN archivo de importar/ importa un módulo nativo de Node', () => {
+    // `importar/` corre en los dos sitios: en estas pruebas y en el navegador
+    // del Ingeniero. Un solo `node:` lo parte por la mitad — y no da un error
+    // claro, da una pantalla en blanco al desplegar, que es cuando ya está
+    // subido. Es el mismo motivo por el que el lector de GPX no usa el lector de
+    // XML del navegador: lo que se prueba tiene que ser lo que corre.
+    const conNativos = archivosDeCodigo('importar').filter((a) => /node:/.test(leerFuente(a)));
+    assert.deepEqual(conNativos, [],
+      `${conNativos.join(', ')} importa(n) un módulo nativo. En el navegador no existe: la pantalla de carga no abriría.`);
+  });
+
+  test('importar/ tampoco toca el DOM, la red ni el sistema de archivos', () => {
+    // El espejo del núcleo: lo puro se prueba entero y da lo mismo en cualquier
+    // sitio. Si un lector empezara a leer el archivo por su cuenta o a mirar la
+    // pantalla, dejaría de poder probarse sin montar un navegador de mentira, y
+    // acabaría sin pruebas.
+    const IMPUREZAS = /\b(document|window|localStorage|fetch|XMLHttpRequest|readFileSync|writeFileSync|require)\s*[(.]/;
+    const sucios = archivosDeCodigo('importar').filter((a) => {
+      const codigo = leerFuente(a)
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .split('\n').filter((l) => !/^\s*(\/\/|\*)/.test(l)).join('\n');
+      return IMPUREZAS.test(codigo);
+    });
+    assert.deepEqual(sucios, [], `${sucios.join(', ')} deja(n) de ser puro(s): ya no corre(n) igual en las pruebas y en el navegador`);
   });
 
   test('las tres herramientas toman la identidad de identidad.mjs', () => {

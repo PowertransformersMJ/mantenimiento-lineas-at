@@ -93,6 +93,12 @@ mantenimiento-lineas-at/
 │                                (observaciones calculadas) · procedencia.js · gms.js · version.js
 │                                · mecanica.js y bom.js (CSV de cálculo) · informe.js (documento
 │                                imprimible, autocontenido: cero JS y cero recursos externos)
+├── importar/                    ⭐ WORKSPACE @lineas/importar (17-08, ADR-028) — el camino INVERSO
+│                                de exportar/: gpx.js (leer lo que trae la cuadrilla) · identidad.js
+│                                (BUSCA el id en el registro de semillas; NUNCA lo acuña) · punto.js
+│                                (construye UN punto, jamás reconstruye los que ya están) · plan.js
+│                                (el antes/después con el motor de siempre). CERO `node:`: corre en
+│                                el navegador y se prueba en Node. Lo consume componentes/Cargar.tsx
 ├── evidencias/                  🚪 EL PORTERO (Cloudflare Worker, ADR-010): verifica la FIRMA del
 │                                token de Firebase contra las llaves de Google y sirve las fotos
 │                                del depósito privado. No escribe, no borra, no lista.

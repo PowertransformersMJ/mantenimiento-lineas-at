@@ -11,7 +11,9 @@
     "deploy": "wrangler pages deploy dist --project-name=mantenimiento-lineas-at"
   },
   "dependencies": {
+    "@lineas/contratos": "*",
     "@lineas/exportar": "*",
+    "@lineas/importar": "*",
     "@lineas/nucleo": "*",
     "@protomaps/basemaps": "^5.7.2",
     "firebase": "^12.17.0",

@@ -2577,3 +2577,95 @@ la ola** — desactivarla dejaba las 1.014 en verde y hacía desaparecer el empa
 archivo:línea) · `research-archive/2026-08-16-workflow-identidad-canonica.json` (diseño, construcción
 en cadena y las tres lentes adversariales) · fixtures `LN-627-geometria-ampliacion-2026-08.json` (con
 el acta de aprobación fechada del 2026-08-16) y `LN-627-falla.json` en la bóveda.
+
+---
+
+## ADR-028 · 2026-08-17 · La carga de puntos se hace DESDE la aplicación: la identidad se acuña en el repositorio y el navegador solo la busca
+
+### Contexto
+
+Cargar un punto nuevo en la base exigía correr `herramientas/sembrar.mjs` con una **llave de cuenta
+de servicio**: una llave maestra que **se salta todas las reglas de Firestore**, que hay que
+descargar, custodiar y regenerar cuando se pierde — y ya se perdió una vez (`docs/10`, 06-08). El
+Ingeniero lo resumió el 2026-08-17 preguntando *«¿qué llave debo entregarte? si venimos trabajando
+desde hace mucho tiempo y nunca habías solicitado llave»*, y al ofrecerle las dos vías eligió:
+**«vamos con bien de raíz»**.
+
+Hay un camino mejor y ya estaba abierto: `firestore.rules` permite `create` en `apoyos` a
+`esEditor()`, y la web **ya escribe** en la base desde el navegador (análisis RCA, acciones,
+sondeos). Escribir con la sesión del Ingeniero **respeta** las reglas; la llave las ignora. Es más
+seguro, no menos.
+
+El nudo duro era otro: **el registro de semillas** (`herramientas/semillas-emitidas.json`, ADR-027)
+es un archivo del repositorio, y el navegador no puede escribir en el repositorio.
+
+### Decisión
+
+**La identidad se acuña en el repositorio; el navegador solo carga puntos cuyo nombre YA está
+anotado en el libro.** El navegador **busca** el identificador, nunca lo calcula ni lo inventa. Si
+un nombre no está en el libro, la pantalla se niega y lo dice: *«no se puede estrenar identidad
+desde aquí»*. Un nombre nuevo cuesta un commit — ése es el precio, y se paga una vez por
+levantamiento, no por punto.
+
+Además:
+- **Quinto workspace `importar/`**, hermano de `exportar/`: leer el GPX · buscar en el registro ·
+  construir UN punto (jamás reconstruir los 26) · calcular el antes/después con el motor que ya
+  existe. Sin `node:` nada, sin criptografía: se prueba entero y corre en el navegador.
+- **Pestaña «Cargar»**, visible solo con rol de administrador. Cinco preguntas por punto, **ninguna
+  preseleccionada**, la casilla de aprobación **vacía**, el antes/después en cifras antes de que
+  exista ningún botón, confirmación en frío, y un acta descargable con el porqué de cada decisión.
+- **`herramientas/` no se toca**: el sembrador con llave sigue existiendo para lo que la pantalla no
+  cubre (ver Consecuencias).
+
+### Alternativas descartadas (nueve vetos del crítico; se aceptaron enteros)
+
+Las tres que gobiernan: **(1)** que el navegador llamara a `construirApoyos` —reconstruye los 26 y
+puede pisarlos—; en su lugar `construirPuntoNuevo`, que **solo añade**. **(2)** Mover el registro a
+una colección de la base: serían **dos fuentes de identidad** que solo convergen si alguien corre un
+script, y las fotos acabarían colgando de la equivocada. **(3)** Que el sistema **propusiera** en qué
+vano cae un punto o su nombre canónico: es un dictamen disfrazado de sugerencia sobre un acto sin
+deshacer. Se enseñan distancias crudas y decide él.
+
+### Los dos fallos FATALES que la auditoría cazó con todo en verde
+
+1. **La lectura previa que la base deniega.** Antes de escribir se preguntaba con `getDoc` si el
+   punto ya existía. `puedeLeer()` decide mirando `resource.data.orgId`, y **en un documento que aún
+   no existe no hay `resource`**: la base no contesta «no está», **deniega**. Como el caso normal es
+   cargar puntos que no existen, fallaba **siempre**, en el primero, con «Missing or insufficient
+   permissions» en inglés — dos líneas debajo de donde la pantalla acababa de decir que el permiso
+   era de administrador. Hoy se comprueba contra los apoyos que la aplicación **ya tiene en
+   memoria**, y queda la red de la propia base: `noTocaReservados()` rechaza un `set` que traiga otro
+   `creadoEn` sobre un documento existente.
+2. **La recarga que destruía el acuse.** Al terminar, se releía la línea en un `finally`. `abrir()`
+   pone la fase «cargando», y en esa fase `App.tsx` **sustituye la pantalla entera**: el acuse de qué
+   entró, qué quedó fuera y por qué, y el botón del acta se borraban **en el mismo instante en que se
+   generaban**. Sobre unos apoyos que no se pueden borrar ni corregir, el Ingeniero se quedaba sin
+   ningún papel. Hoy la línea se refresca **cuando él lo pide**, con un botón, después de leer el
+   acuse.
+
+Los dos fallaban **en verde**: 1.206 pruebas, contrato y build correctos, y la pantalla 0 %
+funcional. Es `30 · L-51` otra vez —«hecho» es lo que se ve— y `30 · L-33`: las pruebas comprobaban
+las piezas, ninguna el ciclo completo.
+
+### Consecuencias
+
+- El trámite semanal —cargar puntos— deja de necesitar llave. Los puntos llevan como autor **al
+  Ingeniero**, no a «sembrador».
+- **Desaparece por construcción una clase de fallo**: ya no hay que afirmar a mano que el contrato
+  está desplegado, porque quien escribe es el mismo programa que después lee.
+- **La llave NO se retira.** Sigue siendo obligatoria para: dar de alta personas y ponerles rol
+  (`setCustomUserClaims` no tiene equivalente de cliente) · corregir o borrar cualquier cosa (todas
+  las colecciones de activos niegan `delete`) · subir fotos · sembrar una línea nueva desde cero.
+- **Sin verificar en vivo**: que la cuenta del Ingeniero traiga realmente `rol: admin` no se ha
+  comprobado nunca contra producción — la aplicación no leía el rol en ningún sitio. La cabecera de
+  la pantalla nueva existe justo para eso, y es la primera comprobación del despliegue.
+- El punto que va **antes** del primero (el pórtico del extremo de origen) sigue sin camino, a
+  propósito, y la pantalla lo dice en vez de intentarlo.
+
+**NO revisada externamente.**
+
+### Crudo de respaldo
+
+`research-archive/2026-08-17-workflow-importar-en-la-app.json` (reconocimiento, dos propuestas, el
+crítico con veto y el plan) · `research-archive/2026-08-17-workflow-construir-cargar.json`
+(construcción en cadena y las tres lentes adversariales, incluidas las dos pasadas).

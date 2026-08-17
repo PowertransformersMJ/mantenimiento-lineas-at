@@ -20,7 +20,38 @@ import type { AccionCapa, Apoyo, AnalisisCausa, Conductor, Evidencia, Hipotesis,
 export type EstadoSesion =
   | { fase: 'comprobando' }
   | { fase: 'sin_sesion' }
-  | { fase: 'autenticado'; uid: string; correo: string | null };
+  /**
+   * `rol` y `orgId` viajan aquí desde 2026-08-17, y no por completismo.
+   *
+   * El token SIEMPRE los ha traído —`credenciales()` los devuelve desde el
+   * día 1— pero **nadie los consumía**: la aplicación entera funcionaba sin
+   * saber con qué permiso había entrado quien la usa. Mientras solo se leía
+   * daba igual; desde que se puede ESCRIBIR, no: quien no sea administrador se
+   * enteraría de que no puede cargar un punto por una denegación de la base,
+   * que llega tarde, sin causa y con el archivo del GPS ya cargado en pantalla.
+   *
+   * ⚠️ Esto NO es la frontera de seguridad. La frontera son las reglas de la
+   * base, que comprueban el mismo token del lado del servidor. Esto es higiene:
+   * decirle a la persona lo que la base va a decidir, antes de que lo intente.
+   */
+  | { fase: 'autenticado'; uid: string; correo: string | null; rol: string; orgId: string };
+
+/**
+ * Lo que pasó al cargar puntos nuevos. NO es un booleano a propósito: una carga
+ * puede escribir dos puntos, saltarse uno que ya estaba y rechazar otro por no
+ * cumplir el molde, todo a la vez — y las tres cosas tienen que poder contarse.
+ *
+ * Los puntos se nombran por su NOMBRE, nunca por su identificador interno: el
+ * acuse lo lee una persona.
+ */
+export interface ResultadoCarga {
+  /** Los que se escribieron de verdad. */
+  escritos: string[];
+  /** Los que ya existían en la base y NO se volvieron a escribir. */
+  yaEstaban: string[];
+  /** Los que no pasaron el molde de los datos. Ninguno llegó a la base. */
+  rechazados: { nombre: string; motivo: string }[];
+}
 
 export type EstadoDatos =
   | { fase: 'sin_sesion' }
@@ -150,6 +181,22 @@ export interface Repositorio {
    * actualiza, ni por el administrador.
    */
   guardarSondeo(analisisId: string, sondeo: Record<string, unknown>): Promise<string | null>;
+
+  /**
+   * Crea puntos nuevos de una línea que YA existe. Solo AÑADE: no reescribe ni
+   * borra nada de lo que ya está.
+   *
+   * Los documentos llegan ya construidos por `@lineas/importar`, que es código
+   * puro y probado. Este método no construye ninguno: comprueba el permiso,
+   * sella el autor con la sesión abierta, valida contra el molde y escribe.
+   *
+   * LANZA con un mensaje legible cuando la carga entera no procede (sin sesión,
+   * sin permiso de administrador, sin organización en el token). Lo que falla
+   * punto a punto NO lanza: viaja dentro del resultado, porque negarle al
+   * Ingeniero los dos buenos por culpa del tercero sería castigarle por haber
+   * traído más información.
+   */
+  cargarPuntosNuevos(documentos: Record<string, unknown>[], idsYaCargados?: string[]): Promise<ResultadoCarga>;
 }
 
 /**
@@ -198,6 +245,12 @@ export const repositorioSinSesion: Repositorio = {
   },
   async guardarSondeo() {
     return null;
+  },
+  async cargarPuntosNuevos() {
+    // Sin sesión no se escribe nada, y se dice con esas palabras: devolver una
+    // carga «vacía y correcta» haría creer que se cargó y que el archivo no
+    // traía nada.
+    throw new Error('No hay ninguna sesión abierta: no se puede cargar ningún punto.');
   },
 };
 

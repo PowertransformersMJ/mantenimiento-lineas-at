@@ -21,7 +21,7 @@ import { COLORES_TRAMO_CSS } from '../vistas/tramoColores';
 import { calcularTramos } from '../vistas/tramos';
 import { textoNucleo } from '../vistas/formato';
 import { conReintentos } from '../datos/cargar';
-import { almacen } from '../datos/enlace';
+import { almacen, useSesion } from '../datos/enlace';
 import { ejesDeLinea } from '../vistas/ejesLinea';
 import { estadoDeLinea } from '../vistas/estadoLinea';
 import { vanosDeLinea } from '../vistas/vanosLinea';
@@ -30,6 +30,7 @@ import { Distribucion } from './Distribucion';
 import { Distancias } from './Distancias';
 import { Fichas } from './Fichas';
 import { Exportar } from './Exportar';
+import { Cargar } from './Cargar';
 import { Fundamentos } from './Fundamentos';
 import { Falla } from './Falla';
 import { Umbrales } from './Umbrales';
@@ -112,9 +113,18 @@ const PESTANAS = [
   { id: 'cargas', rotulo: 'Cargas', lista: true },
   { id: 'cantidades', rotulo: 'Cantidades', lista: true },
   { id: 'exportar', rotulo: 'Exportar', lista: true },
+  // La ÚNICA pestaña que escribe activos, y la única que se filtra por permiso.
+  // Va la última a propósito: se llega a ella después de haber mirado la línea,
+  // no antes. Y `soloAdmin` es COSMÉTICO —esconder una pestaña no impide nada—;
+  // quien decide de verdad son las reglas de la base. Existe para que quien no
+  // pueda cargar no descubra que no puede después de media hora de trabajo.
+  { id: 'cargar', rotulo: 'Cargar', lista: true, soloAdmin: true },
 ] as const;
 
 type IdPestana = (typeof PESTANAS)[number]['id'];
+
+/** Si una pestaña exige permiso de administración para siquiera enseñarse. */
+const soloAdmin = (p: (typeof PESTANAS)[number]): boolean => 'soloAdmin' in p && p.soloAdmin === true;
 
 // ── Pestaña RESUMEN: mapa + tarjetas como la pantalla del módulo original ───
 
@@ -554,17 +564,46 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
     /** Por qué se abrió esta línea y no la que pedía el enlace. */
     avisoRuta?: string; lineas?: TLinea[] }) {
 
+  // Quién entró y con qué permiso. Solo lo consume la pestaña que ESCRIBE.
+  const sesion = useSesion();
+  const esAdmin = sesion.fase === 'autenticado' && sesion.rol === 'admin';
+
+  /**
+   * Las pestañas que esta sesión puede ver.
+   *
+   * ⚠️ Mientras la sesión se está comprobando, la de administración NO aparece:
+   * el defecto contrario —enseñarla y quitarla al llegar la respuesta— haría que
+   * la fila de pestañas saltara justo cuando él va a pulsar, y acabaría entrando
+   * en otra pantalla sin saber por qué.
+   */
+  const visibles = useMemo(
+    () => PESTANAS.filter((p) => !soloAdmin(p) || esAdmin),
+    [esAdmin],
+  );
+
   // ── El estado VIVE EN LA DIRECCIÓN WEB ──────────────────────────────────
   // Era el bloqueante nº6 de la crítica: sin esto no se puede mandar «mira
   // LN-627 en Cargas» por chat, y en una herramienta cuyo oficio es hacer
   // BARATO comprobar al ingeniero, encarecer justo la comprobación es un
   // contrasentido. De paso, Atrás/Adelante dejan de mentir.
+  //
+  // Una dirección que pida una pestaña que esta sesión no puede ver cae en
+  // Resumen: es lo mismo que ocurre con una línea que no es suya, y por el mismo
+  // motivo — un enlace no otorga permisos.
   const leerHash = (): IdPestana | null => {
     const m = /^#\/[^/]*\/([a-z]+)$/.exec(location.hash);
     const id = m?.[1];
-    return PESTANAS.some((p) => p.id === id && p.lista) ? (id as IdPestana) : null;
+    return visibles.some((p) => p.id === id && p.lista) ? (id as IdPestana) : null;
   };
   const [activa, setActiva] = useState<IdPestana>(() => leerHash() ?? 'resumen');
+
+  useEffect(() => {
+    // Si la sesión resultó no ser de administración DESPUÉS de haber entrado por
+    // enlace directo, se sale de la pestaña en vez de dejarla pintada sin estar
+    // en la fila de arriba: una pantalla a la que no se puede volver es peor que
+    // ninguna.
+    if (!visibles.some((p) => p.id === activa)) setActiva('resumen');
+  }, [visibles, activa]);
 
   const irA = (id: IdPestana) => {
     setActiva(id);
@@ -590,7 +629,7 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
   // Patrón ARIA de pestañas: flechas ←/→ recorren solo las pestañas LISTAS.
   const conFlechas = (e: KeyboardEvent<HTMLElement>) => {
     if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
-    const listas = PESTANAS.filter((p) => p.lista);
+    const listas = visibles.filter((p) => p.lista);
     const i = listas.findIndex((p) => p.id === activa);
     const j = (i + (e.key === 'ArrowRight' ? 1 : listas.length - 1)) % listas.length;
     irA(listas[j].id);
@@ -666,7 +705,7 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
         <nav className="col-secciones" aria-label="Secciones">
           <div className="col-rotulo">Secciones</div>
           <div className="pestanas" role="tablist" aria-label="Secciones de la línea" onKeyDown={conFlechas}>
-            {PESTANAS.map((p) => (
+            {visibles.map((p) => (
               <button
                 key={p.id}
                 id={`pestana-${p.id}`}
@@ -725,6 +764,14 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
         {activa === 'cargas' && <Cargas linea={linea} apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} />}
         {activa === 'cantidades' && <Cantidades linea={linea} apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} />}
         {activa === 'exportar' && <Exportar linea={linea} apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} investigaciones={investigaciones} />}
+        {/* La sesión se vuelve a comprobar aquí: `visibles` decide si la pestaña
+            se enseña, y esto decide si el panel se pinta. Son dos guardas del
+            mismo hecho a propósito — la primera puede quedarse vieja si el
+            permiso cambia con la pantalla abierta. */}
+        {activa === 'cargar' && sesion.fase === 'autenticado' && (
+          <Cargar linea={linea} apoyos={apoyos}
+            sesion={{ correo: sesion.correo, rol: sesion.rol, orgId: sesion.orgId, uid: sesion.uid }} />
+        )}
       </div>
         </div>
       </div>

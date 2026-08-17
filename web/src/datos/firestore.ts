@@ -10,12 +10,36 @@
 // ============================================================================
 import { AccionCapa, AnalisisCausa, Apoyo, Evidencia, Hipotesis, Investigacion, Linea, ParteDeAccion, ParteDeAnalisis, SondeoClima } from '@lineas/contratos';
 import { cargarFirebase } from './cargar';
-import type { EstadoDatos, EstadoSesion, Repositorio } from './repositorio';
+import type { EstadoDatos, EstadoSesion, Repositorio, ResultadoCarga } from './repositorio';
 
 // El SDK de Firestore viaja DENTRO del trozo diferido de Firebase (ver
 // `cargar.ts`). Este archivo es diminuto y va en el paquete principal: así hay
 // UNA sola frontera de carga, no dos encadenadas.
 const firestore = () => import('firebase/firestore');
+
+/**
+ * Copia un documento dejando fuera las claves cuyo valor es `undefined`.
+ *
+ * El SDK del navegador **lanza** si encuentra un `undefined` dentro de lo que se
+ * manda, y en un lote eso tumba la escritura entera: los tres puntos buenos se
+ * caen por culpa de una cota que el GPS no grabó. El sembrador de la máquina del
+ * Ingeniero corría con `ignoreUndefinedProperties` y se las tragaba en silencio;
+ * aquí no existe esa opción, así que la clave sencillamente no viaja — que
+ * además es lo que el molde espera de un campo opcional.
+ *
+ * `null` SÍ viaja: un nulo declarado es un dato («esto no se midió»), no una
+ * ausencia. `deflexion_grados` es exactamente ese caso.
+ */
+function sinIndefinidos(x: Record<string, unknown>): Record<string, unknown> {
+  const salida: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(x)) {
+    if (v === undefined) continue;
+    salida[k] = (v !== null && typeof v === 'object' && !Array.isArray(v))
+      ? sinIndefinidos(v as Record<string, unknown>)
+      : v;
+  }
+  return salida;
+}
 
 /** Convierte lo que venga de la base en algo que el contrato acepte, o lo descarta. */
 function validar<T>(esquema: { safeParse: (x: unknown) => { success: boolean; data?: T } }, crudo: unknown): T | null {
@@ -24,11 +48,31 @@ function validar<T>(esquema: { safeParse: (x: unknown) => { success: boolean; da
 }
 
 export const repositorioFirestore: Repositorio = {
+  /**
+   * Quién entró, y CON QUÉ PERMISO.
+   *
+   * El permiso y la organización viajan en el token desde el día 1 y hasta hoy
+   * no los leía nadie: la aplicación entera funcionaba sin saber con qué
+   * credencial se había entrado. Mientras solo se leía daba igual. Desde que se
+   * puede escribir, no: quien no sea administrador se enteraría de que no puede
+   * cargar un punto por una denegación de la base — tarde, sin causa y con el
+   * archivo del GPS ya puesto en pantalla.
+   *
+   * ⚠️ Si el token no se puede leer, esto NO tumba la sesión: se declara el
+   * permiso más bajo y se sigue. Ésta es una capa de higiene, y una capa
+   * opcional nunca tiene veto sobre una esencial (`31 · L-11`) — la frontera de
+   * verdad son las reglas de la base, que miran el mismo token del otro lado.
+   */
   async sesion(): Promise<EstadoSesion> {
-    const { esperarSesion } = await cargarFirebase();
+    const { esperarSesion, credenciales } = await cargarFirebase();
     const u = await esperarSesion();
     if (!u) return { fase: 'sin_sesion' };
-    return { fase: 'autenticado', uid: u.uid, correo: u.email };
+    try {
+      const { rol, orgId } = await credenciales(u);
+      return { fase: 'autenticado', uid: u.uid, correo: u.email, rol, orgId };
+    } catch {
+      return { fase: 'autenticado', uid: u.uid, correo: u.email, rol: 'ninguno', orgId: '' };
+    }
   },
 
   async listarLineas(): Promise<Linea[]> {
@@ -154,6 +198,126 @@ export const repositorioFirestore: Repositorio = {
       : undefined;
 
     return { fase: 'listo', linea, apoyos, conductor: linea.conductor, hipotesis, investigaciones, evidencias, noSePudoLeer };
+  },
+
+  /**
+   * ⚠️ LA ÚNICA ESCRITURA DE ESTE SISTEMA QUE NO SE PUEDE DESHACER NI CORREGIR.
+   *
+   * Las reglas niegan `delete` sobre apoyos y congelan `orgId`, `creadoPor` y
+   * `creadoEn` en cualquier edición posterior. Un punto mal cargado se queda
+   * cargado. Todo lo que sigue existe por eso, y en este orden a propósito:
+   *
+   *   1. **Se comprueba el permiso ANTES de mandar nada.** Un lote es atómico y
+   *      su denegación es opaca: la base no dice cuál de los documentos la
+   *      causó, ni por qué. Preguntar aquí convierte «permiso denegado» en una
+   *      frase que se entiende.
+   *   2. **`creadoPor` se sella con la sesión abierta**, nunca con lo que venga
+   *      de fuera: `firestore.rules` exige que el autor sea exactamente quien
+   *      escribe, y es el único rechazo campo por campo que hay.
+   *   3. **`orgId` se toma del TOKEN**, por lo mismo que en `crearAnalisis`: no
+   *      se manda algo que se sabe que la base va a negar.
+   *   4. **Cada documento se valida contra el molde ANTES de mandarlo.** Las
+   *      reglas NO miran el contenido de un apoyo — no hay `hasOnly` —, así que
+   *      este `safeParse` es la única defensa que tiene la forma del dato.
+   *   5. **Se mira con `getDoc` si el punto ya existe.** Un `set` sobre un id
+   *      que ya está NO da error: sobrescribe. Y sobrescribir aquí sería un
+   *      punto pisando a otro, con sus fotos y su expediente colgando.
+   *
+   * Lo que falla punto a punto NO lanza: viaja en el resultado, para que el
+   * acuse pueda decir qué entró, qué ya estaba y qué se rechazó.
+   */
+  async cargarPuntosNuevos(
+    documentos: Record<string, unknown>[],
+    idsYaCargados: string[] = [],
+  ): Promise<ResultadoCarga> {
+    const { esperarSesion, credenciales, baseDatos } = await cargarFirebase();
+    const { doc, writeBatch } = await firestore();
+    const u = await esperarSesion();
+    if (!u) throw new Error('No hay ninguna sesión abierta: no se puede cargar ningún punto.');
+
+    const { rol, orgId } = await credenciales(u);
+    if (rol !== 'admin') {
+      throw new Error(
+        `Su sesión entró con el permiso «${rol}», y crear puntos de una línea es acto de administración. `
+        + 'No se ha mandado nada a la base. Si esto le sorprende, es que el permiso de su cuenta cambió: '
+        + 'hay que revisarlo antes de cargar, no después.',
+      );
+    }
+    if (!orgId) {
+      throw new Error(
+        'Su sesión no declara a qué organización pertenece, y un punto sin organización no lo puede leer '
+        + 'nadie después — ni usted. No se ha mandado nada a la base.',
+      );
+    }
+
+    const db = await baseDatos();
+    const yaCargados = new Set((idsYaCargados ?? []).map(String));
+    const escritos: string[] = [];
+    const yaEstaban: string[] = [];
+    const rechazados: { nombre: string; motivo: string }[] = [];
+    const pendientes: { nombre: string; ref: ReturnType<typeof doc>; documento: Record<string, unknown> }[] = [];
+
+    for (const crudo of documentos ?? []) {
+      // El punto se nombra por su NOMBRE en todo lo que vuelve a la pantalla:
+      // el acuse lo lee una persona, y un identificador interno no le dice nada
+      // a nadie.
+      const nombre = String(crudo?.nombreNormalizado ?? crudo?.nombreCampo ?? 'punto sin nombre');
+      const sellado = sinIndefinidos({ ...crudo, orgId, creadoPor: u.uid });
+
+      const r = Apoyo.safeParse(sellado);
+      if (!r.success) {
+        const p = r.error.issues[0];
+        const donde = p?.path?.length ? ` (en «${p.path.join('.')}»)` : '';
+        rechazados.push({ nombre, motivo: `${p?.message ?? 'motivo desconocido'}${donde}` });
+        continue;
+      }
+
+      // ⚠️ SE COMPRUEBA CONTRA LOS APOYOS QUE LA PANTALLA YA TIENE, NO PREGUNTÁNDOLE
+      // A LA BASE SI EL PUNTO EXISTE.
+      //
+      // Preguntar parecía lo prudente y era justo lo que rompía la pantalla
+      // entera: `puedeLeer()` (firestore.rules) decide mirando
+      // `resource.data.orgId`, y en un documento que TODAVÍA NO EXISTE no hay
+      // `resource` que mirar. La base no contesta «no está»: DENIEGA. Y como el
+      // caso normal aquí es cargar puntos que aún no existen, fallaba siempre en
+      // el primero — con «Missing or insufficient permissions» en inglés, dos
+      // líneas debajo de donde la propia pantalla acaba de decir que el permiso
+      // es de administrador.
+      //
+      // La lista de apoyos ya cargados la tiene la aplicación en memoria: es la
+      // misma con la que pinta el mapa y con la que se calculó el antes/después
+      // que el Ingeniero acaba de aprobar. Comprobar contra ella es igual de
+      // fiable para este caso y no necesita ni una lectura más.
+      if (yaCargados.has(String(r.data.id))) {
+        yaEstaban.push(nombre);
+        continue;
+      }
+      const ref = doc(db, 'apoyos', r.data.id);
+      // ⚠️ SE GUARDA LO QUE SALIÓ DEL MOLDE (`r.data`), no lo que entró
+      // (`sellado`). Validar una cosa y escribir otra es la peor forma de este
+      // fallo: la comprobación da tranquilidad y a la base llega el objeto que
+      // nadie miró, con los campos de más que el molde habría quitado. Y en
+      // apoyos no hay deshacer.
+      //
+      // Se vuelve a pasar por `sinIndefinidos` porque el molde puede devolver
+      // una clave opcional presente y sin valor, y el SDK lanza con eso dentro:
+      // un `undefined` tumbaría el lote entero, o sea los puntos buenos también.
+      const validado = sinIndefinidos(r.data as unknown as Record<string, unknown>);
+      pendientes.push({ nombre, ref, documento: validado });
+    }
+
+    // Se escribe lo VALIDADO, en un solo lote: los puntos de una misma jornada
+    // entran juntos o no entra ninguno. Un lote vacío no se manda — pedirle a la
+    // base que no haga nada solo sirve para que un fallo de red se lea como un
+    // fallo de carga.
+    if (pendientes.length) {
+      const lote = writeBatch(db);
+      for (const p of pendientes) lote.set(p.ref, p.documento);
+      await lote.commit();
+      escritos.push(...pendientes.map((p) => p.nombre));
+    }
+
+    return { escritos, yaEstaban, rechazados };
   },
 
   /**

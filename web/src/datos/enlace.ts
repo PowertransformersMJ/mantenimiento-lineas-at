@@ -20,7 +20,7 @@ import { useSyncExternalStore } from 'react';
 import type { AccionCapa, AnalisisCausa, Evidencia, Linea, SondeoClima } from '@lineas/contratos';
 import { cargarFirebase } from './cargar';
 import { puertaDeAcceso } from '@lineas/contratos';
-import { repositorio, usarRepositorio, type EstadoDatos, type EstadoRca } from './repositorio';
+import { repositorio, usarRepositorio, type EstadoDatos, type EstadoRca, type EstadoSesion, type ResultadoCarga } from './repositorio';
 import { leerRuta } from './ruta';
 import { repositorioFirestore } from './firestore';
 
@@ -60,6 +60,16 @@ class Almacen {
   #rca: EstadoRca = { fase: 'cerrado' };
   /** La dirección de la línea desde la que se abrió el RCA, para volver al sitio exacto. */
   #hashPrevio: string | null = null;
+  /**
+   * QUIÉN entró y con qué permiso. Vive AQUÍ, en el único puente, y no en un
+   * gancho suelto de cada pantalla: dos pantallas preguntando por su cuenta son
+   * dos respuestas que pueden discrepar, y ésta decide si una pestaña que
+   * escribe en la base se enseña o no.
+   *
+   * Arranca en «comprobando» a propósito: mientras no se sepa, no se afirma que
+   * no hay permiso — se dice que todavía no consta.
+   */
+  #sesion: EstadoSesion = { fase: 'comprobando' };
   #oyentes = new Set<Oyente>();
 
   leer = (): EstadoDatos => this.#estado;
@@ -75,6 +85,10 @@ class Almacen {
   }
 
   #avisar(): void { for (const o of this.#oyentes) o(); }
+
+  leerSesion = (): EstadoSesion => this.#sesion;
+
+  #ponerSesion(s: EstadoSesion): void { this.#sesion = s; this.#avisar(); }
 
   // ── El segmento RCA ───────────────────────────────────────────────────────
 
@@ -296,6 +310,51 @@ class Almacen {
     }
   }
 
+  /**
+   * Crea puntos nuevos de la línea que está abierta y **relee la línea entera**
+   * desde la base.
+   *
+   * La relectura no es cortesía: es lo que impide el peor final de esta
+   * pantalla. Sin ella, quien acaba de cargar dos puntos vería la línea exacta
+   * que tenía antes —26 puntos— y lo natural sería volver a pulsar el botón. Y
+   * un apoyo no se puede borrar.
+   *
+   * Se relee AUNQUE la escritura haya ido a medias: si de tres puntos entraron
+   * dos, lo que hay en la base son 28, y es eso lo que tiene que verse.
+   *
+   * Lo que falla LANZA hacia la pantalla, a diferencia del resto de escrituras
+   * de este archivo, que dejan el aviso en el estado. Aquí quien llama necesita
+   * el motivo entero para el acuse y para el acta: un acto sin deshacer no se
+   * puede resumir en «no se pudo».
+   */
+  async cargarPuntos(documentos: Record<string, unknown>[]): Promise<ResultadoCarga> {
+    conectarBase();
+    const e = this.#estado;
+    // Los apoyos que la aplicación YA tiene: son con los que se calculó el
+    // antes/después que el Ingeniero acaba de aprobar. Van a la escritura para
+    // saber si algún punto estaba ya cargado SIN preguntárselo a la base — esa
+    // pregunta, sobre un documento que aún no existe, la deniegan las reglas.
+    const yaCargados = e.fase === 'listo' ? e.apoyos.map((a) => a.id) : [];
+    return await repositorio.cargarPuntosNuevos(documentos, yaCargados);
+  }
+
+  /**
+   * Relee la línea DESPUÉS de una carga, y solo cuando el Ingeniero lo pide.
+   *
+   * Antes esto se hacía solo, en un `finally`, y era peor que no hacerlo:
+   * `abrir()` pone la aplicación en fase «cargando», y en esa fase `App.tsx`
+   * sustituye la pantalla entera de la línea. Eso destruía la pestaña Cargar en
+   * el mismo instante en que terminaba de escribir — y con ella el acuse de qué
+   * entró, qué quedó fuera y por qué, y el botón del acta. Sobre unos apoyos que
+   * NO se pueden borrar ni corregir, el Ingeniero se quedaba sin ningún papel
+   * que demostrara lo que acababa de hacer. Ahora el acuse manda: la línea se
+   * refresca cuando él ya lo ha leído y lo pide.
+   */
+  async refrescarLinea(): Promise<void> {
+    const e = this.#estado;
+    if (e.fase === 'listo') await this.abrir(e.linea.id, e.lineas);
+  }
+
   /** Carga la línea que el usuario tenga permiso de ver. Nunca inventa nada. */
   async cargar(): Promise<void> {
     this.poner({ fase: 'cargando' });
@@ -306,6 +365,10 @@ class Almacen {
       const { recogerRedireccion } = await cargarFirebase();
       await recogerRedireccion();
       const s = await repositorio.sesion();
+      // Se guarda SIEMPRE, también cuando no hay sesión: «no hay sesión» es una
+      // respuesta, y una pantalla que no la reciba se quedaría comprobando para
+      // siempre.
+      this.#ponerSesion(s);
       if (s.fase !== 'autenticado') return this.poner({ fase: 'sin_sesion' });
 
       // LA PUERTA, y va AQUÍ a propósito: después de comprobar la sesión y
@@ -389,4 +452,17 @@ export function useDatos(): EstadoDatos {
 /** El gancho del segmento RCA. Misma suscripción, otro trozo del estado. */
 export function useRca(): EstadoRca {
   return useSyncExternalStore(almacen.suscribir, almacen.leerRca, almacen.leerRca);
+}
+
+/**
+ * Quién entró y con qué permiso. Misma suscripción, otro trozo del estado.
+ *
+ * ⚠️ Lo que decide esto es COSMÉTICO. Esconder una pestaña no impide nada: quien
+ * quisiera podría llamar a la base igual. Quien de verdad decide son las reglas
+ * de Firestore, del otro lado. Esto existe para que la persona vea con qué
+ * permiso entró antes de trabajar media hora en una carga que la base va a
+ * negar.
+ */
+export function useSesion(): EstadoSesion {
+  return useSyncExternalStore(almacen.suscribir, almacen.leerSesion, almacen.leerSesion);
 }
