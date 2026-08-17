@@ -1,0 +1,53 @@
+{
+  "_queEsEsto": "Libro de DECISIONES YA TOMADAS por el Ingeniero sobre puntos de una línea que todavía NO están cargados. Es MEMORIA, no criterio. Aquí no entra ni una línea que el sistema haya deducido: cada fila la decidió él, con fecha. La pantalla «Cargar» lo lee para no volver a preguntarle lo que ya contestó, y enseña SIEMPRE de dónde sale cada cosa. Si de un dato no se puede decir quién lo decidió y cuándo, no se enseña.",
+  "_deDondeSale": "Extracto REDACTADO del fixture de la bóveda donde el Ingeniero autora cada punto. Lo produce herramientas/publicar-decisiones.mjs con LISTA BLANCA de campos: un campo nuevo en la bóveda NO aparece aquí hasta que alguien lo añada a esa lista a propósito. La bóveda sigue siendo el único sitio donde la decisión se escribe por primera vez, y el sembrador la sigue leyendo de allí.",
+  "_queNOentraAqui": "Ni una coordenada, ni una cota, ni una hora de captura, ni el nombre de campo del GPS, ni el nombre de ninguna subestación, ni una distancia medida, ni un azimut, ni las cifras de la línea antes y después. Las cifras las calcula la pantalla con el motor de siempre (importar/plan.js), corrido dos veces. Un segundo sitio con los mismos números es el sitio donde algún día discrepan. Este archivo no contiene NI UN SOLO NÚMERO en JSON, y hay una prueba que lo exige.",
+  "_estoNoDaIdentidad": "Que un nombre esté aquí NO le da identidad. La identidad la da SOLO herramientas/semillas-emitidas.json. Un nombre decidido pero sin semilla emitida no se puede cargar desde la aplicación, y así debe ser: quien pueda estrenar nombres puede estrenar identidades permanentes.",
+  "_cuandoDejaDeMandar": "En cuanto el punto está cargado, la verdad es la base. CARGADO manda sobre FIRMADO. Esta fila queda como historia de lo que él decidió ANTES de cargar, y la pantalla solo la consulta mientras el nombre siga disponible.",
+  "_seApendaNoSePisa": "Cambiar de opinión NO reescribe ninguna fila. Se APENDA otra, con su fecha. Vale la ÚLTIMA fechada sobre ese nombre; las anteriores se quedan porque son hechos, no borradores. Es la misma regla que gobierna el libro de identidad y el fixture de la bóveda.",
+  "_comoSeLee": "El lector toma las claves con nombre —«decisiones» y «pendientes»— y NUNCA recorre las claves de la página de la línea. El libro de identidad sí las recorre, y por eso allí una clave suelta se leería como un nombre de punto.",
+  "LN-627": {
+    "decisiones": [
+      {
+        "sobre": "LN-627 EMP E03-E04",
+        "decididoPor": "el Ingeniero",
+        "decididoEn": "2026-08-16",
+        "origenDelLevantamiento": "ampliación 11-12 AGO 2026",
+        "estado": "aprobado",
+        "tipoPunto": "Empalme",
+        "sitio": {
+          "insertarDespuesDe": "LN-627 E03"
+        },
+        "funcionEstructural": "Suspensión",
+        "funcionConfirmada": false,
+        "porQue": "Empalme nuevo, dentro del vano E03 → E04. Se declara Suspensión igual que los dos empalmes de julio: da lo mismo para el cálculo, porque un empalme no es apoyo y no abre vano, pero se declara en vez de dejarse al defecto."
+      },
+      {
+        "sobre": "LN-627 PORTICO FIN",
+        "decididoPor": "el Ingeniero",
+        "decididoEn": "2026-08-16",
+        "origenDelLevantamiento": "ampliación 11-12 AGO 2026",
+        "estado": "aprobado",
+        "tipoPunto": "Estructura",
+        "sitio": {
+          "insertarAlFinal": true
+        },
+        "funcionEstructural": "Terminal",
+        "funcionConfirmada": true,
+        "funcionConfirmadaEn": "2026-08-17",
+        "porQue": "Es el pórtico de subestación del extremo final: ancla el conductor por definición, y por eso aquí se corta el último tramo de tensión. El 17 de agosto de 2026 usted declaró que ese pórtico es el final de la línea, así que el papel entra CONFIRMADO por usted y no supuesto."
+      }
+    ],
+    "pendientes": [
+      {
+        "sobre": "LN-627 PORTICO ORIGEN",
+        "decididoPor": "el Ingeniero",
+        "decididoEn": "2026-08-16",
+        "estado": "pendiente_verificacion",
+        "porQue": "Usted quiere verificarlo en campo antes de darlo por bueno. Pendiente no es descartado.",
+        "seOfreceEnLaPantalla": false,
+        "porQueNoSeOfrece": "No tiene nombre emitido en el libro de identidad, así que esta pantalla no puede darle identidad; y va ANTES del primer punto cargado, que es un camino que todavía no existe."
+      }
+    ]
+  }
+}

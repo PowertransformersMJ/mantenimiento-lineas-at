@@ -148,7 +148,47 @@ ${supuestas.length
     + 'De ese papel sale dónde se corta el tramo de tensión, y con eso el cálculo mecánico. '
     + 'La ficha de cada uno lo dirá mientras siga sin confirmar.</p>'
   : parrafo('Todos los papeles estructurales de esta carga los confirmó el Ingeniero.')}
-${bloquePorQue}`;
+${bloquePorQue}
+${loQueYaHabiaFirmado(puntos)}`;
+}
+
+/**
+ * Lo que el Ingeniero ya había decidido ANTES de esta carga, y en qué se apartó
+ * hoy de aquello.
+ *
+ * POR QUÉ ESTÁ EN EL ACTA Y NO EN OTRO SITIO. El molde de los datos guarda lo
+ * que se cargó; no tiene dónde guardar que el 16 de agosto se decidió una cosa y
+ * que el día de la carga se cargó otra. Las dos son hechos. Un cambio de opinión
+ * sin rastro deja el libro de decisiones diciendo algo distinto de lo que hay en
+ * la base, y entonces no se sabe cuál de los dos mirar.
+ *
+ * Solo aparece si hay algo que declarar: un bloque que dice «no había nada
+ * firmado» en cada carga enseña a saltárselo.
+ */
+function loQueYaHabiaFirmado(puntos) {
+  const conRastro = puntos.filter(
+    (p) => lista(p.ratificoDeLoFirmado).length || lista(p.cambioSobreLoFirmado).length);
+  if (!conRastro.length) return '';
+
+  const filas = conRastro.map((p) => {
+    const ratifico = lista(p.ratificoDeLoFirmado);
+    const cambio = lista(p.cambioSobreLoFirmado);
+    return `<li><b>${esc(p.nombre)}</b>
+      ${ratifico.length
+        ? `<br>Ratificó hoy, tal como lo decidió en su día: <ul>${
+          ratifico.map((r) => `<li>${esc(r)}</li>`).join('')}</ul>`
+        : ''}
+      ${cambio.length
+        ? `<br><span class="sello sello-nulo">cambió de opinión</span> <ul>${
+          cambio.map((c) => `<li>${esc(c)}</li>`).join('')}</ul>`
+        : ''}</li>`;
+  });
+
+  return `<h3>Lo que ya había decidido antes de esta carga</h3>
+${parrafo('Estos puntos ya tenían una decisión suya, firmada y fechada, en el libro del '
+  + 'repositorio. Aquí queda escrito qué ratificó tal cual y en qué se apartó hoy. '
+  + '<b>Manda lo que se cargó</b>; lo decidido aquel día no se borra, porque también pasó.')}
+<ul>${filas.join('')}</ul>`;
 }
 
 // ── 3 · Lo que NO se cargó ──────────────────────────────────────────────────

@@ -849,6 +849,54 @@ p.fund-vivo + .sello-calculo { margin-top: 5px; }
 .cargar-lista { margin: 6px 0 0; padding-left: 18px; line-height: 1.6; }
 .cargar-lista li { margin-bottom: 3px; }
 
+/* ── LO QUE ÉL YA FIRMÓ (ADR-029) ─────────────────────────────────────────
+   Lo recordado va tintado de AZUL, que en esta hoja es el color de «esto lo
+   dice el sistema porque usted lo dijo antes» —el mismo de la cabecera de
+   sesión—, y nunca del ámbar de aviso ni del verde de aprobado: un recuerdo
+   no es una alarma y tampoco es una aprobación. La distinción tiene que
+   verse ANTES de leerse, porque lo que se está evitando es exactamente que
+   una memoria se confunda con un dictamen del sistema. */
+.cargar-firmado {
+  margin: 10px 0 0; padding: 9px 12px;
+  background: var(--t-azul); border-left: 3px solid var(--az);
+  border-radius: 0 6px 6px 0;
+  color: var(--tx2); font-size: 12px; line-height: 1.6;
+}
+.cargar-firmado p { margin: 0 0 6px; }
+.cargar-firmado p:last-child { margin-bottom: 0; }
+.cargar-firmado-t {
+  font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .6px;
+  color: var(--tx);
+}
+/* El sello de UN valor recordado. Va pegado debajo del control, nunca en una
+   ayuda aparte: el valor y su procedencia son una sola cosa. */
+.cargar-sello {
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  margin: 4px 0 0; padding: 5px 9px;
+  background: var(--t-azul); border-left: 2px solid var(--b-azul);
+  border-radius: 0 5px 5px 0;
+  font-size: 11.4px; line-height: 1.5; color: var(--tx3);
+}
+.cargar-sello b { color: var(--tx); font-weight: 600; }
+.cargar-sello .boton { margin: 0; padding: 2px 8px; }
+/* Se apartó de lo que firmó. No es un error ni un bloqueo —manda lo de hoy—,
+   pero las dos cosas son hechos y el acta lleva las dos. */
+.cargar-cambio {
+  margin: 4px 0 0; padding: 7px 11px; border-radius: 0 6px 6px 0;
+  background: var(--t-ambar); border-left: 3px solid var(--acc);
+  color: var(--tx-aviso); font-size: 11.5px; line-height: 1.55;
+}
+/* Lo que él dejó pendiente de verificar en campo: se nombra y no se ofrece.
+   Pendiente no es descartado; por eso se ve, y por eso no tiene botón. */
+.cargar-pendiente {
+  margin: 10px 0 0; padding: 9px 12px;
+  background: var(--pnl2); border-left: 3px solid var(--bd-tenue);
+  border-radius: 0 6px 6px 0;
+  color: var(--tx-pendiente); font-size: 11.8px; line-height: 1.6;
+}
+.cargar-pendiente p { margin: 0 0 6px; }
+.cargar-pendiente p:last-child { margin-bottom: 0; }
+
 /* La confirmación en frío. Va tintada de ROJO, que en esta hoja no significa
    «error» sino «sin vuelta atrás», y es exactamente lo que hay que decir. */
 .cargar-confirmar {

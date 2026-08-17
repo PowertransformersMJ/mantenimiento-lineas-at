@@ -97,8 +97,11 @@ mantenimiento-lineas-at/
 │                                de exportar/: gpx.js (leer lo que trae la cuadrilla) · identidad.js
 │                                (BUSCA el id en el registro de semillas; NUNCA lo acuña) · punto.js
 │                                (construye UN punto, jamás reconstruye los que ya están) · plan.js
-│                                (el antes/después con el motor de siempre). CERO `node:`: corre en
-│                                el navegador y se prueba en Node. Lo consume componentes/Cargar.tsx
+│                                (el antes/después con el motor de siempre) · **decisiones.js**
+│                                (ADR-029: lee lo que él YA FIRMÓ; solo devuelve valores con su
+│                                fecha, y NUNCA `Object.keys` de la página — eso lo hace identidad.js
+│                                y aquí convertiría una clave suelta en un punto suyo). CERO `node:`:
+│                                corre en el navegador y se prueba en Node. Lo consume Cargar.tsx
 ├── evidencias/                  🚪 EL PORTERO (Cloudflare Worker, ADR-010): verifica la FIRMA del
 │                                token de Firebase contra las llaves de Google y sirve las fotos
 │                                del depósito privado. No escribe, no borra, no lista.
@@ -106,6 +109,15 @@ mantenimiento-lineas-at/
 │                                ⚠️ usuarios.mjs — **la ÚNICA vía de alta de personas**: alta,
 │                                contrasena, rol, baja, restituir, auditar. Rechaza a propósito
 │                                recibir la contraseña por tubería o argumento (ADR-019)
+│   ├── semillas-emitidas.json   📗 EL LIBRO DE IDENTIDAD (ADR-027): quién ES cada punto. Solo crece;
+│   │                            una fila escrita NO SE TOCA JAMÁS — de ella cuelgan 99 fotos
+│   ├── decisiones-firmadas.json 📘 EL LIBRO DE DECISIONES (ADR-029): qué DECIDIÓ él sobre puntos que
+│   │                            todavía no están cargados. LIBRO MAYOR: se apenda, nunca se pisa, y
+│   │                            manda la última fechada. **NO da identidad** — eso solo lo da el
+│   │                            libro de arriba. Generado, no escrito a mano
+│   └── publicar-decisiones.mjs  el generador del anterior, con LISTA BLANCA de campos: un campo
+│                                nuevo en la bóveda NO se publica hasta que alguien lo añada a
+│                                propósito. Corre en local, jamás en CI (la bóveda no está allí)
 ├── firestore.rules              🔒 parte del CONTRATO, no configuración: RBAC por *claims* y un
 │   firebase.json                catch-all que niega todo lo no declarado. **Se despliega por SU
 │   firestore.indexes.json       canal**, no con el sitio (`31 · L-22`)
@@ -157,7 +169,11 @@ mantenimiento-lineas-at/
 │                                correo+contraseña y Google de reserva) · firestore · cargar
 │                                (reintentos) · clima.ts (IDEAM **desde el navegador**, porque el
 │                                proyecto no tiene cómputo servidor que no facture; y SOLO cuando el
-│                                Ingeniero lo pide, nunca al pintar)
+│                                Ingeniero lo pide, nunca al pintar) · **registroSemillas.ts** y
+│                                **registroDecisiones.ts**: UNA línea cada uno, la única que trae al
+│                                navegador los dos libros de `herramientas/`. La aplicación LEE y no
+│                                escribe: quien pueda escribirlos puede estrenar una identidad o
+│                                fabricar un recuerdo (ADR-027/029)
 ├── web/public/mapas/            recorte PMTiles metropolitano (4,3 MB, autohospedado)
 ├── web/public/basemaps-assets/  fuentes y sprites del mapa (autohospedados)
 ├── githooks/pre-commit          corre los gates y BLOQUEA el commit si el cerebro está mal

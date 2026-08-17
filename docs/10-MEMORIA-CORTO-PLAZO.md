@@ -14,13 +14,14 @@ carcasa (ADR-018) · RCA (ADR-020) · documental (ADR-021) · contexto real (ADR
 
 ## 🛑 LO PRIMERO AL RETOMAR
 
-1. **Los puntos GPS de agosto siguen SIN estar en producción, pero ya no por el código.**
-   La identidad se desató de la posición el 16-08 (`99 §ADR-027`) y el **contrato 0.5.0 YA ESTÁ
-   DESPLEGADO** (17-08: el pie de producción lo dice, bundle `index-q7uuvVg4.js`, 11 pestañas sin
-   regresión). **Solo falta la LLAVE ADMIN del Ingeniero** — hasta entonces la pantalla enseña julio
-   (24 estructuras · 2.929 m) y eso es correcto, no un fallo: lo preguntó el 17-08 al no verlos
-   (`30 · L-51`). Deuda ANTES de cargar el pórtico de ORIGEN: `subir-evidencias.mjs` todavía resuelve
-   la foto por `orden`. `TODO-69`.
+1. **Los puntos GPS de agosto siguen SIN estar en producción, y ya NO falta ninguna llave.**
+   La identidad se desató de la posición el 16-08 (`99 §ADR-027`), el **contrato 0.5.0 está
+   DESPLEGADO** y la pestaña **«Cargar» está en producción y funciona** — verificado en vivo el
+   17-08 con el Chrome del Ingeniero: la cabecera dice **«permiso admin»**, que era la incógnita de
+   11 días. Desde el 17-08 esa pantalla además **le RECUERDA lo que ya firmó** (`99 §ADR-029`), así
+   que no tiene que volver a contestar el pórtico ni el empalme. **Falta: que él suba el GPX y
+   cargue.** Deuda ANTES del pórtico de ORIGEN: `subir-evidencias.mjs` resuelve la foto por `orden`.
+   `TODO-69`.
 2. **Verificar que una acción FUNCIONÓ**, no solo que se hizo (`TODO-66`, `99 §ADR-026`): una acción que no sirvió es hoy indistinguible de una que sirvió.
 3. **El tope de tiro sigue sin decidir (TODO-33).** El molde de los datos ya trae
    `tiroAdmisible_pct` y `criterioTiroQueRige` (ADR-014), pero `vistas/tramos.ts`, `vientoDatos.ts`
@@ -47,6 +48,13 @@ mismo expediente · el molde RECHAZA escribir los dos campos a la vez · una cau
 las reglas y el rol · quien entra por Google pasa SIEMPRE (cerrojo que no aprovisiona nadie) · la
 marca se lee `=== true` estricto · ante cualquier duda, se deja pasar · el recibo se escribe DESPUÉS
 del cambio y solo si salió bien.
+
+**Recordar ≠ proponer (`99 §ADR-029`):** el veto de ADR-028 sigue ENTERO — sin decisión suya bajo ese
+nombre, el campo se queda VACÍO · las dos que él contesta siempre —**cuál de sus puntos es** y **si lo
+aprueba**— NO se heredan jamás, aunque el libro diga «aprobado» · ningún valor recordado se pinta sin
+su fecha (`SelloRecordado` es el único camino) · el libro se APENDA, nunca se pisa, y **CARGADO manda
+sobre FIRMADO** · `decisiones-firmadas.json` **no da identidad** (eso solo lo da el de semillas) y **la
+aplicación solo lo LEE**: quien pueda escribirlo puede fabricar un recuerdo.
 
 **Documentación (`99 §ADR-021/022`):** el verde de `brain:check` dice que el cerebro está bien
 CONSTRUIDO, **no que diga la verdad** · ninguna cifra se copia fuera de su nodo dueño · y lo que un
@@ -83,7 +91,7 @@ comité SUPONE entra con el mismo rango que lo que verifica (`30 · L-42`).
 
 | # | Qué | Dónde está el plan |
 |---|---|---|
-| **TODO-69** | **Sembrar los 2 puntos aprobados de agosto** (el 3.º lo dejó PENDIENTE el Ingeniero). **Ya no hace falta la llave**: el 17-08 se construyó la pestaña **«Cargar»** (`99 §ADR-028`) — él sube el GPX, contesta cinco preguntas por punto, ve el antes/después y confirma; la identidad se **busca** en el registro, el navegador no la acuña. Contrato 0.5.0 ya desplegado. **FALTA: desplegar la pestaña y verificar EN VIVO que su cuenta trae `rol: admin`** — nunca se ha comprobado contra producción (la app no leía el rol), y la cabecera de la pantalla existe justo para eso. Deuda ANTES del pórtico de ORIGEN: `subir-evidencias.mjs` resuelve la foto por `orden` | `99 §ADR-027/028` |
+| **TODO-69** | **Cargar los 2 puntos aprobados de agosto** (el 3.º —pórtico de ORIGEN— lo dejó PENDIENTE él, y la pantalla lo nombra sin ofrecerlo). Ya no hace falta llave ni volver a contestar: «Cargar» está en producción con `rol: admin` verificado, y **le recuerda lo que firmó el 16 y el 17** con la fecha pegada (`99 §ADR-029`). **FALTA: que él suba el GPX y cargue**, y verificar en vivo el recuerdo con su Chrome. Deuda ANTES del pórtico de ORIGEN: `subir-evidencias.mjs` resuelve la foto por `orden`. ⚠️ Si el día de la carga cambia algo de lo firmado, **hay que apendar la fila nueva a `decisiones-firmadas.json` por commit**: nada lo obliga, y la única constancia inmediata es el acta | `99 §ADR-027/028/029` |
 | **TODO-66** | **Que una acción pruebe que FUNCIONÓ**, no solo que se hizo. Lo dejó fuera el Ingeniero el 07-08 y queda como deuda declarada en `99 §ADR-026`: bloque de verificación posterior (cuándo, quién, si fue eficaz y cómo se comprobó); la cerrada queda «pendiente de verificar eficacia» hasta esa fecha | `99 §ADR-026` |
 | **TODO-50** | **Blindaje**: ✅ F1 · ✅ F2a · ✅ F3 pantalla de cambio · ⬜ **2b retirar Google** — espera la contraseña | `99 §ADR-019/024` |
 | **TODO-52** | RCA: solo queda el **lienzo del árbol** (cosmético; en papel la lista sangrada se lee igual) | `99 §ADR-020` |

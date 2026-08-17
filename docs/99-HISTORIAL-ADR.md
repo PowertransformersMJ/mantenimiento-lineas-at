@@ -2669,3 +2669,129 @@ las piezas, ninguna el ciclo completo.
 `research-archive/2026-08-17-workflow-importar-en-la-app.json` (reconocimiento, dos propuestas, el
 crítico con veto y el plan) · `research-archive/2026-08-17-workflow-construir-cargar.json`
 (construcción en cadena y las tres lentes adversariales, incluidas las dos pasadas).
+
+---
+
+## ADR-029 · 2026-08-17 · RECORDAR no es PROPONER: la pantalla le devuelve lo que él ya firmó, con la fecha pegada
+
+### Contexto
+
+La pestaña «Cargar» (ADR-028) parte del GPX **crudo** y no conoce nada anterior: le volvería a
+preguntar las cinco cosas de cada punto, **incluida la que confirmó el día antes**. El Ingeniero lo
+señaló con esas palabras: *«líneas anteriores te indiqué que confirmaba el pórtico de Membrillal y
+el nuevo empalme, lo único pendiente es el pórtico de Proelectrica»*. Y tenía razón: sus tres
+decisiones están tomadas y **fechadas** en el fixture de la bóveda desde el 16-08 (la del papel
+Terminal del pórtico del extremo final, del 17-08). En un sistema cuyo oficio es *hacerle barato
+comprobar que tiene razón*, hacerle repetir decisiones ya firmadas es exactamente lo contrario.
+
+El nudo: **el navegador no puede leer la bóveda**, y el repositorio es PÚBLICO con la regla dura de
+cero bytes de cliente.
+
+### Decisión
+
+**Un libro de decisiones en el repositorio público, que la aplicación solo LEE, y una pantalla que
+jamás pinta un valor recordado sin la fecha que lo respalda.**
+
+- **`herramientas/decisiones-firmadas.json`** — un solo archivo hermano del libro de identidad,
+  indexado por línea. **No se autora a mano:** es un extracto REDACTADO del fixture de la bóveda que
+  produce `herramientas/publicar-decisiones.mjs` con **lista blanca** de campos. La bóveda sigue
+  siendo el único sitio donde una decisión se escribe por primera vez, y `sembrar.mjs` /
+  `construir-apoyos.mjs` la siguen leyendo de allí: una sola dirección, bóveda → extracto →
+  navegador, sin ciclo y sin segunda autoría.
+- **Es un LIBRO MAYOR, no un diccionario.** `decisiones` es un array de filas fechadas: cambiar de
+  opinión **apenda**, nunca pisa. Manda la última fechada sobre ese nombre; las anteriores se quedan
+  porque son hechos. `pendientes` va en una lista aparte a propósito, para que el código que rellena
+  fichas no pueda tocarla ni por un `filter` mal escrito.
+- **Precedencia declarada: CARGADO manda sobre FIRMADO.** La pantalla solo consulta el libro para
+  nombres que siguen disponibles en el libro de identidad.
+- **`importar/decisiones.js`** (lector puro, sin `node:`) + **`web/src/datos/registroDecisiones.ts`**
+  (la única línea que trae el archivo, calcada de `registroSemillas.ts`).
+- **La pantalla:** bloque de cabecera con lo ya decidido · sello pegado a cada campo recordado con su
+  «Cambiar» al lado · aviso escrito cuando se aparta de lo que firmó · bloque del punto pendiente sin
+  casilla y sin botón · línea de cierre en el acuse · y el acta llevando **las dos cosas**, lo que
+  ratificó y en qué cambió.
+
+### La distinción, escrita para el que venga
+
+    PROPONER = el sistema deduce algo y lo deja marcado.        PROHIBIDO — sigue vetado.
+    RECORDAR = él lo decidió, con fecha y con firma, y la pantalla se lo devuelve
+               para que lo RATIFIQUE o lo cambie.
+
+**El veto de ADR-028 no se reabre.** Aquí no se deduce el papel estructural, ni el nombre canónico,
+ni en qué vano cae un punto: si no hay decisión suya bajo ese nombre, el campo se queda **vacío**,
+igual que antes. Y **las dos preguntas que él contesta siempre no se heredan jamás**:
+
+1. **«¿Cuál de sus puntos es éste?»** — es la que abre la puerta a las otras cuatro. Si se dedujera,
+   las demás se rellenarían solas desde una deducción del sistema **vestida con la fecha de él**. El
+   sistema no empareja: no por el nombre que grabó el aparato (dato del levantamiento, y ya se
+   equivocó una vez) ni por cercanía (±8 m; ordenar por distancia es un dictamen disfrazado de
+   lista). El recuerdo lo dispara SU elección.
+2. **La aprobación.** Aprobar es el ACTO irreversible; el recuerdo es memoria de una intención. La
+   casilla empieza vacía **siempre**, aunque el libro diga «aprobado», y la pantalla lo dice con esas
+   palabras.
+
+### Alternativas descartadas
+
+- **(b) Meter las decisiones dentro de `semillas-emitidas.json`.** La peor, y por un motivo mecánico:
+  `identidad.js:nombresDelRegistro` recorre `Object.keys` de la página y solo descarta las que
+  empiezan por `_`; una clave `decisiones` se convertiría en un **nombre canónico del desplegable**.
+  Y de fondo: ese archivo declara que una fila escrita NO SE TOCA JAMÁS porque sostiene 99 fotos y un
+  expediente; las decisiones son revisables y apendables. Dos ciclos de vida en las mismas filas
+  dejan al archivo sin poder enunciar ninguno de los dos invariantes.
+- **(c) Una colección en la base.** Reabre la alternativa #2 ya vetada en ADR-028 (dos fuentes que
+  solo convergen si alguien corre un script) y tiene un problema de arranque sin salida. Pero lo que
+  la mata es otra cosa: **una colección la puede escribir la aplicación, y quien puede escribir el
+  recuerdo puede FABRICARLO** — «decidido por usted el 16 de agosto» dejaría de ser verificable y
+  pasaría a ser una afirmación del sistema sobre sí mismo. Un archivo del repositorio solo cambia con
+  un commit, con autor y con diff. La memoria tiene que ser **infalsificable por la pantalla que la
+  enseña**; solo el repositorio lo cumple.
+- **(d) Que el Ingeniero aporte también el archivo.** Es devolverle el problema —él no programa—,
+  pero hay un motivo más duro: un archivo de decisiones que entra por el navegador es un archivo que
+  la aplicación no ha verificado contra el libro de identidad. Sería el camino por el que un error de
+  copia le pone su firma y su fecha a una decisión que nunca tomó, sobre un acto sin deshacer.
+- **Preseleccionar la casilla de aprobación** cuando el libro dice que él ya aprobó ese punto. Se
+  descartó: es la única de las cinco cuyo efecto no se puede deshacer, y un acto no se hereda de un
+  recuerdo. Lo que sí se hace es enseñarle, con su fecha, que aquel día lo aprobó — y dejar que el
+  clic de hoy sea suyo.
+
+### Lo que hay que decir con estas palabras, porque el próximo no lo va a deducir
+
+1. **La prueba de no-fuga es una LISTA NEGRA de formas, y las listas negras se quedan cortas.** La
+   defensa primaria es la **lista blanca** del generador, que además compara lo emitido contra la
+   bóveda de verdad — algo que ninguna prueba del repositorio puede hacer, porque en CI la bóveda no
+   está montada. Que el test esté verde **no autoriza a confiarle el archivo**.
+2. **La pendiente resbaladiza es el riesgo de fondo.** Hoy el archivo lleva lo que él decidió; el día
+   que alguien meta ahí una fila que el sistema **dedujo** y la pantalla la enseñe con fecha,
+   tendremos un dictamen con sello — **peor que el que ADR-028 vetó, porque parece firmado**. La
+   guardia es que el generador solo lee campos que él autoró, exige `decididoPor` y `decididoEn` para
+   emitir una fila, y exige prosa escrita a mano para cada punto.
+3. **Rellenar cuatro de cinco respuestas debilita el diseño anti-ancla de ADR-028**, y eso sigue
+   siendo verdad aunque el campo sea suyo: un campo ya puesto se confirma en vez de decidirse.
+   Mitigado con la pregunta 1 y la casilla nunca recordadas, el sello y el «Cambiar» pegados a cada
+   campo, y las distancias crudas intactas en pantalla. **Riesgo residual real: puede ratificar sin
+   releer.** Se acepta porque repetir lo ya firmado tiene su propio coste — repetir es donde se
+   cambia una respuesta por cansancio.
+
+### Consecuencias
+
+- Cargar los dos puntos de agosto deja de exigirle contestar de nuevo lo que firmó el 16 y el 17.
+- **Deriva bóveda↔repo sin red en CI:** el extracto se genera en local y CI no puede compararlo con
+  la bóveda. En la máquina del Ingeniero sí: la prueba «regenerar da exactamente el archivo
+  commiteado» se pone roja. Residual declarado: si alguien edita el JSON a mano, en CI no se entera
+  nadie. Es la misma limitación que `semillas-emitidas.json` ya acepta y declara.
+- **Divergencia después de cargar:** si el día de la carga cambia algo, manda lo de hoy y el acta
+  recoge las dos cosas, pero **la fila del libro queda desactualizada hasta que alguien apende la
+  nueva por commit, y nada obliga a hacerlo.** La constancia inmediata es el acta descargable.
+- **El nombre del pendiente entra al repo público sin semilla emitida.** No otorga identidad y no lo
+  hace cargable, pero invita a que alguien lo emita para «completar» el libro saltándose la
+  verificación de campo que él pidió. La prueba que exige que los nombres de `pendientes` NO estén en
+  el libro de identidad se pone roja ese día, obligando a que la decisión sea explícita.
+- **Sin verificar en vivo:** la pantalla nueva no se ha visto todavía contra producción con el
+  Chrome del Ingeniero.
+
+**NO revisada externamente.**
+
+### Crudo de respaldo
+
+`research-archive/2026-08-17-workflow-recordar-no-proponer.json` (la decisión de dónde vive el libro
+con su argumentación en contra, la lista blanca campo por campo, y la construcción en dos eslabones).

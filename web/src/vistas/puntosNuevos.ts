@@ -24,6 +24,12 @@
 import { vincenty } from '@lineas/nucleo/geodesia';
 import { FUNCIONES_ANCLA } from '@lineas/contratos';
 import type { Apoyo } from '@lineas/contratos';
+// El lector del libro de decisiones firmadas. Es PURO —ni DOM ni `node:`— y por
+// eso puede vivir en el mismo paquete que lee el GPX: lo que sale de él no es
+// una deducción, es lo que el Ingeniero escribió con su fecha.
+import {
+  decisionVigente, decisionesVigentes, enCastellano, loQueSeRecuerda, pendientesDe,
+} from '@lineas/importar/decisiones';
 // Los hermanos se importan CON extensión, como hace `estadoLinea.ts`: sin ella
 // este archivo solo lo sabe resolver el empaquetador, y entonces deja de poder
 // probarse con `node --test`. Un módulo que no se puede probar sin navegador
@@ -297,6 +303,424 @@ export function decisionDeLaFicha(f: FichaDeCarga): DecisionDeCarga {
   return d;
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+// LO QUE ÉL YA DECIDIÓ — memoria, jamás propuesta
+// ----------------------------------------------------------------------------
+// LA DISTINCIÓN QUE GOBIERNA TODO ESTE BLOQUE, y que no se puede perder de vista
+// al tocarlo:
+//
+//     PROPONER = el sistema deduce algo y lo deja marcado.        PROHIBIDO.
+//     RECORDAR = el Ingeniero ya lo decidió, con fecha y con firma,
+//                y esto se lo devuelve para que lo RATIFIQUE o lo cambie.
+//
+// El veto de ADR-028 sigue ENTERO en pie: aquí no se propone el papel
+// estructural, ni el nombre canónico, ni en qué vano cae un punto. Todo lo que
+// sale de estas funciones lo escribió él en `herramientas/decisiones-firmadas.json`
+// con su fecha, y viaja SIEMPRE pegado a esa fecha. Un valor sin sello no se
+// devuelve: se queda fuera.
+//
+// LAS DOS PREGUNTAS QUE NO SE RECUERDAN NUNCA, y no por olvido:
+//
+//   1. CUÁL DE SUS PUNTOS ES ÉSTE. Es la que abre la puerta a las otras cuatro.
+//      Si se dedujera, las demás se rellenarían solas a partir de una deducción
+//      del sistema vestida con la fecha de él. El recuerdo se dispara con SU
+//      acto de nombrar, y no antes.
+//   2. LA APROBACIÓN. Aprobar es el ACTO irreversible; el recuerdo es memoria de
+//      una intención. Que el 16 de agosto lo aprobara no lo aprueba hoy. La
+//      casilla empieza vacía SIEMPRE, y la pantalla dice por qué.
+// ════════════════════════════════════════════════════════════════════════════
+
+/** Los cuatro campos de la ficha que un recuerdo puede rellenar. Ni uno más. */
+export type CampoRecordado = 'tipoPunto' | 'sitio' | 'funcionEstructural' | 'funcionConfirmada';
+
+/** Cómo se llama cada uno en la pantalla — nunca el nombre del campo. */
+export const ROTULO_RECORDADO: Record<CampoRecordado, string> = {
+  tipoPunto: 'qué es',
+  sitio: 'dónde va',
+  funcionEstructural: 'qué papel estructural cumple',
+  funcionConfirmada: 'si firma usted ese papel estructural',
+};
+
+/**
+ * Un valor recordado con la fecha que lo respalda, **inseparables**.
+ *
+ * El valor y su sello viajan en el mismo objeto a propósito: así la pantalla no
+ * tiene forma de pintar uno sin el otro, porque nunca recibe uno sin el otro.
+ */
+export interface SelloDeCampo {
+  /** El valor tal como entra en la ficha. */
+  valor: string | boolean;
+  /** Ese mismo valor, dicho para leerlo. */
+  comoSeLee: string;
+  decididoPor: string;
+  decididoEn: string;
+  /** «decidido por usted el 16 de agosto de 2026». */
+  sello: string;
+}
+
+export type ProcedenciaDeFicha = Partial<Record<CampoRecordado, SelloDeCampo>>;
+
+/** Lo que el libro decidió y esta pantalla NO puso, con el motivo escrito. */
+export interface NoSePudoRecordar {
+  rotulo: string;
+  porQue: string;
+}
+
+export interface RecuerdoAplicado {
+  ficha: FichaDeCarga;
+  procedencia: ProcedenciaDeFicha;
+  noSePudoPoner: NoSePudoRecordar[];
+}
+
+/** La forma de una fila del libro, con lo poco que esta vista necesita de ella. */
+interface FilaFirmada {
+  sobre: string;
+  decididoPor: string;
+  decididoEn: string;
+  estado?: string;
+  tipoPunto?: string;
+  funcionEstructural?: string;
+  funcionConfirmada?: boolean;
+  funcionConfirmadaEn?: string;
+  porQue?: string;
+}
+
+/** Cómo se lee un sitio guardado, sin depender de que la línea esté cargada. */
+const comoSeLeeUnSitio = (valor: string): string => {
+  if (valor === AL_FINAL) return 'al final de la línea';
+  return valor ? `detrás de ${valor}` : 'sin sitio declarado';
+};
+
+/** Cómo se lee la firma del papel estructural, que es un hecho aparte del papel. */
+const comoSeLeeLaFirma = (v: boolean): string =>
+  (v ? 'lo confirma usted' : 'usted no firmó este papel');
+
+/** El valor actual de un campo de la ficha, dicho para leerlo. */
+function comoSeLeeElCampo(f: FichaDeCarga, campo: CampoRecordado): string {
+  if (campo === 'funcionConfirmada') return comoSeLeeLaFirma(f.funcionConfirmada);
+  if (campo === 'sitio') return comoSeLeeUnSitio(f.sitio);
+  const v = campo === 'tipoPunto' ? f.tipoPunto : f.funcionEstructural;
+  return v || 'sin contestar';
+}
+
+/** ¿Está este campo como lo dejó el recuerdo? Es lo único que da derecho a sello. */
+const estaComoLoDejoElRecuerdo = (f: FichaDeCarga, s: SelloDeCampo, campo: CampoRecordado): boolean =>
+  (campo === 'funcionConfirmada' ? f.funcionConfirmada === s.valor : f[campo] === s.valor);
+
+/**
+ * Los sellos que HOY se pueden pintar: solo los de campos que siguen tal como
+ * él los decidió.
+ *
+ * Es el único camino por el que la pantalla obtiene un sello, y por construcción
+ * cada sello trae su fecha dentro. Un campo que él cambió deja de tener sello y
+ * pasa a tener aviso de cambio: son dos cosas distintas y se ven distintas.
+ */
+export function sellosVivos(f: FichaDeCarga, p: ProcedenciaDeFicha): ProcedenciaDeFicha {
+  const vivos: ProcedenciaDeFicha = {};
+  for (const [campo, sello] of Object.entries(p) as [CampoRecordado, SelloDeCampo][]) {
+    if (estaComoLoDejoElRecuerdo(f, sello, campo)) vivos[campo] = sello;
+  }
+  return vivos;
+}
+
+/** La fecha en que él decidió lo que hoy se le está recordando, en castellano. */
+export function fechaDelRecuerdo(p: ProcedenciaDeFicha): string {
+  const fechas = Object.values(p).map((s) => s.decididoEn).sort();
+  return fechas.length ? enCastellano(fechas[0]) : '';
+}
+
+/**
+ * Pone en la ficha lo que él decidió en su día, campo por campo y con la fecha
+ * que respalda cada uno.
+ *
+ * LAS DOS COSAS QUE NO TOCA, Y NO POR OLVIDO: `nombreCanonico`, porque lo elige
+ * él y es lo que dispara el recuerdo —devolverlo sería que el recuerdo se
+ * auto-alimentara—, y `aprobado`, porque aprobar es el acto irreversible.
+ *
+ * NO PISA UNA RESPUESTA DE HOY. Si él ya contestó ese campo en esta pantalla,
+ * manda lo de hoy y el recuerdo se queda fuera, dicho con su motivo. Y un sitio
+ * que hoy no existe en la lista tampoco se pone: rellenar un desplegable con una
+ * opción que no está lo deja en blanco sin decir por qué.
+ *
+ * @param sitios las posiciones que la pantalla ofrece de verdad; vacío = no comprobar
+ */
+export function recordarEnLaFicha(
+  ficha: FichaDeCarga, decision: unknown, sitios: OpcionPosicion[] = [],
+): RecuerdoAplicado {
+  const nada: RecuerdoAplicado = { ficha, procedencia: {}, noSePudoPoner: [] };
+  if (!decision) return nada;
+
+  const recordado = loQueSeRecuerda(decision) as {
+    valores: Record<string, unknown>;
+    procedencia: Record<string, { decididoPor: string; decididoEn: string; sello: string }>;
+  };
+  const { valores, procedencia } = recordado;
+  if (!valores || !Object.keys(valores).length) return nada;
+
+  // Del vocabulario del libro al de la pantalla. El libro habla de «después de»
+  // o «al final» porque es lo que el paquete necesita para colocar sin mover a
+  // nadie; la pantalla habla de «sitio» porque es lo que él elige.
+  const candidatos: { campo: CampoRecordado; valor: string | boolean; comoSeLee: string; clave: string }[] = [];
+  if (typeof valores.tipoPunto === 'string') {
+    candidatos.push({ campo: 'tipoPunto', valor: valores.tipoPunto, comoSeLee: valores.tipoPunto, clave: 'tipoPunto' });
+  }
+  if (valores.insertarAlFinal === true) {
+    candidatos.push({ campo: 'sitio', valor: AL_FINAL, comoSeLee: comoSeLeeUnSitio(AL_FINAL), clave: 'insertarAlFinal' });
+  } else if (typeof valores.insertarDespuesDe === 'string') {
+    const v = valores.insertarDespuesDe;
+    candidatos.push({ campo: 'sitio', valor: v, comoSeLee: comoSeLeeUnSitio(v), clave: 'insertarDespuesDe' });
+  }
+  if (typeof valores.funcionEstructural === 'string') {
+    candidatos.push({
+      campo: 'funcionEstructural', valor: valores.funcionEstructural,
+      comoSeLee: valores.funcionEstructural, clave: 'funcionEstructural',
+    });
+  }
+  if (typeof valores.funcionConfirmada === 'boolean') {
+    candidatos.push({
+      campo: 'funcionConfirmada', valor: valores.funcionConfirmada,
+      comoSeLee: comoSeLeeLaFirma(valores.funcionConfirmada), clave: 'funcionConfirmada',
+    });
+  }
+
+  const puesta: FichaDeCarga = { ...ficha };
+  const sellos: ProcedenciaDeFicha = {};
+  const noSePudoPoner: NoSePudoRecordar[] = [];
+
+  for (const c of candidatos) {
+    const origen = procedencia?.[c.clave];
+    // Sin quién y sin cuándo no hay memoria, hay opinión. Se descarta entero.
+    if (!origen?.decididoPor || !origen?.decididoEn) continue;
+
+    if (c.campo === 'sitio' && sitios.length && !sitios.some((s) => s.valor === c.valor)) {
+      noSePudoPoner.push({
+        rotulo: ROTULO_RECORDADO.sitio,
+        porQue: `Usted decidió que iba ${c.comoSeLee}, y hoy ese sitio no está entre los que esta `
+          + 'pantalla puede ofrecer. No se pone nada: elíjalo usted mirando las distancias de abajo.',
+      });
+      continue;
+    }
+
+    const enBlanco = c.campo === 'funcionConfirmada'
+      ? puesta.funcionConfirmada === false
+      : puesta[c.campo] === '';
+    const yaIgual = c.campo === 'funcionConfirmada'
+      ? puesta.funcionConfirmada === c.valor
+      : puesta[c.campo] === c.valor;
+
+    if (!enBlanco && !yaIgual) {
+      noSePudoPoner.push({
+        rotulo: ROTULO_RECORDADO[c.campo],
+        porQue: `Usted ya contestó esto hoy en esta pantalla, así que manda su respuesta de hoy: `
+          + `el recuerdo no la pisa. Lo que decidió el ${enCastellano(origen.decididoEn)} fue `
+          + `«${c.comoSeLee}».`,
+      });
+      continue;
+    }
+
+    if (enBlanco) {
+      if (c.campo === 'funcionConfirmada') puesta.funcionConfirmada = c.valor === true;
+      else if (c.campo === 'tipoPunto') puesta.tipoPunto = String(c.valor);
+      else if (c.campo === 'sitio') puesta.sitio = String(c.valor);
+      else puesta.funcionEstructural = String(c.valor);
+    }
+    sellos[c.campo] = {
+      valor: c.valor,
+      comoSeLee: c.comoSeLee,
+      decididoPor: origen.decididoPor,
+      decididoEn: origen.decididoEn,
+      sello: origen.sello,
+    };
+  }
+
+  return { ficha: puesta, procedencia: sellos, noSePudoPoner };
+}
+
+/**
+ * Vacía UN campo recordado — lo que hace el botón «Cambiar».
+ *
+ * El sello NO se borra: se conserva para poder decirle, cuando conteste otra
+ * cosa, que lo que decidió aquel día sigue siendo un hecho. Borrarlo aquí haría
+ * imposible el aviso de cambio de opinión, que es justo lo que él pidió ver.
+ */
+export function vaciarLoRecordado(f: FichaDeCarga, campo: CampoRecordado): FichaDeCarga {
+  if (campo === 'funcionConfirmada') return { ...f, funcionConfirmada: false };
+  if (campo === 'tipoPunto') return { ...f, tipoPunto: '' };
+  if (campo === 'sitio') return { ...f, sitio: '' };
+  return { ...f, funcionEstructural: '' };
+}
+
+/**
+ * Retira de la ficha lo que puso un recuerdo anterior, y SOLO eso.
+ *
+ * Se usa cuando él cambia de nombre en la pregunta 1: lo que estaba puesto por
+ * el nombre viejo deja de valer, pero lo que contestó él con sus manos se queda.
+ * Distinguir las dos cosas es la diferencia entre ayudarle y borrarle trabajo.
+ */
+export function olvidarElRecuerdo(f: FichaDeCarga, p: ProcedenciaDeFicha): FichaDeCarga {
+  let salida = f;
+  for (const [campo, sello] of Object.entries(p) as [CampoRecordado, SelloDeCampo][]) {
+    if (estaComoLoDejoElRecuerdo(salida, sello, campo)) salida = vaciarLoRecordado(salida, campo);
+  }
+  return salida;
+}
+
+export interface CambioSobreLoFirmado {
+  campo: CampoRecordado;
+  rotulo: string;
+  /** Lo que decidió aquel día. */
+  decidido: string;
+  /** Lo que deja hoy. */
+  hoy: string;
+  decididoEn: string;
+  /** La frase entera, para pintarla tal cual. */
+  aviso: string;
+}
+
+/**
+ * En qué se ha apartado hoy de lo que firmó en su día.
+ *
+ * No es un reproche ni un bloqueo: manda lo que él deje hoy. Es que las dos
+ * cosas son hechos —aquel día decidió una y hoy carga otra— y el acta tiene que
+ * llevar las dos. Un cambio silencioso convertiría el libro de decisiones en un
+ * papel que dice algo distinto de lo que se cargó.
+ */
+export function cambiosSobreLoRecordado(
+  f: FichaDeCarga, p: ProcedenciaDeFicha,
+): CambioSobreLoFirmado[] {
+  const cambios: CambioSobreLoFirmado[] = [];
+  for (const [campo, sello] of Object.entries(p) as [CampoRecordado, SelloDeCampo][]) {
+    if (estaComoLoDejoElRecuerdo(f, sello, campo)) continue;
+    const hoy = comoSeLeeElCampo(f, campo);
+    const cuando = enCastellano(sello.decididoEn);
+    const vacio = campo === 'funcionConfirmada' ? false : f[campo] === '';
+    const aviso = vacio
+      ? `Ha retirado «${sello.comoSeLee}», que es lo que usted decidió el ${cuando}. Eso no se `
+        + `borra: sigue escrito que ese día decidió ${sello.comoSeLee}. Conteste usted qué carga hoy.`
+      : `Ha cambiado «${sello.comoSeLee}» por «${hoy}». Lo que usted decidió el ${cuando} NO se `
+        + `borra: queda escrito que ese día decidió ${sello.comoSeLee} y que hoy carga ${hoy}. `
+        + 'Las dos cosas son hechos, y el acta lleva las dos.';
+    cambios.push({ campo, rotulo: ROTULO_RECORDADO[campo], decidido: sello.comoSeLee, hoy, decididoEn: sello.decididoEn, aviso });
+  }
+  return cambios;
+}
+
+/**
+ * Lo que dice la pantalla debajo de la casilla de aprobación. SIEMPRE, haya
+ * recuerdo o no.
+ *
+ * Que él aprobara un punto en su día NO lo aprueba hoy, y la casilla empieza
+ * vacía aunque el libro diga «aprobado». Es la única de las cinco preguntas
+ * cuyo efecto no se puede deshacer, y por eso es la única que no se hereda.
+ */
+export function avisoDeLaAprobacion(decision: unknown): string {
+  const d = decision as FilaFirmada | undefined;
+  const cola = 'esta casilla empieza vacía siempre, porque al marcarla se escribe algo que no se '
+    + 'puede deshacer.';
+  if (d?.estado === 'aprobado' && d?.decididoEn) {
+    return `Aprobar es el acto, no el recuerdo. Que el ${enCastellano(d.decididoEn)} usted lo `
+      + `aprobara no lo aprueba hoy: ${cola}`;
+  }
+  return `Aprobar es el acto, no el recuerdo. Aquí no se hereda ninguna aprobación: ${cola}`;
+}
+
+// ── El bloque de cabecera: lo ya decidido y lo dejado pendiente ─────────────
+
+export interface LoYaDecidido {
+  sobre: string;
+  decididoEn: string;
+  /** La fila entera, escrita para leerla de un vistazo. */
+  texto: string;
+}
+
+/**
+ * Lo que él decidió sobre esta línea y todavía no está cargado.
+ *
+ * SE FILTRA POR LOS NOMBRES QUE SIGUEN DISPONIBLES, y eso no es cosmética: en
+ * cuanto un punto está cargado, la verdad es la base. **CARGADO manda sobre
+ * FIRMADO.** La fila del libro se queda como historia de lo que decidió ANTES de
+ * cargar, pero deja de mandar, y por eso deja de enseñarse aquí.
+ */
+export function loQueYaDecidio(
+  registro: Record<string, unknown>, codigoLinea: string, disponibles: string[],
+): LoYaDecidido[] {
+  const filas = decisionesVigentes(registro, codigoLinea) as FilaFirmada[];
+  return filas
+    .filter((d) => disponibles.includes(d.sobre))
+    .map((d) => {
+      const comoLoDecidio = d.estado === 'aprobado' ? 'usted lo aprobó' : 'usted lo decidió';
+      const partes = [`${d.sobre} — ${comoLoDecidio} el ${enCastellano(d.decididoEn)}.`];
+      if (d.tipoPunto) partes.push(`Qué es: ${d.tipoPunto}.`);
+      const sitio = sitioDeLaFila(d);
+      if (sitio) partes.push(`Dónde va: ${sitio}.`);
+      if (d.funcionEstructural) {
+        partes.push(d.funcionConfirmada && d.funcionConfirmadaEn
+          ? `Papel estructural: ${d.funcionEstructural}, confirmado por usted el ${enCastellano(d.funcionConfirmadaEn)}.`
+          : `Papel estructural: ${d.funcionEstructural} — este NO lo firmó usted, así que quedará como SUPUESTO.`);
+      }
+      return { sobre: d.sobre, decididoEn: d.decididoEn, texto: partes.join(' ') };
+    });
+}
+
+/** El sitio de una fila del libro, en castellano. Sin geometría: lo dijo él. */
+function sitioDeLaFila(d: FilaFirmada): string {
+  const sitio = (d as { sitio?: { insertarAlFinal?: boolean; insertarDespuesDe?: string } }).sitio;
+  if (sitio?.insertarAlFinal === true) return comoSeLeeUnSitio(AL_FINAL);
+  if (sitio?.insertarDespuesDe) return comoSeLeeUnSitio(sitio.insertarDespuesDe);
+  return '';
+}
+
+export interface LoDejadoPendiente {
+  sobre: string;
+  texto: string;
+}
+
+/**
+ * Lo que él dejó PENDIENTE de verificar en campo.
+ *
+ * Se enseña desde que abre la pantalla, sin casilla y sin botón, y **no se
+ * cuenta en ningún sitio donde se cuenten puntos por cargar**. Pendiente no es
+ * descartado: un punto que desaparece de la pantalla sin una línea que lo nombre
+ * se lee como perdido.
+ */
+export function loQueDejoPendiente(
+  registro: Record<string, unknown>, codigoLinea: string,
+): LoDejadoPendiente[] {
+  const filas = pendientesDe(registro, codigoLinea) as FilaFirmada[];
+  return filas.map((d) => ({
+    sobre: d.sobre,
+    texto: `Pendiente por decisión suya: ${d.sobre}. El ${enCastellano(d.decididoEn)} usted lo dejó `
+      + 'pendiente de verificar en campo antes de darlo por bueno. Pendiente no es descartado: no se '
+      + 'ha perdido.',
+  }));
+}
+
+/**
+ * La línea del acuse que cierra el círculo: de lo que él decidió en su día, qué
+ * entró hoy y qué sigue sin cargar porque él lo dejó pendiente.
+ *
+ * Devuelve `null` cuando no entró nada de lo decidido: una frase que dice «hoy
+ * entró: nada» ocupa el sitio de la que sí informa.
+ */
+export function loDecididoQueEntro(
+  yaDecidido: LoYaDecidido[], escritos: string[], pendientes: LoDejadoPendiente[],
+): string | null {
+  const entraron = yaDecidido.filter((d) => escritos.includes(d.sobre));
+  if (!entraron.length) return null;
+  const fechas = [...new Set(entraron.map((d) => d.decididoEn))].sort().map(enCastellano);
+  const cabeza = `De lo que usted decidió el ${fechas.join(' y el ')}, hoy entró: `
+    + `${entraron.map((d) => d.sobre).join(' · ')}.`;
+  return pendientes.length
+    ? `${cabeza} Sigue sin cargar, porque usted lo dejó pendiente: `
+      + `${pendientes.map((p) => p.sobre).join(' · ')}.`
+    : cabeza;
+}
+
+/** La decisión que manda hoy sobre un nombre, o `undefined`. Reexportada tal cual. */
+export const decisionFirmadaDe = (
+  registro: Record<string, unknown>, codigoLinea: string, nombreCanonico: string,
+): unknown => decisionVigente(registro, codigoLinea, nombreCanonico);
+
 // ── El antes y el después ───────────────────────────────────────────────────
 
 /** La forma mínima del retrato que devuelve `@lineas/importar/plan`. */
@@ -419,6 +843,15 @@ export function actaDeLaCarga(entrada: {
   bloqueados: FueraDeLaCarga[];
   resultado: ResultadoDeCarga;
   cifras: FilaCifra[];
+  /**
+   * Lo que él había firmado en su día sobre cada ficha, por su clave.
+   *
+   * Va al acta porque el acta es el ÚNICO papel que puede llevar las dos cosas:
+   * lo que decidió aquel día y lo que cargó hoy. El molde de los datos guarda
+   * solo lo segundo, y un cambio de opinión sin rastro convierte el libro de
+   * decisiones en un papel que dice algo distinto de lo que se cargó.
+   */
+  sellos?: Record<string, ProcedenciaDeFicha>;
 }): ActaDeCarga {
   const escritos = new Set(entrada.resultado.escritos);
   const cargados = entrada.fichas
@@ -439,6 +872,18 @@ export function actaDeLaCarga(entrada: {
       // dirá «el GPS no la grabó», que es el hecho.
       if (f.ele !== undefined) p.cotaTerreno_m = f.ele;
       if (f.utc !== undefined) p.tomadaEn = f.utc;
+
+      // Lo que él había firmado en su día sobre este mismo punto: lo que hoy
+      // ratificó tal cual, y aquello en lo que se apartó. Las dos cosas son
+      // hechos y las dos van al papel.
+      const firmado = entrada.sellos?.[f.clave];
+      if (firmado) {
+        const ratificado = Object.entries(sellosVivos(f, firmado))
+          .map(([campo, s]) => `${ROTULO_RECORDADO[campo as CampoRecordado]}: ${s.comoSeLee} — ${s.sello}`);
+        const cambios = cambiosSobreLoRecordado(f, firmado).map((c) => c.aviso);
+        if (ratificado.length) p.ratificoDeLoFirmado = ratificado;
+        if (cambios.length) p.cambioSobreLoFirmado = cambios;
+      }
       return p;
     });
 

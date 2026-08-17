@@ -37,6 +37,27 @@
 // LO QUE EL INGENIERO NO VE NUNCA EN ESTA PANTALLA: un identificador interno, un
 // JSON, ni el vocabulario de la máquina. Él habla de puntos, de sitios y de
 // papeles estructurales, que es de lo que responde quien firma.
+//
+// ── LA QUINTA DECISIÓN (ADR-029): LA PANTALLA RECUERDA, NO PROPONE ──────────
+//
+//     PROPONER = el sistema deduce algo y lo deja marcado.        PROHIBIDO.
+//     RECORDAR = él ya lo decidió, con fecha y con firma, y la pantalla se lo
+//                devuelve para que lo RATIFIQUE o lo cambie.
+//
+// El veto de ADR-028 sigue entero: aquí no se propone el nombre, ni el papel
+// estructural, ni en qué vano cae un punto. Lo que se rellena sale de
+// `herramientas/decisiones-firmadas.json`, que él firmó, y **jamás se pinta un
+// valor recordado sin la fecha que lo respalda**: no existe camino en este
+// archivo que pinte lo uno sin lo otro, porque el valor y su sello llegan en el
+// mismo objeto desde `vistas/puntosNuevos.ts`.
+//
+// Las dos preguntas que NO se recuerdan nunca, y la razón de cada una:
+//   · CUÁL DE SUS PUNTOS ES ÉSTE — es la que abre la puerta a las otras cuatro.
+//     Si se dedujera, las demás se rellenarían solas desde una deducción del
+//     sistema vestida con la fecha de él. El recuerdo lo dispara SU elección.
+//   · LA APROBACIÓN — aprobar es el acto irreversible; el recuerdo es memoria de
+//     una intención. La casilla empieza vacía SIEMPRE, aunque el libro diga
+//     «aprobado», y la pantalla dice por qué con esas palabras.
 // ============================================================================
 import { useMemo, useState } from 'react';
 import type { Apoyo, Linea as TLinea } from '@lineas/contratos';
@@ -47,6 +68,7 @@ import { nombresDisponibles } from '@lineas/importar/identidad';
 import { actaHtml } from '@lineas/exportar/acta';
 import { almacen } from '../datos/enlace';
 import { REGISTRO_NOMBRES } from '../datos/registroSemillas';
+import { REGISTRO_DECISIONES } from '../datos/registroDecisiones';
 import { leerArchivos, type ArchivoAportado } from '../importar/leerArchivo';
 import { descargar, selloFecha } from '../exportar/descargar';
 import { nf } from '../vistas/formato';
@@ -55,8 +77,12 @@ import {
   actaDeLaCarga, cifrasDeLaCarga, consecuenciaDeFuncion, CONSECUENCIA_TIPO,
   decisionDeLaFicha, faltantesDe, fichaEnBlanco, nombresParaLaFicha, posicionesPosibles,
   contarPuntos, rotuloDelSitio, textoCota, textoDistancia, textoHora,
-  type ActaDeCarga, type FichaDeCarga, type FueraDeLaCarga, type OpcionPosicion,
-  type ResultadoDeCarga, type RetratoDeLinea,
+  avisoDeLaAprobacion, cambiosSobreLoRecordado, decisionFirmadaDe, fechaDelRecuerdo,
+  loDecididoQueEntro, loQueDejoPendiente, loQueYaDecidio, olvidarElRecuerdo,
+  recordarEnLaFicha, sellosVivos, vaciarLoRecordado,
+  type ActaDeCarga, type CampoRecordado, type FichaDeCarga, type FueraDeLaCarga,
+  type OpcionPosicion, type ProcedenciaDeFicha, type NoSePudoRecordar,
+  type ResultadoDeCarga, type RetratoDeLinea, type SelloDeCampo,
 } from '../vistas/puntosNuevos';
 
 /** Lo que `@lineas/importar/plan` devuelve, con la forma que esta pantalla usa. */
@@ -100,6 +126,15 @@ export function Cargar({ linea, apoyos, sesion }: {
   const [fallo, setFallo] = useState<string | null>(null);
   /** El acta de la última carga, ya armada. Se guarda para poder rebajarla. */
   const [acta, setActa] = useState<ActaDeCarga | null>(null);
+  /**
+   * De dónde sale cada valor que la ficha NO contestó hoy: quién lo decidió y
+   * cuándo. Vive aparte de la ficha a propósito — la ficha son sus CINCO
+   * respuestas, y esto es la memoria de lo que ya había firmado. Mezclarlos
+   * haría imposible distinguir lo que contestó hoy de lo que se le recordó.
+   */
+  const [recuerdos, setRecuerdos] = useState<Record<string, {
+    procedencia: ProcedenciaDeFicha; noSePudoPoner: NoSePudoRecordar[];
+  }>>({});
 
   const esAdmin = sesion.rol === 'admin';
 
@@ -109,6 +144,21 @@ export function Cargar({ linea, apoyos, sesion }: {
   const disponibles = useMemo(
     () => nombresDisponibles(REGISTRO_NOMBRES, linea.codigo, apoyos) as string[],
     [linea.codigo, apoyos],
+  );
+
+  // Lo que él YA decidió sobre esta línea y todavía no está cargado, y lo que
+  // dejó pendiente de verificar en campo. Se lee del libro del repositorio, que
+  // la aplicación no puede escribir: por eso «decidido por usted el 16 de
+  // agosto» es comprobable y no una afirmación del sistema sobre sí mismo.
+  // Se filtra por los nombres que siguen DISPONIBLES: en cuanto un punto está
+  // cargado, la verdad es la base — cargado manda sobre firmado.
+  const yaDecidido = useMemo(
+    () => loQueYaDecidio(REGISTRO_DECISIONES, linea.codigo, disponibles),
+    [linea.codigo, disponibles],
+  );
+  const dejadoPendiente = useMemo(
+    () => loQueDejoPendiente(REGISTRO_DECISIONES, linea.codigo),
+    [linea.codigo],
   );
 
   /**
@@ -144,6 +194,18 @@ export function Cargar({ linea, apoyos, sesion }: {
   const cifras = useMemo(
     () => (plan ? cifrasDeLaCarga(plan.antes, plan.despues) : []),
     [plan],
+  );
+
+  /**
+   * La línea que cierra el círculo en el acuse: de lo que él decidió en su día,
+   * qué entró hoy y qué sigue sin cargar porque él lo dejó pendiente.
+   *
+   * Sin ella, un punto que él decidió hace días y hoy no entró desaparece de la
+   * pantalla sin una sola frase que lo nombre — y eso se lee como perdido.
+   */
+  const cierreDeLoDecidido = useMemo(
+    () => (acuse ? loDecididoQueEntro(yaDecidido, acuse.escritos, dejadoPendiente) : null),
+    [acuse, yaDecidido, dejadoPendiente],
   );
 
   // ── ② Aportar los archivos ────────────────────────────────────────────────
@@ -183,9 +245,42 @@ export function Cargar({ linea, apoyos, sesion }: {
   const responder = (clave: string, parche: Partial<FichaDeCarga>) =>
     setFichas((p) => p.map((f) => (f.clave === clave ? { ...f, ...parche } : f)));
 
+  /**
+   * Él dice cuál de sus puntos es éste — y SOLO entonces la pantalla le recuerda
+   * lo que decidió bajo ese nombre.
+   *
+   * EL SISTEMA NO EMPAREJA NADA: no busca por el nombre que grabó el aparato
+   * (es dato del levantamiento, y ya se ha equivocado) ni por cercanía (el
+   * aparato declara ±8 m; ordenar por distancia es un dictamen disfrazado de
+   * lista). El emparejamiento lo hace su elección.
+   *
+   * Al cambiar de nombre se retira lo que había puesto el recuerdo ANTERIOR y
+   * solo eso: lo que contestó él con sus manos se queda donde está.
+   */
+  function elegirNombre(clave: string, nombre: string) {
+    const f = fichas.find((x) => x.clave === clave);
+    if (!f) return;
+    const sitios = posicionesPosibles(apoyos, f.lat, f.lon);
+    const limpia = { ...olvidarElRecuerdo(f, recuerdos[clave]?.procedencia ?? {}), nombreCanonico: nombre };
+    const r = recordarEnLaFicha(limpia, decisionFirmadaDe(REGISTRO_DECISIONES, linea.codigo, nombre), sitios);
+    setFichas((p) => p.map((x) => (x.clave === clave ? r.ficha : x)));
+    setRecuerdos((p) => ({ ...p, [clave]: { procedencia: r.procedencia, noSePudoPoner: r.noSePudoPoner } }));
+  }
+
+  /**
+   * «Cambiar» un campo recordado: se vacía y él contesta de nuevo.
+   *
+   * El sello NO se borra — se conserva para poder decirle que lo que decidió
+   * aquel día sigue siendo un hecho y que el acta llevará las dos cosas.
+   * Cambiar tiene que costar exactamente un clic, igual que ratificar.
+   */
+  const cambiar = (clave: string, campo: CampoRecordado) =>
+    setFichas((p) => p.map((f) => (f.clave === clave ? vaciarLoRecordado(f, campo) : f)));
+
   function empezarDeCero() {
     setArchivos([]);
     setFichas([]);
+    setRecuerdos({});
     setConfirmando(false);
     setAcuse(null);
     setActa(null);
@@ -241,6 +336,11 @@ export function Cargar({ linea, apoyos, sesion }: {
         bloqueados: plan.bloqueados,
         resultado,
         cifras,
+        // Lo que ya había firmado sobre cada punto. El acta es el único papel
+        // que puede llevar las dos cosas: lo que decidió aquel día y lo que
+        // cargó hoy.
+        sellos: Object.fromEntries(
+          Object.entries(recuerdos).map(([k, v]) => [k, v.procedencia])),
       }));
     } catch (e) {
       // El motivo entero, tal como llegó. Resumirlo aquí en «no se pudo cargar»
@@ -300,6 +400,38 @@ export function Cargar({ linea, apoyos, sesion }: {
         <p className="alerta">
           <b>No se puede preparar la carga:</b> {noSePudoPreparar}
         </p>
+      )}
+
+      {/* ── ①bis Lo que usted ya decidió ────────────────────────────────────
+          Visible desde que abre, antes de aportar ningún archivo. No es una
+          sugerencia del sistema: son filas que él firmó, con su fecha, en el
+          libro del repositorio — que la aplicación LEE y no puede escribir. */}
+      {yaDecidido.length > 0 && (
+        <div className="cargar-firmado">
+          <p className="cargar-firmado-t">Lo que usted ya decidió sobre esta línea y todavía no está cargado</p>
+          <p>
+            Esto no es una sugerencia del sistema: son decisiones suyas, con su fecha. Aquí no
+            aparece nada que el sistema haya deducido — si de un dato no se puede decir quién lo
+            decidió y cuándo, no se enseña.
+          </p>
+          <ul className="cargar-lista">
+            {yaDecidido.map((d) => <li key={d.sobre}>{d.texto}</li>)}
+          </ul>
+        </div>
+      )}
+
+      {/* Lo que él dejó PENDIENTE. Sin casilla, sin botón, y sin contarse en
+          ningún sitio donde se cuenten puntos por cargar. */}
+      {dejadoPendiente.length > 0 && (
+        <div className="cargar-pendiente">
+          {dejadoPendiente.map((p) => <p key={p.sobre}>{p.texto}</p>)}
+          <p>
+            Desde esta pantalla no se puede cargar, y no es una avería. Ese punto todavía no tiene
+            nombre emitido en el libro del repositorio, así que aquí no se le puede dar identidad; y
+            además va antes del primer punto cargado, que es un camino que todavía no existe. Cuando
+            usted lo verifique en campo, se abre por el repositorio, no por aquí.
+          </p>
+        </div>
       )}
 
       {/* ── ② Aportar el archivo ────────────────────────────────────────── */}
@@ -379,6 +511,12 @@ export function Cargar({ linea, apoyos, sesion }: {
               ficha={f}
               apoyos={apoyos}
               nombres={nombresParaLaFicha(disponibles, fichas, f.clave)}
+              procedencia={recuerdos[f.clave]?.procedencia ?? {}}
+              noSePudoPoner={recuerdos[f.clave]?.noSePudoPoner ?? []}
+              avisoAprobacion={avisoDeLaAprobacion(
+                decisionFirmadaDe(REGISTRO_DECISIONES, linea.codigo, f.nombreCanonico))}
+              alElegirNombre={(n) => elegirNombre(f.clave, n)}
+              alCambiar={(campo) => cambiar(f.clave, campo)}
               alResponder={(parche) => responder(f.clave, parche)}
             />
           ))}
@@ -519,6 +657,8 @@ export function Cargar({ linea, apoyos, sesion }: {
               )
               : <p className="alerta"><b>No se cargó ningún punto.</b> La línea quedó como estaba.</p>}
 
+            {cierreDeLoDecidido && <p className="cargar-firmado">{cierreDeLoDecidido}</p>}
+
             {acuse.yaEstaban.length > 0 && (
               <p className="aviso">
                 <b>Ya estaban en la línea y no se volvieron a escribir:</b>{' '}
@@ -599,12 +739,46 @@ export function Cargar({ linea, apoyos, sesion }: {
   );
 }
 
+// ── El sello de un valor recordado ──────────────────────────────────────────
+
+/**
+ * Un valor que él decidió en su día, SIEMPRE pegado a la fecha que lo respalda.
+ *
+ * ES LA PIEZA QUE HACE QUE ESTO SEA MEMORIA Y NO DICTAMEN. El valor y su sello
+ * llegan dentro del mismo objeto desde `vistas/puntosNuevos.ts`, de modo que no
+ * existe forma de pintar el uno sin el otro: si no hay sello, este componente no
+ * pinta nada. Y al lado va «Cambiar», que lo vacía — cambiar cuesta un clic,
+ * exactamente lo mismo que ratificar.
+ */
+function SelloRecordado({ sello, alCambiar }: {
+  sello: SelloDeCampo | undefined;
+  alCambiar: () => void;
+}) {
+  if (!sello) return null;
+  return (
+    <p className="cargar-sello">
+      <b>{sello.comoSeLee}</b> — {sello.sello}.{' '}
+      <button type="button" className="boton chico" onClick={alCambiar}>Cambiar</button>
+    </p>
+  );
+}
+
 // ── La ficha de UN punto ────────────────────────────────────────────────────
 
-function FichaPunto({ ficha, apoyos, nombres, alResponder }: {
+function FichaPunto({
+  ficha, apoyos, nombres, procedencia, noSePudoPoner, avisoAprobacion,
+  alElegirNombre, alCambiar, alResponder,
+}: {
   ficha: FichaDeCarga;
   apoyos: Apoyo[];
   nombres: string[];
+  /** De dónde sale cada valor que él no contestó hoy. Puede estar vacío. */
+  procedencia: ProcedenciaDeFicha;
+  /** Lo que el libro decidió y esta pantalla NO puso, con el motivo. */
+  noSePudoPoner: NoSePudoRecordar[];
+  avisoAprobacion: string;
+  alElegirNombre: (nombre: string) => void;
+  alCambiar: (campo: CampoRecordado) => void;
   alResponder: (parche: Partial<FichaDeCarga>) => void;
 }) {
   // Las distancias crudas a cada vecino. Las calcula el núcleo, desde
@@ -614,6 +788,14 @@ function FichaPunto({ ficha, apoyos, nombres, alResponder }: {
     [apoyos, ficha.lat, ficha.lon],
   );
   const faltan = faltantesDe(ficha);
+
+  // Los sellos que HOY se pueden pintar: solo los de campos que siguen tal como
+  // él los decidió. Un campo que cambió deja de tener sello y pasa a tener aviso
+  // de cambio — son dos cosas distintas y se ven distintas.
+  const vivos = useMemo(() => sellosVivos(ficha, procedencia), [ficha, procedencia]);
+  const cambios = useMemo(() => cambiosSobreLoRecordado(ficha, procedencia), [ficha, procedencia]);
+  const avisoDe = (campo: CampoRecordado) => cambios.find((c) => c.campo === campo)?.aviso;
+  const hayRecuerdo = Object.keys(procedencia).length > 0;
 
   return (
     <div className="cargar-ficha">
@@ -634,18 +816,38 @@ function FichaPunto({ ficha, apoyos, nombres, alResponder }: {
         <select
           className="rca-select"
           value={ficha.nombreCanonico}
-          onChange={(e) => alResponder({ nombreCanonico: e.target.value })}
+          onChange={(e) => alElegirNombre(e.target.value)}
         >
           <option value="">— elija uno —</option>
           {nombres.map((n) => <option key={n} value={n}>{n}</option>)}
         </select>
       </label>
+      <p className="cargar-consecuencia">
+        Esta pregunta no se contesta sola nunca. El sistema no sabe cuál de sus puntos es este: eso
+        lo dice usted, y solo entonces le recuerda lo que decidió sobre ese nombre.
+      </p>
       {nombres.length === 0 && (
         <p className="cargar-hueco">
           No queda ningún nombre libre en el libro de esta línea. Un nombre nunca usado hay que
           anotarlo antes en el repositorio: no se puede estrenar identidad desde aquí.
         </p>
       )}
+
+      {/* En cuanto él elige el nombre, y solo entonces, aparece lo que decidió
+          bajo ese nombre. Con la fecha por delante, para que se lea como lo que
+          es: memoria suya, no criterio del sistema. */}
+      {hayRecuerdo && (
+        <p className="cargar-firmado">
+          Usted ya contestó esto el {fechaDelRecuerdo(procedencia)}. Lo de abajo es lo que decidió
+          ese día, no lo que el sistema cree. Repáselo y, si cambió de opinión, cámbielo: manda lo
+          que usted deje hoy.
+        </p>
+      )}
+      {noSePudoPoner.map((x) => (
+        <p key={x.rotulo} className="cargar-hueco">
+          <b>{x.rotulo}:</b> {x.porQue}
+        </p>
+      ))}
 
       {/* Pregunta 2 — qué es, con la consecuencia debajo de cada opción */}
       <label className="cargar-pregunta">
@@ -659,6 +861,8 @@ function FichaPunto({ ficha, apoyos, nombres, alResponder }: {
           {TipoPunto.options.map((t) => <option key={t} value={t}>{t}</option>)}
         </select>
       </label>
+      <SelloRecordado sello={vivos.tipoPunto} alCambiar={() => alCambiar('tipoPunto')} />
+      {avisoDe('tipoPunto') && <p className="cargar-cambio">{avisoDe('tipoPunto')}</p>}
       {ficha.tipoPunto && (
         <p className="cargar-consecuencia">{CONSECUENCIA_TIPO[ficha.tipoPunto]}</p>
       )}
@@ -680,6 +884,8 @@ function FichaPunto({ ficha, apoyos, nombres, alResponder }: {
           ))}
         </select>
       </label>
+      <SelloRecordado sello={vivos.sitio} alCambiar={() => alCambiar('sitio')} />
+      {avisoDe('sitio') && <p className="cargar-cambio">{avisoDe('sitio')}</p>}
       <p className="cargar-consecuencia">
         Las distancias son las que hay del punto del GPS a cada vecino, sin interpretar, y salen en
         el recorrido de la línea — nunca clasificadas por cercanía. El aparato declara
@@ -699,6 +905,8 @@ function FichaPunto({ ficha, apoyos, nombres, alResponder }: {
           {FuncionEstructural.options.map((f) => <option key={f} value={f}>{f}</option>)}
         </select>
       </label>
+      <SelloRecordado sello={vivos.funcionEstructural} alCambiar={() => alCambiar('funcionEstructural')} />
+      {avisoDe('funcionEstructural') && <p className="cargar-cambio">{avisoDe('funcionEstructural')}</p>}
       {ficha.funcionEstructural && (
         <p className="cargar-consecuencia">{consecuenciaDeFuncion(ficha.funcionEstructural)}</p>
       )}
@@ -713,8 +921,13 @@ function FichaPunto({ ficha, apoyos, nombres, alResponder }: {
           punto lo dirá — poner su firma sobre lo que no firmó es peor que no tener el dato.
         </span>
       </label>
+      <SelloRecordado sello={vivos.funcionConfirmada} alCambiar={() => alCambiar('funcionConfirmada')} />
+      {avisoDe('funcionConfirmada') && <p className="cargar-cambio">{avisoDe('funcionConfirmada')}</p>}
 
-      {/* Pregunta 5 — la aprobación. Empieza VACÍA. */}
+      {/* Pregunta 5 — la aprobación. Empieza VACÍA, SIEMPRE, y aunque en el
+          libro conste que él ya la aprobó: aprobar es el acto irreversible, y un
+          acto no se hereda de un recuerdo. Es la única de las cinco que no se
+          recuerda jamás, y la pantalla dice por qué justo debajo. */}
       <label className="rca-ev">
         <input
           type="checkbox"
@@ -723,6 +936,7 @@ function FichaPunto({ ficha, apoyos, nombres, alResponder }: {
         />
         <span><b>{PREGUNTAS.aprueba}</b> Solo se carga lo que usted marca aquí.</span>
       </label>
+      <p className="cargar-consecuencia">{avisoAprobacion}</p>
 
       {!ficha.aprobado && (
         <label className="cargar-pregunta">
