@@ -1,28 +1,29 @@
 # 📝 10 — MEMORIA DE CORTO PLAZO (pizarra del trabajo vivo)
 
 > Se **AUTO-CARGA**. Es pizarra, no bitácora (§G.3). Tope ~110 líneas / 16k chars.
-> **RELEVO DE SESIÓN 2026-08-06.** Este nodo ES el relevo: léelo entero antes de tocar nada.
+> **RELEVO DE SESIÓN 2026-08-16.** Este nodo ES el relevo: léelo entero antes de tocar nada.
 > Si contradice a `docs/.handoff-auto.md` (foto real de git), manda ese.
 
 ## 🎯 Dónde estamos
 
-**Cifras vivas en `05`.** 11 pestañas + segmento RCA + **tres informes** (línea, RCA, gerencial).
-Producción verificada EN PANTALLA con el Chrome del Ingeniero el 06-08.
-
-Olas cerradas: carcasa (ADR-018) · RCA completo (ADR-020) · auditoría documental (ADR-021) · **el
-contexto real** (ADR-022: herramienta INTERNA, sin cliente ni contrato) · informe gerencial (ADR-023)
-· **la puerta de acceso** (ADR-024).
+**Cifras vivas en `05`.** 11 pestañas + RCA + tres informes (línea, RCA, gerencial). Producción
+verificada en pantalla el 16-08. **Mazo de gerencia de la falla E02 listo** (9 láminas; bóveda
+`entregables/`, se rearma con su `armar.py` — a nivel de zip, ver `32 · L-49`). Olas cerradas:
+carcasa (ADR-018) · RCA (ADR-020) · documental (ADR-021) · contexto real (ADR-022) · gerencial
+(ADR-023) · acceso (ADR-024).
 
 ## 🛑 LO PRIMERO AL RETOMAR
 
-1. **El método RCA quedó al día** (`99 §ADR-025/026`): varias causas raíz, dieciséis familias,
-   séptima condición. **Lo que el Ingeniero dejó FUERA a propósito: verificar que una acción
-   FUNCIONÓ**, no solo que se hizo (`TODO-66`). Hoy una acción que se ejecutó y no sirvió es
-   indistinguible de una que sirvió, y por ahí vuelve la misma falla con un informe cerrado detrás.
-2. **El tope de tiro sigue sin decidir (TODO-33).** El contrato ya trae `tiroAdmisible_pct` y
-   `criterioTiroQueRige` (ADR-014), pero `vistas/tramos.ts`, `vientoDatos.ts` y `Fundamentos.tsx`
-   siguen leyendo `tiroMaximoAdmisible()` = 0,5·RTS fijo — unificarlo al cerrar la decisión.
-3. **Alerta de presupuesto en Cloudflare (TODO-44).** R2 no apaga: factura. ~35 MB de 10 GB.
+1. **Los 3 puntos GPS de agosto NO están en producción — y NO es solo la llave.** Verificado en
+   pantalla el 16-08: sigue `0/24`, tramos E01→E24. `herramientas/sembrar.mjs` ata la identidad a
+   la POSICIÓN (`idEstable('apoyo-'+i)`, `orden: i`, `CANONICOS[i]`, y la falla apunta a
+   `estructuraOrden`). El empalme nuevo entra entre E03 y E04: insertarlo corre un puesto todo lo
+   que sigue y **E04 pasaría a llamarse E05** → rompe el invariante de identidad. `TODO-69`.
+2. **Verificar que una acción FUNCIONÓ**, no solo que se hizo (`TODO-66`, deuda de `99 §ADR-026`).
+   Una acción ejecutada que no sirvió es hoy indistinguible de una que sirvió.
+3. **El tope de tiro sigue sin decidir (TODO-33).** El molde de los datos ya trae
+   `tiroAdmisible_pct` y `criterioTiroQueRige` (ADR-014), pero `vistas/tramos.ts`, `vientoDatos.ts`
+   y `Fundamentos.tsx` leen `tiroMaximoAdmisible()` = 0,5·RTS fijo. **TODO-44:** R2 factura.
 
 ## 🚫 INVARIANTES QUE NO SE PUEDEN ROMPER
 
@@ -53,8 +54,7 @@ comité SUPONE entra con el mismo rango que lo que verifica (`30 · L-42`).
 ## 🧭 Cómo retomar
 
 1. **Abrir Claude Code DENTRO de `~/Desktop/GitHub-MJ/mantenimiento-lineas-at/`.** Desde el paraguas
-   el gate bloquea el commit por canario de boot (remedio: `node scripts/session-handoff.mjs --boot-echo`;
-   el mensaje engaña: dice «presupuesto de boot excedido» cuando es el canario).
+   el gate bloquea el commit: dice «presupuesto de boot excedido» pero es el canario — remedio `node scripts/session-handoff.mjs --boot-echo`.
 2. Producción **https://mantenimiento-lineas-at.pages.dev** · repo PÚBLICO → **cero bytes de cliente
    NI DATOS PERSONALES DE NADIE**, ni en pruebas ni en un comentario (`33 · L-23`, `99 §ADR-021`).
 3. **Desplegar es `npm run build && npm run deploy --workspace web`**, en ese orden (`32 · L-35`). Y
@@ -84,7 +84,7 @@ comité SUPONE entra con el mismo rango que lo que verifica (`30 · L-42`).
 
 | # | Qué | Dónde está el plan |
 |---|---|---|
-| **TODO-67** | ✅ **CERRADO 09-08 y EN PRODUCCIÓN** (`index-BPlGLjn5`). El rótulo de las familias vivía copiado en TRES sitios y uno se quedó en 11: se evaluaban 16 y solo se razonaba sobre 11. Ahora vive en `nucleo/rca.js` junto a `ESPINAS` y los tres consumidores lo leen de ahí. **Con guardián**: 4 pruebas que vigilan la coincidencia (lo que `33 · L-19` pedía y no existía), verificadas por mutación | `33 · L-19` |
+| **TODO-69** | **Sembrar los 3 puntos de agosto.** Antes hay que **desatar la identidad de la posición** en `herramientas/sembrar.mjs` (id y nombre canónico salen del PUNTO, no del índice), con prueba que falle si insertar un punto en medio mueve un id existente. Luego dar al pórtico de Proeléctrica una representación propia: está a 4.604 m de E01 con línea SIN levantar en medio, y meterlo en la secuencia fabricaría un vano de 4.604 m (13× el máximo real) que envenena vano promedio y VIR. El de Membrillal sí es limpio: vano real de 94,65 m tras E24. Datos ya resueltos y fechados en la bóveda: `fixtures/LN-627-geometria-ampliacion-2026-08.json`. **Sembrar exige la llave admin del Ingeniero** | fixture citado |
 | **TODO-66** | **Que una acción pruebe que FUNCIONÓ**, no solo que se hizo. Lo dejó fuera el Ingeniero el 07-08 y queda como deuda declarada en `99 §ADR-026`: bloque de verificación posterior (cuándo, quién, si fue eficaz y cómo se comprobó); la cerrada queda «pendiente de verificar eficacia» hasta esa fecha | `99 §ADR-026` |
 | **TODO-50** | **Blindaje**: ✅ F1 · ✅ F2a · ✅ F3 pantalla de cambio · ⬜ **2b retirar Google** — espera la contraseña | `99 §ADR-019/024` |
 | **TODO-52** | RCA: solo queda el **lienzo del árbol** (cosmético; en papel la lista sangrada se lee igual) | `99 §ADR-020` |
