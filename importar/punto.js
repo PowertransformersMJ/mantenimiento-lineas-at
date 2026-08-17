@@ -228,6 +228,13 @@ export function construirPuntoNuevo(apoyosYaCargados, decision, opciones = {}) {
     };
   }
 
+  // ⚠️ ESTE DEFECTO DE `ahora` SELLA UN SOLO DOCUMENTO, y es para quien construye
+  // un punto suelto. Una carga de varios lo recibe YA HECHO desde `plan.js`, que
+  // lo pone una única vez para todos. No se le quite allí creyendo que este
+  // defecto lo cubre: cubriría cada punto por separado, y entonces los puntos de
+  // una misma carga compartirían instante solo si caben en el mismo milisegundo
+  // —o sea, por suerte—. Un hecho fechado se convertiría en varios sin un solo
+  // aviso. Ver `plan.js` y `30 · L-52`.
   const {
     codigoLinea,
     creadoPor,

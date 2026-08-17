@@ -4,8 +4,8 @@
 > (trigger 🧪 de `CLAUDE.md §G.2`). Cada lección es un gotcha que ya se pagó una vez.
 > Formato: `L-NN · título` → **Síntoma** / **Causa** / **Regla**.
 >
-> **Qué es este archivo:** el ÍNDICE de las 46 lecciones —**36 repartidas por tema en tres hijos y
-> 10 de MÉTODO aquí mismo, completas**: cómo se delibera, cómo se verifica y cuándo algo está de
+> **Qué es este archivo:** el ÍNDICE de las 51 lecciones —**38 repartidas por tema en tres hijos y
+> 13 de MÉTODO aquí mismo, completas**: cómo se delibera, cómo se verifica y cuándo algo está de
 > verdad terminado—. Las de método se quedan porque no son de ninguna pieza: valen para las tres, y
 > son las que más se citan desde otras neuronas. Si el síntoma huele a un tercero, a lo que se ve o
 > se abre, o al número que se firma, el índice te manda directo al hijo: no hay que leerse los
@@ -13,12 +13,16 @@
 >
 > **Los identificadores NO se renumeran nunca.** Un `L-NN` citado en otra neurona o en un comentario
 > del código sigue apuntando al mismo gotcha, viva donde viva su cuerpo. Y ojo con la aritmética: los
-> números llegan hasta 51 pero las lecciones son 46 — el 14 se fusionó en `L-13` y no existe.
+> números llegan hasta 52 pero las lecciones son 51 — el 14 se fusionó en `L-13` y no existe.
 >
 > ⚠️ **ANTES de escribir una lección nueva, busca el SÍNTOMA en los cuatro archivos.** Desde que la
 > familia se repartió, ninguno se lee entero, y el 04-08-2026 se escribió `L-36` sin ver que `L-22`
 > ya decía lo mismo. La cuenta de arriba es la ÚNICA cifra válida de cuántas lecciones hay: los demás
 > nodos apuntan aquí y no la repiten, porque repetida se pudre (llegó a estar mal en cuatro sitios).
+> **Y esa cifra también se pudre si se copia sin contar:** estuvo cuatro corta hasta el 17-08-2026
+> —`L-48` a `L-51` entraron sin recontar—, así que no se ajusta de memoria, se cuenta:
+> `grep -c '^### L-' docs/3*.md`. Cuesta un segundo y es la única forma de que este número no se
+> convierta en lo que él mismo denuncia.
 
 ---
 
@@ -67,7 +71,6 @@
 - `L-32` · Un guardián que cuenta INTENTOS no cuenta nada
 - `L-40` · Si el núcleo solo publica la PROSA de un hueco, quien la lea deducirá el hecho — y mal (y una prueba escrita sobre la deducción la BLINDA)
 - `L-41` · Un contrato que no se puede EJECUTAR en una prueba solo está revisado por el compilador
-- `L-42` · Lo que un comité SUPONE entra al cerebro con el mismo rango que lo que verifica
 - `L-45` · Una regla que el motor CALCULA y nadie consume no es una regla: es un comentario (y el grep de `L-28` da luz verde)
 - `L-50` · Un archivo que se DECLARA sintético es donde mejor se esconde un dato real: la cabecera hace el trabajo de la sospecha
 - `L-46` · Un MÁXIMO DE VENTANA DESLIZANTE no es una medida de régimen (y `IA+IB+IC = IN` valida la escala en un minuto)
@@ -82,9 +85,11 @@
 - `L-33` · Escribir la prueba y auditar el resultado son dos trabajos distintos
 - `L-34` · Un fixture que DECLARA a mano lo que producción DERIVA ensaya otro camino
 - `L-39` · Con la familia repartida, una lección nueva se DUPLICA si no buscas el síntoma en los cuatro archivos
+- `L-42` · Lo que un comité SUPONE entra al cerebro con el mismo rango que lo que verifica
 - `L-43` · Un subagente que tiene que abrir muchas IMÁGENES se cuelga: eso se lee de a poco y en el hilo principal
 - `L-47` · Un número de ADR duplicado no lo caza ningún gate, y la historia de decisiones se FUSIONA, nunca se elige
 - `L-51` · «Hecho» es lo que se VE en producción, no lo que está verde en el repositorio
+- `L-52` · Un invariante que la prueba ENUNCIA y la máquina cumple por velocidad no está garantizado
 
 ---
 
@@ -267,3 +272,31 @@
   contra `dist/`) y `32 · L-44` (un tercer estado que la pantalla aplana se lee como aprobado).
   Pagada el 17-08-2026 en `TODO-69`; el despliegue que faltaba se hizo el mismo día y producción pasó
   a servir el contrato 0.5.0, verificado en el pie de la página.
+
+### L-52 · Un invariante que la prueba ENUNCIA y la máquina cumple por velocidad no está garantizado
+
+- **Síntoma:** `tests/carga-contra-contrato.test.js` falló **1 de cada 4 corridas** de `npm test`; las
+  otras tres daban verde entero. La que caía se llama *«una carga entera comparte el mismo instante:
+  es UN hecho, no varios»*. Medido después: en frío falla el **17 %** de las veces (34 de 200 procesos
+  nuevos) y en caliente el 0,1 % — de ahí que pareciera azar puro y que tentara a reintentar.
+- **Causa, dos piezas que por separado no hacen daño:** (a) `importar/plan.js` ponía el defecto ANTES
+  del spread —`{ ahora: <defecto>, ...opciones }`—, así que un llamador que pasara `ahora: undefined`
+  PISABA el defecto y lo dejaba sin valor; y (b) `importar/punto.js` tenía su propio defecto de
+  `ahora`, que volvía a sellar la hora **por documento**. Juntas: los puntos de una misma carga
+  compartían instante solo si se construían dentro del mismo milisegundo.
+- **Lo que importaba más que el rojo:** el invariante que la propia prueba ENUNCIA —*una carga es UN
+  hecho fechado, no varios*— no lo garantizaba el código; lo garantizaba la velocidad de la máquina.
+  En un sistema cuyo oficio es que cada cifra quede amarrada a su fecha, eso no es una prueba floja:
+  es el dato. Producción no lo sufría porque `Cargar.tsx` no pasa la clave — y esa casualidad era lo
+  único que separaba el defecto de un documento que no se puede borrar.
+- **Regla, y es doble.** (1) Un defecto de opciones va DESPUÉS de copiar, nunca antes:
+  `const opc = { ...opciones }; opc.ahora ??= <defecto>;`. Declarar una clave vacía es no declararla,
+  y `??=` lo trata como tal; el spread no, y con `null` tampoco actúa el defecto del *destructuring*,
+  que solo cubre `undefined`. (2) **Una prueba intermitente no se calla tocando la prueba.** Hay que
+  preguntar qué invariante enuncia y si lo garantiza el código: si la respuesta es «la velocidad de la
+  máquina», el arreglo va en el código. Y después se comprueba que la prueba SE PONE ROJA al
+  reintroducir el fallo — aquí pasó de caer 1 de cada 6 a caer **20 de 20**, subiendo el caso de dos
+  puntos a nueve, porque nueve construcciones ya no caben en un milisegundo.
+- **Emparenta con** `L-33` (si al fixture le cambias un valor y ninguna prueba se pone roja, no medía
+  lo que crees) y `L-24` (un contador en verde no dice qué se ejercitó). Pagada el 17-08-2026 en
+  `importar/plan.js`; el porqué queda en el propio archivo, que es donde se lee.

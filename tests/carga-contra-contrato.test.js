@@ -120,8 +120,35 @@ describe('TODO LO QUE SE VA A ESCRIBIR PASA EL MOLDE DE LOS DATOS', () => {
   });
 
   test('una carga entera comparte el mismo instante: es UN hecho, no varios', () => {
-    const plan = planDeCarga(BASE, [decision('LX-001 N1'), decision('LX-001 N2')], { ...OPC, ahora: undefined });
-    assert.equal(new Set(plan.documentos.map((d) => d.creadoEn)).size, 1);
+    // El caso es quien NO declara instante —la pantalla de carga, hoy—: lo pone
+    // el plan, una sola vez, y se lo pasa hecho a cada punto.
+    //
+    // ⚠️ ESTA PRUEBA PASABA POR SUERTE. El sello lo ponía cada documento por su
+    // cuenta, así que los de una misma carga coincidían solo si se construían
+    // dentro del mismo milisegundo: en frío falló el 17 % de las veces (34 de
+    // 200 procesos, medido el 17-08-2026). El enunciado de arriba era verdad por
+    // velocidad de la máquina, no por el código — que es exactamente lo que una
+    // prueba no puede dejar pasar. Ver `30 · L-52`.
+    //
+    // Van NUEVE puntos y no dos a propósito: si el sello vuelve a ponerse por
+    // documento, nueve construcciones no caben en un milisegundo y la regresión
+    // se ve SIEMPRE, en vez de una de cada seis corridas. Una prueba que solo
+    // caza el fallo a veces avisa tarde y enseña a desconfiar de ella.
+    const plan = planDeCarga(BASE, NOMBRES.slice(3).map((n) => decision(n)), { ...OPC, ahora: undefined });
+    assert.equal(plan.documentos.length, 9);
+    assert.equal(new Set(plan.documentos.map((d) => d.creadoEn)).size, 1,
+      'la carga se partió en varios instantes: un solo hecho fechado se convirtió en nueve');
+    assert.ok(Number.isFinite(Date.parse(plan.documentos[0].creadoEn)),
+      'y el sello tiene que ser un instante real, no la ausencia que dejaba un `ahora` sin valor');
+
+    // `null` es la otra cara del mismo caso —es lo que devuelve un lector cuando
+    // el dato no venía— y ahí ni siquiera actuaba el defecto del constructor,
+    // que solo cubre `undefined`: se escribía un `creadoEn` nulo y lo paraba el
+    // molde, ya en la frontera. Por eso el plan usa `??=` y no un spread.
+    const conNulo = planDeCarga(BASE, [decision('LX-001 N1'), decision('LX-001 N2')], { ...OPC, ahora: null });
+    assert.equal(new Set(conNulo.documentos.map((d) => d.creadoEn)).size, 1);
+    assert.ok(Number.isFinite(Date.parse(conNulo.documentos[0].creadoEn)),
+      'un `ahora` nulo tiene que sellarse igual: no declarar la clave y declararla vacía son lo mismo');
   });
 });
 

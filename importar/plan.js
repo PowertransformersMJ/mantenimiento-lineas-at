@@ -98,7 +98,22 @@ export function planDeCarga(apoyosYaCargados, decisiones = [], opciones = {}) {
   // Un solo instante para toda la carga: los puntos de una misma jornada se
   // crearon a la vez, y que difieran en milisegundos convertiría un hecho en
   // dos. Si quien llama declara el suyo, manda el suyo.
-  const opc = { ahora: new Date().toISOString(), ...opciones };
+  //
+  // ⚠️ EL SELLO SE PONE AQUÍ Y SE PASA YA HECHO. `construirPuntoNuevo` tiene su
+  // propio defecto para quien construye UN punto suelto, y ese defecto sella POR
+  // DOCUMENTO: si de aquí saliera un `ahora` sin valor, cada punto se fecharía
+  // por su cuenta y todos coincidirían solo si se construyen dentro del mismo
+  // milisegundo. Es decir, el invariante lo garantizaría la velocidad de la
+  // máquina y no el código — y eso no es garantía, es suerte.
+  //
+  // Y por eso `??=` en vez de `{ ahora: <defecto>, ...opciones }`: con el defecto
+  // ANTES del spread, quien pase `ahora: undefined` —que en JavaScript significa
+  // «no lo declaro»— PISA el defecto y lo deja sin valor. Declarar la clave vacía
+  // es no declararla, y aquí se trata como tal. Con `null` es peor todavía: el
+  // defecto del constructor tampoco cubre un nulo, así que se escribía un
+  // `creadoEn` nulo que solo paraba el molde, ya en la frontera.
+  const opc = { ...opciones };
+  opc.ahora ??= new Date().toISOString();
 
   const documentos = [];
   const ignorados = [];
