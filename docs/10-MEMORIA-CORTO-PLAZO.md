@@ -15,13 +15,10 @@ carcasa (ADR-018) · RCA (ADR-020) · documental (ADR-021) · contexto real (ADR
 ## 🛑 LO PRIMERO AL RETOMAR
 
 1. **Los puntos GPS de agosto siguen SIN estar en producción, y ya NO falta ninguna llave.**
-   La identidad se desató de la posición el 16-08 (`99 §ADR-027`), el **contrato 0.5.0 está
-   DESPLEGADO** y la pestaña **«Cargar» está en producción y funciona** — verificado en vivo el
-   17-08 con el Chrome del Ingeniero: la cabecera dice **«permiso admin»**, que era la incógnita de
-   11 días. Desde el 17-08 esa pantalla además **le RECUERDA lo que ya firmó** (`99 §ADR-029`), así
-   que no tiene que volver a contestar el pórtico ni el empalme. **Falta: que él suba el GPX y
-   cargue.** Deuda ANTES del pórtico de ORIGEN: `subir-evidencias.mjs` resuelve la foto por `orden`.
-   `TODO-69`.
+   Contrato 0.5.0 desplegado y **«Cargar» en producción y funcionando** (verificado en vivo el 17-08
+   con su Chrome: cabecera **«permiso admin»**, la incógnita de 11 días); desde el 17-08 además **le
+   RECUERDA lo que ya firmó** (`99 §ADR-027/029`), así que no repite pórtico ni empalme. **Falta que
+   él suba el GPX y cargue.** Deuda ANTES del pórtico de ORIGEN: la foto se resuelve por `orden`.
 2. **Verificar que una acción FUNCIONÓ**, no solo que se hizo (`TODO-66`, `99 §ADR-026`): una acción que no sirvió es hoy indistinguible de una que sirvió.
 3. **El tope de tiro sigue sin decidir (TODO-33).** El molde de los datos ya trae
    `tiroAdmisible_pct` y `criterioTiroQueRige` (ADR-014), pero `vistas/tramos.ts`, `vientoDatos.ts`
@@ -49,12 +46,10 @@ las reglas y el rol · quien entra por Google pasa SIEMPRE (cerrojo que no aprov
 marca se lee `=== true` estricto · ante cualquier duda, se deja pasar · el recibo se escribe DESPUÉS
 del cambio y solo si salió bien.
 
-**Recordar ≠ proponer (`99 §ADR-029`):** el veto de ADR-028 sigue ENTERO — sin decisión suya bajo ese
-nombre, el campo se queda VACÍO · las dos que él contesta siempre —**cuál de sus puntos es** y **si lo
-aprueba**— NO se heredan jamás, aunque el libro diga «aprobado» · ningún valor recordado se pinta sin
-su fecha (`SelloRecordado` es el único camino) · el libro se APENDA, nunca se pisa, y **CARGADO manda
-sobre FIRMADO** · `decisiones-firmadas.json` **no da identidad** (eso solo lo da el de semillas) y **la
-aplicación solo lo LEE**: quien pueda escribirlo puede fabricar un recuerdo.
+**Recordar ≠ proponer (`99 §ADR-029`):** sin decisión suya el campo se queda VACÍO (veto de ADR-028
+entero) · **cuál de sus puntos es** y **si lo aprueba** NO se heredan jamás · ningún valor recordado
+se pinta sin su fecha · se APENDA, nunca se pisa, y **CARGADO manda sobre FIRMADO** · el libro **no da
+identidad** y **la app solo lo LEE**: quien pueda escribirlo puede fabricar un recuerdo.
 
 **Documentación (`99 §ADR-021/022`):** el verde de `brain:check` dice que el cerebro está bien
 CONSTRUIDO, **no que diga la verdad** · ninguna cifra se copia fuera de su nodo dueño · y lo que un
