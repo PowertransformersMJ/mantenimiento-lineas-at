@@ -75,7 +75,16 @@ service cloud.firestore {
     match /apoyos/{apoyoId} {
       allow read:   if puedeLeer();
       allow create: if esEditor() && altaCoherente();
-      allow update: if esEditor() && deMiOrg(resource.data) && noTocaReservados();
+      // EL CERROJO DE REVISIÓN, igual que en `analisis` — y aquí importa más:
+      // un apoyo NO se borra (abajo), así que lo que se pise se pisa para
+      // siempre. Sin esto, quien guarde la ficha a las 10:00 pisa completa la
+      // que un compañero guardó a las 09:40, y los dos ven «guardado».
+      //
+      // `get('revision', 0)` y no `resource.data.revision`: los 26 apoyos ya
+      // creados podrían no traer el campo, y una regla nueva no puede dejar
+      // inservible lo que ya está.
+      allow update: if esEditor() && deMiOrg(resource.data) && noTocaReservados()
+                    && request.resource.data.revision == resource.data.get('revision', 0) + 1;
       allow delete: if false;
     }
 

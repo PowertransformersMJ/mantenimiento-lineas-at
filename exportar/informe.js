@@ -256,6 +256,7 @@ tr.revisar td:first-child::before { content: "\\25B2  "; }
                font-family: Arial, Helvetica, sans-serif; font-size: 8.5pt; }
 .procedencia h3 { margin: 0 0 2mm; font-size: 9.5pt; }
 .procedencia li { margin-bottom: 1.5mm; }
+.supuesto { font-size: 7.5pt; font-style: italic; }
 
 .firma { margin-top: 10mm; }
 .firma .linea-firma { border-top: 0.8pt solid #000000; width: 75mm; margin-top: 14mm; padding-top: 1.5mm;
@@ -622,6 +623,27 @@ function seccionCargas(cargas) {
   // arriba enuncia la fórmula POR CONDUCTOR. Sin el tiro y sin `n` a la vista,
   // quien revisara el informe con una calculadora obtenía un TERCIO de la cifra
   // impresa y no podía saber por qué (§ADR-013, hallazgo 4). Las dos columnas
+  // ⚠️ UN VEREDICTO CALCULADO SOBRE UN DATO ESTIMADO A OJO NO PUEDE PARECERSE A
+  // UNO CALCULADO SOBRE UNA MEDIDA.
+  //
+  // La ficha le promete al Ingeniero, con estas palabras, que si marca un dato
+  // como estimado «el veredicto saldrá igual, y saldrá diciendo que se calculó
+  // sobre un supuesto». Esa promesa vivía SOLO en la pantalla: en el documento
+  // que se firma, un apoyo estimado desde el suelo salía «cumple» igual que uno
+  // medido con cinta, y nada los distinguía. Aquí se cumple la promesa.
+  //
+  // Se lee del propio apoyo y no de una vista de la web: `exportar/` es un
+  // workspace puro y no puede importar de `web/src`.
+  const marcaDeSupuesto = (c) => {
+    const p = objeto(c?.procedencias);
+    const supuestos = Object.entries(p)
+      .filter(([, s]) => objeto(s).origen === 'estimado' || s === 'supuesto')
+      .map(([campo]) => campo);
+    return supuestos.length
+      ? ` <span class="supuesto" title="calculado sobre ${esc(supuestos.join(', '))}">· sobre dato ESTIMADO</span>`
+      : '';
+  };
+
   // ya existían en el CSV; faltaban justo en el documento que se firma.
   const filas = cargas.map((c) => `<tr${c?.estadoUtilizacion === 'revisar' ? ' class="revisar"' : ''}>
     <td class="num">${n(c?.n)}</td>
@@ -635,7 +657,7 @@ function seccionCargas(cargas) {
     <td class="num">${Number.isFinite(c?.ftViento_kgf) ? n(c.ftViento_kgf) : SIN_DATO}</td>
     <td class="num">${Number.isFinite(c?.ftTotal_kgf) ? n(c.ftTotal_kgf) : SIN_DATO}</td>
     <td class="num">${Number.isFinite(c?.utilizacion_pct) ? `${n(c.utilizacion_pct, 1)} %` : SIN_DATO}</td>
-    <td>${sello(c?.estadoUtilizacion ?? 'no_evaluable')}</td></tr>`);
+    <td>${sello(c?.estadoUtilizacion ?? 'no_evaluable')}${marcaDeSupuesto(c)}</td></tr>`);
 
   // El hallazgo va ANTES de la tabla, en prosa: quien hojea el informe en una
   // reunión no va a ordenar una columna de veinticuatro filas para encontrarlo.

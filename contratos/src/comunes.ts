@@ -43,8 +43,29 @@ import { z } from 'zod';
  * `orden` fraccionario NO valida contra un bundle con el contrato anterior, y
  * se descarta en silencio. Hay que DESPLEGAR la web con esta versión ANTES de
  * sembrar ningún punto intercalado.
+ *
+ * 0.6.0 — MENOR (un valor nuevo en un catálogo y un bloque opcional; nada
+ * renombrado ni cambiado de tipo). Entra lo que hace falta para poder ESCRIBIR
+ * la ficha estructural de un apoyo desde la pantalla:
+ *   · `Procedencia` gana `documento_proyecto` — un plano, un acta de montaje o
+ *     una memoria de cálculo. Antes no había valor honesto para eso:
+ *     `catalogo_fabricante` haría pasar un plano por garantía del fabricante,
+ *     `importado` diría «vino de otro sistema» e `importado`/`supuesto` dirían
+ *     que nadie lo verificó. Un plano dice lo que se QUISO construir; una placa
+ *     dice lo que se FABRICÓ, y esa diferencia es justo la que se discute el día
+ *     de la firma.
+ *   · `Apoyo.procedencias` — el sello por campo de los seis datos de la ficha.
+ *   · `FichaEstructural` — el molde STRICT de lo que se puede escribir en una
+ *     ficha. No es un documento: es lo que se admite en un parche.
+ *
+ * ⚠️ El valor nuevo del catálogo es de UNA SOLA DIRECCIÓN, exactamente como el
+ * `orden` fraccionario de 0.5.0: un apoyo guardado con `documento_proyecto` NO
+ * valida contra un bundle desplegado con el contrato anterior, y ahí no da error
+ * — `validar()` lo descarta EN SILENCIO y el apoyo desaparece de la pantalla.
+ * Hay que DESPLEGAR la web con esta versión ANTES de escribir el primer dato con
+ * ese valor.
  */
-export const VERSION_CONTRATO = '0.5.0';
+export const VERSION_CONTRATO = '0.6.0';
 
 // ── Identificadores ─────────────────────────────────────────────────────────
 
@@ -76,7 +97,24 @@ export const Procedencia = z.enum([
   'levantamiento_campo',   // lo midió una cuadrilla
   'deducido_geometria',    // lo calculó el sistema a partir del GPS
   'catalogo_fabricante',   // viene de una hoja de datos
-  'confirmado_humano',     // una persona con criterio lo validó
+  /**
+   * Viene de un PLANO, un acta de montaje o una memoria de cálculo del proyecto.
+   *
+   * No es lo mismo que `catalogo_fabricante` y por eso no se fusionan: un plano
+   * dice lo que se quiso construir y una placa dice lo que se fabricó. Cuando el
+   * apoyo del plano y el del terreno no coinciden —que pasa—, quien firma tiene
+   * que poder verlo sin abrir el código.
+   */
+  'documento_proyecto',
+  /**
+   * Una persona con criterio lo validó.
+   *
+   * ⚠️ NO es un origen, y por eso NO se puede elegir al escribir un dato nuevo:
+   * `FichaEstructural` lo rechaza. Confirmar es un ACTO POSTERIOR sobre un valor
+   * que ya está —«lo he verificado personalmente»—, y ponerlo de entrada sería
+   * poner la firma del Ingeniero sobre lo que no firmó.
+   */
+  'confirmado_humano',
   'importado',             // vino de otro sistema
   'supuesto',              // ⚠️ nadie lo verificó — se arrastra como tal
 ]);

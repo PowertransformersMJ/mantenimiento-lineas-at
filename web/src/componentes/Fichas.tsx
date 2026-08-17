@@ -7,12 +7,15 @@
 // captura de campo (F4) — aquí no se finge nada (regla: no fabricar datos).
 // ============================================================================
 import { useMemo, useState, type ReactNode } from 'react';
-import { FUNCIONES_ANCLA, type Apoyo, type Evidencia } from '@lineas/contratos';
+import { FUNCIONES_ANCLA, type Apoyo, type Conductor, type Evidencia, type Hipotesis } from '@lineas/contratos';
 import { vincenty, deflexion, vanoViento } from '@lineas/nucleo/geodesia';
 import { tramosDeTension } from '@lineas/nucleo/mecanica';
 import { soloEstructuras, nombreVisible, vanos } from '../vistas/planta';
 import { nf, aGMS } from '../vistas/formato';
+import { contextoDeLinea } from '../vistas/ejesLinea';
+import { avisoDeSupuestos, estadoDelApoyo, etiquetaDeOrigen } from '../vistas/fichaEstructural';
 import { FichaCriterios } from './FichaCriterios';
+import { FichaEditor } from './FichaEditor';
 import { Galeria } from './Galeria';
 
 /**
@@ -34,6 +37,27 @@ function Dato({ v, unidad }: { v: string | number | null | undefined; unidad?: s
   return <>{typeof v === 'number' ? nf(v, unidad === 'm' ? 1 : 0) : v}{unidad ? ` ${unidad}` : ''}</>;
 }
 
+/**
+ * DE DÓNDE SALIÓ ESTE NÚMERO, pegado al número.
+ *
+ * Lo `supuesto` se marca distinto y con todas las letras, no en gris pequeño: un
+ * dato estimado a ojo que llega a un papel firmado sin la marca convierte una
+ * estimación en un dictamen, y ése es el peor resultado posible de esta ola. La
+ * lista de qué está supuesto la da `vistas/fichaEstructural.ts`; aquí solo se
+ * pinta.
+ */
+function Sello({ apoyo, clave }: { apoyo: Apoyo; clave: string }): ReactNode {
+  const s = (apoyo.procedencias ?? {})[clave as keyof NonNullable<Apoyo['procedencias']>];
+  if (!s) return null;
+  const supuesto = s.procedencia === 'supuesto';
+  return (
+    <span className={supuesto ? 'ficha-supuesto' : 'ficha-origen'}>
+      {supuesto ? 'SUPUESTO — nadie lo verificó' : etiquetaDeOrigen(s.procedencia)}
+      {s.fuente ? `: ${s.fuente}` : ''}
+    </span>
+  );
+}
+
 interface FichaPunto {
   apoyo: Apoyo;
   esEstructura: boolean;
@@ -46,9 +70,24 @@ interface FichaPunto {
   enVano: string | null;             // para empalmes: dentro de qué vano viven
 }
 
-export function Fichas({ apoyos, linea, evidencias = [] }:
-  { apoyos: Apoyo[]; linea?: { tensionMaxima_kV?: number; tensionNominal_kV?: number };
-    evidencias?: Evidencia[] }) {
+export function Fichas({ apoyos, linea, conductor, hipotesis, evidencias = [], sesion }:
+  { apoyos: Apoyo[];
+    linea?: { tensionMaxima_kV?: number; tensionNominal_kV?: number; circuitos?: number };
+    /**
+     * El conductor y la hipótesis NO son decoración de esta pestaña: son lo que
+     * el motor necesita para poder decir qué veredictos se moverían si se
+     * completa la ficha. Sin ellos, el antes/después no se podría calcular y
+     * habría que enseñar el formulario a ciegas.
+     */
+    conductor: Conductor; hipotesis: Hipotesis;
+    evidencias?: Evidencia[];
+    /**
+     * Quién entró y con qué permiso. Es opcional porque la ficha se LEE sin
+     * saberlo; lo que exige saberlo es escribir. Si no consta, el formulario no
+     * se ofrece y se dice por qué — nunca se ofrece un botón que la base va a
+     * negar.
+     */
+    sesion?: { correo: string | null; rol: string; orgId: string; uid: string } }) {
   const fichas = useMemo<FichaPunto[]>(() => {
     const orden = [...apoyos].sort((x, y) => x.orden - y.orden);
     const E = soloEstructuras(orden);
@@ -98,7 +137,29 @@ export function Fichas({ apoyos, linea, evidencias = [] }:
   }, [apoyos]);
 
   const [sel, setSel] = useState(0);
+  /**
+   * Si el formulario de la ficha está abierto. Se cierra al cambiar de punto a
+   * propósito: un formulario a medio escribir que sigue abierto al saltar a otro
+   * apoyo es la forma más fácil de guardar la altura de E07 dentro de E08.
+   */
+  const [editando, setEditando] = useState(false);
   const apoyoId = fichas[sel]?.apoyo.id;
+
+  /**
+   * La línea entera en la forma que el núcleo pide, para el antes/después.
+   *
+   * La arma `vistas/ejesLinea.ts`, que es su dueño único: son DOS formas de
+   * tramo —la aplanada y la rica— y pasarle la aplanada al eje longitudinal no
+   * da error, deja el eje mudo. Aquí no se vuelve a montar ninguna.
+   */
+  const contexto = useMemo(
+    () => contextoDeLinea(apoyos, conductor, hipotesis, linea?.circuitos),
+    [apoyos, conductor, hipotesis, linea?.circuitos]);
+
+  /** Cómo está HOY este apoyo: si tiene veredicto y, si no, qué le falta. */
+  const estado = useMemo(
+    () => (apoyoId ? estadoDelApoyo(contexto, apoyoId) : null),
+    [contexto, apoyoId]);
 
   /**
    * Las fotos de este punto, y solo de este punto.
@@ -125,6 +186,16 @@ export function Fichas({ apoyos, linea, evidencias = [] }:
   const a = f.apoyo;
   const c = a.coordenada;
 
+  /**
+   * Si esta sesión puede ESCRIBIR en la ficha.
+   *
+   * ⚠️ Esto es HIGIENE, no la frontera de seguridad: quien quisiera podría
+   * llamar a la base igual, y quien decide de verdad son las reglas de
+   * Firestore. Existe para que nadie rellene un formulario de seis campos y se
+   * entere al final de que la base lo niega.
+   */
+  const puedeEditar = sesion?.rol === 'admin' || sesion?.rol === 'editor';
+
   const claseChip = (x: FichaPunto) =>
     !x.esEstructura ? 'chip emp'
       : x.apoyo.funcionEstructural === 'Terminal' ? 'chip term'
@@ -139,7 +210,7 @@ export function Fichas({ apoyos, linea, evidencias = [] }:
           {fichas.map((x, i) => (
             <button key={x.apoyo.id}
               className={claseChip(x) + (i === sel ? ' activo' : '')}
-              onClick={() => setSel(i)}>
+              onClick={() => { setSel(i); setEditando(false); }}>
               {nombreVisible(x.apoyo).replace('LN-627 ', '')}
             </button>
           ))}
@@ -203,15 +274,28 @@ export function Fichas({ apoyos, linea, evidencias = [] }:
             <div className="ficha-bloque">
               <h3>Inventario del apoyo</h3>
               <dl>
-                <dt>Tipo de apoyo</dt><dd><Dato v={a.tipoApoyo} /></dd>
+                <dt>Tipo de apoyo</dt><dd><Dato v={a.tipoApoyo} /><Sello apoyo={a} clave="tipoApoyo" /></dd>
                 <dt>Altura</dt><dd><Dato v={a.altura_m} unidad="m" /></dd>
                 <dt>Cota de sujeción</dt><dd><Dato v={a.cotaSujecion_m} unidad="m" /></dd>
-                <dt>Carga de rotura</dt><dd><Dato v={a.cargaRotura_kgf} unidad="kgf" /></dd>
+                <dt>Carga de rotura</dt><dd><Dato v={a.cargaRotura_kgf} unidad="kgf" /><Sello apoyo={a} clave="cargaRotura_kgf" /></dd>
                 {/* Las dos alturas que la pestaña Cargas reclama en cada fila: sin
                     ellas la utilización del apoyo queda no evaluable para siempre.
                     Aquí el hueco se ve y se cuenta, que es el paso previo a llenarlo. */}
-                <dt>Altura libre sobre el terreno</dt><dd><Dato v={a.alturaLibre_m} unidad="m" /></dd>
-                <dt>Altura del punto de sujeción</dt><dd><Dato v={a.alturaAplicacion_m} unidad="m" /></dd>
+                <dt>Altura libre sobre el terreno</dt><dd><Dato v={a.alturaLibre_m} unidad="m" /><Sello apoyo={a} clave="alturaLibre_m" /></dd>
+                <dt>Altura del punto de sujeción</dt><dd><Dato v={a.alturaAplicacion_m} unidad="m" /><Sello apoyo={a} clave="alturaAplicacion_m" /></dd>
+                {/* Los dos que hasta hoy no se veían en ninguna pantalla, aunque el
+                    contrato los admitía y el motor los usa: sin ellos el eje
+                    longitudinal no dictamina, y un dato guardado que no se ve es un
+                    dato que nadie puede discutir. */}
+                <dt>Capacidad a lo largo de la línea</dt>
+                <dd>
+                  {a.capacidadLongitudinal
+                    ? <>{nf(a.capacidadLongitudinal.valor_kgf)} kgf · {a.capacidadLongitudinal.tipo} ·
+                        vale a {nf(a.capacidadLongitudinal.alturaReferencia_m, 2)} m</>
+                    : <Dato v={null} />}
+                  <Sello apoyo={a} clave="capacidadLongitudinal" />
+                </dd>
+                <dt>Conductores que amarran aquí</dt><dd><Dato v={a.nFasesAmarradas} /><Sello apoyo={a} clave="nFasesAmarradas" /></dd>
                 <dt>Año de instalación</dt><dd><Dato v={a.anioInstalacion} /></dd>
                 <dt>Código de inventario</dt><dd><Dato v={a.codigoInventario} /></dd>
                 <dt>En servicio</dt><dd>{a.activo === false ? 'NO — retirado' : 'sí'}</dd>
@@ -224,6 +308,40 @@ export function Fichas({ apoyos, linea, evidencias = [] }:
                   lo impide —la regla vive en su comentario, no en el esquema—, así que el dato entra
                   y el cálculo de momentos que salga de él no significaría nada. Hay que corregirlo
                   en el inventario.
+                </p>
+              )}
+
+              {/* ── LA PUERTA DE ENTRADA DEL DATO (TODO-57) ──────────────────
+                  Va AQUÍ, pegada a los huecos que llena, y no en una pestaña
+                  aparte: el sitio donde se ve que falta un dato es el sitio
+                  donde hay que poder ponerlo. Nada de lo de arriba desaparece
+                  ni se mueve — el formulario se AÑADE debajo. */}
+              {estado && !estado.tieneVeredicto && (
+                <p className="ficha-falta">
+                  <b>Este apoyo no tiene veredicto todavía.</b>{' '}
+                  {estado.faltaTodavia.length > 0
+                    ? <>Le falta{estado.faltaTodavia.length === 1 ? '' : 'n'}: {estado.faltaTodavia.join(' · ')}.</>
+                    : 'El motor no puede dictaminarlo con lo que hay declarado.'}
+                </p>
+              )}
+              {estado?.tieneVeredicto && (
+                <p className="fine">
+                  Este apoyo <b>sí</b> tiene veredicto: de lado {estado.transversal.replace('_', ' ')} ·
+                  a lo largo {estado.longitudinal.replace('_', ' ')}. Los detalles, en la pestaña Cargas.
+                </p>
+              )}
+
+              {!editando && puedeEditar && (
+                <button type="button" className="boton" onClick={() => setEditando(true)}>
+                  Completar la ficha de este apoyo
+                </button>
+              )}
+              {!editando && !puedeEditar && (
+                <p className="fine">
+                  <b>Esta ficha se puede ver, pero no escribir desde esta sesión.</b>{' '}
+                  {sesion
+                    ? `Entró con el permiso «${sesion.rol}», y completar la ficha de un apoyo exige permiso de edición.`
+                    : 'Todavía no consta con qué permiso entró, así que no se ofrece un botón que la base podría negar.'}
                 </p>
               )}
             </div>
@@ -273,6 +391,21 @@ export function Fichas({ apoyos, linea, evidencias = [] }:
             </p>
           </div>
         </div>
+
+        {/* El formulario. ADITIVO: se monta DEBAJO de la ficha completa, que no
+            pierde ni una fila. Con `key` por apoyo, para que cambiar de punto no
+            deje dentro lo tecleado del anterior. */}
+        {f.esEstructura && editando && puedeEditar && sesion && (
+          <FichaEditor key={a.id} apoyo={a} contexto={contexto} sesion={sesion}
+            alCerrar={() => setEditando(false)} />
+        )}
+
+        {/* Un veredicto calculado sobre un dato estimado a ojo sigue siendo el
+            veredicto del motor —aquí no se altera nada—, pero quien lo lea tiene
+            que saberlo. Va pegado al semáforo, que es donde se decide. */}
+        {f.esEstructura && avisoDeSupuestos(a) && (
+          <p className="aviso"><b>{avisoDeSupuestos(a)}</b></p>
+        )}
 
         {/* El semáforo del apoyo: qué de lo que hay CUADRA. Estaba construido y
             probado desde la ola anterior y no lo montaba ninguna pantalla. */}

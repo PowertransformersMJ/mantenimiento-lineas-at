@@ -634,3 +634,31 @@ describe('informe — el eje longitudinal: veredicto, ausencia y textos que no e
       /con veredicto en 1 de 2 apoyos/);
   });
 });
+
+// ── La promesa de la ficha, cumplida en el papel ────────────────────────────
+//
+// La ficha le dice al Ingeniero, con estas palabras, que si marca un dato como
+// estimado a ojo «el veredicto saldrá igual, y saldrá diciendo que se calculó
+// sobre un supuesto». Esa promesa vivía SOLO en la pantalla: en el documento que
+// se firma, un apoyo estimado desde el suelo salía indistinguible de uno medido
+// con cinta. Un informe que promete y no cumple es peor que uno que calla.
+test('el informe distingue un veredicto calculado sobre un dato ESTIMADO', () => {
+  const conCarga = (procedencias) => base({
+    cargas: [{
+      n: 1, apoyo: 'A-1', funcionEstructural: 'Retención / anclaje',
+      deflexion_grados: 30, factorAngulo: 0.518, tiro_kgf: 1000, nConductores: 3,
+      ftAngulo_kgf: 1553, ftViento_kgf: 200, ftTotal_kgf: 1753,
+      utilizacion_pct: 42.5, estadoUtilizacion: 'cumple', procedencias,
+    }],
+  });
+
+  const estimado = informeHtml(conCarga({ cargaRotura_kgf: { origen: 'estimado' } }));
+  assert.match(estimado, /ESTIMADO/, 'el veredicto sobre un dato estimado no se declara como tal');
+
+  const medido = informeHtml(conCarga({ cargaRotura_kgf: { origen: 'medido_en_sitio' } }));
+  assert.ok(!/sobre dato ESTIMADO/.test(medido),
+    'un dato medido en el sitio no puede salir marcado como estimado');
+
+  const sinSellos = informeHtml(conCarga(undefined));
+  assert.ok(!/sobre dato ESTIMADO/.test(sinSellos), 'sin sellos no se inventa una marca');
+});

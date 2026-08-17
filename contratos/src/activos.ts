@@ -7,7 +7,7 @@
 // eventos.ts como registro inmutable.
 // ============================================================================
 import { z } from 'zod';
-import { Base, Id, Instante, Procedencia } from './comunes.ts';
+import { Base, Id, Instante, Procedencia, Uid } from './comunes.ts';
 
 // ── Catálogos cerrados del dominio ──────────────────────────────────────────
 
@@ -79,6 +79,59 @@ export const TipoPunto = z.enum(['Estructura', 'Empalme', 'Punto de referencia']
 export const NivelContaminacion = z.enum(['Muy ligero', 'Ligero', 'Medio', 'Fuerte', 'Muy fuerte']);
 
 export const Condicion = z.enum(['Buena', 'Regular', 'Mala', 'Crítica', 'Sin evaluar']);
+
+// ── El sello de UN dato: de dónde salió ese número en concreto ──────────────
+
+/**
+ * De dónde salió UN campo, quién lo declaró y cuándo.
+ *
+ * ⚠️ Va por CAMPO, no por ficha. Preguntar una sola vez por apoyo sería mentir:
+ * la altura libre se mide en el sitio y la carga de rotura se lee de una placa, y
+ * el día que se firme el informe esas dos cosas no valen lo mismo. Un apoyo que
+ * «cumple» con la altura medida y la capacidad estimada a ojo no es el mismo
+ * apoyo que uno con las dos medidas, y la única forma de saberlo tres años
+ * después es que cada dato lleve su propio sello.
+ *
+ * `fuente` es opcional AQUÍ y obligatoria AL ESCRIBIR (lo exige
+ * `FichaEstructural`): el esquema tiene que seguir admitiendo lo que ya está
+ * guardado, y el punto donde se aprieta la tuerca es la escritura, no la lectura.
+ * La excepción es `capacidadLongitudinal`, que ya lleva su `fuente` DENTRO del
+ * valor y el núcleo la imprime en el texto del veredicto: un hecho, un dueño.
+ */
+export const SelloDeDato = z.object({
+  procedencia: Procedencia,
+  /** Una línea que otro pueda discutir dentro de tres años. No un código. */
+  fuente: z.string().min(1).max(500).optional(),
+  declaradoEn: Instante,
+  declaradoPor: Uid,
+}).strict();
+
+/**
+ * Los sellos de los seis campos de la ficha estructural.
+ *
+ * ⚠️ Es un objeto CERRADO —seis claves nombradas—, no un diccionario abierto
+ * `Record<string, SelloDeDato>`. Por la misma razón por la que `ParteDeAnalisis`
+ * es `strict`: una clave mal escrita («alturaLibre» sin `_m`) se RECHAZA en vez
+ * de quedarse para siempre dentro de un documento que respalda un papel firmado,
+ * sellando un campo que no existe mientras el que sí existe se queda sin sello.
+ *
+ * El día que la ficha gane un séptimo campo, esta lista crece en el mismo commit
+ * — que es exactamente la revisión que un diccionario abierto se salta.
+ */
+export const ProcedenciasDeApoyo = z.object({
+  alturaLibre_m: SelloDeDato.optional(),
+  alturaAplicacion_m: SelloDeDato.optional(),
+  cargaRotura_kgf: SelloDeDato.optional(),
+  capacidadLongitudinal: SelloDeDato.optional(),
+  nFasesAmarradas: SelloDeDato.optional(),
+  tipoApoyo: SelloDeDato.optional(),
+}).strict();
+
+/** Las seis claves, en orden. Quien recorra la ficha lee de aquí, no de una copia. */
+export const CAMPOS_CON_SELLO: readonly string[] = Object.freeze([
+  'alturaLibre_m', 'alturaAplicacion_m', 'cargaRotura_kgf',
+  'capacidadLongitudinal', 'nFasesAmarradas', 'tipoApoyo',
+]);
 
 // ── Coordenada ──────────────────────────────────────────────────────────────
 
@@ -300,6 +353,20 @@ export const Apoyo = Base.extend({
    */
   nFasesAmarradas: z.number().int().positive().optional(),
 
+  /**
+   * DE DÓNDE SALIÓ CADA UNO de los seis datos que dan veredicto a este apoyo.
+   *
+   * Opcional en el esquema porque los 26 apoyos ya escritos no lo traen y una
+   * regla nueva no puede dejar inservible lo que ya está. Obligatorio AL
+   * ESCRIBIR: `FichaEstructural` rechaza un valor sin su sello y un sello sin su
+   * valor — juntos o ninguno.
+   *
+   * `funcionProcedencia` sigue donde estaba y no se mueve aquí: la función
+   * estructural no es un campo de esta ficha (corta tramos, y editarla recalcula
+   * la línea entera; va en su propia ola).
+   */
+  procedencias: ProcedenciasDeApoyo.optional(),
+
   anioInstalacion: z.number().int().min(1900).max(2200).optional(),
   codigoInventario: z.string().optional(),
 
@@ -319,6 +386,149 @@ export const Apoyo = Base.extend({
 
   condicion: Condicion.default('Sin evaluar'),
   activo: z.boolean().default(true),
+});
+
+// ── La FICHA ESTRUCTURAL: lo único que se puede escribir de un apoyo ────────
+
+/**
+ * ETIQUETAS EN CASTELLANO de los seis campos, para los mensajes de rechazo.
+ *
+ * Quien lee un rechazo es el Ingeniero, que no programa: «falta el sello de
+ * alturaLibre_m» no le dice nada, y «no dijo de dónde salió la altura libre
+ * sobre el terreno» sí. Viven aquí, con el molde que los rechaza, para que el
+ * mensaje no se escriba dos veces.
+ */
+export const ETIQUETA_CAMPO_FICHA: Readonly<Record<string, string>> = Object.freeze({
+  alturaLibre_m: 'la altura libre sobre el terreno',
+  alturaAplicacion_m: 'la altura del amarre del conductor',
+  cargaRotura_kgf: 'la carga de rotura en la punta',
+  capacidadLongitudinal: 'la capacidad a lo largo de la línea',
+  nFasesAmarradas: 'los conductores que amarran aquí',
+  tipoApoyo: 'el tipo de apoyo',
+});
+
+/**
+ * EL MOLDE DE LO QUE SE PUEDE ESCRIBIR EN UNA FICHA. Calca `ParteDeAnalisis`:
+ * es `strict`, así que una clave que no esté en esta lista se RECHAZA en vez de
+ * escribirse — y en apoyos eso importa el doble, porque un apoyo no se borra
+ * (`firestore.rules`: `allow delete: if false`).
+ *
+ * NO es un documento: es un PARCHE. No trae `id`, ni `orgId`, ni `revision`, ni
+ * ninguno de los campos que la regla `noTocaReservados()` congela.
+ *
+ * LAS TRES REGLAS QUE HACE CUMPLIR, y por qué viven aquí y no en la pantalla:
+ *
+ *   1. **Valor y sello entran JUNTOS o no entra ninguno.** Un valor sin sello es
+ *      un número sin origen dentro de un papel que se firma; un sello sin valor
+ *      es una procedencia que no sella nada. La pantalla puede olvidarlo —y una
+ *      pantalla nueva lo olvidará—; el molde no.
+ *   2. **`confirmado_humano` NO se puede elegir al escribir.** No es un origen:
+ *      es un acto posterior sobre un dato que ya está. Si el Ingeniero mide, es
+ *      levantamiento de campo; si lee una placa, es catálogo. Aceptarlo aquí
+ *      sería poner su firma sobre lo que no firmó (`99 §ADR-027`).
+ *   3. **La fuente es OBLIGATORIA.** Hoy es opcional en el esquema de lectura
+ *      —hay documentos escritos sin ella—, pero al escribir se exige: el núcleo
+ *      ya la imprime en el texto del veredicto, así que exigirla mejora el
+ *      informe el mismo día. La excepción es `capacidadLongitudinal`, que la
+ *      lleva DENTRO del valor: ahí la fuente es ésa y no se guarda dos veces.
+ *
+ * LO QUE ESTE MOLDE NO COMPRUEBA, a propósito: **la geometría**. «El amarre no
+ * puede quedar por encima de la punta» necesita ver el apoyo COMPLETO —el que
+ * está en la base más el parche—, y un parche que solo trae el amarre no la
+ * puede juzgar. Esa regla tiene un solo dueño y vive en
+ * `web/src/vistas/fichaEstructural.ts`, atada al núcleo por una prueba. Escribir
+ * aquí media comprobación sería la tercera copia, y la mitad que dice que sí.
+ */
+export const FichaEstructural = z.object({
+  alturaLibre_m: z.number().positive().optional(),
+  alturaAplicacion_m: z.number().positive().optional(),
+  cargaRotura_kgf: z.number().positive().optional(),
+  /**
+   * Los cuatro juntos o ninguno — es lo que ya exige `Apoyo`, y aquí la `fuente`
+   * además deja de ser opcional: `nucleo/longitudinal.js` la imprime en el texto
+   * del veredicto, y un veredicto que cita una fuente vacía no se puede discutir.
+   */
+  capacidadLongitudinal: z.object({
+    valor_kgf: z.number().positive(),
+    tipo: TipoCapacidadLongitudinal,
+    alturaReferencia_m: z.number().positive(),
+    fuente: z.string().min(1).max(500),
+  }).strict().optional(),
+  nFasesAmarradas: z.number().int().positive().optional(),
+  tipoApoyo: TipoApoyo.optional(),
+  procedencias: ProcedenciasDeApoyo.optional(),
+}).strict().superRefine((v, ctx) => {
+  const valores = v as Record<string, unknown>;
+  const sellos = (v.procedencias ?? {}) as Record<string, { procedencia?: string; fuente?: string } | undefined>;
+
+  let algunCampo = 0;
+
+  for (const campo of CAMPOS_CON_SELLO) {
+    const tieneValor = valores[campo] !== undefined;
+    const sello = sellos[campo];
+    const etiqueta = ETIQUETA_CAMPO_FICHA[campo] ?? campo;
+    if (tieneValor) algunCampo += 1;
+
+    // 1 · juntos o ninguno.
+    if (tieneValor && !sello) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['procedencias', campo],
+        message: `No se ha dicho de dónde salió ${etiqueta}. Un dato sin origen no se puede `
+          + 'defender tres años después, así que no se guarda.',
+      });
+      continue;
+    }
+    if (!tieneValor && sello) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [campo],
+        message: `Se ha declarado el origen de ${etiqueta}, pero no su valor. Un origen que no `
+          + 'sella ningún número no dice nada.',
+      });
+      continue;
+    }
+    if (!sello) continue;
+
+    // 2 · confirmar no es un origen.
+    if (sello.procedencia === 'confirmado_humano') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['procedencias', campo, 'procedencia'],
+        message: `«Confirmado» no es de dónde salió ${etiqueta}: es un acto posterior sobre un `
+          + 'dato que ya está. Diga si lo midió, si lo dice una placa, si lo dice un plano o si '
+          + 'lo estimó a ojo; confirmarlo es un segundo gesto, sobre el valor ya guardado.',
+      });
+    }
+
+    // 3 · la fuente, con su excepción de no-duplicación.
+    if (campo === 'capacidadLongitudinal') {
+      if (sello.fuente !== undefined) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['procedencias', campo, 'fuente'],
+          message: 'La capacidad a lo largo de la línea ya lleva su fuente dentro del propio dato, '
+            + 'y es la que el informe imprime. Guardarla dos veces abre la puerta a que digan cosas '
+            + 'distintas, y entonces nadie sabe cuál se firmó.',
+        });
+      }
+    } else if (!sello.fuente) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['procedencias', campo, 'fuente'],
+        message: `Falta decir en una línea de dónde salió ${etiqueta} —qué se midió, qué placa se `
+          + 'leyó, qué plano—, para que otro pueda discutirlo dentro de tres años.',
+      });
+    }
+  }
+
+  if (algunCampo === 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: [],
+      message: 'La ficha no trae ningún dato que guardar.',
+    });
+  }
 });
 
 // ── Hipótesis de cálculo ────────────────────────────────────────────────────
@@ -376,6 +586,9 @@ export const Hipotesis = Base.extend({
 
 export type Linea = z.infer<typeof Linea>;
 export type Apoyo = z.infer<typeof Apoyo>;
+export type SelloDeDato = z.infer<typeof SelloDeDato>;
+export type ProcedenciasDeApoyo = z.infer<typeof ProcedenciasDeApoyo>;
+export type FichaEstructural = z.infer<typeof FichaEstructural>;
 export type Conductor = z.infer<typeof Conductor>;
 export type Hipotesis = z.infer<typeof Hipotesis>;
 export type Coordenada = z.infer<typeof Coordenada>;

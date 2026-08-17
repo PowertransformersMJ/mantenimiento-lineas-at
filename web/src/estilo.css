@@ -1218,3 +1218,97 @@ p.fund-vivo + .sello-calculo { margin-top: 5px; }
   border-radius: 4px; padding: 2px 7px;
 }
 .rca-enunciado { margin: 6px 0 0; font-size: 13px; line-height: 1.5; color: var(--tx); }
+
+/* ── LA FICHA ESTRUCTURAL: escribir el dato que desbloquea el veredicto ─────
+   (TODO-57 · ADR-030)
+
+   Toda la familia pide al tablero de color; ni un valor a mano. Y la jerarquía
+   NO es decorativa: lo SUPUESTO tiene que verse antes de leerse, porque un dato
+   estimado a ojo que llega a un papel firmado sin marca convierte una
+   estimación en un dictamen. */
+
+/* De dónde salió un dato ya guardado, pegado al dato. Apagado a propósito: es
+   contexto, no alarma. */
+.ficha-origen {
+  display: block; margin-top: 2px;
+  font-size: 10.5px; line-height: 1.45; color: var(--tx3);
+}
+/* SUPUESTO. Ámbar de aviso y en su propia caja: es lo único de esta ficha que
+   puede convertir una estimación en un dictamen firmado. */
+.ficha-supuesto {
+  display: inline-block; margin-top: 3px; padding: 2px 7px;
+  background: var(--t-ambar); border: 1px solid var(--acc-borde);
+  border-radius: 4px;
+  font-size: 10.5px; font-weight: 600; line-height: 1.45; color: var(--tx-aviso);
+}
+/* «A este apoyo le faltan 4 datos». No es un error: es el trabajo pendiente. */
+.ficha-falta {
+  margin: 10px 0 0; padding: 8px 11px; border-radius: 0 6px 6px 0;
+  background: var(--t-ambar); border-left: 3px solid var(--acc);
+  color: var(--tx-aviso); font-size: 11.8px; line-height: 1.55;
+}
+
+/* ── El formulario ─────────────────────────────────────────────────────── */
+.ficha-editor {
+  margin: 14px 0 0; padding: 13px 15px;
+  background: var(--pnl2); border: 1px solid var(--bd); border-radius: var(--radio);
+  box-shadow: var(--luz-arriba), var(--sombra-1);
+}
+.ficha-editor-cab {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap;
+}
+.ficha-editor-cab h3, .ficha-editor-t {
+  margin: 0; font-size: 11.5px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .7px; color: var(--tx);
+}
+.ficha-editor-t { margin-top: 16px; }
+/* El campo que se enseña y NO se toca: la altura total del poste, que es justo
+   con la que se confunde la altura libre. Gris de dato apagado, nunca de aviso. */
+.ficha-gris {
+  margin: 10px 0 0; padding: 8px 11px; border-radius: 0 6px 6px 0;
+  background: var(--pnl); border-left: 3px solid var(--bd-tenue);
+  color: var(--tx-pendiente); font-size: 11.5px; line-height: 1.6;
+}
+/* Un bloque = una forma de llegar el dato (se mide · lo dice el papel · se
+   cuenta mirando). El agrupamiento copia cómo llega el dato de verdad. */
+.ficha-bloque-editor {
+  margin: 12px 0 0; padding: 11px 13px;
+  background: var(--pnl); border: 1px solid var(--bd); border-radius: var(--radio);
+}
+.ficha-bloque-t {
+  margin: 0; font-size: 10.5px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .6px; color: var(--acc);
+}
+.ficha-campo {
+  margin: 11px 0 0; padding: 10px 12px;
+  background: var(--pnl2); border: 1px solid var(--bd-fila); border-radius: 8px;
+}
+.ficha-campo-t { margin: 0; font-size: 12.5px; font-weight: 600; color: var(--tx); }
+/* QUÉ DESBLOQUEA. Es la única razón por la que el campo está en la lista, así
+   que se ve como afirmación y no como nota al pie. */
+.ficha-desbloquea {
+  margin: 4px 0 0; font-size: 11.2px; line-height: 1.55; color: var(--tx-info);
+}
+/* Lo que el apoyo ya declara, con su origen. Azul, que en esta hoja es «esto ya
+   consta», nunca ámbar de aviso ni verde de aprobado. */
+.ficha-hoy {
+  margin: 5px 0 0; padding: 5px 9px;
+  background: var(--t-azul); border-left: 2px solid var(--b-azul);
+  border-radius: 0 5px 5px 0;
+  font-size: 11.2px; line-height: 1.5; color: var(--tx3);
+}
+.ficha-hoy b { color: var(--tx); font-weight: 600; }
+/* Un dato guardado SIN origen: no es un hueco (el número está) ni un dato sano.
+   Se dice, y se ve. */
+.ficha-sin-origen { color: var(--tx-aviso); font-weight: 600; }
+
+/* En teléfono el formulario se usa en campo, de pie y con una mano: los campos
+   ocupan el ancho entero y las cajas pierden sangrado, que es espacio robado a
+   lo que hay que leer. */
+@media (max-width: 620px) {
+  .ficha-editor, .ficha-bloque-editor, .ficha-campo { padding-left: 9px; padding-right: 9px; }
+  .ficha-editor .cargar-pregunta { max-width: none; }
+  .ficha-editor .rca-select { width: 100%; }
+  .ficha-editor-cab { align-items: flex-start; flex-direction: column; }
+}

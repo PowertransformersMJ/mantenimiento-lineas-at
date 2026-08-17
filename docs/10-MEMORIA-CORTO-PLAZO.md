@@ -13,11 +13,10 @@ carcasa (ADR-018) · RCA (ADR-020) · documental (ADR-021) · contexto real (ADR
 
 ## 🛑 LO PRIMERO AL RETOMAR
 
-1. **Los puntos GPS de agosto siguen SIN estar en producción, y ya NO falta ninguna llave.**
-   Contrato 0.5.0 desplegado y **«Cargar» en producción y funcionando** (verificado en vivo el 17-08
-   con su Chrome: cabecera **«permiso admin»**, la incógnita de 11 días); desde el 17-08 además **le
-   RECUERDA lo que ya firmó** (`99 §ADR-027/029`), así que no repite pórtico ni empalme. **Falta que
-   él suba el GPX y cargue.** Deuda ANTES del pórtico de ORIGEN: la foto se resuelve por `orden`.
+1. **Los puntos de agosto YA ESTÁN cargados** (17-08): 25 estructuras · 3 empalmes · 3.024 m ·
+   7 tramos, desde la pestaña **Cargar** y con su sesión, sin llave. Y la **ficha estructural ya
+   se puede escribir** (`99 §ADR-029`): con 3 campos declarados aparece el veredicto de un apoyo.
+   Lo que falta ya no es código, es EL DATO — y es pregunta suya (`TODO-57`).
 2. **Verificar que una acción FUNCIONÓ**, no solo que se hizo (`TODO-66`, `99 §ADR-026`): una acción que no sirvió es hoy indistinguible de una que sirvió.
 3. **El tope de tiro sigue sin decidir (TODO-33):** el molde ya trae `tiroAdmisible_pct` y `criterioTiroQueRige` (ADR-014), pero `vistas/tramos.ts`, `vientoDatos.ts` y `Fundamentos.tsx` leen `tiroMaximoAdmisible()` = 0,5·RTS fijo. **TODO-44:** R2 factura.
 
@@ -70,7 +69,7 @@ comité SUPONE entra con el mismo rango que lo que verifica (`30 · L-42`).
 | # | Qué | Por qué importa |
 |---|---|---|
 | **NUEVO** | **Ponerse contraseña.** ⚠️ La llave admin ya NO está en Descargas: regenerarla (Consola Firebase → Configuración → Cuentas de servicio → Generar nueva clave) y guardarla FUERA de Descargas. Después: `usuarios.mjs contrasena … --definitiva` (sin `--definitiva` la cuenta queda provisional y se revocan sus sesiones) | Desbloquea retirar Google (fase 2b). Ya está VERIFICADO que la pantalla no le aparece entrando por Google |
-| **TODO-57** | **La FICHA ESTRUCTURAL**: carga de rotura, altura libre, altura del punto de sujeción, fases amarradas. ¿Las tiene la empresa en planos o actas, o hay que levantarlas? | **EL CUELLO DE BOTELLA REAL.** Separa «cuánta carga recibe» de «si aguanta» |
+| **TODO-57** | **La FICHA ESTRUCTURAL — ya se puede ESCRIBIR desde la pantalla** (`99 §ADR-030`, sin desplegar aún). Deja de estar bloqueado por el código: lo que falta es **el DATO**. ¿Las tiene la empresa en planos o actas, o hay que levantarlas? Los seis: carga de rotura · altura libre · altura del amarre · capacidad longitudinal (con **qué ES** ese número) · fases amarradas · tipo de apoyo | **EL CUELLO DE BOTELLA REAL.** Separa «cuánta carga recibe» de «si aguanta». Al meter el primero saldrán los primeros «REVISAR»: **no son averías nuevas**, es lo que ya pasaba y no se veía |
 | **TODO-59** | **Qué ficha se le pide a CADA tipología.** La línea mezcla 4 (pórticos de 2 y 3 postes, torre reticulada, poste simple) y el modelo del contrato es de POSTE. Evidencia → `40 §8.3` | No es un formulario, son tres o cuatro |
 | **TODO-33** | **50 % o 25 % de RTS** como tope de tiro | Factor 2 sobre un dictamen |
 | **TODO-58** | **¿Dónde deben vivir los datos?** Hoy Firestore (São Paulo) y R2 bajo TUS cuentas personales, con coordenadas y fotos del empleador | La región de Firestore es INMUTABLE: cambiarla es rehacer |
@@ -83,7 +82,8 @@ comité SUPONE entra con el mismo rango que lo que verifica (`30 · L-42`).
 
 | # | Qué | Dónde está el plan |
 |---|---|---|
-| **TODO-69** | **Cargar los 2 puntos aprobados de agosto** (el 3.º —pórtico de ORIGEN— lo dejó PENDIENTE él, y la pantalla lo nombra sin ofrecerlo). Ya no hace falta llave ni volver a contestar: «Cargar» está en producción con `rol: admin` verificado, y **le recuerda lo que firmó el 16 y el 17** con la fecha pegada (`99 §ADR-029`). **FALTA: que él suba el GPX y cargue**, y verificar en vivo el recuerdo con su Chrome. Deuda ANTES del pórtico de ORIGEN: `subir-evidencias.mjs` resuelve la foto por `orden`. ⚠️ Si el día de la carga cambia algo de lo firmado, **hay que apendar la fila nueva a `decisiones-firmadas.json` por commit**: nada lo obliga, y la única constancia inmediata es el acta | `99 §ADR-027/028/029` |
+| **TODO-69** | ✅ **CERRADO el 17-08**: los 2 puntos aprobados están CARGADOS en producción (25 estructuras · 3 empalmes · 3.024 m · 7 tramos), desde la pestaña **Cargar** y con la sesión del Ingeniero, sin llave (`99 §ADR-027/028`). Pendiente suyo: verificar el pórtico de ORIGEN. Deuda antes de cargarlo: `subir-evidencias.mjs` resuelve la foto por `orden` | `99 §ADR-028` |
+| **TODO-70** | **Cerrar la ola de la ficha (ADR-030), en este orden.** ① **El ACTA y la exportación tienen que arrastrar la procedencia y marcar los veredictos calculados sobre datos SUPUESTOS** — es lo más peligroso que queda abierto: un «cumple» sobre una altura estimada a ojo puede salir limpio en un papel firmado. El módulo puro ya expone `datosSupuestos()` y `avisoDeSupuestos()`. ② La pantalla del **LOTE** (`FichaLote.tsx`): la escritura ya existe con sus salvaguardas (solo los 3 campos del MODELO, solo estructuras, solo rellena huecos, administrador, atómico). ③ El segundo gesto **«Confirmo este dato»**, que necesita su propio molde: `FichaEstructural` rechaza `confirmado_humano` a propósito. ④ **Verificar en vivo** con su Chrome que la ficha no perdió ni una fila. ⑤ **El sembrador resetea la revisión** (`sembrar.mjs:106/307`): sembrar sobre un apoyo ya editado lo devuelve a 0 y el guardado siguiente falla pareciendo un conflicto entre personas | `99 §ADR-030` |
 | **TODO-66** | **Que una acción pruebe que FUNCIONÓ**, no solo que se hizo. Lo dejó fuera el Ingeniero el 07-08 y queda como deuda declarada en `99 §ADR-026`: bloque de verificación posterior (cuándo, quién, si fue eficaz y cómo se comprobó); la cerrada queda «pendiente de verificar eficacia» hasta esa fecha | `99 §ADR-026` |
 | **TODO-50** | **Blindaje**: ✅ F1 · ✅ F2a · ✅ F3 pantalla de cambio · ⬜ **2b retirar Google** — espera la contraseña | `99 §ADR-019/024` |
 | **TODO-52** | RCA: solo queda el **lienzo del árbol** (cosmético; en papel la lista sangrada se lee igual) | `99 §ADR-020` |

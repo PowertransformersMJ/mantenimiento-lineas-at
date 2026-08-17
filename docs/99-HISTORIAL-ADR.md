@@ -2797,3 +2797,126 @@ igual que antes. Y **las dos preguntas que él contesta siempre no se heredan ja
 
 `research-archive/2026-08-17-workflow-recordar-no-proponer.json` (la decisión de dónde vive el libro
 con su argumentación en contra, la lista blanca campo por campo, y la construcción en dos eslabones).
+
+---
+
+## ADR-030 · 2026-08-17 · La ficha estructural se puede ESCRIBIR: seis campos, procedencia por campo y el antes/después antes de guardar
+
+**Estado:** ✅ Decidido · ⚠️ **NO revisada externamente** · ⬜ **sin verificar en vivo** (la pantalla
+no se ha visto todavía contra producción con el Chrome del Ingeniero).
+
+### Contexto
+
+`docs/05` declara la misión —«cerrar el hueco del DATO, no el del código»— y el hueco tenía nombre:
+**0 de 24 apoyos con veredicto, en los dos ejes**. No era un fallo del cálculo. `nucleo/cargas.js` y
+`nucleo/longitudinal.js` saben dictaminar desde hace meses; lo que no existía era **por dónde meter
+el dato**. La ficha de un apoyo mostraba unos 12 campos de los ~28 del contrato y **todos de solo
+lectura**: desde la pantalla no se podía escribir absolutamente nada (`TODO-57`).
+
+El Ingeniero lo dijo comparando con el módulo original: «faltan muchas cosas que antes se podían».
+
+### Decisión
+
+**Entran SEIS campos, ni uno más, y cada uno entra porque sin él un apoyo NO puede tener veredicto**
+— leído en el motor, no supuesto: altura libre sobre el terreno · altura del amarre del conductor ·
+carga de rotura en la punta · capacidad a lo largo de la línea (los cuatro datos juntos) ·
+conductores que amarran · tipo de apoyo. El sexto no desbloquea por sí solo y entra porque es la
+clave por la que se agrupa un lote y sin él una carga de rotura aplicada a varios apoyos no tiene
+criterio defendible.
+
+**Quedan fuera con motivo, no por falta de tiempo:** `altura_m` (no desbloquea nada y es justo el
+campo con el que se confunde la altura libre — se sigue MOSTRANDO, en gris, con la frase que explica
+la diferencia) · `cotaSujecion_m` (alimenta el vano peso, deuda declarada sin contrastar, `40 §8`) ·
+`anioInstalacion` y `codigoInventario` (administrativos) · `aislamiento` y `puestaTierra` (dan
+veredicto de OTRA familia: ola 2, y la resistencia entra con `medidaEn` obligatoria o no entra) ·
+`condicion` (es un HECHO FECHADO de una inspección, no una propiedad que se sobrescribe: editarla
+aquí borraría el historial de deterioro) · `funcionEstructural` (es lo único que corta tramos y sí
+recalcula la línea entera: merece su propia ola con su propio antes/después, no ir de polizón).
+
+**LA PROCEDENCIA SE DECLARA POR CAMPO Y SE CAPTURA POR BLOQUE.** Preguntar una sola vez por ficha
+sería mentir: la altura libre se mide en el sitio y la carga de rotura se lee de una placa, y el día
+que se firme el informe esas dos cosas no valen lo mismo. Tres bloques que copian **cómo llega el
+dato de verdad** —lo que se mide en el sitio · lo que dice la placa o el plano · lo que se cuenta
+mirando el apoyo—, cada uno con un selector de cabecera que sella sus campos de un gesto; cada campo
+enseña su sello y se cambia suelto.
+
+**La regla dura no se cumple en la pantalla: se cumple en el molde.** `FichaEstructural` (contrato,
+`strict` + `superRefine`) rechaza un valor sin su sello ANTES de que salga del navegador. El selector
+arranca VACÍO y `confirmado_humano` **no está en la lista**: confirmar no es un origen, es un ACTO
+POSTERIOR sobre un dato que ya está.
+
+**EL ANTES/DESPUÉS SE ENSEÑA ANTES DE GUARDAR, SOBRE EL TRAMO ENTERO** (ADR-002). Se calcula con los
+valores pendientes, apoyo por apoyo del tramo, con las cifras que importan arriba: cuántos ganan
+veredicto, **cuántos lo pierden** y cuántos pasan a REVISAR — con la frase que evita el peor efecto
+posible de esta ola: «esto no es una avería nueva: es lo que ya pasaba y hasta hoy no se podía ver».
+Y lo que NO se mueve se dice con todas las letras: un panel callado se lee como «no lo miré».
+
+**TRES COMPROBACIONES DE GEOMETRÍA EN VIVO**, porque `nucleo/longitudinal.js` devuelve `null` **en
+silencio** en esos tres casos: sin el aviso, él declararía cuatro números impecables, no vería
+ningún veredicto y concluiría que la herramienta está rota. La regla tiene **un solo dueño**
+(`web/src/vistas/fichaEstructural.ts`) y una prueba la ata al núcleo llamándolo de verdad.
+
+**Solo escribe quien tiene permiso de edición, y si no lo tiene la ficha se VE y se dice por qué.**
+Leer nunca se bloquea. Es higiene, no la frontera: la frontera son las reglas de la base, que además
+ganaron el cerrojo de revisión en el eslabón anterior.
+
+### Alternativas descartadas
+
+- **Devolver en el formulario los valores que el apoyo ya tiene.** Es lo natural en un editor y aquí
+  es un fallo: el valor y su sello entran JUNTOS, así que prerrellenar obligaría a volver a declarar
+  el origen de todo — o, peor, a **resellar con la fecha de hoy un dato que alguien midió en marzo**.
+  El formulario arranca vacío y lo guardado se ENSEÑA al lado, con su origen.
+- **Preguntar la procedencia una vez por ficha.** Más barato de teclear y falso: mezcla en un solo
+  sello lo medido y lo leído de una placa.
+- **Escribir las reglas de «qué falta» en el formulario.** Serían dos dueños de la misma regla. Viven
+  en el módulo puro, y una prueba comprueba que lo que la pantalla acepta el molde lo acepta y lo que
+  la pantalla nombra como falta el molde también lo rechaza.
+- **Un botón «Confirmo este dato» en esta ola.** NO se implementó, y no por tiempo: `FichaEstructural`
+  rechaza `confirmado_humano` por diseño y rechaza un sello sin valor, así que ese segundo gesto
+  necesita **su propio camino de escritura**. Un botón que no escribiera nada sería peor que su
+  ausencia. La pantalla declara el hueco con la frase que importa: «un dato que solo leyó de un plano
+  no está confirmado: está documentado».
+- **Recargar la línea al guardar.** Destruiría el acuse en el instante en que se genera — la lección
+  ya está escrita en `refrescarLinea` (ADR-028) y se ejecuta, no se repite: la línea se relee cuando
+  él pulsa «Ver la línea recalculada».
+
+### Consecuencias
+
+- **El cuello de botella se abre.** Por primera vez un apoyo puede pasar de «sin veredicto» a tener
+  veredicto sin tocar la base a mano. `TODO-57` deja de estar bloqueado por el código y pasa a
+  depender del DATO: qué tiene la empresa en planos y actas, y qué hay que levantar en campo.
+- **Los primeros veredictos van a traer «REVISAR».** Es lo que ya pasaba y no se veía. Si esa frase
+  no acompañara a la cifra, el efecto sería que se deja de meter datos — justo lo contrario de lo que
+  busca esta ola.
+- **`vistas/ejesLinea.ts` gana `contextoDeLinea`**, que arma las DOS formas de tramo que el núcleo
+  pide. Sigue siendo el dueño único: montar los tramos en la pestaña Fichas habría creado la segunda
+  fuente contra la que avisa su propia cabecera, y pasarle la forma aplanada al eje longitudinal **no
+  da error** — deja el eje mudo.
+- **La ficha gana dos filas que el contrato admitía y ninguna pantalla enseñaba:** la capacidad a lo
+  largo de la línea y los conductores que amarran. Un dato que se puede guardar y no se ve es un dato
+  que nadie puede discutir.
+- **DEUDA DECLARADA, y es la peligrosa: `exportar/acta.js` todavía NO arrastra la procedencia ni
+  marca los veredictos calculados sobre datos supuestos.** La pantalla ya los marca en los dos sitios
+  donde puede hacer daño —junto al dato y junto al veredicto— y el módulo puro expone `datosSupuestos()`
+  y `avisoDeSupuestos()` listos para que el acta los use. Mientras no entre, **un «cumple» calculado
+  sobre una altura estimada a ojo puede salir limpio en un papel**. Es lo primero de la ola 3.
+- **El LOTE no entra en esta ola.** La escritura ya existe y ya trae sus salvaguardas
+  (`guardarFichaApoyoEnLote`: solo los tres campos del MODELO, solo estructuras, solo rellena huecos,
+  administrador, atómico); lo que falta es su pantalla. La ficha declara la ausencia en vez de
+  fingirla, con la frase permanente de por qué la altura libre, la del amarre y las fases amarradas
+  **no van por lote nunca**.
+- **Sigue vivo el riesgo del sembrador** (`herramientas/sembrar.mjs:106` mete `revision: 0` y la 307
+  hace `set(..., {merge:true})` con SDK de administrador): sembrar sobre un apoyo ya editado lo
+  devuelve a revisión 0 en silencio, y el siguiente guardado fallaría con el mensaje de «otra persona
+  guardó cambios» sin que hubiera ninguna otra persona. Hay que decidir si el sembrador respeta la
+  revisión o deja de tocar apoyos ya editados.
+- **Desplegar la web ANTES de escribir el primer dato.** `documento_proyecto` es un valor NUEVO del
+  catálogo y el cambio es de UNA SOLA DIRECCIÓN: un apoyo guardado con ese valor no valida contra un
+  bundle con el contrato anterior y **se descarta en silencio**. Es la misma trampa del `orden`
+  fraccionario de 0.5.0.
+
+### Crudo de respaldo
+
+*(sin comité: el diseño lo cerró el Ingeniero campo por campo antes de construir, y la construcción
+fue en eslabones. La evidencia reproducible son las pruebas: `tests/ficha-estructural.test.js` (41)
+y `tests/ficha-editable.test.js` (41), con mundo sintético.)*

@@ -756,7 +756,19 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
         )}
         {activa === 'falla' && <Falla investigaciones={investigaciones} apoyos={apoyos} evidencias={evidencias} noSePudoLeer={noSePudoLeer?.investigaciones} noSePudoLeerFotos={noSePudoLeer?.evidencias} />}
         {activa === 'distancias' && <Distancias apoyos={apoyos} />}
-        {activa === 'fichas' && <Fichas apoyos={apoyos} linea={linea} evidencias={evidencias} />}
+        {/* La sesión viaja a Fichas por el mismo motivo por el que ya viajaba a
+            Cargar: desde que esta pestaña ESCRIBE, saber con qué permiso se
+            entró deja de ser un lujo — sin eso, quien no pueda escribir lo
+            descubriría por una denegación de la base, en inglés y después de
+            rellenar seis campos. Se pasa aunque la sesión aún no conste: Fichas
+            SIEMPRE se puede leer, y es el botón lo que se guarda. */}
+        {activa === 'fichas' && (
+          <Fichas apoyos={apoyos} linea={linea} conductor={conductor} hipotesis={hipotesis}
+            evidencias={evidencias}
+            sesion={sesion.fase === 'autenticado'
+              ? { correo: sesion.correo, rol: sesion.rol, orgId: sesion.orgId, uid: sesion.uid }
+              : undefined} />
+        )}
         {activa === 'mecanico' && <Mecanico apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} />}
         {activa === 'fundamentos' && <Fundamentos apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} />}
         {activa === 'termica' && <Termica linea={linea} conductor={conductor} hipotesis={hipotesis} />}

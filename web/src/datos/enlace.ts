@@ -20,7 +20,7 @@ import { useSyncExternalStore } from 'react';
 import type { AccionCapa, AnalisisCausa, Evidencia, Linea, SondeoClima } from '@lineas/contratos';
 import { cargarFirebase } from './cargar';
 import { puertaDeAcceso } from '@lineas/contratos';
-import { repositorio, usarRepositorio, type EstadoDatos, type EstadoRca, type EstadoSesion, type ResultadoCarga } from './repositorio';
+import { repositorio, usarRepositorio, type AcuseDeFicha, type EstadoDatos, type EstadoRca, type EstadoSesion, type ResultadoCarga } from './repositorio';
 import { leerRuta } from './ruta';
 import { repositorioFirestore } from './firestore';
 
@@ -336,6 +336,30 @@ class Almacen {
     // pregunta, sobre un documento que aún no existe, la deniegan las reglas.
     const yaCargados = e.fase === 'listo' ? e.apoyos.map((a) => a.id) : [];
     return await repositorio.cargarPuntosNuevos(documentos, yaCargados);
+  }
+
+  /**
+   * Escribe la FICHA ESTRUCTURAL de UN apoyo y **no recarga la línea**.
+   *
+   * La ausencia de recarga es deliberada y es la misma lección que dejó escrita
+   * `refrescarLinea` unas líneas más abajo: `abrir()` pone la aplicación en fase
+   * «cargando», y en esa fase `App.tsx` sustituye la pantalla entera de la
+   * línea. Recargar aquí destruiría el acuse —qué se escribió, en qué apoyo, con
+   * qué origen y qué veredictos se movieron— en el mismo instante en que se
+   * genera. La línea se relee cuando él ya lo ha leído y pulsa el botón.
+   *
+   * Lo que falla LANZA hacia la pantalla, igual que `cargarPuntos` y por el
+   * mismo motivo: quien llama necesita el motivo ENTERO. Un conflicto de
+   * revisión resumido en «no se pudo guardar» pierde justo la parte que dice
+   * qué hacer a continuación.
+   */
+  async guardarFicha(
+    apoyoId: string,
+    ficha: Record<string, unknown>,
+    revision: number,
+  ): Promise<AcuseDeFicha> {
+    conectarBase();
+    return await repositorio.guardarFichaApoyo(apoyoId, ficha, revision);
   }
 
   /**

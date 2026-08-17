@@ -29,6 +29,7 @@ import { longitudinalParaPantalla, type LongitudinalEnPantalla } from './longitu
 import { calcularTramos, conductorParaNucleo, paramsParaNucleo } from './tramos';
 import { soloEstructuras, vanos, nombreVisible } from './planta';
 import { cobertura, type CoberturaDeEjes } from './coberturaEjes.ts';
+import type { ContextoDeLinea } from './fichaEstructural.ts';
 
 export interface EjesDeLinea {
   /** Carga transversal sobre la estructura. */
@@ -37,27 +38,64 @@ export interface EjesDeLinea {
   longitudinal: LongitudinalEnPantalla | null;
 }
 
+/**
+ * LOS DOS FORMATOS DE TRAMO QUE EL NÚCLEO PIDE, armados en UN solo sitio.
+ *
+ * Son dos y no uno por una razón del núcleo, no por comodidad: el eje
+ * transversal trabaja con los tramos APLANADOS (`calcularTramos`), y el
+ * longitudinal RESTA el tiro de dos tramos contiguos, para lo cual necesita
+ * comprobar que vienen de la misma temperatura y la misma carga unitaria —
+ * datos que la forma aplanada no trae, y por eso el núcleo la rechaza.
+ *
+ * Se expone porque la ficha estructural necesita exactamente esta entrada para
+ * calcular su antes/después (`vistas/fichaEstructural.ts`), y armarla allí sería
+ * la segunda fuente contra la que avisa la cabecera de este archivo: pasarle los
+ * aplanados al eje longitudinal NO da error — deja el eje sin un solo tiro, y el
+ * panel diría «no se mueve nada» sobre el eje que la ficha existe para
+ * desbloquear.
+ */
+export function contextoDeLinea(
+  apoyos: Apoyo[],
+  conductor: Conductor,
+  hipotesis: Hipotesis,
+  circuitos?: number | null,
+): ContextoDeLinea {
+  const E = soloEstructuras(apoyos);
+  const tramosRicos = E.length < 2 ? [] : tramosDeTension(
+    E.map((a) => ({ funcionEstructural: a.funcionEstructural, nombre: nombreVisible(a) })),
+    vanos(apoyos),
+  ).map((t: { vanos: number[] }) => ({
+    ...t, estados: estadosDelTramo(t, conductorParaNucleo(conductor), paramsParaNucleo(hipotesis)),
+  }));
+
+  return {
+    apoyos,
+    tramos: calcularTramos(apoyos, conductor, hipotesis),
+    tramosRicos,
+    conductor,
+    hipotesis,
+    circuitos,
+  };
+}
+
 export function ejesDeLinea(
   apoyos: Apoyo[],
   conductor: Conductor,
   hipotesis: Hipotesis,
   circuitos?: number | null,
 ): EjesDeLinea {
+  const ctx = contextoDeLinea(apoyos, conductor, hipotesis, circuitos);
   const transversal = cargasParaPantalla(
-    apoyos, calcularTramos(apoyos, conductor, hipotesis), conductor, hipotesis, circuitos,
+    apoyos, ctx.tramos, conductor, hipotesis, circuitos,
   );
 
-  const E = soloEstructuras(apoyos);
-  if (E.length < 2) return { transversal, longitudinal: null };
+  // La condición se mantiene EXACTA —«menos de dos estructuras»— y no se sustituye
+  // por «sin tramos ricos», que casi siempre coincide pero no siempre: una línea
+  // con dos estructuras y ningún tramo pasaría de enseñar filas sin tiro a
+  // declarar el eje entero inexistente, que son dos cosas distintas.
+  if (soloEstructuras(apoyos).length < 2) return { transversal, longitudinal: null };
 
-  const L = vanos(apoyos);
-  const c = conductorParaNucleo(conductor);
-  const p = paramsParaNucleo(hipotesis);
-  const ricos = tramosDeTension(
-    E.map((a) => ({ funcionEstructural: a.funcionEstructural, nombre: nombreVisible(a) })), L,
-  ).map((t: { vanos: number[] }) => ({ ...t, estados: estadosDelTramo(t, c, p) }));
-
-  return { transversal, longitudinal: longitudinalParaPantalla(apoyos, ricos, conductor) };
+  return { transversal, longitudinal: longitudinalParaPantalla(apoyos, ctx.tramosRicos, conductor) };
 }
 
 /**

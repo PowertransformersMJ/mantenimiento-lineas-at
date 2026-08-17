@@ -8,9 +8,19 @@
 // la frontera. Un documento que no cumple el esquema no entra al cálculo — y el
 // cálculo es lo que el Ingeniero firma.
 // ============================================================================
-import { AccionCapa, AnalisisCausa, Apoyo, Evidencia, Hipotesis, Investigacion, Linea, ParteDeAccion, ParteDeAnalisis, SondeoClima } from '@lineas/contratos';
+import { AccionCapa, AnalisisCausa, Apoyo, ETIQUETA_CAMPO_FICHA, Evidencia, FichaEstructural, Hipotesis, Investigacion, Linea, ParteDeAccion, ParteDeAnalisis, SondeoClima } from '@lineas/contratos';
 import { cargarFirebase } from './cargar';
-import type { EstadoDatos, EstadoSesion, Repositorio, ResultadoCarga } from './repositorio';
+import type { AcuseDeFicha, AcuseDeLote, EstadoDatos, EstadoSesion, Repositorio, ResultadoCarga } from './repositorio';
+
+/**
+ * La mitad pensante de la ficha —qué campos hay, qué geometría no puede dar
+ * veredicto, cómo se funde un parche— vive en `vistas/fichaEstructural.ts`, que
+ * es PURO y está probado con `node --test`. Se trae con `import()` y no arriba
+ * del todo por lo mismo que el SDK de Firestore: este archivo va en el paquete
+ * principal y aquel módulo arrastra el motor de cálculo entero. Quien nunca abre
+ * una ficha no debería descargarlo.
+ */
+const fichaPura = () => import('../vistas/fichaEstructural');
 
 // El SDK de Firestore viaja DENTRO del trozo diferido de Firebase (ver
 // `cargar.ts`). Este archivo es diminuto y va en el paquete principal: así hay
@@ -45,6 +55,67 @@ function sinIndefinidos(x: Record<string, unknown>): Record<string, unknown> {
 function validar<T>(esquema: { safeParse: (x: unknown) => { success: boolean; data?: T } }, crudo: unknown): T | null {
   const r = esquema.safeParse(crudo);
   return r.success && r.data ? r.data : null;
+}
+
+/**
+ * SELLA LOS ORÍGENES CON LA SESIÓN ABIERTA, pase lo que pase venga de fuera.
+ *
+ * Quién declaró un dato y cuándo NO se los cree a la pantalla, por lo mismo que
+ * `creadoPor` se sella en `cargarPuntosNuevos`: un sello dice quién responde de
+ * ese número el día que se firme el informe, y eso no puede salir de un campo
+ * que un cliente modificado rellena a su gusto. La `procedencia` y la `fuente`
+ * sí vienen de fuera —son lo que el Ingeniero declara—; la firma y la hora, no.
+ *
+ * Lo que NO es un objeto se deja tal cual, a propósito: que lo rechace el molde
+ * con su mensaje, en vez de que aquí se convierta en un sello a medias.
+ */
+function sellarFicha(ficha: Record<string, unknown>, uid: string, ahora: string): Record<string, unknown> {
+  const { procedencias, ...valores } = (ficha ?? {}) as Record<string, unknown>;
+  const sellos: Record<string, unknown> = {};
+  for (const [campo, s] of Object.entries((procedencias ?? {}) as Record<string, unknown>)) {
+    sellos[campo] = (s && typeof s === 'object' && !Array.isArray(s))
+      ? { ...(s as Record<string, unknown>), declaradoEn: ahora, declaradoPor: uid }
+      : s;
+  }
+  // `procedencias` viaja SIEMPRE, incluso vacío: sin él, una ficha con valores y
+  // sin ningún sello pasaría por «no traía sellos» en vez de por lo que es —un
+  // dato sin origen—, y el molde no podría rechazarla con el motivo correcto.
+  return { ...valores, procedencias: sellos };
+}
+
+/** El primer motivo de rechazo del molde, dicho de una vez y en castellano. */
+function motivoDelMolde(error: { issues: { message?: string; path?: (string | number)[] }[] }): string {
+  const p = error.issues[0];
+  const ruta = (p?.path ?? []).filter((x) => x !== 'procedencias');
+  const campo = ruta.length ? String(ruta[0]) : '';
+  const donde = campo && ETIQUETA_CAMPO_FICHA[campo] ? ` (en ${ETIQUETA_CAMPO_FICHA[campo]})` : '';
+  return `${p?.message ?? 'motivo desconocido'}${donde}`;
+}
+
+/**
+ * LO QUE SE MANDA A LA BASE, CON LOS SELLOS EN RUTA PUNTEADA.
+ *
+ * ⚠️ `procedencias` NO se manda como objeto entero. `updateDoc` SUSTITUYE el
+ * campo que recibe, así que guardar hoy la altura libre borraría el sello que
+ * alguien puso el mes pasado en la carga de rotura — un dato que se queda sin
+ * origen dentro de un documento que respalda un papel firmado, y sin un solo
+ * error por el camino. Con `procedencias.alturaLibre_m` se toca esa clave y solo
+ * esa; es la misma fusión campo a campo que hace `aplicarFicha` en la mitad pura.
+ */
+function parcheDeFicha(validado: Record<string, unknown>): Record<string, unknown> {
+  const { procedencias, ...valores } = validado;
+  const salida: Record<string, unknown> = { ...valores };
+  for (const [campo, sello] of Object.entries((procedencias ?? {}) as Record<string, unknown>)) {
+    if (sello !== undefined) salida[`procedencias.${campo}`] = sello;
+  }
+  return salida;
+}
+
+/** La frase del conflicto, con sus tres partes: qué pasó, que no se escribió, qué hacer. */
+function conflicto(donde: string): string {
+  return `Otra persona guardó cambios en ${donde} mientras lo tenías abierto. `
+    + 'No se ha escrito nada para no borrar su trabajo. Copia lo que hayas escrito, '
+    + 'recarga la ficha y vuelve a ponerlo.';
 }
 
 export const repositorioFirestore: Repositorio = {
@@ -318,6 +389,277 @@ export const repositorioFirestore: Repositorio = {
     }
 
     return { escritos, yaEstaban, rechazados };
+  },
+
+  /**
+   * LA FICHA ESTRUCTURAL DE UN APOYO: los seis datos que le faltan para poder
+   * tener veredicto, cada uno con su sello de procedencia.
+   *
+   * El orden es el mismo que en `cargarPuntosNuevos`, y por las mismas razones —
+   * un apoyo no se borra (`firestore.rules`: `allow delete: if false`), así que
+   * todo lo que se pueda comprobar antes de mandar se comprueba antes:
+   *
+   *   1. **Permiso ANTES de mandar.** Una denegación de la base llega en inglés
+   *      y sin causa; aquí se convierte en una frase que se entiende.
+   *   2. **La firma y la hora las pone la SESIÓN**, nunca lo que venga de fuera.
+   *      Lo que el Ingeniero declara es de dónde salió el dato; quién responde de
+   *      él y cuándo lo dijo no se lo pregunta nadie.
+   *   3. **Se valida contra `FichaEstructural`**, que es `strict` y exige el par
+   *      valor+sello. Las reglas NO miran el contenido de un apoyo, así que este
+   *      `safeParse` es la única defensa que tiene la forma del dato.
+   *   4. **Se relee el apoyo** — para el cerrojo de revisión y para poder juzgar
+   *      la GEOMETRÍA sobre el apoyo COMPLETO. Un parche que solo trae el amarre
+   *      no puede saber dónde está la punta; el apoyo de la base con el parche
+   *      encima, sí, y es exactamente lo que verá el núcleo.
+   *   5. **Se escribe lo que salió del molde**, no lo que entró.
+   *
+   * Lo puede hacer un EDITOR: es lo que permiten las reglas para un apoyo.
+   */
+  async guardarFichaApoyo(
+    apoyoId: string,
+    ficha: Record<string, unknown>,
+    revision: number,
+  ): Promise<AcuseDeFicha> {
+    const { esperarSesion, credenciales, baseDatos } = await cargarFirebase();
+    const { doc, getDoc, updateDoc } = await firestore();
+    const u = await esperarSesion();
+    if (!u) throw new Error('No hay ninguna sesión abierta: no se puede guardar la ficha de ningún apoyo.');
+
+    const { rol, orgId } = await credenciales(u);
+    if (rol !== 'admin' && rol !== 'editor') {
+      throw new Error(
+        `Su sesión entró con el permiso «${rol}», y completar la ficha de un apoyo exige permiso de `
+        + 'edición. No se ha mandado nada a la base.',
+      );
+    }
+    if (!orgId) {
+      throw new Error(
+        'Su sesión no declara a qué organización pertenece. No se ha mandado nada a la base.',
+      );
+    }
+
+    const ahora = new Date().toISOString();
+    const sellada = sellarFicha(ficha ?? {}, u.uid, ahora);
+    const r = FichaEstructural.safeParse(sellada);
+    if (!r.success) throw new Error(motivoDelMolde(r.error));
+    const validada = r.data as unknown as Record<string, unknown>;
+
+    const ref = doc(await baseDatos(), 'apoyos', apoyoId);
+    const actual = await getDoc(ref);
+    if (!actual.exists()) {
+      throw new Error(
+        'Ese apoyo ya no está en la base. No se ha escrito nada: si se escribiera, nacería un apoyo '
+        + 'sin línea, sin orden y sin coordenada, y un apoyo no se borra.',
+      );
+    }
+    const revisionEnLaBase = (actual.data()?.revision as number | undefined) ?? 0;
+    if (revisionEnLaBase !== revision) throw new Error(conflicto('este apoyo'));
+
+    // LA GEOMETRÍA, SOBRE EL APOYO COMPLETO. Si el amarre queda por encima de la
+    // punta, el núcleo devuelve `null` EN SILENCIO: se guardarían cuatro números
+    // impecables, no saldría veredicto y parecería una avería de la aplicación.
+    // La regla tiene un solo dueño —el módulo puro—, y una prueba lo ata al
+    // núcleo. Aquí solo se consulta.
+    const { revisarGeometria, aplicarFicha, CAMPOS_DE_FICHA, etiquetaDeOrigen } = await fichaPura();
+    const enLaBase = actual.data() as Record<string, unknown>;
+    const avisos = revisarGeometria(aplicarFicha(
+      enLaBase as unknown as Apoyo,
+      validada as unknown as FichaEstructural,
+    ));
+    if (avisos.length) throw new Error(avisos[0].mensaje);
+
+    await updateDoc(ref, sinIndefinidos({
+      ...parcheDeFicha(validada),
+      actualizadoEn: ahora,
+      actualizadoPor: u.uid,
+      revision: revision + 1,
+    }));
+
+    // El acuse habla en castellano y por el NOMBRE del apoyo: lo lee el
+    // Ingeniero, y un identificador interno no le dice nada a nadie.
+    const sellos = (validada.procedencias ?? {}) as Record<string, { procedencia?: string; fuente?: string } | undefined>;
+    return {
+      apoyo: String(enLaBase?.nombreNormalizado ?? enLaBase?.nombreCampo ?? 'apoyo sin nombre'),
+      revision: revision + 1,
+      campos: CAMPOS_DE_FICHA
+        .filter((c) => validada[c.clave] !== undefined)
+        .map((c) => ({
+          etiqueta: c.etiqueta,
+          origen: etiquetaDeOrigen(sellos[c.clave]?.procedencia),
+          // La capacidad longitudinal lleva su fuente DENTRO del propio dato, y
+          // es la que el informe imprime. Un hecho, un dueño.
+          fuente: (c.clave === 'capacidadLongitudinal'
+            ? (validada.capacidadLongitudinal as { fuente?: string } | undefined)?.fuente
+            : sellos[c.clave]?.fuente) ?? null,
+        })),
+    };
+  },
+
+  /**
+   * EL DATO DE CATÁLOGO APLICADO A VARIOS APOYOS A LA VEZ.
+   *
+   * Es la pieza que más tiempo ahorra y la única capaz de hacer daño
+   * irreversible, así que las salvaguardas no son adorno:
+   *
+   *   · **Solo los tres campos del MODELO** —carga de rotura, capacidad
+   *     longitudinal y tipo de apoyo—, que vienen de un documento y ese
+   *     documento es EL MISMO para todos. La altura libre, la del amarre y las
+   *     fases amarradas dependen del terreno y de qué hace ese apoyo: copiarlas
+   *     es el error que el contrato prohíbe por escrito, y aquí no hay puerta
+   *     trasera ni confirmación que se pueda pulsar.
+   *   · **Solo estructuras.** Un empalme no sostiene nada y no tiene veredicto
+   *     que desbloquear; sellarle una carga de rotura sería inventarle un apoyo.
+   *   · **Solo rellena huecos.** Si un apoyo ya declara el dato, queda fuera y el
+   *     acuse lo NOMBRA. Así es como se pierde un dato medido debajo de uno de
+   *     catálogo, y no se pierde.
+   *   · **ADMINISTRADOR**, no editor: el daño de un lote no es el mismo.
+   *   · **ATÓMICO.** Si a un solo apoyo lo tocó otra persona, no entra ninguno y
+   *     el mensaje lo nombra, para que se desmarque y se reintente.
+   */
+  async guardarFichaApoyoEnLote(
+    apoyoIds: string[],
+    ficha: Record<string, unknown>,
+    revisiones: Record<string, number>,
+  ): Promise<AcuseDeLote> {
+    const { esperarSesion, credenciales, baseDatos } = await cargarFirebase();
+    const { doc, getDoc, writeBatch } = await firestore();
+    const u = await esperarSesion();
+    if (!u) throw new Error('No hay ninguna sesión abierta: no se puede guardar la ficha de ningún apoyo.');
+
+    const { rol, orgId } = await credenciales(u);
+    if (rol !== 'admin') {
+      throw new Error(
+        `Su sesión entró con el permiso «${rol}», y aplicar un dato a varios apoyos de golpe es acto `
+        + 'de administración: el daño de un lote no es el de una ficha. No se ha mandado nada a la '
+        + 'base. Los apoyos se pueden completar uno a uno con su permiso.',
+      );
+    }
+    if (!orgId) {
+      throw new Error('Su sesión no declara a qué organización pertenece. No se ha mandado nada a la base.');
+    }
+
+    const ids = [...new Set((apoyoIds ?? []).map(String))];
+    if (!ids.length) {
+      throw new Error('No hay ningún apoyo marcado. No se ha mandado nada a la base.');
+    }
+
+    const { CAMPOS_DE_FICHA, CAMPOS_POR_LOTE, etiquetaDeOrigen } = await fichaPura();
+
+    // EL CORTE, ANTES DE TOCAR NADA. Se traza por si el dato es del MODELO o del
+    // EJEMPLAR, no por comodidad — y se hace cumplir aquí, en la escritura, no en
+    // el formulario: una salvaguarda que vive solo en la pantalla dura hasta la
+    // siguiente pantalla.
+    const deEjemplar = CAMPOS_DE_FICHA
+      .filter((c) => !c.porLote && (ficha ?? {})[c.clave] !== undefined)
+      .map((c) => c.etiqueta.toLowerCase());
+    if (deEjemplar.length) {
+      throw new Error(
+        `No se puede aplicar a varios apoyos: ${deEjemplar.join(', ')}. Depende${deEjemplar.length === 1 ? '' : 'n'} `
+        + 'del terreno y de qué hace cada apoyo en la línea —el empotramiento no se ve desde un '
+        + 'escritorio, y un terminal amarra todas las fases mientras un apoyo de paso puede no amarrar '
+        + 'ninguna—. Se pone uno a uno. No se ha mandado nada a la base.',
+      );
+    }
+
+    const ahora = new Date().toISOString();
+    const sellada = sellarFicha(ficha ?? {}, u.uid, ahora);
+    const r = FichaEstructural.safeParse(sellada);
+    if (!r.success) throw new Error(motivoDelMolde(r.error));
+    const validada = r.data as unknown as Record<string, unknown>;
+    const claves = CAMPOS_POR_LOTE.filter((k) => validada[k] !== undefined);
+
+    const db = await baseDatos();
+    const nombre = (d: Record<string, unknown> | undefined): string =>
+      String(d?.nombreNormalizado ?? d?.nombreCampo ?? 'apoyo sin nombre');
+
+    const pendientes: { ref: ReturnType<typeof doc>; apoyo: string; revision: number }[] = [];
+    const yaLoTenian: { apoyo: string; campos: string[] }[] = [];
+    const desfasados: string[] = [];
+
+    for (const id of ids) {
+      const ref = doc(db, 'apoyos', id);
+      const d = await getDoc(ref);
+      if (!d.exists()) {
+        throw new Error(
+          `Uno de los apoyos marcados ya no está en la base. No se ha escrito nada: un lote entra `
+          + 'entero o no entra.',
+        );
+      }
+      const datos = d.data() as Record<string, unknown>;
+
+      if ((datos.tipoPunto ?? 'Estructura') !== 'Estructura') {
+        throw new Error(
+          `«${nombre(datos)}» no es una estructura: es ${String(datos.tipoPunto).toLowerCase()}. Un `
+          + 'empalme no sostiene el conductor y no tiene veredicto que desbloquear, así que no se le '
+          + 'sella ningún dato de apoyo. No se ha escrito nada.',
+        );
+      }
+
+      // El cerrojo, POR DOCUMENTO. Se recogen todos los desfasados antes de
+      // lanzar: nombrar solo el primero obliga a descubrirlos de uno en uno.
+      const revisionEnLaBase = (datos.revision as number | undefined) ?? 0;
+      if (revisionEnLaBase !== (revisiones ?? {})[id]) {
+        desfasados.push(nombre(datos));
+        continue;
+      }
+
+      // ⚠️ SOLO RELLENA HUECOS. Un valor ya declarado no se pisa ni aunque el
+      // documento del lote sea mejor: para cambiar un dato que ya está, uno a
+      // uno y mirándolo.
+      const ocupados = claves.filter((k) => datos[k] !== undefined && datos[k] !== null);
+      if (ocupados.length) {
+        yaLoTenian.push({
+          apoyo: nombre(datos),
+          campos: ocupados.map((k) => CAMPOS_DE_FICHA.find((c) => c.clave === k)?.etiqueta ?? k),
+        });
+        continue;
+      }
+
+      pendientes.push({ ref, apoyo: nombre(datos), revision: revisionEnLaBase });
+    }
+
+    if (desfasados.length) {
+      throw new Error(
+        `${conflicto(desfasados.length === 1 ? `el apoyo ${desfasados[0]}` : 'varios apoyos marcados')} `
+        + `Apoyo${desfasados.length === 1 ? '' : 's'} con cambios de otra persona: ${desfasados.join(', ')}. `
+        + 'Desmárquelo y vuelva a intentarlo; el resto del lote sigue intacto.',
+      );
+    }
+
+    const campos = CAMPOS_DE_FICHA
+      .filter((c) => validada[c.clave] !== undefined)
+      .map((c) => {
+        const sello = ((validada.procedencias ?? {}) as Record<string, { procedencia?: string; fuente?: string } | undefined>)[c.clave];
+        return {
+          etiqueta: c.etiqueta,
+          origen: etiquetaDeOrigen(sello?.procedencia),
+          fuente: (c.clave === 'capacidadLongitudinal'
+            ? (validada.capacidadLongitudinal as { fuente?: string } | undefined)?.fuente
+            : sello?.fuente) ?? null,
+        };
+      });
+
+    // Un lote vacío NO se manda: pedirle a la base que no haga nada solo sirve
+    // para que un fallo de red se lea como un fallo de carga.
+    if (pendientes.length) {
+      const lote = writeBatch(db);
+      const parche = parcheDeFicha(validada);
+      for (const p of pendientes) {
+        lote.update(p.ref, sinIndefinidos({
+          ...parche,
+          actualizadoEn: ahora,
+          actualizadoPor: u.uid,
+          revision: p.revision + 1,
+        }));
+      }
+      await lote.commit();
+    }
+
+    return {
+      escritos: pendientes.map((p) => ({ apoyo: p.apoyo, revision: p.revision + 1 })),
+      yaLoTenian,
+      campos,
+    };
   },
 
   /**

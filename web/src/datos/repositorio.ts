@@ -53,6 +53,36 @@ export interface ResultadoCarga {
   rechazados: { nombre: string; motivo: string }[];
 }
 
+/**
+ * Lo que se escribió en UNA ficha, para que el acuse lo pueda contar.
+ *
+ * Los campos se nombran EN CASTELLANO y con su origen: el acuse lo lee el
+ * Ingeniero, y «se guardó `alturaLibre_m`» no le dice nada. «Altura libre sobre
+ * el terreno — medida en el sitio» sí, y es exactamente lo que tendrá que
+ * defender el día que firme.
+ */
+export interface AcuseDeFicha {
+  /** Nombre visible del apoyo. Nunca su identificador interno. */
+  apoyo: string;
+  /** La revisión que quedó en la base. Sube exactamente uno. */
+  revision: number;
+  campos: { etiqueta: string; origen: string; fuente: string | null }[];
+}
+
+/**
+ * Lo que pasó al aplicar un dato de catálogo a varios apoyos.
+ *
+ * `yaLoTenian` NO es un detalle: el lote SOLO RELLENA HUECOS y jamás pisa un
+ * valor declarado — así es como se pierde un dato medido debajo de uno de
+ * catálogo. Los que quedaron fuera se NOMBRAN, para que quien mira sepa que no
+ * se le olvidaron: se respetaron.
+ */
+export interface AcuseDeLote {
+  escritos: { apoyo: string; revision: number }[];
+  yaLoTenian: { apoyo: string; campos: string[] }[];
+  campos: { etiqueta: string; origen: string; fuente: string | null }[];
+}
+
 export type EstadoDatos =
   | { fase: 'sin_sesion' }
   | { fase: 'cargando' }
@@ -197,6 +227,42 @@ export interface Repositorio {
    * traído más información.
    */
   cargarPuntosNuevos(documentos: Record<string, unknown>[], idsYaCargados?: string[]): Promise<ResultadoCarga>;
+
+  /**
+   * Escribe la FICHA ESTRUCTURAL de UN apoyo: los seis datos que le faltan para
+   * poder tener veredicto, cada uno con su sello de procedencia.
+   *
+   * `revision` es la que la pantalla tenía cuando abrió la ficha. Si en la base
+   * ya no es ésa, NO se escribe nada y se lanza con las tres partes que la
+   * prueba exige: qué pasó, que no se escribió nada, y qué hacer.
+   *
+   * Lo puede hacer un EDITOR: es lo que permiten las reglas para un apoyo.
+   */
+  guardarFichaApoyo(apoyoId: string, ficha: Record<string, unknown>, revision: number): Promise<AcuseDeFicha>;
+
+  /**
+   * Aplica un dato DE CATÁLOGO a varios apoyos a la vez.
+   *
+   * ⚠️ SOLO admite los tres campos que son propiedad del MODELO del apoyo
+   * —carga de rotura, capacidad longitudinal y tipo de apoyo—, porque vienen de
+   * un documento y ese documento es EL MISMO para todos: la procedencia no
+   * miente, es una y es la del papel.
+   *
+   * Los otros tres —altura libre, altura del amarre y conductores que amarran—
+   * NO entran por aquí y no hay puerta trasera: el empotramiento depende del
+   * terreno y no se ve desde un escritorio, y un terminal amarra todas las fases
+   * mientras un apoyo de paso puede no amarrar ninguna. Copiarlos es el error
+   * que el contrato prohíbe por escrito.
+   *
+   * Exige ADMINISTRADOR, no editor: el daño de un lote no es el mismo. Y es
+   * ATÓMICO — si a un solo apoyo lo tocó otra persona, no entra ninguno y el
+   * mensaje lo nombra.
+   */
+  guardarFichaApoyoEnLote(
+    apoyoIds: string[],
+    ficha: Record<string, unknown>,
+    revisiones: Record<string, number>,
+  ): Promise<AcuseDeLote>;
 }
 
 /**
@@ -251,6 +317,13 @@ export const repositorioSinSesion: Repositorio = {
     // carga «vacía y correcta» haría creer que se cargó y que el archivo no
     // traía nada.
     throw new Error('No hay ninguna sesión abierta: no se puede cargar ningún punto.');
+  },
+  async guardarFichaApoyo() {
+    // Igual que arriba: un acuse vacío se leería como «guardado y sin novedad».
+    throw new Error('No hay ninguna sesión abierta: no se puede guardar la ficha de ningún apoyo.');
+  },
+  async guardarFichaApoyoEnLote() {
+    throw new Error('No hay ninguna sesión abierta: no se puede guardar la ficha de ningún apoyo.');
   },
 };
 
