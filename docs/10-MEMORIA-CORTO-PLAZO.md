@@ -15,13 +15,13 @@ carcasa (ADR-018) · RCA (ADR-020) · documental (ADR-021) · contexto real (ADR
 ## 🛑 LO PRIMERO AL RETOMAR
 
 1. **Los puntos GPS de agosto siguen SIN estar en producción, pero ya no por el código.**
-   La identidad se desató de la posición el 16-08 (`99 §ADR-027`): los 26 ids de producción salen
-   byte a byte y el `orden` de nadie se mueve. Quedan **dos llaves ajenas al código**: desplegar la
-   web con el **contrato 0.5.0** (antes de sembrar, o el punto intercalado desaparece sin error) y
-   la **llave admin**. Y una deuda que hay que pagar ANTES de cargar el pórtico de ORIGEN:
-   `subir-evidencias.mjs` todavía resuelve la foto por `orden`. `TODO-69`.
-2. **Verificar que una acción FUNCIONÓ**, no solo que se hizo (`TODO-66`, deuda de `99 §ADR-026`).
-   Una acción ejecutada que no sirvió es hoy indistinguible de una que sirvió.
+   La identidad se desató de la posición el 16-08 (`99 §ADR-027`) y el **contrato 0.5.0 YA ESTÁ
+   DESPLEGADO** (17-08: el pie de producción lo dice, bundle `index-q7uuvVg4.js`, 11 pestañas sin
+   regresión). **Solo falta la LLAVE ADMIN del Ingeniero** — hasta entonces la pantalla enseña julio
+   (24 estructuras · 2.929 m) y eso es correcto, no un fallo: lo preguntó el 17-08 al no verlos
+   (`30 · L-51`). Deuda ANTES de cargar el pórtico de ORIGEN: `subir-evidencias.mjs` todavía resuelve
+   la foto por `orden`. `TODO-69`.
+2. **Verificar que una acción FUNCIONÓ**, no solo que se hizo (`TODO-66`, `99 §ADR-026`): una acción que no sirvió es hoy indistinguible de una que sirvió.
 3. **El tope de tiro sigue sin decidir (TODO-33).** El molde de los datos ya trae
    `tiroAdmisible_pct` y `criterioTiroQueRige` (ADR-014), pero `vistas/tramos.ts`, `vientoDatos.ts`
    y `Fundamentos.tsx` leen `tiroMaximoAdmisible()` = 0,5·RTS fijo. **TODO-44:** R2 factura.

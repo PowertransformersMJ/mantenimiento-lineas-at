@@ -4,8 +4,8 @@
 > (trigger 🧪 de `CLAUDE.md §G.2`). Cada lección es un gotcha que ya se pagó una vez.
 > Formato: `L-NN · título` → **Síntoma** / **Causa** / **Regla**.
 >
-> **Qué es este archivo:** el ÍNDICE de las 45 lecciones —**36 repartidas por tema en tres hijos y
-> 9 de MÉTODO aquí mismo, completas**: cómo se delibera, cómo se verifica y cuándo algo está de
+> **Qué es este archivo:** el ÍNDICE de las 46 lecciones —**36 repartidas por tema en tres hijos y
+> 10 de MÉTODO aquí mismo, completas**: cómo se delibera, cómo se verifica y cuándo algo está de
 > verdad terminado—. Las de método se quedan porque no son de ninguna pieza: valen para las tres, y
 > son las que más se citan desde otras neuronas. Si el síntoma huele a un tercero, a lo que se ve o
 > se abre, o al número que se firma, el índice te manda directo al hijo: no hay que leerse los
@@ -13,7 +13,7 @@
 >
 > **Los identificadores NO se renumeran nunca.** Un `L-NN` citado en otra neurona o en un comentario
 > del código sigue apuntando al mismo gotcha, viva donde viva su cuerpo. Y ojo con la aritmética: los
-> números llegan hasta 50 pero las lecciones son 45 — el 14 se fusionó en `L-13` y no existe.
+> números llegan hasta 51 pero las lecciones son 46 — el 14 se fusionó en `L-13` y no existe.
 >
 > ⚠️ **ANTES de escribir una lección nueva, busca el SÍNTOMA en los cuatro archivos.** Desde que la
 > familia se repartió, ninguno se lee entero, y el 04-08-2026 se escribió `L-36` sin ver que `L-22`
@@ -84,6 +84,7 @@
 - `L-39` · Con la familia repartida, una lección nueva se DUPLICA si no buscas el síntoma en los cuatro archivos
 - `L-43` · Un subagente que tiene que abrir muchas IMÁGENES se cuelga: eso se lee de a poco y en el hilo principal
 - `L-47` · Un número de ADR duplicado no lo caza ningún gate, y la historia de decisiones se FUSIONA, nunca se elige
+- `L-51` · «Hecho» es lo que se VE en producción, no lo que está verde en el repositorio
 
 ---
 
@@ -242,3 +243,27 @@
   los gates en verde). Cerrado el 15-08-2026: `ea1c283` (índice) y `44559ba` (historial). El gate que
   lo detectaría vive en el KERNEL y afecta al proyecto hermano → es decisión del Ingeniero
   (`10 · TODO-61/54`).
+
+### L-51 · «Hecho» es lo que se VE en producción, no lo que está verde en el repositorio
+
+- **Síntoma:** se le reportó al Ingeniero «terminado, publicado en `main`» con `TODO-69` cerrado en
+  código: 1.021 pruebas verdes, cerebro sano, commit y push hechos. Él abrió la página y respondió
+  que *el empalme y el pórtico no se reflejan en el mapa*. Tenía razón: no estaban. Faltaban un
+  despliegue y su llave de administrador — dos cosas que sí se le habían dicho, pero **después** del
+  párrafo que empezaba con «terminado».
+- **Causa:** confundir las tres capas que en este proyecto están separadas a propósito —**código**
+  (commit) · **desplegado** (producción sirve el bundle nuevo) · **dato cargado** (la cifra aparece)—
+  y usar la palabra del final para describir la primera. El Ingeniero **no programa**: para él, y
+  para cualquiera que use el producto, *hecho* es lo que aparece en pantalla. La distinción no es
+  suya, es nuestra. Es el mismo error que la doctrina persigue en el producto —*un hueco que no se ve
+  se lee como que no existe*— cometido en el REPORTE en vez de en la interfaz.
+- **Regla:** antes de escribir «terminado», contestar: **¿qué ve él si abre la página ahora mismo?**
+  Si la respuesta es «lo mismo que antes», no está terminado: está *listo para desplegar* o
+  *bloqueado esperando X*, y se dice con esas palabras. Lo que dependa de nosotros se EJECUTA antes de
+  reportar (aquí: desplegar), para que lo único pendiente sea lo suyo; y lo bloqueado **encabeza** el
+  reporte, no lo cierra. Cuidado especial con las olas que dejan código listo para un dato que aún no
+  existe: son las que más se parecen a estar terminadas.
+- **Emparenta con** `L-33` (verde no prueba nada), `32 · L-18/L-35` (se verifica contra producción, no
+  contra `dist/`) y `32 · L-44` (un tercer estado que la pantalla aplana se lee como aprobado).
+  Pagada el 17-08-2026 en `TODO-69`; el despliegue que faltaba se hizo el mismo día y producción pasó
+  a servir el contrato 0.5.0, verificado en el pie de la página.
