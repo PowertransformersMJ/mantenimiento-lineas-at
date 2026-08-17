@@ -2,9 +2,9 @@
 
 > Signos vitales. **AUTO-CARGA** con `CLAUDE.md` y `10`. Tope ~25 líneas / 4k chars — tablero, no bitácora. Historia → `99`.
 
-| Señal | Valor (al **2026-08-04**) |
+| Señal | Valor (al **2026-08-17**) |
 |---|---|
-| **Misión ahora** | **Cerrar el hueco del DATO, no el del código.** El producto está en producción con 11 pestañas + segmento RCA; el motor ya sabe dictaminar y **0 de 24 apoyos tienen veredicto** porque falta la ficha estructural. Todo lo demás es secundario hasta que llegue la ficha estructural (`TODO-57`), que **no depende de terceros**: es una herramienta INTERNA del Ingeniero, sin cliente ni contrato (`ADR-022`). Arquitectura decidida y revisada externamente: comité ×3 (ADR-001) + Consejo Externo (ADR-002). Pendientes → `10`. |
+| **Misión ahora** | **Cerrar el hueco del DATO, no el del código.** El producto está en producción con 11 pestañas + segmento RCA; el motor ya sabe dictaminar y **0 de 24 apoyos tienen veredicto** porque falta la ficha estructural. Todo lo demás es secundario hasta que llegue (`TODO-57`): es herramienta INTERNA, sin cliente ni contrato (`ADR-022`). Arquitectura revisada externamente (ADR-001/002). Pendientes → `10`. |
 | **Build** | 🟢 `npm test` **1.021 pass / 0 fail** (núcleo · exportes · vistas · método RCA · el CONTRATO · y desde el 16-08 la **IDENTIDAD de los apoyos**: los 26 ids de producción escritos literales, que hasta ese día podían cambiar con todo en verde, `99 §ADR-027`). `npm run contrato:verificar` exit 0, **contrato v0.5.0**. · verificado-vivo: 2026-08-16 |
 | **Repo** | `main` · https://github.com/PowertransformersMJ/mantenimiento-lineas-at · **PÚBLICO** (decisión del Ingeniero 2026-07-29) |
 | **Producción** | 🟢 **https://mantenimiento-lineas-at.pages.dev** — Cloudflare Pages, cuenta `ajimenezp99@gmail.com`. **Piel CLARA** desde el 04-08 («El Horizonte» F3): contraste medido en las 11 pestañas, **0 bajo el mínimo** (antes 2) y ningún elemento perdido; el visor de fotos sigue oscuro a propósito. **Se despliega a mano y el procedimiento vive en `10`** (lleva `build` delante: `deploy` NO construye, `32 · L-35`); el automático espera los 2 secretos. · verificado-vivo: 2026-08-04 |

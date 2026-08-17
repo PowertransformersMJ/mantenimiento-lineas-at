@@ -223,9 +223,16 @@ if (semillasNuevas.length) {
  * Orden de operaciones obligatorio: desplegar la web con el contrato 0.5.0 y
  * SOLO DESPUÉS sembrar.
  */
+// ⚠️ El freno para ESCRIBIR, no para MIRAR. En modo seco no se escribe nada, así
+// que abortar aquí no protegía de ningún daño y sí impedía ver el plan — y
+// obligaba a afirmar «la web ya está desplegada» justo para poder decidir si
+// desplegarla. El ensayo en seco existe para revisar ANTES; si además hay que
+// pasar una bandera falsa para verlo, se termina pasando siempre y el freno deja
+// de frenar.
 if (ordenesNoEnteros.length && !CONTRATO_050_DESPLEGADO) {
-  console.error(`
-❌ ${ordenesNoEnteros.length} punto(s) llevan un \`orden\` no entero:
+  const cabecera = SECO ? '⚠️  AVISO (no se escribe: modo seco)' : '❌ NO SE SIEMBRA';
+  console[SECO ? 'log' : 'error'](`
+${cabecera} — ${ordenesNoEnteros.length} punto(s) llevan un \`orden\` no entero:
 ${ordenesNoEnteros.map((o) => `   · ${o.nombreCanonico} → orden ${o.orden}`).join('\n')}
 
    Eso es correcto y es lo que evita renumerar los 26 apoyos ya sembrados, pero
@@ -236,7 +243,7 @@ ${ordenesNoEnteros.map((o) => `   · ${o.nombreCanonico} → orden ${o.orden}`).
    1. Comprobar que producción sirve el bundle con "contrato v0.5.0" en el pie.
    2. Volver a correr añadiendo:  --contrato-050-desplegado
 `);
-  process.exit(1);
+  if (!SECO) process.exit(1);
 }
 
 // ── Investigación de falla (opcional: solo si está en la bóveda) ────────────
@@ -272,10 +279,21 @@ console.log(investigacion
 // ── Escritura ───────────────────────────────────────────────────────────────
 async function sembrar() {
   if (SECO) {
+    // El ADR manda comparar los 26 ids contra la base antes del primer sembrado.
+    // Si el ensayo en seco no los imprime, esa comparación no se puede hacer y
+    // la instrucción se queda en literatura: aquí sale la lista entera.
+    console.log('\n🔑 Identidad de cada punto — esto es lo que hay que comparar contra la base:\n');
+    for (const a of [...apoyos].sort((x, y) => x.orden - y.orden)) {
+      const marca = a.orden === Math.trunc(a.orden) ? ' ' : '▸';   // ▸ = intercalado por bisección
+      console.log(`   ${marca} ${String(a.orden).padStart(5)}  ${a.id}  ${a.nombreNormalizado}`);
+    }
+    console.log(`\n   línea      : ${lineaId}`);
+    console.log(`   hipótesis  : ${hipotesisId}`);
+    if (investigacion) console.log(`   expediente : ${investigacion.id} → apoyo ${investigacion.apoyoId}`);
     console.log('\n🌵 Modo seco: no se escribió nada.');
-    console.log('   Antes del primer sembrado real conviene comparar estos ids contra los');
-    console.log('   documentos que ya existen en la base: un id que se mueve deja huérfanas');
-    console.log('   las fotos y el expediente, y no da ningún error.\n');
+    console.log('   Un id que se mueve deja huérfanas las fotos y el expediente, y NO da');
+    console.log('   ningún error: la pantalla simplemente dice «no identificada». Por eso');
+    console.log('   los 26 de julio se comparan uno a uno ANTES de la primera escritura.\n');
     return;
   }
 

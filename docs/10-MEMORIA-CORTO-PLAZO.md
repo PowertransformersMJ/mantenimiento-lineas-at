@@ -58,9 +58,7 @@ comité SUPONE entra con el mismo rango que lo que verifica (`30 · L-42`).
    el gate bloquea el commit: dice «presupuesto de boot excedido» pero es el canario — remedio `node scripts/session-handoff.mjs --boot-echo`.
 2. Producción **https://mantenimiento-lineas-at.pages.dev** · repo PÚBLICO → **cero bytes de cliente
    NI DATOS PERSONALES DE NADIE**, ni en pruebas ni en un comentario (`33 · L-23`, `99 §ADR-021`).
-3. **Desplegar es `npm run build && npm run deploy --workspace web`**, en ese orden (`32 · L-35`). Y
-   las **reglas de Firestore van por SU canal y ANTES que el código**:
-   `npx firebase deploy --only firestore:rules --project mantenimiento-lineas-at` (`31 · L-22`).
+3. **Desplegar es `npm run build && npm run deploy --workspace web`**, en ese orden (`32 · L-35`); las **reglas de Firestore van por SU canal y ANTES que el código**: `npx firebase deploy --only firestore:rules --project mantenimiento-lineas-at` (`31 · L-22`).
 4. **Verificar contra PRODUCCIÓN con el Chrome del Ingeniero**, preguntando a la pestaña qué bundle
    cargó — nunca contra `dist/` (`32 · L-18/35`). Esperar 5 lecturas iguales al propagar.
 5. Antes de CADA push: `npm test` + `contrato:verificar` + `brain:check`, **y buscar coordenadas a
