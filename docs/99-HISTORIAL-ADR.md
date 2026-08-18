@@ -2920,3 +2920,95 @@ ganaron el cerrojo de revisión en el eslabón anterior.
 *(sin comité: el diseño lo cerró el Ingeniero campo por campo antes de construir, y la construcción
 fue en eslabones. La evidencia reproducible son las pruebas: `tests/ficha-estructural.test.js` (41)
 y `tests/ficha-editable.test.js` (41), con mundo sintético.)*
+
+---
+
+## ADR-032 · 2026-08-17 · El instante de una carga lo garantiza el código, no la velocidad de la máquina
+
+**Estado:** ✅ Decidido · ⚠️ **NO revisada externamente** · ✅ verificado en pruebas · ⬜ sin efecto
+en vivo (a propósito: el comportamiento de producción no cambia, y por eso no se desplegó).
+
+### Contexto
+
+El Ingeniero reportó un test **intermitente**, ajeno a la ola de la ficha estructural:
+`tests/carga-contra-contrato.test.js` fallaba **1 de cada 4 corridas** de `npm test` y las otras tres
+daban verde entero. La prueba que caía se llama *«una carga entera comparte el mismo instante: es UN
+hecho, no varios»*.
+
+Medido en vez de supuesto: en frío falla el **17 %** de las veces (34 de 200 procesos nuevos) y en
+caliente el **0,1 %** (5 de 5.000 repeticiones). Esa diferencia es justo lo que lo hacía parecer azar
+—en `npm test` el módulo arranca frío— y lo que invitaba a reintentar en vez de investigar.
+
+La causa eran **dos piezas que por separado no hacen daño**. `importar/plan.js` ponía su instante por
+defecto **antes** del spread de opciones —`{ ahora: <defecto>, ...opciones }`—, así que un llamador
+que pasara `ahora: undefined` (que en JavaScript es la forma de decir «no lo declaro») **pisaba** el
+defecto y lo dejaba sin valor. Entonces `importar/punto.js`, que tiene su propio defecto, volvía a
+sellar la hora **por documento**. Resultado: los puntos de una misma carga compartían instante solo
+si se construían dentro del mismo milisegundo.
+
+**Lo que estaba en juego no era el rojo.** El invariante que la propia prueba ENUNCIA —*una carga es
+un hecho fechado, no varios*— no lo garantizaba el código: lo garantizaba lo rápido que fuera la
+máquina. En un sistema cuyo oficio es que cada cifra quede amarrada a su fecha, a su hipótesis y a su
+versión de cálculo, eso no es una prueba floja: es el dato. Producción no lo sufría porque
+`web/src/componentes/Cargar.tsx` no pasa esa clave — y esa casualidad era lo único que separaba el
+defecto de un documento que **no se puede borrar** (`allow delete: if false`).
+
+### Decisión
+
+**El sello se pone UNA vez en el plan y se le pasa ya hecho a cada punto**, con el defecto **después**
+de copiar las opciones:
+
+```js
+const opc = { ...opciones };
+opc.ahora ??= new Date().toISOString();
+```
+
+Se eligió `??=` y no `||=` ni el spread: `??=` trata `undefined` **y `null`** como «no declarado»,
+que es lo que significan. El `null` importa porque era el caso *peor* y no estaba cubierto por nadie
+— el defecto del *destructuring* de `punto.js` solo actúa con `undefined`, así que un `ahora: null`
+escribía un `creadoEn` **nulo** que no paraba nada hasta el molde, ya en la frontera de escritura.
+Una cadena basura sí sigue pasando: la para el molde, que es donde va la basura.
+
+En `punto.js` **se conserva** su defecto —construye UN documento, y ahí un reloj por defecto es
+legítimo— y se le añade el aviso escrito de que sella **por documento**, para que nadie lo quite del
+plan creyendo que aquí está cubierto.
+
+### Alternativas descartadas
+
+- **Arreglar el test para que no pase `ahora: undefined`.** Es la que apaga la luz roja sin apagar el
+  fuego: el enunciado del test seguiría sin estar garantizado por el código. Se descartó por eso.
+- **Quitarle a `punto.js` su propio defecto y hacer `ahora` obligatorio.** Haría obligatorio un
+  parámetro en un *export* que usan ~30 puntos de prueba y que construye un solo documento. El riesgo
+  no está ahí: está en que el plan le deje llegar un hueco. Se cierra donde nace.
+- **Inyectar un reloj de pruebas.** Sobre-ingeniería: una costura que nadie pidió para algo que se
+  cierra con dos líneas.
+
+### Consecuencias
+
+- **Producción no cambia de comportamiento**, y por eso **no se desplegó**. La pantalla nunca pasó esa
+  clave; lo que cambia es que ahora el invariante no depende de que siga sin pasarla.
+- **El guardián se refuerza en vez de callarse.** La prueba **sigue** pasando `ahora: undefined` —ese
+  es el escenario, no el defecto— y sube de dos puntos a **nueve**: nueve construcciones no caben en
+  un milisegundo. Comprobado reintroduciendo el fallo a propósito: antes caía 1 de cada 6, ahora cae
+  **20 de 20**. Es la verificación que pide `30 · L-33`.
+- **Queda como `30 · L-52`**, lección de método: *una prueba intermitente no se calla tocando la
+  prueba; se pregunta qué invariante enuncia y si lo garantiza el código*.
+- **Dos arreglos de higiene que aparecieron al escribir la lección:** la cabecera de `docs/30`
+  declaraba 46 lecciones cuando hay **51** (entraron `L-48` a `L-51` sin recontar, justo lo que ese
+  párrafo dice que no debe pasar) — corregida con el número verificado y con el `grep` que lo
+  comprueba; y el índice mandaba a buscar `L-42` en `33` cuando su cuerpo está en `30` — se reubicó
+  la línea del índice, no la lección.
+- **Una falsa alarma que se persiguió hasta el final, y se deja escrita para que nadie la repita:** el
+  `package-lock.json` está desfasado (contratos `0.5.0` contra el `package.json` en `0.6.0`) y se
+  sospechó que rompía `npm ci` en CI. Se probó: **sale con código 0**. No hay nada que arreglar.
+- **Verificación:** `npm test` **1.386 pruebas, 0 fallos** en cinco corridas seguidas sobre `main`;
+  **1.425 / 1.425** en el worktree principal, que incluye las 35 que en un worktree se saltan porque
+  la bóveda queda fuera del alcance relativo. `contrato:verificar` exit 0 · `build` OK ·
+  `brain:check` verde, referencias `L-`/`M-` 51 usadas / 51 definidas.
+
+### Crudo de respaldo
+
+`research-archive/2026-08-17-medicion-instante-de-carga.json` — no hubo comité ni consejo externo: lo
+caro de reproducir aquí es la **medición** (los 200 procesos en frío antes y después, y las 20
+corridas con el fallo reintroducido). El crudo guarda además el reproductor completo, el porqué de
+`??=` frente a `||=`, y las alternativas descartadas con su argumento.
