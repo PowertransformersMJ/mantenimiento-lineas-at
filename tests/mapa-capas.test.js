@@ -122,6 +122,16 @@ describe('el mapa no le pide teselas a nadie', () => {
       'hace falta reintentar cuando el estilo termine de cargarse');
   });
 
+  test('la espera al estilo tiene UN dueño, y las dos capas pasan por él', () => {
+    // Las dos cayeron en el mismo agujero, una detrás de otra: la de teselas con
+    // un `TypeError` invisible y la térmica con «Style is not done loading». Con
+    // la espera escrita dos veces, la tercera capa vuelve a caer.
+    assert.equal((CODIGO.match(/function alEstarElEstilo/g) ?? []).length, 1,
+      'la espera al estilo se escribió más de una vez');
+    assert.ok((CODIGO.match(/alEstarElEstilo\(m,/g) ?? []).length >= 2,
+      'alguna capa se salta la espera y se enciende antes de tiempo');
+  });
+
   test('cada archivo que el mapa nombra existe de verdad en el sitio', () => {
     // Un nombre mal escrito aquí no da error en ninguna parte: la capa
     // simplemente no se enciende, y el botón se queda muerto.

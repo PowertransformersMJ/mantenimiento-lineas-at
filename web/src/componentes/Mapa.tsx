@@ -418,29 +418,10 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
       m.triggerRepaint();
     };
 
-    // ⚠️ SE ESPERA A QUE EL ESTILO ESTÉ CARGADO. Este efecto corre en cuanto el
-    // mapa se declara «listo», y eso pasa ANTES de que MapLibre termine de armar
-    // el estilo: `getStyle()` devuelve entonces `undefined` y el efecto entero
-    // revienta con «Cannot read properties of undefined». No se veía —React no
-    // rompe la página por eso— pero dejaba las capas sin encender.
-    const cuandoElEstiloEsteListo = () => {
-      if (cancelado) return;
-      void aplicar();
-    };
-    let quitarEspera = () => {};
-    if (m.isStyleLoaded()) {
-      cuandoElEstiloEsteListo();
-    } else {
-      const alCambiar = () => {
-        if (!m.isStyleLoaded()) return;
-        m.off('styledata', alCambiar);
-        cuandoElEstiloEsteListo();
-      };
-      m.on('styledata', alCambiar);
-      quitarEspera = () => m.off('styledata', alCambiar);
-    }
-
-    return () => { cancelado = true; quitarEspera(); };
+    // La espera al estilo tiene un solo dueño: `alEstarElEstilo`. Sin ella este
+    // efecto revienta con un `TypeError` invisible y las capas no se encienden.
+    const dejarDeEsperar = alEstarElEstilo(m, () => { if (!cancelado) void aplicar(); });
+    return () => { cancelado = true; dejarDeEsperar(); };
   }, [base, termico, estado]);
 
   /**
@@ -464,7 +445,7 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
     }
     let cancelado = false;
 
-    void (async () => {
+    const pintar = async () => {
       try {
         let ficha = fichaTermica;
         if (!ficha) {
@@ -523,9 +504,10 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
         setTermico(false);
         setBajandoTermico(false);
       }
-    })();
+    };
 
-    return () => { cancelado = true; };
+    const dejarDeEsperar = alEstarElEstilo(m, () => { if (!cancelado) void pintar(); });
+    return () => { cancelado = true; dejarDeEsperar(); };
   }, [termico, diaTermico, estado, fichaTermica, rejillaLista]);
 
   /**
@@ -844,6 +826,28 @@ function PanelPronostico({ p, eje, celda, vientoHipotesis_kmh }: {
       </p>
     </div>
   );
+}
+
+/**
+ * Hacer algo CUANDO el estilo del mapa esté armado, no antes.
+ *
+ * ⚠️ ESTO NO ES UNA COMODIDAD: es la diferencia entre que una capa se encienda y
+ * que no. El mapa se declara «listo» ANTES de que MapLibre termine de montar el
+ * estilo, y en esa ventana `getStyle()` devuelve `undefined` y `addSource()`
+ * lanza «Style is not done loading». Las dos capas nuevas cayeron ahí, una tras
+ * otra, así que la espera tiene un solo dueño y las dos lo usan (`32 · L-55`).
+ *
+ * @returns cómo cancelar la espera, para la limpieza del efecto
+ */
+function alEstarElEstilo(m: maplibregl.Map, hacer: () => void): () => void {
+  if (m.isStyleLoaded()) { hacer(); return () => {}; }
+  const alCambiar = () => {
+    if (!m.isStyleLoaded()) return;
+    m.off('styledata', alCambiar);
+    hacer();
+  };
+  m.on('styledata', alCambiar);
+  return () => m.off('styledata', alCambiar);
 }
 
 /**
