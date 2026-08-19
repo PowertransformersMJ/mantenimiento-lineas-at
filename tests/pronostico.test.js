@@ -54,17 +54,17 @@ describe('las unidades: la fuente habla en m/s', () => {
 describe('dónde se pregunta: nunca en la línea', () => {
 
   test('la coordenada sale REDONDEADA a la rejilla', () => {
-    const p = puntoDeConsulta(10.341164, -75.486957);
-    assert.notEqual(p.lat, 10.341164, 'salió la coordenada exacta del activo');
-    assert.notEqual(p.lon, -75.486957);
-    assert.equal(p.lat, 10.3);
-    assert.equal(p.lon, -75.5);
+    const p = puntoDeConsulta(0.341164, 0.486957);
+    assert.notEqual(p.lat, 0.341164, 'salió la coordenada exacta del activo');
+    assert.notEqual(p.lon, 0.486957);
+    assert.equal(p.lat, 0.3);
+    assert.equal(p.lon, 0.5);
   });
 
   test('el redondeo no aleja el punto más que la celda del modelo', () => {
     // 0,1° son ~11 km, del orden de la celda del modelo global: redondear no
     // cuesta precisión. Se comprueba que nunca se va más de media celda.
-    for (const [lat, lon] of [[10.341, -75.487], [0.049, 0.049], [-33.9, 151.2], [10.35, -75.45]]) {
+    for (const [lat, lon] of [[0.341, 0.487], [0.049, 0.049], [-33.9, 151.2], [0.35, 0.45]]) {
       const p = puntoDeConsulta(lat, lon);
       assert.ok(Math.abs(p.lat - lat) <= 0.0501, `latitud demasiado lejos: ${p.lat} vs ${lat}`);
       assert.ok(Math.abs(p.lon - lon) <= 0.0501, `longitud demasiado lejos: ${p.lon} vs ${lon}`);
@@ -74,8 +74,8 @@ describe('dónde se pregunta: nunca en la línea', () => {
   test('la misma coordenada da SIEMPRE la misma celda', () => {
     // De aquí sale que la capa consulte una vez y no una por encendido: la clave
     // de la caché es la celda.
-    assert.deepEqual(puntoDeConsulta(10.341, -75.487), puntoDeConsulta(10.341, -75.487));
-    assert.deepEqual(puntoDeConsulta(10.341, -75.487), puntoDeConsulta(10.339, -75.489));
+    assert.deepEqual(puntoDeConsulta(0.341, 0.487), puntoDeConsulta(0.341, 0.487));
+    assert.deepEqual(puntoDeConsulta(0.341, 0.487), puntoDeConsulta(0.339, 0.489));
   });
 
   test('⚠️ dos apoyos a un lado y otro del borde caen en celdas DISTINTAS', () => {
@@ -83,7 +83,7 @@ describe('dónde se pregunta: nunca en la línea', () => {
     // rejilla tiene bordes. Se resuelve aguas arriba —la capa consulta UN punto
     // de referencia de la línea, no uno por apoyo— y se fija aquí para que quien
     // lo cambie sepa lo que se lleva por delante.
-    assert.notDeepEqual(puntoDeConsulta(10.341, -75.487), puntoDeConsulta(10.352, -75.487));
+    assert.notDeepEqual(puntoDeConsulta(0.341, 0.487), puntoDeConsulta(0.352, 0.487));
   });
 });
 

@@ -14,6 +14,34 @@
 PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
 for d in "$HOME"/.nvm/versions/node/*/bin; do [ -d "$d" ] && PATH="$d:$PATH"; done
 
+# ═══════════════════════════════════════════════════════════════
+# 🛰️  COORDENADAS REALES — este guardián corre SIEMPRE, no solo con el cerebro
+# ═══════════════════════════════════════════════════════════════
+# Este repositorio es PÚBLICO y la historia de git es permanente (`33 · L-07`).
+# La comprobación existía desde julio… como un paso a mano en `docs/10`, y el
+# 19-08 pasó lo que tenía que pasar: se ejecutó, se vio el resultado y el commit
+# salió igual, con el centro real de la línea dentro de una prueba (`33 · L-23`,
+# que ya decía que una coordenada real en una prueba es una fuga igual). Un
+# guardián cuyo resultado no BLOQUEA no es un guardián, es un adorno.
+#
+# El patrón es el mismo que documenta `docs/10`: cuatro o más decimales en la
+# franja de latitud/longitud del Caribe colombiano. Se miran solo las líneas
+# AÑADIDAS y se excluyen los recortes del mapa, que son públicos por decisión.
+fugas=$(git diff --cached -U0 -- . ':(exclude)web/public/mapas/*' \
+  | grep -E '^\+' | grep -vE '^\+\+\+' \
+  | grep -nE '(10\.[0-9]{4,}|-7[45]\.[0-9]{4,})')
+if [ -n "$fugas" ]; then
+  echo ""
+  echo "❌ COMMIT BLOQUEADO: parecen COORDENADAS REALES en lo que se va a commitear."
+  echo "$fugas" | head -20
+  echo ""
+  echo "   Este repositorio es PÚBLICO y la historia de git es permanente (33 · L-07)."
+  echo "   Una coordenada real dentro de una PRUEBA es una fuga igual que en el código (L-23)."
+  echo "   Cámbialas por sintéticas (ecuador y meridiano de Greenwich) y vuelve a intentarlo."
+  echo "   Si de verdad es un número que no es una coordenada: 'git commit --no-verify'."
+  exit 1
+fi
+
 staged=$(git diff --cached --name-only)
 echo "$staged" | grep -qE '^(CLAUDE\.md|docs/)' || exit 0   # nada del cerebro staged → no aplica
 

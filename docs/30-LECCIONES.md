@@ -4,8 +4,8 @@
 > (trigger 🧪 de `CLAUDE.md §G.2`). Cada lección es un gotcha que ya se pagó una vez.
 > Formato: `L-NN · título` → **Síntoma** / **Causa** / **Regla**.
 >
-> **Qué es este archivo:** el ÍNDICE de las 54 lecciones —**41 repartidas por tema en tres hijos y
-> 13 de MÉTODO aquí mismo, completas**: cómo se delibera, cómo se verifica y cuándo algo está de
+> **Qué es este archivo:** el ÍNDICE de las 55 lecciones —**41 repartidas por tema en tres hijos y
+> 14 de MÉTODO aquí mismo, completas**: cómo se delibera, cómo se verifica y cuándo algo está de
 > verdad terminado—. Las de método se quedan porque no son de ninguna pieza: valen para las tres, y
 > son las que más se citan desde otras neuronas. Si el síntoma huele a un tercero, a lo que se ve o
 > se abre, o al número que se firma, el índice te manda directo al hijo: no hay que leerse los
@@ -13,7 +13,7 @@
 >
 > **Los identificadores NO se renumeran nunca.** Un `L-NN` citado en otra neurona o en un comentario
 > del código sigue apuntando al mismo gotcha, viva donde viva su cuerpo. Y ojo con la aritmética: los
-> números llegan hasta 55 pero las lecciones son 54 — el 14 se fusionó en `L-13` y no existe.
+> números llegan hasta 56 pero las lecciones son 55 — el 14 se fusionó en `L-13` y no existe.
 >
 > ⚠️ **ANTES de escribir una lección nueva, busca el SÍNTOMA en los cuatro archivos.** Desde que la
 > familia se repartió, ninguno se lee entero, y el 04-08-2026 se escribió `L-36` sin ver que `L-22`
@@ -90,6 +90,7 @@
 - `L-39` · Con la familia repartida, una lección nueva se DUPLICA si no buscas el síntoma en los cuatro archivos
 - `L-42` · Lo que un comité SUPONE entra al cerebro con el mismo rango que lo que verifica
 - `L-43` · Un subagente que tiene que abrir muchas IMÁGENES se cuelga: eso se lee de a poco y en el hilo principal
+- `L-56` · Un guardián cuyo resultado no BLOQUEA no es un guardián: es un adorno (y el `grep` encadenado con `&&` frena justo al revés)
 - `L-47` · Un número de ADR duplicado no lo caza ningún gate, y la historia de decisiones se FUSIONA, nunca se elige
 - `L-51` · «Hecho» es lo que se VE en producción, no lo que está verde en el repositorio
 - `L-52` · Un invariante que la prueba ENUNCIA y la máquina cumple por velocidad no está garantizado
@@ -226,6 +227,29 @@
   así no la leímos.
 - **Emparenta con** `L-28` (un módulo que nadie llama es invisible): una lección que el índice no
   lista es exactamente igual de invisible.
+
+### L-56 · Un guardián cuyo resultado no BLOQUEA no es un guardián: es un adorno
+
+- **Síntoma:** el 19-08 se publicó en el repositorio PÚBLICO el centro real de la línea del cliente,
+  dentro de una prueba. La comprobación que lo caza existía desde julio, estaba escrita en `docs/10`
+  como paso obligatorio antes de cada push, **se ejecutó, y su salida se leyó** — encadenada con
+  `&&` en el mismo comando que hacía el commit. El commit salió igual: `grep` había encontrado las
+  coordenadas y no había nada que impidiera continuar.
+- **Causa:** la comprobación era una COSTUMBRE con forma de comando, no una condición de parada. El
+  fallo no fue olvidarla: fue mirarla y seguir, que es peor, porque demuestra que el paso no frena
+  nada. Y encima duplicaba una lección que ya existía (`33 · L-23`: una coordenada real dentro de una
+  prueba es una fuga igual que en el código): tener la lección escrita no impidió cometerla.
+- **Arreglo:** el mismo patrón de `grep`, movido a `githooks/pre-commit`, **devolviendo 1**. Se probó
+  con un archivo señuelo: el commit se bloquea y dice qué línea y por qué.
+- **Regla:** todo lo verificable se mueve al guardián que FALLA. Un paso de una lista de
+  comprobación depende de que quien lo corre decida parar, y quien lo corre es justo el que ya tiene
+  prisa. Y ojo con la variante silenciosa de este error: encadenar un `grep` de auditoría con `&&` a
+  la acción que se quiere frenar, porque `grep` sin coincidencias devuelve 1 y **aborta la acción**,
+  mientras que **con** coincidencias devuelve 0 y **la deja pasar**. Está exactamente al revés.
+- **Lo que NO se hizo, y por qué:** reescribir la historia de git. `33 · L-07` ya declara que sacar
+  después lo que no debió entrar obliga a que todas las copias se vuelvan a clonar, y que se evita no
+  cometiendo el error; se corrige hacia delante y se deja escrito, como se hizo con los nombres de las
+  subestaciones el 17-08.
 
 ### L-47 · Un número de ADR duplicado no lo caza ningún gate, y la historia de decisiones se FUSIONA, nunca se elige
 - **Síntoma:** el `ADR-023` estaba escrito **dos veces** en `99` —misma fecha, mismo `TODO-42/37`,
