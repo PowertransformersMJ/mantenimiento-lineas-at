@@ -40,27 +40,42 @@ import { COLORES_TRAMO_CSS } from '../vistas/tramoColores';
 // necesitará el modo campo sin señal (F4): archivo completo en el dispositivo.
 maplibregl.setWorkerUrl(urlWorker);
 
-let protocolo: Protocol | null = null;
-let archivo: Promise<{ p: PMTiles; limites: [number, number, number, number]; zMin: number; zMax: number }> | null = null;
+interface MetaTeselas {
+  p: PMTiles;
+  limites: [number, number, number, number];
+  zMin: number;
+  zMax: number;
+}
 
-function prepararTeselas(): Promise<{ p: PMTiles; limites: [number, number, number, number]; zMin: number; zMax: number }> {
+let protocolo: Protocol | null = null;
+/**
+ * Un archivo por capa, cacheado por nombre. Las capas nuevas (satelital,
+ * térmico) NO se descargan al abrir el mapa: solo cuando él las pide. El mapa
+ * base pesa 4,3 MB y la imagen satelital otro tanto largo — cargarlas siempre
+ * castigaría con megabytes a quien nunca las va a mirar, y este sistema tiene
+ * que poder abrirse desde el campo.
+ */
+const archivos = new Map<string, Promise<MetaTeselas>>();
+
+function prepararTeselas(nombre = 'cartagena.pmtiles'): Promise<MetaTeselas> {
   if (!protocolo) {
     protocolo = new Protocol();
     maplibregl.addProtocol('pmtiles', protocolo.tile);
   }
-  if (archivo) return archivo;
+  const yaVa = archivos.get(nombre);
+  if (yaVa) return yaVa;
 
-  archivo = (async () => {
+  const archivo = (async () => {
     const esperas = [0, 500, 1500, 3500];
     let ultimo: unknown;
     for (const ms of esperas) {
       if (ms) await new Promise((r) => setTimeout(r, ms));
       try {
-        const r = await fetch('/mapas/cartagena.pmtiles');
+        const r = await fetch('/mapas/' + nombre);
         if (!r.ok) throw new Error('HTTP ' + r.status);
         const blob = await r.blob();
-        const p = new PMTiles(new FileSource(new File([blob], 'cartagena.pmtiles')));
-        protocolo!.add(p);          // queda registrado como pmtiles://cartagena.pmtiles
+        const p = new PMTiles(new FileSource(new File([blob], nombre)));
+        protocolo!.add(p);          // queda registrado como pmtiles://<nombre>
         // Los metadatos se leen DIRECTO del archivo y se declaran explícitos en
         // la fuente. Así no dependemos de la petición de metadatos vía
         // protocolo, que es justo donde el estilo se quedaba mudo sin error.
@@ -77,9 +92,62 @@ function prepararTeselas(): Promise<{ p: PMTiles; limites: [number, number, numb
   })();
 
   // Un fallo no queda cacheado: reabrir la pestaña debe poder reintentar.
-  archivo.catch(() => { archivo = null; });
+  archivo.catch(() => { archivos.delete(nombre); });
+  archivos.set(nombre, archivo);
   return archivo;
 }
+
+// ── Las capas de imagen: qué son, de dónde salen y a quién se le debe ───────
+//
+// Las dos son datos ABIERTOS y viajan con el sitio, igual que el mapa base: no
+// hay servidor de terceros en tiempo de ejecución, no hay cuota, no hay clave y
+// no hay nada que facture (ADR-001). Lo que hay es un DEBER DE ATRIBUCIÓN, y
+// MapLibre lo pinta solo a partir de estos textos mientras la capa esté puesta.
+//
+// ⚠️ El fichero `.json` hermano trae la fecha de la toma y, en el térmico, la
+// escala en grados. Una imagen sin fecha en una herramienta de mantenimiento se
+// lee como «así está hoy», y eso es exactamente lo que no puede pasar.
+export const CAPAS_RASTER = {
+  satelital: {
+    archivo: 'cartagena-satelital.pmtiles',
+    ficha: '/mapas/cartagena-satelital.json',
+    rotulo: 'Satelital (Sentinel-2)',
+    atribucion: 'Contains modified Copernicus Sentinel data',
+    opacidad: 1,
+  },
+  termico: {
+    archivo: 'cartagena-termico.pmtiles',
+    ficha: '/mapas/cartagena-termico.json',
+    rotulo: 'Temperatura de la superficie',
+    atribucion: 'USGS Landsat Collection 2 Level-2 (dominio público)',
+    opacidad: 0.72,
+  },
+} as const;
+
+export type NombreCapa = keyof typeof CAPAS_RASTER;
+
+/** Lo que la ficha de una capa trae. Todo opcional: si falta, no se pinta. */
+export interface FichaCapa {
+  titulo?: string;
+  fecha?: string;
+  escena?: string;
+  nubes_pct?: number;
+  resolucion_m?: number;
+  resolucion_nativa_m?: number;
+  atribucion?: string;
+  rampa?: { c: number; rgb: number[] }[];
+  resumen_c?: { min_c: number; max_c: number; p05_c: number; p50_c: number; p95_c: number; cobertura_pct: number };
+  es_superficie_no_aire?: boolean;
+}
+
+/**
+ * Los rótulos del mapa base — nombres de calles, barrios y escudos de vía.
+ *
+ * Se quedan ENCENDIDOS sobre la imagen satelital, y no es un capricho: sobre una
+ * foto aérea sin un solo nombre nadie sabe dónde está mirando, y el gesto que
+ * sigue es apagar la capa. Es la vista «híbrida» de toda la vida.
+ */
+const esRotulo = (id: string) => /label|shield/.test(id) || id.startsWith('places');
 
 const COLORES: Record<string, string> = {
   ancla: '#f0a500',
@@ -132,6 +200,12 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento }:
   const caja = useRef<HTMLDivElement>(null);
   const mapa = useRef<maplibregl.Map | null>(null);
   const [estado, setEstado] = useState<'cargando' | 'listo' | 'fallo'>('cargando');
+  /** Qué mapa de fondo se ve. El térmico NO es fondo: va ENCIMA, y por eso es aparte. */
+  const [base, setBase] = useState<'callejero' | 'satelital'>('callejero');
+  const [termico, setTermico] = useState(false);
+  const [fichas, setFichas] = useState<Partial<Record<NombreCapa, FichaCapa>>>({});
+  const [bajando, setBajando] = useState<NombreCapa | null>(null);
+  const [falloCapa, setFalloCapa] = useState<string | null>(null);
 
   useEffect(() => {
     if (!caja.current || mapa.current || apoyos.length < 2) return;
@@ -186,18 +260,177 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento }:
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apoyos]);
 
+  /**
+   * Encender una capa de imagen: se descarga su archivo la PRIMERA vez que él la
+   * pide, y a partir de ahí queda en memoria. Ninguna de las dos viaja en la
+   * carga inicial del mapa.
+   *
+   * Si la descarga falla, la capa no se enciende y se dice por qué — pero el
+   * mapa sigue exactamente como estaba: una capa opcional jamás veta a una
+   * esencial (`31 · L-11`).
+   */
+  useEffect(() => {
+    const m = mapa.current;
+    if (!m || estado !== 'listo') return;
+    let cancelado = false;
+
+    void (async () => {
+      for (const nombre of ['satelital', 'termico'] as NombreCapa[]) {
+        const encendida = nombre === 'satelital' ? base === 'satelital' : termico;
+        const idCapa = `raster-${nombre}`;
+        if (!encendida) {
+          if (m.getLayer(idCapa)) m.setLayoutProperty(idCapa, 'visibility', 'none');
+          continue;
+        }
+        if (m.getLayer(idCapa)) {
+          m.setLayoutProperty(idCapa, 'visibility', 'visible');
+          continue;
+        }
+        const capa = CAPAS_RASTER[nombre];
+        setBajando(nombre);
+        setFalloCapa(null);
+        try {
+          const meta = await prepararTeselas(capa.archivo);
+          const ficha = await fetch(capa.ficha).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+          if (cancelado || !mapa.current) return;
+          if (ficha) setFichas((f) => ({ ...f, [nombre]: ficha as FichaCapa }));
+          if (!m.getSource(idCapa)) {
+            m.addSource(idCapa, {
+              type: 'raster',
+              tiles: [`pmtiles://${capa.archivo}/{z}/{x}/{y}`],
+              tileSize: 256,
+              minzoom: meta.zMin,
+              maxzoom: meta.zMax,
+              bounds: meta.limites,
+              // El deber de atribución de las dos fuentes lo pinta MapLibre solo,
+              // y solo mientras la capa esté puesta. La fecha de la toma va
+              // dentro: una imagen sin fecha se lee como «así está hoy».
+              attribution: `${capa.atribucion}${(ficha as FichaCapa | null)?.fecha
+                ? ` · ${(ficha as FichaCapa).fecha!.slice(0, 10)}` : ''}`,
+            });
+          }
+          // Debajo de la línea SIEMPRE: los apoyos y los tramos son el asunto,
+          // la imagen es el fondo. Y el térmico por encima del satelital, que
+          // para eso es una lectura sobre el terreno.
+          const debajoDe = nombre === 'satelital' && m.getLayer('raster-termico')
+            ? 'raster-termico'
+            : (m.getLayer('tramos') ? 'tramos' : undefined);
+          m.addLayer({
+            id: idCapa,
+            type: 'raster',
+            source: idCapa,
+            paint: { 'raster-opacity': capa.opacidad },
+          }, debajoDe);
+        } catch (e) {
+          if (cancelado) return;
+          console.warn('[mapa] capa', nombre, e);
+          setFalloCapa(`No se pudo descargar la capa «${capa.rotulo}». El mapa sigue igual.`);
+          if (nombre === 'satelital') setBase('callejero'); else setTermico(false);
+        } finally {
+          if (!cancelado) setBajando(null);
+        }
+      }
+
+      // El callejero se apaga bajo la imagen satelital, PERO los rótulos se
+      // quedan: una foto aérea sin un solo nombre no dice dónde está uno.
+      for (const l of m.getStyle().layers) {
+        if ((l as { source?: string }).source !== 'protomaps') continue;
+        m.setLayoutProperty(l.id, 'visibility',
+          base === 'callejero' || esRotulo(l.id) ? 'visible' : 'none');
+      }
+    })();
+
+    return () => { cancelado = true; };
+  }, [base, termico, estado]);
+
   if (estado === 'fallo' && respaldo) return <>{respaldo}</>;
 
   return (
     <div className="mapa-real">
       {estado === 'cargando' && <div className="mapa-velo">Descargando cartografía… (una sola vez)</div>}
       <div ref={caja} className="mapa-lienzo" />
-      <div className="mapa-capas" role="note">
-        <label><input type="radio" name="capa" checked readOnly /> Callejero (OSM)</label>
-        <label className="capa-off" title="La capa satelital exige verificar la licencia del proveedor antes de usarla en un entregable (docs/31 · L-03).">
-          <input type="radio" name="capa" disabled /> Satelital — licencia por verificar
+      <div className="mapa-capas" role="group" aria-label="Capas del mapa">
+        <p className="mapa-capas-t">Fondo</p>
+        <label>
+          <input type="radio" name="capa" checked={base === 'callejero'}
+            onChange={() => setBase('callejero')} /> Callejero (OSM)
         </label>
+        <label>
+          <input type="radio" name="capa" checked={base === 'satelital'}
+            onChange={() => setBase('satelital')} /> Satelital
+          {fichas.satelital?.fecha && (
+            <span className="mapa-capas-f">{fechaCorta(fichas.satelital.fecha)}</span>
+          )}
+        </label>
+
+        <p className="mapa-capas-t">Encima</p>
+        <label>
+          <input type="checkbox" checked={termico}
+            onChange={(e) => setTermico(e.target.checked)} /> Temperatura del suelo
+          {fichas.termico?.fecha && (
+            <span className="mapa-capas-f">{fechaCorta(fichas.termico.fecha)}</span>
+          )}
+        </label>
+
+        {bajando && (
+          <p className="mapa-capas-n" aria-live="polite">
+            Descargando {CAPAS_RASTER[bajando].rotulo.toLowerCase()}… (una sola vez)
+          </p>
+        )}
+        {falloCapa && <p className="mapa-capas-n alerta">{falloCapa}</p>}
+        {termico && fichas.termico && <LeyendaTermica ficha={fichas.termico} />}
       </div>
+    </div>
+  );
+}
+
+/** La fecha de una toma, corta y en local. Sin hora no se sabe si es mediodía. */
+function fechaCorta(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso.slice(0, 10);
+  return d.toLocaleString('es-CO', {
+    day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    timeZone: 'America/Bogota',
+  });
+}
+
+/**
+ * La leyenda del térmico. NO es decoración: sin ella el mapa es una mancha de
+ * colores, y una mancha de colores sobre una línea de alta tensión invita a
+ * conclusiones que el dato no sostiene.
+ *
+ * Dice las tres cosas que evitan el malentendido caro: que es la temperatura del
+ * SUELO y no la del aire, que es UN instante y no un promedio, y con qué escala
+ * está pintada.
+ */
+function LeyendaTermica({ ficha }: { ficha: FichaCapa }) {
+  const rampa = ficha.rampa ?? [];
+  if (!rampa.length) return null;
+  const min = rampa[0].c;
+  const max = rampa[rampa.length - 1].c;
+  const gradiente = rampa
+    .map((p) => `rgb(${p.rgb.join(',')}) ${(((p.c - min) / (max - min)) * 100).toFixed(1)}%`)
+    .join(', ');
+  const r = ficha.resumen_c;
+
+  return (
+    <div className="mapa-leyenda">
+      <div className="mapa-leyenda-barra" style={{ background: `linear-gradient(90deg, ${gradiente})` }} />
+      <div className="mapa-leyenda-esc">
+        <span>{min} °C</span><span>{Math.round((min + max) / 2)} °C</span><span>{max} °C</span>
+      </div>
+      {r && (
+        <p className="mapa-capas-n">
+          En este recorte: mediana <b>{r.p50_c.toFixed(0)} °C</b> · el 90 % entre{' '}
+          {r.p05_c.toFixed(0)} y {r.p95_c.toFixed(0)} °C.
+        </p>
+      )}
+      <p className="mapa-capas-n">
+        <b>Es la temperatura de la SUPERFICIE</b> —suelo, techos, asfalto— medida desde el
+        satélite en <b>un instante</b>, no la del aire y no un promedio. Al mediodía el asfalto
+        puede estar 15-20 °C por encima del aire. <b>No alimenta ningún cálculo</b> de la línea:
+        la ecuación de cambio de estado va con temperatura del aire.
+      </p>
     </div>
   );
 }

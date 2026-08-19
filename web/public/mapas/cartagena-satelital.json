@@ -1,0 +1,13 @@
+{
+  "capa": "satelital",
+  "titulo": "Satelital (Sentinel-2, 10 m)",
+  "escena": "S2C_18PVS_20260808_0_L2A",
+  "fecha": "2026-08-08T15:40:16.254000Z",
+  "nubes_pct": 0.63,
+  "resolucion_m": 10,
+  "realce": "contraste estirado entre los percentiles 2.0 y 98.0 — cosmético: sirve para ver el terreno, no para comparar radiometría",
+  "fuente": "Copernicus Sentinel-2 L2A (ESA), copia abierta en AWS Open Data",
+  "licencia": "Copernicus: acceso libre, pleno y abierto — uso comercial permitido",
+  "atribucion": "Contains modified Copernicus Sentinel data 2026",
+  "peso_mib": 3.5
+}

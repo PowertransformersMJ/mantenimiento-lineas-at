@@ -3288,3 +3288,111 @@ corra el script.
 
 *(sin comité: la decisión venía acotada a dos opciones por `ADR-030` y se eligió la que no pierde
 correcciones de geometría. Evidencia: `tests/sembrar-mapeo.test.js`.)*
+
+
+## ADR-034 · 2026-08-19 · Dos capas de imagen sobre el mapa: se ENCIENDE la satelital y entra la temperatura del suelo — con datos abiertos y sin pedirle nada a nadie
+
+**Estado:** ✅ Decidido · ⚠️ **NO revisada externamente**
+
+### Contexto
+
+El botón «Satelital» llevaba meses en pantalla, apagado, con el rótulo *«licencia por
+verificar»* (`31 · L-03`). El Ingeniero pidió encenderlo y, además, **una capa donde se pueda
+apreciar la temperatura en toda la zona de influencia de la línea**.
+
+La verificación de licencias que faltaba se hizo el 19-08, con la fuente y la fecha delante
+(`3.2`: los límites de un plan gratuito NO se citan de memoria). El resultado cierra tres puertas:
+
+- **Esri World Imagery** — exige cuenta de ArcGIS y **no permite uso comercial**.
+- **EOX Sentinel-2 cloudless** (`s2maps`) — las ediciones de 2018 en adelante son CC BY-**NC**-SA,
+  y el uso comercial exige comprar la *EOX Commercial Attribution-RestrictedUse License*.
+- **Open-Meteo**, la vía obvia para «temperatura» — su plan gratuito dice, con esas palabras, que
+  solo se puede usar con fines **no** comerciales.
+
+Esta es una herramienta de trabajo de un empleador: es uso comercial. Las tres quedan fuera por lo
+mismo que ya sacó a MapTiler y a Stadia del proyecto en su día.
+
+### Decisión
+
+**No se contrata a un proveedor de teselas: se PROCESA el dato abierto y se autohospeda**, que es
+exactamente lo que ya hace el mapa base (ADR-001). Dos capas nuevas, dos archivos `.pmtiles` que
+viajan con el sitio:
+
+- **Satelital — Copernicus Sentinel-2 L2A, color verdadero, 10 m.** La política de datos de
+  Copernicus es «*free, full and open*» **sin restricción de uso comercial**; el único deber es la
+  atribución. La copia se lee de AWS Open Data, que no pide cuenta ni clave. **3,5 MiB.**
+- **Temperatura de la SUPERFICIE — Landsat 9, banda ST_B10, 100 m remuestreados a 30 m.** Producto
+  del USGS: **dominio público**. La copia anónima se lee de Microsoft Planetary Computer. **2,2 MiB.**
+
+**EL RECORTE ES EL ÁREA METROPOLITANA ENTERA, y esto no es una preferencia: es el secreto del
+corredor.** Un raster ceñido a la línea la DELATA, y este repositorio es público. Se exige por
+prueba que las tres capas tengan **exactamente los mismos límites** y que el recorte pase de 20 km
+en las dos direcciones.
+
+**LAS DOS CAPAS SE DESCARGAN SOLO CUANDO ÉL LAS PIDE.** El mapa base ya pesa 4,3 MB; sumar otros
+6 MB a la carga inicial castigaría con megabytes a quien nunca las va a mirar, y este sistema tiene
+que poder abrirse desde el campo.
+
+**EL TÉRMICO NO ES FONDO: VA ENCIMA, y es una casilla aparte.** Se puede leer sobre el callejero o
+sobre la satelital, que es como se usa de verdad — «esta mancha caliente, ¿sobre qué está?».
+
+**LO QUE MIDE EL TÉRMICO SE DICE EN LA PROPIA LEYENDA, y es la decisión más importante de esta
+ola:** es la temperatura del **SUELO** —tierra, techos, asfalto— vista desde arriba **en un
+instante** (el paso del satélite, sobre las 10 de la mañana), **no la del aire y no un promedio**.
+Al mediodía el asfalto puede estar 15-20 °C por encima del aire. La leyenda dice, con todas las
+letras, que **no alimenta ningún cálculo de la línea**: la ecuación de cambio de estado va con
+temperatura del AIRE, y confundirlas metería 15 °C de error en un número que se firma. El riesgo de
+esta capa no es que engañe al ojo: es que alguien la cite para justificar una hipótesis.
+
+**La rampa de color tiene cortes FIJOS en grados**, no estirados al máximo y al mínimo de la escena:
+una rampa que se reescala sola pinta el mismo color sobre temperaturas distintas en dos fechas, y
+entonces comparar dos mapas engaña. Y se pinta en **escalones de 1 °C**, porque el producto trae una
+incertidumbre de ese orden: una rampa continua enseñaría décimas que el sensor no tiene.
+
+**Los rótulos del callejero se quedan encendidos sobre la satelital.** Una foto aérea sin un solo
+nombre no dice dónde está uno, y el gesto que sigue es apagar la capa.
+
+**Cada capa lleva su ficha `.json` con la fecha de la toma, la nubosidad, la resolución, la fuente y
+la licencia** — y la pantalla imprime la fecha al lado del rótulo. Una imagen sin fecha en una
+herramienta de mantenimiento se lee como «así está hoy», y así es como alguien concluye que un vano
+está despejado mirando una foto de hace dos años.
+
+### Alternativas descartadas
+
+- **Un proveedor de teselas comercial** (Esri, Mapbox, Google, MapTiler). Rompe las tres patas de
+  ADR-001 a la vez —cuota, contrato y dependencia de red— y las licencias verificadas lo prohíben o
+  lo cobran. Con `--seco` no hay medias tintas: o el dato es abierto, o no entra.
+- **Recortar la imagen al corredor** para que pesara cuatro veces menos. Publicaría el trazado.
+- **Estirar la rampa térmica a los percentiles de cada escena.** Se ve mejor y miente al comparar.
+- **Un mapa de temperatura del AIRE.** No existe a esta escala: el modelo meteorológico más fino que
+  cubre el Caribe colombiano tiene celdas de kilómetros, así que sobre 3 km de línea sería **un solo
+  color**. Un mapa de un píxel pintado como si fuera un campo es peor que no tenerlo. Si lo que hace
+  falta es la temperatura del aire para la hipótesis de cálculo, eso es una SERIE con sus
+  percentiles, no una capa — y es trabajo aparte, declarado en `10`.
+
+### Consecuencias
+
+- **El botón «Satelital» deja de estar apagado tras dos meses**, y con la imagen se puede mirar por
+  fin la vegetación del corredor, que es media inspección de una línea.
+- **+5,7 MiB en el repositorio**, en dos archivos binarios que no cambian salvo que se reconstruyan.
+  Ninguno pasa de los 25 MiB que Cloudflare Pages sirve por archivo (verificado con su documentación
+  el 19-08), y la prueba lo vigila.
+- **Coste $0 y ninguna llamada a terceros en tiempo de ejecución.** Sigue habiendo un solo trabajador
+  (el portero de fotos) y nada que facture.
+- **Las imágenes son una FOTO FIJA.** Refrescarlas es volver a correr la herramienta a mano; no hay
+  ningún proceso que las actualice solo, y por eso la fecha va impresa al lado del rótulo.
+- **Entra una herramienta en Python al repositorio** (`herramientas/teselas/construir-raster.py`).
+  Es la primera: reproyectar un raster sin GDAL no es razonable. No la necesita ni la aplicación ni
+  las pruebas — solo quien reconstruya las capas.
+- **La prueba nueva vigila el invariante que de verdad importa**: que en el componente del mapa no
+  aparezca ni una URL de teselas de terceros. El fallo sería por texto —alguien pega una URL— y por
+  texto se caza.
+
+### Crudo de respaldo
+
+*(sin comité. La parte cara de esta decisión era la verificación de licencias, y eso no se delibera:
+se lee en la fuente. Las cuatro fuentes citadas se consultaron el 2026-08-19 y quedan enlazadas en
+la cabecera de `herramientas/teselas/construir-raster.py`.)*
+
+**Evidencia reproducible:** `tests/mapa-capas.test.js` (10) · las dos fichas `.json` en
+`web/public/mapas/` traen escena, fecha, nubosidad y licencia de cada imagen.

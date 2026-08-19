@@ -1,0 +1,114 @@
+{
+  "capa": "termico",
+  "titulo": "Temperatura de la superficie (Landsat)",
+  "escena": "LC09_L2SP_009053_20260509_02_T1",
+  "plataforma": "landsat-9",
+  "fecha": "2026-05-09T15:16:53.418167Z",
+  "nubes_pct": 1.32,
+  "resolucion_m": 30,
+  "resolucion_nativa_m": 100,
+  "paso_c": 1.0,
+  "rampa": [
+    {
+      "c": 20,
+      "rgb": [
+        49,
+        54,
+        149
+      ]
+    },
+    {
+      "c": 26,
+      "rgb": [
+        69,
+        117,
+        180
+      ]
+    },
+    {
+      "c": 30,
+      "rgb": [
+        116,
+        173,
+        209
+      ]
+    },
+    {
+      "c": 33,
+      "rgb": [
+        200,
+        228,
+        238
+      ]
+    },
+    {
+      "c": 36,
+      "rgb": [
+        255,
+        245,
+        190
+      ]
+    },
+    {
+      "c": 39,
+      "rgb": [
+        254,
+        224,
+        144
+      ]
+    },
+    {
+      "c": 42,
+      "rgb": [
+        253,
+        174,
+        97
+      ]
+    },
+    {
+      "c": 45,
+      "rgb": [
+        244,
+        109,
+        67
+      ]
+    },
+    {
+      "c": 48,
+      "rgb": [
+        215,
+        48,
+        39
+      ]
+    },
+    {
+      "c": 52,
+      "rgb": [
+        165,
+        0,
+        38
+      ]
+    },
+    {
+      "c": 58,
+      "rgb": [
+        103,
+        0,
+        24
+      ]
+    }
+  ],
+  "resumen_c": {
+    "min_c": 16.0,
+    "max_c": 58.4,
+    "p05_c": 27.7,
+    "p50_c": 40.0,
+    "p95_c": 49.3,
+    "cobertura_pct": 95.1
+  },
+  "fuente": "USGS Landsat Collection 2 Level-2, banda ST_B10 · copia abierta en Microsoft Planetary Computer",
+  "licencia": "USGS: dominio público, sin restricción de uso",
+  "atribucion": "USGS Landsat Collection 2 Level-2",
+  "es_superficie_no_aire": true,
+  "peso_mib": 2.2
+}

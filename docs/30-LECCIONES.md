@@ -4,7 +4,7 @@
 > (trigger 🧪 de `CLAUDE.md §G.2`). Cada lección es un gotcha que ya se pagó una vez.
 > Formato: `L-NN · título` → **Síntoma** / **Causa** / **Regla**.
 >
-> **Qué es este archivo:** el ÍNDICE de las 52 lecciones —**39 repartidas por tema en tres hijos y
+> **Qué es este archivo:** el ÍNDICE de las 53 lecciones —**40 repartidas por tema en tres hijos y
 > 13 de MÉTODO aquí mismo, completas**: cómo se delibera, cómo se verifica y cuándo algo está de
 > verdad terminado—. Las de método se quedan porque no son de ninguna pieza: valen para las tres, y
 > son las que más se citan desde otras neuronas. Si el síntoma huele a un tercero, a lo que se ve o
@@ -13,7 +13,7 @@
 >
 > **Los identificadores NO se renumeran nunca.** Un `L-NN` citado en otra neurona o en un comentario
 > del código sigue apuntando al mismo gotcha, viva donde viva su cuerpo. Y ojo con la aritmética: los
-> números llegan hasta 53 pero las lecciones son 52 — el 14 se fusionó en `L-13` y no existe.
+> números llegan hasta 54 pero las lecciones son 53 — el 14 se fusionó en `L-13` y no existe.
 >
 > ⚠️ **ANTES de escribir una lección nueva, busca el SÍNTOMA en los cuatro archivos.** Desde que la
 > familia se repartió, ninguno se lee entero, y el 04-08-2026 se escribió `L-36` sin ver que `L-22`
@@ -33,6 +33,7 @@
 - `L-01` · GitHub Pages no puede servir este proyecto
 - `L-02` · "Gratis" y "sin tarjeta" no son lo mismo
 - `L-03` · MapTiler gratis prohíbe el uso comercial; Protomaps no
+- `L-54` · Cuando ningún proveedor deja usar su capa, el camino no es renunciar: es procesar el dato abierto
 - `L-04` · A esta escala, el coste de almacenamiento NO es el criterio de decisión
 - `L-10` · El módulo de campo NO es 100 % offline: el mapa se cae sin señal
 - `L-11` · IndexedDB: una capa opcional tumbó el acceso al dato, y lo hizo DOS veces

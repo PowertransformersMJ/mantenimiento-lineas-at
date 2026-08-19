@@ -26,6 +26,28 @@
   cuota gratuita y curva de coste, y toda opción adoptada lleva alerta de presupuesto ANTES de recibir
   tráfico. Ver también `L-25` (un alta «gratuita» puede pedir tarjeta igualmente).
 
+### L-54 · Cuando ningún proveedor deja usar su capa, el camino no es renunciar: es procesar el dato abierto
+
+- **Síntoma:** el botón «Satelital» llevaba dos meses apagado con el rótulo «licencia por verificar».
+  Verificar dio lo esperado y peor: **Esri** exige cuenta y prohíbe el uso comercial · **EOX
+  Sentinel-2 cloudless** es CC BY-**NC**-SA desde 2018 y su uso comercial se compra · **Open-Meteo**
+  dice con esas palabras que su vía gratuita es solo para fines **no** comerciales. Tres puertas
+  cerradas para una herramienta de trabajo de un empleador.
+- **Causa:** se estaba buscando un SERVICIO de teselas —alguien que sirva la imagen— y ahí el
+  producto es el servicio, con su cuota y su contrato. El DATO de debajo es otra cosa: Copernicus
+  (Sentinel) es «free, full and open» con uso comercial permitido, y Landsat (USGS) es dominio
+  público. Ambos con copias públicas y **anónimas** (AWS Open Data, Planetary Computer): sin cuenta,
+  sin clave y sin tarjeta.
+- **Regla:** ante una capa que hace falta, se pregunta por el **dato**, no por el proveedor. Si el
+  dato es abierto, procesarlo una vez y autohospedarlo cuesta un rato y elimina de golpe la cuota, el
+  contrato, la dependencia de red y la caducidad de la licencia. Aquí salieron dos capas de 3,5 y
+  2,2 MiB que viajan con el sitio.
+- **Y el otro lado de la moneda, que es de dominio y no de licencia:** el dato abierto que se
+  consigue puede NO ser el que se pidió. «Un mapa de temperatura» solo existe con el satélite
+  TÉRMICO, y eso es la temperatura del **SUELO**, no la del aire. La del aire, a la escala de una
+  línea de 3 km, es UN píxel de cualquier modelo meteorológico. Se entrega lo que hay, diciendo
+  exactamente lo que es — el detalle en `99 §ADR-034`.
+
 ### L-03 · MapTiler gratis prohíbe el uso comercial; Protomaps no
 - **Causa:** el plan Free de MapTiler se limita a *"non-commercial use and research & development"* y
   **prohíbe el caché de servidor** — que es justo lo que exige el mapa offline. Las teselas públicas

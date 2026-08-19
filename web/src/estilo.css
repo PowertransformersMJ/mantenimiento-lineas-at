@@ -346,6 +346,20 @@ body {
 }
 .mapa-capas label { display: flex; align-items: center; gap: 6px; }
 .mapa-capas .capa-off { opacity: .5; }
+/* El panel de capas crece: dos fondos, una capa encima y su leyenda. */
+.mapa-capas { max-width: 260px; }
+.mapa-capas-t {
+  margin: 3px 0 1px; font-size: 10px; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--mut);
+}
+.mapa-capas-t:first-child { margin-top: 0; }
+.mapa-capas-f { color: var(--mut); font-size: 10.5px; }
+.mapa-capas-n { margin: 4px 0 0; font-size: 10.5px; line-height: 1.45; color: var(--mut); }
+.mapa-leyenda { margin-top: 6px; border-top: 1px solid var(--bd); padding-top: 6px; }
+.mapa-leyenda-barra { height: 9px; border-radius: 2px; border: 1px solid var(--bd); }
+.mapa-leyenda-esc {
+  display: flex; justify-content: space-between; font-size: 10px; color: var(--mut); margin-top: 2px;
+}
 .mapa-velo {
   position: absolute; inset: 0; z-index: 6;
   display: flex; align-items: center; justify-content: center;

@@ -109,6 +109,8 @@ mantenimiento-lineas-at/
 │                                token contra las llaves de Google. `GET` sirve; `PUT` acepta una
 │                                foto bajo diez cerrojos. 🚫 **NO borra y NO lista, jamás** — y ya no
 │                                es costumbre: la prueba se pone roja si aparece `.delete(`/`.list(`
+├── herramientas/teselas/        construir-raster.py — rehace las dos capas raster desde datos
+│                             abiertos. ⚠️ ÚNICO Python del repo; no lo usan ni la app ni las pruebas
 ├── herramientas/                sembrar.mjs (línea + expediente) · subir-evidencias.mjs (fotos) ·
 │                                ⚠️ usuarios.mjs — **la ÚNICA vía de alta de personas**: alta,
 │                                contrasena, rol, baja, restituir, auditar. Rechaza a propósito
@@ -185,7 +187,9 @@ mantenimiento-lineas-at/
 │                                fabricar un recuerdo (ADR-027/029)
 │                                · **fotos.ts** (ADR-031): lo único de la subida que toca la red;
 │                                primero el OBJETO y después la FICHA (al revés, ficha al vacío)
-├── web/public/mapas/            recorte PMTiles metropolitano (4,3 MB, autohospedado)
+├── web/public/mapas/            TRES recortes PMTiles del MISMO bbox metropolitano, autohospedados
+│                             (ADR-034): callejero · satelital (Sentinel-2) · térmico (Landsat,
+│                             SUELO). Cada raster con su `.json`: fecha de la toma y licencia
 ├── web/public/basemaps-assets/  fuentes y sprites del mapa (autohospedados)
 ├── githooks/pre-commit          corre los gates y BLOQUEA el commit si el cerebro está mal
 ├── .claude/settings.json        hooks de sesión (SÍ se commitea; el resto de .claude/ no)
