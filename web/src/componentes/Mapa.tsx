@@ -249,19 +249,21 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
   /** Si el componente sigue montado. Lo único que decide si se puede pintar la respuesta. */
   const montado = useRef(true);
   /**
-   * Cuántas veces se ha CREADO el mapa. Es la señal que despierta a las capas.
+   * EL MAPA VIVO, EN EL ESTADO Y NO EN UNA REFERENCIA.
    *
-   * ⚠️ NO ES UN CONTADOR DECORATIVO. El mapa vive en una referencia, y una
-   * referencia no dispara efectos: cuando el mapa se rehace —`apoyos` cambia de
-   * identidad y el efecto de creación se limpia y se vuelve a montar— hay un
-   * instante en que `mapa.current` es null. Un efecto de capa que caiga justo
-   * ahí sale por la puerta de atrás… y NO VUELVE, porque ninguna de sus
-   * dependencias cambió: el mapa nuevo se queda sin la capa y el interruptor no
-   * la enciende por mucho que se pulse. Con este número dentro de sus
-   * dependencias, todas las capas se vuelven a aplicar sobre el mapa nuevo
-   * (`32 · L-58`).
+   * ⚠️ Las dos cosas no son intercambiables, y confundirlas dejó el interruptor
+   * de las capas muerto: una referencia NO dispara efectos. Cuando el mapa se
+   * rehace —basta que `apoyos` cambie de identidad— hay un instante en que la
+   * referencia es null y otro en que apunta a un mapa ya retirado. Un efecto de
+   * capa que caiga en cualquiera de los dos sale por su guarda y **no vuelve**,
+   * porque ninguna de sus dependencias cambió: se pulsa el interruptor y no pasa
+   * nada, ni capa ni error ni una petición de red.
+   *
+   * Con el mapa en el ESTADO, cambiar de mapa ES un cambio de dependencia y
+   * todas las capas se vuelven a aplicar solas sobre el mapa nuevo (`32 · L-58`).
+   * La referencia se queda para lo que sirve una referencia: limpiar al salir.
    */
-  const [versionMapa, setVersionMapa] = useState(0);
+  const [mapaVivo, setMapaVivo] = useState<maplibregl.Map | null>(null);
 
   useEffect(() => () => { montado.current = false; }, []);
 
@@ -300,7 +302,7 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
       creado = crearMapa(caja.current, apoyos, meta, eventos ?? [], alVerEvento);
       mapa.current = creado;
       // La señal para las capas: hay un mapa nuevo, vuelvan a aplicarse.
-      setVersionMapa((v) => v + 1);
+      setMapaVivo(creado);
 
       // Vigilante: si en 15 s VISIBLES el mapa no terminó de cargar, algo se
       // quedó mudo y se cae al esquema. El matiz de "visibles" no es adorno:
@@ -332,7 +334,7 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
       });
     })();
 
-    return () => { cancelado = true; creado?.remove(); mapa.current = null; };
+    return () => { cancelado = true; creado?.remove(); mapa.current = null; setMapaVivo(null); };
     // `apoyos` llega estable tras la carga; el mapa no se reconstruye por render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apoyos]);
@@ -347,8 +349,8 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
    * esencial (`31 · L-11`).
    */
   useEffect(() => {
-    const m = mapa.current;
-    if (!m || estado !== 'listo') return;
+    const m = mapaVivo;
+    if (!m) return;
     let cancelado = false;
 
     const aplicar = async () => {
@@ -370,7 +372,7 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
         try {
           const meta = await prepararTeselas(capa.archivo);
           const ficha = await fetch(capa.ficha).then((r) => (r.ok ? r.json() : null)).catch(() => null);
-          if (cancelado || !mapa.current) return;
+          if (cancelado) return;
           if (ficha) setFichas((f) => ({ ...f, [nombre]: ficha as FichaCapa }));
           if (!m.getSource(idCapa)) {
             m.addSource(idCapa, {
@@ -438,7 +440,7 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
     // efecto revienta con un `TypeError` invisible y las capas no se encienden.
     const dejarDeEsperar = alEstarElEstilo(m, () => { if (!cancelado) void aplicar(); });
     return () => { cancelado = true; dejarDeEsperar(); };
-  }, [base, termico, estado, versionMapa]);
+  }, [base, termico, mapaVivo]);
 
   /**
    * La capa térmica: ficha, rejilla del día y pintura.
@@ -453,8 +455,8 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
    * los grados de un punto y ver la imagen suavizada al acercarse.
    */
   useEffect(() => {
-    const m = mapa.current;
-    if (!m || estado !== 'listo') return;
+    const m = mapaVivo;
+    if (!m) return;
     if (!termico) {
       if (m.getLayer('capa-termica')) m.setLayoutProperty('capa-termica', 'visibility', 'none');
       return;
@@ -524,7 +526,7 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
 
     const dejarDeEsperar = alEstarElEstilo(m, () => { if (!cancelado) void pintar(); });
     return () => { cancelado = true; dejarDeEsperar(); };
-  }, [termico, diaTermico, estado, fichaTermica, rejillaLista, versionMapa]);
+  }, [termico, diaTermico, fichaTermica, rejillaLista, mapaVivo]);
 
   /**
    * El clic que dice cuántos grados hace AHÍ.
@@ -534,8 +536,8 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
    * él ya usa.
    */
   useEffect(() => {
-    const m = mapa.current;
-    if (!m || estado !== 'listo' || !termico || !fichaTermica) return;
+    const m = mapaVivo;
+    if (!m || !termico || !fichaTermica) return;
     const alPulsar = (ev: maplibregl.MapMouseEvent) => {
       const encima = m.queryRenderedFeatures(ev.point, { layers: ['apoyos', 'tramos'] });
       if (encima.length) return;
@@ -548,7 +550,7 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
     };
     m.on('click', alPulsar);
     return () => { m.off('click', alPulsar); };
-  }, [termico, fichaTermica, estado, versionMapa]);
+  }, [termico, fichaTermica, mapaVivo]);
 
   /**
    * El pronóstico: se pide cuando ÉL lo enciende, nunca al pintar.
@@ -590,10 +592,10 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
    * cosas a la vez, porque cada gremio lee una.
    */
   useEffect(() => {
-    const m = mapa.current;
+    const m = mapaVivo;
     flecha.current?.remove();
     flecha.current = null;
-    if (!m || estado !== 'listo' || !pronostico || !tiempo || !geometria) return;
+    if (!m || !pronostico || !tiempo || !geometria) return;
 
     const ahora = tiempo.instantes[0];
     if (!ahora || ahora.vientoDesde_deg === null) return;
@@ -609,7 +611,7 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
       .setLngLat([geometria.lon, geometria.lat]).addTo(m);
 
     return () => { flecha.current?.remove(); flecha.current = null; };
-  }, [pronostico, tiempo, geometria, estado, versionMapa]);
+  }, [pronostico, tiempo, geometria, mapaVivo]);
 
   if (estado === 'fallo' && respaldo) return <>{respaldo}</>;
 

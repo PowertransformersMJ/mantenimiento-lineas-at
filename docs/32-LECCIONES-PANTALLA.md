@@ -32,11 +32,17 @@
   (`if (!m) return`) y **no vuelve nunca**: una referencia no dispara efectos, así que ninguna de sus
   dependencias cambió y React no tiene motivo para volver a llamarlo. El mapa nuevo se queda sin la
   capa, y el interruptor está muerto aunque el estado de React diga que está encendido.
-- **Arreglo:** un contador de estado que sube cada vez que se CREA el mapa, dentro de las
-  dependencias de todas las capas. Ahora el mapa nuevo despierta a las capas.
-- **Regla:** si un efecto depende de algo que vive en un `ref`, el ref necesita un acompañante en
-  el ESTADO que avise de que cambió. Y ojo con el diagnóstico: «no pasa nada» sin error ni petición
-  no es un fallo de la capa nueva — es un efecto que ni siquiera llegó a ejecutarse.
+- **Arreglo:** el mapa vivo pasa al ESTADO (`useState`), no a la referencia, y las capas dependen de
+  él. Cambiar de mapa es entonces un cambio de dependencia y todas se vuelven a aplicar solas. La
+  referencia se queda para lo que sirve una referencia: limpiar al salir.
+- **⚠️ El arreglo a medias que NO bastó:** primero se puso un CONTADOR de estado que subía al crear
+  el mapa. Parecía equivalente y no lo era: seguía leyéndose el mapa de la referencia, así que un
+  efecto podía ejecutarse con la referencia apuntando a un mapa ya RETIRADO —ni null ni bueno— y
+  fallar en silencio. Lo que hay que mover al estado es la COSA, no un aviso de que la cosa cambió.
+- **Regla:** lo que un efecto necesita para trabajar va en el estado, no en un `ref`. Y ojo con el
+  diagnóstico: «no pasa nada» sin error ni petición de red no es un fallo de la capa — es un efecto
+  que ni siquiera llegó a ejecutarse; se comprueba tocando OTRO interruptor del mismo panel (el del
+  pronóstico funcionaba, y eso descartó de golpe React, el estado y los manejadores).
 
 ### L-57 · Un efecto de React que enciende su propio «cargando» se cancela a sí mismo
 
@@ -241,26 +247,17 @@
 
 ### L-48 · Silenciar `stderr` convirtió un guion que reventó en un guion que "funcionó"
 
-- **Síntoma:** corregí cuatro afirmaciones falsas del mazo de gerencia y sustituí su mapa. El guion
-  imprimió *«textos corregidos · imagen sustituida en sitio»*, LibreOffice convirtió el archivo sin
-  quejarse — y la lámina seguía diciendo lo viejo. Tres intentos dando por hecho que se había
-  guardado.
-- **Causa:** lo lancé como `python3 2>/dev/null << 'PY'`. El guion abortaba a mitad, ANTES del
-  `save()`, y el traceback iba al agujero. Lo que yo leí como confirmación era un `print` de una
-  línea anterior al fallo: **el mensaje de éxito lo emitía código que se ejecuta antes de que exista
-  el éxito.**
-- **Por qué costó tanto verlo:** el archivo SÍ existía, SÍ abría y SÍ se convertía. Nada estaba roto;
-  simplemente nada había cambiado. Un fallo que no deja rastro se parece muchísimo a un acierto.
-- **Reglas:**
-  1. **Nunca `2>/dev/null` en algo que escribe.** Si el ruido molesta, se filtra por patrón, no se
-     tira entero.
-  2. **El mensaje de éxito se imprime DESPUÉS de releer lo guardado**, y dice lo que se leyó, no lo
-     que se pretendía escribir. Aquí el guion definitivo termina reabriendo el `.pptx` y afirmando
-     que los textos viejos ya NO están: eso es lo que hizo caer la siguiente tanda de fallos.
-  3. **Lo que no se puede comprobar, se hace fallar:** `assert viejo in s` antes de sustituir. La
-     segunda vez que me equivoqué de imagen, el `assert` no existía y por eso el error salió mudo.
-- **Hermana de `L-35`** (desplegar un `dist/` rancio): las dos son «miré la salida equivocada y la
-  di por buena». Y del mismo tronco que `30 · L-33`: el verde no prueba nada por sí solo.
+- **Síntoma:** el guion imprimió «textos corregidos · imagen sustituida», el archivo abría bien… y la
+  lámina seguía diciendo lo viejo. Tres intentos dándolo por guardado.
+- **Causa:** se lanzó con `2>/dev/null`. El guion abortaba ANTES del `save()` y el traceback iba al
+  agujero; lo que se leyó como confirmación era un `print` de una línea anterior al fallo — **el
+  mensaje de éxito lo emitía código que se ejecuta antes de que exista el éxito**. Y costó verlo
+  porque nada estaba roto: simplemente nada había cambiado.
+- **Reglas:** nunca `2>/dev/null` en algo que ESCRIBE (si el ruido molesta, se filtra por patrón) ·
+  el mensaje de éxito se imprime DESPUÉS de releer lo guardado, y dice lo que se leyó · lo que no se
+  puede comprobar, se hace fallar (`assert viejo in s` antes de sustituir).
+- **Hermana de `L-35`** y del mismo tronco que `30 · L-33`: miré la salida equivocada y la di por
+  buena.
 
 ### L-49 · Volver a guardar un `.pptx` clonado con python-pptx lo deja inservible
 

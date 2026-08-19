@@ -127,18 +127,20 @@ describe('el mapa no le pide teselas a nadie', () => {
     // efecto de capa cae en el instante en que `mapa.current` es null —el mapa se
     // está rehaciendo— sale por la puerta de atrás y NO vuelve: ninguna de sus
     // dependencias cambió. El interruptor se queda muerto (`32 · L-58`).
-    assert.match(CODIGO, /setVersionMapa\(\(v\) => v \+ 1\)/,
-      'nadie avisa de que hay un mapa nuevo');
+    assert.match(CODIGO, /setMapaVivo\(creado\)/,
+      'el mapa nuevo no se publica en el estado, así que nadie se entera');
+    assert.ok(!/const m = mapa\.current;\s*\n\s*if \(!m/.test(CODIGO),
+      'un efecto de capa vuelve a leer el mapa de la REFERENCIA: una referencia no dispara efectos');
     // Se miran los efectos que TOCAN el mapa. Los que solo piden datos —el
     // pronóstico, por ejemplo— no necesitan enterarse de que el lienzo es otro.
     const efectos = [...CODIGO.matchAll(/useEffect\(\(\) => \{([\s\S]*?)\}, \[([^\]]*)\]\);/g)];
     const tocanElMapa = efectos.filter(([, cuerpo]) =>
-      // El efecto que CREA el mapa queda fuera: es el que sube el contador.
+      // El efecto que CREA el mapa queda fuera: es el que publica el mapa nuevo.
       !/crearMapa\(/.test(cuerpo)
-      && /mapa\.current|m\.(addSource|addLayer|setLayoutProperty)/.test(cuerpo));
+      && /const m = mapaVivo|m\.(addSource|addLayer|setLayoutProperty)/.test(cuerpo));
     assert.ok(tocanElMapa.length >= 3, `esperaba al menos 3 efectos sobre el mapa, hallé ${tocanElMapa.length}`);
     for (const [, , deps] of tocanElMapa) {
-      assert.ok(deps.includes('versionMapa') || deps.trim() === '',
+      assert.ok(deps.includes('mapaVivo') || deps.trim() === '',
         `un efecto que toca el mapa no escucha al mapa nuevo: [${deps}]`);
     }
   });
