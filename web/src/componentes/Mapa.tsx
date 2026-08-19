@@ -274,7 +274,7 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento }:
     if (!m || estado !== 'listo') return;
     let cancelado = false;
 
-    void (async () => {
+    const aplicar = async () => {
       for (const nombre of ['satelital', 'termico'] as NombreCapa[]) {
         const encendida = nombre === 'satelital' ? base === 'satelital' : termico;
         const idCapa = `raster-${nombre}`;
@@ -284,6 +284,7 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento }:
         }
         if (m.getLayer(idCapa)) {
           m.setLayoutProperty(idCapa, 'visibility', 'visible');
+          m.triggerRepaint();
           continue;
         }
         const capa = CAPAS_RASTER[nombre];
@@ -321,6 +322,14 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento }:
             source: idCapa,
             paint: { 'raster-opacity': capa.opacidad },
           }, debajoDe);
+          // ⚠️ ESTE REPINTADO NO ES COSMÉTICO: sin él la capa no carga NUNCA.
+          // Una fuente raster añadida con el mapa quieto se queda esperando el
+          // siguiente fotograma para terminar de darse de alta (`loadTileJson`
+          // espera un `requestAnimationFrame`), y si nadie pide un fotograma ese
+          // momento no llega: cero peticiones de tesela, cero errores, y una capa
+          // que se declara «cargada» sin una sola imagen dentro. Se cazó en
+          // producción — verde en pruebas, blanco en pantalla (`32 · L-55`).
+          m.triggerRepaint();
         } catch (e) {
           if (cancelado) return;
           console.warn('[mapa] capa', nombre, e);
@@ -338,9 +347,32 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento }:
         m.setLayoutProperty(l.id, 'visibility',
           base === 'callejero' || esRotulo(l.id) ? 'visible' : 'none');
       }
-    })();
+      m.triggerRepaint();
+    };
 
-    return () => { cancelado = true; };
+    // ⚠️ SE ESPERA A QUE EL ESTILO ESTÉ CARGADO. Este efecto corre en cuanto el
+    // mapa se declara «listo», y eso pasa ANTES de que MapLibre termine de armar
+    // el estilo: `getStyle()` devuelve entonces `undefined` y el efecto entero
+    // revienta con «Cannot read properties of undefined». No se veía —React no
+    // rompe la página por eso— pero dejaba las capas sin encender.
+    const cuandoElEstiloEsteListo = () => {
+      if (cancelado) return;
+      void aplicar();
+    };
+    let quitarEspera = () => {};
+    if (m.isStyleLoaded()) {
+      cuandoElEstiloEsteListo();
+    } else {
+      const alCambiar = () => {
+        if (!m.isStyleLoaded()) return;
+        m.off('styledata', alCambiar);
+        cuandoElEstiloEsteListo();
+      };
+      m.on('styledata', alCambiar);
+      quitarEspera = () => m.off('styledata', alCambiar);
+    }
+
+    return () => { cancelado = true; quitarEspera(); };
   }, [base, termico, estado]);
 
   if (estado === 'fallo' && respaldo) return <>{respaldo}</>;

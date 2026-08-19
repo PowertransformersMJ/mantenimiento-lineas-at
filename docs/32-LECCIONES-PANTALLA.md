@@ -20,6 +20,25 @@
 
 ## El mapa que no llega a pintarse
 
+### L-55 · Una capa raster añadida con el mapa quieto no carga NUNCA, y no se queja
+
+- **Síntoma:** se enciende la capa satelital y el mapa se queda **BLANCO**. La capa existe, la fuente
+  existe, `isSourceLoaded()` dice `true`, la atribución de Copernicus aparece abajo… y no hay ni una
+  imagen. Cero errores en consola, cero peticiones de tesela. Las pruebas, en verde.
+- **Causa:** MapLibre termina de dar de alta una fuente raster dentro de `loadTileJson`, que **espera
+  un `requestAnimationFrame`** (`browser.frameAsync`). Con el mapa quieto —nadie mueve la cámara,
+  nadie pide un fotograma— ese momento no llega jamás, así que la fuente se queda a medio nacer y
+  nunca pide teselas. `loaded()` devuelve `true` porque no está esperando ninguna tesela: no ha
+  pedido ninguna. Es la peor forma del fallo: **todos los indicadores dicen que está bien**.
+- **Arreglo:** `m.triggerRepaint()` justo después de añadir la capa. Una línea.
+- **Regla:** al añadir una fuente a un mapa YA CREADO, pídele un fotograma. Y cuidado con el
+  diagnóstico: `isSourceLoaded()` y `loaded()` contestan «¿me falta algo de lo que pedí?», no «¿tengo
+  algo?». Para saber si una capa de imagen está viva hay que mirar la PANTALLA — o contar teselas.
+- **El acompañante que salió en el mismo viaje:** el efecto que enciende las capas corría en cuanto
+  el mapa se declaraba «listo», que es ANTES de que el estilo esté armado; `getStyle()` devolvía
+  `undefined` y el efecto reventaba entero con un `TypeError` que nadie veía. Se espera a
+  `isStyleLoaded()` y se reintenta con `styledata`.
+
 ### L-15 · El worker de MapLibre nace muerto en producción si no se le da su URL
 - **Síntoma:** mapa gris para siempre, sin un solo error. El estilo carga sus 71 capas, el archivo de
   teselas se descarga… y nada se pinta. Sonda interna: el worker existía como objeto, tenía **7

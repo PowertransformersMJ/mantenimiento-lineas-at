@@ -3394,5 +3394,18 @@ está despejado mirando una foto de hace dos años.
 se lee en la fuente. Las cuatro fuentes citadas se consultaron el 2026-08-19 y quedan enlazadas en
 la cabecera de `herramientas/teselas/construir-raster.py`.)*
 
-**Evidencia reproducible:** `tests/mapa-capas.test.js` (10) · las dos fichas `.json` en
+**Evidencia reproducible:** `tests/mapa-capas.test.js` (12) · las dos fichas `.json` en
 `web/public/mapas/` traen escena, fecha, nubosidad y licencia de cada imagen.
+
+### Verificado en vivo (2026-08-19)
+
+Con el Chrome del Ingeniero, sobre producción y con su sesión: la capa satelital se enciende sobre
+la línea, con los rótulos del callejero encima y la atribución de Copernicus al pie.
+
+**Y así se cazó el fallo que las pruebas no podían ver:** la primera versión desplegada dejaba el
+mapa **BLANCO** al encender la capa. La capa existía, la fuente existía, `isSourceLoaded()` decía
+`true`, la atribución salía… y no se pedía ni una tesela, sin un solo error. Una fuente raster
+añadida con el mapa quieto se queda esperando un `requestAnimationFrame` que nadie pide, y ahí muere
+(`32 · L-55`). Se arregla con un `triggerRepaint()`. En el mismo viaje salió que el efecto corría
+antes de que el estilo estuviera armado y reventaba con un `TypeError` invisible. Las dos líneas
+quedan fijadas por prueba, porque ninguna de las dos se ve venir leyendo el código.

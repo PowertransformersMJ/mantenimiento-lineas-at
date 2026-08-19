@@ -93,6 +93,24 @@ describe('el mapa no le pide teselas a nadie', () => {
       'la fuente raster dejó de usar el protocolo pmtiles autohospedado');
   });
 
+  // ── Los dos guardianes del fallo que se vio en producción ────────────────
+  //
+  // Verde en pruebas y BLANCO en pantalla: la capa se añadía, se declaraba
+  // cargada, no daba un solo error… y no pedía ni una tesela. Las dos líneas que
+  // lo arreglan no se ven venir leyendo el código, así que se fijan aquí
+  // (`32 · L-55`).
+  test('tras añadir una capa raster se pide un fotograma', () => {
+    assert.match(CODIGO, /m\.addLayer\(\{[\s\S]{0,400}?\}, debajoDe\);\s*m\.triggerRepaint\(\);/,
+      'sin `triggerRepaint()` la fuente raster se queda esperando un fotograma que nadie pide');
+  });
+
+  test('las capas no se tocan hasta que el estilo del mapa está cargado', () => {
+    assert.match(CODIGO, /isStyleLoaded\(\)/,
+      'sin esperar al estilo, `getStyle()` es undefined y el efecto entero revienta');
+    assert.match(CODIGO, /on\('styledata'/,
+      'hace falta reintentar cuando el estilo termine de cargarse');
+  });
+
   test('cada capa declarada tiene su archivo y su ficha en el sitio', () => {
     // Un nombre mal escrito aquí no da error en ninguna parte: la capa
     // simplemente no se enciende, y el botón se queda muerto.

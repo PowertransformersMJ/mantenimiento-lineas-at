@@ -4,7 +4,7 @@
 > (trigger 🧪 de `CLAUDE.md §G.2`). Cada lección es un gotcha que ya se pagó una vez.
 > Formato: `L-NN · título` → **Síntoma** / **Causa** / **Regla**.
 >
-> **Qué es este archivo:** el ÍNDICE de las 53 lecciones —**40 repartidas por tema en tres hijos y
+> **Qué es este archivo:** el ÍNDICE de las 54 lecciones —**41 repartidas por tema en tres hijos y
 > 13 de MÉTODO aquí mismo, completas**: cómo se delibera, cómo se verifica y cuándo algo está de
 > verdad terminado—. Las de método se quedan porque no son de ninguna pieza: valen para las tres, y
 > son las que más se citan desde otras neuronas. Si el síntoma huele a un tercero, a lo que se ve o
@@ -13,7 +13,7 @@
 >
 > **Los identificadores NO se renumeran nunca.** Un `L-NN` citado en otra neurona o en un comentario
 > del código sigue apuntando al mismo gotcha, viva donde viva su cuerpo. Y ojo con la aritmética: los
-> números llegan hasta 54 pero las lecciones son 53 — el 14 se fusionó en `L-13` y no existe.
+> números llegan hasta 55 pero las lecciones son 54 — el 14 se fusionó en `L-13` y no existe.
 >
 > ⚠️ **ANTES de escribir una lección nueva, busca el SÍNTOMA en los cuatro archivos.** Desde que la
 > familia se repartió, ninguno se lee entero, y el 04-08-2026 se escribió `L-36` sin ver que `L-22`
@@ -47,6 +47,7 @@
 ### `docs/32-LECCIONES-PANTALLA.md` — el cálculo salió bien y el usuario ve otra cosa: despliegue, cachés, mapa, imágenes, cifras
 
 - `L-15` · El worker de MapLibre nace muerto en producción si no se le da su URL
+- `L-55` · Una capa raster añadida con el mapa quieto no carga NUNCA, y todos los indicadores dicen que sí
 - `L-16` · Chrome congela el reloj de animación en pestañas ocultas — y eso engaña dos veces
 - `L-18` · Un despliegue no está vivo hasta que lo ves EN LA PESTAÑA
 - `L-20` · La pantalla no puede prometer lo que el archivo no cumple
