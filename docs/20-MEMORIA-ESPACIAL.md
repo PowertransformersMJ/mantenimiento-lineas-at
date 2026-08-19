@@ -190,9 +190,9 @@ mantenimiento-lineas-at/
 │                                · **pronostico.ts** (ADR-035): la ÚNICA pieza del mapa que necesita
 │                                internet. NO guarda nada —un pronóstico no es un hecho fechado— y
 │                                pregunta por una CELDA redondeada, nunca por la línea
-├── web/public/mapas/            TRES recortes PMTiles del MISMO bbox metropolitano, autohospedados
-│                             (ADR-034): callejero · satelital (Sentinel-2) · térmico (Landsat,
-│                             SUELO). Cada raster con su `.json`: fecha de la toma y licencia
+├── web/public/mapas/            Callejero y satelital como PMTiles del MISMO bbox (ADR-034); el
+│                             TÉRMICO no es imagen sino MEDIDA (ADR-036): un PNG de valores por
+│                             fecha + su ficha con recorte, codificación y rampa
 ├── web/public/basemaps-assets/  fuentes y sprites del mapa (autohospedados)
 ├── githooks/pre-commit          corre los gates y BLOQUEA el commit si el cerebro está mal
 ├── .claude/settings.json        hooks de sesión (SÍ se commitea; el resto de .claude/ no)

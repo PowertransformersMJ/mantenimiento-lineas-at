@@ -66,11 +66,22 @@ function cabecera(nombre) {
 
 const ficha = (nombre) => JSON.parse(readFileSync(MAPAS + nombre, 'utf-8'));
 
+/**
+ * Las capas que viajan como TESELAS. El térmico ya no está aquí: desde que se
+ * guarda la MEDIDA en vez de una imagen pintada, viaja como rejilla de valores y
+ * se comprueba aparte, más abajo.
+ */
 const CAPAS = [
   { archivo: 'cartagena.pmtiles', ficha: null, rotulo: 'callejero' },
   { archivo: 'cartagena-satelital.pmtiles', ficha: 'cartagena-satelital.json', rotulo: 'satelital' },
-  { archivo: 'cartagena-termico.pmtiles', ficha: 'cartagena-termico.json', rotulo: 'térmico' },
 ];
+
+/** El ancho y el alto que declara la cabecera de un PNG (IHDR, posición fija). */
+function tamanoPng(nombre) {
+  const b = readFileSync(MAPAS + nombre);
+  assert.equal(b.subarray(1, 4).toString(), 'PNG', `${nombre} no es un PNG`);
+  return { ancho: b.readUInt32BE(16), alto: b.readUInt32BE(20) };
+}
 
 // ════════════════════════════════════════════════════════════════════════════
 describe('el mapa no le pide teselas a nadie', () => {
@@ -111,14 +122,16 @@ describe('el mapa no le pide teselas a nadie', () => {
       'hace falta reintentar cuando el estilo termine de cargarse');
   });
 
-  test('cada capa declarada tiene su archivo y su ficha en el sitio', () => {
+  test('cada archivo que el mapa nombra existe de verdad en el sitio', () => {
     // Un nombre mal escrito aquí no da error en ninguna parte: la capa
     // simplemente no se enciende, y el botón se queda muerto.
-    const declarados = [...CODIGO.matchAll(/archivo:\s*'([^']+\.pmtiles)'/g)].map((m) => m[1]);
-    const fichas = [...CODIGO.matchAll(/ficha:\s*'\/mapas\/([^']+\.json)'/g)].map((m) => m[1]);
-    assert.ok(declarados.length >= 2, 'no se declaró ninguna capa raster');
-    for (const f of [...declarados, ...fichas]) {
-      assert.ok(existsSync(MAPAS + f), `la capa declara «${f}» y ese archivo no está en web/public/mapas/`);
+    const nombrados = [
+      ...[...CODIGO.matchAll(/archivo:\s*'([^']+\.pmtiles)'/g)].map((m) => m[1]),
+      ...[...CODIGO.matchAll(/'\/mapas\/([^']+\.json)'/g)].map((m) => m[1]),
+    ];
+    assert.ok(nombrados.length >= 2, 'el mapa no nombra ni un archivo de capa');
+    for (const f of nombrados) {
+      assert.ok(existsSync(MAPAS + f), `el mapa nombra «${f}» y ese archivo no está en web/public/mapas/`);
     }
   });
 });
@@ -161,7 +174,7 @@ describe('las tres capas hablan del MISMO territorio', () => {
 // ════════════════════════════════════════════════════════════════════════════
 describe('cada imagen dice cuándo se tomó y a quién se le debe', () => {
 
-  for (const c of CAPAS.filter((x) => x.ficha)) {
+  for (const c of CAPAS.filter((x) => x.ficha)) {   // solo las TESELADAS: el térmico va aparte
     test(`la ficha de la capa ${c.rotulo} está completa`, () => {
       const f = ficha(c.ficha);
       assert.ok(!Number.isNaN(Date.parse(f.fecha ?? '')),
@@ -172,6 +185,46 @@ describe('cada imagen dice cuándo se tomó y a quién se le debe', () => {
       assert.ok(Number.isFinite(f.resolucion_m), 'falta la resolución: sin ella nadie sabe qué puede afirmar');
     });
   }
+
+  test('la capa térmica declara su recorte, su codificación y sus fechas', () => {
+    const f = ficha('cartagena-termico.json');
+    assert.deepEqual(f.bbox, cabecera('cartagena.pmtiles').limites,
+      'la rejilla cubre otro territorio que el mapa base: se colocaría desplazada');
+    assert.ok(Number.isInteger(f.ancho) && Number.isInteger(f.alto));
+    assert.ok(Number.isFinite(f.codificacion?.paso_c) && Number.isFinite(f.codificacion?.offset_c),
+      'sin la codificación, un byte no se puede convertir en grados');
+    assert.equal(f.codificacion.sin_dato, 0);
+    assert.ok(Array.isArray(f.fechas) && f.fechas.length >= 1, 'ni una fecha medida');
+  });
+
+  test('cada fecha tiene su rejilla, y la rejilla mide lo que dice la ficha', () => {
+    // Un PNG que no cuadre con la ficha desplaza TODAS las lecturas de grados y
+    // nadie lo nota: los colores seguirían saliendo bonitos.
+    const f = ficha('cartagena-termico.json');
+    for (const d of f.fechas) {
+      assert.ok(existsSync(MAPAS + d.archivo), `falta la rejilla ${d.archivo}`);
+      assert.deepEqual(tamanoPng(d.archivo), { ancho: f.ancho, alto: f.alto },
+        `${d.archivo} no mide lo que declara la ficha: las lecturas saldrían desplazadas`);
+      assert.ok(!Number.isNaN(Date.parse(d.fecha)), 'una fecha sin instante');
+      assert.ok(d.cobertura_pct >= 50,
+        `${d.archivo} solo midió el ${d.cobertura_pct} %: eso es un mapa de nubes`);
+      const r = d.resumen_c;
+      assert.ok(r.min_c <= r.p05_c && r.p05_c <= r.p50_c && r.p50_c <= r.p95_c && r.p95_c <= r.max_c,
+        `percentiles desordenados en ${d.fecha}`);
+    }
+  });
+
+  test('las fechas no se repiten: una por instante medido', () => {
+    const f = ficha('cartagena-termico.json');
+    const vistas = new Set(f.fechas.map((d) => d.fecha));
+    assert.equal(vistas.size, f.fechas.length, 'hay dos entradas para el mismo instante');
+  });
+
+  test('la máscara de nubes se declara: sin ella la capa miente donde parece acertar', () => {
+    const f = ficha('cartagena-termico.json');
+    assert.match(String(f.mascara ?? ''), /nube/i,
+      'bajo una nube el sensor mide el techo de la nube, no el suelo');
+  });
 
   test('la capa térmica se declara como temperatura de SUPERFICIE, no del aire', () => {
     // Es la línea que impide el error caro: que un mapa de color acabe
@@ -195,9 +248,7 @@ describe('cada imagen dice cuándo se tomó y a quién se le debe', () => {
       assert.equal(p.rgb.length, 3);
       assert.ok(p.rgb.every((v) => Number.isInteger(v) && v >= 0 && v <= 255));
     }
-    // Y el resumen que la leyenda imprime, con los percentiles del propio recorte.
-    const r = f.resumen_c;
-    assert.ok(r && r.min_c < r.p05_c && r.p05_c < r.p50_c && r.p50_c < r.p95_c && r.p95_c < r.max_c,
-      'los percentiles del resumen no están ordenados');
+    // Los percentiles viven ahora POR FECHA —cada día tiene los suyos— y se
+    // comprueban en la prueba de las rejillas, arriba.
   });
 });

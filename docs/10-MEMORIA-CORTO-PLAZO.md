@@ -8,8 +8,8 @@
 
 **Cifras vivas en `05`.** 12 pestañas + RCA + tres informes. **Mazo de gerencia E02 listo** (`32 · L-49`). Olas cerradas:
 carcasa (ADR-018) · RCA (ADR-020) · documental (ADR-021) · contexto real (ADR-022) · gerencial
-(ADR-023) · acceso (ADR-024) · **dato SUPUESTO en los papeles (ADR-032)** · **capas de imagen
-y pronóstico en el mapa (ADR-034/035)**.
+(ADR-023) · acceso (ADR-024) · **dato SUPUESTO (ADR-032)** · **capas del mapa: imagen, calor
+del suelo por fecha y pronóstico (ADR-034/035/036)**.
 
 ## 🛑 LO PRIMERO AL RETOMAR
 

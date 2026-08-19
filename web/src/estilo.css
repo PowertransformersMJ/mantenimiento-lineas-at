@@ -364,6 +364,16 @@ body {
    se mira. */
 .mapa-capas { max-height: calc(100% - 24px); overflow-y: auto; }
 .mapa-tiempo-ahora { margin: 0 0 3px; font-size: 12px; }
+/* El selector de día del térmico: el gesto nuevo de esta capa. */
+.mapa-tiempo-dia { display: flex; flex-direction: column; gap: 2px; margin-bottom: 6px; }
+.mapa-tiempo-dia > span {
+  font-size: 9.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--mut);
+}
+.mapa-tiempo-dia select {
+  font: inherit; font-size: 11px; padding: 2px 4px; max-width: 100%;
+  border: 1px solid var(--bd); border-radius: 4px; background: var(--pnl); color: var(--tx);
+}
+.mapa-tiempo-clic { border-top: 1px dashed var(--bd); padding-top: 4px; }
 .mapa-tiempo-dias { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 5px; }
 .mapa-tiempo-dias th { text-align: left; font-weight: 600; color: var(--mut); font-size: 9.5px;
   text-transform: uppercase; letter-spacing: .04em; border-bottom: 1px solid var(--bd); padding-bottom: 2px; }

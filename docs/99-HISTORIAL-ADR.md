@@ -3505,3 +3505,90 @@ fuente. Las tres condiciones se consultaron el 2026-08-19 y quedan enlazadas en 
 
 **Evidencia reproducible:** `tests/pronostico.test.js` (35), con la forma real de la respuesta del
 servicio comprobada contra su API.
+
+
+## ADR-036 · 2026-08-19 · La temperatura del suelo deja de ser una imagen y pasa a ser la MEDIDA: doce fechas, y los grados de un punto con un clic
+
+**Estado:** ✅ Decidido · ⚠️ **NO revisada externamente**
+
+### Contexto
+
+El Ingeniero pidió dos cosas mirando la capa que entró en `ADR-034`: que al acercarse **no se vea a
+cuadros**, y que la temperatura **se guarde de forma que pueda elegir el día** y obtener sus valores.
+
+Lo primero tenía un diagnóstico incómodo: la capa térmica se veía a cuadros **porque lo que se
+guardaba eran cuadraditos de color**. Una imagen ya pintada solo sirve para mirarla — no se le puede
+preguntar cuántos grados hay en un punto, no se puede cambiar de día sin reconstruirla entera, y al
+ampliarla se amplían sus píxeles. Las dos peticiones eran, en realidad, la misma.
+
+### Decisión
+
+**LO QUE VIAJA ES LA REJILLA DE VALORES, NO LA IMAGEN.** Un byte por celda de 30 m —la rejilla en que
+el USGS entrega el producto—, y el color lo pone el navegador con la rampa que declara la ficha. De
+ahí salen las tres cosas de golpe: elegir el día, leer los grados de un punto con un clic, y que la
+imagen se **interpole** al acercarse en vez de romperse en bloques.
+
+**Sale más barato, además:** doce fechas ocupan **3,4 MiB** en total; la única fecha de antes, pintada
+en teselas, ocupaba 2,2 MiB.
+
+**LA CODIFICACIÓN VA EN LA FICHA, no en el código:** `°C = (byte − 1) × 0,3 + (−10)`, y **el byte 0 es
+SIN DATO**. Reservar ese byte no es un detalle de formato: es lo que impide que «aquí no se midió» se
+lea como «aquí hace 0 °C» y pinte de azul intenso media ciudad.
+
+**SE ENMASCARAN LAS NUBES CON EL `qa_pixel` DEL PROPIO PRODUCTO** — nube, nube dilatada, cirros y
+sombra de nube. **Sin esto la capa miente justo donde más parece acertar:** bajo una nube el sensor
+térmico no mide el suelo, mide el techo de la nube, que está veinte grados más frío. Esos píxeles
+saldrían azules en mitad de la ciudad y se leerían como una zona fresca. Ahora salen en blanco.
+
+**UNA FECHA CON MENOS DEL 50 % DEL RECORTE MEDIDO SE DESCARTA**, y el resto publica su **cobertura**
+junto al día. Con medio recorte tapado, la mediana que se publica es la de la otra mitad — y esa
+mitad no es un trozo cualquiera: es justo la que no tenía nube encima, que suele ser la más caliente.
+La leyenda lo dice con esas palabras.
+
+**DOCE FECHAS DEL ÚLTIMO AÑO**, de la más reciente hacia atrás, buscando entre las escenas con menos
+del 25 % de nubes. El filtro grueso es la nubosidad de la escena —110 km de lado— y el fino es la
+cobertura del recorte, que solo se sabe tras aplicar la máscara.
+
+**EL CLIC DEVUELVE LOS GRADOS DE ESA CELDA**, y la cuenta va en **Web Mercator**, no en grados: la
+rejilla se construyó así, y hacerla en latitud/longitud desplazaría el punto cientos de metros a esta
+latitud — el clic diría la temperatura del barrio de al lado, con una cifra creíble.
+
+**Y LO QUE NO CAMBIA:** sigue siendo la temperatura de la **SUPERFICIE** en **un instante**, sigue sin
+alimentar ningún cálculo de la línea, y la leyenda lo sigue diciendo.
+
+### Sobre la satelital: no se puede arreglar, se puede DECIR
+
+La imagen satelital también se ve borrosa al acercarse, y ahí no hay nada que arreglar: **Sentinel-2
+mide a 10 m por píxel**, y a partir de ahí lo único que se puede hacer es ampliar. Se hicieron las
+dos cosas honestas: subir la calidad de compresión —estas teselas se miran ampliadas, y ampliar una
+compresión agresiva convierte sus artefactos en manchas que parecen terreno— y **escribirlo en la
+propia capa**: «10 m por píxel: al acercarse no hay más detalle, solo se amplía». Imagen abierta de
+mayor resolución con uso comercial permitido no existe; la de metro por píxel es de pago, y eso es
+una decisión del Ingeniero, no una que se tome por inercia.
+
+### Alternativas descartadas
+
+- **Generar teselas hasta z16 remuestreando.** Multiplica por dieciséis el peso para no añadir ni un
+  dato. La borrosidad no se arregla inventando píxeles, se arregla diciendo dónde está el límite.
+- **Guardar las doce fechas como teselas de color.** 26 MiB en vez de 3,4, y seguiría sin poder
+  decir cuántos grados hay en un punto.
+- **Interpolar entre fechas** para «tener todos los días». Sería fabricar mediciones que nadie hizo.
+  El satélite pasa cuando pasa; los días que no hay, no hay.
+- **Rellenar los huecos de nube** con el valor de alrededor. La misma trampa, y peor: quedaría un
+  mapa sin agujeros donde nadie sabría cuáles son medidas y cuáles relleno.
+
+### Consecuencias
+
+- **La capa contesta preguntas que antes no podía:** qué día, cuántos grados aquí, cuánto se midió.
+- **Doce archivos nuevos de ~290 KiB** en el repositorio, uno por fecha, más su ficha. Se bajan de
+  uno en uno, solo el día que se mira.
+- **La ficha de la capa es ahora un contrato de datos**: recorte, tamaño, codificación, rampa y
+  fechas. Una prueba comprueba que cada PNG mide exactamente lo que la ficha declara — un archivo que
+  no cuadre desplazaría TODAS las lecturas de grados y nadie lo notaría, porque los colores seguirían
+  saliendo bonitos.
+- **Se retira `cartagena-termico.pmtiles`.** Ya no lo usa nadie.
+
+### Crudo de respaldo
+
+*(sin comité: la decisión la disparó una observación suya —«se pixela»— y el diagnóstico salió de
+mirar qué se estaba guardando. Evidencia: `tests/termico.test.js` (18) y `tests/mapa-capas.test.js`.)*
