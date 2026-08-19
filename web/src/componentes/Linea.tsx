@@ -243,6 +243,7 @@ function Resumen({ apoyos, investigaciones, alVerEvento, hipotesis, conductor }:
           <RespaldoMapa apoyos={apoyos}>
             <Suspense fallback={<PlantaSvg apoyos={apoyos} nota="Descargando el mapa…" />}>
               <Mapa apoyos={apoyos} eventos={investigaciones} alVerEvento={alVerEvento}
+                hipotesis={hipotesis}
                 respaldo={<PlantaSvg apoyos={apoyos} nota="El mapa no se pudo descargar; se muestra el esquema geométrico (funciona sin conexión)." />} />
             </Suspense>
           </RespaldoMapa>

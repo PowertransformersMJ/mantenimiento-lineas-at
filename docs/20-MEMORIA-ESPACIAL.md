@@ -187,6 +187,9 @@ mantenimiento-lineas-at/
 │                                fabricar un recuerdo (ADR-027/029)
 │                                · **fotos.ts** (ADR-031): lo único de la subida que toca la red;
 │                                primero el OBJETO y después la FICHA (al revés, ficha al vacío)
+│                                · **pronostico.ts** (ADR-035): la ÚNICA pieza del mapa que necesita
+│                                internet. NO guarda nada —un pronóstico no es un hecho fechado— y
+│                                pregunta por una CELDA redondeada, nunca por la línea
 ├── web/public/mapas/            TRES recortes PMTiles del MISMO bbox metropolitano, autohospedados
 │                             (ADR-034): callejero · satelital (Sentinel-2) · térmico (Landsat,
 │                             SUELO). Cada raster con su `.json`: fecha de la toma y licencia

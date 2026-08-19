@@ -360,6 +360,22 @@ body {
 .mapa-leyenda-esc {
   display: flex; justify-content: space-between; font-size: 10px; color: var(--mut); margin-top: 2px;
 }
+/* El pronóstico: tabla apretada y el panel con tope de alto, que el mapa es lo que
+   se mira. */
+.mapa-capas { max-height: calc(100% - 24px); overflow-y: auto; }
+.mapa-tiempo-ahora { margin: 0 0 3px; font-size: 12px; }
+.mapa-tiempo-dias { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 5px; }
+.mapa-tiempo-dias th { text-align: left; font-weight: 600; color: var(--mut); font-size: 9.5px;
+  text-transform: uppercase; letter-spacing: .04em; border-bottom: 1px solid var(--bd); padding-bottom: 2px; }
+.mapa-tiempo-dias td { padding: 2px 4px 2px 0; border-bottom: 1px solid var(--bd); white-space: nowrap; }
+.mapa-tiempo .aviso { border-left: 2px solid var(--acc); padding-left: 5px; }
+/* La flecha del viento, sobre el propio mapa. */
+.mapa-viento {
+  display: flex; flex-direction: column; align-items: center; pointer-events: none;
+  text-shadow: 0 0 3px var(--pnl), 0 0 6px var(--pnl);
+}
+.mapa-viento-f { font-size: 26px; line-height: 1; color: var(--az); display: block; }
+.mapa-viento-v { font-size: 10.5px; font-weight: 700; color: var(--tx); }
 .mapa-velo {
   position: absolute; inset: 0; z-index: 6;
   display: flex; align-items: center; justify-content: center;

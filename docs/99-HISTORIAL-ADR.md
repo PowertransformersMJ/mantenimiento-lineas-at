@@ -3409,3 +3409,99 @@ añadida con el mapa quieto se queda esperando un `requestAnimationFrame` que na
 (`32 · L-55`). Se arregla con un `triggerRepaint()`. En el mismo viaje salió que el efecto corría
 antes de que el estilo estuviera armado y reventaba con un `TypeError` invisible. Las dos líneas
 quedan fijadas por prueba, porque ninguna de las dos se ve venir leyendo el código.
+
+
+## ADR-035 · 2026-08-19 · El pronóstico entra como capa, pero no como dato: se pide, se mira y se olvida
+
+**Estado:** ✅ Decidido · ⚠️ **NO revisada externamente**
+
+### Contexto
+
+El Ingeniero pidió ver también el pronóstico del tiempo sobre el mapa. A diferencia de las dos capas
+de `ADR-034`, un pronóstico **no se puede autohospedar**: cambia cada pocas horas, así que un archivo
+que viaje con el sitio nace caducado. Hay que preguntárselo a alguien, en el momento.
+
+Eso choca de frente con la frase con la que se construyó el mapa —«no le pide nada a ningún servidor
+de terceros»— y obliga a decidirlo a propósito en vez de por inercia.
+
+**Licencias verificadas el 19-08, en la fuente:** `Open-Meteo`, la vía obvia, dice con esas palabras
+que su plan gratuito es **solo para uso no comercial** (ya lo dejó fuera `ADR-034`). `api.weather.gov`
+de la NOAA es de dominio público pero **solo cubre Estados Unidos**. **MET Norway**
+(`api.met.no/weatherapi/locationforecast`) publica bajo **CC BY 4.0** —uso comercial permitido con
+atribución—, **global**, **sin cuenta ni clave**, y sus condiciones **admiten explícitamente** el uso
+desde JavaScript en sitios de poco tráfico. Es la única de las tres que sirve aquí.
+
+### Decisión
+
+**El pronóstico es la ÚNICA pieza del mapa que necesita internet, y se declara como tal.** Las
+teselas —callejero, satelital, térmica— siguen viajando con el sitio: sin señal el mapa sigue
+entero y solo falta esta capa. Es la misma doctrina de `31 · L-11`: una capa opcional jamás veta a
+una esencial.
+
+**NO SE GUARDA NUNCA.** Es la decisión que más consecuencias tiene. `datos/clima.ts` guarda sondeos
+del IDEAM porque son MEDICIONES —hechos fechados, y las reglas los hacen inmutables—; un pronóstico
+es un modelo diciendo qué cree. Archivarlo haría que dentro de un año alguien lo leyera como si
+alguien hubiera medido algo. Se pide, se mira y se olvida al cerrar la pestaña. Una prueba vigila
+que el módulo no toque Firestore, `localStorage` ni `indexedDB`.
+
+**SE CONSULTA CUANDO ÉL ENCIENDE LA CAPA, NUNCA AL PINTAR** — otra vez la regla de `datos/clima.ts`:
+una consulta a un tercero es un acto deliberado, no el efecto de que alguien mire una pantalla.
+
+**NO SE PREGUNTA POR LA LÍNEA.** La coordenada se redondea a una rejilla de 0,1° antes de salir,
+con la misma doctrina que `nucleo/clima.js · cajaConsulta`: *el registro de consultas de un tercero
+no tiene por qué saber dónde está una torre de un cliente*. Y no cuesta precisión: el modelo trae
+celdas de kilómetros, así que redondear devuelve la misma celda. La pantalla enseña por qué celda se
+preguntó.
+
+**NO ES UN CAMPO DE COLORES, Y ESO NO ES PEREZA.** El modelo tiene celdas de kilómetros: sobre 3 km
+de línea el valor es UNO. Pintarlo como un degradado fingiría un detalle que no existe — el mismo
+argumento por el que `ADR-034` descartó un mapa de temperatura del aire. Se pinta como lo que es: el
+dato del sitio, con una **flecha de viento** sobre el mapa y una tabla de días.
+
+**LO QUE SÍ ES ESPACIAL SE CALCULA: LA COMPONENTE DE LADO.** Lo que carga un apoyo no es el viento,
+es su parte perpendicular al conductor. Con el eje de la línea —promediado con el ángulo DOBLADO,
+porque una línea es un eje y no una flecha: un vano al norte y otro al sur promediados a pelo dan la
+perpendicular exacta— se publica cuánto del viento previsto empuja de lado. Esa es la única cifra de
+esta capa que significa algo para una estructura.
+
+**Y LA FRASE QUE IMPIDE LEERLA AL REVÉS:** el pronóstico se compara con el viento de la hipótesis
+diciendo, en la misma línea, que **no la valida ni la desmiente**. La hipótesis es un extremo de
+diseño; el pronóstico es el tiempo de nueve días. Que esta semana sople poco no dice nada sobre si
+el extremo adoptado es correcto — y creerlo sería el error caro de esta capa.
+
+**Los umbrales de aviso** (40 km/h para trabajo en altura, 20 mm de lluvia al día) son **criterio
+adoptado sin norma citada**, y la pantalla lo dice con esas palabras.
+
+### Alternativas descartadas
+
+- **Open-Meteo.** Técnicamente la mejor —sin clave, con CORS, JSON limpio— y descartada por licencia:
+  su vía gratuita es no comercial. Si algún día se paga su plan, entra sin tocar nada más que la URL.
+- **Autohospedar el pronóstico** (bajar la corrida del modelo y empaquetarla como las otras capas).
+  Nace caducado: en seis horas es mentira, y una mentira con aspecto de mapa.
+- **Un trabajador que consulte y cachee.** Rompe «UN Worker y solo uno», y no hace falta: el servicio
+  admite el uso directo desde el navegador y publica su propio `Expires`, que el navegador respeta.
+- **Guardar el pronóstico junto al expediente**, para «tener el histórico». Es exactamente lo que
+  convierte una predicción en una falsa medición. El histórico del clima ya tiene su camino y su
+  nodo: el sondeo del IDEAM, que sí midió.
+- **Pintar un degradado de temperatura o de viento sobre el recorte.** Un mapa de un solo píxel.
+
+### Consecuencias
+
+- **Sirve para lo que se usa de verdad:** decidir la semana. Viento de lado sobre la línea, tormenta,
+  lluvia y temperatura del aire, por día, con sus avisos.
+- **La capa no funciona sin señal**, y lo dice. Las otras tres sí.
+- **Se estrena una dependencia de un tercero en el camino del mapa.** No factura, no pide cuenta y no
+  guarda nada nuestro; pero es una dependencia, y el día que MET Norway cambie sus condiciones esta
+  capa se apaga. Queda escrito aquí para que ese día se sepa dónde mirar.
+- **La petición tiene que ser «simple»** (sin cabeceras propias): sus condiciones dicen que no
+  admiten preflight de CORS. Una cabecera «correcta» de más rompe la capa, y por eso hay una prueba
+  que lo vigila.
+
+### Crudo de respaldo
+
+*(sin comité: la parte cara era la verificación de licencias, y eso no se delibera, se lee en la
+fuente. Las tres condiciones se consultaron el 2026-08-19 y quedan enlazadas en la cabecera de
+`web/src/datos/pronostico.ts`.)*
+
+**Evidencia reproducible:** `tests/pronostico.test.js` (35), con la forma real de la respuesta del
+servicio comprobada contra su API.

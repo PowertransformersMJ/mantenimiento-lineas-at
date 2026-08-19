@@ -6,10 +6,10 @@
 
 ## 🎯 Dónde estamos
 
-**Cifras vivas en `05`.** 12 pestañas + RCA + tres informes. **Mazo de gerencia E02 listo** (bóveda `entregables/`, `32 · L-49`). Olas cerradas:
+**Cifras vivas en `05`.** 12 pestañas + RCA + tres informes. **Mazo de gerencia E02 listo** (`32 · L-49`). Olas cerradas:
 carcasa (ADR-018) · RCA (ADR-020) · documental (ADR-021) · contexto real (ADR-022) · gerencial
-(ADR-023) · acceso (ADR-024) · **dato SUPUESTO en los papeles (ADR-032)** · **las dos capas
-de imagen del mapa (ADR-034)**.
+(ADR-023) · acceso (ADR-024) · **dato SUPUESTO en los papeles (ADR-032)** · **capas de imagen
+y pronóstico en el mapa (ADR-034/035)**.
 
 ## 🛑 LO PRIMERO AL RETOMAR
 
@@ -61,7 +61,7 @@ climático la topa el motor en «baja».
 | **NUEVO** | **Ponerse contraseña.** ⚠️ La llave admin ya NO está en Descargas: regenerarla (Consola Firebase → Configuración → Cuentas de servicio → Generar nueva clave) y guardarla FUERA de Descargas. Después: `usuarios.mjs contrasena … --definitiva` (sin `--definitiva` la cuenta queda provisional y se revocan sus sesiones) | Desbloquea retirar Google (fase 2b). Ya está VERIFICADO que la pantalla no le aparece entrando por Google |
 | **TODO-57** | **La FICHA ESTRUCTURAL — ya se puede ESCRIBIR, y está EN PRODUCCIÓN** (`99 §ADR-030`). Deja de estar bloqueada por el código: falta **el DATO**. ¿Lo tiene la empresa en planos o actas, o hay que levantarlo? Los seis: carga de rotura · altura libre · altura del amarre · capacidad longitudinal (con **qué ES** ese número) · fases amarradas · tipo de apoyo | **EL CUELLO DE BOTELLA REAL.** Al meter el primero saldrán «REVISAR»: no son averías nuevas, es lo que ya pasaba y no se veía |
 | **TODO-69** | **Verificar el pórtico de ORIGEN** de la línea (la carga de agosto quedó cerrada, `99 §ADR-027/028/031`) | Es el único punto de esa carga que nadie ha mirado |
-| **TODO-71** | **¿Hace falta la temperatura del AIRE?** El mapa ya tiene la del SUELO (`ADR-034`), que NO sirve para calcular. Defender la hipótesis con clima real es una SERIE con percentiles, no una capa | La hipótesis sigue SIN VALIDAR, y de su temperatura salen los tiros |
+| **TODO-71** | **¿Se cierra la hipótesis con clima real?** El mapa da el aire PREVISTO (`ADR-035`) y el suelo medido (`ADR-034`), y ninguno vale para calcular: eso se defiende con una SERIE HISTÓRICA y sus percentiles | La hipótesis sigue SIN VALIDAR, y de su viento y su temperatura salen los tiros |
 | **TODO-59** | **Qué ficha se le pide a CADA tipología.** La línea mezcla 4 (pórticos de 2 y 3 postes, torre reticulada, poste simple) y el molde es de POSTE (`40 §8.3`) | Son tres o cuatro formularios, no uno |
 | **TODO-33** | **50 % o 25 % de RTS** como tope de tiro | Factor 2 sobre un dictamen |
 | **TODO-58** | **¿Dónde deben vivir los datos?** Hoy Firestore (São Paulo) y R2 bajo TUS cuentas personales, con coordenadas y fotos del empleador | La región de Firestore es INMUTABLE |

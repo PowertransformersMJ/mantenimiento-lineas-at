@@ -14,7 +14,7 @@
 // la vista cae al esquema SVG. Una capa opcional jamás veta a una esencial
 // (docs/31 · L-11).
 // ============================================================================
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { FileSource, PMTiles, Protocol } from 'pmtiles';
@@ -28,9 +28,15 @@ import { FileSource, PMTiles, Protocol } from 'pmtiles';
 // cojo y moriría igual de mudo).
 import urlWorker from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import { layers, namedFlavor } from '@protomaps/basemaps';
-import { FUNCIONES_ANCLA, type Apoyo, type Investigacion } from '@lineas/contratos';
+import { FUNCIONES_ANCLA, type Apoyo, type Hipotesis, type Investigacion } from '@lineas/contratos';
 import { derivarLevantamiento } from '@lineas/exportar/levantamiento';
 import { COLORES_TRAMO_CSS } from '../vistas/tramoColores';
+import {
+  avisosDelPronostico, contraLaHipotesis, ejeDeLaLinea, eltiempoEnCastellano,
+  vientoSobreLaLinea, ZONA,
+  type PronosticoEnPantalla,
+} from '../vistas/pronostico';
+import { ATRIBUCION_PRONOSTICO, celdaDeConsulta, pedirPronostico, SinPronostico } from '../datos/pronostico';
 
 // ⚠️ Cloudflare Pages NO honra las peticiones de rango en estos archivos
 // (verificado: pide 1 KB y responde 200 con los 4,5 MB) — y el lector de
@@ -191,12 +197,18 @@ function fichaPopup(p: ReturnType<typeof derivarLevantamiento>['puntos'][number]
   return `<div class="pop-ficha">${filas.join('<br>')}</div>`;
 }
 
-export default function Mapa({ apoyos, respaldo, eventos, alVerEvento }:
+export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis }:
   { apoyos: Apoyo[]; respaldo?: ReactNode;
     /** Expedientes de falla a señalar sobre el mapa. Vacío = línea sin eventos. */
     eventos?: Investigacion[];
     /** Qué hacer al pulsar el marcador (abrir la pestaña Falla). */
-    alVerEvento?: (id: string) => void }) {
+    alVerEvento?: (id: string) => void;
+    /**
+     * La hipótesis de cálculo, SOLO para poder decir qué parte de su viento
+     * representa el que se pronostica. No entra en ningún cálculo: el pronóstico
+     * no valida una hipótesis (ver `vistas/pronostico.ts`).
+     */
+    hipotesis?: Hipotesis }) {
   const caja = useRef<HTMLDivElement>(null);
   const mapa = useRef<maplibregl.Map | null>(null);
   const [estado, setEstado] = useState<'cargando' | 'listo' | 'fallo'>('cargando');
@@ -206,6 +218,32 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento }:
   const [fichas, setFichas] = useState<Partial<Record<NombreCapa, FichaCapa>>>({});
   const [bajando, setBajando] = useState<NombreCapa | null>(null);
   const [falloCapa, setFalloCapa] = useState<string | null>(null);
+  /**
+   * El pronóstico NO es una capa de imagen: es un dato del sitio que se pinta
+   * encima. Por eso va con su propio estado y no en `CAPAS_RASTER`.
+   */
+  const [pronostico, setPronostico] = useState(false);
+  const [tiempo, setTiempo] = useState<PronosticoEnPantalla | null>(null);
+  const [pidiendoTiempo, setPidiendoTiempo] = useState(false);
+  const [falloTiempo, setFalloTiempo] = useState<string | null>(null);
+  const flecha = useRef<maplibregl.Marker | null>(null);
+
+  /**
+   * El punto de referencia de la línea y su EJE.
+   *
+   * El punto es el centro de las estructuras, y NO sale de aquí tal cual: antes
+   * de preguntarle el tiempo a nadie se redondea a una celda (ver
+   * `datos/pronostico.ts`). El eje es la dirección media, y de él sale la única
+   * cifra de viento que significa algo para un apoyo: cuánta parte empuja de lado.
+   */
+  const geometria = useMemo(() => {
+    const E = apoyos.filter((a) => (a.tipoPunto ?? 'Estructura') !== 'Empalme');
+    if (!E.length) return null;
+    const lat = E.reduce((s2, a) => s2 + a.coordenada.lat, 0) / E.length;
+    const lon = E.reduce((s2, a) => s2 + a.coordenada.lon, 0) / E.length;
+    const lev = derivarLevantamiento(apoyos);
+    return { lat, lon, eje: ejeDeLaLinea(lev.puntos.map((p) => p.azimut_deg)) };
+  }, [apoyos]);
 
   useEffect(() => {
     if (!caja.current || mapa.current || apoyos.length < 2) return;
@@ -375,6 +413,60 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento }:
     return () => { cancelado = true; quitarEspera(); };
   }, [base, termico, estado]);
 
+  /**
+   * El pronóstico: se pide cuando ÉL lo enciende, nunca al pintar.
+   *
+   * Misma regla que `datos/clima.ts`: una consulta a un tercero es un acto
+   * deliberado, no un efecto de que alguien mire una pantalla. Y si falla, se
+   * dice y el mapa se queda como estaba — una capa opcional jamás veta a una
+   * esencial (`31 · L-11`).
+   */
+  useEffect(() => {
+    if (!pronostico || tiempo || pidiendoTiempo || !geometria) return;
+    let cancelado = false;
+    setPidiendoTiempo(true);
+    setFalloTiempo(null);
+    void pedirPronostico(geometria.lat, geometria.lon)
+      .then((p) => { if (!cancelado) setTiempo(p); })
+      .catch((e) => {
+        if (cancelado) return;
+        setFalloTiempo(e instanceof SinPronostico ? e.message
+          : 'No se pudo traer el pronóstico. El resto del mapa sigue igual.');
+        setPronostico(false);
+      })
+      .finally(() => { if (!cancelado) setPidiendoTiempo(false); });
+    return () => { cancelado = true; };
+  }, [pronostico, tiempo, pidiendoTiempo, geometria]);
+
+  /**
+   * La flecha del viento sobre el mapa.
+   *
+   * Apunta HACIA DONDE VA el viento, que es lo que se espera al mirar un mapa; el
+   * rótulo dice de dónde viene, que es como lo nombra la meteorología. Las dos
+   * cosas a la vez, porque cada gremio lee una.
+   */
+  useEffect(() => {
+    const m = mapa.current;
+    flecha.current?.remove();
+    flecha.current = null;
+    if (!m || estado !== 'listo' || !pronostico || !tiempo || !geometria) return;
+
+    const ahora = tiempo.instantes[0];
+    if (!ahora || ahora.vientoDesde_deg === null) return;
+    const hacia = (ahora.vientoDesde_deg + 180) % 360;
+
+    const el = document.createElement('div');
+    el.className = 'mapa-viento';
+    el.title = `Viento del ${Math.round(ahora.vientoDesde_deg)}°`
+      + (ahora.viento_kmh !== null ? ` a ${ahora.viento_kmh.toFixed(0)} km/h` : '');
+    el.innerHTML = `<span class="mapa-viento-f" style="transform: rotate(${hacia}deg)">↑</span>`
+      + `<span class="mapa-viento-v">${ahora.viento_kmh !== null ? `${ahora.viento_kmh.toFixed(0)} km/h` : '—'}</span>`;
+    flecha.current = new maplibregl.Marker({ element: el })
+      .setLngLat([geometria.lon, geometria.lat]).addTo(m);
+
+    return () => { flecha.current?.remove(); flecha.current = null; };
+  }, [pronostico, tiempo, geometria, estado]);
+
   if (estado === 'fallo' && respaldo) return <>{respaldo}</>;
 
   return (
@@ -404,13 +496,25 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento }:
           )}
         </label>
 
+        <label>
+          <input type="checkbox" checked={pronostico}
+            onChange={(e) => setPronostico(e.target.checked)} /> Pronóstico del tiempo
+          {pidiendoTiempo && <span className="mapa-capas-f">consultando…</span>}
+        </label>
+
         {bajando && (
           <p className="mapa-capas-n" aria-live="polite">
             Descargando {CAPAS_RASTER[bajando].rotulo.toLowerCase()}… (una sola vez)
           </p>
         )}
         {falloCapa && <p className="mapa-capas-n alerta">{falloCapa}</p>}
+        {falloTiempo && <p className="mapa-capas-n alerta">{falloTiempo}</p>}
         {termico && fichas.termico && <LeyendaTermica ficha={fichas.termico} />}
+        {pronostico && tiempo && (
+          <PanelPronostico p={tiempo} eje={geometria?.eje ?? null}
+            celda={geometria ? celdaDeConsulta(geometria.lat, geometria.lon) : null}
+            vientoHipotesis_kmh={hipotesis?.vientoMax_kmh} />
+        )}
       </div>
     </div>
   );
@@ -462,6 +566,89 @@ function LeyendaTermica({ ficha }: { ficha: FichaCapa }) {
         satélite en <b>un instante</b>, no la del aire y no un promedio. Al mediodía el asfalto
         puede estar 15-20 °C por encima del aire. <b>No alimenta ningún cálculo</b> de la línea:
         la ecuación de cambio de estado va con temperatura del aire.
+      </p>
+    </div>
+  );
+}
+
+/**
+ * El pronóstico, dicho para quien programa una cuadrilla.
+ *
+ * TRES COSAS QUE NO PUEDEN FALTAR, y ninguna es adorno:
+ *
+ *   1. **De qué parte del viento hablamos.** Lo que carga un apoyo es la
+ *      componente de LADO, no la velocidad. Publicar solo la velocidad obliga a
+ *      hacer la descomposición de cabeza.
+ *   2. **Que esto no valida la hipótesis.** Poner los dos números juntos invita
+ *      a leer «sopla menos de lo calculado, vamos sobrados», y eso es falso: la
+ *      hipótesis es un extremo de diseño, no el tiempo de esta semana.
+ *   3. **Dónde y cuándo se preguntó.** Un pronóstico sin hora de emisión ni
+ *      punto de consulta es un número sin dueño; y la celda —redondeada a
+ *      propósito— explica por qué no dice «en el apoyo E12».
+ */
+function PanelPronostico({ p, eje, celda, vientoHipotesis_kmh }: {
+  p: PronosticoEnPantalla;
+  eje: number | null;
+  celda: { lat: number; lon: number } | null;
+  vientoHipotesis_kmh?: number | null;
+}) {
+  const ahora = p.instantes[0];
+  const lado = ahora ? vientoSobreLaLinea(ahora.viento_kmh, ahora.vientoDesde_deg, eje) : null;
+  const contra = contraLaHipotesis(lado?.transversal_kmh ?? null, vientoHipotesis_kmh);
+  const avisos = avisosDelPronostico(p, eje);
+  const n = (x: number | null | undefined, d = 0) =>
+    (typeof x === 'number' && Number.isFinite(x) ? x.toFixed(d) : '—');
+  const dia = (iso: string) => new Date(`${iso}T12:00:00Z`)
+    .toLocaleDateString('es-CO', { weekday: 'short', day: '2-digit', month: 'short', timeZone: ZONA });
+
+  return (
+    <div className="mapa-leyenda mapa-tiempo">
+      {ahora && (
+        <p className="mapa-tiempo-ahora">
+          <b>{n(ahora.temperatura_C, 0)} °C</b> · {eltiempoEnCastellano(ahora.simbolo)} ·{' '}
+          viento <b>{n(ahora.viento_kmh, 0)} km/h</b>
+          {ahora.vientoDesde_deg !== null && <> del {n(ahora.vientoDesde_deg, 0)}°</>}
+        </p>
+      )}
+      {lado && (
+        <p className="mapa-capas-n">
+          <b>De lado sobre la línea: {n(lado.transversal_kmh, 0)} km/h</b> (el viento entra a{' '}
+          {n(lado.angulo_deg, 0)}° del eje, que corre a {n(eje, 0)}°). Es la parte que carga los
+          apoyos; el resto sopla a lo largo y no los empuja de lado.
+        </p>
+      )}
+      {contra && <p className="mapa-capas-n">{contra.frase}</p>}
+
+      <table className="mapa-tiempo-dias">
+        <thead>
+          <tr><th>Día</th><th>°C</th><th>Viento máx.</th><th>Lluvia</th><th>Cielo</th></tr>
+        </thead>
+        <tbody>
+          {p.dias.slice(0, 5).map((d) => (
+            <tr key={d.dia}>
+              <td>{dia(d.dia)}</td>
+              <td>{n(d.tempMin_C, 0)}–{n(d.tempMax_C, 0)}</td>
+              <td>{n(d.vientoMax_kmh, 0)} km/h</td>
+              <td>{n(d.lluvia_mm, 1)} mm</td>
+              <td>{eltiempoEnCastellano(d.simbolo)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {avisos.map((a) => <p key={a} className="mapa-capas-n aviso">{a}</p>)}
+
+      <p className="mapa-capas-n">
+        <b>Esto no entra en ningún cálculo de la línea.</b> Sirve para decidir la semana —cuadrilla,
+        maniobra, acceso—, no para dictaminar: una flecha se calcula con una hipótesis declarada,
+        no con el tiempo que va a hacer.
+      </p>
+      <p className="mapa-capas-n">
+        {ATRIBUCION_PRONOSTICO}
+        {p.emitido && <> · corrida del modelo: {new Date(p.emitido).toLocaleString('es-CO',
+          { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: ZONA })}</>}
+        {celda && <> · se preguntó por la celda {celda.lat.toFixed(1)}, {celda.lon.toFixed(1)} —
+          redondeada a propósito: quien sirve el tiempo no tiene por qué saber dónde está la línea</>}
       </p>
     </div>
   );
