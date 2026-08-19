@@ -20,6 +20,24 @@
 
 ## El mapa que no llega a pintarse
 
+### L-58 · Un efecto que depende de `ref.current` no se entera de que el ref cambió
+
+- **Síntoma:** se pulsa el interruptor de una capa y **no pasa nada**. Nada: ni capa, ni error, ni
+  una petición de red. Se vuelve a pulsar y sigue sin pasar nada. Recargando la página funciona a la
+  primera.
+- **Causa:** el mapa vive en una **referencia** (`mapa.current`), porque MapLibre es imperativo y no
+  puede colgar del ciclo de render. Cuando el mapa se REHACE —basta que la lista de apoyos cambie de
+  identidad y el efecto de creación se limpie y se vuelva a montar— hay un instante en que
+  `mapa.current` es `null`. Un efecto de capa que se ejecute justo ahí sale por su guarda
+  (`if (!m) return`) y **no vuelve nunca**: una referencia no dispara efectos, así que ninguna de sus
+  dependencias cambió y React no tiene motivo para volver a llamarlo. El mapa nuevo se queda sin la
+  capa, y el interruptor está muerto aunque el estado de React diga que está encendido.
+- **Arreglo:** un contador de estado que sube cada vez que se CREA el mapa, dentro de las
+  dependencias de todas las capas. Ahora el mapa nuevo despierta a las capas.
+- **Regla:** si un efecto depende de algo que vive en un `ref`, el ref necesita un acompañante en
+  el ESTADO que avise de que cambió. Y ojo con el diagnóstico: «no pasa nada» sin error ni petición
+  no es un fallo de la capa nueva — es un efecto que ni siquiera llegó a ejecutarse.
+
 ### L-57 · Un efecto de React que enciende su propio «cargando» se cancela a sí mismo
 
 - **Síntoma:** se enciende la capa del pronóstico, la petición SALE, el servicio responde **200**… y
@@ -40,21 +58,18 @@
 ### L-55 · Una capa raster añadida con el mapa quieto no carga NUNCA, y no se queja
 
 - **Síntoma:** se enciende la capa satelital y el mapa se queda **BLANCO**. La capa existe, la fuente
-  existe, `isSourceLoaded()` dice `true`, la atribución de Copernicus aparece abajo… y no hay ni una
-  imagen. Cero errores en consola, cero peticiones de tesela. Las pruebas, en verde.
-- **Causa:** MapLibre termina de dar de alta una fuente raster dentro de `loadTileJson`, que **espera
-  un `requestAnimationFrame`** (`browser.frameAsync`). Con el mapa quieto —nadie mueve la cámara,
-  nadie pide un fotograma— ese momento no llega jamás, así que la fuente se queda a medio nacer y
-  nunca pide teselas. `loaded()` devuelve `true` porque no está esperando ninguna tesela: no ha
-  pedido ninguna. Es la peor forma del fallo: **todos los indicadores dicen que está bien**.
-- **Arreglo:** `m.triggerRepaint()` justo después de añadir la capa. Una línea.
-- **Regla:** al añadir una fuente a un mapa YA CREADO, pídele un fotograma. Y cuidado con el
-  diagnóstico: `isSourceLoaded()` y `loaded()` contestan «¿me falta algo de lo que pedí?», no «¿tengo
-  algo?». Para saber si una capa de imagen está viva hay que mirar la PANTALLA — o contar teselas.
-- **El acompañante que salió en el mismo viaje:** el efecto que enciende las capas corría en cuanto
-  el mapa se declaraba «listo», que es ANTES de que el estilo esté armado; `getStyle()` devolvía
-  `undefined` y el efecto reventaba entero con un `TypeError` que nadie veía. Se espera a
-  `isStyleLoaded()` y se reintenta con `styledata`.
+  existe, `isSourceLoaded()` dice `true`, la atribución aparece abajo… y no hay ni una imagen. Cero
+  errores, cero peticiones de tesela. Las pruebas, en verde.
+- **Causa:** MapLibre termina de dar de alta una fuente raster esperando un
+  `requestAnimationFrame`. Con el mapa quieto ese momento no llega jamás: la fuente se queda a medio
+  nacer y nunca pide teselas. `loaded()` dice `true` porque no espera ninguna — no pidió ninguna.
+- **Arreglo:** `m.triggerRepaint()` justo después de añadir la capa.
+- **Regla:** al añadir una fuente a un mapa YA CREADO, pídele un fotograma. Y ojo al diagnóstico:
+  `isSourceLoaded()` contesta «¿me falta algo de lo que pedí?», no «¿tengo algo?». Para saber si una
+  capa de imagen está viva hay que mirar la PANTALLA.
+- **El acompañante del mismo viaje:** el efecto corría antes de que el estilo estuviera armado y
+  reventaba con un `TypeError` invisible. Se espera a `isStyleLoaded()` y se reintenta con
+  `styledata` — con UN dueño, porque la capa siguiente volvió a caer ahí.
 
 ### L-15 · El worker de MapLibre nace muerto en producción si no se le da su URL
 - **Síntoma:** mapa gris para siempre, sin un solo error. El estilo carga sus 71 capas, el archivo de

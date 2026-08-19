@@ -122,6 +122,27 @@ describe('el mapa no le pide teselas a nadie', () => {
       'hace falta reintentar cuando el estilo termine de cargarse');
   });
 
+  test('las capas se vuelven a aplicar cuando el mapa se REHACE', () => {
+    // El mapa vive en una referencia, y una referencia no dispara efectos. Si un
+    // efecto de capa cae en el instante en que `mapa.current` es null —el mapa se
+    // está rehaciendo— sale por la puerta de atrás y NO vuelve: ninguna de sus
+    // dependencias cambió. El interruptor se queda muerto (`32 · L-58`).
+    assert.match(CODIGO, /setVersionMapa\(\(v\) => v \+ 1\)/,
+      'nadie avisa de que hay un mapa nuevo');
+    // Se miran los efectos que TOCAN el mapa. Los que solo piden datos —el
+    // pronóstico, por ejemplo— no necesitan enterarse de que el lienzo es otro.
+    const efectos = [...CODIGO.matchAll(/useEffect\(\(\) => \{([\s\S]*?)\}, \[([^\]]*)\]\);/g)];
+    const tocanElMapa = efectos.filter(([, cuerpo]) =>
+      // El efecto que CREA el mapa queda fuera: es el que sube el contador.
+      !/crearMapa\(/.test(cuerpo)
+      && /mapa\.current|m\.(addSource|addLayer|setLayoutProperty)/.test(cuerpo));
+    assert.ok(tocanElMapa.length >= 3, `esperaba al menos 3 efectos sobre el mapa, hallé ${tocanElMapa.length}`);
+    for (const [, , deps] of tocanElMapa) {
+      assert.ok(deps.includes('versionMapa') || deps.trim() === '',
+        `un efecto que toca el mapa no escucha al mapa nuevo: [${deps}]`);
+    }
+  });
+
   test('la espera al estilo tiene UN dueño, y las dos capas pasan por él', () => {
     // Las dos cayeron en el mismo agujero, una detrás de otra: la de teselas con
     // un `TypeError` invisible y la térmica con «Style is not done loading». Con

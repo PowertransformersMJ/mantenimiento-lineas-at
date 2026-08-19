@@ -248,6 +248,20 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
   const yaPedido = useRef(false);
   /** Si el componente sigue montado. Lo único que decide si se puede pintar la respuesta. */
   const montado = useRef(true);
+  /**
+   * Cuántas veces se ha CREADO el mapa. Es la señal que despierta a las capas.
+   *
+   * ⚠️ NO ES UN CONTADOR DECORATIVO. El mapa vive en una referencia, y una
+   * referencia no dispara efectos: cuando el mapa se rehace —`apoyos` cambia de
+   * identidad y el efecto de creación se limpia y se vuelve a montar— hay un
+   * instante en que `mapa.current` es null. Un efecto de capa que caiga justo
+   * ahí sale por la puerta de atrás… y NO VUELVE, porque ninguna de sus
+   * dependencias cambió: el mapa nuevo se queda sin la capa y el interruptor no
+   * la enciende por mucho que se pulse. Con este número dentro de sus
+   * dependencias, todas las capas se vuelven a aplicar sobre el mapa nuevo
+   * (`32 · L-58`).
+   */
+  const [versionMapa, setVersionMapa] = useState(0);
 
   useEffect(() => () => { montado.current = false; }, []);
 
@@ -285,6 +299,8 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
       setEstado('listo');
       creado = crearMapa(caja.current, apoyos, meta, eventos ?? [], alVerEvento);
       mapa.current = creado;
+      // La señal para las capas: hay un mapa nuevo, vuelvan a aplicarse.
+      setVersionMapa((v) => v + 1);
 
       // Vigilante: si en 15 s VISIBLES el mapa no terminó de cargar, algo se
       // quedó mudo y se cae al esquema. El matiz de "visibles" no es adorno:
@@ -422,7 +438,7 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
     // efecto revienta con un `TypeError` invisible y las capas no se encienden.
     const dejarDeEsperar = alEstarElEstilo(m, () => { if (!cancelado) void aplicar(); });
     return () => { cancelado = true; dejarDeEsperar(); };
-  }, [base, termico, estado]);
+  }, [base, termico, estado, versionMapa]);
 
   /**
    * La capa térmica: ficha, rejilla del día y pintura.
@@ -508,7 +524,7 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
 
     const dejarDeEsperar = alEstarElEstilo(m, () => { if (!cancelado) void pintar(); });
     return () => { cancelado = true; dejarDeEsperar(); };
-  }, [termico, diaTermico, estado, fichaTermica, rejillaLista]);
+  }, [termico, diaTermico, estado, fichaTermica, rejillaLista, versionMapa]);
 
   /**
    * El clic que dice cuántos grados hace AHÍ.
@@ -532,7 +548,7 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
     };
     m.on('click', alPulsar);
     return () => { m.off('click', alPulsar); };
-  }, [termico, fichaTermica, estado]);
+  }, [termico, fichaTermica, estado, versionMapa]);
 
   /**
    * El pronóstico: se pide cuando ÉL lo enciende, nunca al pintar.
@@ -593,7 +609,7 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
       .setLngLat([geometria.lon, geometria.lat]).addTo(m);
 
     return () => { flecha.current?.remove(); flecha.current = null; };
-  }, [pronostico, tiempo, geometria, estado]);
+  }, [pronostico, tiempo, geometria, estado, versionMapa]);
 
   if (estado === 'fallo' && respaldo) return <>{respaldo}</>;
 
