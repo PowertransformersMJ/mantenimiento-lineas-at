@@ -3592,3 +3592,24 @@ una decisión del Ingeniero, no una que se tome por inercia.
 
 *(sin comité: la decisión la disparó una observación suya —«se pixela»— y el diagnóstico salió de
 mirar qué se estaba guardando. Evidencia: `tests/termico.test.js` (18) y `tests/mapa-capas.test.js`.)*
+
+### Verificado en vivo (2026-08-19)
+
+Con el Chrome del Ingeniero, sobre producción: se elige el día entre las doce fechas, la capa se
+pinta suave —interpolada, sin cuadros— y el clic devuelve los grados (42,8 °C en un punto del
+corredor el 9 de mayo; «ahí no se midió» en un punto que el 13 de agosto estaba bajo nube). Cambiar
+de día es instantáneo.
+
+**Y así salieron dos fallos que ninguna prueba podía ver, los dos con el mismo síntoma —se pulsa el
+interruptor y NO PASA NADA, sin capa, sin error y sin una sola petición de red—:**
+
+1. **El mapa vivía en una referencia**, y una referencia no despierta efectos: si el efecto de una
+   capa caía en el instante en que la referencia era `null` o apuntaba a un mapa ya retirado, salía
+   por su guarda y no volvía nunca. El mapa pasa al ESTADO (`32 · L-58`).
+2. **`isStyleLoaded()` no era la puerta.** No contesta «¿está el estilo listo?» sino «¿está TODO
+   cargado?»: es `false` mientras a cualquier fuente le falte una tesela, así que con el mapa base de
+   4,3 MB podía no ponerse en `true` nunca. La puerta buena es el evento `load` del mapa. Una prueba
+   prohíbe que `isStyleLoaded()` vuelva a usarse como puerta.
+
+Y una tercera de cortesía: entregar la rejilla como PNG codificado tardaba segundos sin decir nada.
+Ahora MapLibre lee el lienzo directamente y el aviso de «midiendo…» sale junto al interruptor.

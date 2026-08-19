@@ -74,8 +74,12 @@
   `isSourceLoaded()` contesta «¿me falta algo de lo que pedí?», no «¿tengo algo?». Para saber si una
   capa de imagen está viva hay que mirar la PANTALLA.
 - **El acompañante del mismo viaje:** el efecto corría antes de que el estilo estuviera armado y
-  reventaba con un `TypeError` invisible. Se espera a `isStyleLoaded()` y se reintenta con
-  `styledata` — con UN dueño, porque la capa siguiente volvió a caer ahí.
+  reventaba con un `TypeError` invisible. ⚠️ **El primer arreglo —esperar a `isStyleLoaded()`— era
+  la puerta EQUIVOCADA y costó tres despliegues más:** esa función no contesta «¿está el estilo
+  listo?» sino «¿está TODO cargado?», y devuelve `false` mientras a cualquier fuente le falte una
+  tesela. Con un archivo de teselas grande puede quedarse en `false` indefinidamente, y el efecto
+  que la espera **no se ejecuta jamás**. La puerta buena es el evento **`load` del mapa**, guardado
+  en el estado: a partir de ahí `addSource` es seguro.
 
 ### L-15 · El worker de MapLibre nace muerto en producción si no se le da su URL
 - **Síntoma:** mapa gris para siempre, sin un solo error. El estilo carga sus 71 capas, el archivo de
@@ -105,24 +109,20 @@
 ## Del cálculo a los ojos: despliegue, cifras y promesas
 
 ### L-18 · Un despliegue no está vivo hasta que lo ves EN LA PESTAÑA
-- **Tres cachés en serie, y cada una engañó una vez:**
-  1. **El comando miente.** `npm run deploy` imprime *"Deployment complete"* y el dominio raíz sigue
-     sirviendo el paquete ANTERIOR un rato: el alias propaga por el borde con retraso propio.
-  2. **El HTML manda.** `index.html` decide QUÉ paquete se pide; con el HTML viejo en caché se sigue
-     pidiendo el JavaScript viejo aunque el nuevo esté publicado. `web/public/_headers` fija
-     `no-cache` para el HTML y caché eterna para `/assets/*`, que llevan huella en el nombre.
-  3. **El navegador tiene la suya.** Que `curl` vea el hash nuevo NO significa que Chrome lo vea:
-     sirvió su HTML cacheado tres veces seguidas —incluso con `?recarga=N`, que cambia la URL pero
-     no lo guardado—, así que la pantalla verificada era la ANTERIOR y dos defectos pasaron por
-     buenos.
+- **Tres cachés en serie, y cada una engañó una vez:** el comando imprime *"Deployment complete"* y
+  el dominio raíz sirve el paquete ANTERIOR un rato (el alias propaga con retraso) · el `index.html`
+  decide QUÉ paquete se pide, así que con el HTML viejo en caché se sigue pidiendo el JavaScript
+  viejo (`web/public/_headers` fija `no-cache` al HTML y caché eterna a `/assets/*`, que llevan
+  huella) · y el navegador tiene la suya: que `curl` vea el hash nuevo NO significa que Chrome lo
+  vea — sirvió su HTML cacheado tres veces seguidas y dos defectos pasaron por buenos.
 - **Regla, en dos comprobaciones:** contra el borde, `curl -s https://…/ | grep -o
   'assets/index-[^"]*\.js'` frente a `ls web/dist/assets/`; contra el navegador, **preguntarle a la
-  pestaña qué cargó** (`[...document.querySelectorAll('script[src]')].map(s => s.src)`) y recargar
-  en duro. Y a quien verifique, decirle siempre que recargue forzado. Es §3.2 aplicado al despliegue.
-- **El remedio que sí funciona sin tocar el teclado del Ingeniero** (2026-08-03): desde la propia
-  pestaña, `await fetch(location.origin + '/', { cache: 'reload' })` revalida el DOCUMENTO en la
-  caché HTTP; el `location.reload()` siguiente ya trae el paquete nuevo. Cambiar la consulta
-  (`?v=algo`) NO sirve: la entrada cacheada del documento sigue ahí.
+  pestaña qué cargó** (`[...document.querySelectorAll('script[src]')].map(s => s.src)`) y recargar en
+  duro. Es §3.2 aplicado al despliegue.
+- **El remedio sin tocar su teclado** (2026-08-03): desde la pestaña,
+  `await fetch(location.origin + '/', { cache: 'reload' })` revalida el DOCUMENTO; el
+  `location.reload()` siguiente ya trae el paquete nuevo. Cambiar la consulta (`?v=algo`) NO sirve.
+
 
 ### L-20 · La pantalla no puede prometer lo que el archivo no cumple
 - **Síntoma:** la pestaña Exportar afirmaba *"Todos llevan su procedencia adentro"*. Era falso para
