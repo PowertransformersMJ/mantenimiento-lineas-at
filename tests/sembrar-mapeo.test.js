@@ -27,7 +27,8 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-import { construirApoyos, construirInvestigacion, FUNCIONES } from '../herramientas/construir-apoyos.mjs';
+import { construirApoyos, construirInvestigacion, FUNCIONES,
+  documentoParaResembrar, CAMPOS_QUE_NO_SE_RESIEMBRAN } from '../herramientas/construir-apoyos.mjs';
 import { CANONICOS, idEstable, idDePunto, leerRegistro } from '../herramientas/identidad.mjs';
 
 const LINEA = 'LN-627';
@@ -567,5 +568,61 @@ describe('LA AUDITORÍA DEL 16-08', () => {
       () => construir([nuevo('LN-627 PORTICO ORIGEN', null, { insertarAlPrincipio: true })]),
       /ANTES/,
     );
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// RESEMBRAR NO PUEDE PISAR LO QUE ESCRIBIÓ UNA PERSONA
+//
+// El sembrador es idempotente y se corre cuantas veces haga falta — ése es su
+// valor y también su peligro: escribe con `merge`, que fusiona POR CLAVE, así
+// que cada clave que lleve dentro pisa lo que hubiera debajo. Con `revision: 0`
+// en el objeto, una pasada sobre un apoyo ya editado dejaba el siguiente
+// guardado fallando con «otra persona guardó cambios» sin que hubiera ninguna
+// otra persona (`99 §ADR-030` lo dejó declarado como riesgo vivo; lo cierra
+// `§ADR-033`).
+//
+// Esto se puede probar porque la regla vive en el módulo PURO: el sembrador
+// aborta nada más cargarse si no hay credencial de administrador.
+// ════════════════════════════════════════════════════════════════════════════
+describe('RESEMBRAR sobre un documento vivo: la historia no se pisa', () => {
+  const AHORA = '2026-08-19T10:00:00.000Z';
+  const DOC = Object.freeze({
+    id: 'ap-1', orgId: 'org', tipo: 'apoyo', revision: 0,
+    creadoEn: '2026-07-29T00:00:00.000Z', creadoPor: 'sembrador',
+    nombreNormalizado: 'X-01', orden: 1,
+  });
+
+  test('un documento NUEVO va entero: ahí la partida de nacimiento es correcta', () => {
+    assert.deepEqual(documentoParaResembrar(DOC, false, { ahora: AHORA }), DOC);
+  });
+
+  test('uno que YA existe no lleva revision, creadoEn ni creadoPor', () => {
+    const d = documentoParaResembrar(DOC, true, { ahora: AHORA });
+    for (const campo of CAMPOS_QUE_NO_SE_RESIEMBRAN) {
+      assert.ok(!(campo in d), `\`${campo}\` viajó en el re-sembrado y pisaría al documento vivo`);
+    }
+    // El cerrojo es lo que impide que dos personas se pisen: ponerlo a cero
+    // rompe el siguiente guardado con un conflicto que no existe.
+    assert.equal(d.revision, undefined);
+  });
+
+  test('lo demás del levantamiento SÍ se actualiza, y queda quién lo tocó', () => {
+    const d = documentoParaResembrar({ ...DOC, orden: 2.5 }, true, { ahora: AHORA });
+    assert.equal(d.orden, 2.5, 'la geometría de la bóveda sigue mandando');
+    assert.equal(d.nombreNormalizado, 'X-01');
+    assert.equal(d.actualizadoEn, AHORA);
+    assert.equal(d.actualizadoPor, 'sembrador');
+  });
+
+  test('la ficha que declaró una persona no viaja en el sembrado, así que no se pisa', () => {
+    // El sembrador no trae ninguno de los seis campos de la ficha (`ADR-030`) ni
+    // sus sellos. Se fija aquí para que el día que alguien los añada al fixture
+    // esta prueba se caiga y obligue a decidirlo a propósito.
+    const d = documentoParaResembrar(DOC, true, { ahora: AHORA });
+    for (const campo of ['procedencias', 'alturaLibre_m', 'alturaAplicacion_m',
+      'cargaRotura_kgf', 'capacidadLongitudinal', 'nFasesAmarradas', 'tipoApoyo']) {
+      assert.ok(!(campo in d), `el sembrador lleva \`${campo}\`: pisaría lo que midió una persona`);
+    }
   });
 });

@@ -3218,3 +3218,73 @@ eje— se leyó en el motor, no se deliberó. La evidencia reproducible son las 
 `tests/cargas.test.js` · `tests/longitudinal.test.js` (4 nuevas, con las dos alarmas falsas que NO
 deben saltar) · `tests/gerencial.test.js` · `tests/exportar-calculo.test.js`. `npm test` = **1.476**
 (contado hoy: `npm test | grep '^ℹ tests'`).
+
+
+## ADR-033 · 2026-08-19 · El sembrador respeta el cerrojo: lo que escribió una persona no se resiembra
+
+**Estado:** ✅ Decidido · ⚠️ **NO revisada externamente** · ⬜ **sin correr contra la base**
+(la regla se prueba entera en el módulo puro; la pasada real necesita la llave de administración,
+que hoy no está — ver `10`).
+
+### Contexto
+
+`ADR-030` lo dejó escrito como riesgo vivo: *«`herramientas/sembrar.mjs:106` mete `revision: 0` y la
+307 hace `set(..., {merge:true})` con SDK de administrador: sembrar sobre un apoyo ya editado lo
+devuelve a revisión 0 en silencio, y el siguiente guardado fallaría con el mensaje de "otra persona
+guardó cambios" sin que hubiera ninguna otra persona. Hay que decidir si el sembrador respeta la
+revisión o deja de tocar apoyos ya editados.»* Es `TODO-70` ④, y **empieza a doler justo ahora**: el
+cuello de botella es que el Ingeniero meta las fichas (`TODO-57`), y el primer apoyo que edite es el
+primero que este defecto puede romper.
+
+El daño no es sólo la alarma falsa. `revision` es el cerrojo optimista que compara
+`web/src/datos/firestore.ts` antes de escribir; una revisión que va **hacia atrás** deja de detectar
+el choque de verdad. Y un cerrojo que da alarmas falsas se acaba desactivando.
+
+### Decisión
+
+**Se lee antes de escribir, y de lo que ya existe no se pisan tres campos:** `revision`, `creadoEn` y
+`creadoPor` (`CAMPOS_QUE_NO_SE_RESIEMBRAN`). En su lugar se estampa `actualizadoEn` /
+`actualizadoPor`, que es lo que de verdad hizo el sembrador.
+
+**Los otros dos campos entran en la misma regla y no por simetría:** volver a sellar `creadoEn` con
+la fecha de hoy y `creadoPor` con «sembrador» borra que ese apoyo lo creó una persona en julio. En
+este sistema una corrección es un **hecho fechado**, nunca una sobrescritura (`CLAUDE.md §3.1`).
+
+**Se lee de la base y aquí sí se puede.** Este script habla con el SDK de administrador, que no pasa
+por las reglas. Desde el navegador NO se puede —las reglas **deniegan** leer un documento que aún no
+existe, y por eso `ADR-028` resolvió lo suyo por otro camino—. Misma prohibición, dos caminos: no es
+contradicción, y queda dicho en el propio código para que nadie lo «arregle».
+
+**La regla vive en el módulo PURO** (`herramientas/construir-apoyos.mjs`), no en el script: el
+sembrador aborta nada más cargarse si no hay credencial, así que una regla escrita ahí dentro es una
+regla que ninguna prueba puede tocar. Es la misma razón por la que ese módulo existe.
+
+**El sembrador DICE lo que se encontró:** cuántos documentos ya existían, cuáles los ha editado
+alguien desde la aplicación (revisión > 0) y cuántos campos de ficha declarados tienen. El sembrador
+no trae esos campos y por tanto no los toca — pero que sea verdad hoy no significa que lo sepa quien
+corra el script.
+
+### Alternativas descartadas
+
+- **Que el sembrador se salte los apoyos con revisión > 0.** Era la otra opción que `ADR-030` puso
+  sobre la mesa, y deja fuera lo que el sembrador sí debe actualizar: la geometría de la bóveda, que
+  es su fuente de verdad. Un apoyo editado dejaría de recibir una corrección de coordenada.
+- **Escribir `revision` con un incremento (`FieldValue.increment(0)`).** No toca el valor, pero sigue
+  siendo el sembrador metiendo mano en el cerrojo de otro; y en un documento nuevo no vale.
+- **Quitar `revision` del sembrado también en los documentos nuevos.** Entonces el primer guardado
+  desde la aplicación compararía contra un campo ausente. `revision: 0` en el alta es correcto.
+
+### Consecuencias
+
+- **El Ingeniero puede editar fichas sin que la siguiente siembra le rompa el guardado.** Es la
+  condición para que `TODO-57` —el cuello de botella real— se pueda trabajar sin sobresaltos.
+- **Una pasada del sembrador ya no rejuvenece los documentos:** `creadoEn` sigue diciendo julio.
+- **Cuesta una lectura por documento** (`db.getAll`) antes del lote. Son 27 documentos: irrelevante,
+  y las lecturas de una siembra manual no mueven la factura (`31 · L-02`).
+- **Queda sin correr contra la base real.** La regla está probada en el módulo puro (4 pruebas), y la
+  pasada real espera a que la llave de administración vuelva a existir.
+
+### Crudo de respaldo
+
+*(sin comité: la decisión venía acotada a dos opciones por `ADR-030` y se eligió la que no pierde
+correcciones de geometría. Evidencia: `tests/sembrar-mapeo.test.js`.)*

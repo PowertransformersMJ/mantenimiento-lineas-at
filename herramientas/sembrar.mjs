@@ -33,7 +33,8 @@ import { initializeApp, cert, applicationDefault } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
 import { CANONICOS, ORG_POR_DEFECTO, RUTA_REGISTRO, emitirSemillas, idDeSemilla } from './identidad.mjs';
-import { construirApoyos, construirInvestigacion } from './construir-apoyos.mjs';
+import { construirApoyos, construirInvestigacion, documentoParaResembrar,
+  CAMPOS_QUE_NO_SE_RESIEMBRAN } from './construir-apoyos.mjs';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
 const RAIZ = join(AQUI, '..');
@@ -290,6 +291,9 @@ async function sembrar() {
     console.log(`\n   línea      : ${lineaId}`);
     console.log(`   hipótesis  : ${hipotesisId}`);
     if (investigacion) console.log(`   expediente : ${investigacion.id} → apoyo ${investigacion.apoyoId}`);
+    console.log(`\n♻️  De lo que YA exista en la base no se pisa `
+      + `${CAMPOS_QUE_NO_SE_RESIEMBRAN.join(', ')} (\`99 §ADR-033\`): sin credencial no se`);
+    console.log('   puede leer qué hay, así que aquí solo se declara la regla.');
     console.log('\n🌵 Modo seco: no se escribió nada.');
     console.log('   Un id que se mueve deja huérfanas las fotos y el expediente, y NO da');
     console.log('   ningún error: la pantalla simplemente dice «no identificada». Por eso');
@@ -301,11 +305,59 @@ async function sembrar() {
   const db = getFirestore();
   db.settings({ ignoreUndefinedProperties: true });
 
+  // ── Qué hay YA en la base ─────────────────────────────────────────────────
+  //
+  // ⚠️ SE LEE ANTES DE ESCRIBIR, y no es una optimización: es la única forma de
+  // no pisarle a un documento vivo su `revision`, su `creadoEn` y su `creadoPor`
+  // (ver `CAMPOS_QUE_NO_SE_RESIEMBRAN`). `set(..., {merge:true})` fusiona por
+  // CLAVE: la clave que va en el objeto se escribe, exista lo que exista debajo.
+  //
+  // Aquí sí se puede preguntar: este script habla con el SDK de administrador,
+  // que no pasa por las reglas. Desde el navegador NO se puede —las reglas
+  // deniegan leer un documento que aún no existe (`99 §ADR-028`)— y por eso allí
+  // la solución fue otra. Misma prohibición, dos caminos: no es contradicción.
+  const refDe = (col, id) => db.collection(col).doc(id);
+  const aEscribir = [
+    { ref: refDe('lineas', lineaId), doc: linea, que: 'la línea' },
+    { ref: refDe('hipotesis', hipotesisId), doc: hipotesis, que: 'la hipótesis' },
+    ...apoyos.map((a) => ({ ref: refDe('apoyos', a.id), doc: a, que: a.nombreNormalizado })),
+    ...(investigacion
+      ? [{ ref: refDe('investigaciones', investigacion.id), doc: investigacion, que: 'el expediente' }]
+      : []),
+  ];
+  const actuales = await db.getAll(...aEscribir.map((x) => x.ref));
+
+  const respetados = [];
   const lote = db.batch();
-  lote.set(db.collection('lineas').doc(lineaId), linea, { merge: true });
-  lote.set(db.collection('hipotesis').doc(hipotesisId), hipotesis, { merge: true });
-  for (const a of apoyos) lote.set(db.collection('apoyos').doc(a.id), a, { merge: true });
-  if (investigacion) lote.set(db.collection('investigaciones').doc(investigacion.id), investigacion, { merge: true });
+  aEscribir.forEach((x, i) => {
+    const existe = actuales[i].exists;
+    if (existe) {
+      respetados.push({
+        que: x.que,
+        revision: actuales[i].data()?.revision ?? 0,
+        // Un apoyo con ficha declarada por una persona: el sembrador no trae
+        // esos campos y por tanto no los toca, pero se DICE — que sea verdad
+        // hoy no significa que quien corra esto lo sepa.
+        conFicha: Object.keys(actuales[i].data()?.procedencias ?? {}).length,
+      });
+    }
+    lote.set(x.ref, documentoParaResembrar(x.doc, existe, { ahora: AHORA }), { merge: true });
+  });
+
+  const editados = respetados.filter((r) => r.revision > 0);
+  if (respetados.length) {
+    console.log(`\n♻️  ${respetados.length} documento(s) ya existían: se les respeta`
+      + ` ${CAMPOS_QUE_NO_SE_RESIEMBRAN.join(', ')}.`);
+    if (editados.length) {
+      console.log(`   ${editados.length} lo(s) ha editado alguien desde la aplicación`
+        + ` — poner su revisión a cero les rompería el siguiente guardado con un`);
+      console.log('   conflicto que no existe:');
+      for (const r of editados) {
+        console.log(`   · ${r.que} — revisión ${r.revision}`
+          + (r.conFicha ? ` · ${r.conFicha} campo(s) de ficha declarados (no se tocan)` : ''));
+      }
+    }
+  }
   lote.set(db.collection('config').doc('ia'), {
     enabled: false, actualizadoEn: FieldValue.serverTimestamp(),
     nota: 'Apagado hasta que existan los papeles de tratamiento de datos con el cliente (ADR-004).',

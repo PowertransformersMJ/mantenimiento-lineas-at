@@ -32,6 +32,50 @@
 import { CANONICOS, ORG_POR_DEFECTO, idDePunto, idDeSemilla, leerRegistro, verificarRegistro } from './identidad.mjs';
 
 /**
+ * LO QUE UN DOCUMENTO YA ESCRITO NO DEJA QUE NADIE LE PISE.
+ *
+ * `revision` es el CERROJO con el que la aplicación impide que dos personas se
+ * pisen al guardar: la pantalla trae la revisión que leyó y la base la compara
+ * antes de escribir. El sembrador la ponía a 0 en cada pasada, así que sembrar
+ * sobre un apoyo que alguien ya había editado dejaba el siguiente guardado
+ * fallando con «otra persona guardó cambios» **sin que hubiera ninguna otra
+ * persona** — y un cerrojo que da alarmas falsas se acaba desactivando. Peor
+ * todavía: una revisión que va HACIA ATRÁS deja de detectar el choque de verdad.
+ *
+ * `creadoEn` y `creadoPor` son la partida de nacimiento del documento. Volver a
+ * sellarlas con la fecha de hoy y con «sembrador» borra que ese apoyo lo creó
+ * una persona en julio. En este sistema una corrección es un HECHO FECHADO,
+ * nunca una sobrescritura (`CLAUDE.md §3.1`).
+ *
+ * @see `99 §ADR-033`
+ */
+export const CAMPOS_QUE_NO_SE_RESIEMBRAN = Object.freeze(['revision', 'creadoEn', 'creadoPor']);
+
+/**
+ * El documento tal como hay que escribirlo cuando YA existe uno en la base.
+ *
+ * Se quitan los campos de historia y se estampa quién lo tocó y cuándo — que es
+ * lo que de verdad hizo el sembrador. Si el documento NO existe, va entero: ahí
+ * `revision: 0` y la partida de nacimiento son correctas y hacen falta.
+ *
+ * PURA a propósito: decide qué se escribe sin saber hablar con Firestore, y por
+ * eso se puede probar sin llave de administrador — que es justo lo que hasta hoy
+ * hacía imposible probar esta regla.
+ *
+ * @param {Object} doc     el documento que produjo el sembrador
+ * @param {boolean} existe si la base ya tiene uno con ese id
+ * @param {{ahora:string, quien?:string}} opciones
+ */
+export function documentoParaResembrar(doc, existe, { ahora, quien = 'sembrador' } = {}) {
+  if (!existe) return doc;
+  const salida = {};
+  for (const [k, v] of Object.entries(doc ?? {})) {
+    if (!CAMPOS_QUE_NO_SE_RESIEMBRAN.includes(k)) salida[k] = v;
+  }
+  return { ...salida, actualizadoEn: ahora, actualizadoPor: quien };
+}
+
+/**
  * Funciones estructurales admitidas. Es una lista blanca a propósito: un valor
  * que no esté aquí es un error del fixture, no un caso a interpretar.
  */
