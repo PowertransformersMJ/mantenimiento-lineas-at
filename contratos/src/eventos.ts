@@ -40,6 +40,23 @@ export const Inspeccion = Base.extend({
 export const Evidencia = Base.extend({
   tipo: z.literal('evidencia'),
   /**
+   * DE QUÉ LÍNEA ES ESTA FOTOGRAFÍA.
+   *
+   * ⚠️ Este campo YA se escribía y el molde NO lo declaraba, así que lo
+   * descartaba en silencio. No molestó mientras la única vía de subida fue el
+   * guion de consola —que no pasa por el molde—, y por eso las fotografías que
+   * hoy están en producción sí lo llevan. En cuanto la aplicación empezó a
+   * subir, apareció el daño: la galería busca las fotos con
+   * `where('lineaId','==',…)`, así que las que entraran por el camino nuevo
+   * habrían quedado **invisibles** — y las evidencias no se pueden borrar
+   * (`firestore.rules`, `allow delete: if false`). Fotos pagadas, guardadas y
+   * que nadie vería nunca, sin un solo error por el camino.
+   *
+   * Va OBLIGATORIO, no opcional: una evidencia que no dice de qué línea es no la
+   * encuentra nadie, y ese es justo el estado que esto viene a impedir.
+   */
+  lineaId: Id,
+  /**
    * De QUÉ cuelga esta evidencia. Eran obligatoriamente de una inspección; hoy
    * también pueden serlo de una investigación de falla, que es un expediente y
    * no una campaña de inspección (ADR-008), o **directamente de un APOYO**

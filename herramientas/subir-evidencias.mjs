@@ -31,6 +31,10 @@ import { fileURLToPath } from 'node:url';
 import { initializeApp, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { idDeSemilla } from './identidad.mjs';
+import {
+  MIME, NOMBRES_INDICE as NOMBRES_DE_INDICE, clasificarArchivos, describirProblema,
+  claveDeObjeto, prepararReparto,
+} from '@lineas/importar/evidencias';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
 const RAIZ = join(AQUI, '..');
@@ -69,12 +73,24 @@ const entradaDe = (archivo) => INDICE.find((p) => p.archivo === archivo);
 const pieDe = (archivo) => entradaDe(archivo)?.pie ?? undefined;
 
 /**
- * ⚠️ Cuando el origen exige asignar cada foto a un apoyo, el índice NO es
- * opcional: es la única fuente del número de punto. Sin él no se sube nada —
- * mal asignadas son peores que ausentes, porque una foto colgada del apoyo
- * equivocado se lee como evidencia de algo que no ocurrió ahí.
+ * ⚠️ SE EXIGE APOYO SIEMPRE. Solo lo apaga una bandera explícita, `--sin-apoyo`.
+ *
+ * EL FALLO QUE ESTO CIERRA, y era el más barato de cometer de todos. Antes esto
+ * decía `const EXIGE_APOYO = ORIGEN === 'estructuras'`. Con la carpeta de hoy
+ * —que se llama `registro-2026-08`— la comparación da `false`, así que las 205
+ * fotos habrían subido SIN apoyo, sin una sola línea de aviso: ni un error, ni
+ * una advertencia, ni una tabla. Escribir mal un argumento apagaba en silencio
+ * la única comprobación que impide que una foto cuelgue del sitio equivocado.
+ *
+ * Una salvaguarda que se desactiva sola cuando el usuario se equivoca de nombre
+ * falla ABIERTO, que es justo lo contrario de lo que hace falta aquí: las
+ * reglas de la base prohíben borrar una evidencia. Ahora hay que PEDIR que se
+ * apague, y quien la pide sabe lo que está pidiendo.
+ *
+ * Y el índice NO es opcional: es la única fuente de la CARPETA de cada archivo,
+ * que es el primer eslabón de la cadena hasta el nombre canónico.
  */
-const EXIGE_APOYO = ORIGEN === 'estructuras';
+const EXIGE_APOYO = !bandera('sin-apoyo');
 if (EXIGE_APOYO && !RUTA_INDICE) {
   console.error(`❌ El origen «${ORIGEN}» asigna cada foto a un apoyo y no hay índice en la bóveda.`);
   console.error(`   Se buscó: ${NOMBRES_INDICE.map((n) => join(DIR, n)).join('\n             ')}`);
@@ -82,11 +98,45 @@ if (EXIGE_APOYO && !RUTA_INDICE) {
   process.exit(1);
 }
 
-const MIME = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp', '.pdf': 'application/pdf' };
+/**
+ * El mapa de carpetas de la bóveda: de qué carpeta es qué punto, escrito a mano
+ * por el Ingeniero y EN ORDEN DE RECORRIDO — ese orden es lo que comprueba el
+ * control anti-transposición.
+ *
+ * NO es opcional cuando se asigna apoyo: es el segundo eslabón de la cadena
+ * (carpeta → nombre canónico) y sin él no hay asignación posible.
+ *
+ * NUNCA se copia al repositorio: una de esas carpetas lleva el nombre de una
+ * instalación del cliente (`33 · L-50`). Es el MISMO archivo que lee la pestaña
+ * «Fotos» de la aplicación — un documento, dos lectores.
+ */
+const RUTA_MAPA = join(DIR, '..', `mapa-carpetas-${CODIGO_LINEA}.json`);
+const MAPA = existsSync(RUTA_MAPA) ? JSON.parse(readFileSync(RUTA_MAPA, 'utf-8')) : null;
+if (EXIGE_APOYO && !MAPA) {
+  console.error(`\n❌ No está el mapa de carpetas en la bóveda:\n   ${RUTA_MAPA}`);
+  console.error('   Ahí es donde usted declara qué carpeta es qué punto. Sin ese papel no hay');
+  console.error('   forma de saber de qué apoyo es cada foto, y adivinarlo es justo lo que este');
+  console.error('   sistema no va a hacer. (Para subir sin asignar apoyo: --sin-apoyo)\n');
+  process.exit(1);
+}
 
-const archivos = readdirSync(DIR)
-  .filter((f) => MIME[extname(f).toLowerCase()])
-  .sort();
+// ── Qué archivos se saben servir, y los que NO se paran ─────────────────────
+//
+// ANTES esto era un `.filter()`: lo que no reconocía, desaparecía sin un solo
+// aviso. Con un registro hecho con iPhone —donde casi todo es HEIC— eso
+// significaba subir un puñado de fotos, imprimir un «listo» en verde, y que el
+// resto no existiera para nadie. El silencio era el fallo, no el formato.
+const { aceptados, desconocidos } = clasificarArchivos(readdirSync(DIR).sort(), { ignorar: NOMBRES_DE_INDICE });
+
+if (desconocidos.length) {
+  console.error(`\n❌ ${desconocidos.length} archivo(s) en un formato que este sistema no sabe mostrar. NO se sube ninguno:`);
+  for (const d of desconocidos.slice(0, 10)) console.error(`   · ${describirProblema({ clase: 'extension-desconocida', archivo: d })}`);
+  if (desconocidos.length > 10) console.error(`   · … y ${desconocidos.length - 10} más`);
+  console.error('\n   Los formatos admitidos son: ' + Object.keys(MIME).join(', ') + '\n');
+  process.exit(1);
+}
+
+const archivos = aceptados.map((a) => a.archivo);
 
 if (!archivos.length) {
   console.error(`❌ No hay imágenes en ${DIR}`);
@@ -138,12 +188,19 @@ const lote = archivos.map((archivo) => {
   const sha256 = createHash('sha256').update(bytes).digest('hex');
   // La clave lleva la huella: dos ficheros distintos nunca se pisan, y el mismo
   // fichero subido dos veces cae en la misma clave. Idempotencia gratis.
-  const clave = `${CODIGO_LINEA}/${ORIGEN}/${sha256.slice(0, 12)}-${archivo}`;
+  const clave = claveDeObjeto(CODIGO_LINEA, ORIGEN, sha256, archivo);
   return {
     archivo, ruta, sha256, clave,
     bytes: bytes.length,
     mime: MIME[extname(archivo).toLowerCase()],
     pie: pieDe(archivo),
+    // ⚠️ DE DÓNDE SALIÓ, no a dónde va. El índice de la bóveda declara la
+    // CARPETA; el nombre canónico lo pone el MAPA, y el apoyo lo pone la base.
+    // El intento anterior leía aquí un `nombreCanonico` que el índice NO TIENE
+    // —sus claves son carpeta, archivo, origen, tomadaEn, sha256, bytes— así que
+    // devolvía indefinido para las 205 fotos y el guion abortaba siempre, en la
+    // primera corrida, con 205 paradas idénticas.
+    carpeta: entradaDe(archivo)?.carpeta,
   };
 });
 
@@ -156,79 +213,106 @@ for (const x of lote) {
 
 // ── A QUÉ APOYO va cada foto, y que lo vea una persona ─────────────────────
 //
-// LA TRAMPA, y por qué esta tabla existe. El número del archivo (`eNN`) NO es
-// el número de estructura: es el número de PUNTO del levantamiento, y ahí
-// dentro van también los empalmes. En LN-627 hay empalmes en los puntos 6 y 8,
-// así que a partir de ahí todo se corre dos posiciones:
+// LA REGLA, desde ADR-029: la foto declara el NOMBRE del punto y ese nombre se
+// busca en el campo `nombreNormalizado` del documento que ya está en la base.
+// Nunca por posición.
 //
-//     e06 → EMPALME E05-E06   ·   e07 → estructura E06   ·   e09 → E07 …
+// LO QUE HABÍA ANTES, y por qué se quitó. La foto declaraba su número de PUNTO
+// del levantamiento y se restaba uno para buscarlo en el índice de posiciones.
+// Daba el resultado correcto —los empalmes ocupan puesto en la serie y la resta
+// lo compensaba— pero por casualidad, no por diseño: en cuanto entra un punto
+// por delante, la serie entera se corre y todas las fotos ya colgadas cambian
+// de apoyo. Y como la ficha se escribe con `merge`, una nueva corrida pisaría
+// la asignación buena sin dejar rastro. Es la misma mina que ADR-027 desactivó
+// para la identidad de los apoyos; esto la desactiva para las fotos.
 //
-// Leer «e07 = E07» desplazaría 9 de los 14 grupos —54 de las 99 fotos— a un
-// apoyo equivocado. Sería creíble y estaría mal, y nadie lo notaría hasta que
-// alguien fuera al sitio. Por eso la asignación se IMPRIME antes de tocar nada:
-// es la única oportunidad barata de que el Ingeniero la revise con sus ojos.
-// El sistema no certifica; certifica quien firma.
+// La asignación se IMPRIME antes de tocar nada: es la única oportunidad barata
+// de que el Ingeniero la revise con sus ojos, y las reglas prohíben borrar una
+// evidencia mal colgada. El sistema no certifica; certifica quien firma.
 if (EXIGE_APOYO) {
-  if (!clave) {
-    console.error('\n❌ Para asignar cada foto a su apoyo hay que LEER la base (no se recalculan ids).');
-    console.error('   Añada GOOGLE_APPLICATION_CREDENTIALS, también en modo seco.\n');
-    process.exit(1);
+  // ⚠️ REVISAR NO PUEDE EXIGIR LA LLAVE MAESTRA.
+  //
+  // Antes esto abortaba en modo `--seco` si no había credencial. O sea que el
+  // paso «que lo revise una persona ANTES de escribir nada» era justo el que
+  // pedía la llave que este proyecto quiere dejar de usar. Ahora en seco se
+  // enseña todo lo que se puede saber sin la base —la cadena carpeta → punto,
+  // que es donde se cometen los errores caros— y se DICE, con esas palabras,
+  // qué parte no se pudo comprobar. Un hueco declarado vale; un hueco disfrazado
+  // de comprobación, no.
+  let apoyos = [];
+  let seLeyoLaBase = false;
+  if (clave) {
+    initializeApp({ credential: cert(JSON.parse(readFileSync(clave, 'utf-8'))) });
+    db = getFirestore();
+    db.settings({ ignoreUndefinedProperties: true });
+    const snap = await db.collection('apoyos')
+      .where('orgId', '==', ORG).where('lineaId', '==', idEstable('linea')).get();
+    // ⚠️ Se LEE el documento y se usa SU id; no se re-deriva con la fórmula del
+    // sembrador. Copiar la fórmula haría que el día que el sembrador cambie de
+    // semilla las fotos apunten a documentos inexistentes, sin un solo error.
+    apoyos = snap.docs.map((d) => d.data());
+    seLeyoLaBase = true;
   }
-  initializeApp({ credential: cert(JSON.parse(readFileSync(clave, 'utf-8'))) });
-  db = getFirestore();
-  db.settings({ ignoreUndefinedProperties: true });
 
-  const snap = await db.collection('apoyos')
-    .where('orgId', '==', ORG).where('lineaId', '==', idEstable('linea')).get();
-  // ⚠️ Se LEE el documento y se usa SU id; no se re-deriva con la fórmula del
-  // sembrador. Copiar la fórmula haría que el día que el sembrador cambie de
-  // semilla las fotos apunten a documentos inexistentes, sin un solo error.
-  const porOrden = new Map(snap.docs.map((d) => [d.data().orden, d.data()]));
-  if (!porOrden.size) {
-    console.error('\n❌ No hay apoyos de esta línea en la base. Corra antes el sembrador.\n');
-    process.exit(1);
-  }
+  // LA CADENA ENTERA, de una sola llamada: archivo → carpeta → nombre canónico
+  // → apoyo. Es la MISMA función que usa la pestaña «Fotos» de la aplicación.
+  const { asignaciones, grupos, problemas, filas, resumen } = prepararReparto({
+    mapa: MAPA,
+    entradas: lote,
+    apoyos,
+    codigoLinea: CODIGO_LINEA,
+    origen: ORIGEN,
+  });
 
-  const sinResolver = [];
-  for (const x of lote) {
-    const n = entradaDe(x.archivo)?.estructuraPunto;
-    const apoyo = Number.isInteger(n) ? porOrden.get(n - 1) : undefined;
-    if (!apoyo) { sinResolver.push(`${x.archivo} (punto ${n ?? '—'})`); continue; }
-    x.punto = n;
-    x.apoyoId = apoyo.id;
-    x.apoyoNombre = apoyo.nombreNormalizado ?? apoyo.nombreCampo;
-    x.apoyoCampo = apoyo.nombreCampo;
-    x.esEmpalme = (apoyo.tipoPunto ?? 'Estructura') === 'Empalme';
-  }
+  // En seco sin credencial no hay apoyos que casar: las paradas que hablan de la
+  // BASE no son verdad todavía y decirlas sería mentir en la dirección cara.
+  const deLaBase = new Set(['base-sin-apoyos', 'canonico-sin-apoyo', 'apoyo-repetido', 'apoyo-sin-nombre']);
+  const reales = seLeyoLaBase ? problemas : problemas.filter((p) => !deLaBase.has(p.clase));
 
   // TODO o NADA. La mitad de las fotos bien colgadas y la otra mitad en el limbo
   // es peor que ninguna: deja el expediente en un estado que nadie audita.
-  if (sinResolver.length) {
-    console.error(`\n❌ ${sinResolver.length} archivo(s) no resuelven apoyo. NO se sube ninguno:`);
-    for (const s of sinResolver.slice(0, 10)) console.error(`   · ${s}`);
+  if (reales.length) {
+    console.error(`\n❌ ${reales.length} problema(s) de asignación. NO se sube ni un archivo:\n`);
+    for (const p of reales.slice(0, 12)) console.error(`   · ${describirProblema(p)}`);
+    if (reales.length > 12) console.error(`   · … y ${reales.length - 12} más`);
+    console.error('');
     process.exit(1);
   }
 
-  const grupos = new Map();
-  for (const x of lote) {
-    const g = grupos.get(x.punto) ?? { ...x, n: 0 };
-    grupos.set(x.punto, { ...g, n: g.n + 1 });
+  if (seLeyoLaBase) {
+    // Se sustituye el lote por las asignaciones: llevan lo mismo más el apoyo.
+    lote.length = 0;
+    lote.push(...asignaciones);
   }
+
   console.log('\n🎯 ASIGNACIÓN — revísela ANTES de que se suba nada\n');
-  console.log(`   ${'archivos'.padEnd(10)} ${'punto'.padStart(5)}  ${'nombre en el GPS'.padEnd(18)} ${'a qué apoyo va'.padEnd(22)} fotos`);
-  console.log(`   ${'─'.repeat(76)}`);
-  for (const [n, g] of [...grupos.entries()].sort((a, b) => a[0] - b[0])) {
-    const marca = g.esEmpalme ? '  ⚠️ EMPALME (no es un apoyo)' : '';
-    console.log(`   e${String(n).padStart(2, '0')}-*${' '.repeat(5)} ${String(n).padStart(5)}  ${String(g.apoyoCampo).padEnd(18)} ${String(g.apoyoNombre).padEnd(22)} ${String(g.n).padStart(4)}${marca}`);
+  console.log(`   ${'de dónde salió'.padEnd(28)} ${'punto'.padEnd(22)} ${'nombre en el GPS'.padEnd(18)} fotos`);
+  console.log(`   ${'─'.repeat(88)}`);
+  if (seLeyoLaBase) {
+    for (const g of grupos) {
+      const marcas = g.esEmpalme ? '⚠️ EMPALME (no es un apoyo)' : '';
+      console.log(`   ${String(g.carpeta ?? '—').padEnd(28)} ${String(g.nombreCanonico).padEnd(22)} ${String(g.apoyoCampo).padEnd(18)} ${String(g.fotos).padStart(4)}  ${marcas}`);
+    }
+    console.log(`   ${'─'.repeat(88)}`);
+    console.log(`   ${resumen.fotos} fotos en ${resumen.puntos} punto(s)`);
+    console.log(`   ${resumen.enEmpalmes} de ellas en EMPALMES, que en este sistema NO son apoyos`);
+    console.log('   (colgarlas de la estructura vecina «para no perderlas» sería inventar procedencia)\n');
+  } else {
+    const cuenta = new Map();
+    for (const x of lote) cuenta.set(x.carpeta, (cuenta.get(x.carpeta) ?? 0) + 1);
+    for (const f of filas) {
+      console.log(`   ${String(f.carpeta).padEnd(28)} ${String(f.nombreCanonico).padEnd(22)} ${'(sin leer la base)'.padEnd(18)} ${String(cuenta.get(f.carpeta) ?? 0).padStart(4)}`);
+    }
+    console.log(`   ${'─'.repeat(88)}`);
+    console.log('   ⚠️ NO SE LEYÓ LA BASE: no hay credencial. Lo que sí está comprobado es la cadena');
+    console.log('      carpeta → punto y que dos filas del mapa no estén cruzadas. Lo que NO está');
+    console.log('      comprobado es que esos puntos existan en la base ni de qué apoyo cuelgan.\n');
   }
-  const enEmpalmes = lote.filter((x) => x.esEmpalme).length;
-  console.log(`   ${'─'.repeat(76)}`);
-  console.log(`   ${lote.length} fotos · ${enEmpalmes} de ellas en EMPALMES, que en este sistema NO son apoyos`);
-  console.log('   (colgarlas de la estructura vecina «para no perderlas» sería inventar procedencia)\n');
 }
 
 if (SECO) {
-  console.log('\n🌵 Modo seco: no se subió ni se escribió nada.\n');
+  console.log('\n🌵 Modo seco: no se subió ni se escribió nada.');
+  console.log('   Si esta tabla es la que usted esperaba, repita la orden sin --seco.\n');
   process.exit(0);
 }
 

@@ -6,13 +6,32 @@
 // depósito PÚBLICO —y dejar las fotos de un cliente accesibles en internet para
 // cualquiera con el enlace— o dejar las fotos fuera del sistema. Ninguna sirve.
 //
-// Este trabajador es ese algo en medio, y hace UNA cosa: comprueba que quien
-// pide una foto trae una sesión válida de la organización dueña del dato, y
-// solo entonces la entrega. No escribe, no borra y no lista — pero eso es una
-// COSTUMBRE de este archivo, no un permiso: el binding de R2 expone el depósito
-// entero, con `put`, `delete` y `list`. Se dice porque una barrera imaginaria
-// es peor que ninguna: el día que alguien relaje la de verdad, la decisión se
-// tomará contando con una protección que no existe (§ADR-013, hallazgo 19).
+// Este trabajador es ese algo en medio: comprueba que quien pide —o sube— una
+// foto trae una sesión válida de la organización dueña del dato.
+//
+// ⚠️ DESDE EL 2026-08-17 TAMBIÉN ESCRIBE. Hasta ese día solo leía, y el propio
+// archivo advertía de que esa barrera era una COSTUMBRE y no un permiso. El
+// Ingeniero autorizó abrirla —para poder subir fotografías desde el teléfono en
+// campo, sin la llave maestra— con dos condiciones puestas por escrito, que son
+// las dos decisiones de diseño de abajo. Sigue sin BORRAR y sin LISTAR.
+//
+// CONDICIÓN 1 — EL CLIENTE NO ELIGE DÓNDE SE GUARDA.
+//   La clave del objeto la calcula ESTE portero a partir de la huella del
+//   contenido que recibe. El primer diseño dejaba que el cliente propusiera la
+//   clave y comprobaba «que llevara la huella dentro»; se demostró que una clave
+//   preparada pasaba esa comprobación y podía pisar la foto de otro. No se
+//   parcheó: se quitó el problema. Si el cliente no elige la ruta, no hay ruta
+//   que falsificar — y como la ruta sale del contenido, subir dos veces la misma
+//   foto es la misma clave, no una copia.
+//
+// CONDICIÓN 2 — TOPES DE VERDAD, PORQUE NADA SE PUEDE BORRAR.
+//   Lo que entra se queda para siempre (`allow delete: if false` en las reglas y
+//   este portero sin `delete`). Un tope por archivo, un tipo comprobado por los
+//   BYTES —no por lo que diga la cabecera— y la puerta abierta solo a los roles
+//   que trabajan. Lo que NO hay es cuota por día o por sesión: eso exige llevar
+//   la cuenta en algún sitio, o sea infraestructura nueva, y se decidió no
+//   añadirla hoy. Se dice en vez de suponerla (referencia de tarifa: `docs/05`,
+//   R2 con 10 GB gratis, 35 MB usados al 03-08-2026).
 //
 // EL INVARIANTE QUE HAY QUE MANTENER — un depósito, una organización
 //   Con un token válido, este portero responde 404 si el objeto no existe y 200
@@ -113,11 +132,51 @@ async function verificarToken(token, proyecto) {
 
 const cabecerasCors = (origen, permitido) => ({
   'Access-Control-Allow-Origin': origen === permitido ? origen : permitido,
-  'Access-Control-Allow-Methods': 'GET, OPTIONS',
-  'Access-Control-Allow-Headers': 'Authorization',
+  'Access-Control-Allow-Methods': 'GET, PUT, OPTIONS',
+  'Access-Control-Allow-Headers': 'Authorization, Content-Type',
   'Access-Control-Max-Age': '86400',
   Vary: 'Origin',
 });
+
+/**
+ * Lo que se admite subir. Es lista CERRADA y se comprueba por los BYTES del
+ * archivo, no por la cabecera que mande el cliente: `content-type` lo escribe
+ * quien sube, así que creerle sería no comprobar nada.
+ */
+const FIRMAS = Object.freeze([
+  { mime: 'image/jpeg', bytes: [0xff, 0xd8, 0xff] },
+  { mime: 'image/png', bytes: [0x89, 0x50, 0x4e, 0x47] },
+  { mime: 'image/webp', bytes: [0x52, 0x49, 0x46, 0x46] },
+]);
+
+/**
+ * Tope por archivo. Las fotografías de campo ya convertidas pesan ~0,6 MB; doce
+ * megas es holgado para una foto de móvil sin convertir y deja el depósito lejos
+ * del límite del plan gratuito aunque entren miles.
+ */
+const TOPE_ARCHIVO = 12 * 1024 * 1024;
+
+/** Quién puede subir. Un auditor mira; no aporta evidencia. */
+const ROLES_QUE_SUBEN = Object.freeze(['admin', 'editor', 'cuadrilla']);
+
+/** Reconoce el formato REAL por su firma. Devuelve null si no es de los admitidos. */
+function mimeReal(bytes) {
+  for (const f of FIRMAS) {
+    if (f.bytes.every((b, i) => bytes[i] === b)) return f.mime;
+  }
+  return null;
+}
+
+/** Los 12 primeros hexadecimales del sha256 del contenido. Es lo que nombra el objeto. */
+async function huellaDe(buffer) {
+  const h = await crypto.subtle.digest('SHA-256', buffer);
+  return [...new Uint8Array(h)].map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 12);
+}
+
+/** Un trozo de nombre seguro: sin rutas, sin acentos raros, sin sorpresas. */
+const trozoLimpio = (x, tope) =>
+  String(x ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, tope);
 
 const noPasa = (motivo, codigo, cors) =>
   new Response(JSON.stringify({ error: motivo }), {
@@ -131,7 +190,10 @@ export default {
     const cors = cabecerasCors(peticion.headers.get('Origin') ?? '', entorno.ORIGEN_PERMITIDO);
 
     if (peticion.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
-    if (peticion.method !== 'GET') return noPasa('solo se puede leer', 405, cors);
+    const subiendo = peticion.method === 'PUT';
+    if (peticion.method !== 'GET' && !subiendo) {
+      return noPasa('aquí solo se puede leer una evidencia o subir una nueva', 405, cors);
+    }
 
     // ⚠️ FALLAR CERRADO. Antes la comprobación de organización era
     // `if (ORG_PERMITIDA && sesion.orgId !== ORG_PERMITIDA)`: si la variable
@@ -153,23 +215,31 @@ export default {
       }
     }
 
-    // Rutas: /e/<clave del objeto>. Nada más existe.
-    if (!url.pathname.startsWith('/e/')) return noPasa('ruta desconocida', 404, cors);
+    // Rutas: /e/<clave del objeto> para LEER · /subir para SUBIR. Nada más existe.
+    // Son dos rutas distintas a propósito: en la de subir NO hay clave que
+    // interpretar, porque el cliente no la elige (ver la cabecera del archivo).
+    if (subiendo) {
+      if (url.pathname !== '/subir') return noPasa('ruta desconocida', 404, cors);
+    } else if (!url.pathname.startsWith('/e/')) {
+      return noPasa('ruta desconocida', 404, cors);
+    }
 
     // ⚠️ `decodeURIComponent` LANZA con un porcentaje suelto (`/e/%`), y estaba
     // fuera de todo try/catch: Cloudflare respondía su 500 interno, sin
     // `Access-Control-Allow-Origin`, y la galería mostraba «HTTP 500» en vez del
     // motivo. La línea siguiente ya devolvía un 400 limpio para `..`; ésta no
     // (§ADR-013, hallazgo 17).
-    let clave;
-    try {
-      clave = decodeURIComponent(url.pathname.slice(3));
-    } catch {
-      return noPasa('clave inválida: la ruta no está bien codificada', 400, cors);
+    let clave = null;
+    if (!subiendo) {
+      try {
+        clave = decodeURIComponent(url.pathname.slice(3));
+      } catch {
+        return noPasa('clave inválida: la ruta no está bien codificada', 400, cors);
+      }
     }
     // Una clave con ".." podría salirse del prefijo previsto. No debería poder,
     // pero el coste de comprobarlo es cero y el de equivocarse no.
-    if (!clave || clave.includes('..')) return noPasa('clave inválida', 400, cors);
+    if (!subiendo && (!clave || clave.includes('..'))) return noPasa('clave inválida', 400, cors);
 
     // Acotar el depósito por prefijo. OPCIONAL a propósito, y su ausencia se
     // declara arriba en vez de disimularse: hoy el depósito guarda una sola
@@ -179,7 +249,7 @@ export default {
     // esta variable. Cuando ESTÁ puesta, se exige — nunca se ignora en silencio.
     const prefijo = typeof entorno.PREFIJO_EVIDENCIAS === 'string'
       ? entorno.PREFIJO_EVIDENCIAS.trim() : '';
-    if (prefijo && !clave.startsWith(prefijo)) {
+    if (!subiendo && prefijo && !clave.startsWith(prefijo)) {
       return noPasa('esa evidencia queda fuera del alcance de esta sesión', 403, cors);
     }
 
@@ -201,6 +271,61 @@ export default {
     // reclamo también se rechaza — que es lo correcto.
     if (sesion.orgId !== entorno.ORG_PERMITIDA) {
       return noPasa('esta sesión no pertenece a la organización dueña del dato', 403, cors);
+    }
+
+    // ── SUBIR ─────────────────────────────────────────────────────────────
+    // Llega aquí con la configuración comprobada, la firma del token verificada
+    // y la organización confirmada: exactamente los mismos filtros que para leer.
+    // Lo que se añade encima es lo propio de escribir.
+    if (subiendo) {
+      // Un auditor mira; no aporta evidencia. Sin rol declarado, no pasa.
+      if (!ROLES_QUE_SUBEN.includes(sesion.rol)) {
+        return noPasa('esta sesión puede mirar las evidencias, pero no subirlas', 403, cors);
+      }
+
+      // El tope se mira ANTES de leer el cuerpo: si no, el archivo entero ya
+      // viajó y el gasto ya se hizo. Lo que entra no se puede borrar.
+      const declarado = Number(peticion.headers.get('content-length') ?? '0');
+      if (declarado > TOPE_ARCHIVO) {
+        return noPasa(`esa fotografía pesa más de ${Math.round(TOPE_ARCHIVO / 1048576)} MB y no se sube`, 413, cors);
+      }
+
+      const cuerpo = await peticion.arrayBuffer();
+      if (!cuerpo.byteLength) return noPasa('no llegó ninguna fotografía', 400, cors);
+      // Se vuelve a mirar con el tamaño REAL: la cabecera la escribe quien sube.
+      if (cuerpo.byteLength > TOPE_ARCHIVO) {
+        return noPasa(`esa fotografía pesa más de ${Math.round(TOPE_ARCHIVO / 1048576)} MB y no se sube`, 413, cors);
+      }
+
+      // El formato se reconoce por los BYTES. Creerle al `content-type` sería no
+      // comprobar nada: una imagen servida como documento puede ejecutarse.
+      const mime = mimeReal(new Uint8Array(cuerpo.slice(0, 8)));
+      if (!mime) return noPasa('eso no es una fotografía JPG, PNG o WEBP', 415, cors);
+
+      // ⚠️ LA CLAVE LA CALCULA EL PORTERO, NO EL CLIENTE (condición 1 de la
+      // cabecera). De los parámetros solo se toman trozos LIMPIOS para que el
+      // nombre sea legible; lo que decide la identidad del objeto es la huella
+      // del contenido, que el cliente no puede falsificar sin cambiar la foto.
+      const linea = trozoLimpio(url.searchParams.get('linea'), 24);
+      const origen = trozoLimpio(url.searchParams.get('origen'), 24);
+      const archivo = trozoLimpio(url.searchParams.get('archivo'), 60);
+      if (!linea || !origen || !archivo) {
+        return noPasa('falta decir de qué línea, de qué origen y con qué nombre', 400, cors);
+      }
+      const claveNueva = `${linea}/${origen}/${await huellaDe(cuerpo)}-${archivo}`;
+      if (prefijo && !claveNueva.startsWith(prefijo)) {
+        return noPasa('esa evidencia queda fuera del alcance de esta sesión', 403, cors);
+      }
+
+      // La misma foto dos veces es la misma clave: no se duplica y se DICE, para
+      // que quien sube sepa que no perdió nada y que tampoco pagó dos veces.
+      const yaEstaba = await entorno.EVIDENCIAS.head(claveNueva);
+      if (!yaEstaba) {
+        await entorno.EVIDENCIAS.put(claveNueva, cuerpo, { httpMetadata: { contentType: mime } });
+      }
+      return new Response(JSON.stringify({
+        rutaObjeto: claveNueva, mime, bytes: cuerpo.byteLength, yaEstaba: Boolean(yaEstaba),
+      }), { status: yaEstaba ? 200 : 201, headers: { 'content-type': 'application/json; charset=utf-8', ...cors } });
     }
 
     const objeto = await entorno.EVIDENCIAS.get(clave);

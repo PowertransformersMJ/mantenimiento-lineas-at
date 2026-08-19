@@ -10,7 +10,7 @@
 // ============================================================================
 import { AccionCapa, AnalisisCausa, Apoyo, ETIQUETA_CAMPO_FICHA, Evidencia, FichaEstructural, Hipotesis, Investigacion, Linea, ParteDeAccion, ParteDeAnalisis, SondeoClima } from '@lineas/contratos';
 import { cargarFirebase } from './cargar';
-import type { AcuseDeFicha, AcuseDeLote, EstadoDatos, EstadoSesion, Repositorio, ResultadoCarga } from './repositorio';
+import type { AcuseDeFicha, AcuseDeLote, EstadoDatos, EstadoSesion, FichaDeFoto, Repositorio, ResultadoCarga, ResultadoFotos } from './repositorio';
 
 /**
  * La mitad pensante de la ficha —qué campos hay, qué geometría no puede dar
@@ -389,6 +389,122 @@ export const repositorioFirestore: Repositorio = {
     }
 
     return { escritos, yaEstaban, rechazados };
+  },
+
+  /**
+   * LAS FICHAS DE UN LOTE DE FOTOGRAFÍAS. La segunda escritura de este sistema
+   * que no se puede deshacer: `firestore.rules` niega `delete` sobre evidencias
+   * y solo deja corregir el pie y el estado de subida — nunca de qué apoyo
+   * cuelga la foto.
+   *
+   * El orden es el mismo que en `cargarPuntosNuevos`, y por las mismas razones:
+   *
+   *   1. **Permiso ANTES de mandar nada.** Un lote es atómico y su denegación es
+   *      opaca: la base no dice cuál de los documentos la causó. Preguntar aquí
+   *      convierte «permiso denegado» en una frase que se entiende. Y aquí basta
+   *      con `cuadrilla`, que es lo que `esCuadrilla()` permite para evidencias —
+   *      no `admin`: quien va a campo con el teléfono no es administrador.
+   *   2. **`creadoPor` se sella con la sesión abierta**, nunca con lo que venga
+   *      de fuera. `altaCoherente()` exige que el autor sea exactamente quien
+   *      escribe, y es el único rechazo campo por campo que hay.
+   *   3. **`orgId` se toma del TOKEN**, por lo mismo: no se manda algo que se
+   *      sabe que la base va a negar.
+   *   4. **Cada documento se valida contra el molde ANTES de mandarlo.** Las
+   *      reglas no miran el contenido de una evidencia, así que este `safeParse`
+   *      es la única defensa que tiene la forma del dato — y una ficha que el
+   *      molde rechaza se descarta EN SILENCIO al leerla, o sea: la foto
+   *      existiría en el depósito y no la vería nadie.
+   *   5. **NO se le pregunta a la base si la ficha ya existe.** Ése fue el fallo
+   *      del 17-08 (§ADR-028): `puedeLeer()` decide mirando `resource.data.orgId`
+   *      y en un documento que aún no existe no hay `resource` — la base no
+   *      contesta «no está», DENIEGA. Quien decide si una foto ya entró es su
+   *      HUELLA contra las fichas que la aplicación ya tiene en memoria, y eso
+   *      se resuelve en la pantalla, antes de llegar aquí.
+   *
+   * ⚠️ EL AUTOR CAMBIA, y hay que decirlo antes de que salga en un informe. Las
+   * 99 fichas escritas con la llave maestra llevan `creadoPor: 'subidor'`; las
+   * que entren por aquí llevarán el identificador de la sesión. Es correcto y es
+   * aditivo, pero cualquier informe que agrupe por autor verá dos valores para
+   * el mismo lote de fotos.
+   *
+   * Se escribe EN LOTES de 400: el límite del SDK son 500 operaciones por lote,
+   * y 106 fotos caben de sobra — pero el día que entren 900 no puede fallar
+   * entero por una cifra que nadie miró.
+   */
+  async crearEvidencias(fichas: FichaDeFoto[]): Promise<ResultadoFotos> {
+    const { esperarSesion, credenciales, baseDatos } = await cargarFirebase();
+    const { doc, writeBatch } = await firestore();
+    const u = await esperarSesion();
+    if (!u) throw new Error('No hay ninguna sesión abierta: no se puede escribir la ficha de ninguna fotografía.');
+
+    const { rol, orgId } = await credenciales(u);
+    if (!['admin', 'editor', 'cuadrilla'].includes(rol)) {
+      throw new Error(
+        `Su sesión entró con el permiso «${rol}», y subir fotografías necesita permiso de cuadrilla o superior. `
+        + 'No se ha escrito nada en la base.',
+      );
+    }
+    if (!orgId) {
+      throw new Error(
+        'Su sesión no declara a qué organización pertenece, y una fotografía sin organización no la puede leer '
+        + 'nadie después — ni usted. No se ha escrito nada en la base.',
+      );
+    }
+
+    const db = await baseDatos();
+    const ahora = new Date().toISOString();
+    const fuera: ResultadoFotos['fuera'] = [];
+    const pendientes: { punto: string; ref: ReturnType<typeof doc>; documento: Record<string, unknown> }[] = [];
+
+    for (const f of fichas ?? []) {
+      const sellado = sinIndefinidos({
+        id: f.id,
+        tipo: 'evidencia',
+        orgId,
+        creadoPor: u.uid,
+        creadoEn: ahora,
+        revision: 0,
+        apoyoId: f.apoyoId,
+        lineaId: f.lineaId,
+        rutaObjeto: f.rutaObjeto,
+        sha256: f.sha256,
+        bytes: f.bytes,
+        mime: f.mime,
+        tomadaEn: f.tomadaEn,
+        subida: 'completa',
+      });
+
+      const r = Evidencia.safeParse(sellado);
+      if (!r.success) {
+        const p = r.error.issues[0];
+        const donde = p?.path?.length ? ` (en «${p.path.join('.')}»)` : '';
+        fuera.push({ punto: f.punto, archivo: f.rutaObjeto, motivo: `${p?.message ?? 'motivo desconocido'}${donde}` });
+        continue;
+      }
+      // Se guarda lo que salió del molde, no lo que entró: validar una cosa y
+      // escribir otra es la peor forma de este fallo.
+      pendientes.push({
+        punto: f.punto,
+        ref: doc(db, 'evidencias', f.id),
+        documento: sinIndefinidos(r.data as unknown as Record<string, unknown>),
+      });
+    }
+
+    for (let i = 0; i < pendientes.length; i += 400) {
+      const trozo = pendientes.slice(i, i + 400);
+      const lote = writeBatch(db);
+      for (const p of trozo) lote.set(p.ref, p.documento);
+      await lote.commit();
+    }
+
+    const porPunto = new Map<string, number>();
+    for (const p of pendientes) porPunto.set(p.punto, (porPunto.get(p.punto) ?? 0) + 1);
+
+    return {
+      escritas: [...porPunto].map(([punto, fotos]) => ({ punto, fotos })),
+      yaEstaban: [],
+      fuera,
+    };
   },
 
   /**

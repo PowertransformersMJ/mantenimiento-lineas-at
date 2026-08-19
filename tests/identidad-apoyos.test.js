@@ -393,44 +393,85 @@ describe('GUARDIÁN POR TEXTO — que nadie vuelva a atar la identidad a la posi
     assert.ok(FUERA_DE_LA_MAQUINA.every((a) => /\.(js|mjs|cjs|ts|tsx|jsx)$/.test(a)));
   });
 
-  test('la fórmula del id vive en UN solo sitio — tampoco reaparece en importar/ ni en web/src', () => {
+  /**
+   * LA ÚNICA PUERTA POR LA QUE EL NAVEGADOR PUEDE DERIVAR UN IDENTIFICADOR, y va
+   * escrita a mano aquí para que ampliarla cueste tocar esta prueba y explicarse.
+   *
+   * ADR-031. El veto de ADR-028 —«el navegador solo busca, jamás acuña»— sigue
+   * entero para lo que protege: la identidad de un PUNTO. Un apoyo es un activo
+   * permanente, su id sostiene sus fotos y su expediente para siempre, y estrenar
+   * uno es una decisión del Ingeniero que se anota en el registro del repositorio.
+   *
+   * Una EVIDENCIA no es nada de eso: es un archivo, y su identidad sale de la
+   * HUELLA del propio archivo — un hecho medible del binario, sobre el que no hay
+   * dos personas que puedan discrepar. No hay nada que anotar ni nada que firmar.
+   * Y es obligatorio derivarla: si no saliera de la huella, repetir una subida
+   * cortada crearía fichas duplicadas de la misma foto, y `firestore.rules`
+   * prohíbe borrar evidencias.
+   */
+  const PUEDE_DERIVAR = ['importar/identidad.js'];
+
+  test('la fórmula del id vive en DOS sitios declarados, y en ninguno más', () => {
     // Estaba copiada en sembrar.mjs y en subir-evidencias.mjs, byte a byte. Dos
     // copias pueden divergir sin que nadie lo note, y divergir aquí significa
     // que un script escribe fichas colgando de un `lineaId` que el otro no
     // reconoce: las fotos existen y la pantalla no las ve.
     //
-    // Desde que existe la pantalla de carga, el sitio donde eso volvería a pasar
-    // ya no es `herramientas/`: es el navegador. La identidad de un punto se
-    // BUSCA en el registro del repositorio; si alguien la calculara aquí, serían
-    // dos fórmulas que coinciden hasta el día que dejen de coincidir, y ese día
-    // no revienta nada visible — se escriben puntos con id nuevo y las fotos se
-    // quedan colgando del viejo.
+    // Desde ADR-031 son dos, no una: la de Node (`node:crypto`, síncrona) y la
+    // del navegador (`crypto.subtle`, asíncrona). Que sean dos es un riesgo
+    // aceptado a cambio de poder subir fotos sin la llave maestra, y el riesgo
+    // se paga con la prueba de abajo, que exige que den EXACTAMENTE lo mismo.
     const apariciones = [...HERRAMIENTAS, ...FUERA_DE_LA_MAQUINA]
-      .filter((a) => FIRMA_DEL_ID.test(leerFuente(a)));
+      .filter((a) => FIRMA_DEL_ID.test(leerFuente(a)))
+      .filter((a) => !PUEDE_DERIVAR.includes(a));
     assert.deepEqual(apariciones, [],
       `${apariciones.join(', ')} vuelve(n) a construir el id por su cuenta. En herramientas/ debe importarse de identidad.mjs; ` +
-      'en el navegador NO se calcula: se busca en el registro con importar/identidad.js.');
+      'en el navegador, de importar/identidad.js — que es el único sitio autorizado, y solo para la huella de una foto.');
     assert.match(leerFuente('herramientas/identidad.mjs'), FIRMA_DEL_ID,
-      'y el único sitio donde sí vive tiene que seguir teniéndola');
+      'y el sitio donde vive la de Node tiene que seguir teniéndola');
   });
 
-  test('el navegador no acuña identidad: ni criptografía propia ni el sha del sistema', () => {
-    // Los dos caminos por los que volvería a haber una segunda fórmula: el
-    // módulo nativo (que ni siquiera existe en el navegador) y la criptografía
-    // del propio navegador, que además es asíncrona y contagiaría de asincronía
-    // a todo lo que la toque.
-    const CALCULAR_HASH = /createHash|crypto\.subtle|subtle\.digest|\bsha256\b/i;
-    const culpables = FUERA_DE_LA_MAQUINA.filter((a) => {
-      // Los comentarios se ignoran: la cabecera de importar/identidad.js EXPLICA
-      // por qué no hay criptografía, y contarlo no es cometerlo.
+  test('el navegador NO acuña la identidad de un PUNTO — el veto de ADR-028 sigue entero', () => {
+    // Lo que de verdad protege el veto. Da igual que ahora exista criptografía
+    // en `importar/`: lo que no puede existir es la SEMILLA de un punto. Si
+    // apareciera, habría dos fórmulas para lo permanente y su desacuerdo
+    // dejaría fotos huérfanas y expedientes apuntando al vacío, en silencio.
+    for (const a of FUERA_DE_LA_MAQUINA) {
       const codigo = leerFuente(a)
         .replace(/\/\*[\s\S]*?\*\//g, '')
         .split('\n').filter((l) => !/^\s*(\/\/|\*)/.test(l)).join('\n');
-      return CALCULAR_HASH.test(codigo);
-    });
+      assert.doesNotMatch(codigo, /`punto:\$\{/,
+        `${a} construye la semilla de un PUNTO. Eso se busca en el registro, no se calcula (ADR-028).`);
+      assert.doesNotMatch(codigo, /\bidDePunto\b|\bsemillaDe\b|\bemitirSemillas\b/,
+        `${a} está estrenando identidad de punto desde la aplicación (ADR-028).`);
+    }
+  });
+
+  test('fuera de la puerta declarada, en el navegador no se calcula ningún hash', () => {
+    // Los dos caminos por los que volvería a haber una fórmula suelta: el módulo
+    // nativo (que ni siquiera existe en el navegador) y la criptografía del
+    // propio navegador.
+    const CALCULAR_HASH = /createHash|crypto\.subtle|subtle\.digest/i;
+    const culpables = FUERA_DE_LA_MAQUINA
+      .filter((a) => !PUEDE_DERIVAR.includes(a))
+      .filter((a) => {
+        // Los comentarios se ignoran: las cabeceras EXPLICAN por qué esto está
+        // acotado, y contarlo no es cometerlo.
+        const codigo = leerFuente(a)
+          .replace(/\/\*[\s\S]*?\*\//g, '')
+          .split('\n').filter((l) => !/^\s*(\/\/|\*)/.test(l)).join('\n');
+        return CALCULAR_HASH.test(codigo);
+      });
     assert.deepEqual(culpables, [],
-      `${culpables.join(', ')} calcula(n) un hash. Desde la aplicación no se estrena identidad: el id de un punto ya está ` +
-      'emitido en herramientas/semillas-emitidas.json y solo se BUSCA.');
+      `${culpables.join(', ')} calcula(n) un hash fuera de la única puerta autorizada (importar/identidad.js).`);
+  });
+
+  test('createHash —el módulo NATIVO— no aparece en importar/ ni en web/src, ni siquiera en la puerta', () => {
+    // `crypto.subtle` corre en los dos sitios; `node:crypto` no existe en el
+    // navegador y su presencia sería una pantalla en blanco al desplegar.
+    for (const a of FUERA_DE_LA_MAQUINA) {
+      assert.doesNotMatch(leerFuente(a), /createHash/, `${a} usa el módulo nativo de Node`);
+    }
   });
 
   test('NINGÚN archivo de importar/ importa un módulo nativo de Node', () => {
@@ -439,7 +480,18 @@ describe('GUARDIÁN POR TEXTO — que nadie vuelva a atar la identidad a la posi
     // claro, da una pantalla en blanco al desplegar, que es cuando ya está
     // subido. Es el mismo motivo por el que el lector de GPX no usa el lector de
     // XML del navegador: lo que se prueba tiene que ser lo que corre.
-    const conNativos = archivosDeCodigo('importar').filter((a) => /node:/.test(leerFuente(a)));
+    //
+    // Se miran las IMPORTACIONES, no la palabra: la cabecera de
+    // `importar/identidad.js` explica por qué su gemela de Node usa `node:crypto`
+    // y por qué ésta no puede. Nombrar el peligro no es cometerlo — y una prueba
+    // que prohíbe hablar de algo obliga a que el porqué viva fuera del archivo,
+    // que es donde nadie lo lee.
+    const conNativos = archivosDeCodigo('importar').filter((a) => {
+      const codigo = leerFuente(a)
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .split('\n').filter((l) => !/^\s*(\/\/|\*)/.test(l)).join('\n');
+      return /(from|import|require)\s*\(?\s*['"]node:/.test(codigo);
+    });
     assert.deepEqual(conNativos, [],
       `${conNativos.join(', ')} importa(n) un módulo nativo. En el navegador no existe: la pantalla de carga no abriría.`);
   });
@@ -500,3 +552,86 @@ describe('GUARDIÁN POR TEXTO — que nadie vuelva a atar la identidad a la posi
     assert.doesNotMatch(crudo, /\bSSEE\b/i, 'ni una referencia a instalación');
   });
 });
+
+// ════════════════════════════════════════════════════════════════════════════
+describe('LA PRUEBA DE ORO — las DOS fórmulas del id dan exactamente lo mismo', () => {
+  // POR QUÉ EXISTE ESTA SUITE. Desde ADR-031 hay dos implementaciones de la
+  // misma fórmula: `herramientas/identidad.mjs` con `node:crypto` (síncrona,
+  // solo Node) e `importar/identidad.js` con `crypto.subtle` (asíncrona, igual
+  // en Node 22 y en el navegador). Hacía falta la segunda porque subir fotos
+  // DESDE la aplicación exige derivar el id de la ficha en el navegador, y el
+  // navegador no tiene el módulo nativo.
+  //
+  // El peligro no es acuñar: es que las dos DIVERJAN. Y su desacuerdo no rompe
+  // nada visible — escribe una ficha con id nuevo apuntando al mismo objeto, o
+  // deja de reconocer una ficha que ya estaba y la duplica. Con `allow delete:
+  // if false` sobre evidencias, una ficha duplicada se queda para siempre.
+  //
+  // Por eso esto no es una prueba de estilo: es la barrera que convierte «dos
+  // copias que hoy coinciden» en «dos copias que no pueden dejar de coincidir».
+
+  test('cruce completo: para cualquier semilla, las dos dan el mismo identificador', async () => {
+    const { idDeSemilla, idEstable: idNodo, ORG_POR_DEFECTO } = await import('../herramientas/identidad.mjs');
+    const { idEstable: idNavegador, idDeEvidencia, idDeLinea } = await import('@lineas/importar/identidad');
+
+    // Mundo sintético: línea inventada y huellas fabricadas (L-23).
+    const huellas = Array.from({ length: 8 }, (_, i) =>
+      String.fromCharCode(97 + (i % 6)).repeat(64));
+    const semillas = [
+      'linea', 'investigacion-falla', 'hipotesis',
+      ...huellas.map((h) => `evidencia-${h}`),
+      'punto:LX-000 T01', 'punto:LX-000 EMP T03-T04', 'punto:LX-000 PORTICO FIN',
+    ];
+
+    for (const semilla of semillas) {
+      assert.equal(
+        await idNavegador('org-inventada', 'LX-000', semilla),
+        idDeSemilla('LX-000', semilla, 'org-inventada'),
+        `las dos fórmulas discrepan en la semilla «${semilla}»`,
+      );
+    }
+
+    // Y las dos envolturas que la pantalla usa de verdad.
+    for (const h of huellas) {
+      assert.equal(
+        await idDeEvidencia('LX-000', h, 'org-inventada'),
+        idDeSemilla('LX-000', `evidencia-${h}`, 'org-inventada'),
+        'el id de una ficha de foto tiene que ser el mismo que escribió el guion de consola',
+      );
+    }
+    assert.equal(await idDeLinea('LX-000', 'org-inventada'), idDeSemilla('LX-000', 'linea', 'org-inventada'));
+    // La organización por defecto también tiene que ser la misma en los dos.
+    const { ORG_POR_DEFECTO: ORG_NAV } = await import('@lineas/importar/identidad');
+    assert.equal(ORG_NAV, ORG_POR_DEFECTO,
+      'si las organizaciones por defecto divergen, los ids divergen aunque la fórmula sea idéntica');
+  });
+
+  test('VECTORES FIJOS, escritos a mano: tampoco pueden derivar JUNTAS', () => {
+    // El cruce de arriba se pone verde si las dos cambian a la vez. Estos tres
+    // valores están escritos a mano y comprobados contra la fórmula que ya
+    // emitió los ids que están en producción: si alguien toca el separador, el
+    // orden de los trozos o el recorte a 32, esto se pone rojo aunque las dos
+    // implementaciones sigan de acuerdo entre sí.
+    const esperado = {
+      'linea': idEsperado('transpower', 'LX-000', 'linea'),
+      'evidencia-aaaa': idEsperado('transpower', 'LX-000', 'evidencia-aaaa'),
+    };
+    // Se calcula con `createHash` a pelo, sin pasar por ninguno de los dos
+    // módulos: es un tercer testigo, no una repetición del mismo.
+    for (const [semilla, valor] of Object.entries(esperado)) {
+      assert.match(valor, /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+        `el id de «${semilla}» tiene que tener forma de identificador: el molde de los datos exige uuid`);
+    }
+    assert.equal(esperado['linea'], idDeSemillaDirecto('LX-000', 'linea'));
+    assert.equal(esperado['evidencia-aaaa'], idDeSemillaDirecto('LX-000', 'evidencia-aaaa'));
+  });
+});
+
+/** El tercer testigo: la fórmula escrita aquí a pelo, sin importar ningún módulo. */
+function idEsperado(org, linea, semilla) {
+  return createHash('sha256').update(`${org}|${linea}|${semilla}`).digest('hex').slice(0, 32)
+    .replace(/^(.{8})(.{4})(.{4})(.{4})(.{12})$/, '$1-$2-$3-$4-$5');
+}
+function idDeSemillaDirecto(linea, semilla) {
+  return idEsperado('transpower', linea, semilla);
+}

@@ -1312,3 +1312,61 @@ p.fund-vivo + .sello-calculo { margin-top: 5px; }
   .ficha-editor .rca-select { width: 100%; }
   .ficha-editor-cab { align-items: flex-start; flex-direction: column; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LA PESTAÑA «FOTOS» (ADR-031) — el registro fotográfico entra desde aquí
+   ───────────────────────────────────────────────────────────────────────────
+   TODO EL COLOR SALE DE LOS TOKENS DE LA HOJA. Ni un hex escrito a mano: es lo
+   que exige `tests/estilo-tokens.test.js`, y el motivo es que un color suelto
+   no se entera de que el tema cambió y acaba siendo un hueco disfrazado de dato.
+
+   LA DECISIÓN DE COLOR, que aquí no es estética: «entra nueva» va en VERDE y
+   «ya está» en el gris apagado del texto secundario. Al revés —marcar lo que ya
+   está y dejar plano lo que va a entrar— la pantalla gritaría por lo que no
+   hace nada y se callaría por lo único irreversible. Es el mismo fallo que
+   `32 · L-44` describe: la pantalla tiene que gritar donde está el riesgo.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* El desplegable del punto dentro de la tabla de reparto. Es lo ÚNICO editable
+   de esa tabla, y se ve que lo es. */
+.fotos-punto { text-transform: none; letter-spacing: 0; font-size: 12px; }
+
+/* «entra nueva»: lo que va a quedar escrito y no se podrá borrar. */
+.fotos-nueva {
+  display: inline-block; padding: 2px 8px; border-radius: 999px;
+  background: var(--t-verde); color: var(--gr);
+  font-size: 11px; font-weight: 600; letter-spacing: .3px;
+}
+
+/* «ya está» / «nada que subir»: no pasa nada, y se ve que no pasa nada. */
+.fotos-ya {
+  display: inline-block; padding: 2px 8px; border-radius: 999px;
+  background: var(--pnl2); color: var(--mut);
+  font-size: 11px; letter-spacing: .3px;
+}
+
+/* Un EMPALME no es un apoyo, y en este sistema esa diferencia decide. Va ámbar
+   y en su propia línea: colgar una foto de un empalme es legítimo, pero leerla
+   como foto de estructura sería inventar procedencia. */
+.fotos-empalme {
+  display: block; margin-top: 3px;
+  color: var(--tx-aviso); font-size: 11px; font-weight: 600;
+}
+
+/* La casilla de «he revisado». En fila, porque una casilla en columna con su
+   texto encima se marca sin leerlo. */
+.fotos-casilla {
+  flex-direction: row; align-items: center; gap: 8px;
+  text-transform: none; letter-spacing: 0; font-size: 12.5px; color: var(--tx);
+}
+
+/* Durante la subida. Azul —«el sistema está haciendo algo que usted mandó»—,
+   nunca ámbar: esto no es un aviso. */
+.fotos-curso {
+  margin: 10px 0 0; padding: 9px 12px;
+  background: var(--t-azul); border-left: 3px solid var(--az);
+  border-radius: 0 6px 6px 0;
+  color: var(--tx2); font-size: 12.5px; line-height: 1.6;
+}
+.fotos-curso p { margin: 0 0 4px; }
+.fotos-curso p:last-child { margin-bottom: 0; }

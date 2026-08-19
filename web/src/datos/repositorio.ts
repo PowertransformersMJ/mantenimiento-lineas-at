@@ -54,6 +54,38 @@ export interface ResultadoCarga {
 }
 
 /**
+ * LA FICHA DE UNA FOTO que la pantalla quiere escribir. La pantalla la arma
+ * entera salvo tres campos: `orgId`, `creadoPor` y `creadoEn`, que los pone la
+ * capa de datos con la SESIÓN abierta. No es una comodidad: `firestore.rules`
+ * (`altaCoherente`) exige que el autor sea exactamente quien escribe, y la
+ * denegación de un lote es opaca — la base no dice cuál de los documentos la
+ * causó.
+ */
+export interface FichaDeFoto {
+  /** El identificador ya derivado de la HUELLA del archivo. Nunca de una posición. */
+  id: string;
+  apoyoId: string;
+  lineaId: string;
+  rutaObjeto: string;
+  sha256: string;
+  bytes: number;
+  mime: string;
+  tomadaEn?: string;
+  /** El nombre del punto, para poder acusar en el idioma del Ingeniero. */
+  punto: string;
+}
+
+/** Qué entró y qué no, contado POR PUNTO — nunca por identificador. */
+export interface ResultadoFotos {
+  /** Cuántas fichas se escribieron de verdad, por punto. */
+  escritas: { punto: string; fotos: number }[];
+  /** Las que ya estaban y NO se volvieron a escribir. */
+  yaEstaban: { punto: string; fotos: number }[];
+  /** Las que quedaron fuera, con el motivo en castellano. */
+  fuera: { punto: string; archivo: string; motivo: string }[];
+}
+
+/**
  * Lo que se escribió en UNA ficha, para que el acuse lo pueda contar.
  *
  * Los campos se nombran EN CASTELLANO y con su origen: el acuse lo lee el
@@ -229,6 +261,19 @@ export interface Repositorio {
   cargarPuntosNuevos(documentos: Record<string, unknown>[], idsYaCargados?: string[]): Promise<ResultadoCarga>;
 
   /**
+   * Escribe las FICHAS de un lote de fotografías ya subidas al depósito.
+   *
+   * ⚠️ EL ORDEN IMPORTA Y ES A PROPÓSITO: primero el objeto, después la ficha.
+   * Al revés dejaría una ficha apuntando al vacío, que es justo lo que la
+   * galería enseña como error. Un objeto sin ficha no lo ve nadie y no duplica
+   * nada al repetir la subida; una ficha sin objeto rompe una pantalla.
+   *
+   * LANZA cuando la operación entera no procede (sin sesión, sin permiso, sin
+   * organización). Lo que falle foto a foto viaja en el resultado.
+   */
+  crearEvidencias(fichas: FichaDeFoto[]): Promise<ResultadoFotos>;
+
+  /**
    * Escribe la FICHA ESTRUCTURAL de UN apoyo: los seis datos que le faltan para
    * poder tener veredicto, cada uno con su sello de procedencia.
    *
@@ -317,6 +362,10 @@ export const repositorioSinSesion: Repositorio = {
     // carga «vacía y correcta» haría creer que se cargó y que el archivo no
     // traía nada.
     throw new Error('No hay ninguna sesión abierta: no se puede cargar ningún punto.');
+  },
+  async crearEvidencias() {
+    // Un acuse vacío se leería como «entraron todas y no había ninguna».
+    throw new Error('No hay ninguna sesión abierta: no se puede escribir la ficha de ninguna fotografía.');
   },
   async guardarFichaApoyo() {
     // Igual que arriba: un acuse vacío se leería como «guardado y sin novedad».

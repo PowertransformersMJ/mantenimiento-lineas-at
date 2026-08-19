@@ -20,6 +20,7 @@
 // ============================================================================
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
 import portero from '../evidencias/src/index.js';
 
@@ -61,17 +62,26 @@ describe('portero — la falta de configuración APAGA, no abre', () => {
 });
 
 describe('portero — la puerta: método, ruta y clave', () => {
-  test('solo GET; el resto se rechaza', async () => {
-    for (const method of ['POST', 'PUT', 'DELETE']) {
+  test('leer y subir; BORRAR y lo demás siguen sin existir', async () => {
+    // ⚠️ Esta prueba exigía que TODO lo que no fuera GET se rechazara. El
+    // 2026-08-17 el Ingeniero autorizó abrir la subida —para poder aportar
+    // fotografías desde el teléfono en campo, sin la llave maestra— con dos
+    // condiciones que están en la cabecera del portero. Lo que NO cambió, y esta
+    // prueba lo sigue defendiendo, es que de este depósito no se borra nada: lo
+    // que entra se queda, y por eso todo lo demás se comprueba antes de escribir.
+    for (const method of ['POST', 'DELETE', 'PATCH', 'HEAD']) {
       const r = await pedir('/e/foto.jpg', { method });
       assert.equal(r.status, 405, `${method} no puede pasar`);
     }
+    // Y subir NO es una puerta abierta: sin sesión no pasa, igual que leer.
+    const sinSesion = await pedir('/subir?linea=LX&origen=pruebas&archivo=a.jpg', { method: 'PUT' });
+    assert.equal(sinSesion.status, 401, 'subir sin sesión no puede pasar');
   });
 
   test('la comprobación previa (OPTIONS) responde sin pedir token', async () => {
     const r = await pedir('/e/foto.jpg', { method: 'OPTIONS' });
     assert.equal(r.status, 204);
-    assert.equal(r.headers.get('Access-Control-Allow-Methods'), 'GET, OPTIONS');
+    assert.equal(r.headers.get('Access-Control-Allow-Methods'), 'GET, PUT, OPTIONS');
   });
 
   test('fuera de /e/ no existe nada', async () => {
@@ -138,5 +148,69 @@ describe('portero — el prefijo por organización, cuando se configure', () => 
   test('sin la variable, el prefijo no se exige — y eso es una decisión, no un olvido', async () => {
     const r = await pedir('/e/cualquier-cosa/foto.jpg');
     assert.equal(r.status, 401, 'lo único que lo para es la falta de sesión');
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// LA PUERTA DE SUBIDA — las dos condiciones bajo las que se autorizó abrirla
+// ----------------------------------------------------------------------------
+// El 2026-08-17 el Ingeniero autorizó que este portero dejara de ser solo-lectura,
+// para poder aportar fotografías desde el teléfono en campo sin la llave maestra.
+// Lo autorizó con DOS condiciones, y estas pruebas son las que impiden que se
+// pierdan por el camino:
+//
+//   1. El cliente NO elige dónde se guarda. La clave la calcula el portero con la
+//      huella del contenido. El primer diseño dejaba que el cliente propusiera la
+//      clave y comprobaba «que llevara la huella dentro»: se demostró que una
+//      clave preparada pasaba y podía pisar la foto de otro.
+//   2. Topes de verdad, porque NADA se puede borrar: lo que entra se queda.
+//
+// Se comprueban leyendo el ARCHIVO, igual que `tests/carga-contra-contrato.test.js`
+// hace con la escritura de apoyos: no se puede simular una sesión válida sin
+// falsificar la firma de Google, que es justo lo que este portero existe para
+// impedir. Esto prueba que la REGLA sigue escrita, no que Cloudflare la ejecute.
+// ════════════════════════════════════════════════════════════════════════════
+describe('portero — la puerta de subida y sus dos condiciones', () => {
+  const fuente = readFileSync(new URL('../evidencias/src/index.js', import.meta.url), 'utf-8');
+
+  test('CONDICIÓN 1: la clave sale de la huella del contenido, no del cliente', () => {
+    assert.match(fuente, /claveNueva\s*=\s*`\$\{linea\}\/\$\{origen\}\/\$\{await huellaDe\(cuerpo\)\}-\$\{archivo\}`/,
+      'la clave del objeto tiene que construirla el portero con la huella de lo que recibe');
+    assert.ok(!/searchParams\.get\(['"]clave['"]\)/.test(fuente),
+      'el cliente volvió a poder proponer la clave: puede pisar la foto de otro');
+    assert.ok(!/clave\w*\.includes\(['"]\/['"]\s*\+/.test(fuente),
+      'volvió la comprobación por SUBCADENA, que se demostró que no impide nada');
+  });
+
+  test('CONDICIÓN 2: hay tope por archivo, y se mira ANTES y DESPUÉS de recibirlo', () => {
+    assert.match(fuente, /TOPE_ARCHIVO\s*=\s*\d+\s*\*\s*1024\s*\*\s*1024/, 'desapareció el tope por archivo');
+    assert.match(fuente, /content-length[\s\S]{0,400}TOPE_ARCHIVO/,
+      'el tope tiene que mirarse antes de leer el cuerpo: si no, el gasto ya se hizo');
+    assert.match(fuente, /byteLength\s*>\s*TOPE_ARCHIVO/,
+      'y otra vez con el tamaño real: la cabecera la escribe quien sube');
+  });
+
+  test('el formato se reconoce por los BYTES, nunca por lo que diga el cliente', () => {
+    assert.match(fuente, /function mimeReal/);
+    assert.match(fuente, /mimeReal\(new Uint8Array\(cuerpo\.slice\(0, 8\)\)\)/);
+    assert.ok(!/headers\.get\(['"]content-type['"]\)/.test(fuente),
+      'se volvió a creer el `content-type` del cliente, que lo escribe quien sube');
+  });
+
+  test('subir exige un rol que trabaje: un auditor mira, no aporta', () => {
+    assert.match(fuente, /ROLES_QUE_SUBEN\s*=\s*Object\.freeze\(\[['"]admin['"], ['"]editor['"], ['"]cuadrilla['"]\]\)/);
+    assert.match(fuente, /ROLES_QUE_SUBEN\.includes\(sesion\.rol\)/);
+  });
+
+  test('la misma foto dos veces NO se escribe dos veces, y se dice', () => {
+    // Nada se puede borrar: un duplicado se queda para siempre y además se paga.
+    assert.match(fuente, /EVIDENCIAS\.head\(claveNueva\)/);
+    assert.match(fuente, /if \(!yaEstaba\)[\s\S]{0,200}EVIDENCIAS\.put/);
+    assert.match(fuente, /yaEstaba: Boolean\(yaEstaba\)/);
+  });
+
+  test('lo que este portero NUNCA hizo, sigue sin hacer: borrar y listar', () => {
+    assert.ok(!/EVIDENCIAS\.delete\(/.test(fuente), 'el portero aprendió a borrar');
+    assert.ok(!/EVIDENCIAS\.list\(/.test(fuente), 'el portero aprendió a listar el depósito');
   });
 });

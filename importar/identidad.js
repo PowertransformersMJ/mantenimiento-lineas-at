@@ -131,3 +131,92 @@ export function nombresDisponibles(registro, codigoLinea, yaCargados = []) {
   const puestos = new Set((yaCargados ?? []).map(nombreDe).filter(Boolean));
   return nombresDelRegistro(registro, codigoLinea).filter((n) => !puestos.has(n));
 }
+
+// ════════════════════════════════════════════════════════════════════════════
+// LA EXCEPCIÓN DECLARADA EN VOZ ALTA: el id de una EVIDENCIA
+// ────────────────────────────────────────────────────────────────────────────
+// Todo lo de arriba dice que aquí no se acuña identidad. Esto es lo único que sí
+// la deriva, y se separa con una raya para que nadie lo confunda con lo otro.
+//
+// POR QUÉ NO ROMPE EL VETO DE ADR-028. El veto protege la identidad de un PUNTO:
+// un apoyo es un activo permanente, su id sostiene sus fotos y su expediente
+// para siempre, y un nombre nuevo es una decisión del Ingeniero. Una evidencia
+// no es nada de eso: es un ARCHIVO. Su identidad no la elige nadie — sale de la
+// huella del propio archivo, que es un hecho medible del binario. No hay dos
+// personas que puedan discrepar sobre el sha256 de una foto, y por eso no hay
+// nada que anotar en un libro ni nada que firmar.
+//
+// Y hay una razón operativa que lo hace obligatorio: si el id no saliera de la
+// huella, subir dos veces la misma foto crearía DOS fichas de la misma imagen, y
+// `firestore.rules` prohíbe borrar evidencias. La derivación es justo lo que
+// hace que repetir una subida cortada sea seguro.
+//
+// EL PELIGRO REAL, y cómo se cierra. El peligro no es acuñar: es que existan DOS
+// fórmulas. `herramientas/identidad.mjs` la calcula con `node:crypto` (síncrona,
+// solo Node); ésta con `crypto.subtle` (asíncrona, idéntica en Node 22 y en el
+// navegador). Dos implementaciones que divergen no rompen nada visible: dejan
+// fotos huérfanas en silencio. Por eso `tests/identidad-apoyos.test.js` exige
+// que las dos den EXACTAMENTE lo mismo, y con vectores fijos escritos a mano
+// para que tampoco puedan derivar juntas.
+// ════════════════════════════════════════════════════════════════════════════
+
+/**
+ * El sha256 de un texto, en hexadecimal. `crypto.subtle` existe igual en Node 22
+ * y en el navegador — pero SOLO en contexto seguro (HTTPS o `localhost`). Abrir
+ * la aplicación por la IP de la red local lo deja sin definir, y entonces esto
+ * lanza con esas palabras en vez de fallar a medias.
+ */
+async function sha256Hex(texto) {
+  if (typeof crypto === 'undefined' || !crypto?.subtle) {
+    throw new Error(
+      'Este navegador no ofrece el motor de huellas digitales. Suele pasar al abrir la aplicación ' +
+      'por la dirección de red del computador en vez de por su dirección segura (https) o por «localhost». ' +
+      'Sin huella no se puede saber qué fotos ya están cargadas, y sin eso no se sube nada.',
+    );
+  }
+  const datos = new TextEncoder().encode(texto);
+  const resumen = await crypto.subtle.digest('SHA-256', datos);
+  return [...new Uint8Array(resumen)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** La huella de un binario, en hexadecimal. La misma que guarda la ficha. */
+export async function huellaDeArchivo(bytes) {
+  if (typeof crypto === 'undefined' || !crypto?.subtle) {
+    throw new Error(
+      'Este navegador no ofrece el motor de huellas digitales (hace falta abrir la aplicación por ' +
+      'https o por «localhost»). Sin huella no hay forma de saber qué fotos ya están cargadas.',
+    );
+  }
+  const resumen = await crypto.subtle.digest('SHA-256', bytes);
+  return [...new Uint8Array(resumen)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * La FORMA del id: recortar el sha256 a 32 hex y darle forma de identificador.
+ * No se toca ni un byte — reproduce exactamente los ids que ya están escritos en
+ * producción.
+ */
+const conFormaDeId = (hex) =>
+  hex.slice(0, 32).replace(/^(.{8})(.{4})(.{4})(.{4})(.{12})$/, '$1-$2-$3-$4-$5');
+
+/**
+ * El id estable de cualquier semilla NO posicional. Gemelo exacto de
+ * `idEstable` de `herramientas/identidad.mjs`, en asíncrono.
+ */
+export const idEstable = async (org, codigoLinea, semilla) =>
+  conFormaDeId(await sha256Hex(`${org}|${codigoLinea}|${semilla}`));
+
+/**
+ * El id de la ficha de una foto, a partir de la HUELLA del archivo.
+ *
+ * La semilla es `evidencia-<sha256>`, exactamente la que usó
+ * `herramientas/subir-evidencias.mjs` para las 99 fichas que ya están escritas.
+ * Volver a subir la misma foto cae en el MISMO documento: se pisa a sí misma, no
+ * se duplica.
+ */
+export const idDeEvidencia = async (codigoLinea, sha256, org = ORG_POR_DEFECTO) =>
+  idEstable(org, codigoLinea, `evidencia-${sha256}`);
+
+/** El id de la línea. Misma semilla que el sembrador; se deriva, no se inventa. */
+export const idDeLinea = async (codigoLinea, org = ORG_POR_DEFECTO) =>
+  idEstable(org, codigoLinea, 'linea');

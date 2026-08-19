@@ -3,9 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Lectores puros de la plataforma — del archivo del GPS a los documentos que se van a cargar, sin DOM ni framework (ADR-005/ADR-006). Espejo de @lineas/exportar en la dirección contraria: allí los datos se vuelven archivo, aquí el archivo se vuelve datos. No calcula identidad: la BUSCA en el registro del repositorio.",
+  "description": "Lectores puros de la plataforma — del archivo del GPS a los documentos que se van a cargar, sin DOM ni framework (ADR-005/ADR-006). Espejo de @lineas/exportar en la dirección contraria: allí los datos se vuelven archivo, aquí el archivo se vuelve datos. No calcula identidad de PUNTO: la BUSCA en el registro del repositorio. La unica identidad que si deriva es la de una EVIDENCIA, que sale de la huella del archivo y no de ninguna posicion (ADR-031).",
   "exports": {
     "./identidad": "./identidad.js",
+    "./evidencias": "./evidencias.js",
     "./decisiones": "./decisiones.js",
     "./punto": "./punto.js",
     "./gpx": "./gpx.js",

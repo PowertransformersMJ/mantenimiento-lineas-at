@@ -2920,3 +2920,201 @@ ganaron el cerrojo de revisión en el eslabón anterior.
 *(sin comité: el diseño lo cerró el Ingeniero campo por campo antes de construir, y la construcción
 fue en eslabones. La evidencia reproducible son las pruebas: `tests/ficha-estructural.test.js` (41)
 y `tests/ficha-editable.test.js` (41), con mundo sintético.)*
+
+---
+
+## ADR-031 · 2026-08-17 · Las fotos se suben DESDE la aplicación; el portero deja de ser solo-lectura bajo diez cerrojos
+
+**Estado:** ✅ Decidido · ⚠️ **NO revisada externamente** · ⬜ **sin verificar en vivo** (la pestaña
+no se ha visto todavía contra producción con el Chrome del Ingeniero, ni ha entrado una sola foto
+por esta vía).
+
+### Contexto
+
+El 17-08 (ADR-028) los PUNTOS empezaron a entrar desde la aplicación, con la sesión y el rol. Las
+FOTOS no. La única vía seguía siendo `herramientas/subir-evidencias.mjs`, un guion de consola que
+exige `GOOGLE_APPLICATION_CREDENTIALS` — la llave maestra, que se salta todas las reglas de
+Firestore, hay que custodiarla y ya se perdió una vez. En campo, con el teléfono en la mano, no
+existe.
+
+En la bóveda hay 205 fotos convertidas a JPG de 28 puntos. 99 ya están cargadas en producción y
+ninguna cuelga del apoyo equivocado (comprobado por tres caminos contra la base). Faltan 106.
+
+### La decisión cara: quién firma la subida al depósito
+
+**EL MISMO PORTERO, CON EL MISMO TOKEN DE LA SESIÓN.** Se le añade **una** ruta de escritura,
+`PUT /e/<clave>`. Ni `DELETE`, ni `LIST`, ni ninguna otra.
+
+**El argumento que decide: no añade ni una credencial nueva.** El depósito YA está expuesto entero
+al portero — `evidencias/wrangler.toml` lo dice con todas las letras desde §ADR-013: un
+`[[r2_buckets]]` **no tiene modo de solo lectura**, el binding expone el `R2Bucket` completo con
+`put`, `delete` y `list`; que el trabajador solo llamara a `.get()` era una **costumbre del código,
+no un permiso de la plataforma**. Aceptar subidas no abre una puerta: usa la que ya estaba abierta
+desde dentro, y sigue habiendo **una sola llave para entrar** (la firma del token de Google
+verificada contra sus llaves públicas).
+
+**Coste verificado, no recordado** (`30 · L-09`): Workers plan gratuito 100.000 peticiones/día,
+10 ms de CPU por invocación, cuerpo hasta 100 MB; al pasarse devuelve Error 1027 y **no factura**,
+apaga. R2 gratis para siempre: 10 GB-mes, 1 M operaciones Clase A/mes, 10 M Clase B/mes, salida
+gratis. `PutObject` es Clase A, `GetObject`/`HeadObject` Clase B. Las 106 fotos = 106 A + 106 B: el
+0,01 % del cupo mensual y el 0,2 % del cupo diario. **Un solo Worker, cero líneas de factura nuevas.**
+
+### Los diez cerrojos (todos en `evidencias/src/index.js`, todos probados sin red)
+
+1. Sin `PROYECTO_FIREBASE` u `ORG_PERMITIDA` → 503, el servicio **se apaga**. No se relaja ni un byte.
+2. Solo `GET`, `PUT` y `OPTIONS`, por **lista blanca**. Cualquier otro método → 405.
+3. Token verificado igual que hoy + `orgId` correcto + **`rol ∈ {admin, editor, cuadrilla}`**. Sin
+   reclamo `rol`, o con otro, no pasa: falla **cerrado**, igual que ya hacía el `orgId`.
+4. La clave tiene que casar una **forma estricta** (`<línea>/<origen>/<12 hex>-<archivo>.<ext>`).
+   Nada de rutas libres; el control de `..` se queda.
+5. `content-type` en lista blanca **y coherente con la extensión**.
+6. `content-length` presente y entre 1 byte y 25 MB. Ausente → 411.
+7. Cabecera `x-huella` con el sha256 completo; sus 12 primeros caracteres tienen que ser el prefijo
+   de la clave, y el hash entero se le pasa a `put(..., { sha256 })` para que **R2 mismo** rechace un
+   cuerpo que no case. **El cliente no elige qué objeto pisa**: para pisar otro habría que fabricar
+   una colisión de sha256.
+8. `head(clave)` primero. Si el objeto está → 200 `{ya:true}` y **no se escribe**. El portero nunca
+   sobrescribe. (`head`, no la escritura condicional: el comodín «solo si no existe» **no está
+   documentado** para el binding, y aquí no se diseña sobre lo no documentado.)
+9. El cuerpo va **en chorro**. Prohibido `arrayBuffer()` y prohibido calcular el hash dentro del
+   Worker: eso se comería los 10 ms de CPU con una foto de 5 MB. La integridad la comprueba R2.
+10. La respuesta no devuelve nada del depósito salvo la clave que le mandaron.
+
+Y un **guardián por texto** en `tests/portero.test.js`: si `.delete(` o `.list(` aparecen en ese
+archivo, la prueba se pone roja. Es lo que convierte la costumbre en barrera.
+
+### Los tres caminos descartados
+
+**(B) URL firmada de corta vida (S3 presignada).** Es la que más parece «lo profesional». Dinero:
+cero también. Descartada porque exige **crear un token de API de R2** —una credencial nueva y de
+larga vida: quien la saque escribe en el depósito entero durante meses, sin token de Firebase y sin
+sesión— y exige **abrir CORS en el propio depósito**, dejándolo MÁS abierto que hoy, que es
+exactamente la línea roja del encargo. Además una URL firmada es un **pase al portador**: mientras
+vive funciona sin sesión, sin `orgId` y sin `rol`; se reenvía por chat y sigue sirviendo. Y obliga a
+meter firma SigV4 dentro del Worker, código criptográfico nuevo en la única pieza de servidor que hay.
+
+**(C) Un segundo Worker o Pages Functions.** Descartada por doctrina explícita (`CLAUDE.md §1`, «un
+Worker y solo uno») y porque duplicaría la verificación del token en dos sitios que pueden divergir.
+
+**(D) Seguir como hoy.** Descartada porque es el problema, no la solución. **No se retira**:
+`subir-evidencias.mjs` sigue existiendo y funcionando para lo que la pantalla no cubra.
+
+### Cómo se ata cada foto a su apoyo
+
+**LA CADENA, y ningún eslabón es una posición:** archivo → *(índice del registro, en la bóveda)* →
+CARPETA → *(mapa de carpetas, en la bóveda)* → NOMBRE CANÓNICO → *(casado EXACTO contra
+`nombreNormalizado` del apoyo que YA está en la base)* → **se copia SU `id` tal cual**. Es la
+lección de §ADR-015 y §ADR-027.
+
+El mapa **no puede vivir en el repositorio**: una de esas carpetas lleva el nombre de una instalación
+del cliente (`33 · L-50`). Vive en la bóveda, y es **el mismo documento que lee la máquina**: él lo
+elige con el selector, la pantalla lo pinta como la tabla de reparto, el objeto que pinta es
+literalmente el que se le pasa al emparejador, y «Guardar el mapa de carpetas» descarga el MISMO
+JSON con la MISMA forma que ya lee el guion de consola. **Un documento, dos lectores.**
+
+El emparejador se muda a `importar/evidencias.js` (`@lineas/importar/evidencias`), puro y sin `node:`
+nada, y `herramientas/resolver-evidencias.mjs` queda como reenvío fino. **Una implementación, dos
+lectores** — el guion y la pantalla.
+
+### Los cuatro fallos del intento anterior, verificados CORRIENDO, no leyendo
+
+1. **El eslabón suelto.** `resolverCarpetas` estaba exportado y probado y **no lo llamaba nadie**: el
+   guion leía del índice un campo `nombreCanonico` que el índice no tiene. Salida real: **205
+   problemas `foto-sin-canonico`**, siempre, en la primera corrida. Un eslabón que nadie enlaza no es
+   media solución: es cero.
+2. **El guardián que saltaba con la corrida buena.** El control anti-transposición exigía que el
+   `orden` saliera creciente **según iban apareciendo los archivos** — y las fotos van ordenadas por
+   nombre en una carpeta plana, que no es un recorrido. Salida real: **1 falso positivo sobre 28
+   grupos**. Ahora mira el orden de las **filas del mapa**, que es donde de verdad se cruzan dos filas.
+3. **El `--origen` mal escrito que apagaba la asignación en silencio.** `EXIGE_APOYO = ORIGEN ===
+   'estructuras'`: con `--origen registro-2026-08` valía `false` y las 205 fotos habrían subido **sin
+   apoyo, sin un solo aviso**. Invertido: se exige siempre y solo lo apaga `--sin-apoyo`.
+4. **Revisar exigía la llave maestra.** En `--seco` abortaba sin credencial, o sea que el paso «que lo
+   revise una persona antes» era justo el que pedía la llave que se quiere dejar de usar. Ahora en
+   seco se enseña la cadena carpeta → punto y **se dice qué parte no se pudo comprobar**.
+
+### La excepción al veto de ADR-028, declarada en voz alta
+
+ADR-028 dice: **el navegador solo busca, jamás acuña**. Ese veto **sigue entero para lo que
+protege**: la identidad de un PUNTO. Lo que se abre es el id de una **evidencia**, que sale de la
+HUELLA del archivo — un hecho medible del binario sobre el que nadie puede discrepar, sin nada que
+anotar en un libro ni nada que firmar. Y es **obligatorio** derivarlo: si no saliera de la huella,
+repetir una subida cortada crearía fichas duplicadas de la misma foto, y las reglas prohíben borrarlas.
+
+El peligro no es acuñar: es que existan **dos fórmulas**. `herramientas/identidad.mjs` usa
+`node:crypto`; `importar/identidad.js` usa `crypto.subtle` (idéntica en Node 22 y en el navegador).
+Se paga con una **prueba de oro** que exige que las dos den exactamente lo mismo, más **vectores
+fijos** escritos a mano para que tampoco puedan derivar juntas, más un guardián que prohíbe que la
+semilla de un PUNTO aparezca fuera del repositorio.
+
+### Lo ya subido: se pregunta por lo que EXISTE, nunca por lo que no existe
+
+Es toda la diferencia con el fallo del 17-08 (§ADR-028, «los dos fallos FATALES», #1): `getDoc` sobre
+un documento que aún no existe no devuelve «no está» — `puedeLeer()` mira `resource.data.orgId` y sin
+`resource` **DENIEGA**. Cuatro redes, y ninguna hace esa pregunta:
+
+1. **La lista que la aplicación ya tiene en memoria**, traída por una CONSULTA (`where orgId`, `where
+   lineaId`). Una consulta devuelve lo que hay. Coste: cero peticiones nuevas.
+2. **La huella se recalcula en el navegador**, del archivo real. El `sha256` del índice sirve para
+   pintar la tabla rápido; si alguien reconvirtió una foto y no regeneró el índice, ese hash miente.
+3. **El portero**, `head` antes de escribir. Una operación Clase B de los 10 M mensuales.
+4. **La idempotencia de la propia clave**: la clave lleva la huella y el id se deriva de la huella.
+   La misma foto cae en la MISMA clave y en el MISMO documento.
+
+**Lo que NO cuenta como prueba: la columna `yaCargado` del mapa.** Es una anotación humana, útil para
+pintar. Quien decide es el hash contra la base.
+
+### La pantalla: pestaña propia, no dentro de la galería
+
+Se consideró colgarla de la galería de cada ficha. Descartada porque **la seguridad de este diseño
+vive en ver las 28 filas a la vez**: un desfase se ve porque la fila de al lado no cuadra, no mirando
+una fila sola. Dentro de la ficha habría que elegir el apoyo PRIMERO, y entonces el sistema ya no
+puede enseñar nada que contradiga la elección. Además el acto es de LÍNEA (205 fotos, 28 puntos), y
+«Cargar» ya sentó la regla: lo que escribe va en su propia pestaña, al final, con el permiso dicho
+antes de empezar.
+
+**No es `soloAdmin`**, a diferencia de «Cargar»: quien va a campo con el teléfono es la cuadrilla, y
+es lo que `firestore.rules` permite para evidencias (`esCuadrilla()`). Esconderla sería esconderla a
+quien tiene que usarla. Quien no pueda subir la ve y **la pantalla se lo dice**.
+
+Seis pasos, y hasta el quinto no sale un solo byte del computador: elegir · el reparto (tabla
+editable, con desplegable cargado con los puntos que YA están en la base) · las paradas · confirmar
+en frío (casilla vacía + escribir SUBIR) · el progreso · **el acuse, que NO se borra solo** — la
+línea se refresca cuando él lo pida, después de leer. Es la cicatriz de ADR-028, donde el refresco
+automático destruyó el acuse en el instante en que se generaba.
+
+### Lo que hay que saber, sin adornos
+
+- **El portero dejó de ser solo-lectura, y eso es irreversible en la práctica.** Un fallo de lectura
+  filtra; uno de escritura **ensucia para siempre**: `firestore.rules:120` prohíbe borrar evidencias
+  y un objeto mal metido en R2 solo lo saca el Ingeniero a mano con wrangler.
+- **El cupo diario lo comparten galería y subida.** Agotarlo devuelve Error 1027 y deja la galería a
+  oscuras hasta medianoche UTC. No factura: apaga. 106 fotos son el 0,2 % del cupo, así que el
+  escenario es inverosímil; se declara igual porque un límite compartido no descubierto a tiempo es
+  una caída sin explicación.
+- **El AUTOR de las fichas cambia.** Las 99 ya escritas llevan `creadoPor: 'subidor'` (llave
+  maestra); las nuevas llevarán el identificador de la sesión, porque `altaCoherente()` lo exige. Es
+  aditivo y correcto, pero **cualquier informe que agrupe por autor verá dos valores** para el mismo
+  lote de fotos. Se dice antes, no se descubre en un informe.
+- **`crypto.subtle` exige contexto seguro.** Funciona en producción y en `localhost`, pero **no** si
+  alguien abre la aplicación por la IP de la red local para probar desde el móvil. La pantalla lo
+  dice con esas palabras en vez de fallar a medias.
+- **Crece la superficie de tanteo.** Hoy un token válido distingue 200 de 404; ahora distinguirá
+  además «ya estaba» de «entró». Misma magnitud de fuga, dentro de una sola organización.
+- **El reparto lo firma él, y no tiene vuelta.** Ningún cerrojo técnico cubre elegir mal el punto de
+  una carpeta: lo cubren la tabla enseñada antes, la casilla vacía, el escribir SUBIR y el aviso en
+  rojo. Es la razón de que este diseño gaste tanto en el paso 2 y tan poco en el 5.
+- **Un objeto huérfano es posible** si la foto entra y la ficha no. Se sube primero el objeto **a
+  propósito**: al revés dejaría una ficha apuntando al vacío, que es lo que la galería enseña como
+  error. Un huérfano ocupa unos megas y no lo ve nadie; repetir la subida no lo duplica.
+
+### Fuera de esta ola, dicho para que nadie lo dé por hecho
+
+Captura desde la cámara en campo y cola de subida sin señal · **borrado o listado en el portero
+(jamás, ni en olas futuras)** · subida en varias partes o archivos de más de 100 MB · conversión de
+HEIC en el navegador (se sigue haciendo en la bóveda) · pie de foto por imagen · prefijo por
+organización en las claves · retirar `subir-evidencias.mjs`, que se queda y sigue funcionando.
+
+**Evidencia reproducible:** `tests/portero.test.js` (47) · `tests/evidencias-por-nombre.test.js` (29)
+· `tests/fotos-pantalla.test.js` (40) · `tests/identidad-apoyos.test.js` (69, con la prueba de oro).
+`npm test` = **1.492**.

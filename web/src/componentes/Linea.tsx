@@ -31,6 +31,7 @@ import { Distancias } from './Distancias';
 import { Fichas } from './Fichas';
 import { Exportar } from './Exportar';
 import { Cargar } from './Cargar';
+import { Fotos } from './Fotos';
 import { Fundamentos } from './Fundamentos';
 import { Falla } from './Falla';
 import { Umbrales } from './Umbrales';
@@ -119,6 +120,16 @@ const PESTANAS = [
   // quien decide de verdad son las reglas de la base. Existe para que quien no
   // pueda cargar no descubra que no puede después de media hora de trabajo.
   { id: 'cargar', rotulo: 'Cargar', lista: true, soloAdmin: true },
+  // La segunda pestaña que ESCRIBE, y la segunda cuyo efecto no se deshace: las
+  // reglas niegan borrar una evidencia. Va al lado de «Cargar» porque son el
+  // mismo gesto —traer material de campo a la base— y separadas obligarían a
+  // aprender dos sitios para lo mismo.
+  //
+  // ⚠️ NO es `soloAdmin`. Quien va a campo con el teléfono es la cuadrilla, y es
+  // lo que `firestore.rules` permite para evidencias (`esCuadrilla()`). Poner
+  // aquí el filtro de administración escondería la pestaña a justo quien tiene
+  // que usarla. Quien no pueda subir la ve y la pantalla se lo dice.
+  { id: 'fotos', rotulo: 'Fotos', lista: true },
 ] as const;
 
 type IdPestana = (typeof PESTANAS)[number]['id'];
@@ -783,6 +794,15 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
         {activa === 'cargar' && sesion.fase === 'autenticado' && (
           <Cargar linea={linea} apoyos={apoyos}
             sesion={{ correo: sesion.correo, rol: sesion.rol, orgId: sesion.orgId, uid: sesion.uid }} />
+        )}
+        {/* La sesión se pasa AUNQUE aún no conste: esta pantalla siempre se
+            puede mirar —el reparto se revisa sin escribir nada— y lo que se
+            guarda es el botón. Lo mismo que ya se hace con Fichas. */}
+        {activa === 'fotos' && (
+          <Fotos linea={linea} apoyos={apoyos} evidencias={evidencias}
+            sesion={sesion.fase === 'autenticado'
+              ? { correo: sesion.correo, rol: sesion.rol, orgId: sesion.orgId, uid: sesion.uid }
+              : undefined} />
         )}
       </div>
         </div>

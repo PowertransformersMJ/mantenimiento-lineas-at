@@ -100,11 +100,15 @@ mantenimiento-lineas-at/
 │                                (el antes/después con el motor de siempre) · **decisiones.js**
 │                                (ADR-029: lee lo que él YA FIRMÓ; solo devuelve valores con su
 │                                fecha, y NUNCA `Object.keys` de la página — eso lo hace identidad.js
-│                                y aquí convertiría una clave suelta en un punto suyo). CERO `node:`:
-│                                corre en el navegador y se prueba en Node. Lo consume Cargar.tsx
-├── evidencias/                  🚪 EL PORTERO (Cloudflare Worker, ADR-010): verifica la FIRMA del
-│                                token de Firebase contra las llaves de Google y sirve las fotos
-│                                del depósito privado. No escribe, no borra, no lista.
+│                                y aquí convertiría una clave suelta en un punto suyo) · **evidencias.js**
+│                                (ADR-031: la CADENA archivo → carpeta → canónico → apoyo, nunca por
+│                                posición; UNA implementación, DOS lectores). CERO `node:`.
+│                                ⚠️ `identidad.js` deriva el id de una FOTO (de su huella); el de un
+│                                PUNTO sigue vetado y con guardián (ADR-028/031)
+├── evidencias/                  🚪 EL PORTERO (Worker, ADR-010 + **ADR-031**): verifica la FIRMA del
+│                                token contra las llaves de Google. `GET` sirve; `PUT` acepta una
+│                                foto bajo diez cerrojos. 🚫 **NO borra y NO lista, jamás** — y ya no
+│                                es costumbre: la prueba se pone roja si aparece `.delete(`/`.list(`
 ├── herramientas/                sembrar.mjs (línea + expediente) · subir-evidencias.mjs (fotos) ·
 │                                ⚠️ usuarios.mjs — **la ÚNICA vía de alta de personas**: alta,
 │                                contrasena, rol, baja, restituir, auditar. Rechaza a propósito
@@ -125,12 +129,14 @@ mantenimiento-lineas-at/
 │                                y ya está implementada (ADR-018). NO es código de la aplicación
 ├── web/src/estilo.css           el tablero de color: ~61 tokens en `:root`, paleta CLARA desde el
 │                                04-08. Ningún color se escribe fuera de ahí — lo vigila una prueba
-├── web/src/componentes/         React SOLO pinta (ADR-005): Linea (las 11 pestañas ARIA **y** la
+├── web/src/componentes/         React SOLO pinta (ADR-005): Linea (las 13 pestañas ARIA **y** la
 │                                carcasa de 3 columnas), Horizonte (los apoyos en su orden real),
 │                                Mapa (popup completo + tramos + marcador de falla), Distribucion,
 │                                Distancias, Fichas, FichaCriterios, Falla + Galeria, Fundamentos,
 │                                Umbrales, Termica, Viento, Cargas (los DOS ejes, ADR-011/017),
-│                                Cantidades, Exportar, Sello, Estado · **Rca + RcaEditores: NO son
+│                                Cantidades, Exportar, Sello, Estado · **Cargar** (solo admin) y
+│                                **Fotos** (ADR-031; cuadrilla o superior): las DOS que ESCRIBEN, y
+│                                las dos cuyo efecto no se deshace · **Rca + RcaEditores: NO son
 │                                una pestaña de línea — son un segmento hermano del parque, porque
 │                                un análisis puede abarcar varias líneas (ADR-020)**
 ├── web/src/contenido/           doctrina SIN datos de cliente (fundamentos.ts: 9 tarjetas + normas)
@@ -147,8 +153,11 @@ mantenimiento-lineas-at/
 │   ├── coberturaEjes.ts         qué se sabe de CADA apoyo, eje por eje: los 4 estados
 │   │                            (ambos · solo transversal · solo longitudinal · ninguno) y los
 │   │                            textos del horizonte. Lo piden `estadoLinea` y `Horizonte`
-│   └── estadoLinea.ts           el CIELO de la línea (amanecer/atardecer/tormenta/niebla). Pide el
-│                                cruce a `coberturaEjes.ts`: NO lo reimplementa
+│   ├── estadoLinea.ts           el CIELO de la línea (amanecer/atardecer/tormenta/niebla). Pide el
+│   │                            cruce a `coberturaEjes.ts`: NO lo reimplementa
+│   └── fotosNuevas.ts           (ADR-031) cifras y frases de Fotos. El «106 entrarían nuevas» que él
+│                                lee ANTES de firmar sale de aquí: es la única defensa contra colgar
+│                                una foto del apoyo equivocado, que las reglas prohíben borrar
 │                                De dónde salió cada uno, porque duplicarlos es reabrir un fallo ya
 │                                pagado: `ejesLinea` de `Cargas.tsx` · `vanosLinea` de `DetalleVanos`
 │                                (para que dibujo y tabla no discrepen) · `coberturaEjes` de
@@ -174,6 +183,8 @@ mantenimiento-lineas-at/
 │                                navegador los dos libros de `herramientas/`. La aplicación LEE y no
 │                                escribe: quien pueda escribirlos puede estrenar una identidad o
 │                                fabricar un recuerdo (ADR-027/029)
+│                                · **fotos.ts** (ADR-031): lo único de la subida que toca la red;
+│                                primero el OBJETO y después la FICHA (al revés, ficha al vacío)
 ├── web/public/mapas/            recorte PMTiles metropolitano (4,3 MB, autohospedado)
 ├── web/public/basemaps-assets/  fuentes y sprites del mapa (autohospedados)
 ├── githooks/pre-commit          corre los gates y BLOQUEA el commit si el cerebro está mal

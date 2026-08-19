@@ -24,6 +24,13 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+// ⚠️ El comentario de arriba decía que este contrato NO se puede importar desde
+// Node. Ya no es cierto: con Node 22 se importa un `.ts` directamente, y así
+// esta prueba deja de comprobar solo el TEXTO de la regla para comprobar que
+// Zod la EJECUTA — que era la limitación declarada. Se importa aquí, junto a la
+// comprobación por texto, porque las dos siguen haciendo falta: una vigila que
+// la regla no cambie, la otra que haga lo que dice.
+import { Evidencia } from '../contratos/src/eventos.ts';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -84,4 +91,37 @@ describe('contrato · una fotografía siempre declara de QUÉ es', () => {
       assert.match(cuerpo, new RegExp(`${campo}:\\s*Id\\.optional\\(\\)`));
     }
   });
+});
+
+// ── El campo que el molde descartaba en silencio ────────────────────────────
+//
+// `lineaId` se escribía y el molde NO lo declaraba, así que lo tiraba. No molestó
+// mientras la única vía de subida fue el guion de consola, que no pasa por el
+// molde. En cuanto la aplicación empezó a subir apareció el daño: la galería
+// busca por `lineaId`, de modo que las fotos del camino nuevo habrían entrado
+// INVISIBLES — y una evidencia no se puede borrar.
+test('una evidencia dice de qué línea es, y ese campo sobrevive al molde', () => {
+  const doc = {
+    id: '11111111-1111-4111-8111-111111111111',
+    orgId: 'transpower',
+    creadoEn: '2026-01-01T00:00:00.000Z',
+    creadoPor: 'uid-de-prueba',
+    revision: 0,
+    tipo: 'evidencia',
+    lineaId: '22222222-2222-4222-8222-222222222222',
+    apoyoId: '33333333-3333-4333-8333-333333333333',
+    rutaObjeto: 'LX-001/pruebas/aabbccddeeff-a.jpg',
+    sha256: 'a'.repeat(64),
+    bytes: 1234,
+    mime: 'image/jpeg',
+    subida: 'completa',
+  };
+  const r = Evidencia.safeParse(doc);
+  assert.equal(r.success, true, 'el molde rechaza una evidencia bien formada');
+  assert.equal(r.data.lineaId, doc.lineaId,
+    'el molde volvió a descartar `lineaId`: las fotos entrarían invisibles y no se pueden borrar');
+
+  // Y sin él no valida: una foto que no dice de qué línea es no la encuentra nadie.
+  const { lineaId, ...huerfana } = doc;
+  assert.equal(Evidencia.safeParse(huerfana).success, false);
 });
