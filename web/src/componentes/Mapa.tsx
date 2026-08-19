@@ -228,6 +228,8 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
   const [diaTermico, setDiaTermico] = useState<string | null>(null);
   /** La rejilla del día elegido, en bytes. De aquí salen los grados de un clic. */
   const rejilla = useRef<Uint8Array | null>(null);
+  /** El lienzo donde se pinta la rejilla. Es el MISMO siempre: la fuente lo lee en vivo. */
+  const pincel = useRef<HTMLCanvasElement | null>(null);
   const [rejillaLista, setRejillaLista] = useState<string | null>(null);
   const [gradosClic, setGradosClic] = useState<{ c: number | null; lon: number; lat: number } | null>(null);
   const [fichas, setFichas] = useState<Partial<Record<NombreCapa, FichaCapa>>>({});
@@ -499,25 +501,34 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
           const bytes = await leerRejilla(`/mapas/${dia.archivo}`, ficha);
           if (cancelado) return;
           rejilla.current = bytes;
-          const lienzo = document.createElement('canvas');
+          // ⚠️ EL LIENZO SE ENTREGA TAL CUAL, no como PNG. Codificar un millón y
+          // medio de píxeles a PNG y pasarlo en base64 tardaba SEGUNDOS en los que
+          // no pasaba nada visible — y un botón que tarda cinco segundos sin decir
+          // nada se lee como un botón roto. MapLibre lee el lienzo directamente.
+          const lienzo = pincel.current ?? document.createElement('canvas');
+          pincel.current = lienzo;
           lienzo.width = ficha.ancho;
           lienzo.height = ficha.alto;
           const ctx = lienzo.getContext('2d')!;
           const lienzoDatos = ctx.createImageData(ficha.ancho, ficha.alto);
           lienzoDatos.data.set(pintarRejilla(bytes, ficha));
           ctx.putImageData(lienzoDatos, 0, 0);
-          const url = lienzo.toDataURL('image/png');
           if (cancelado) return;
 
           const coords = esquinas(ficha) as [[number, number], [number, number], [number, number], [number, number]];
-          const fuente = m.getSource('capa-termica') as maplibregl.ImageSource | undefined;
+          const fuente = m.getSource('capa-termica') as maplibregl.CanvasSource | undefined;
           if (fuente) {
-            fuente.updateImage({ url, coordinates: coords });
+            // El lienzo es el MISMO objeto: basta con avisar de que cambió.
+            fuente.setCoordinates(coords);
+            (fuente as unknown as { play?: () => void; pause?: () => void }).play?.();
+            (fuente as unknown as { play?: () => void; pause?: () => void }).pause?.();
           } else {
-            // ⚠️ Una fuente de imagen NO admite atribución en MapLibre, así que
+            // ⚠️ Una fuente de lienzo NO admite atribución en MapLibre, así que
             // el deber de la licencia lo cumple la leyenda, que la imprime al pie
             // y solo mientras la capa está puesta.
-            m.addSource('capa-termica', { type: 'image', url, coordinates: coords });
+            m.addSource('capa-termica', {
+              type: 'canvas', canvas: lienzo, coordinates: coords, animate: false,
+            });
             m.addLayer({
               id: 'capa-termica', type: 'raster', source: 'capa-termica',
               // `linear` explícito: al acercarse la medida se INTERPOLA en vez de
@@ -660,6 +671,7 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
           <input type="checkbox" checked={termico}
             onChange={(e) => { setTermico(e.target.checked); setGradosClic(null); }} /> Temperatura
           del suelo
+          {bajandoTermico && <span className="mapa-capas-f">midiendo…</span>}
         </label>
 
         <label>
