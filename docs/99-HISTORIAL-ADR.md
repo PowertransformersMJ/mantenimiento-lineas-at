@@ -3118,3 +3118,103 @@ organización en las claves · retirar `subir-evidencias.mjs`, que se queda y si
 **Evidencia reproducible:** `tests/portero.test.js` (47) · `tests/evidencias-por-nombre.test.js` (29)
 · `tests/fotos-pantalla.test.js` (40) · `tests/identidad-apoyos.test.js` (69, con la prueba de oro).
 `npm test` = **1.492**.
+
+
+## ADR-032 · 2026-08-19 · Un veredicto calculado sobre un dato que nadie verificó lo dice en el papel — y lo dice el MOTOR, no el papel
+
+**Estado:** ✅ Decidido · ⚠️ **NO revisada externamente** · ⬜ **sin verificar en vivo** (no se ha
+visto todavía contra producción con el Chrome del Ingeniero).
+
+### Contexto
+
+`ADR-030` dejó abierta, con estas palabras, la deuda más peligrosa de la ola: *«`exportar/acta.js`
+todavía NO arrastra la procedencia ni marca los veredictos calculados sobre datos supuestos»*
+(`TODO-70` ①). Mientras no entrara, **un «cumple» calculado sobre una altura estimada a ojo salía
+limpio en un papel firmado**, indistinguible de uno medido con cinta. Y la ficha se lo había
+prometido al Ingeniero con estas palabras, en el selector de origen: *«Lo estimé a ojo → queda
+marcado como supuesto. El veredicto saldrá igual, y saldrá diciendo que se calculó sobre un
+supuesto.»* Un sistema que promete y no cumple es peor que uno que calla.
+
+**Al abrir el archivo, la deuda era peor de lo que estaba escrito.** `exportar/informe.js` YA tenía
+la marca, con su comentario explicando por qué existía, y **una prueba en verde que juraba que
+funcionaba**. No marcaba nada, y no podía marcarlo nunca, por tres desajustes simultáneos que en
+JavaScript no dan error: leía los sellos de la FILA cuando viven en el APOYO; buscaba
+`{origen:'estimado'}` cuando el contrato escribe `{procedencia:'supuesto', fuente, declaradoEn,
+declaradoPor}`; y su prueba fabricaba la fila a mano con esa misma forma inventada, así que ensayaba
+un camino que la aplicación no recorre. Queda escrito como `33 · L-53`.
+
+### Decisión
+
+**QUIÉN DECIDE QUÉ ESTÁ SUPUESTO ES EL MOTOR.** `nucleo/cargas.js` y `nucleo/longitudinal.js`
+publican por fila `supuestosDelVeredicto` —campo, etiqueta y fuente—, y la pantalla, el informe, el
+gerencial y el CSV **solo lo pintan**. No es purismo: es el único sitio donde se sabe QUÉ CAMPOS
+entraron en cada eje. El transversal come la carga de rotura y las dos alturas; el longitudinal, la
+capacidad longitudinal, la altura de amarre y cuántas fases amarran — y **no come la carga de
+rotura**, que es ensayo transversal en punta. Una marca deducida en el exporte a partir de
+`apoyo.procedencias` señalaría en un eje un dato que solo entró en el otro: **una alarma que salta
+cuando no debe se acaba ignorando**, y con ella las de verdad.
+
+**SOLO SE MARCA LO QUE ENTRÓ.** Un campo sellado como supuesto pero VACÍO no se marca: no se calculó
+con él, y su hueco ya lo dice `faltaParaVeredicto`. «Lo estimé a ojo» y «no lo tengo» se corrigen en
+sitios distintos —uno exige ir a medir, el otro ir a buscar el dato— y mezclarlos manda a la persona
+equivocada. Por la misma razón, un conteo de fases heredado de la LÍNEA no arrastra el sello del
+apoyo: ese número no salió de ahí, y el criterio ya declara de dónde vino.
+
+**`faltaParaVeredicto` y `supuestosDelVeredicto` salen de UNA sola lista de campos**
+(`CAMPOS_DEL_VEREDICTO`). Con dos listas, un campo entraría en una y se olvidaría en la otra sin que
+nada avisara — que es la forma exacta en que este proyecto ya perdió una regla (`33 · L-40`).
+
+**LA MARCA VA EN TEXTO VISIBLE, NUNCA EN UN `title=`.** El informe se imprime: en papel un tooltip no
+existe. Y va en los DOS sitios donde hace daño — junto al veredicto de cada fila y contado en prosa
+ANTES de la tabla, porque quien hojea el informe en una reunión no recorre veinticuatro filas.
+
+**LO QUE NO SE MUEVE SE DICE.** Sin ningún supuesto, el papel escribe que no lo hay: un panel callado
+se lee como «no lo miré». La misma doctrina del antes/después de `ADR-030`.
+
+**DÓNDE ENTRA:** informe técnico (los dos ejes, con su cuenta y su entrada en «Lo que este informe NO
+demuestra») · informe gerencial (fila propia en COBERTURA y renglón en RIESGO RESIDUAL: es la única
+página que lee quien decide) · CSV de verificación mecánica (columna `Datos_supuestos` en los dos
+ejes) · pestaña Cargas (las dos tablas).
+
+### Alternativas descartadas
+
+- **Que el exporte deduzca los supuestos de `apoyo.procedencias`.** Es lo que había, y es justo el
+  fallo: `exportar/` no puede saber qué comió cada eje sin copiar la regla del motor, y una regla
+  copiada empieza igual y termina distinta. Además obligaría a unir fila y apoyo **por el nombre**,
+  que no es la identidad de una estructura (`CLAUDE.md §3.1`).
+- **Mover `datosSupuestos()` de `web/src/vistas/fichaEstructural.ts` al workspace de exportes.**
+  Contestan preguntas distintas y las dos hacen falta: la de la ficha es «de los SEIS campos de esta
+  ficha, cuáles nadie verificó» —una propiedad del apoyo, que se pinta en su tarjeta— y la del motor
+  es «de los que entraron en ESTE veredicto, cuáles». Fundirlas devolvería las alarmas falsas.
+- **Marcar también los apoyos SIN veredicto.** La cuenta que se publica es sobre los que SÍ lo
+  tienen: un apoyo sin dictamen no engaña a nadie, y sumarlo inflaría la alarma con casos que no la
+  merecen. El dato viaja igualmente en todas las filas, para quien quiera contarlo de otra forma.
+- **Insertar `Datos_supuestos` al lado del veredicto en el CSV.** Se lee mejor ahí y se descartó: las
+  columnas de ese archivo son un FORMATO y el proyecto no las reordena sin migración. Va al final.
+
+### Consecuencias
+
+- **La promesa de la ficha se cumple en los cuatro sitios donde el veredicto se lee.** Un dato
+  estimado a ojo deja de ser indistinguible de uno medido con cinta en el papel que se firma.
+- **El acta de carga de puntos (`exportar/acta.js`) no entra, y no por olvido:** ese papel documenta
+  una carga de puntos y **no publica ni un veredicto** —sus cifras son estructuras, vanos, tramos y
+  longitud—, así que no tiene nada que marcar. Lo que sí marca desde el principio es el papel
+  estructural SUPUESTO de cada punto cargado. El día que el acta publique un veredicto, esta marca
+  entra con él.
+- **La prueba que mentía se reescribió recorriendo el camino REAL:** el apoyo se valida contra el
+  molde (`Apoyo.safeParse`) y las filas las produce la misma vista que usa la pestaña Exportar.
+  Comprobado por mutación: neutralizando la marca en el motor, la prueba se pone roja.
+- **Aditivo, sin migración:** un campo nuevo por fila y una columna nueva al final del CSV. Ningún
+  nombre cambia y ningún documento guardado se toca.
+- **Se retiró de `nucleo/longitudinal.js` un bloque de tres claves duplicadas** dentro del mismo
+  objeto literal del caso Terminal (valores idénticos, sin efecto). Era un pegado accidental.
+
+### Crudo de respaldo
+
+*(sin comité: la deuda venía nombrada y acotada por `ADR-030`, y la parte cara —qué campos come cada
+eje— se leyó en el motor, no se deliberó. La evidencia reproducible son las pruebas.)*
+
+**Evidencia reproducible:** `tests/informe.test.js` (3 nuevas, por el camino real) ·
+`tests/cargas.test.js` · `tests/longitudinal.test.js` (4 nuevas, con las dos alarmas falsas que NO
+deben saltar) · `tests/gerencial.test.js` · `tests/exportar-calculo.test.js`. `npm test` = **1.476**
+(contado hoy: `npm test | grep '^ℹ tests'`).

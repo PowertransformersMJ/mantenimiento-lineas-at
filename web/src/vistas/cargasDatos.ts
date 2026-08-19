@@ -86,10 +86,34 @@ export interface FilaCargaApoyo {
   capacidadDeclarada: boolean;
   /** Qué le falta a este apoyo para poder ser dictaminado, nombrado. */
   faltaParaVeredicto: string[];
+  /**
+   * De los datos que SÍ entraron en este veredicto, los que nadie verificó.
+   *
+   * Lo decide el MOTOR, que es quien sabe qué campos comió: un apoyo con el tipo
+   * estimado y las tres cifras medidas con cinta no arrastra ningún supuesto en
+   * este eje. Viaja hasta el papel que se firma.
+   */
+  supuestosDelVeredicto: DatoSupuesto[];
   /** Supuestos y avisos de ESTA fila, ya redactados por el núcleo. */
   notas: string[];
   /** Motivo, cuando no se pudo calcular la carga. Prosa lista para imprimir. */
   noEvaluable: string | null;
+}
+
+/**
+ * Un dato del inventario que ENTRÓ en un veredicto y que nadie verificó.
+ *
+ * Lo publica el núcleo (`cargas.js` y `longitudinal.js`, cada uno con la lista
+ * de campos de SU eje). La pantalla y los exportes solo lo pintan: si alguno lo
+ * dedujera por su cuenta de `apoyo.procedencias`, habría dos dueños de la misma
+ * regla y acabarían marcando apoyos distintos en el mismo informe.
+ */
+export interface DatoSupuesto {
+  campo: string;
+  /** Como lo lee una persona, con las mismas palabras que usa `faltaParaVeredicto`. */
+  etiqueta: string;
+  /** La línea que declaró quien lo estimó, si la escribió. */
+  fuente: string | null;
 }
 
 /** Un límite o un hallazgo, dicho con su consecuencia. Calca `AvisoViento`. */
@@ -221,6 +245,7 @@ export function cargasParaPantalla(
     estadoUtilizacion: r.utilizacion?.estado ?? 'no_evaluable',
     capacidadDeclarada: r.capacidadDeclarada === true,
     faltaParaVeredicto: r.faltaParaVeredicto ?? [],
+    supuestosDelVeredicto: r.supuestosDelVeredicto ?? [],
     notas: r.notas,
     noEvaluable: r.noEvaluable,
   }));
@@ -448,6 +473,7 @@ interface CrudaDelNucleo {
   componentes: { amplificaTension: boolean | null; hipotesisComposicion: string };
   capacidadDeclarada: boolean;
   faltaParaVeredicto: string[];
+  supuestosDelVeredicto?: DatoSupuesto[];
   utilizacion: { utilizacion_pct: number; margen_kgf: number; estado: 'cumple' | 'revisar' } | null;
   notas: string[];
   noEvaluable: string | null;

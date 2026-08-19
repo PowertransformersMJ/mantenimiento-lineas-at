@@ -121,6 +121,30 @@
   Se comprobó a mano y estaba bien; a mano no sirve la próxima vez, así que las formas exactas que
   envía cada editor quedaron fijadas en la prueba.
 
+### L-53 · Una marca que se dispara con una forma de dato que el sistema no escribe es peor que no tenerla
+
+- **Síntoma:** `exportar/informe.js` tenía escrita, con todas sus palabras, la marca que distingue un
+  veredicto calculado sobre un dato estimado a ojo de uno calculado sobre una medida — y **una prueba
+  en verde que juraba que funcionaba**. En producción no marcó nunca nada: los 24 apoyos habrían
+  salido idénticos en el papel firmado.
+- **Causa:** TRES desajustes a la vez, y ninguno da error. ① Leía `fila.procedencias`, y los sellos
+  viven en el **apoyo**, no en la fila que el núcleo publica. ② Buscaba `{origen: 'estimado'}` cuando
+  el contrato escribe `{procedencia: 'supuesto', fuente, declaradoEn, declaradoPor}`. ③ La prueba
+  fabricaba la fila **a mano**, con esa misma forma inventada, así que ensayaba un camino que la
+  aplicación no recorre. En JavaScript leer una clave que no existe no falla: devuelve `undefined`, la
+  marca sale vacía, y el informe se imprime impecable.
+- **Regla:** una prueba de una marca **recorre el camino real** — el documento se valida contra el
+  molde (`Apoyo.safeParse`) y las filas las produce la misma vista que usa la aplicación. Si el
+  fixture se escribe a mano, lo que se prueba es la imaginación de quien lo escribió. Emparenta con
+  `30 · L-34` (un fixture más completo que la realidad prueba el camino cómodo) y con `30 · L-33`
+  (verde no prueba nada).
+- **Y la regla de diseño que lo cierra:** quien decide qué está supuesto es **el motor**, no el
+  papel. Es el único que sabe qué campos entraron en cada eje — el transversal come la carga de
+  rotura y las dos alturas; el longitudinal, la capacidad longitudinal, la altura de amarre y cuántas
+  fases amarran. Una marca deducida en el exporte a partir de los sellos del apoyo señalaría en un eje
+  un dato que solo entró en el otro: **una alarma que salta cuando no debe se acaba ignorando**, y con
+  ella las de verdad.
+
 ### L-40 · Si el núcleo solo publica la PROSA de un hueco, quien la lea deducirá el hecho — y mal
 
 - **Síntoma:** el informe imprimía *«Ningún apoyo declara su capacidad, así que ninguna fila lleva

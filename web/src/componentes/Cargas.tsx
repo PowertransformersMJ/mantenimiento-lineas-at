@@ -111,6 +111,25 @@ function selloUtilizacion(estado: 'cumple' | 'revisar' | null) {
   return <span className={`sello ${clase}`}>{ROTULO[estado ?? 'no_evaluable']}</span>;
 }
 
+/**
+ * La coletilla que acompaña a un veredicto calculado sobre un dato que nadie
+ * verificó. La ficha le prometió al Ingeniero que saldría, y sale en los tres
+ * sitios donde el veredicto se lee: aquí, en el informe y en el CSV.
+ *
+ * QUÉ está supuesto lo dice el MOTOR, no esta pantalla: cada eje come campos
+ * distintos, y una marca deducida aquí de los sellos del apoyo marcaría en un
+ * eje un dato que solo entró en el otro.
+ */
+function marcaDeSupuesto(supuestos: { etiqueta: string }[]) {
+  if (!supuestos.length) return null;
+  const cuales = supuestos.map((x) => x.etiqueta).join(', ');
+  return (
+    <span className="fine" title={`Calculado sobre ${cuales}`}>
+      {' '}· sobre dato supuesto: {cuales}
+    </span>
+  );
+}
+
 function Tarjeta({ valor, etiqueta, explica, tono }:
   { valor: string; etiqueta: string; explica: string; tono?: string }) {
   return (
@@ -243,6 +262,7 @@ export function Cargas({ linea, apoyos, conductor, hipotesis }:
                       : f.estadoUtilizacion === 'revisar' ? 'ambar' : 'gris'}`}>
                       {ROTULO[f.estadoUtilizacion]}
                     </span>
+                    {marcaDeSupuesto(f.supuestosDelVeredicto)}
                   </td>
                 </tr>
               ))}
@@ -392,7 +412,10 @@ export function Cargas({ linea, apoyos, conductor, hipotesis }:
                           <span className="fine"> / {nf(f.umbralAplicado_pct)} %</span>
                         )}
                       </td>
-                      <td>{selloUtilizacion(f.estadoUtilizacion)}</td>
+                      <td>
+                        {selloUtilizacion(f.estadoUtilizacion)}
+                        {marcaDeSupuesto(f.supuestosDelVeredicto)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

@@ -600,6 +600,63 @@ function seccionVanos(grupos) {
   return bloques.join('') + cierre;
 }
 
+// ── La marca de un veredicto calculado sobre un dato que nadie verificó ─────
+//
+// ⚠️ UN VEREDICTO CALCULADO SOBRE UN DATO ESTIMADO A OJO NO PUEDE PARECERSE A UNO
+// CALCULADO SOBRE UNA MEDIDA. La ficha le promete al Ingeniero, con estas
+// palabras, que si marca un dato como estimado «el veredicto saldrá igual, y
+// saldrá diciendo que se calculó sobre un supuesto». Esa promesa vivía SOLO en
+// la pantalla: en el papel que se firma, un apoyo estimado desde el suelo salía
+// «cumple» igual que uno medido con cinta.
+//
+// QUIÉN DECIDE QUÉ ESTÁ SUPUESTO: EL MOTOR, y por eso aquí solo se pinta. El
+// núcleo es el único que sabe qué campos entraron en CADA eje —el transversal
+// come la carga de rotura y las dos alturas; el longitudinal, la capacidad
+// longitudinal, la altura de amarre y cuántas fases amarran—, así que una marca
+// deducida aquí de `apoyo.procedencias` marcaría en un eje un dato que solo comió
+// el otro. Ya pasó una vez: esta función existía leyendo una forma de sello que
+// el sistema no escribe (`{origen:'estimado'}` en vez del `{procedencia:
+// 'supuesto'}` del contrato), sobre un campo que la fila nunca trajo, y su prueba
+// la daba por buena con un fixture inventado (`33 · L-53`).
+//
+// El detalle va en TEXTO VISIBLE, nunca en un `title=`: este documento se
+// imprime, y en papel un tooltip no existe.
+const marcaDeSupuesto = (c) => {
+  const xs = lista(c?.supuestosDelVeredicto);
+  if (!xs.length) return '';
+  const campos = xs.map((x) => esc(x?.etiqueta ?? x?.campo ?? 'un dato')).join(', ');
+  return ` <span class="supuesto">· sobre dato SUPUESTO: ${campos}</span>`;
+};
+
+/**
+ * El párrafo que cuenta, para una sección, cuántos veredictos se apoyan en algo
+ * que nadie verificó. Va ANTES de la tabla y no al pie: quien hojea el informe
+ * en una reunión no recorre veinticuatro filas buscando la letra pequeña.
+ *
+ * Solo cuenta las filas CON veredicto: un apoyo sin dictamen no engaña a nadie,
+ * y sumarlo aquí inflaría la alarma con casos que no la merecen.
+ */
+function avisoDeSupuestos(filas) {
+  const conVeredicto = filas.filter((c) => Number.isFinite(c?.utilizacion_pct));
+  const sobreSupuesto = conVeredicto.filter((c) => lista(c?.supuestosDelVeredicto).length);
+  if (!sobreSupuesto.length) {
+    return conVeredicto.length
+      ? parrafo('Ninguno de los veredictos de esta tabla se calculó sobre un dato marcado como '
+        + 'supuesto: todos los datos que entraron declaran un origen verificable.')
+      : '';
+  }
+  const cuales = [...new Set(sobreSupuesto.flatMap(
+    (c) => lista(c.supuestosDelVeredicto).map((x) => String(x?.etiqueta ?? x?.campo ?? ''))))]
+    .filter(Boolean);
+  return parrafo(`<b>${n(sobreSupuesto.length)} de ${n(conVeredicto.length)} veredictos de esta `
+    + 'tabla se calcularon sobre un dato que NADIE VERIFICÓ</b> '
+    + `(${esc(sobreSupuesto.map((c) => String(c?.apoyo ?? '')).join(', '))}). Lo estimado fue: `
+    + `${esc(cuales.join(', '))}. El veredicto no cambia por eso —el motor dictamina sobre el `
+    + 'número que se le dio—, pero el número lo puso alguien a ojo: <b>un «cumple» sobre una altura '
+    + 'estimada desde el suelo no es un «cumple» medido con cinta</b>. Cada fila lo dice al lado de '
+    + 'su estado.');
+}
+
 // ── 6 · Carga sobre las estructuras ─────────────────────────────────────────
 //
 // Las tres secciones anteriores hablan del CONDUCTOR: cuánto tira, cuánto cuelga
@@ -623,27 +680,6 @@ function seccionCargas(cargas) {
   // arriba enuncia la fórmula POR CONDUCTOR. Sin el tiro y sin `n` a la vista,
   // quien revisara el informe con una calculadora obtenía un TERCIO de la cifra
   // impresa y no podía saber por qué (§ADR-013, hallazgo 4). Las dos columnas
-  // ⚠️ UN VEREDICTO CALCULADO SOBRE UN DATO ESTIMADO A OJO NO PUEDE PARECERSE A
-  // UNO CALCULADO SOBRE UNA MEDIDA.
-  //
-  // La ficha le promete al Ingeniero, con estas palabras, que si marca un dato
-  // como estimado «el veredicto saldrá igual, y saldrá diciendo que se calculó
-  // sobre un supuesto». Esa promesa vivía SOLO en la pantalla: en el documento
-  // que se firma, un apoyo estimado desde el suelo salía «cumple» igual que uno
-  // medido con cinta, y nada los distinguía. Aquí se cumple la promesa.
-  //
-  // Se lee del propio apoyo y no de una vista de la web: `exportar/` es un
-  // workspace puro y no puede importar de `web/src`.
-  const marcaDeSupuesto = (c) => {
-    const p = objeto(c?.procedencias);
-    const supuestos = Object.entries(p)
-      .filter(([, s]) => objeto(s).origen === 'estimado' || s === 'supuesto')
-      .map(([campo]) => campo);
-    return supuestos.length
-      ? ` <span class="supuesto" title="calculado sobre ${esc(supuestos.join(', '))}">· sobre dato ESTIMADO</span>`
-      : '';
-  };
-
   // ya existían en el CSV; faltaban justo en el documento que se firma.
   const filas = cargas.map((c) => `<tr${c?.estadoUtilizacion === 'revisar' ? ' class="revisar"' : ''}>
     <td class="num">${n(c?.n)}</td>
@@ -715,6 +751,7 @@ function seccionCargas(cargas) {
     + 'A eso se suma el empuje del viento sobre el medio vano de cada lado.')
     + parrafo(titular)
     + parrafo(capacidad)
+    + avisoDeSupuestos(cargas)
     + tabla({
       leyenda: 'Carga TRANSVERSAL sobre cada estructura. <b>Los kgf de las columnas Quiebre, Viento '
         + 'y Total son los de TODOS los conductores del apoyo</b> —la fórmula de arriba es por '
@@ -772,7 +809,7 @@ function seccionLongitudinal(filas) {
       ? `${n(c.utilizacion_pct, 1)} %${Number.isFinite(c?.umbralAplicado_pct)
         ? ` / ${n(c.umbralAplicado_pct)} %` : ''}`
       : SIN_DATO}</td>
-    <td>${sello(c?.estadoUtilizacion ?? 'no_evaluable')}</td></tr>`);
+    <td>${sello(c?.estadoUtilizacion ?? 'no_evaluable')}${marcaDeSupuesto(c)}</td></tr>`);
 
   const titular = terminales.length
     ? `<b>Los ${n(terminales.length)} apoyos terminales soportan el tiro ENTERO del conductor</b> `
@@ -834,6 +871,7 @@ function seccionLongitudinal(filas) {
     + parrafo(titular)
     + parrafo(inversion)
     + parrafo(capacidad)
+    + avisoDeSupuestos(filas)
     + (dudosos.length ? parrafo(`<b>Aviso:</b> en ${n(dudosos.length)} apoyo(s) el número sale pero `
       + 'el SENTIDO no es concluyente — queda por debajo de lo que pesaría una diferencia de '
       + 'tendido de obra, así que en el terreno podría apuntar al lado contrario.') : '')
@@ -1235,6 +1273,29 @@ export function limitacionesDeclaradas(entrada) {
         + 'libre sobre el terreno y altura del punto de sujeción. No se estiman — un apoyo que '
         + '«cumple» contra una capacidad supuesta es exactamente el error que este sistema existe '
         + 'para no cometer.', 'carga sobre las estructuras');
+    }
+
+    // ⚠️ EL LÍMITE MÁS PELIGROSO DE ESTA PÁGINA, porque no deja hueco: hay cifra,
+    // hay dictamen y todo se ve completo. La ficha le promete al Ingeniero que un
+    // dato estimado a ojo saldrá diciendo que se calculó sobre un supuesto, y
+    // esta lista es la que lee quien no va a recorrer las tablas. Se cuentan los
+    // DOS ejes por separado: cada uno come campos distintos, y el motor de cada
+    // uno dice cuáles de los suyos entraron sin verificar.
+    const supuestosDeEje = (filas) => filas.filter(
+      (c) => Number.isFinite(c?.utilizacion_pct) && lista(c?.supuestosDelVeredicto).length);
+    for (const [eje, filas] of [['transversal', cargas], ['longitudinal', longitudinal]]) {
+      const conSupuesto = supuestosDeEje(filas);
+      if (!conSupuesto.length) continue;
+      const cuales = [...new Set(conSupuesto.flatMap(
+        (c) => lista(c.supuestosDelVeredicto).map((x) => String(x?.etiqueta ?? x?.campo ?? ''))))]
+        .filter(Boolean);
+      add(`${n(conSupuesto.length)} veredicto(s) del eje ${eje} se calcularon sobre datos SUPUESTOS`,
+        `${conSupuesto.map((c) => String(c?.apoyo ?? '')).filter(Boolean).join(', ')}. `
+        + `Lo que nadie verificó: ${cuales.join(', ')}. El motor dictamina sobre el número que se le `
+        + 'dio y lo hace bien; el número lo puso una persona a ojo. <b>Un «cumple» sobre una altura '
+        + 'estimada desde el suelo no es un «cumple» medido con cinta</b>, y en este papel los dos se '
+        + 'imprimen igual salvo por esta línea. Se cierra midiendo y volviendo a declarar el dato con '
+        + 'su origen.', `carga ${eje} sobre las estructuras`);
     }
 
     const sinCarga = cargas.filter((c) => !Number.isFinite(c?.ftTotal_kgf) && c?.esExtremo !== true);

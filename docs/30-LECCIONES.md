@@ -4,7 +4,7 @@
 > (trigger 🧪 de `CLAUDE.md §G.2`). Cada lección es un gotcha que ya se pagó una vez.
 > Formato: `L-NN · título` → **Síntoma** / **Causa** / **Regla**.
 >
-> **Qué es este archivo:** el ÍNDICE de las 51 lecciones —**38 repartidas por tema en tres hijos y
+> **Qué es este archivo:** el ÍNDICE de las 52 lecciones —**39 repartidas por tema en tres hijos y
 > 13 de MÉTODO aquí mismo, completas**: cómo se delibera, cómo se verifica y cuándo algo está de
 > verdad terminado—. Las de método se quedan porque no son de ninguna pieza: valen para las tres, y
 > son las que más se citan desde otras neuronas. Si el síntoma huele a un tercero, a lo que se ve o
@@ -13,7 +13,7 @@
 >
 > **Los identificadores NO se renumeran nunca.** Un `L-NN` citado en otra neurona o en un comentario
 > del código sigue apuntando al mismo gotcha, viva donde viva su cuerpo. Y ojo con la aritmética: los
-> números llegan hasta 52 pero las lecciones son 51 — el 14 se fusionó en `L-13` y no existe.
+> números llegan hasta 53 pero las lecciones son 52 — el 14 se fusionó en `L-13` y no existe.
 >
 > ⚠️ **ANTES de escribir una lección nueva, busca el SÍNTOMA en los cuatro archivos.** Desde que la
 > familia se repartió, ninguno se lee entero, y el 04-08-2026 se escribió `L-36` sin ver que `L-22`
@@ -72,6 +72,7 @@
 - `L-40` · Si el núcleo solo publica la PROSA de un hueco, quien la lea deducirá el hecho — y mal (y una prueba escrita sobre la deducción la BLINDA)
 - `L-41` · Un contrato que no se puede EJECUTAR en una prueba solo está revisado por el compilador
 - `L-45` · Una regla que el motor CALCULA y nadie consume no es una regla: es un comentario (y el grep de `L-28` da luz verde)
+- `L-53` · Una marca que se dispara con una forma de dato que el sistema no escribe es peor que no tenerla (y su prueba la blinda)
 - `L-50` · Un archivo que se DECLARA sintético es donde mejor se esconde un dato real: la cabecera hace el trabajo de la sospecha
 - `L-46` · Un MÁXIMO DE VENTANA DESLIZANTE no es una medida de régimen (y `IA+IB+IC = IN` valida la escala en un minuto)
 

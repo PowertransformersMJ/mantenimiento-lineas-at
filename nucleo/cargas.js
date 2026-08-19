@@ -356,6 +356,9 @@ export function utilizacionApoyo(entrada) {
  *                                           altura libre. Deducir uno del otro ya metió una frase
  *                                           falsa en el informe firmado.
  * @property {string[]} faltaParaVeredicto   qué le falta para poder ser dictaminado, nombrado
+ * @property {{campo:string, etiqueta:string, fuente:string|null}[]} supuestosDelVeredicto
+ *                                           de los datos que SÍ entraron, los que nadie verificó
+ *                                           (sello `supuesto`). Lista vacía = nada supuesto.
  *
  * `componentes` se describe entero y no como `Object` a secas: TypeScript lee
  * este JSDoc desde las vistas (web/ compila con `allowJs`), y un `Object` sin
@@ -537,6 +540,10 @@ export function cargasDeLaLinea(apoyos, tramos, conductor, hipotesis) {
       // sueltos para que nadie tenga que deducir uno del otro.
       capacidadDeclarada: positivo(a?.cargaRotura_kgf) !== null,
       faltaParaVeredicto: faltaParaVeredicto(a),
+      // De lo que SÍ entró, qué nadie verificó. Viaja pegado al veredicto hasta
+      // el papel que se firma: hasta hoy un apoyo estimado a ojo salía en el
+      // informe indistinguible de uno medido con cinta.
+      supuestosDelVeredicto: supuestosDelVeredicto(a),
       notas,
       // Prosa, para que el informe pueda imprimir el hueco tal cual. La versión
       // corta y filtrable de lo mismo está en `componentes.faltan`.
@@ -730,6 +737,20 @@ const maxNoNulo = (xs) => {
 };
 
 /**
+ * LOS TRES CAMPOS DEL INVENTARIO QUE ENTRAN EN ESTE VEREDICTO, con el nombre que
+ * lee una persona. Es la MISMA lista que consume `utilizacionApoyo` unas líneas
+ * más arriba, y por eso vive suelta: de aquí salen las DOS respuestas que el
+ * apoyo debe a quien firma —qué le FALTA para tener veredicto y cuál de los que
+ * sí tiene nadie los verificó—, y con dos listas separadas un campo entraría en
+ * una y se olvidaría en la otra sin que nada avisara.
+ */
+const CAMPOS_DEL_VEREDICTO = Object.freeze([
+  { campo: 'cargaRotura_kgf', etiqueta: 'carga de rotura del apoyo' },
+  { campo: 'alturaLibre_m', etiqueta: 'altura libre sobre el terreno' },
+  { campo: 'alturaAplicacion_m', etiqueta: 'altura del punto de sujeción' },
+]);
+
+/**
  * Qué le falta a este apoyo para poder ser dictaminado, en forma de LISTA — no
  * de frase.
  *
@@ -744,11 +765,41 @@ const maxNoNulo = (xs) => {
  * carga de rotura» puede contarlo, en vez de inferirlo de otra cosa.
  */
 function faltaParaVeredicto(a) {
-  const faltantes = [];
-  if (positivo(a?.cargaRotura_kgf) === null) faltantes.push('carga de rotura del apoyo');
-  if (positivo(a?.alturaLibre_m) === null) faltantes.push('altura libre sobre el terreno');
-  if (positivo(a?.alturaAplicacion_m) === null) faltantes.push('altura del punto de sujeción');
-  return faltantes;
+  return CAMPOS_DEL_VEREDICTO
+    .filter(({ campo }) => positivo(a?.[campo]) === null)
+    .map(({ etiqueta }) => etiqueta);
+}
+
+/**
+ * DE LOS DATOS QUE ENTRARON EN ESTE VEREDICTO, CUÁLES NADIE VERIFICÓ.
+ *
+ * POR QUÉ ESTÁ EN EL MOTOR Y NO EN LA PANTALLA. La ficha le promete al Ingeniero,
+ * con estas palabras, que si marca un dato como estimado a ojo «el veredicto
+ * saldrá igual, y saldrá diciendo que se calculó sobre un supuesto». Esa promesa
+ * solo se puede cumplir donde se sabe QUÉ CAMPOS entraron en el número: un
+ * apoyo con el tipo estimado y las tres cifras medidas con cinta tiene un
+ * veredicto transversal impecable, y marcarlo sería una alarma falsa — y una
+ * alarma que salta cuando no debe se acaba ignorando, con las de verdad dentro.
+ *
+ * Se publica SIEMPRE, haya veredicto o no: es un hecho sobre el dato del apoyo.
+ * Quien lo pinta lo pone junto al veredicto, que es donde hace daño.
+ *
+ * ⚠️ Solo entran los campos PRESENTES. Un campo ausente no se calculó con nada:
+ * su hueco ya lo dice `faltaParaVeredicto`, y contarlo aquí mezclaría «lo estimé»
+ * con «no lo tengo», que se corrigen en sitios distintos.
+ *
+ * @returns {{campo:string, etiqueta:string, fuente:string|null}[]}
+ */
+function supuestosDelVeredicto(a) {
+  const sellos = a?.procedencias ?? {};
+  return CAMPOS_DEL_VEREDICTO
+    .filter(({ campo }) => positivo(a?.[campo]) !== null)
+    .filter(({ campo }) => sellos?.[campo]?.procedencia === 'supuesto')
+    .map(({ campo, etiqueta }) => ({
+      campo,
+      etiqueta,
+      fuente: typeof sellos[campo]?.fuente === 'string' ? sellos[campo].fuente : null,
+    }));
 }
 
 /**

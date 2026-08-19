@@ -474,6 +474,27 @@ describe('exportar/mecanica.js — la sección de CARGAS sobre las estructuras',
     assert.equal(fExcel[COLUMNAS_CARGAS.indexOf('Utilizacion_pct')], '45,00');
   });
 
+  // ⚠️ La columna que impide leer un «cumple» sin saber sobre qué se calculó. La
+  // hoja se ordena y se filtra por ella: los apoyos cuyo veredicto se apoya en un
+  // dato que nadie midió salen juntos. Vacía = ningún supuesto entró.
+  test('los datos SUPUESTOS que entraron en el veredicto tienen columna propia', () => {
+    const conSupuesto = csvVerificacionMecanica({
+      ...ENTRADA_MECANICA,
+      cargas: ENTRADA_MECANICA.cargas.map((c, i) => (i === 1
+        ? { ...c, supuestosDelVeredicto: [
+            { campo: 'alturaLibre_m', etiqueta: 'altura libre sobre el terreno', fuente: 'a ojo' }] }
+        : c)),
+    }, { dialecto: 'datos', ...META });
+    const G = filasDeSeccion(conSupuesto, SECCIONES_MECANICA.cargas).map((f) => celdas(f, ','));
+
+    assert.ok(COLUMNAS_CARGAS.includes('Datos_supuestos'));
+    assert.equal(col(G[1], 'Datos_supuestos'), 'altura libre sobre el terreno');
+    assert.equal(col(G[0], 'Datos_supuestos'), '',
+      'sin supuestos la celda va vacía: no se inventa una marca');
+    for (const f of G) assert.equal(f.length, COLUMNAS_CARGAS.length,
+      'la columna nueva no puede descuadrar la fila');
+  });
+
   test('la cabecera del archivo anuncia las cinco secciones y que los ejes NO se suman', () => {
     assert.match(excel, /Cinco secciones en un archivo/);
     assert.match(excel, /CARGA TRANSVERSAL/);

@@ -803,6 +803,50 @@ function avisoDeUtilizacionLongitudinal(fila, a) {
 }
 
 /**
+ * DE LOS DATOS QUE ENTRARON EN EL VEREDICTO DE ESTE EJE, CUÁLES NADIE VERIFICÓ.
+ *
+ * Gemela de `supuestosDelVeredicto` en `cargas.js` y con la misma doctrina, pero
+ * con OTRA lista de campos, porque este eje come otros datos: aquí no entra
+ * `cargaRotura_kgf` —es ensayo transversal en punta— y sí entran la capacidad
+ * longitudinal y cuántas fases amarran. Marcar en un eje un campo que solo comió
+ * el otro sería una alarma falsa, y una alarma que salta cuando no debe se acaba
+ * ignorando.
+ *
+ * `alturaLibre_m` ENTRA aunque solo sirva de guardia: es la que caza el amarre
+ * por encima de la punta, así que una punta estimada a ojo puede dejar pasar un
+ * veredicto que la punta real habría anulado.
+ *
+ * `nFasesAmarradas` entra SOLO si el número salió del apoyo. Cuando se heredó de
+ * la línea, el sello del apoyo no gobierna ese número y el criterio ya declara de
+ * dónde vino (`conteoFasesDeLinea`).
+ *
+ * @param {Object} a               el apoyo, con sus sellos en `procedencias`
+ * @param {boolean} conteoDelApoyo si el conteo de fases salió de este apoyo
+ * @returns {{campo:string, etiqueta:string, fuente:string|null}[]}
+ */
+function supuestosDelVeredictoLongitudinal(a, conteoDelApoyo) {
+  const sellos = a?.procedencias ?? {};
+  const entraron = [
+    { campo: 'capacidadLongitudinal', etiqueta: 'capacidad longitudinal declarada',
+      presente: a?.capacidadLongitudinal !== null && a?.capacidadLongitudinal !== undefined },
+    { campo: 'alturaAplicacion_m', etiqueta: 'altura del punto de sujeción',
+      presente: positivo(a?.alturaAplicacion_m) !== null },
+    { campo: 'alturaLibre_m', etiqueta: 'altura libre sobre el terreno',
+      presente: positivo(a?.alturaLibre_m) !== null },
+    { campo: 'nFasesAmarradas', etiqueta: 'cuántas fases amarran aquí',
+      presente: conteoDelApoyo === true },
+  ];
+  return entraron
+    .filter((c) => c.presente)
+    .filter((c) => sellos?.[c.campo]?.procedencia === 'supuesto')
+    .map((c) => ({
+      campo: c.campo,
+      etiqueta: c.etiqueta,
+      fuente: typeof sellos[c.campo]?.fuente === 'string' ? sellos[c.campo].fuente : null,
+    }));
+}
+
+/**
  * Qué le falta —o qué se contradice— a la capacidad declarada de ESTE apoyo, en
  * las palabras del núcleo y sin el encabezado, para que se pueda encadenar.
  *
@@ -926,6 +970,9 @@ function peorTotalPermanente(permanente) {
  *   apoyo. Es `null` mientras nadie declare esa capacidad — que hoy es SIEMPRE, en el 100 % del
  *   inventario. Cuando es `null`, el motivo va escrito en `notas`: no hay huecos mudos en este
  *   eje. El caso accidental NUNCA alimenta este campo.
+ * @property {{campo:string, etiqueta:string, fuente:string|null}[]} supuestosDelVeredicto
+ *   de los datos de ESTE eje que sí entraron, los que nadie verificó (sello `supuesto`).
+ *   Lista vacía = nada supuesto. Va en toda fila, tenga veredicto o no.
  * @property {string[]} notas
  * @property {string|null} noEvaluable
  */
@@ -1089,6 +1136,11 @@ export function longitudinalDeLaLinea(apoyos, tramos, opciones = {}) {
       flTotalPeor_kgf: null,
       nFasesAmarradas: nAmarradas,
       capacidadDeclarada: a?.capacidadLongitudinal != null,
+      // De lo que SÍ entró en este eje, qué nadie verificó. Va en `base` —y no
+      // solo en las filas con veredicto— porque es un hecho del inventario del
+      // apoyo: quien cuente «cuántos veredictos se apoyan en un supuesto» tiene
+      // que poder contar también los apoyos que aún no lo tienen.
+      supuestosDelVeredicto: supuestosDelVeredictoLongitudinal(a, nDelApoyo !== null),
       notas,
       noEvaluable: null,
     };
@@ -1202,15 +1254,6 @@ export function longitudinalDeLaLinea(apoyos, tramos, opciones = {}) {
         flTotalPeor_kgf: peorTotalPermanente(env),
         nFasesAmarradas: nAmarradas,
         capacidadDeclarada: a?.capacidadLongitudinal != null,
-      // El NUMERADOR del porcentaje, publicado al lado del porcentaje.
-      // Las columnas «adelante» y «atrás» son POR CONDUCTOR, y la
-      // utilización se calcula sobre el TOTAL: sin este número, quien
-      // revise con una calculadora obtiene un tercio de lo impreso y
-      // concluye que el cálculo está mal (§ADR-017, mismo fallo que
-      // §ADR-013 tuvo que arreglar en el eje transversal).
-      flTotalPeor_kgf: peorTotalPermanente(env),
-      nFasesAmarradas: nAmarradas,
-      capacidadDeclarada: a?.capacidadLongitudinal != null,
         noEvaluable: motivos.length ? motivos.join(' · ') : null };
     }
 

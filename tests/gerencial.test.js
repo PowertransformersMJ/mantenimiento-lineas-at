@@ -164,6 +164,36 @@ describe('la cobertura no se redondea: el hueco se declara', () => {
     const h = html();
     assert.match(h, /3 de 24/, 'no declaró que solo 3 de las 24 estructuras tienen carga calculada');
   });
+
+  // ⚠️ Ésta es la única página que va a leer quien decide, y un veredicto
+  // calculado sobre una altura estimada a ojo se imprime igual que uno medido
+  // con cinta. Si no está aquí, no está en ninguna parte que él vaya a mirar.
+  test('un veredicto apoyado en un dato SUPUESTO se cuenta y se nombra', () => {
+    const h = html({
+      cargas: [
+        { apoyo: 'E01', esExtremo: false, utilizacion_pct: 40, estadoUtilizacion: 'cumple',
+          amplifica: false, supuestosDelVeredicto: [] },
+        { apoyo: 'E06', esExtremo: false, utilizacion_pct: 45, estadoUtilizacion: 'cumple',
+          amplifica: false,
+          supuestosDelVeredicto: [
+            { campo: 'alturaLibre_m', etiqueta: 'altura libre sobre el terreno', fuente: 'a ojo' }] },
+      ],
+    });
+    assert.match(h, /sobre dato SUPUESTO/i, 'la cobertura no cuenta los veredictos estimados');
+    assert.match(h, /1 de 2/, 'la cuenta va sobre los que SÍ tienen veredicto');
+    assert.match(h, /E06/);
+    assert.match(h, /calculados sobre datos SUPUESTOS/,
+      'y queda como riesgo abierto: se cierra midiendo, no calculando');
+  });
+
+  test('sin supuestos se dice que no los hay: un panel callado se lee como «no lo miré»', () => {
+    const h = html({
+      cargas: [{ apoyo: 'E01', esExtremo: false, utilizacion_pct: 40, estadoUtilizacion: 'cumple',
+        amplifica: false, supuestosDelVeredicto: [] }],
+    });
+    assert.match(h, /todos los datos que entraron declaran un origen verificable/);
+    assert.doesNotMatch(h, /calculados sobre datos SUPUESTOS/);
+  });
 });
 
 describe('el documento se sostiene solo', () => {

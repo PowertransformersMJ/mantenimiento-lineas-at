@@ -395,6 +395,43 @@ describe('cargasDeLaLinea — la tabla que se lleva al informe', () => {
     assert.ok(ap01.faltaParaVeredicto.includes('carga de rotura del apoyo'));
   });
 
+  // ── De lo que entró, qué nadie verificó ───────────────────────────────────
+  //
+  // «Lo estimé a ojo» y «no lo tengo» se corrigen en sitios distintos: el
+  // primero exige ir a medir; el segundo, ir a buscar el dato. Por eso son dos
+  // listas y no una, y un campo AUSENTE no puede aparecer como supuesto — no
+  // entró en ningún cálculo, su hueco ya lo dice `faltaParaVeredicto`.
+  test('un dato SUPUESTO que entró en el veredicto se nombra; uno ausente, no', () => {
+    const CUANDO = '2026-08-18T09:00:00.000Z';
+    const sello = (fuente) => ({
+      procedencia: 'supuesto', fuente, declaradoEn: CUANDO, declaradoPor: 'uid-sintetico',
+    });
+
+    const conSupuesto = lineaSintetica().map((a) => (a.nombre === 'AP-04'
+      ? { ...a, procedencias: { alturaLibre_m: sello('estimada desde el suelo') } } : a));
+    const f = cargasDeLaLinea(conSupuesto, tramosSinteticos(), CONDUCTOR, HIPOTESIS)
+      .find((x) => x.apoyo === 'AP-04');
+    assert.ok(f.utilizacion, 'el veredicto sale igual: el supuesto no lo anula');
+    assert.deepEqual(f.supuestosDelVeredicto.map((x) => x.campo), ['alturaLibre_m']);
+    assert.equal(f.supuestosDelVeredicto[0].etiqueta, 'altura libre sobre el terreno',
+      'las mismas palabras que usa `faltaParaVeredicto`: un hecho, un idioma');
+    assert.equal(f.supuestosDelVeredicto[0].fuente, 'estimada desde el suelo');
+
+    // Sellado como supuesto PERO sin valor: eso no es un supuesto, es un hueco.
+    const selladoYVacio = lineaSintetica().map((a) => (a.nombre === 'AP-04'
+      ? { ...a, alturaLibre_m: undefined, procedencias: { alturaLibre_m: sello('a ojo') } } : a));
+    const g = cargasDeLaLinea(selladoYVacio, tramosSinteticos(), CONDUCTOR, HIPOTESIS)
+      .find((x) => x.apoyo === 'AP-04');
+    assert.equal(g.utilizacion, null);
+    assert.deepEqual(g.supuestosDelVeredicto, []);
+    assert.deepEqual(g.faltaParaVeredicto, ['altura libre sobre el terreno']);
+
+    // Y sin sellos, la lista va vacía en toda la línea: no se inventa una marca.
+    for (const x of cargasDeLaLinea(lineaSintetica(), tramosSinteticos(), CONDUCTOR, HIPOTESIS)) {
+      assert.deepEqual(x.supuestosDelVeredicto, []);
+    }
+  });
+
   test('una fila por ESTRUCTURA: el empalme no inventa un apoyo', () => {
     // Un empalme puede colgar a mitad de vano. Darle fila partiría el vano real
     // en dos y le atribuiría a un apoyo que no existe la carga de los que sí.

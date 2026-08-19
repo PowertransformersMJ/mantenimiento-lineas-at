@@ -22,7 +22,7 @@ import {
   CRITERIO_UTILIZACION_LONGITUDINAL,
 } from '@lineas/nucleo/longitudinal';
 import type { Apoyo, Conductor } from '@lineas/contratos';
-import type { AvisoCarga } from './cargasDatos';
+import type { AvisoCarga, DatoSupuesto } from './cargasDatos';
 
 /** Una fila de la tabla: un apoyo. Todo puede ser null: null = no evaluable. */
 export interface FilaLongitudinal {
@@ -78,6 +78,13 @@ export interface FilaLongitudinal {
    * sitio equivocado (§ADR-017).
    */
   capacidadDeclarada: boolean;
+  /**
+   * De los datos que SÍ entraron en el veredicto de ESTE eje, los que nadie
+   * verificó. Lo decide el motor, que sabe qué campos comió: aquí no entra
+   * `cargaRotura_kgf` —es ensayo transversal— y sí la capacidad longitudinal y
+   * cuántas fases amarran. Un eje no marca lo que solo comió el otro.
+   */
+  supuestosDelVeredicto: DatoSupuesto[];
   /** Cuánta carga admite todavía el umbral aplicado. Simétrico con el eje transversal. */
   margen_kgf: number | null;
   /**
@@ -163,6 +170,7 @@ export function longitudinalParaPantalla(
     // vacía. Rellenar un umbral «por si acaso» sería inventar contra qué se
     // comparó una cifra que nadie comparó.
     capacidadDeclarada: r.capacidadDeclarada === true,
+    supuestosDelVeredicto: r.supuestosDelVeredicto ?? [],
     margen_kgf: r.utilizacion?.margen_kgf ?? null,
     flTotalPeor_kgf: r.flTotalPeor_kgf ?? null,
     utilizacion_pct: r.utilizacion?.utilizacion_pct ?? null,
@@ -381,6 +389,7 @@ interface CrudaLongitudinal {
   accidental: { atras?: { fuerza_kgf: number | null }; adelante?: { fuerza_kgf: number | null } } | null;
   /** Si el APOYO trae capacidad declarada — distinto de llevar veredicto (§ADR-017). */
   capacidadDeclarada?: boolean;
+  supuestosDelVeredicto?: DatoSupuesto[];
   /** El numerador del porcentaje: la carga TOTAL sobre el apoyo, no la de un conductor. */
   flTotalPeor_kgf?: number | null;
   /**

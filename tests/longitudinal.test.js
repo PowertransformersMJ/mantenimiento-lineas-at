@@ -815,6 +815,67 @@ describe('el veredicto longitudinal, de punta a punta (L-28: nadie llamaba a la 
     assert.match(u.criterio, /CRITERIO ADOPTADO/);
   });
 
+  // ── De lo que entró, qué nadie verificó ───────────────────────────────────
+  //
+  // La ficha le promete al Ingeniero que un dato estimado a ojo saldrá diciendo
+  // que el veredicto se calculó sobre un supuesto. Lo decide el MOTOR porque es
+  // quien sabe qué campos comió CADA eje: marcar aquí un campo que solo entró en
+  // el transversal sería una alarma falsa, y una alarma que salta cuando no debe
+  // se acaba ignorando — con las de verdad dentro.
+  const CUANDO = '2026-08-18T09:00:00.000Z';
+  const sello = (fuente) => ({
+    procedencia: 'supuesto', fuente, declaradoEn: CUANDO, declaradoPor: 'uid-sintetico',
+  });
+
+  test('un dato SUPUESTO que entró en este veredicto se nombra en la fila', () => {
+    const f = de(correr(linea({
+      capacidadLongitudinal: CAPACIDAD, ...ALTURAS,
+      procedencias: { alturaAplicacion_m: sello('estimada desde el suelo') },
+    })), 'A');
+    assert.ok(f.utilizacion, 'el veredicto sale igual: el supuesto no lo anula');
+    assert.deepEqual(f.supuestosDelVeredicto.map((x) => x.campo), ['alturaAplicacion_m']);
+    assert.equal(f.supuestosDelVeredicto[0].fuente, 'estimada desde el suelo');
+    assert.match(f.supuestosDelVeredicto[0].etiqueta, /altura del punto de sujeción/);
+  });
+
+  test('la carga de ROTURA supuesta no marca este eje: es ensayo del OTRO', () => {
+    // `cargaRotura_kgf` no entra en ningún punto del cálculo longitudinal —el
+    // propio criterio lo declara—, así que su sello no puede manchar este
+    // veredicto. Un eje no marca lo que solo comió el otro.
+    const f = de(correr(linea({
+      capacidadLongitudinal: CAPACIDAD, ...ALTURAS, cargaRotura_kgf: 3000,
+      procedencias: { cargaRotura_kgf: sello('a ojo') },
+    })), 'A');
+    assert.ok(f.utilizacion);
+    assert.deepEqual(f.supuestosDelVeredicto, []);
+  });
+
+  test('un conteo de fases heredado de la LÍNEA no arrastra el sello del apoyo', () => {
+    // El apoyo sella un número que no se usó: el conteo vino de la línea, y el
+    // criterio ya lo declara con `conteoFasesDeLinea`. Marcarlo culparía a un
+    // dato que no entró.
+    const f = de(correr(linea({
+      capacidadLongitudinal: CAPACIDAD, ...ALTURAS,
+      procedencias: { nFasesAmarradas: sello('las conté de memoria') },
+    })), 'A');
+    assert.deepEqual(f.supuestosDelVeredicto, []);
+
+    // Con el conteo declarado EN EL APOYO, el mismo sello sí manda.
+    const g = de(correr(linea({
+      capacidadLongitudinal: CAPACIDAD, ...ALTURAS, nFasesAmarradas: 3,
+      procedencias: { nFasesAmarradas: sello('las conté de memoria') },
+    })), 'A');
+    assert.deepEqual(g.supuestosDelVeredicto.map((x) => x.campo), ['nFasesAmarradas']);
+  });
+
+  test('sin sellos, la lista va VACÍA: no se inventa una marca', () => {
+    const f = de(correr(linea({ capacidadLongitudinal: CAPACIDAD, ...ALTURAS })), 'A');
+    assert.deepEqual(f.supuestosDelVeredicto, []);
+    // Y va en TODA fila, tenga veredicto o no: quien cuente cuántos veredictos
+    // se apoyan en un supuesto tiene que poder recorrer la tabla entera.
+    for (const x of correr(linea())) assert.ok(Array.isArray(x.supuestosDelVeredicto));
+  });
+
   test('el veredicto se calcula sobre el TOTAL, nunca sobre el valor por conductor', () => {
     // Si se hubiera usado el valor por conductor (1500) saldría 7,5 % y
     // «cumple» donde el apoyo va al 90 %: dividir entre n es el «cumple» falso

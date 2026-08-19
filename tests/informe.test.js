@@ -25,6 +25,11 @@ import assert from 'node:assert/strict';
 import { informeHtml, limitacionesDeclaradas, TITULO_LIMITACIONES } from '../exportar/informe.js';
 import { CRITERIO_CAPACIDAD_LONGITUDINAL } from '../nucleo/longitudinal.js';
 import { derivarLevantamiento } from '../exportar/levantamiento.js';
+// El camino REAL: la misma vista que alimenta la pestaña Exportar, y el molde
+// contra el que se valida un apoyo antes de escribirlo. Con las filas armadas a
+// mano esta prueba ya salió verde una vez sobre código que no marcaba nada.
+import { cargasParaPantalla } from '../web/src/vistas/cargasDatos.ts';
+import { Apoyo } from '../contratos/src/activos.ts';
 
 // ── Un expediente sintético mínimo pero completo ────────────────────────────
 
@@ -642,23 +647,109 @@ describe('informe — el eje longitudinal: veredicto, ausencia y textos que no e
 // sobre un supuesto». Esa promesa vivía SOLO en la pantalla: en el documento que
 // se firma, un apoyo estimado desde el suelo salía indistinguible de uno medido
 // con cinta. Un informe que promete y no cumple es peor que uno que calla.
-test('el informe distingue un veredicto calculado sobre un dato ESTIMADO', () => {
-  const conCarga = (procedencias) => base({
-    cargas: [{
-      n: 1, apoyo: 'A-1', funcionEstructural: 'Retención / anclaje',
-      deflexion_grados: 30, factorAngulo: 0.518, tiro_kgf: 1000, nConductores: 3,
-      ftAngulo_kgf: 1553, ftViento_kgf: 200, ftTotal_kgf: 1753,
-      utilizacion_pct: 42.5, estadoUtilizacion: 'cumple', procedencias,
-    }],
+//
+// ⚠️ POR QUÉ ESTA PRUEBA RECORRE EL CAMINO REAL Y NO ARMA LA FILA A MANO. La
+// primera versión de esta prueba fabricaba la fila con un sello inventado
+// (`{origen:'estimado'}`) que el sistema NUNCA escribe —el contrato escribe
+// `{procedencia:'supuesto', fuente, declaradoEn, declaradoPor}` y lo escribe en
+// el APOYO, no en la fila—, así que salió verde durante toda su vida sobre un
+// código que en producción no marcaba absolutamente nada (`33 · L-53`). Ahora el
+// apoyo se VALIDA CONTRA EL MOLDE y la fila la produce la misma vista que usa la
+// aplicación: si el sello cambia de forma, esta prueba se cae, que es su oficio.
+describe('la promesa de la ficha llega al papel que se firma', () => {
+  const CUANDO = '2026-08-18T09:00:00.000Z';
+  const QUIEN = 'uid-sintetico';
+  const sello = (procedencia, fuente) => ({ procedencia, fuente, declaradoEn: CUANDO, declaradoPor: QUIEN });
+
+  /** Dos estructuras en el ecuador, con ficha completa. Repo público: todo sintético. */
+  const apoyo = (i, nombre, extra = {}) => ({
+    // El molde exige UUID en `id` y `lineaId`: un `ap-1` no llega ni a escribirse.
+    id: `0000000${i}-0000-4000-8000-00000000000${i}`,
+    tipo: 'apoyo', lineaId: '11111111-1111-4111-8111-111111111111', orgId: 'org-sintetica',
+    creadoEn: CUANDO, creadoPor: QUIEN, revision: 0,
+    orden: i, tipoPunto: 'Estructura',
+    nombreCampo: nombre, nombreNormalizado: nombre,
+    coordenada: [{ lat: 0, lon: 0 }, { lat: 0.001, lon: 0 }, { lat: 0.002, lon: 0.0005 }][i],
+    funcionEstructural: i === 1 ? 'Suspensión' : 'Terminal', funcionProcedencia: 'supuesto',
+    condicion: 'Sin evaluar', activo: true,
+    // Las tres cifras que el eje transversal come. Números de laboratorio.
+    cargaRotura_kgf: 3000, alturaLibre_m: 12, alturaAplicacion_m: 10,
+    ...extra,
   });
 
-  const estimado = informeHtml(conCarga({ cargaRotura_kgf: { origen: 'estimado' } }));
-  assert.match(estimado, /ESTIMADO/, 'el veredicto sobre un dato estimado no se declara como tal');
+  const CONDUCTOR = {
+    codigo: 'SINTETICO-25', material: 'ACSR', seccion_mm2: 300, diametro_m: 0.025,
+    masaLineal_kg_m: 1, rts_kgf: 10000, moduloElastico_kg_mm2: 7000,
+    dilatacion_1_C: 1.9e-5, tempMaxOperacion_C: 75, procedencia: 'supuesto',
+  };
+  const HIPOTESIS = {
+    nombre: 'sintética', eds_pct: 20, tempEds_C: 25, tempMax_C: 75, tempMin_C: 10,
+    vientoMax_kmh: 36, tempViento_C: 25, cx: 1.0, densidadAire_kg_m3: 1.2,
+    procedencia: 'supuesto', congelada: false,
+  };
+  const TRAMOS = [{ n: 1, nVanos: 2, hEds: 800, hTMax: 700, hViento: 1000, hTMin: 1200, pico: 1200 }];
 
-  const medido = informeHtml(conCarga({ cargaRotura_kgf: { origen: 'medido_en_sitio' } }));
-  assert.ok(!/sobre dato ESTIMADO/.test(medido),
-    'un dato medido en el sitio no puede salir marcado como estimado');
+  /** El informe generado por el MISMO camino que la pestaña Exportar. */
+  const informeDe = (apoyos) => {
+    for (const a of apoyos) {
+      const v = Apoyo.safeParse(a);
+      assert.equal(v.success, true,
+        `el apoyo de la prueba no cumple el molde: ${JSON.stringify(v.error?.issues ?? [])}`);
+    }
+    const cargas = cargasParaPantalla(apoyos, TRAMOS, CONDUCTOR, HIPOTESIS, 1).filas;
+    assert.ok(cargas.some((c) => Number.isFinite(c.utilizacion_pct)),
+      'sin un solo veredicto esta prueba no probaría nada: revise el mundo sintético');
+    return { html: informeHtml(base({ cargas })), cargas };
+  };
 
-  const sinSellos = informeHtml(conCarga(undefined));
-  assert.ok(!/sobre dato ESTIMADO/.test(sinSellos), 'sin sellos no se inventa una marca');
+  test('un veredicto sobre un dato SUPUESTO sale marcado como tal', () => {
+    const { html, cargas } = informeDe([
+      apoyo(0, 'A'),
+      apoyo(1, 'B', {
+        procedencias: {
+          alturaLibre_m: sello('supuesto', 'estimada desde el suelo, sin cinta'),
+        },
+      }),
+      apoyo(2, 'C'),
+    ]);
+
+    const marcado = cargas.find((c) => c.apoyo === 'B');
+    assert.deepEqual(marcado.supuestosDelVeredicto.map((x) => x.campo), ['alturaLibre_m'],
+      'el motor tiene que nombrar el campo supuesto que ENTRÓ en el veredicto');
+    assert.match(html, /sobre dato SUPUESTO/, 'la fila del apoyo estimado no se distingue');
+    assert.match(html, /altura libre sobre el terreno/,
+      'la marca tiene que decir QUÉ se estimó: en papel un tooltip no existe');
+    assert.match(html, /veredictos de esta tabla se calcularon sobre un dato que NADIE VERIFICÓ/,
+      'quien hojea el informe tiene que verlo sin recorrer la tabla');
+  });
+
+  test('un dato medido no se marca, y sin sellos no se inventa una marca', () => {
+    const medido = informeDe([
+      apoyo(0, 'A'),
+      apoyo(1, 'B', {
+        procedencias: { alturaLibre_m: sello('levantamiento_campo', 'medida con cinta') },
+      }),
+      apoyo(2, 'C'),
+    ]);
+    assert.ok(!/sobre dato SUPUESTO/.test(medido.html),
+      'un dato medido en el sitio no puede salir marcado como supuesto');
+    assert.match(medido.html, /Ninguno de los veredictos de esta tabla se calculó sobre un dato/,
+      'y el papel lo dice: un panel callado se lee como «no lo miré»');
+
+    const sinSellos = informeDe([apoyo(0, 'A'), apoyo(1, 'B'), apoyo(2, 'C')]);
+    assert.ok(!/sobre dato SUPUESTO/.test(sinSellos.html), 'sin sellos no se inventa una marca');
+  });
+
+  // Una alarma que salta cuando no debe se acaba ignorando, y con ella las de
+  // verdad. El tipo de apoyo NO entra en el cálculo de la carga transversal.
+  test('un campo supuesto que NO entró en este veredicto no dispara la marca', () => {
+    const { html, cargas } = informeDe([
+      apoyo(0, 'A'),
+      apoyo(1, 'B', { tipoApoyo: 'Poste de concreto', procedencias: { tipoApoyo: sello('supuesto', 'a ojo') } }),
+      apoyo(2, 'C'),
+    ]);
+    assert.deepEqual(cargas.find((c) => c.apoyo === 'B').supuestosDelVeredicto, [],
+      'el tipo de apoyo no entra en el momento transversal: marcarlo sería una alarma falsa');
+    assert.ok(!/sobre dato SUPUESTO/.test(html));
+  });
 });

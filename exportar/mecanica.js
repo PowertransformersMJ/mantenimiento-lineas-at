@@ -111,7 +111,11 @@ export const COLUMNAS_CARGAS = [
   'N_conductores', 'Vano_viento_m',
   'Tiro_kgf', 'Estado_tiro',
   'Ft_angulo_kgf', 'Ft_viento_kgf', 'Ft_total_kgf',
-  'Utilizacion_pct', 'Margen_kgf', 'Estado_utilizacion', 'Motivo',
+  // `Datos_supuestos` va AL FINAL y no pegada al veredicto, aunque sea ahí donde
+  // se lee: las columnas de este archivo son un FORMATO y el proyecto no las
+  // reordena sin migración (CLAUDE.md §3.1) — quien ya lea la hoja por posición
+  // se rompería en silencio. Vacía = ningún dato supuesto entró en el veredicto.
+  'Utilizacion_pct', 'Margen_kgf', 'Estado_utilizacion', 'Motivo', 'Datos_supuestos',
 ];
 
 /**
@@ -164,7 +168,10 @@ export const COLUMNAS_LONGITUDINAL = [
   // capacidad y aun así no llevan veredicto», que es donde está el trabajo.
   'FL_total_kgf', 'N_fases_amarradas', 'Capacidad_declarada', 'Margen_kgf',
   'Utilizacion_pct', 'Umbral_aplicado_pct', 'Estado_utilizacion', 'Criterio_utilizacion',
-  'Motivo',
+  // Los campos de ESTE eje que entraron en el veredicto y nadie verificó. La
+  // lista NO es la misma del eje transversal: aquí no entra la carga de rotura y
+  // sí la capacidad longitudinal y cuántas fases amarran.
+  'Motivo', 'Datos_supuestos',
 ];
 
 export const COLUMNAS_UMBRALES = [
@@ -184,6 +191,21 @@ export const COLUMNAS_UMBRALES = [
 import { dialectoCsv } from './dialecto.js';
 
 export { dialectoCsv };
+
+/**
+ * Los datos SUPUESTOS que entraron en el veredicto de una fila, en una celda.
+ *
+ * Los decide el MOTOR —es quien sabe qué campos comió cada eje— y aquí solo se
+ * escriben. Se separan con ' · ' y nunca con el separador de columnas: un ';'
+ * dentro de la celda partiría la fila en Excel.
+ *
+ * Celda VACÍA significa «ningún dato supuesto entró en este veredicto», que es
+ * una afirmación; para la fila que no tiene veredicto, el hueco lo explica
+ * `Motivo`.
+ */
+const celdaSupuestos = (c) => (Array.isArray(c?.supuestosDelVeredicto)
+  ? c.supuestosDelVeredicto.map((x) => x?.etiqueta ?? x?.campo ?? '').filter(Boolean).join(' · ')
+  : '');
 
 // ── Ayudas de rotulado (echan lo que llegó; nunca inventan un nombre) ───────
 
@@ -401,6 +423,7 @@ export function csvVerificacionMecanica(entrada, opciones = {}) {
         // ella. Se juntan con ' · ' porque el salto de línea rompe la celda.
         q([c?.noEvaluable, ...(Array.isArray(c?.notas) ? c.notas : [])]
           .filter(Boolean).join(' · ')),
+        q(celdaSupuestos(c)),
       ]));
     });
   }
@@ -439,6 +462,7 @@ export function csvVerificacionMecanica(entrada, opciones = {}) {
         q(c?.estadoUtilizacion ?? 'no_evaluable'),
         q(c?.criterioUtilizacion ?? ''),
         q([c?.noEvaluable, ...(Array.isArray(c?.notas) ? c.notas : [])].filter(Boolean).join(' · ')),
+        q(celdaSupuestos(c)),
       ]));
     });
   }

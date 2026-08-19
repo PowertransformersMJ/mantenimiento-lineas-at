@@ -157,6 +157,14 @@ function seccionCobertura({ lev, cargas, indicadores, inspecciones }) {
   const conVeredicto = cargas.filter((c) => c?.utilizacion_pct !== null && c?.utilizacion_pct !== undefined).length;
   const tierra = indicadores.find((i) => String(i?.id ?? '').includes('tierra'));
 
+  // ⚠️ LA FILA QUE IMPIDE LEER UN VERDE COMO UN VERDE. Un veredicto calculado
+  // sobre una altura estimada a ojo se imprime igual que uno medido con cinta, y
+  // esta es la única página que va a leer quien decide. Se cuenta sobre los que
+  // SÍ tienen veredicto: un apoyo sin dictamen no engaña a nadie.
+  const sobreSupuesto = cargas.filter(
+    (c) => (c?.utilizacion_pct !== null && c?.utilizacion_pct !== undefined)
+      && lista(c?.supuestosDelVeredicto).length);
+
   const filas = [
     fila(['<b>Estructuras del levantamiento</b>', `${n(lev.nEstructuras)}`,
       'el universo del que habla este informe']),
@@ -166,6 +174,14 @@ function seccionCobertura({ lev, cargas, indicadores, inspecciones }) {
       conVeredicto === 0
         ? '<b>ninguno</b>: nadie declaró carga de rotura, altura libre y punto de sujeción'
         : 'se sabe además cuánto aguantan']),
+    fila(['<b>De esos veredictos, sobre dato SUPUESTO</b>',
+      `${n(sobreSupuesto.length)} de ${n(conVeredicto)}`,
+      sobreSupuesto.length === 0
+        ? (conVeredicto === 0
+          ? 'no hay veredictos todavía, así que tampoco los hay apoyados en supuestos'
+          : 'ninguno: todos los datos que entraron declaran un origen verificable')
+        : `<b>alguien los estimó a ojo</b> (${esc(sobreSupuesto.map((c) => String(c?.apoyo ?? '')).join(', '))}). `
+          + 'El veredicto no cambia por eso, pero el número lo puso una persona, no una medición']),
   ];
 
   if (tierra) {
@@ -259,6 +275,19 @@ function seccionResidual({ cargas, indicadores, investigaciones }) {
       'Se sabe cuánta carga reciben; no cuánta aguantan. Ninguna intervención de campo lo cierra: '
       + 'lo cierra el INVENTARIO.']));
   }
+  // Un veredicto sobre un dato que nadie verificó no es un hueco —hay cifra— y
+  // por eso no aparece arriba; pero sigue abierto hasta que alguien mida, y en
+  // este papel es donde quien decide lo tiene que ver.
+  const sobreSupuesto = cargas.filter(
+    (c) => (c?.utilizacion_pct !== null && c?.utilizacion_pct !== undefined)
+      && lista(c?.supuestosDelVeredicto).length);
+  if (sobreSupuesto.length) {
+    filas.push(fila([`<b>${n(sobreSupuesto.length)} veredicto(s) calculados sobre datos SUPUESTOS</b>`,
+      `Hay cifra y hay dictamen (${esc(sobreSupuesto.map((c) => String(c?.apoyo ?? '')).join(', '))}), `
+      + 'pero uno de los datos que entró lo estimó una persona a ojo: no lo midió nadie. '
+      + 'Se cierra midiendo en campo y volviendo a declarar el dato con su origen.']));
+  }
+
   const extremos = cargas.filter((c) => c?.esExtremo === true);
   if (extremos.length) {
     filas.push(fila([`<b>${n(extremos.length)} apoyo(s) terminales fuera del eje transversal</b>`,
