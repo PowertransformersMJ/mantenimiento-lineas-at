@@ -342,6 +342,23 @@ describe('la consulta al servicio del tiempo', () => {
       'la consulta tiene que estar detrás del interruptor que él enciende');
   });
 
+  test('el efecto que consulta no se cancela a sí mismo', () => {
+    // El fallo real: con `pidiendoTiempo` en las dependencias, el propio
+    // `setPidiendoTiempo(true)` re-dispara el efecto y la limpieza del pase
+    // anterior marca la petición como cancelada. El servicio responde 200 y la
+    // pantalla se queda en «consultando…» para siempre (`32 · L-57`).
+    const mapa = readFileSync(
+      fileURLToPath(new URL('../web/src/componentes/Mapa.tsx', import.meta.url)), 'utf-8');
+    const i = mapa.indexOf('pedirPronostico(');
+    const despues = mapa.slice(i, i + 1200);
+    const deps = despues.match(/\}, \[([^\]]*)\]\);/);
+    assert.ok(deps, 'no se encontró la lista de dependencias del efecto que consulta');
+    for (const prohibida of ['pidiendoTiempo', 'tiempo,', 'falloTiempo']) {
+      assert.ok(!deps[1].includes(prohibida),
+        `\`${prohibida}\` en las dependencias: el efecto se cancela a sí mismo`);
+    }
+  });
+
   test('la atribución de la licencia viaja con el módulo', () => {
     assert.match(CODIGO, /ATRIBUCION_PRONOSTICO/);
     assert.match(FUENTE, /CC BY 4\.0/, 'la licencia de la fuente se declara donde se usa');

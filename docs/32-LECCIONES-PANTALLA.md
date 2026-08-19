@@ -20,6 +20,23 @@
 
 ## El mapa que no llega a pintarse
 
+### L-57 · Un efecto de React que enciende su propio «cargando» se cancela a sí mismo
+
+- **Síntoma:** se enciende la capa del pronóstico, la petición SALE, el servicio responde **200**… y
+  la pantalla se queda en «consultando…» para siempre. Sin error, sin nada en consola.
+- **Causa:** el efecto tenía `pidiendoTiempo` en su lista de dependencias y lo ponía a `true` como
+  primera línea. Eso vuelve a disparar el efecto, React ejecuta la LIMPIEZA del pase anterior, y esa
+  limpieza marcaba la petición en vuelo como cancelada (`cancelado = true`). Cuando la respuesta
+  llegó, ya no había nadie escuchando. El patrón «bandera de cargando + limpieza que cancela» se
+  muerde la cola en cuanto la bandera es una dependencia.
+- **Arreglo:** el freno pasa a una REFERENCIA (`useRef`), fuera del ciclo de render, y la lista de
+  dependencias se queda con lo que de verdad cambia la consulta. Lo único que decide si se puede
+  pintar la respuesta es si el componente sigue montado.
+- **Regla:** en un efecto que consulta, ninguna bandera que el propio efecto escriba puede estar en
+  sus dependencias. Y para diagnosticarlo: mirar la RED antes que el código — ver el 200 con la
+  respuesta entera fue lo que descartó de golpe la fuente, la licencia, el CORS y la URL, y dejó el
+  fallo donde estaba, en el ciclo de vida.
+
 ### L-55 · Una capa raster añadida con el mapa quieto no carga NUNCA, y no se queja
 
 - **Síntoma:** se enciende la capa satelital y el mapa se queda **BLANCO**. La capa existe, la fuente

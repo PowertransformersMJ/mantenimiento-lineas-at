@@ -227,6 +227,12 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
   const [pidiendoTiempo, setPidiendoTiempo] = useState(false);
   const [falloTiempo, setFalloTiempo] = useState<string | null>(null);
   const flecha = useRef<maplibregl.Marker | null>(null);
+  /** Si ya se pidió el pronóstico en esta pantalla. Referencia y no estado: ver el efecto. */
+  const yaPedido = useRef(false);
+  /** Si el componente sigue montado. Lo único que decide si se puede pintar la respuesta. */
+  const montado = useRef(true);
+
+  useEffect(() => () => { montado.current = false; }, []);
 
   /**
    * El punto de referencia de la línea y su EJE.
@@ -422,21 +428,28 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
    * esencial (`31 · L-11`).
    */
   useEffect(() => {
-    if (!pronostico || tiempo || pidiendoTiempo || !geometria) return;
-    let cancelado = false;
+    if (!pronostico || !geometria || yaPedido.current) return;
+    // ⚠️ EL FRENO ES UNA REFERENCIA, NO EL ESTADO, y la lista de dependencias es
+    // corta a propósito. Con `pidiendoTiempo` dentro de las dependencias, el
+    // propio `setPidiendoTiempo(true)` volvía a disparar el efecto, y la LIMPIEZA
+    // del pase anterior marcaba la petición como cancelada: la consulta salía,
+    // el servicio respondía 200… y la pantalla se quedaba en «consultando…» para
+    // siempre. Cazado en producción (`32 · L-57`).
+    yaPedido.current = true;
     setPidiendoTiempo(true);
     setFalloTiempo(null);
     void pedirPronostico(geometria.lat, geometria.lon)
-      .then((p) => { if (!cancelado) setTiempo(p); })
+      .then((p) => { if (montado.current) setTiempo(p); })
       .catch((e) => {
-        if (cancelado) return;
+        // Un fallo NO deja el freno puesto: volver a encender la capa reintenta.
+        yaPedido.current = false;
+        if (!montado.current) return;
         setFalloTiempo(e instanceof SinPronostico ? e.message
           : 'No se pudo traer el pronóstico. El resto del mapa sigue igual.');
         setPronostico(false);
       })
-      .finally(() => { if (!cancelado) setPidiendoTiempo(false); });
-    return () => { cancelado = true; };
-  }, [pronostico, tiempo, pidiendoTiempo, geometria]);
+      .finally(() => { if (montado.current) setPidiendoTiempo(false); });
+  }, [pronostico, geometria]);
 
   /**
    * La flecha del viento sobre el mapa.
