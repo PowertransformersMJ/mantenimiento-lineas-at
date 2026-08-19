@@ -115,13 +115,6 @@ describe('el mapa no le pide teselas a nadie', () => {
       'sin `triggerRepaint()` la fuente raster se queda esperando un fotograma que nadie pide');
   });
 
-  test('las capas no se tocan hasta que el estilo del mapa está cargado', () => {
-    assert.match(CODIGO, /isStyleLoaded\(\)/,
-      'sin esperar al estilo, `getStyle()` es undefined y el efecto entero revienta');
-    assert.match(CODIGO, /on\('styledata'/,
-      'hace falta reintentar cuando el estilo termine de cargarse');
-  });
-
   test('las capas se vuelven a aplicar cuando el mapa se REHACE', () => {
     // El mapa vive en una referencia, y una referencia no dispara efectos. Si un
     // efecto de capa cae en el instante en que `mapa.current` es null —el mapa se
@@ -145,14 +138,21 @@ describe('el mapa no le pide teselas a nadie', () => {
     }
   });
 
-  test('la espera al estilo tiene UN dueño, y las dos capas pasan por él', () => {
-    // Las dos cayeron en el mismo agujero, una detrás de otra: la de teselas con
-    // un `TypeError` invisible y la térmica con «Style is not done loading». Con
-    // la espera escrita dos veces, la tercera capa vuelve a caer.
-    assert.equal((CODIGO.match(/function alEstarElEstilo/g) ?? []).length, 1,
-      'la espera al estilo se escribió más de una vez');
-    assert.ok((CODIGO.match(/alEstarElEstilo\(m,/g) ?? []).length >= 2,
-      'alguna capa se salta la espera y se enciende antes de tiempo');
+  test('las capas esperan al `load` del mapa, NUNCA a `isStyleLoaded()`', () => {
+    // `isStyleLoaded()` no contesta «¿está el estilo listo?» sino «¿está TODO
+    // cargado?»: es `false` mientras a cualquier fuente le falte una tesela, así
+    // que puede quedarse en `false` para siempre. Un efecto que la espere no se
+    // ejecuta jamás y el interruptor se queda muerto, sin capa y sin error.
+    assert.ok(!/isStyleLoaded\(\)/.test(CODIGO),
+      'alguien volvió a usar isStyleLoaded() como puerta: no lo es');
+    assert.match(CODIGO, /once\('load'[\s\S]{0,300}setMapaCargado\(true\)/,
+      'nadie enciende la señal de que el mapa terminó de cargar');
+    const efectos = [...CODIGO.matchAll(/useEffect\(\(\) => \{([\s\S]*?)\}, \[([^\]]*)\]\);/g)];
+    for (const [, cuerpo, deps] of efectos) {
+      if (!/m\.(addSource|addLayer)/.test(cuerpo)) continue;
+      assert.ok(/!mapaCargado/.test(cuerpo) && deps.includes('mapaCargado'),
+        `un efecto añade fuentes sin esperar al \`load\`: [${deps}]`);
+    }
   });
 
   test('cada archivo que el mapa nombra existe de verdad en el sitio', () => {

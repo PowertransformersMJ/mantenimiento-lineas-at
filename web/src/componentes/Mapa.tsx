@@ -264,6 +264,19 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
    * La referencia se queda para lo que sirve una referencia: limpiar al salir.
    */
   const [mapaVivo, setMapaVivo] = useState<maplibregl.Map | null>(null);
+  /**
+   * Si el mapa ya disparó su `load`. Es la ÚNICA señal fiable de que se le pueden
+   * añadir fuentes y capas.
+   *
+   * ⚠️ NO SIRVE `isStyleLoaded()`, y creerlo costó tres despliegues. Esa función
+   * no contesta «¿está el estilo listo?» sino «¿está TODO cargado?»: devuelve
+   * `false` mientras a cualquier fuente le falte una tesela. Con un archivo de
+   * teselas grande —o con una capa de imagen que se apagó y dejó teselas a
+   * medias— puede quedarse en `false` para siempre, y un efecto que espere a que
+   * se ponga en `true` no se ejecuta JAMÁS: se pulsa el interruptor y no pasa
+   * nada, sin capa, sin error y sin una sola petición de red.
+   */
+  const [mapaCargado, setMapaCargado] = useState(false);
 
   useEffect(() => () => { montado.current = false; }, []);
 
@@ -331,10 +344,15 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
       creado.once('load', () => {
         clearInterval(reloj);
         document.removeEventListener('visibilitychange', alCambiar);
+        // La señal que esperan las capas: a partir de aquí `addSource` es seguro.
+        if (!cancelado) setMapaCargado(true);
       });
     })();
 
-    return () => { cancelado = true; creado?.remove(); mapa.current = null; setMapaVivo(null); };
+    return () => {
+      cancelado = true; creado?.remove(); mapa.current = null;
+      setMapaVivo(null); setMapaCargado(false);
+    };
     // `apoyos` llega estable tras la carga; el mapa no se reconstruye por render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apoyos]);
@@ -350,7 +368,7 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
    */
   useEffect(() => {
     const m = mapaVivo;
-    if (!m) return;
+    if (!m || !mapaCargado) return;
     let cancelado = false;
 
     const aplicar = async () => {
@@ -436,11 +454,9 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
       m.triggerRepaint();
     };
 
-    // La espera al estilo tiene un solo dueño: `alEstarElEstilo`. Sin ella este
-    // efecto revienta con un `TypeError` invisible y las capas no se encienden.
-    const dejarDeEsperar = alEstarElEstilo(m, () => { if (!cancelado) void aplicar(); });
-    return () => { cancelado = true; dejarDeEsperar(); };
-  }, [base, termico, mapaVivo]);
+    void aplicar();
+    return () => { cancelado = true; };
+  }, [base, termico, mapaVivo, mapaCargado]);
 
   /**
    * La capa térmica: ficha, rejilla del día y pintura.
@@ -456,7 +472,7 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
    */
   useEffect(() => {
     const m = mapaVivo;
-    if (!m) return;
+    if (!m || !mapaCargado) return;
     if (!termico) {
       if (m.getLayer('capa-termica')) m.setLayoutProperty('capa-termica', 'visibility', 'none');
       return;
@@ -524,9 +540,9 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
       }
     };
 
-    const dejarDeEsperar = alEstarElEstilo(m, () => { if (!cancelado) void pintar(); });
-    return () => { cancelado = true; dejarDeEsperar(); };
-  }, [termico, diaTermico, fichaTermica, rejillaLista, mapaVivo]);
+    void pintar();
+    return () => { cancelado = true; };
+  }, [termico, diaTermico, fichaTermica, rejillaLista, mapaVivo, mapaCargado]);
 
   /**
    * El clic que dice cuántos grados hace AHÍ.
@@ -844,28 +860,6 @@ function PanelPronostico({ p, eje, celda, vientoHipotesis_kmh }: {
       </p>
     </div>
   );
-}
-
-/**
- * Hacer algo CUANDO el estilo del mapa esté armado, no antes.
- *
- * ⚠️ ESTO NO ES UNA COMODIDAD: es la diferencia entre que una capa se encienda y
- * que no. El mapa se declara «listo» ANTES de que MapLibre termine de montar el
- * estilo, y en esa ventana `getStyle()` devuelve `undefined` y `addSource()`
- * lanza «Style is not done loading». Las dos capas nuevas cayeron ahí, una tras
- * otra, así que la espera tiene un solo dueño y las dos lo usan (`32 · L-55`).
- *
- * @returns cómo cancelar la espera, para la limpieza del efecto
- */
-function alEstarElEstilo(m: maplibregl.Map, hacer: () => void): () => void {
-  if (m.isStyleLoaded()) { hacer(); return () => {}; }
-  const alCambiar = () => {
-    if (!m.isStyleLoaded()) return;
-    m.off('styledata', alCambiar);
-    hacer();
-  };
-  m.on('styledata', alCambiar);
-  return () => m.off('styledata', alCambiar);
 }
 
 /**
