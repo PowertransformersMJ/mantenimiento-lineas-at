@@ -247,7 +247,7 @@ function fichaPopup(p: ReturnType<typeof derivarLevantamiento>['puntos'][number]
   return `<div class="pop-ficha">${filas.join('<br>')}</div>`;
 }
 
-export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis }:
+export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis, panelALado }:
   { apoyos: Apoyo[]; respaldo?: ReactNode;
     /** Expedientes de falla a señalar sobre el mapa. Vacío = línea sin eventos. */
     eventos?: Investigacion[];
@@ -258,7 +258,17 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
      * representa el que se pronostica. No entra en ningún cálculo: el pronóstico
      * no valida una hipótesis (ver `vistas/pronostico.ts`).
      */
-    hipotesis?: Hipotesis }) {
+    hipotesis?: Hipotesis;
+    /**
+     * El panel de capas AL LADO del mapa en vez de flotando encima.
+     *
+     * Encima está bien cuando el mapa es una tarjeta del resumen: ocupa poco y
+     * se aparta con la vista. Deja de estarlo cuando el mapa ES la pantalla —el
+     * panel crece con la leyenda de la capa encendida y acaba tapando justo el
+     * trazado que se quiere recorrer—. La disposición la decide quien monta el
+     * mapa, no el mapa: es la misma pieza en los dos sitios.
+     */
+    panelALado?: boolean }) {
   const caja = useRef<HTMLDivElement>(null);
   const mapa = useRef<maplibregl.Map | null>(null);
   const [estado, setEstado] = useState<'cargando' | 'listo' | 'fallo'>('cargando');
@@ -696,7 +706,7 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
   if (estado === 'fallo' && respaldo) return <>{respaldo}</>;
 
   return (
-    <div className="mapa-real">
+    <div className={panelALado ? 'mapa-real mapa-real--lado' : 'mapa-real'}>
       {estado === 'cargando' && <div className="mapa-velo">Descargando cartografía… (una sola vez)</div>}
       <div ref={caja} className="mapa-lienzo" />
       <div className="mapa-capas" role="group" aria-label="Capas del mapa">
@@ -768,7 +778,13 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
           <LeyendaTemperatura ficha={fichaMedida as FichaTemperatura} mes={mesRadiacion} alElegirMes={(c) => {
             setMesRadiacion(c); setValorClic(null);
           }} valor={valorClic} cargando={bajandoRadiacion}
-            edsHipotesis_C={hipotesis?.tempEds_C} />
+            edsHipotesis_C={hipotesis?.tempEds_C}
+            alEncuadrar={mapaVivo && fichaMedida?.bbox
+              ? () => {
+                const [x0, y0, x1, y1] = (fichaMedida as FichaTemperatura).bbox;
+                mapaVivo.fitBounds([[x0, y0], [x1, y1]], { padding: 24, duration: 700 });
+              }
+              : undefined} />
         )}
         {pronostico && tiempo && (
           <PanelPronostico p={tiempo} eje={geometria?.eje ?? null}
@@ -885,13 +901,15 @@ function LeyendaRadiacion({ ficha, mes, alElegirMes, valor, cargando }: {
  *      único motivo por el que esta capa vale más que una curiosidad: pone una
  *      cifra del sitio al lado de una suposición que nadie había contrastado.
  */
-function LeyendaTemperatura({ ficha, mes, alElegirMes, valor, cargando, edsHipotesis_C }: {
+function LeyendaTemperatura({ ficha, mes, alElegirMes, valor, cargando, edsHipotesis_C, alEncuadrar }: {
   ficha: FichaTemperatura;
   mes: string | null;
   alElegirMes: (clave: string) => void;
   valor: { c: number | null; lon: number; lat: number } | null;
   cargando: boolean;
   edsHipotesis_C?: number | null;
+  /** Lleva el mapa al recorte entero de la capa. Ver más abajo por qué existe. */
+  alEncuadrar?: () => void;
 }) {
   const capas = capasOrdenadasTemp(ficha);
   const actual = capaElegidaTemp(ficha, mes);
@@ -922,6 +940,23 @@ function LeyendaTemperatura({ ficha, mes, alElegirMes, valor, cargando, edsHipot
         </select>
       </label>
       {cargando && <p className="mapa-capas-n">Bajando la temperatura de ese mes…</p>}
+
+      {/* ⚠️ ESTE BOTÓN NO ES UN ATAJO DE COMODIDAD: es la diferencia entre ver la
+          capa y creer que no funciona. El mapa arranca encuadrado en la LÍNEA
+          —3 km— y en 3 km la temperatura del aire cambia una décima de grado: a
+          esa escala la capa se ve de un color aunque esté perfecta. El gradiente
+          vive a escala del RECORTE, entre el mar y el interior. Sin una forma de
+          llegar ahí de un clic, lo que el usuario concluye es que la capa está
+          rota — y tendría motivos. */}
+      {alEncuadrar && (
+        <button type="button" className="boton chico" onClick={alEncuadrar}>
+          Ver todo el recorte
+        </button>
+      )}
+      <p className="mapa-capas-n">
+        Sobre la línea el color es casi uniforme y no es un fallo: en 3 km el aire no cambia. El
+        gradiente se ve al abarcar el recorte entero.
+      </p>
 
       <div className="mapa-leyenda-barra" style={{ background: `linear-gradient(90deg, ${gradiente})` }} />
       <div className="mapa-leyenda-esc">

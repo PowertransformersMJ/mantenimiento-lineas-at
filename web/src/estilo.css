@@ -1435,3 +1435,33 @@ p.fund-vivo + .sello-calculo { margin-top: 5px; }
 }
 .fotos-curso p { margin: 0 0 4px; }
 .fotos-curso p:last-child { margin-bottom: 0; }
+
+/* ── EL MAPA COMO PANTALLA, no como tarjeta (pestaña «Detalle GPS») ────────
+   El panel de capas flotando encima funciona mientras el mapa sea un cuadro del
+   resumen. Cuando el mapa ES la pantalla deja de funcionar: el panel crece con
+   la leyenda de la capa encendida —selector de mes, barra de color, avisos— y
+   acaba tapando el trazado que se quiere recorrer. Aquí se va al lado, con su
+   propio desplazamiento, y el lienzo se queda con todo el ancho que sobra. */
+.mapa-real--lado {
+  display: grid; grid-template-columns: minmax(0, 1fr) 310px;
+  align-items: stretch;
+}
+.mapa-real--lado .mapa-lienzo {
+  /* Más alto que el del resumen: aquí el mapa es el asunto, no un acompañante. */
+  height: calc(100vh - 190px); min-height: 560px;
+}
+.mapa-real--lado .mapa-capas {
+  position: static; max-width: none; max-height: calc(100vh - 190px);
+  overflow-y: auto; border: 0; border-left: 1px solid var(--bd);
+  border-radius: 0; box-shadow: none; background: var(--pnl2);
+  padding: 11px 13px;
+}
+/* En pantalla estrecha el panel vuelve DEBAJO, nunca encima: en un teléfono un
+   panel lateral de 310 px deja el mapa en una rendija. */
+@media (max-width: 900px) {
+  .mapa-real--lado { grid-template-columns: 1fr; }
+  .mapa-real--lado .mapa-lienzo { height: 62vh; min-height: 380px; }
+  .mapa-real--lado .mapa-capas {
+    max-height: none; border-left: 0; border-top: 1px solid var(--bd);
+  }
+}

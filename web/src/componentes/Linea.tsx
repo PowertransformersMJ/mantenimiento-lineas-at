@@ -27,6 +27,7 @@ import { estadoDeLinea } from '../vistas/estadoLinea';
 import { vanosDeLinea } from '../vistas/vanosLinea';
 import { Horizonte } from './Horizonte';
 import { Distribucion } from './Distribucion';
+import { DetalleGps } from './DetalleGps';
 import { Distancias } from './Distancias';
 import { Fichas } from './Fichas';
 import { Exportar } from './Exportar';
@@ -100,6 +101,9 @@ class RespaldoMapa extends Component<{ apoyos: Apoyo[]; children: ReactNode }, {
 
 const PESTANAS = [
   { id: 'resumen', rotulo: 'Resumen', lista: true },
+  // Va PEGADA al resumen y no al final: es el mismo mapa del resumen visto en
+  // grande, y quien lo busca viene de haberlo visto pequeño ahí arriba.
+  { id: 'gps', rotulo: 'Detalle GPS', lista: true },
   { id: 'distancias', rotulo: 'Distancias', lista: true },
   { id: 'fichas', rotulo: 'Fichas', lista: true },
   { id: 'falla', rotulo: 'Falla', lista: true, roja: true },
@@ -765,6 +769,10 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
           <Resumen apoyos={apoyos} investigaciones={investigaciones}
             alVerEvento={() => irA('falla')}
             hipotesis={hipotesis} conductor={conductor} />
+        )}
+        {activa === 'gps' && (
+          <DetalleGps apoyos={apoyos} investigaciones={investigaciones}
+            alVerEvento={() => irA('falla')} hipotesis={hipotesis} />
         )}
         {activa === 'falla' && <Falla investigaciones={investigaciones} apoyos={apoyos} evidencias={evidencias} noSePudoLeer={noSePudoLeer?.investigaciones} noSePudoLeerFotos={noSePudoLeer?.evidencias} />}
         {activa === 'distancias' && <Distancias apoyos={apoyos} />}
