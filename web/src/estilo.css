@@ -1343,6 +1343,30 @@ p.fund-vivo + .sello-calculo { margin-top: 5px; }
    Se dice, y se ve. */
 .ficha-sin-origen { color: var(--tx-aviso); font-weight: 600; }
 
+/* ── El LOTE: el mismo dato de catálogo en varios apoyos ─────────────────
+   LA DECISIÓN DE COLOR, que aquí tampoco es estética: el que PUEDE recibir el
+   dato se pinta normal y el que queda FUERA se apaga y lleva su motivo al lado,
+   nunca se esconde. Una lista que solo enseña a los elegibles esconde justo lo
+   que hace falta para confiar en ella — y quien no ve a E07 supone que se
+   perdió. Es la misma regla de `32 · L-44`: el hueco tiene que verse. */
+.lote-acciones { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0 0; }
+.lote-lista {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 5px; margin: 10px 0 0;
+}
+.lote-item {
+  display: flex; align-items: baseline; gap: 7px;
+  padding: 6px 9px; border: 1px solid var(--bd); border-radius: 5px;
+  background: var(--pnl2);
+  font-size: 11.5px; line-height: 1.45; color: var(--tx);
+  cursor: pointer;
+}
+/* Fuera del lote: apagado, sin cursor de clic y con la casilla inerte. Se sigue
+   leyendo — es información, no ruido. */
+.lote-item-fuera { color: var(--tx3); cursor: default; }
+.lote-nombre { font-weight: 600; }
+.lote-motivo { font-size: 10.5px; color: var(--tx3); }
+
 /* En teléfono el formulario se usa en campo, de pie y con una mano: los campos
    ocupan el ancho entero y las cajas pierden sangrado, que es espacio robado a
    lo que hay que leer. */
@@ -1351,6 +1375,7 @@ p.fund-vivo + .sello-calculo { margin-top: 5px; }
   .ficha-editor .cargar-pregunta { max-width: none; }
   .ficha-editor .rca-select { width: 100%; }
   .ficha-editor-cab { align-items: flex-start; flex-direction: column; }
+  .lote-lista { grid-template-columns: 1fr; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

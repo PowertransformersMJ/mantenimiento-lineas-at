@@ -16,6 +16,7 @@ import { contextoDeLinea } from '../vistas/ejesLinea';
 import { avisoDeSupuestos, estadoDelApoyo, etiquetaDeOrigen } from '../vistas/fichaEstructural';
 import { FichaCriterios } from './FichaCriterios';
 import { FichaEditor } from './FichaEditor';
+import { FichaLote } from './FichaLote';
 import { Galeria } from './Galeria';
 
 /**
@@ -143,6 +144,12 @@ export function Fichas({ apoyos, linea, conductor, hipotesis, evidencias = [], s
    * apoyo es la forma más fácil de guardar la altura de E07 dentro de E08.
    */
   const [editando, setEditando] = useState(false);
+  /**
+   * Si el panel del LOTE está abierto. Es independiente del formulario de un
+   * apoyo y no se cierra al cambiar de chip: marcar veinte apoyos y perderlo por
+   * pulsar un chip sería la forma más rápida de que nadie lo volviera a usar.
+   */
+  const [lote, setLote] = useState(false);
   const apoyoId = fichas[sel]?.apoyo.id;
 
   /**
@@ -196,6 +203,13 @@ export function Fichas({ apoyos, linea, conductor, hipotesis, evidencias = [], s
    */
   const puedeEditar = sesion?.rol === 'admin' || sesion?.rol === 'editor';
 
+  /**
+   * Aplicar un dato a VARIOS apoyos exige ADMINISTRACIÓN, no edición: la
+   * escritura lo comprueba de verdad y aquí se comprueba igual, para no ofrecer
+   * un botón que la base va a negar después de marcar veinte apoyos.
+   */
+  const puedeLote = sesion?.rol === 'admin';
+
   const claseChip = (x: FichaPunto) =>
     !x.esEstructura ? 'chip emp'
       : x.apoyo.funcionEstructural === 'Terminal' ? 'chip term'
@@ -215,6 +229,29 @@ export function Fichas({ apoyos, linea, conductor, hipotesis, evidencias = [], s
             </button>
           ))}
         </div>
+
+        {/* ── EL LOTE ────────────────────────────────────────────────────────
+            Va AQUÍ, en la cabecera de la pestaña y no dentro de la ficha de un
+            apoyo: lo que se aplica a varios no pertenece a ninguno. Solo se
+            ofrece con permiso de ADMINISTRACIÓN —el daño de un lote no es el de
+            una ficha— y cuando no se tiene, se dice por qué en vez de esconder
+            el botón: un botón que desaparece se lee como una avería. */}
+        {!lote && puedeLote && (
+          <button type="button" className="boton" onClick={() => setLote(true)}>
+            Aplicar un dato de catálogo a varios apoyos
+          </button>
+        )}
+        {!lote && !puedeLote && puedeEditar && (
+          <p className="fine">
+            <b>Aplicar el mismo dato a varios apoyos es acto de administración</b> y esta sesión
+            entró con el permiso «{sesion?.rol}». Los apoyos se completan uno a uno desde su ficha,
+            que sí está disponible con su permiso.
+          </p>
+        )}
+        {lote && sesion && (
+          <FichaLote apoyos={apoyos} contexto={contexto} sesion={sesion}
+            alCerrar={() => setLote(false)} />
+        )}
       </section>
 
       <section className="panel">

@@ -20,7 +20,7 @@ import { useSyncExternalStore } from 'react';
 import type { AccionCapa, AnalisisCausa, Evidencia, Linea, SondeoClima } from '@lineas/contratos';
 import { cargarFirebase } from './cargar';
 import { puertaDeAcceso } from '@lineas/contratos';
-import { repositorio, usarRepositorio, type AcuseDeFicha, type EstadoDatos, type EstadoRca, type EstadoSesion, type ResultadoCarga } from './repositorio';
+import { repositorio, usarRepositorio, type AcuseDeFicha, type AcuseDeLote, type EstadoDatos, type EstadoRca, type EstadoSesion, type ResultadoCarga } from './repositorio';
 import { leerRuta } from './ruta';
 import { repositorioFirestore } from './firestore';
 
@@ -360,6 +360,30 @@ class Almacen {
   ): Promise<AcuseDeFicha> {
     conectarBase();
     return await repositorio.guardarFichaApoyo(apoyoId, ficha, revision);
+  }
+
+  /**
+   * Escribe el MISMO dato de catálogo en VARIOS apoyos, y **tampoco recarga la
+   * línea**, por el mismo motivo que su hermana de arriba: el acuse de un lote
+   * —a quién se le escribió, a quién no y por qué— es el único papel que queda
+   * de la operación, y `abrir()` lo borraría en el instante en que se genera.
+   *
+   * Aquí no se decide nada: quién puede recibir el dato lo dictan la escritura
+   * (que es la salvaguarda de verdad, con permiso de administración, solo
+   * estructuras, solo huecos y atómica) y `vistas/fichaLote.ts`, que la espeja
+   * para poder decirlo ANTES. Este método solo lleva y trae.
+   *
+   * Lo que falla LANZA hacia la pantalla con el motivo ENTERO: un conflicto de
+   * revisión trae el nombre del apoyo que otra persona tocó, y resumirlo en «no
+   * se pudo guardar» quitaría justo la parte que dice qué hacer.
+   */
+  async guardarFichaEnLote(
+    apoyoIds: string[],
+    ficha: Record<string, unknown>,
+    revisiones: Record<string, number>,
+  ): Promise<AcuseDeLote> {
+    conectarBase();
+    return await repositorio.guardarFichaApoyoEnLote(apoyoIds, ficha, revisiones);
   }
 
   /**
