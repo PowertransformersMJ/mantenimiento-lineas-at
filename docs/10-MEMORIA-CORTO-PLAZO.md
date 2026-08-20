@@ -6,10 +6,9 @@
 
 ## 🎯 Dónde estamos
 
-**Cifras vivas en `05`.** 12 pestañas + RCA + tres informes. **Mazo E02 listo** (`32 · L-49`). Olas cerradas:
-carcasa (ADR-018) · RCA (ADR-020) · documental (ADR-021) · contexto real (ADR-022) · gerencial
-(ADR-023) · acceso (ADR-024) · **dato SUPUESTO (ADR-032)** · **capas del mapa: satelital,
-recurso solar por mes y pronóstico (ADR-034/035/036/037)**.
+**Cifras vivas en `05`.** 12 pestañas + RCA + tres informes. **Mazo E02 listo** (`32 · L-49`).
+Olas cerradas: ADR-018 · 020 · 021 · 022 · 023 · 024 · **032** (dato SUPUESTO) · **034-037 y 039-041**
+(las capas del mapa).
 
 ## 🛑 LO PRIMERO AL RETOMAR
 
@@ -23,6 +22,7 @@ recurso solar por mes y pronóstico (ADR-034/035/036/037)**.
    **temperatura del AIRE** en el mapa —que de paso confirma que la EDS adoptada de 28 °C se
    sostiene: el sitio tiene 27,3— y la **satelital remuestreada** al nivel 15, que era lo que se veía
    borroso. A más resolución **no se puede ir por licencia**, no por técnica (`31 · L-60`, `TODO-72`).
+   ⚠️ Las dos se corrigieron el mismo día a petición suya (`ADR-041`, `30 · L-61`).
    Las tres verificadas en vivo contra producción con su sesión.
 3. **TRES COSAS QUEDARON A MEDIO CAMINO Y SON DE ÉL, no de código:**
    `TODO-57` el dato de la ficha · **ponerse contraseña** (bloquea retirar Google) · `TODO-71` cerrar

@@ -3907,3 +3907,70 @@ publicar.** La pantalla lo dice con esas palabras.
 
 *(sin comité. Evidencia: las fichas de los servicios del IGAC y las muestras descargadas, la cita
 literal de Colombia en Mapas y la comparación visual antes/después. Guardián: `tests/mapa-capas.test.js`.)*
+
+---
+
+## ADR-041 · 2026-08-20 · Corrección de criterio: un mapa que no enseña su gradiente no informa, y el zoom tiene que llegar donde llega el ojo
+
+**Estado:** ✅ Decidido · ⚠️ **NO revisada externamente** · ✅ **verificado en vivo contra producción**
+
+### Contexto
+
+El Ingeniero, sobre lo entregado unas horas antes: *«necesito que en la capa de temperatura se vean
+los gradientes, en la vista satelital mira que sigue pixelado cuando hago zoom»*. Las dos
+observaciones apuntan al mismo error mío: **prudencia mal calibrada**, dos veces.
+
+### Decisión
+
+**1 · La rampa de temperatura se ajusta al dato (`ADR-039` corregido).** Era FIJA y ancha (5-35 °C)
+para que dos recortes se pudieran comparar sin recalibrar, y sobre un corredor costero eso dejaba el
+mapa de un solo color: los 3,1 °C que separan el punto más fresco del más cálido caían dentro de un
+mismo tramo. **Se veía honesto y era inútil.**
+
+El argumento con el que defendí la escala fija —«estirarla amplifica el ruido»— **confundía dos
+errores distintos**: el ABSOLUTO del modelo (±1 °C, que corre igual para todas las celdas y por tanto
+NO inventa gradientes) y el RELATIVO entre celdas vecinas del mismo reanálisis, que es mucho menor.
+El gradiente costa-interior que se ve es señal del modelo, no ruido aleatorio. La prudencia estaba
+puesta en el sitio equivocado: protegía de un riesgo que no existía y costaba la información entera.
+
+⚠️ **La rampa se calcula sobre las TRECE capas a la vez, nunca por mes.** Una escala por mes
+repintaría el mismo color sobre temperaturas distintas y comparar dos meses engañaría — ese sí era un
+riesgo real, y se conserva.
+
+**Y el aviso cambia de bando.** Antes explicaba por qué el mapa se veía liso; ahora dice que **el rojo
+NO es calor extremo, son 3,2 °C más que el azul**, con los extremos escritos. Un mapa que afirma con
+color y no publica su escala es más peligroso que uno que no afirma nada.
+
+**2 · La satelital sube al nivel 16** (2,4 m/píxel; era 9,4 esta mañana y 4,7 hace un rato). Se lee a
+4,7 m y se amplía una vez con Lanczos en vez de pedirle a GDAL cuatro veces más píxeles —el dato es de
+10 m, así que por debajo todo es interpolación venga de donde venga— y la nitidez se aplica DESPUÉS de
+ampliar. Calidad WEBP 82 en vez de 90: **se cede compresión antes que zoom**, porque la compresión en
+una imagen ya interpolada casi no se ve y el zoom es lo que él está mirando. **18,9 MiB**, dentro del
+tope de 25.
+
+### Alternativas descartadas
+
+- **Escala de temperatura por mes**: haría incomparables los meses entre sí.
+- **Subir la satelital al nivel 17**: no cabe en 25 MiB por archivo ni cediendo calidad, y a 1,2 m
+  desde un dato de 10 m la interpolación ya no aporta nada que el ojo distinga.
+- **Volver a muestrear los 352 puntos para cambiar la rampa**: no toca un solo valor —las rejillas
+  guardan el byte, no el color—. El generador gana `--reusar`, que rehace la ficha desde el disco.
+
+### Consecuencias
+
+- **El mapa de temperatura ahora informa**: se ve la brisa marina (bahía más fresca) y el mes cambia
+  el tono de todo el recorte.
+- **La satelital deja de verse en bloques al acercarse.** A 200 m de escala se distinguen naves,
+  tanques y viales. Más allá seguirá difuminándose: el dato es de 10 m y eso es físico.
+- **Lección de método → `L-61`**: la prudencia que borra la señal no es prudencia.
+
+### Verificado en vivo (2026-08-20)
+
+Con el Chrome del Ingeniero, sobre producción: la leyenda enseña la escala 25,2-28,4 °C y el aviso
+nuevo; el mapa muestra el gradiente; la satelital carga y se recorre hasta 200 m de escala sin
+bloques. Cero errores en consola.
+
+### Crudo de respaldo
+
+*(sin comité: corrección directa sobre observación del dueño, con la evidencia a la vista. Guardianes:
+`tests/temperatura.test.js` y `tests/mapa-capas.test.js`.)*

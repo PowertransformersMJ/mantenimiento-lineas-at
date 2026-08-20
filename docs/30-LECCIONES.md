@@ -76,6 +76,7 @@
 - `L-40` · Si el núcleo solo publica la PROSA de un hueco, quien la lea deducirá el hecho — y mal (y una prueba escrita sobre la deducción la BLINDA)
 - `L-41` · Un contrato que no se puede EJECUTAR en una prueba solo está revisado por el compilador
 - `L-45` · Una regla que el motor CALCULA y nadie consume no es una regla: es un comentario (y el grep de `L-28` da luz verde)
+- `L-61` · La prudencia que borra la señal no es prudencia: separa el error ABSOLUTO del RELATIVO
 - `L-60` · Un organismo publica VARIAS licencias: la del dato que buscas no es la del que sale primero
 - `L-59` · Un atajo que llena UN campo de tres no mueve el veredicto: mídelo contra el dato real antes de venderlo
 - `L-53` · Una marca que se dispara con una forma de dato que el sistema no escribe es peor que no tenerla (y su prueba la blinda)
@@ -231,6 +232,26 @@
   así no la leímos.
 - **Emparenta con** `L-28` (un módulo que nadie llama es invisible): una lección que el índice no
   lista es exactamente igual de invisible.
+
+### L-61 · La prudencia que borra la señal no es prudencia: separa el error ABSOLUTO del RELATIVO
+
+- **Síntoma:** la capa de temperatura salió con una rampa FIJA y ancha (5-35 °C) «para no amplificar
+  ruido». Sobre un corredor costero el mapa quedó de un solo color: los 3,1 °C de diferencia entre el
+  punto más fresco y el más cálido cabían en un tramo. Se defendió por escrito como decisión honesta
+  —hasta que el Ingeniero pidió ver los gradientes y tenía razón.
+- **Causa:** confundir dos errores que no son el mismo. El **absoluto** del modelo (±1 °C) corre igual
+  para todas las celdas: desplaza el mapa entero y **no inventa un gradiente**. El **relativo** entre
+  celdas vecinas del mismo reanálisis es mucho menor, y es exactamente lo que se dibuja al pintar
+  diferencias. Aplicar el error absoluto como si limitara la resolución del gradiente es tirar la
+  información buena por miedo a un riesgo que no estaba ahí.
+- **Regla:** antes de renunciar a enseñar una variación, pregúntate **de qué error estás hablando**.
+  Si la incertidumbre es común a todas las celdas, la comparación ENTRE ellas sigue valiendo. Y la
+  salvaguarda no es aplanar el mapa: es **publicar la escala** —«el rojo son 3 °C más que el azul, no
+  calor extremo»—, porque lo que engaña no es el color, es el color sin su número.
+- **El patrón, más allá de este caso:** una decisión «conservadora» que deja la pantalla sin
+  información no es neutra. Emparenta con `32 · L-44` (el hueco tiene que verse) y con `33 · L-59`
+  (medir antes de vender): callarse también es una afirmación, y aquí afirmaba «aquí no hay nada que
+  ver» sobre un sitio donde sí lo había.
 
 ### L-56 · Un guardián cuyo resultado no BLOQUEA no es un guardián: es un adorno
 
