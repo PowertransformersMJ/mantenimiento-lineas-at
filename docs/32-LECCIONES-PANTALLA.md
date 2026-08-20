@@ -20,29 +20,28 @@
 
 ## El mapa que no llega a pintarse
 
-### L-58 · Un efecto que depende de `ref.current` no se entera de que el ref cambió
+### L-58 · «No pasa nada» al pulsar: mira la PESTAÑA antes que el código
 
-- **Síntoma:** se pulsa el interruptor de una capa y **no pasa nada**. Nada: ni capa, ni error, ni
-  una petición de red. Se vuelve a pulsar y sigue sin pasar nada. Recargando la página funciona a la
-  primera.
-- **Causa:** el mapa vive en una **referencia** (`mapa.current`), porque MapLibre es imperativo y no
-  puede colgar del ciclo de render. Cuando el mapa se REHACE —basta que la lista de apoyos cambie de
-  identidad y el efecto de creación se limpie y se vuelva a montar— hay un instante en que
-  `mapa.current` es `null`. Un efecto de capa que se ejecute justo ahí sale por su guarda
-  (`if (!m) return`) y **no vuelve nunca**: una referencia no dispara efectos, así que ninguna de sus
-  dependencias cambió y React no tiene motivo para volver a llamarlo. El mapa nuevo se queda sin la
-  capa, y el interruptor está muerto aunque el estado de React diga que está encendido.
-- **Arreglo:** el mapa vivo pasa al ESTADO (`useState`), no a la referencia, y las capas dependen de
-  él. Cambiar de mapa es entonces un cambio de dependencia y todas se vuelven a aplicar solas. La
-  referencia se queda para lo que sirve una referencia: limpiar al salir.
-- **⚠️ El arreglo a medias que NO bastó:** primero se puso un CONTADOR de estado que subía al crear
-  el mapa. Parecía equivalente y no lo era: seguía leyéndose el mapa de la referencia, así que un
-  efecto podía ejecutarse con la referencia apuntando a un mapa ya RETIRADO —ni null ni bueno— y
-  fallar en silencio. Lo que hay que mover al estado es la COSA, no un aviso de que la cosa cambió.
-- **Regla:** lo que un efecto necesita para trabajar va en el estado, no en un `ref`. Y ojo con el
-  diagnóstico: «no pasa nada» sin error ni petición de red no es un fallo de la capa — es un efecto
-  que ni siquiera llegó a ejecutarse; se comprueba tocando OTRO interruptor del mismo panel (el del
-  pronóstico funcionaba, y eso descartó de golpe React, el estado y los manejadores).
+- **Síntoma:** se pulsa el interruptor de una capa del mapa y **no pasa nada**. Ni capa, ni error, ni
+  una sola petición de red. Se vuelve a pulsar y sigue igual.
+- **Causa, la de verdad:** la pestaña estaba **de fondo**. Chrome congela ahí el reloj de animación
+  (`L-16`), MapLibre pinta con ese reloj, y su evento `load` —que es la puerta que espera cada capa
+  para poder añadir fuentes— **no llega nunca**. `document.visibilityState` decía `hidden` y eso
+  explicaba el síntoma entero.
+- **⚠️ Lo que costó tres despliegues fue el DIAGNÓSTICO, no el arreglo.** Se persiguieron dos causas
+  plausibles antes de mirar lo obvio, y las dos dejaron cambios que se quedan porque son correctos
+  por su cuenta —pero **ninguna era el síntoma**:
+  1. el mapa vivía en un `ref`, y una referencia no dispara efectos: si un efecto de capa cae en el
+     instante en que la referencia es `null`, sale y no vuelve. El mapa pasó al ESTADO;
+  2. la puerta era `isStyleLoaded()`, que no contesta «¿está el estilo listo?» sino «¿está TODO
+     cargado?» y puede no ponerse en `true` nunca (esto sí produjo un error real:
+     «Style is not done loading»). La puerta buena es el evento `load`.
+- **Regla, y es de método:** ante «no pasa nada» sin error ni petición, la primera comprobación es
+  `document.visibilityState` y la segunda es tocar OTRO interruptor del mismo panel — si ése
+  responde, el problema no es React ni el estado. Automatizar la verificación en una pestaña de
+  fondo convierte un mapa que funciona en un mapa que parece roto, y a quien lo depura le hace
+  inventar causas.
+
 
 ### L-57 · Un efecto de React que enciende su propio «cargando» se cancela a sí mismo
 
