@@ -53,6 +53,7 @@ import os
 import sqlite3
 import subprocess
 import sys
+import time
 import urllib.request
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
@@ -553,6 +554,167 @@ def termico(cuantas=12):
     })
 
 
+# ════════════════════════════════════════════════════════════════════════════
+# 3 · RADIACIÓN SOLAR — el recurso del corredor, mes a mes
+# ════════════════════════════════════════════════════════════════════════════
+#
+# QUÉ ES Y POR QUÉ IMPORTA EN UNA LÍNEA. La radiación solar no es adorno aquí:
+# es una ENTRADA del cálculo térmico. La ampacidad de esta línea (IEEE 738) se
+# calcula hoy con **1.000 W/m² ADOPTADOS** —el valor clásico de mediodía
+# despejado— sin ninguna fuente local detrás. Este mapa pone por primera vez una
+# cifra del sitio al lado de esa suposición.
+#
+# ⚠️ PERO NO SE CONVIERTE EN AQUELLA CIFRA CON UNA REGLA DE TRES, y esto hay que
+# decirlo fuerte: lo que se mapea aquí es ENERGÍA DIARIA (kWh/m² al día) y lo que
+# come IEEE 738 es una IRRADIANCIA INSTANTÁNEA (W/m² al mediodía). Son magnitudes
+# distintas; pasar de una a otra exige la serie horaria, no un factor. El mapa
+# informa; la hipótesis la cambia el Ingeniero, si decide cambiarla.
+#
+# ── La fuente y su licencia (verificado el 2026-08-19) ───────────────────────
+# Global Solar Atlas 2.0 — Solargis para el Grupo Banco Mundial, con fondos de
+# ESMAP. Datos bajo **CC BY 4.0**: uso comercial permitido con atribución. Su
+# punto de consulta pública no pide cuenta ni clave.
+#
+# ⚠️ SE MUESTREA UNA VEZ, AQUÍ, Y SE AUTOHOSPEDA. La aplicación no le pide nada a
+# nadie: baja la rejilla ya construida. Y se muestrea GRUESO a propósito —una
+# celda cada 2 km sobre un dato de 1 km— porque el recurso solar varía suave: de
+# punta a punta del recorte cambia un 7,7 %, así que 2 km sobran para dibujar el
+# gradiente y son la sexta parte de peticiones a un servicio ajeno.
+
+ATRIBUCION_GSA = ('Global Solar Atlas 2.0 — Solargis s.r.o. para el Grupo Banco Mundial, '
+                  'con fondos de ESMAP (CC BY 4.0)')
+GSA_PUNTO = 'https://api.globalsolaratlas.info/data/lta?loc={lat:.5f},{lon:.5f}'
+METROS_RADIACION = 2000
+
+# kWh/m² al día. El byte 0 sigue siendo SIN DATO; el paso de 0,03 da más
+# resolución de la que tiene el propio dato (~1 %).
+RAD_OFFSET, RAD_PASO = 0.0, 0.03
+
+# Rampa fija, en kWh/m² al día. Los cortes cubren de un sitio nublado del trópico
+# a un desierto de altura: así dos recortes distintos se pueden comparar.
+RAMPA_RADIACION = [
+    (3.0, (49, 54, 149)), (3.8, (69, 117, 180)), (4.4, (171, 217, 233)),
+    (4.8, (255, 245, 190)), (5.2, (254, 224, 144)), (5.6, (253, 174, 97)),
+    (6.0, (244, 109, 67)), (6.6, (215, 48, 39)), (7.5, (165, 0, 38)),
+]
+
+MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+         'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
+DIAS_DEL_MES = [31, 28.25, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+
+
+def malla_de_muestreo(metros_px):
+    """
+    Los puntos a consultar, repartidos UNIFORMEMENTE EN WEB MERCATOR.
+
+    No en grados: la rejilla que lee la pantalla vive en mercator, y muestrear en
+    latitud/longitud la dejaría estirada hacia el norte — el clic diría el valor
+    de la celda de al lado.
+    """
+    ancho, alto, (x0, y0, x1, y1) = tamano_bloque(metros_px)
+    puntos = []
+    for iy in range(alto):
+        for ix in range(ancho):
+            x = x0 + (ix + 0.5) * (x1 - x0) / ancho
+            y = y1 - (iy + 0.5) * (y1 - y0) / alto
+            lon = x * 180 / E
+            lat = math.degrees(2 * math.atan(math.exp((y * 180 / E) * math.pi / 180)) - math.pi / 2)
+            puntos.append((ix, iy, lat, lon))
+    return ancho, alto, puntos
+
+
+def pedir_gsa(lat, lon, intentos=3):
+    """Un punto del atlas solar. Con reintentos: una caída no tira el muestreo entero."""
+    req = urllib.request.Request(
+        GSA_PUNTO.format(lat=lat, lon=lon),
+        headers={'User-Agent': 'mantenimiento-lineas-at (construcción de capa, uso puntual)'})
+    for i in range(intentos):
+        try:
+            with urllib.request.urlopen(req, timeout=45) as r:
+                return json.load(r)
+        except Exception:                                    # noqa: BLE001
+            if i == intentos - 1:
+                return None
+            time.sleep(1.5 * (i + 1))
+    return None
+
+
+def radiacion():
+    ancho, alto, puntos = malla_de_muestreo(METROS_RADIACION)
+    print(f'☀️  muestreando {len(puntos)} puntos ({ancho}×{alto}, uno cada '
+          f'{METROS_RADIACION / 1000:g} km) del Global Solar Atlas…')
+
+    # 13 rejillas: los doce meses y el año. Todas en kWh/m² AL DÍA, que es lo
+    # comparable: un mes de 31 días no tiene más sol por ser más largo.
+    rejillas = [np.zeros((alto, ancho), dtype=np.uint8) for _ in range(13)]
+    fallos = 0
+    for n, (ix, iy, lat, lon) in enumerate(puntos):
+        if n and n % 40 == 0:
+            print(f'   {n}/{len(puntos)}…')
+        d = pedir_gsa(lat, lon)
+        time.sleep(0.2)                                      # el servicio es de otro
+        if not d:
+            fallos += 1
+            continue
+        try:
+            mensual = d['monthly']['data']['GHI']
+            anual = d['annual']['data']['GHI']
+        except (KeyError, TypeError):
+            fallos += 1
+            continue
+        diarios = [mensual[m] / DIAS_DEL_MES[m] for m in range(12)] + [anual / 365.25]
+        for k, v in enumerate(diarios):
+            b = int(round((v - RAD_OFFSET) / RAD_PASO)) + 1
+            rejillas[k][iy, ix] = min(255, max(1, b))
+
+    medidos = int(np.count_nonzero(rejillas[12]))
+    if medidos < len(puntos) * 0.9:
+        sys.exit(f'❌ solo respondieron {medidos} de {len(puntos)} puntos: no se publica media capa')
+
+    capas = []
+    for k in range(13):
+        nombre = f'cartagena-radiacion-{"anual" if k == 12 else f"{k + 1:02d}"}.png'
+        Image.fromarray(rejillas[k], 'L').save(os.path.join(SALIDA, nombre), optimize=True)
+        v = (rejillas[k][rejillas[k] > 0].astype(np.float32) - 1) * RAD_PASO + RAD_OFFSET
+        capas.append({
+            'clave': 'anual' if k == 12 else f'{k + 1:02d}',
+            'rotulo': 'Media del año' if k == 12 else MESES[k].capitalize(),
+            'archivo': nombre,
+            'cobertura_pct': round(100 * medidos / len(puntos), 1),
+            'resumen': {
+                'min': round(float(v.min()), 2), 'p50': round(float(np.median(v)), 2),
+                'max': round(float(v.max()), 2),
+            },
+            'peso_kib': round(os.path.getsize(os.path.join(SALIDA, nombre)) / 1024, 1),
+        })
+        print(f'   {capas[-1]["rotulo"]:>14}: {capas[-1]["resumen"]["min"]:.2f} … '
+              f'{capas[-1]["resumen"]["max"]:.2f} kWh/m² al día')
+
+    print(f'\n✅ 13 capas · {sum(c["peso_kib"] for c in capas):.0f} KiB · {fallos} punto(s) sin respuesta')
+    escribir_ficha('radiacion', {
+        'capa': 'radiacion',
+        'titulo': 'Radiación solar (Global Solar Atlas)',
+        'magnitud': 'GHI — irradiación global horizontal',
+        'unidad': 'kWh/m² al día',
+        'bbox': list(BBOX),
+        'ancho': ancho,
+        'alto': alto,
+        'resolucion_m': METROS_RADIACION,
+        'resolucion_nativa_m': 1000,
+        'codificacion': {
+            'nota': 'byte 0 = SIN DATO. Con byte v ≥ 1: valor = (v − 1) × paso + offset',
+            'offset': RAD_OFFSET, 'paso': RAD_PASO, 'sin_dato': 0,
+        },
+        'rampa': [{'c': t, 'rgb': list(c)} for t, c in RAMPA_RADIACION],
+        'capas': capas,
+        'periodo': 'promedio de largo plazo (no es un día concreto)',
+        'fuente': 'Global Solar Atlas 2.0 (Solargis / Banco Mundial / ESMAP), muestreado por punto',
+        'licencia': 'CC BY 4.0 — uso comercial permitido con atribución',
+        'atribucion': ATRIBUCION_GSA,
+        'no_es_irradiancia_instantanea': True,
+    })
+
+
 # ── La ficha que lee la aplicación ──────────────────────────────────────────
 
 def escribir_ficha(nombre, ficha):
@@ -571,12 +733,14 @@ def escribir_ficha(nombre, ficha):
 
 if __name__ == '__main__':
     p = argparse.ArgumentParser(description='Construye las capas raster autohospedadas.')
-    p.add_argument('capa', choices=['satelital', 'termico'])
+    p.add_argument('capa', choices=['satelital', 'termico', 'radiacion'])
     p.add_argument('--fechas', type=int, default=12,
                    help='cuántas fechas utilizables buscar para el térmico')
     args = p.parse_args()
     os.makedirs(SALIDA, exist_ok=True)
     if args.capa == 'satelital':
         satelital()
+    elif args.capa == 'radiacion':
+        radiacion()
     else:
         termico(args.fechas)

@@ -3613,3 +3613,78 @@ interruptor y NO PASA NADA, sin capa, sin error y sin una sola petición de red�
 
 Y una tercera de cortesía: entregar la rejilla como PNG codificado tardaba segundos sin decir nada.
 Ahora MapLibre lee el lienzo directamente y el aviso de «midiendo…» sale junto al interruptor.
+
+
+## ADR-037 · 2026-08-19 · La capa del suelo se cambia por el RECURSO SOLAR, que sí es una entrada del cálculo
+
+**Estado:** ✅ Decidido · ⚠️ **NO revisada externamente**
+
+### Contexto
+
+El Ingeniero pidió reemplazar la capa de temperatura del suelo (`ADR-036`) por un índice de radiación
+solar. No es un cambio de gusto: la temperatura del suelo era información de contexto que **no entra
+en ningún cálculo** de este sistema, y la radiación solar **sí entra** — `nucleo/termica.js` la usa
+para la ampacidad (IEEE 738), y hoy lo hace con **1.000 W/m² ADOPTADOS**, el valor clásico de
+mediodía despejado, **sin una sola fuente local detrás** (`vistas/termicaDatos.ts`, escenarios
+adoptados).
+
+### Decisión
+
+**Entra el recurso solar del corredor, mes a mes**, con la misma mecánica que ya funcionaba: rejilla
+de VALORES —no imagen— y el color puesto por el navegador. Trece capas: los doce meses y la media
+del año. **Pesa 3 KiB en total.**
+
+**Fuente: Global Solar Atlas 2.0** (Solargis para el Banco Mundial, fondos de ESMAP), datos bajo
+**CC BY 4.0** —uso comercial permitido con atribución— y con un punto de consulta público que no pide
+cuenta ni clave. Se muestrea **una vez, aquí**, y se autohospeda: la aplicación no le pide nada a
+nadie.
+
+**⚠️ LA FRASE QUE SOSTIENE LA CAPA ENTERA, y va en la leyenda:** lo que se mapea es **ENERGÍA DIARIA**
+(kWh/m² al día) y lo que come IEEE 738 es una **IRRADIANCIA INSTANTÁNEA** (W/m² al mediodía). **No se
+convierte una en otra con una regla de tres.** Dividir la energía del día entre las horas de sol da
+un número creíble y falso. Sin esa frase, poner una cifra de sol al lado de una línea invita
+exactamente a la conversión que no se puede hacer — y ésta sí acabaría en un cálculo firmado, que es
+justo lo que la capa del suelo NO podía hacer. Una prueba la vigila como se vigila una defensa.
+
+**Se muestrea GRUESO y se dice:** una celda cada 2 km sobre un dato de 1 km. El recurso solar varía
+suave —de punta a punta del recorte cambia un 7,7 %— así que 2 km dibujan el mismo gradiente con la
+sexta parte de peticiones a un servicio ajeno. La leyenda declara que lo que se ve es una muestra.
+
+**Se publica la OSCILACIÓN del año**, no solo la media: entre marzo (6,2) y noviembre (4,6 kWh/m² al
+día) hay un **35 %**. Una media anual sola se lleva por delante esa variación, y es justo la cifra
+que se suele citar.
+
+**Las mecánicas de la rejilla se separan del dominio.** `vistas/rejilla.ts` queda agnóstico —no sabe
+si mide grados o kilovatios hora: la codificación, la rampa y el recorte los declara la ficha— y
+`vistas/radiacion.ts` pone lo que es de esta capa. Una capa nueva ya no obliga a tocar la mecánica.
+
+### Alternativas descartadas
+
+- **Dejar las dos capas.** Él pidió reemplazar, y el panel del mapa ya tiene cuatro interruptores:
+  una capa más que nadie enciende es ruido con coste de mantenimiento.
+- **Mapear la irradiancia instantánea (W/m²), que es la que usa el cálculo.** No existe abierta como
+  mapa a esta escala: lo que hay son series horarias de punto (NASA POWER, ~50 km) con meses de
+  retraso. Si se quiere cerrar la hipótesis de los 1.000 W/m² con una fuente local, eso es una SERIE,
+  no una capa — y queda anotado como decisión suya en `10`.
+- **Sampling fino (1 km, 1.400 puntos).** Seis veces más peticiones a un servicio de otro para
+  dibujar el mismo gradiente.
+- **Descargar el GeoTIFF mundial (268 MB)** y recortarlo. Sería lo más limpio, pero sus URLs de
+  descarga publicadas responden 404 hoy; el punto de consulta sí funciona y basta.
+
+### Consecuencias
+
+- **La capa del suelo se retira**: sus doce rejillas, su ficha y su código salen del repositorio.
+  `ADR-036` no se borra —la decisión de guardar la MEDIDA en vez de una imagen es lo que hace posible
+  ésta— pero su capa ya no está.
+- **El mapa pesa 9,6 MB de recortes** (antes 13): las trece capas de radiación ocupan 3 KiB frente a
+  los 3,4 MB de las doce fechas térmicas.
+- **La aplicación sigue sin pedirle teselas a nadie**, y la única pieza que necesita internet sigue
+  siendo el pronóstico (`ADR-035`).
+- **Queda una pregunta abierta y es suya**: si el recurso solar del sitio debe cambiar los 1.000 W/m²
+  adoptados. La capa informa; la hipótesis se cambia con una fuente y una firma, no con un mapa.
+
+### Crudo de respaldo
+
+*(sin comité: la parte cara era verificar la licencia y comprobar que el gradiente existe —se
+midieron cinco puntos del recorte antes de decidir que un mapa era defendible—. Evidencia:
+`tests/radiacion.test.js` (10) y `tests/rejilla.test.js` (15).)*

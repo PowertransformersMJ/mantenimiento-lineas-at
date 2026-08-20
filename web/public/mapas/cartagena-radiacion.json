@@ -1,0 +1,259 @@
+{
+  "capa": "radiacion",
+  "titulo": "Radiación solar (Global Solar Atlas)",
+  "magnitud": "GHI — irradiación global horizontal",
+  "unidad": "kWh/m² al día",
+  "bbox": [
+    -75.62,
+    10.2,
+    -75.33,
+    10.58
+  ],
+  "ancho": 16,
+  "alto": 22,
+  "resolucion_m": 2000,
+  "resolucion_nativa_m": 1000,
+  "codificacion": {
+    "nota": "byte 0 = SIN DATO. Con byte v ≥ 1: valor = (v − 1) × paso + offset",
+    "offset": 0.0,
+    "paso": 0.03,
+    "sin_dato": 0
+  },
+  "rampa": [
+    {
+      "c": 3.0,
+      "rgb": [
+        49,
+        54,
+        149
+      ]
+    },
+    {
+      "c": 3.8,
+      "rgb": [
+        69,
+        117,
+        180
+      ]
+    },
+    {
+      "c": 4.4,
+      "rgb": [
+        171,
+        217,
+        233
+      ]
+    },
+    {
+      "c": 4.8,
+      "rgb": [
+        255,
+        245,
+        190
+      ]
+    },
+    {
+      "c": 5.2,
+      "rgb": [
+        254,
+        224,
+        144
+      ]
+    },
+    {
+      "c": 5.6,
+      "rgb": [
+        253,
+        174,
+        97
+      ]
+    },
+    {
+      "c": 6.0,
+      "rgb": [
+        244,
+        109,
+        67
+      ]
+    },
+    {
+      "c": 6.6,
+      "rgb": [
+        215,
+        48,
+        39
+      ]
+    },
+    {
+      "c": 7.5,
+      "rgb": [
+        165,
+        0,
+        38
+      ]
+    }
+  ],
+  "capas": [
+    {
+      "clave": "01",
+      "rotulo": "Enero",
+      "archivo": "cartagena-radiacion-01.png",
+      "cobertura_pct": 100.0,
+      "resumen": {
+        "min": 5.58,
+        "p50": 5.82,
+        "max": 5.94
+      },
+      "peso_kib": 0.2
+    },
+    {
+      "clave": "02",
+      "rotulo": "Febrero",
+      "archivo": "cartagena-radiacion-02.png",
+      "cobertura_pct": 100.0,
+      "resumen": {
+        "min": 5.91,
+        "p50": 6.3,
+        "max": 6.42
+      },
+      "peso_kib": 0.2
+    },
+    {
+      "clave": "03",
+      "rotulo": "Marzo",
+      "archivo": "cartagena-radiacion-03.png",
+      "cobertura_pct": 100.0,
+      "resumen": {
+        "min": 5.82,
+        "p50": 6.27,
+        "max": 6.54
+      },
+      "peso_kib": 0.2
+    },
+    {
+      "clave": "04",
+      "rotulo": "Abril",
+      "archivo": "cartagena-radiacion-04.png",
+      "cobertura_pct": 100.0,
+      "resumen": {
+        "min": 5.37,
+        "p50": 5.79,
+        "max": 6.24
+      },
+      "peso_kib": 0.2
+    },
+    {
+      "clave": "05",
+      "rotulo": "Mayo",
+      "archivo": "cartagena-radiacion-05.png",
+      "cobertura_pct": 100.0,
+      "resumen": {
+        "min": 5.04,
+        "p50": 5.25,
+        "max": 5.61
+      },
+      "peso_kib": 0.2
+    },
+    {
+      "clave": "06",
+      "rotulo": "Junio",
+      "archivo": "cartagena-radiacion-06.png",
+      "cobertura_pct": 100.0,
+      "resumen": {
+        "min": 5.13,
+        "p50": 5.28,
+        "max": 5.55
+      },
+      "peso_kib": 0.2
+    },
+    {
+      "clave": "07",
+      "rotulo": "Julio",
+      "archivo": "cartagena-radiacion-07.png",
+      "cobertura_pct": 100.0,
+      "resumen": {
+        "min": 5.37,
+        "p50": 5.49,
+        "max": 5.73
+      },
+      "peso_kib": 0.2
+    },
+    {
+      "clave": "08",
+      "rotulo": "Agosto",
+      "archivo": "cartagena-radiacion-08.png",
+      "cobertura_pct": 100.0,
+      "resumen": {
+        "min": 5.22,
+        "p50": 5.37,
+        "max": 5.64
+      },
+      "peso_kib": 0.2
+    },
+    {
+      "clave": "09",
+      "rotulo": "Septiembre",
+      "archivo": "cartagena-radiacion-09.png",
+      "cobertura_pct": 100.0,
+      "resumen": {
+        "min": 4.86,
+        "p50": 5.04,
+        "max": 5.4
+      },
+      "peso_kib": 0.2
+    },
+    {
+      "clave": "10",
+      "rotulo": "Octubre",
+      "archivo": "cartagena-radiacion-10.png",
+      "cobertura_pct": 100.0,
+      "resumen": {
+        "min": 4.53,
+        "p50": 4.74,
+        "max": 5.01
+      },
+      "peso_kib": 0.2
+    },
+    {
+      "clave": "11",
+      "rotulo": "Noviembre",
+      "archivo": "cartagena-radiacion-11.png",
+      "cobertura_pct": 100.0,
+      "resumen": {
+        "min": 4.38,
+        "p50": 4.56,
+        "max": 4.83
+      },
+      "peso_kib": 0.2
+    },
+    {
+      "clave": "12",
+      "rotulo": "Diciembre",
+      "archivo": "cartagena-radiacion-12.png",
+      "cobertura_pct": 100.0,
+      "resumen": {
+        "min": 4.92,
+        "p50": 5.13,
+        "max": 5.34
+      },
+      "peso_kib": 0.2
+    },
+    {
+      "clave": "anual",
+      "rotulo": "Media del año",
+      "archivo": "cartagena-radiacion-anual.png",
+      "cobertura_pct": 100.0,
+      "resumen": {
+        "min": 5.19,
+        "p50": 5.4,
+        "max": 5.67
+      },
+      "peso_kib": 0.2
+    }
+  ],
+  "periodo": "promedio de largo plazo (no es un día concreto)",
+  "fuente": "Global Solar Atlas 2.0 (Solargis / Banco Mundial / ESMAP), muestreado por punto",
+  "licencia": "CC BY 4.0 — uso comercial permitido con atribución",
+  "atribucion": "Global Solar Atlas 2.0 — Solargis s.r.o. para el Grupo Banco Mundial, con fondos de ESMAP (CC BY 4.0)",
+  "no_es_irradiancia_instantanea": true
+}

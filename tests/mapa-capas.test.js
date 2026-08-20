@@ -219,59 +219,49 @@ describe('cada imagen dice cuándo se tomó y a quién se le debe', () => {
     });
   }
 
-  test('la capa térmica declara su recorte, su codificación y sus fechas', () => {
-    const f = ficha('cartagena-termico.json');
+  test('la capa de radiación declara su recorte, su codificación y sus capas', () => {
+    const f = ficha('cartagena-radiacion.json');
     assert.deepEqual(f.bbox, cabecera('cartagena.pmtiles').limites,
       'la rejilla cubre otro territorio que el mapa base: se colocaría desplazada');
     assert.ok(Number.isInteger(f.ancho) && Number.isInteger(f.alto));
-    assert.ok(Number.isFinite(f.codificacion?.paso_c) && Number.isFinite(f.codificacion?.offset_c),
-      'sin la codificación, un byte no se puede convertir en grados');
+    assert.ok(Number.isFinite(f.codificacion?.paso) && Number.isFinite(f.codificacion?.offset),
+      'sin la codificación, un byte no se puede convertir en un valor');
     assert.equal(f.codificacion.sin_dato, 0);
-    assert.ok(Array.isArray(f.fechas) && f.fechas.length >= 1, 'ni una fecha medida');
+    assert.ok(Array.isArray(f.capas) && f.capas.length >= 12,
+      'faltan capas: se esperan los doce meses y la media del año');
+    assert.match(String(f.unidad ?? ''), /kWh/, 'sin unidad, el número no significa nada');
   });
 
-  test('cada fecha tiene su rejilla, y la rejilla mide lo que dice la ficha', () => {
-    // Un PNG que no cuadre con la ficha desplaza TODAS las lecturas de grados y
-    // nadie lo nota: los colores seguirían saliendo bonitos.
-    const f = ficha('cartagena-termico.json');
-    for (const d of f.fechas) {
-      assert.ok(existsSync(MAPAS + d.archivo), `falta la rejilla ${d.archivo}`);
-      assert.deepEqual(tamanoPng(d.archivo), { ancho: f.ancho, alto: f.alto },
-        `${d.archivo} no mide lo que declara la ficha: las lecturas saldrían desplazadas`);
-      assert.ok(!Number.isNaN(Date.parse(d.fecha)), 'una fecha sin instante');
-      assert.ok(d.cobertura_pct >= 50,
-        `${d.archivo} solo midió el ${d.cobertura_pct} %: eso es un mapa de nubes`);
-      const r = d.resumen_c;
-      assert.ok(r.min_c <= r.p05_c && r.p05_c <= r.p50_c && r.p50_c <= r.p95_c && r.p95_c <= r.max_c,
-        `percentiles desordenados en ${d.fecha}`);
+  test('cada mes tiene su rejilla, y la rejilla mide lo que dice la ficha', () => {
+    // Un PNG que no cuadre con la ficha desplaza TODAS las lecturas y nadie lo
+    // nota: los colores seguirían saliendo bonitos.
+    const f = ficha('cartagena-radiacion.json');
+    for (const c of f.capas) {
+      assert.ok(existsSync(MAPAS + c.archivo), `falta la rejilla ${c.archivo}`);
+      assert.deepEqual(tamanoPng(c.archivo), { ancho: f.ancho, alto: f.alto },
+        `${c.archivo} no mide lo que declara la ficha: las lecturas saldrían desplazadas`);
+      assert.ok(c.resumen.min <= c.resumen.p50 && c.resumen.p50 <= c.resumen.max,
+        `resumen desordenado en ${c.clave}`);
+      assert.ok(c.resumen.min > 0, `${c.clave} trae un mínimo de cero: eso es un hueco, no sol`);
     }
+    const claves = f.capas.map((c) => c.clave);
+    assert.equal(new Set(claves).size, claves.length, 'hay dos entradas para la misma capa');
+    assert.ok(claves.includes('anual'), 'falta la media del año');
   });
 
-  test('las fechas no se repiten: una por instante medido', () => {
-    const f = ficha('cartagena-termico.json');
-    const vistas = new Set(f.fechas.map((d) => d.fecha));
-    assert.equal(vistas.size, f.fechas.length, 'hay dos entradas para el mismo instante');
+  test('la radiación se declara como lo que NO es: irradiancia instantánea', () => {
+    // Es la línea que impide el error caro: que este mapa acabe justificando los
+    // 1.000 W/m² con los que se calcula la ampacidad. Son magnitudes distintas.
+    const f = ficha('cartagena-radiacion.json');
+    assert.equal(f.no_es_irradiancia_instantanea, true);
+    assert.match(FUENTE, /NOTA_AMPACIDAD/,
+      'la leyenda dejó de advertir para qué NO sirve esta capa');
+    assert.match(String(f.periodo ?? ''), /largo plazo/,
+      'sin decir que es un promedio de largo plazo, se lee como el sol de hoy');
   });
 
-  test('la máscara de nubes se declara: sin ella la capa miente donde parece acertar', () => {
-    const f = ficha('cartagena-termico.json');
-    assert.match(String(f.mascara ?? ''), /nube/i,
-      'bajo una nube el sensor mide el techo de la nube, no el suelo');
-  });
-
-  test('la capa térmica se declara como temperatura de SUPERFICIE, no del aire', () => {
-    // Es la línea que impide el error caro: que un mapa de color acabe
-    // justificando la temperatura de una hipótesis de cálculo.
-    const f = ficha('cartagena-termico.json');
-    assert.equal(f.es_superficie_no_aire, true);
-    assert.match(FUENTE, /temperatura de la SUPERFICIE/i,
-      'la leyenda dejó de advertir que no es la temperatura del aire');
-    assert.match(FUENTE, /No alimenta ningún cálculo/i,
-      'la leyenda dejó de decir que este mapa no entra en el cálculo de la línea');
-  });
-
-  test('la rampa de color va en orden y con su escala en grados', () => {
-    const f = ficha('cartagena-termico.json');
+  test('la rampa de color va en orden y con su escala', () => {
+    const f = ficha('cartagena-radiacion.json');
     assert.ok(Array.isArray(f.rampa) && f.rampa.length >= 3, 'sin rampa no hay leyenda posible');
     for (let i = 1; i < f.rampa.length; i++) {
       assert.ok(f.rampa[i].c > f.rampa[i - 1].c,

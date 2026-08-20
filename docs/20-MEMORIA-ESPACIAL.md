@@ -109,7 +109,7 @@ mantenimiento-lineas-at/
 │                                token contra las llaves de Google. `GET` sirve; `PUT` acepta una
 │                                foto bajo diez cerrojos. 🚫 **NO borra y NO lista, jamás** — y ya no
 │                                es costumbre: la prueba se pone roja si aparece `.delete(`/`.list(`
-├── herramientas/teselas/        construir-raster.py — rehace las dos capas raster desde datos
+├── herramientas/teselas/        construir-raster.py — rehace las capas del mapa desde datos
 │                             abiertos. ⚠️ ÚNICO Python del repo; no lo usan ni la app ni las pruebas
 ├── herramientas/                sembrar.mjs (línea + expediente) · subir-evidencias.mjs (fotos) ·
 │                                ⚠️ usuarios.mjs — **la ÚNICA vía de alta de personas**: alta,
@@ -190,11 +190,12 @@ mantenimiento-lineas-at/
 │                                · **pronostico.ts** (ADR-035): la ÚNICA pieza del mapa que necesita
 │                                internet. NO guarda nada —un pronóstico no es un hecho fechado— y
 │                                pregunta por una CELDA redondeada, nunca por la línea
-├── web/public/mapas/            Callejero y satelital como PMTiles del MISMO bbox (ADR-034); el
-│                             TÉRMICO no es imagen sino MEDIDA (ADR-036): un PNG de valores por
-│                             fecha + su ficha con recorte, codificación y rampa
+├── web/public/mapas/            Callejero y satelital: PMTiles del MISMO bbox (ADR-034). La
+│                             RADIACIÓN solar no es imagen sino MEDIDA (ADR-036/037): un PNG de
+│                             valores por mes + su ficha. Mecánica agnóstica en `vistas/rejilla.ts`;
+│                             dominio en `vistas/radiacion.ts`
 ├── web/public/basemaps-assets/  fuentes y sprites del mapa (autohospedados)
-├── githooks/pre-commit          corre los gates y BLOQUEA el commit si el cerebro está mal
+├── githooks/pre-commit          BLOQUEA el commit: coordenadas reales y cerebro roto
 ├── .claude/settings.json        hooks de sesión (SÍ se commitea; el resto de .claude/ no)
 └── .github/workflows/ci.yml     integridad del kernel + suite de pruebas
 ```
@@ -205,10 +206,10 @@ mantenimiento-lineas-at/
 
 | Frontera | Regla |
 |---|---|
-| `nucleo/` ↔ resto | `nucleo/` **no importa nada**: ni DOM, ni red, ni base de datos, ni configuración. Entran números, salen números. Es lo que lo hace probable y portable. |
-| `scripts/*.mjs` | Kernel canónico. Editarlo aquí dispara el gate #0 *"fork prohibido"* y bloquea el commit. Se edita en `../brain-private/kernel/`, se bumpea `VERSION` y se reparte con `npm run brain:pull`. |
-| Repo ↔ bóveda | Coordenadas GPS reales, fotos de campo, informes de cliente y el HTML original **nunca** cruzan al repo. El repo es **público**. |
-| `docs/` ↔ `CLAUDE.md` | `CLAUDE.md` es router, no bitácora: jamás se documenta historial ni tareas ahí (`§G.3`). |
+| `nucleo/` ↔ resto | `nucleo/` **no importa nada**: ni DOM, ni red, ni base, ni configuración. Entran números, salen números — por eso es probable y portable. |
+| `scripts/*.mjs` | Kernel canónico. Editarlo aquí dispara el gate #0 *"fork prohibido"* y bloquea el commit: se edita en `../brain-private/kernel/`, se bumpea `VERSION` y se reparte con `brain:pull`. |
+| Repo ↔ bóveda | Coordenadas reales, fotos de campo, informes y el HTML original **nunca** cruzan al repo: es **público**. |
+| `docs/` ↔ `CLAUDE.md` | `CLAUDE.md` es router, no bitácora: ahí no va historial ni tareas (`§G.3`). |
 
 ---
 

@@ -31,10 +31,11 @@ import { layers, namedFlavor } from '@protomaps/basemaps';
 import { FUNCIONES_ANCLA, type Apoyo, type Hipotesis, type Investigacion } from '@lineas/contratos';
 import { derivarLevantamiento } from '@lineas/exportar/levantamiento';
 import { COLORES_TRAMO_CSS } from '../vistas/tramoColores';
+import { esquinas, pintarRejilla, valorEnPunto } from '../vistas/rejilla';
 import {
-  avisoDeCobertura, esquinas, fechasOrdenadas, gradosEnPunto, pintarRejilla, rotuloDeFecha,
-  type FechaTermica, type FichaTermica,
-} from '../vistas/termico';
+  avisoDeMuestreo, capaElegida, capasOrdenadas, oscilacionAnual, NOTA_AMPACIDAD,
+  type CapaRadiacion, type FichaRadiacion,
+} from '../vistas/radiacion';
 import {
   avisosDelPronostico, contraLaHipotesis, ejeDeLaLinea, eltiempoEnCastellano,
   vientoSobreLaLinea, ZONA,
@@ -128,14 +129,15 @@ export const CAPAS_RASTER = {
 } as const;
 
 /**
- * La capa térmica ya NO viaja como teselas pintadas: viaja como REJILLA DE
- * VALORES y el color lo pone el navegador (`vistas/termico.ts`). Por eso no está
- * en la lista de arriba — no se sirve por el protocolo de teselas, se lee, se
- * pinta y se coloca por sus cuatro esquinas.
+ * La capa de RADIACIÓN SOLAR no viaja como teselas pintadas: viaja como REJILLA
+ * DE VALORES y el color lo pone el navegador (`vistas/rejilla.ts`). Por eso no
+ * está en la lista de arriba — no se sirve por el protocolo de teselas: se lee,
+ * se pinta y se coloca por sus cuatro esquinas.
  */
-export const FICHA_TERMICA = '/mapas/cartagena-termico.json';
-export const ATRIBUCION_TERMICA = 'USGS Landsat Collection 2 Level-2 (dominio público)';
-export const OPACIDAD_TERMICA = 0.72;
+export const FICHA_RADIACION = '/mapas/cartagena-radiacion.json';
+export const ATRIBUCION_RADIACION =
+  'Global Solar Atlas 2.0 — Solargis para el Banco Mundial / ESMAP (CC BY 4.0)';
+export const OPACIDAD_RADIACION = 0.68;
 
 export type NombreCapa = keyof typeof CAPAS_RASTER;
 
@@ -221,21 +223,21 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
   const [estado, setEstado] = useState<'cargando' | 'listo' | 'fallo'>('cargando');
   /** Qué mapa de fondo se ve. El térmico NO es fondo: va ENCIMA, y por eso es aparte. */
   const [base, setBase] = useState<'callejero' | 'satelital'>('callejero');
-  const [termico, setTermico] = useState(false);
+  const [radiacion, setRadiacion] = useState(false);
   /** La ficha del térmico: recorte, codificación, rampa y las fechas disponibles. */
-  const [fichaTermica, setFichaTermica] = useState<FichaTermica | null>(null);
+  const [fichaRadiacion, setFichaRadiacion] = useState<FichaRadiacion | null>(null);
   /** Qué día se está mirando. Vacío = la más reciente. */
-  const [diaTermico, setDiaTermico] = useState<string | null>(null);
+  const [mesRadiacion, setMesRadiacion] = useState<string | null>(null);
   /** La rejilla del día elegido, en bytes. De aquí salen los grados de un clic. */
   const rejilla = useRef<Uint8Array | null>(null);
   /** El lienzo donde se pinta la rejilla. Es el MISMO siempre: la fuente lo lee en vivo. */
   const pincel = useRef<HTMLCanvasElement | null>(null);
   const [rejillaLista, setRejillaLista] = useState<string | null>(null);
-  const [gradosClic, setGradosClic] = useState<{ c: number | null; lon: number; lat: number } | null>(null);
+  const [valorClic, setValorClic] = useState<{ c: number | null; lon: number; lat: number } | null>(null);
   const [fichas, setFichas] = useState<Partial<Record<NombreCapa, FichaCapa>>>({});
   const [bajando, setBajando] = useState<NombreCapa | null>(null);
   /** Si se está bajando la rejilla de un día. Es otra cosa que bajar teselas. */
-  const [bajandoTermico, setBajandoTermico] = useState(false);
+  const [bajandoRadiacion, setBajandoRadiacion] = useState(false);
   const [falloCapa, setFalloCapa] = useState<string | null>(null);
   /**
    * El pronóstico NO es una capa de imagen: es un dato del sitio que se pinta
@@ -414,7 +416,7 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
           // para eso es una lectura sobre el terreno.
           // Debajo del térmico si está puesto —el térmico es una LECTURA sobre el
           // terreno— y siempre debajo de la línea, que es el asunto.
-          const debajoDe = m.getLayer('capa-termica') ? 'capa-termica'
+          const debajoDe = m.getLayer('capa-radiacion') ? 'capa-radiacion'
             : (m.getLayer('tramos') ? 'tramos' : undefined);
           m.addLayer({
             id: idCapa,
@@ -440,7 +442,7 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
           if (cancelado) return;
           console.warn('[mapa] capa', nombre, e);
           setFalloCapa(`No se pudo descargar la capa «${capa.rotulo}». El mapa sigue igual.`);
-          if (nombre === 'satelital') setBase('callejero'); else setTermico(false);
+          if (nombre === 'satelital') setBase('callejero'); else setRadiacion(false);
         } finally {
           if (!cancelado) setBajando(null);
         }
@@ -458,7 +460,7 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
 
     void aplicar();
     return () => { cancelado = true; };
-  }, [base, termico, mapaVivo, mapaCargado]);
+  }, [base, radiacion, mapaVivo, mapaCargado]);
 
   /**
    * La capa térmica: ficha, rejilla del día y pintura.
@@ -475,30 +477,29 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
   useEffect(() => {
     const m = mapaVivo;
     if (!m || !mapaCargado) return;
-    if (!termico) {
-      if (m.getLayer('capa-termica')) m.setLayoutProperty('capa-termica', 'visibility', 'none');
+    if (!radiacion) {
+      if (m.getLayer('capa-radiacion')) m.setLayoutProperty('capa-radiacion', 'visibility', 'none');
       return;
     }
     let cancelado = false;
 
     const pintar = async () => {
       try {
-        let ficha = fichaTermica;
+        let ficha = fichaRadiacion;
         if (!ficha) {
-          const r = await fetch(FICHA_TERMICA);
+          const r = await fetch(FICHA_RADIACION);
           if (!r.ok) throw new Error('HTTP ' + r.status);
-          ficha = await r.json() as FichaTermica;
+          ficha = await r.json() as FichaRadiacion;
           if (cancelado) return;
-          setFichaTermica(ficha);
+          setFichaRadiacion(ficha);
         }
-        const dias = fechasOrdenadas(ficha);
-        if (!dias.length) throw new Error('la ficha no trae ni una fecha');
-        const dia = dias.find((d) => d.fecha === diaTermico) ?? dias[0];
-        if (!diaTermico) setDiaTermico(dia.fecha);
+        const capa = capaElegida(ficha, mesRadiacion);
+        if (!capa) throw new Error('la ficha no trae ni una capa');
+        if (!mesRadiacion) setMesRadiacion(capa.clave);
 
-        if (rejillaLista !== dia.fecha) {
-          setBajandoTermico(true);
-          const bytes = await leerRejilla(`/mapas/${dia.archivo}`, ficha);
+        if (rejillaLista !== capa.clave) {
+          setBajandoRadiacion(true);
+          const bytes = await leerRejilla(`/mapas/${capa.archivo}`, ficha);
           if (cancelado) return;
           rejilla.current = bytes;
           // ⚠️ EL LIENZO SE ENTREGA TAL CUAL, no como PNG. Codificar un millón y
@@ -516,7 +517,7 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
           if (cancelado) return;
 
           const coords = esquinas(ficha) as [[number, number], [number, number], [number, number], [number, number]];
-          const fuente = m.getSource('capa-termica') as maplibregl.CanvasSource | undefined;
+          const fuente = m.getSource('capa-radiacion') as maplibregl.CanvasSource | undefined;
           if (fuente) {
             // El lienzo es el MISMO objeto: basta con avisar de que cambió.
             fuente.setCoordinates(coords);
@@ -526,34 +527,34 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
             // ⚠️ Una fuente de lienzo NO admite atribución en MapLibre, así que
             // el deber de la licencia lo cumple la leyenda, que la imprime al pie
             // y solo mientras la capa está puesta.
-            m.addSource('capa-termica', {
+            m.addSource('capa-radiacion', {
               type: 'canvas', canvas: lienzo, coordinates: coords, animate: false,
             });
             m.addLayer({
-              id: 'capa-termica', type: 'raster', source: 'capa-termica',
+              id: 'capa-radiacion', type: 'raster', source: 'capa-radiacion',
               // `linear` explícito: al acercarse la medida se INTERPOLA en vez de
               // romperse en cuadros. No inventa detalle —la celda sigue siendo de
               // 30 m— pero deja de parecer un fallo de la imagen.
-              paint: { 'raster-opacity': OPACIDAD_TERMICA, 'raster-resampling': 'linear' },
+              paint: { 'raster-opacity': OPACIDAD_RADIACION, 'raster-resampling': 'linear' },
             }, m.getLayer('tramos') ? 'tramos' : undefined);
           }
-          setRejillaLista(dia.fecha);
-          setBajandoTermico(false);
+          setRejillaLista(capa.clave);
+          setBajandoRadiacion(false);
         }
-        m.setLayoutProperty('capa-termica', 'visibility', 'visible');
+        m.setLayoutProperty('capa-radiacion', 'visibility', 'visible');
         m.triggerRepaint();
       } catch (e) {
         if (cancelado) return;
         console.warn('[mapa] térmico', e);
         setFalloCapa('No se pudo cargar la temperatura del suelo. El mapa sigue igual.');
-        setTermico(false);
-        setBajandoTermico(false);
+        setRadiacion(false);
+        setBajandoRadiacion(false);
       }
     };
 
     void pintar();
     return () => { cancelado = true; };
-  }, [termico, diaTermico, fichaTermica, rejillaLista, mapaVivo, mapaCargado]);
+  }, [radiacion, mesRadiacion, fichaRadiacion, rejillaLista, mapaVivo, mapaCargado]);
 
   /**
    * El clic que dice cuántos grados hace AHÍ.
@@ -564,20 +565,20 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
    */
   useEffect(() => {
     const m = mapaVivo;
-    if (!m || !termico || !fichaTermica) return;
+    if (!m || !radiacion || !fichaRadiacion) return;
     const alPulsar = (ev: maplibregl.MapMouseEvent) => {
       const encima = m.queryRenderedFeatures(ev.point, { layers: ['apoyos', 'tramos'] });
       if (encima.length) return;
       const bytes = rejilla.current;
       if (!bytes) return;
-      setGradosClic({
-        c: gradosEnPunto(bytes, fichaTermica, ev.lngLat.lng, ev.lngLat.lat),
+      setValorClic({
+        c: valorEnPunto(bytes, fichaRadiacion, ev.lngLat.lng, ev.lngLat.lat),
         lon: ev.lngLat.lng, lat: ev.lngLat.lat,
       });
     };
     m.on('click', alPulsar);
     return () => { m.off('click', alPulsar); };
-  }, [termico, fichaTermica, mapaVivo]);
+  }, [radiacion, fichaRadiacion, mapaVivo]);
 
   /**
    * El pronóstico: se pide cuando ÉL lo enciende, nunca al pintar.
@@ -668,10 +669,10 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
 
         <p className="mapa-capas-t">Encima</p>
         <label>
-          <input type="checkbox" checked={termico}
-            onChange={(e) => { setTermico(e.target.checked); setGradosClic(null); }} /> Temperatura
-          del suelo
-          {bajandoTermico && <span className="mapa-capas-f">midiendo…</span>}
+          <input type="checkbox" checked={radiacion}
+            onChange={(e) => { setRadiacion(e.target.checked); setValorClic(null); }} /> Radiación
+          solar
+          {bajandoRadiacion && <span className="mapa-capas-f">midiendo…</span>}
         </label>
 
         <label>
@@ -687,10 +688,10 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
         )}
         {falloCapa && <p className="mapa-capas-n alerta">{falloCapa}</p>}
         {falloTiempo && <p className="mapa-capas-n alerta">{falloTiempo}</p>}
-        {termico && fichaTermica && (
-          <LeyendaTermica ficha={fichaTermica} dia={diaTermico} alElegirDia={(f) => {
-            setDiaTermico(f); setGradosClic(null);
-          }} grados={gradosClic} cargando={bajandoTermico} />
+        {radiacion && fichaRadiacion && (
+          <LeyendaRadiacion ficha={fichaRadiacion} mes={mesRadiacion} alElegirMes={(c) => {
+            setMesRadiacion(c); setValorClic(null);
+          }} valor={valorClic} cargando={bajandoRadiacion} />
         )}
         {pronostico && tiempo && (
           <PanelPronostico p={tiempo} eje={geometria?.eje ?? null}
@@ -713,24 +714,23 @@ function fechaCorta(iso: string): string {
 }
 
 /**
- * La leyenda del térmico: la escala, el DÍA que se mira y lo que se leyó al
- * pulsar el mapa.
+ * La leyenda del recurso solar: la escala, el MES que se mira, lo que se leyó al
+ * pulsar el mapa y —lo más importante— para qué NO sirve.
  *
- * Sin ella el mapa es una mancha de colores, y una mancha de colores sobre una
- * línea de alta tensión invita a conclusiones que el dato no sostiene. Dice las
- * cuatro cosas que evitan el malentendido: que es del SUELO y no del aire, que
- * es UN instante y no un promedio, cuánto del recorte se midió de verdad, y con
- * qué escala está pintada.
+ * La frase de la ampacidad no es un descargo genérico: nombra la magnitud que sí
+ * entra en el cálculo de esta aplicación (1.000 W/m² adoptados) y dice por qué
+ * este mapa no la sustituye. Sin ella, poner una cifra de sol al lado de una
+ * línea invita exactamente a la conversión que no se puede hacer.
  */
-function LeyendaTermica({ ficha, dia, alElegirDia, grados, cargando }: {
-  ficha: FichaTermica;
-  dia: string | null;
-  alElegirDia: (fecha: string) => void;
-  grados: { c: number | null; lon: number; lat: number } | null;
+function LeyendaRadiacion({ ficha, mes, alElegirMes, valor, cargando }: {
+  ficha: FichaRadiacion;
+  mes: string | null;
+  alElegirMes: (clave: string) => void;
+  valor: { c: number | null; lon: number; lat: number } | null;
   cargando: boolean;
 }) {
-  const dias = fechasOrdenadas(ficha);
-  const actual: FechaTermica | undefined = dias.find((d) => d.fecha === dia) ?? dias[0];
+  const capas = capasOrdenadas(ficha);
+  const actual: CapaRadiacion | null = capaElegida(ficha, mes);
   const rampa = ficha.rampa ?? [];
   if (!rampa.length || !actual) return null;
   const min = rampa[0].c;
@@ -738,54 +738,56 @@ function LeyendaTermica({ ficha, dia, alElegirDia, grados, cargando }: {
   const gradiente = rampa
     .map((p) => `rgb(${p.rgb.join(',')}) ${(((p.c - min) / (max - min)) * 100).toFixed(1)}%`)
     .join(', ');
-  const r = actual.resumen_c;
-  const aviso = avisoDeCobertura(actual);
+  const osc = oscilacionAnual(ficha);
+  const muestreo = avisoDeMuestreo(ficha);
+  const u = ficha.unidad ?? 'kWh/m² al día';
 
   return (
     <div className="mapa-leyenda">
       <label className="mapa-tiempo-dia">
-        <span>Día medido</span>
-        <select value={actual.fecha} onChange={(e) => alElegirDia(e.target.value)}>
-          {dias.map((d) => (
-            <option key={d.fecha} value={d.fecha}>
-              {rotuloDeFecha(d.fecha)} · {d.cobertura_pct.toFixed(0)} % medido
+        <span>Mes</span>
+        <select value={actual.clave} onChange={(e) => alElegirMes(e.target.value)}>
+          {capas.map((c) => (
+            <option key={c.clave} value={c.clave}>
+              {c.rotulo} · mediana {c.resumen.p50.toFixed(2)}
             </option>
           ))}
         </select>
       </label>
-      {cargando && <p className="mapa-capas-n">Bajando la medida de ese día…</p>}
+      {cargando && <p className="mapa-capas-n">Bajando el recurso de ese mes…</p>}
 
       <div className="mapa-leyenda-barra" style={{ background: `linear-gradient(90deg, ${gradiente})` }} />
       <div className="mapa-leyenda-esc">
-        <span>{min} °C</span><span>{Math.round((min + max) / 2)} °C</span><span>{max} °C</span>
+        <span>{min} {u}</span><span>{max}</span>
       </div>
 
       <p className="mapa-capas-n">
-        Ese día: mediana <b>{r.p50_c.toFixed(0)} °C</b> · el 90 % entre {r.p05_c.toFixed(0)} y{' '}
-        {r.p95_c.toFixed(0)} °C · máximo {r.max_c.toFixed(0)} °C.
+        {actual.rotulo}: mediana <b>{actual.resumen.p50.toFixed(2)} {u}</b> · de{' '}
+        {actual.resumen.min.toFixed(2)} a {actual.resumen.max.toFixed(2)} dentro del recorte.
       </p>
 
       {/* Lo que devuelve el clic. Es la razón de guardar la MEDIDA y no una imagen. */}
       <p className="mapa-capas-n mapa-tiempo-clic">
-        {grados === null
-          ? 'Pulse el mapa para leer los grados de un punto.'
-          : grados.c === null
-            ? 'Ahí no se midió: nube, sombra o fuera del recorte.'
-            : <><b>{grados.c.toFixed(1)} °C</b> en el punto que pulsó.</>}
+        {valor === null
+          ? 'Pulse el mapa para leer el recurso de un punto.'
+          : valor.c === null
+            ? 'Ahí no hay muestra: fuera del recorte.'
+            : <><b>{valor.c.toFixed(2)} {u}</b> en el punto que pulsó.</>}
       </p>
 
-      {aviso && <p className="mapa-capas-n aviso">{aviso}</p>}
+      {osc && (
+        <p className="mapa-capas-n">
+          Entre el mes más soleado (<b>{osc.alto.rotulo.toLowerCase()}</b>) y el más flojo
+          (<b>{osc.bajo.rotulo.toLowerCase()}</b>) hay un <b>{osc.pct.toFixed(0)} %</b> de
+          diferencia: una media anual sola se lleva por delante esa variación.
+        </p>
+      )}
+
+      <p className="mapa-capas-n aviso">{NOTA_AMPACIDAD}</p>
+      {muestreo && <p className="mapa-capas-n">{muestreo}</p>}
       <p className="mapa-capas-n">
-        <b>Es la temperatura de la SUPERFICIE</b> —suelo, techos, asfalto— medida desde el
-        satélite en <b>un instante</b>, no la del aire y no un promedio. Al mediodía el asfalto
-        puede estar 15-20 °C por encima del aire. <b>No alimenta ningún cálculo</b> de la línea:
-        la ecuación de cambio de estado va con temperatura del aire.
-      </p>
-      <p className="mapa-capas-n">
-        Celda de {ficha.resolucion_m} m
-        {ficha.resolucion_nativa_m && <> (el sensor mide a {ficha.resolucion_nativa_m} m: al
-          acercarse no hay más detalle, solo se amplía)</>}
-        {' · '}{ATRIBUCION_TERMICA}
+        {ficha.magnitud ?? 'GHI'} · {ficha.periodo ?? 'promedio de largo plazo'} ·{' '}
+        {ATRIBUCION_RADIACION}
       </p>
     </div>
   );
@@ -883,7 +885,7 @@ function PanelPronostico({ p, eje, celda, vientoHipotesis_kmh }: {
  * desplazaría todas las lecturas y nadie lo notaría, porque los colores seguirían
  * saliendo bonitos.
  */
-async function leerRejilla(url: string, ficha: FichaTermica): Promise<Uint8Array> {
+async function leerRejilla(url: string, ficha: FichaRadiacion): Promise<Uint8Array> {
   const img = new Image();
   img.decoding = 'async';
   await new Promise<void>((listo, falla) => {
