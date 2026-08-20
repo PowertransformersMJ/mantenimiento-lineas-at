@@ -275,3 +275,46 @@ describe('cada imagen dice cuándo se tomó y a quién se le debe', () => {
     // comprueban en la prueba de las rejillas, arriba.
   });
 });
+
+// ════════════════════════════════════════════════════════════════════════════
+// LA SATELITAL: se publica más fina de lo que MIDE, y eso se dice
+// ────────────────────────────────────────────────────────────────────────────
+// POR QUÉ. El Ingeniero pidió más resolución y la respuesta honesta tiene dos
+// mitades: se remuestrea en origen para que el borde no se escalone al acercar
+// (mejora real de presentación) y NO hay más detalle (Sentinel-2 mide a 10 m).
+// Publicar solo la primera mitad vendería un detalle que no existe. Las fuentes
+// de 3 m o menos que cubren esta zona se verificaron y NO se pueden usar: las
+// del IGAC son de licencia gubernamental —«no puede ser compartida ni
+// comercializada»— y las de Planet NICFI son no comerciales y sin redistribución.
+// ════════════════════════════════════════════════════════════════════════════
+
+describe('la satelital no vende detalle que no tiene', () => {
+  const FICHA_SAT = JSON.parse(readFileSync(`${MAPAS}cartagena-satelital.json`, 'utf-8'));
+
+  test('declara por separado lo que MIDE y a lo que se PUBLICA', () => {
+    assert.equal(FICHA_SAT.resolucion_m, 10, 'lo que mide Sentinel-2, y no cambia con el remuestreo');
+    assert.ok(FICHA_SAT.metros_por_pixel_publicados < FICHA_SAT.resolucion_m,
+      'si no se publica más fino que la medida, el remuestreo no está haciendo nada');
+    assert.match(FICHA_SAT.remuestreo, /No es detalle nuevo/,
+      'la frase que impide el malentendido no puede faltar de la ficha');
+  });
+
+  test('el realce se declara ENTERO y como cosmético', () => {
+    for (const parte of [/percentiles/, /gamma/, /máscara borrosa/, /cosmético/]) {
+      assert.match(FICHA_SAT.realce, parte,
+        `el realce oculta un paso: quien compare dos fechas tiene que saber qué se le hizo a la imagen`);
+    }
+  });
+
+  test('la pantalla dice los DOS números, no solo el bonito', () => {
+    assert.match(FUENTE, /La medida es de <b>\{fichas\.satelital\.resolucion_m\} m por píxel<\/b>/);
+    assert.match(FUENTE, /metros_por_pixel_publicados/);
+    assert.match(FUENTE, /no hay más detalle/,
+      'sin esta frase, acercarse y no ver nada nuevo se lee como una avería');
+  });
+
+  test('sigue cabiendo en el tope de Cloudflare Pages', () => {
+    const mib = statSync(`${MAPAS}cartagena-satelital.pmtiles`).size / (1024 * 1024);
+    assert.ok(mib < 25, `la satelital pesa ${mib.toFixed(1)} MiB y el tope por archivo son 25`);
+  });
+});

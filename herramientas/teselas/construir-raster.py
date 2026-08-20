@@ -71,10 +71,24 @@ from PIL import Image
 # Si estos números se separan de los del `cartagena.pmtiles`, una capa enseñaría
 # territorio que la otra no y el borde parecería un fallo del mapa.
 BBOX = (-75.62, 10.20, -75.33, 10.58)   # lon_min, lat_min, lon_max, lat_max
-Z_MIN, Z_MAX = 8, 14                     # 14 ≈ 9,4 m/píxel a esta latitud: el nativo de Sentinel-2
+# ⚠️ Z_MAX 15 NO SIGNIFICA MÁS DETALLE: Sentinel-2 mide a 10 m y ahí se acaba la
+# información. Significa que el remuestreo lo hace ESTE script una vez, con un
+# filtro bueno, en vez de dejárselo al navegador en cada fotograma. La diferencia
+# se ve —el borde deja de escalonarse— y no es información nueva: es la MISMA
+# medida, mejor presentada. Queda declarado en la ficha, junto al metro real.
+Z_MIN, Z_MAX = 8, 15                     # 15 ≈ 4,7 m/píxel · el DATO sigue siendo de 10 m
 METROS_SENTINEL = 9.5                    # la resolución REAL de Sentinel-2. Pedir más no da más
 METROS_LANDSAT = 30                      # la rejilla en que se entrega Landsat L2 (sensor: 100 m)
 TESELA = 256
+
+# Metros por píxel de cada nivel de zoom A ESTA LATITUD. No es un adorno: es lo
+# que separa «a cuánto se publica» de «cuánto mide el dato», y confundirlos es
+# vender detalle que no existe. Se calcula, no se escribe a mano, para que
+# cambiar Z_MAX no obligue a recordar una tabla.
+_LAT_MEDIA = (BBOX[1] + BBOX[3]) / 2
+METROS_TESELA_Z = {
+    z: 156543.03392 * math.cos(math.radians(_LAT_MEDIA)) / (2 ** z) for z in range(0, 23)
+}
 TOPE_MIB = 25                            # Cloudflare Pages: 25 MiB por archivo (verificado 2026-08-19)
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -258,19 +272,51 @@ def generar(imagen, limites, guardar):
 # uno con contraste. Se estira entre estos dos percentiles, IGUALES para las tres
 # bandas para no torcer el color, y queda DECLARADO en la ficha: la imagen sirve
 # para ver el terreno, no para comparar radiometría entre fechas.
-REALCE_PCT = (2.0, 98.0)
+REALCE_PCT = (1.0, 99.0)
+# Gamma < 1 abre las sombras. En una escena tropical con vegetación densa, media
+# imagen vive en la parte baja del histograma y el estiramiento lineal solo la
+# deja igual de plana pero más clara.
+REALCE_GAMMA = 0.88
+# Nitidez de máscara borrosa: radio en píxeles y cuánto se refuerza el borde. NO
+# inventa detalle —realza el que YA está en la medida—, pero pasado de vueltas
+# fabrica halos que parecen caminos. Por eso va suave y por eso se declara.
+REALCE_NITIDEZ = (1.0, 0.6)
 
 
 def realzar(rgb, valido):
-    """Estiramiento lineal de contraste entre dos percentiles. Puro cosmético."""
+    """
+    Contraste, gamma y nitidez. TODO ESTO ES COSMÉTICO y va declarado en la ficha.
+
+    La imagen sirve para VER el terreno, no para comparar radiometría entre
+    fechas: después de esto, dos escenas ya no son comparables entre sí — y no lo
+    eran tampoco antes, porque el estiramiento depende del histograma de cada una.
+    """
     muestra = rgb[valido]
     if muestra.size == 0:
         return rgb
     lo, hi = np.percentile(muestra, REALCE_PCT)
     if hi <= lo:
         return rgb
-    estirado = (rgb.astype(np.float32) - lo) * (255.0 / (hi - lo))
-    return np.clip(estirado, 0, 255).astype(np.uint8)
+    x = np.clip((rgb.astype(np.float32) - lo) / (hi - lo), 0.0, 1.0)
+    x = np.power(x, REALCE_GAMMA)
+    return np.clip(x * 255.0, 0, 255).astype(np.uint8)
+
+
+def enfocar(imagen):
+    """
+    Máscara borrosa sobre la imagen ya montada.
+
+    Va DESPUÉS del remuestreo y no antes, que es lo que la hace útil: lo que se
+    quiere devolver es el borde que la interpolación acaba de suavizar. Se aplica
+    solo al color; el canal alfa —qué cubre la escena y qué no— no se toca, porque
+    difuminar el alfa dejaría un halo semitransparente en el borde de la escena.
+    """
+    from PIL import ImageFilter
+    radio, fuerza = REALCE_NITIDEZ
+    color = imagen.convert('RGB').filter(
+        ImageFilter.UnsharpMask(radius=radio, percent=int(fuerza * 100), threshold=2))
+    color.putalpha(imagen.getchannel('A'))
+    return color
 
 
 def buscar_sentinel(meses=12):
@@ -307,14 +353,18 @@ def satelital():
     escena = buscar_sentinel()
     print(f"🛰️  Sentinel-2 {escena['id']} · {escena['fecha'][:10]} · "
           f"{escena['nubes_pct']:.2f} % de nubes")
-    datos, limites = leer_bloque('/vsicurl/' + escena['url'], [1, 2, 3], METROS_SENTINEL)
+    # Se pide a la resolución del zoom MÁXIMO, no a la del sensor: el remuestreo
+    # de 10 m a 4,7 m lo hace GDAL una vez y bien, en vez de hacerlo el navegador
+    # en cada fotograma. La medida sigue siendo de 10 m — eso no lo cambia nadie.
+    metros_z_max = METROS_TESELA_Z[Z_MAX]
+    datos, limites = leer_bloque('/vsicurl/' + escena['url'], [1, 2, 3], metros_z_max)
 
     rgb = np.moveaxis(datos, 0, -1)
     # Lo que no cubre la escena llega como 0 en las tres bandas: se declara
     # transparente en vez de pintarlo de negro, que se leería como agua.
     alfa = (rgb.sum(axis=2) > 0).astype(np.uint8) * 255
     rgb = realzar(rgb, alfa > 0)
-    imagen = Image.fromarray(np.dstack([rgb, alfa]), 'RGBA')
+    imagen = enfocar(Image.fromarray(np.dstack([rgb, alfa]), 'RGBA'))
 
     def guardar(t):
         if t.getchannel('A').getextrema()[1] == 0:
@@ -342,8 +392,18 @@ def satelital():
         'fecha': escena['fecha'],
         'nubes_pct': round(escena['nubes_pct'], 2),
         'resolucion_m': 10,
-        'realce': f'contraste estirado entre los percentiles {REALCE_PCT[0]} y {REALCE_PCT[1]} '
-                  '— cosmético: sirve para ver el terreno, no para comparar radiometría',
+        'realce': (f'contraste estirado entre los percentiles {REALCE_PCT[0]} y {REALCE_PCT[1]}, '
+                   f'gamma {REALCE_GAMMA} y máscara borrosa (radio {REALCE_NITIDEZ[0]} px, '
+                   f'{int(REALCE_NITIDEZ[1] * 100)} %) — TODO cosmético: sirve para ver el terreno, '
+                   'no para comparar radiometría'),
+        'zoom_max': Z_MAX,
+        'metros_por_pixel_publicados': round(METROS_TESELA_Z[Z_MAX], 1),
+        # La frase que impide el malentendido: se publica a 4,7 m, pero el dato
+        # es de 10 m. Publicar solo lo primero sería vender detalle que no hay.
+        'remuestreo': ('las teselas se publican a '
+                       f'{round(METROS_TESELA_Z[Z_MAX], 1)} m/píxel, pero la MEDIDA sigue siendo de '
+                       f'{METROS_SENTINEL} m: el remuestreo lo hace el generador una vez y con buen '
+                       'filtro, en vez de dejárselo al navegador. No es detalle nuevo.'),
         'fuente': 'Copernicus Sentinel-2 L2A (ESA), copia abierta en AWS Open Data',
         'licencia': 'Copernicus: acceso libre, pleno y abierto — uso comercial permitido',
         'atribucion': 'Contains modified Copernicus Sentinel data ' + escena['fecha'][:4],

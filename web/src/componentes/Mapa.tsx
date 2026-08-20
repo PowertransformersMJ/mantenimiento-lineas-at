@@ -180,6 +180,10 @@ export type FichaMedida = FichaRadiacion | FichaTemperatura;
 
 /** Lo que la ficha de una capa trae. Todo opcional: si falta, no se pinta. */
 export interface FichaCapa {
+  /** A cuántos metros por píxel se PUBLICAN las teselas (≠ lo que mide el dato). */
+  metros_por_pixel_publicados?: number;
+  /** Qué se hizo al remuestrear, en palabras. Lo escribe el generador. */
+  remuestreo?: string;
   titulo?: string;
   fecha?: string;
   escena?: string;
@@ -710,8 +714,18 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
         </label>
         {base === 'satelital' && fichas.satelital && (
           <p className="mapa-capas-n">
-            {fichas.satelital.resolucion_m} m por píxel: al acercarse <b>no hay más detalle</b>,
-            solo se amplía. Es la mejor resolución de imagen abierta que permite uso comercial.
+            {/* Se dicen los DOS números, y en este orden. Publicar solo el de la
+                tesela vendería un detalle que no existe; publicar solo el del
+                sensor haría parecer un fallo que la imagen se vea más fina que
+                10 m. La medida manda: al acercarse no aparece nada nuevo. */}
+            La medida es de <b>{fichas.satelital.resolucion_m} m por píxel</b>
+            {fichas.satelital.metros_por_pixel_publicados
+              && fichas.satelital.metros_por_pixel_publicados < (fichas.satelital.resolucion_m ?? 0)
+              ? <> y se publica remuestreada a {String(fichas.satelital.metros_por_pixel_publicados)
+                .replace('.', ',')} m para que el borde no se escalone</>
+              : null}: al acercarse <b>no hay más detalle</b>, solo se amplía. Es la mejor
+            resolución de imagen abierta que permite uso comercial y redistribución —
+            las de 3 m o menos que cubren esta zona son de licencia gubernamental o no comercial.
           </p>
         )}
 
