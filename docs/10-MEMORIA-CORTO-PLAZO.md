@@ -1,7 +1,7 @@
 # 📝 10 — MEMORIA DE CORTO PLAZO (pizarra del trabajo vivo)
 
 > Se **AUTO-CARGA**. Es pizarra, no bitácora (§G.3). Tope ~110 líneas / 16k chars.
-> **RELEVO DE SESIÓN 2026-08-19 (noche).** Este nodo ES el relevo: léelo entero antes de tocar nada.
+> **RELEVO DE SESIÓN 2026-08-20.** Este nodo ES el relevo: léelo entero antes de tocar nada.
 > Si contradice a `docs/.handoff-auto.md` (foto real de git), manda ese.
 
 ## 🎯 Dónde estamos
@@ -14,21 +14,25 @@ recurso solar por mes y pronóstico (ADR-034/035/036/037)**.
 ## 🛑 LO PRIMERO AL RETOMAR
 
 1. **EL CUELLO DE BOTELLA NO ES CÓDIGO: ES EL DATO.** La ficha estructural se escribe y está EN
-   PRODUCCIÓN (`99 §ADR-030`); con 3 campos aparece el veredicto de un apoyo, y siguen **0 de 25 con
-   veredicto**. Falta que él conteste `TODO-57`: si esas fichas están en planos y actas o hay que
-   levantarlas. Todo lo demás de la sesión del 19-08 fue construir alrededor de ese hueco.
-2. **Lo que se hizo el 19-08** (detalle en `99`, ADR-032 a 037): los papeles marcan el veredicto
-   calculado sobre dato SUPUESTO · el sembrador ya no pisa la revisión · el mapa gana satelital,
-   **radiación solar** y pronóstico, y una capa de datos se guarda como MEDIDA, no como imagen.
+   PRODUCCIÓN (`99 §ADR-030`), y desde el 20-08 también **por lote** (`99 §ADR-038`): el dato de
+   catálogo entra en los 25 apoyos de un gesto. Siguen **0 de 25 con veredicto** — y el lote **no
+   mueve ninguno por sí solo**, comprobado en producción antes de escribir nada: faltan la altura
+   libre y la del amarre, que no van por lote (`33 · L-59`). Falta que él conteste `TODO-57`: si esas
+   fichas están en planos y actas o hay que levantarlas.
+2. **Lo último** (detalle en `99`): **20-08 · ADR-038, la pantalla del LOTE** — la escritura llevaba
+   meses lista y no había por dónde pedirla; verificada en vivo contra producción con su sesión de
+   administración, **sin escribir nada** (el botón lo pulsa él con el catálogo real delante). Antes,
+   19-08 (ADR-032 a 037): los papeles marcan el veredicto sobre dato SUPUESTO · el sembrador ya no
+   pisa la revisión · el mapa gana satelital, **radiación solar** y pronóstico.
 3. **TRES COSAS QUEDARON A MEDIO CAMINO Y SON DE ÉL, no de código:**
    `TODO-57` el dato de la ficha · **ponerse contraseña** (bloquea retirar Google) · `TODO-71` cerrar
    las hipótesis de **viento** y de los **1.000 W/m²** de la ampacidad, que ningún mapa cierra: eso
    es una SERIE histórica con percentiles.
 4. **Verificar que una acción FUNCIONÓ**, no solo que se hizo (`TODO-66`): una que no sirvió es hoy
    indistinguible de una que sirvió.
-5. **Higiene del cerebro, ya avisada por el kernel:** `docs/32`, `docs/00`, `docs/20` y este mismo
-   `10` pasan su tope (leve exceso) y piden **shard o poda**; `05`, `30` y `33` van por encima del
-   90 %. El boot va justo: cada línea nueva en `CLAUDE.md`, `05` o `10` obliga a podar otra.
+5. **Higiene del cerebro:** el único que el kernel marca en ROJO es `docs/00` (18,2k/16k) — pide
+   shard o poda. `32`, `20`, `33` y este `10` van en leve exceso; `05` y `30` por encima del 90 %.
+   El boot va justo: cada línea nueva en `CLAUDE.md`, `05` o `10` obliga a podar otra.
 6. **Las 205 fotos siguen cargadas y visibles** (`99 §ADR-031`), con **tres defectos vivos que no
    bloquean**: el acuse cuenta mal si la foto ya estaba en el depósito · el mapa de carpetas solo se
    entiende como objeto y una lista suelta se ignora en silencio · el guardián de orden salta en
@@ -91,7 +95,7 @@ en los W/m² instantáneos de la ampacidad.
 
 | # | Qué | Dónde está el plan |
 |---|---|---|
-| **TODO-70** | **Cerrar la ola de la ficha (ADR-030).** ✅ ① **HECHO 19-08** (`ADR-032`): informe, gerencial, CSV y pantalla marcan el veredicto calculado sobre dato SUPUESTO, y lo decide el MOTOR eje por eje. La marca anterior existía, no disparaba nunca y su prueba la daba por buena (`33 · L-53`). ✅ ④ **HECHO 19-08** (`ADR-033`): el sembrador lee antes de escribir y ya no pisa `revision`, `creadoEn` ni `creadoPor` — falta correrlo contra la base (espera la llave). Queda: ② la pantalla del **LOTE** (la escritura ya existe). ③ El gesto «Confirmo este dato» | `99 §ADR-030/032/033` |
+| **TODO-70** | **Cerrar la ola de la ficha (ADR-030).** ✅ ① 19-08 (`ADR-032`) marca del dato SUPUESTO · ✅ ④ 19-08 (`ADR-033`) el sembrador respeta el cerrojo —falta correrlo contra la base, espera la llave— · ✅ ② **HECHO 20-08** (`ADR-038`): la pantalla del LOTE, verificada en vivo. **Queda SOLO ③: el gesto «Confirmo este dato»**, que exige su propio molde porque `FichaEstructural` rechaza `confirmado_humano` por diseño — confirmar no es un origen, es un acto posterior | `99 §ADR-030/032/033/038` |
 | **TODO-66** | **Que una acción pruebe que FUNCIONÓ**, no solo que se hizo. Lo dejó fuera el Ingeniero el 07-08 y queda como deuda declarada en `99 §ADR-026`: bloque de verificación posterior (cuándo, quién, si fue eficaz y cómo se comprobó); la cerrada queda «pendiente de verificar eficacia» hasta esa fecha | `99 §ADR-026` |
 | **TODO-50** | **Blindaje**: ✅ F1 · ✅ F2a · ✅ F3 pantalla de cambio · ⬜ **2b retirar Google** — espera la contraseña | `99 §ADR-019/024` |
 | **TODO-52** | RCA: solo queda el **lienzo del árbol** (cosmético; en papel la lista sangrada se lee igual) | `99 §ADR-020` |

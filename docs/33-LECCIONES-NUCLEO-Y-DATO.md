@@ -145,6 +145,25 @@
   un dato que solo entró en el otro: **una alarma que salta cuando no debe se acaba ignorando**, y con
   ella las de verdad.
 
+### L-59 · Un atajo que llena UN campo de tres no mueve el veredicto: mídelo antes de venderlo
+
+- **Síntoma:** la pantalla del lote (`99 §ADR-038`) se construyó para desatascar el cuello de botella
+  de la ficha —**0 de 25 apoyos con veredicto**— aplicando el dato de catálogo a los 25 de un gesto.
+  Con la carga de rotura declarada y los 25 marcados, el panel del propio motor respondió: *«Ningún
+  apoyo gana veredicto con esto. De 25 apoyos del tramo, 25 siguen sin veredicto»*.
+- **Causa:** el veredicto transversal come **tres** datos —carga de rotura, altura libre y altura del
+  amarre— y el lote solo puede traer el primero. Los otros dos dependen del terreno y de qué hace ese
+  apoyo, así que **no van por lote nunca** (regla dura del contrato, `ADR-030`). El atajo es real y
+  ahorra trabajo de verdad; lo que no hace es producir el resultado que uno espera del trabajo.
+- **Regla:** antes de anunciar que una herramienta «desbloquea» algo, **córrela contra el dato real y
+  lee lo que dice el motor**, no lo que dice la intención. Aquí el propio antes/después lo dijo ANTES
+  de escribir una sola fila —que es exactamente para lo que se construyó (`ADR-030`)— y evitó
+  prometerle al Ingeniero veredictos que la medición de campo sigue debiendo. Un tablero que enseña
+  qué NO se mueve vale tanto como el que enseña qué se mueve.
+- **Y la consecuencia de negocio, que es la que importa:** el trabajo pendiente de la ficha no es un
+  tercio menos por tener lote. Es **el mismo trabajo de campo** con la parte de escritorio resuelta.
+  Emparenta con `30 · L-51` («hecho» es lo que se VE) y con `TODO-57`/`TODO-59`.
+
 ### L-40 · Si el núcleo solo publica la PROSA de un hueco, quien la lea deducirá el hecho — y mal
 
 - **Síntoma:** el informe imprimía *«Ningún apoyo declara su capacidad, así que ninguna fila lleva

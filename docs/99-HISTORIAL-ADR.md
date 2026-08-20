@@ -3701,3 +3701,87 @@ y no pasa nada» que persiguió `ADR-036` era, en realidad, que la pestaña esta
 congela ahí el reloj de animación y el mapa no llega a disparar su `load`. Estaba documentado desde
 agosto (`32 · L-16`) y se miró tarde. La lección `L-58` se reescribió para que enseñe eso y no las
 dos hipótesis intermedias.
+
+---
+
+## ADR-038 · 2026-08-20 · El lote deja de ser una ausencia declarada: la escritura llevaba meses lista y no había por dónde pedirla
+
+**Estado:** ✅ Decidido · ⚠️ **NO revisada externamente** · ✅ **verificado en vivo contra producción**
+
+### Contexto
+
+`ADR-030` dejó escrito, en pantalla y en su propio texto, que **el lote no entraba en esa ola**: la
+escritura `guardarFichaApoyoEnLote` ya existía con sus cuatro salvaguardas —solo los tres campos del
+MODELO, solo estructuras, solo rellena huecos, administrador y atómica— y lo que faltaba era su
+pantalla. La ficha **declaraba la ausencia en vez de fingirla**, con la frase permanente de por qué
+la altura libre, la del amarre y las fases amarradas **no van por lote nunca**.
+
+Mientras tanto el cuello de botella no se movía: **0 de 25 apoyos con veredicto** (`TODO-57`). Los 25
+apoyos de LN-627 comparten modelo, así que la carga de rotura, la capacidad longitudinal y el tipo de
+apoyo salen de **UN catálogo que es el mismo papel para todos**. A mano son 25 formularios; por lote
+es uno.
+
+### Decisión
+
+**Entra la pantalla, y no decide nada.** `vistas/fichaLote.ts` es un módulo PURO que **espeja** la
+regla de la escritura para poder decir ANTES de mandar nada quién puede recibir el dato y quién no.
+La salvaguarda de verdad sigue viviendo en `datos/firestore.ts`, y una prueba lee su fuente para
+comprobar que el espejo no se desincronizó: una guarda que solo vive en el formulario dura hasta el
+siguiente formulario.
+
+**Primero QUÉ, después A QUIÉN.** La lista de apoyos no se puede pintar antes de saber qué campos
+viajan, y ésa es la regla fina de toda la ola: **el hueco se mide contra los campos que VIAJAN, no
+contra los tres siempre**. Quien ya declara el tipo de apoyo sí puede recibir una carga de rotura;
+medirlo mal dejaría fuera a medio parque sin un motivo defendible.
+
+**Los que quedan fuera se ENSEÑAN, con su motivo,** y no se esconden. Una lista que solo muestra a
+los elegibles esconde justo lo que hace falta para confiar en ella: quien no ve un punto supone que
+se perdió. Los tres empalmes de la línea salen apagados con «no es una estructura: un empalme no
+sostiene el conductor y no tiene veredicto que desbloquear».
+
+**El antes/después es el MISMO de la ficha** (`loQueVaACambiar`, que ya aceptaba N parches), sobre el
+tramo entero y con los que PIERDEN veredicto contados aparte. Un lote mueve muchos apoyos a la vez:
+es cuando más falta hace mirarlo antes de escribir.
+
+### Alternativas descartadas
+
+- **Reutilizar el formulario de la ficha con un selector de apoyos encima.** Se descartó porque el
+  campo de la ficha enseña «hoy dice: …» de UN apoyo, y en un lote no hay un apoyo: hay muchos. Habría
+  que mentir o callar, y las dos son peores que un formulario propio de tres campos.
+- **Ofrecer los seis campos y filtrar al guardar.** Es la puerta trasera que el contrato prohíbe por
+  escrito. Ofrecer la altura libre en una pantalla de lote la convierte en la herramienta que llena la
+  base de datos que PARECEN medidos, aunque la escritura los rechace después.
+- **Medir el hueco contra los tres campos siempre.** Más simple de programar y falso: dejaría fuera a
+  cualquier apoyo que ya declare uno solo de los tres.
+
+### Consecuencias
+
+- **El trabajo de catálogo pasa de 25 formularios a uno.** Es la pieza que más tiempo ahorra de toda
+  la ola de la ficha.
+- ⚠️ **Y no desbloquea ni un veredicto por sí sola, lo cual se comprobó en producción antes de
+  escribir nada:** con la carga de rotura aplicada a los 25, el panel responde *«Ningún apoyo gana
+  veredicto con esto. De 25 apoyos del tramo, 25 siguen sin veredicto»*, porque a todos les faltan
+  además **la altura libre y la del amarre**, que no van por lote. El lote llena **uno de los tres**
+  campos que faltan — el más fácil de conseguir, el que está en un papel— y los otros dos siguen
+  exigiendo campo. → lección **`L-59`**; refuerza `TODO-57` y `TODO-59`.
+- **La pantalla no ofrece nunca lo que la base va a negar:** aplicar a varios exige **administración**,
+  no edición, y cuando la sesión no lo tiene se explica en vez de esconder el botón.
+- **Nada se escribió en la base durante la verificación**, a propósito: el botón lo pulsa el Ingeniero
+  cuando tenga el catálogo real delante.
+- `TODO-70` ② queda cerrado. De la ola de la ficha solo sobrevive ③, el gesto «Confirmo este dato»,
+  que sigue exigiendo su propio molde porque `FichaEstructural` rechaza `confirmado_humano` por diseño.
+
+### Verificado en vivo (2026-08-20)
+
+Con el Chrome del Ingeniero, sobre **producción** y con su sesión de administración: el panel abre,
+reconoce el permiso, ofrece los tres campos del modelo y ninguno de ejemplar; con la carga de rotura
+declarada aparecen los 25 apoyos marcables y los **3 empalmes bloqueados con su motivo**; «Marcar los
+25 que pueden recibirlo» enciende el botón —«Escribir el dato en 25 apoyos»— y el panel del motor
+responde que ninguno ganaría veredicto y **por qué le falta a cada uno**. Cero errores en consola.
+Bundle servido `index-BtQo103o.js` == el construido. **No se pulsó el botón: no se escribió nada.**
+
+### Crudo de respaldo
+
+*(sin comité: la decisión estaba tomada y escrita en `ADR-030` —qué va por lote, qué no y por qué—;
+esta ola solo construyó la pantalla que faltaba. La evidencia reproducible son las 27 pruebas de
+`tests/ficha-lote.test.js`, con mundo sintético.)*

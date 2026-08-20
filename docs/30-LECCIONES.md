@@ -76,6 +76,7 @@
 - `L-40` · Si el núcleo solo publica la PROSA de un hueco, quien la lea deducirá el hecho — y mal (y una prueba escrita sobre la deducción la BLINDA)
 - `L-41` · Un contrato que no se puede EJECUTAR en una prueba solo está revisado por el compilador
 - `L-45` · Una regla que el motor CALCULA y nadie consume no es una regla: es un comentario (y el grep de `L-28` da luz verde)
+- `L-59` · Un atajo que llena UN campo de tres no mueve el veredicto: mídelo contra el dato real antes de venderlo
 - `L-53` · Una marca que se dispara con una forma de dato que el sistema no escribe es peor que no tenerla (y su prueba la blinda)
 - `L-50` · Un archivo que se DECLARA sintético es donde mejor se esconde un dato real: la cabecera hace el trabajo de la sospecha
 - `L-46` · Un MÁXIMO DE VENTANA DESLIZANTE no es una medida de régimen (y `IA+IB+IC = IN` valida la escala en un minuto)

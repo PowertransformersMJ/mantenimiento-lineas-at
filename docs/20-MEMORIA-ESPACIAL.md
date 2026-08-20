@@ -134,7 +134,8 @@ mantenimiento-lineas-at/
 ├── web/src/componentes/         React SOLO pinta (ADR-005): Linea (las 13 pestañas ARIA **y** la
 │                                carcasa de 3 columnas), Horizonte (los apoyos en su orden real),
 │                                Mapa (popup completo + tramos + marcador de falla), Distribucion,
-│                                Distancias, Fichas, FichaCriterios, Falla + Galeria, Fundamentos,
+│                                Distancias, Fichas (+FichaEditor · FichaLote, admin, ADR-038),
+│                                FichaCriterios, Falla + Galeria, Fundamentos,
 │                                Umbrales, Termica, Viento, Cargas (los DOS ejes, ADR-011/017),
 │                                Cantidades, Exportar, Sello, Estado · **Cargar** (solo admin) y
 │                                **Fotos** (ADR-031; cuadrilla o superior): las DOS que ESCRIBEN, y
@@ -150,8 +151,8 @@ mantenimiento-lineas-at/
 │   │                            (⚠️ colecciones de Firestore: `lineas` · `apoyos` · `hipotesis` ·
 │   │                            `investigaciones` · `evidencias` · `analisis` · `acciones_capa` ·
 │   │                            `sondeos_clima`. Las acciones CAPA van APARTE del análisis a
-│   │                            propósito: dentro de un array las reglas no distinguen «cerrar una
-│   │                            acción» de «reescribir el razonamiento tras firmar»)
+│   │                            propósito → `99 §ADR-020`)
+│   ├── fichaLote.ts             quién puede recibir un dato de catálogo (ADR-038)
 │   ├── coberturaEjes.ts         qué se sabe de CADA apoyo, eje por eje: los 4 estados
 │   │                            (ambos · solo transversal · solo longitudinal · ninguno) y los
 │   │                            textos del horizonte. Lo piden `estadoLinea` y `Horizonte`
@@ -169,13 +170,11 @@ mantenimiento-lineas-at/
 │                                núcleo, L-26) + tramoColores + diagramas.ts (las 9 figuras de
 │                                Fundamentos) + termicaDatos / vientoDatos / criteriosApoyo /
 │                                cargasDatos / longitudinalDatos / planta / tramos.
-│                                ⚠️ Las vistas que se PRUEBAN no
-│                                pueden importar `./planta` ni `./tramos` en ejecución: arrastran
-│                                `@lineas/contratos` (TypeScript sin compilar) y `node --test` no
-│                                lo resuelve. Solo `@lineas/nucleo/*` y tipos. Y si una vista
-│                                probada importa a OTRA vista, el import lleva `.ts` explícito
-│                                (`allowImportingTsExtensions` en `web/tsconfig.json`): sin la
-│                                extensión, `node --test` no resuelve y la prueba revienta.
+│                                ⚠️ Una vista PROBADA que importe a OTRA lleva `.ts` explícito
+│                                (`allowImportingTsExtensions`): sin extensión `node --test` no
+│                                resuelve. La vieja regla «no puede importar `./planta`, arrastra
+│                                `@lineas/contratos` sin compilar» YA NO APLICA — el type-stripping
+│                                lo resuelve: `fichaLote.ts`, verde en v24.15 y en CI v22.23 (20-08).
 ├── web/src/datos/               repositorio · enlace (useSyncExternalStore) · firebase (ingreso:
 │                                correo+contraseña y Google de reserva) · firestore · cargar
 │                                (reintentos) · clima.ts (IDEAM **desde el navegador**, porque el
