@@ -3785,3 +3785,125 @@ Bundle servido `index-BtQo103o.js` == el construido. **No se pulsó el botón: n
 *(sin comité: la decisión estaba tomada y escrita en `ADR-030` —qué va por lote, qué no y por qué—;
 esta ola solo construyó la pantalla que faltaba. La evidencia reproducible son las 27 pruebas de
 `tests/ficha-lote.test.js`, con mundo sintético.)*
+
+---
+
+## ADR-039 · 2026-08-20 · La temperatura del AIRE entra al mapa: la del suelo no alimentaba ningún cálculo, ésta sí
+
+**Estado:** ✅ Decidido · ⚠️ **NO revisada externamente** · ✅ **verificado en vivo contra producción**
+
+### Contexto
+
+El Ingeniero pidió «una capa de temperatura ambiente conforme a la posición geográfica a lo largo de
+la línea y todo el mapa». No es la capa que `ADR-037` retiró: aquélla era la temperatura de la
+SUPERFICIE (Landsat ST_B10) —tejados y asfalto vistos desde arriba— y se quitó justamente porque **no
+entra en ninguna ecuación de este sistema**. La del AIRE entra por dos puertas: es entrada directa de
+la ampacidad (IEEE 738) y es el marco de las cuatro temperaturas de la hipótesis, hoy ADOPTADAS sin
+fuente local (`TODO-71`).
+
+### Decisión
+
+**La misma fuente que ya sirve el recurso solar**, sin estrenar dependencias ni licencias: Global
+Solar Atlas 2.0, capa `TEMP` —temperatura del aire a 2 m, °C, promedio de largo plazo **1994-2025**,
+versión 2.2.67, lo declara el propio servicio— bajo **CC BY 4.0**, sin cuenta ni clave. 352 puntos
+muestreados una vez, 0 fallos, **3 KiB** las trece rejillas (doce meses y la media del año).
+
+**Dos frases que impiden el mal uso, y las dos van en pantalla:**
+
+1. **Es una MEDIA, no un extremo.** El tiro máximo en frío se juega con la MÍNIMA histórica y la
+   ambiente de diseño de la ampacidad con un percentil ALTO; una media no es ni lo uno ni lo otro.
+   Leer los 27 °C como «la mínima del sitio» dejaría el tiro corto y un terminal parecería sano.
+2. **El mapa se ve casi de un color, y NO está roto.** La media anual cambia **1,2 °C** de punta a
+   punta del recorte (medido, y viaja en la ficha), mientras que entre meses hay **1,3 °C**. La rampa
+   es FIJA y ancha (5-35 °C) a propósito: estirarla a la variación del recorte dibujaría un degradado
+   espectacular que sería ruido amplificado.
+
+**La media del sitio se pone AL LADO de la hipótesis, sin dictaminar.** Comparar no es validar, igual
+que en el pronóstico (`ADR-035`).
+
+### Alternativas descartadas
+
+- **Estirar la rampa al recorte** para que «se vea algo»: fabrica un gradiente que no existe.
+- **Dos capas de medida encendidas a la vez**: dos rampas de color sobre el mismo territorio no se
+  leen —la de arriba tapa a la de abajo— y el clic no sabría a cuál contesta. Son EXCLUYENTES.
+- **Duplicar el efecto del mapa para la capa nueva**: habría dejado 120 líneas repetidas en un archivo
+  de 1.100. Lo común subió a `rejilla.ts`, que `ADR-036` dejó agnóstico justo para esto.
+
+### Consecuencias
+
+- **La ampacidad tiene por primera vez una cifra local al lado.** Y aparece un dato que el Ingeniero
+  no tenía: la EDS adoptada del cálculo es **28 °C** y la media del sitio **27,3 °C** — la suposición
+  se sostiene, con 0,7 °C de margen. Es exactamente el tipo de comprobación que `TODO-71` pedía, y no
+  lo cierra: cerrarlo exige una SERIE con percentiles, no una media.
+- **La marca de lo pintado lleva ahora QUÉ medida además del mes.** Sin eso, cambiar de capa en el
+  mismo mes se saltaba el repintado y dejaba la capa anterior bajo la leyenda nueva.
+- `vistas/rejilla.ts` gana la mecánica temporal; `radiacion.ts` delega y **no renombra nada**.
+
+### Verificado en vivo (2026-08-20)
+
+Con el Chrome del Ingeniero, sobre producción: la capa enciende, el clic devuelve **27,6 °C** (media
+del año) y **28,0 °C** en marzo sobre el mismo punto —la rejilla se recarga—, la leyenda enseña la
+amplitud medida y la comparación con la hipótesis, y encender «Radiación solar» apaga la temperatura
+y cambia la leyenda. Cero errores en consola.
+
+### Crudo de respaldo
+
+*(sin comité: la fuente y su licencia ya se habían verificado en `ADR-037`; lo nuevo es la capa `TEMP`
+del mismo servicio, comprobada leyendo su metadato. Evidencia reproducible: `tests/temperatura.test.js`.)*
+
+---
+
+## ADR-040 · 2026-08-20 · La satelital se remuestrea en origen, y se dicen los DOS números; a más resolución no se puede ir por LICENCIA, no por técnica
+
+**Estado:** ✅ Decidido · ⚠️ **NO revisada externamente** · ✅ **verificado en vivo contra producción**
+
+### Contexto
+
+El Ingeniero: *«la vista satelital carece de resolución gráfica, corrige y mejóralo»*. Tenía razón en
+el síntoma: el mapa dejaba de tener imagen propia en el nivel 14 (9,4 m/píxel) y de ahí en adelante
+era el NAVEGADOR quien estiraba la última tesela, con el filtro que le tocara y en cada fotograma.
+
+### Decisión
+
+**Dos mejoras reales de presentación, y ni una de detalle inventado:**
+
+- **Remuestreo en origen hasta el nivel 15** (4,7 m/píxel). Lo hace el generador una vez, con buen
+  filtro, en vez de dejárselo al navegador. Pesa **12,6 MiB** (de 5,2), holgado bajo el tope de
+  25 MiB por archivo de Cloudflare Pages.
+- **Realce mejorado**: percentiles 1-99 (antes 2-98), **gamma 0,88** —media escena tropical vive en la
+  parte baja del histograma— y **máscara borrosa** suave, que devuelve el borde que la interpolación
+  acaba de comer. Todo declarado en la ficha como cosmético.
+
+**Y la pantalla dice los DOS números**: lo que MIDE (10 m) y a lo que se PUBLICA (4,7 m), en ese
+orden. Decir solo el segundo sería vender un detalle que no existe.
+
+### Alternativas descartadas — y ésta es la parte que importa
+
+**Se buscó una fuente de más resolución y SE ENCONTRÓ, pero no se puede usar:**
+
+- **Ortoimágenes del IGAC.** Existen, responden y cubren este recorte: **3 m para todo Bolívar** y
+  hasta **10 cm en Turbaco** (se comprobó descargando muestras del `ImageServer`). ❌ **Licencia**:
+  Colombia en Mapas declara que la imagen tiene *«licencia de uso gubernamental, razón por la cual, no
+  puede ser compartida ni comercializada con empresas privadas o personas naturales»*. Este sistema
+  AUTOHOSPEDA sus capas en un sitio público: republicarla **es** compartirla. Descartada.
+  ⚠️ Y ojo con el matiz que casi cuesta caro: el IGAC publica sus datos **catastrales** bajo CC BY-SA
+  4.0, y esa página es la que sale primero. **La licencia de los datos no es la de las imágenes.**
+- **Planet NICFI** (<5 m, trópicos): licencia no comercial y **sin redistribución** de la imagen.
+- Esri, Google, Bing, Mapbox: ya descartadas en `ADR-034` por uso comercial prohibido o de pago.
+
+**Conclusión, verificada y no supuesta: 10 m es el techo de la imagen abierta que este proyecto puede
+publicar.** La pantalla lo dice con esas palabras.
+
+### Consecuencias
+
+- Al acercarse se ve **notablemente** mejor —naves, tanques y viales de la zona industrial se
+  distinguen—, y sigue sin haber detalle nuevo. Las dos cosas son ciertas y las dos están escritas.
+- **El camino a 3 m o 10 cm existe y está probado**: si el Ingeniero consigue autorización del IGAC
+  —o AFINIA la tiene por convenio—, el generador ya sabe pedir esas imágenes. Es una gestión suya, no
+  un problema técnico. → `TODO-72`.
+- Lección de método → **`L-60`**.
+
+### Crudo de respaldo
+
+*(sin comité. Evidencia: las fichas de los servicios del IGAC y las muestras descargadas, la cita
+literal de Colombia en Mapas y la comparación visual antes/después. Guardián: `tests/mapa-capas.test.js`.)*

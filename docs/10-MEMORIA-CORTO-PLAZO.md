@@ -1,12 +1,12 @@
-# 📝 10 — MEMORIA DE CORTO PLAZO (pizarra del trabajo vivo)
+# 📝 10 — MEMORIA DE CORTO PLAZO (pizarra viva)
 
-> Se **AUTO-CARGA**. Es pizarra, no bitácora (§G.3). Tope ~110 líneas / 16k chars.
-> **RELEVO DE SESIÓN 2026-08-20.** Este nodo ES el relevo: léelo entero antes de tocar nada.
+> Se **AUTO-CARGA**. Pizarra, no bitácora (§G.3). Tope ~110 líneas / 16k chars.
+> **RELEVO 2026-08-20.** Este nodo ES el relevo: léelo entero antes de tocar nada.
 > Si contradice a `docs/.handoff-auto.md` (foto real de git), manda ese.
 
 ## 🎯 Dónde estamos
 
-**Cifras vivas en `05`.** 12 pestañas + RCA + tres informes. **Mazo de gerencia E02 listo** (`32 · L-49`). Olas cerradas:
+**Cifras vivas en `05`.** 12 pestañas + RCA + tres informes. **Mazo E02 listo** (`32 · L-49`). Olas cerradas:
 carcasa (ADR-018) · RCA (ADR-020) · documental (ADR-021) · contexto real (ADR-022) · gerencial
 (ADR-023) · acceso (ADR-024) · **dato SUPUESTO (ADR-032)** · **capas del mapa: satelital,
 recurso solar por mes y pronóstico (ADR-034/035/036/037)**.
@@ -19,20 +19,19 @@ recurso solar por mes y pronóstico (ADR-034/035/036/037)**.
    mueve ninguno por sí solo**, comprobado en producción antes de escribir nada: faltan la altura
    libre y la del amarre, que no van por lote (`33 · L-59`). Falta que él conteste `TODO-57`: si esas
    fichas están en planos y actas o hay que levantarlas.
-2. **Lo último** (detalle en `99`): **20-08 · ADR-038, la pantalla del LOTE** — la escritura llevaba
-   meses lista y no había por dónde pedirla; verificada en vivo contra producción con su sesión de
-   administración, **sin escribir nada** (el botón lo pulsa él con el catálogo real delante). Antes,
-   19-08 (ADR-032 a 037): los papeles marcan el veredicto sobre dato SUPUESTO · el sembrador ya no
-   pisa la revisión · el mapa gana satelital, **radiación solar** y pronóstico.
+2. **Lo último, 20-08** (detalle en `99 §ADR-038/039/040`): la **pantalla del LOTE** · la
+   **temperatura del AIRE** en el mapa —que de paso confirma que la EDS adoptada de 28 °C se
+   sostiene: el sitio tiene 27,3— y la **satelital remuestreada** al nivel 15, que era lo que se veía
+   borroso. A más resolución **no se puede ir por licencia**, no por técnica (`31 · L-60`, `TODO-72`).
+   Las tres verificadas en vivo contra producción con su sesión.
 3. **TRES COSAS QUEDARON A MEDIO CAMINO Y SON DE ÉL, no de código:**
    `TODO-57` el dato de la ficha · **ponerse contraseña** (bloquea retirar Google) · `TODO-71` cerrar
    las hipótesis de **viento** y de los **1.000 W/m²** de la ampacidad, que ningún mapa cierra: eso
    es una SERIE histórica con percentiles.
 4. **Verificar que una acción FUNCIONÓ**, no solo que se hizo (`TODO-66`): una que no sirvió es hoy
    indistinguible de una que sirvió.
-5. **Higiene del cerebro:** el único que el kernel marca en ROJO es `docs/00` (18,2k/16k) — pide
-   shard o poda. `32`, `20`, `33` y este `10` van en leve exceso; `05` y `30` por encima del 90 %.
-   El boot va justo: cada línea nueva en `CLAUDE.md`, `05` o `10` obliga a podar otra.
+5. **Higiene del cerebro:** lo que el kernel marque al arrancar manda —hoy solo quedan excesos
+   leves—. El boot va JUSTO: cada línea nueva en `CLAUDE.md`, `05` o `10` obliga a podar otra.
 6. **Las 205 fotos siguen cargadas y visibles** (`99 §ADR-031`), con **tres defectos vivos que no
    bloquean**: el acuse cuenta mal si la foto ya estaba en el depósito · el mapa de carpetas solo se
    entiende como objeto y una lista suelta se ignora en silencio · el guardián de orden salta en
@@ -69,7 +68,8 @@ en los W/m² instantáneos de la ampacidad.
    el gate bloquea el commit: dice «presupuesto de boot excedido» pero es el canario — remedio `node scripts/session-handoff.mjs --boot-echo`.
 2. Producción **https://mantenimiento-lineas-at.pages.dev** · repo PÚBLICO → **cero bytes de cliente
    NI DATOS PERSONALES DE NADIE**, ni en pruebas ni en un comentario (`33 · L-23`, `99 §ADR-021`).
-3. **Desplegar es `npm run build && npm run deploy --workspace web`**, en ese orden (`32 · L-35`); las **reglas de Firestore van por SU canal y ANTES que el código**: `npx firebase deploy --only firestore:rules --project mantenimiento-lineas-at` (`31 · L-22`).
+3. **Desplegar**: `npm run build && npm run deploy --workspace web`, en ese orden (`32 · L-35`); las
+   reglas de Firestore van por SU canal y ANTES que el código (`31 · L-22`).
 4. **Verificar contra PRODUCCIÓN con el Chrome del Ingeniero**, preguntando a la pestaña qué bundle
    cargó — nunca contra `dist/` (`32 · L-18/35`). Esperar 5 lecturas iguales al propagar.
 5. Antes de CADA push: `npm test` + `contrato:verificar` + `brain:check`. Las **coordenadas ya no se
@@ -83,6 +83,7 @@ en los W/m² instantáneos de la ampacidad.
 | **NUEVO** | **Ponerse contraseña.** ⚠️ La llave admin ya NO está en Descargas: regenerarla (Consola Firebase → Configuración → Cuentas de servicio → Generar nueva clave) y guardarla FUERA de Descargas. Después: `usuarios.mjs contrasena … --definitiva` (sin `--definitiva` la cuenta queda provisional y se revocan sus sesiones) | Desbloquea retirar Google (fase 2b). Ya está VERIFICADO que la pantalla no le aparece entrando por Google |
 | **TODO-57** | **La FICHA ESTRUCTURAL — ya se puede ESCRIBIR, y está EN PRODUCCIÓN** (`99 §ADR-030`). Deja de estar bloqueada por el código: falta **el DATO**. ¿Lo tiene la empresa en planos o actas, o hay que levantarlo? Los seis: carga de rotura · altura libre · altura del amarre · capacidad longitudinal (con **qué ES** ese número) · fases amarradas · tipo de apoyo | **EL CUELLO DE BOTELLA REAL.** Al meter el primero saldrán «REVISAR»: no son averías nuevas, es lo que ya pasaba y no se veía |
 | **TODO-69** | **Verificar el pórtico de ORIGEN** de la línea (la carga de agosto quedó cerrada, `99 §ADR-027/028/031`) | Es el único punto de esa carga que nadie ha mirado |
+| **TODO-72** | **¿Se puede conseguir autorización del IGAC (o la tiene AFINIA por convenio) para sus ortoimágenes?** Existen y cubren esto: **3 m** en todo Bolívar y **10 cm** en Turbaco, contra los 10 m de Sentinel-2. La licencia publicada las veta para un sitio que las republique (`99 §ADR-040`, `31 · L-60`); el generador YA sabe pedirlas | Es la única vía a más resolución real en el mapa |
 | **TODO-71** | **¿Se cierran las hipótesis con dato real?** Ninguna se cierra con un mapa: el **viento** (`ADR-035`) y los **1.000 W/m² adoptados** de la ampacidad, que el recurso solar rodea (`ADR-037`) sin sustituirlos —energía diaria ≠ irradiancia instantánea— | De ahí salen los tiros y la capacidad |
 | **TODO-59** | **Qué ficha se le pide a CADA tipología.** La línea mezcla 4 (pórticos de 2 y 3 postes, torre reticulada, poste simple) y el molde es de POSTE (`40 §8.3`) | Son tres o cuatro formularios, no uno |
 | **TODO-33** | **50 % o 25 % de RTS** como tope de tiro | Factor 2 sobre un dictamen |

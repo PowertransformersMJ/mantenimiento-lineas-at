@@ -153,6 +153,7 @@ mantenimiento-lineas-at/
 │   │                            `sondeos_clima`. Las acciones CAPA van APARTE del análisis a
 │   │                            propósito → `99 §ADR-020`)
 │   ├── fichaLote.ts             quién puede recibir un dato de catálogo (ADR-038)
+│   ├── temperatura.ts           la temperatura del AIRE del mapa (ADR-039): media, no extremo
 │   ├── coberturaEjes.ts         qué se sabe de CADA apoyo, eje por eje: los 4 estados
 │   │                            (ambos · solo transversal · solo longitudinal · ninguno) y los
 │   │                            textos del horizonte. Lo piden `estadoLinea` y `Horizonte`

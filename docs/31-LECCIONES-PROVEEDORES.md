@@ -12,6 +12,27 @@
 
 ## Lo que se firma y lo que se paga
 
+### L-60 · Un organismo publica VARIAS licencias: la del dato que buscas no es la del dato que sale primero
+
+- **Síntoma:** buscando más resolución para la capa satelital apareció el IGAC, que sirve ortoimágenes
+  de 3 m para todo Bolívar y de 10 cm para municipios vecinos — comprobado descargando muestras. La
+  primera página de licencia que devuelve una búsqueda es la de **datos abiertos**, y dice **CC BY-SA
+  4.0: uso comercial permitido**. Con eso bastaba para construir la capa.
+- **Causa:** esa licencia es la de los datos **catastrales y cartográficos vectoriales**. Las
+  **imágenes** van por otra: Colombia en Mapas declara que la imagen consultada *«cuenta con licencia
+  de uso gubernamental, razón por la cual, no puede ser compartida ni comercializada»*, y añade que
+  «cada dato dispuesto en la plataforma tiene su licencia de uso». Este sistema autohospeda y publica
+  sus capas: republicar esa imagen **es** compartirla. La primera lectura habría metido en un repo
+  PÚBLICO una imagen que su dueño prohíbe redistribuir.
+- **Regla:** la licencia se verifica **del producto concreto que se va a usar**, en la página que lo
+  sirve, y no del organismo en general. Un «CC BY-SA» encontrado en el portal madre no cubre lo que
+  cuelga de otro subportal. Si dos fuentes del mismo dueño se contradicen, manda **la más restrictiva
+  y la más cercana al archivo** — y se cita textual en el ADR, como aquí.
+- **Y el corolario que ahorra tiempo:** encontrar la fuente perfecta y no poder usarla NO es trabajo
+  perdido si queda escrito. El generador ya sabe pedir esas imágenes: el día que haya autorización, la
+  capa es una tarde. Sin el ADR, dentro de un año alguien vuelve a descubrir el IGAC desde cero — y
+  puede que esa vez no lea la segunda página.
+
 ### L-01 · GitHub Pages no puede servir este proyecto
 - **Causa (verificado contra la documentación oficial, 2026-07-29):** con cuenta Free el repo tendría
   que ser público; aun pagando Pro el SITIO sigue siendo público (restringirlo exige Enterprise
