@@ -76,7 +76,7 @@ BBOX = (-75.62, 10.20, -75.33, 10.58)   # lon_min, lat_min, lon_max, lat_max
 # filtro bueno, en vez de dejárselo al navegador en cada fotograma. La diferencia
 # se ve —el borde deja de escalonarse— y no es información nueva: es la MISMA
 # medida, mejor presentada. Queda declarado en la ficha, junto al metro real.
-Z_MIN, Z_MAX = 8, 15                     # 15 ≈ 4,7 m/píxel · el DATO sigue siendo de 10 m
+Z_MIN, Z_MAX = 8, 16                     # 16 ≈ 2,4 m/píxel · el DATO sigue siendo de 10 m
 METROS_SENTINEL = 9.5                    # la resolución REAL de Sentinel-2. Pedir más no da más
 METROS_LANDSAT = 30                      # la rejilla en que se entrega Landsat L2 (sensor: 100 m)
 TESELA = 256
@@ -356,15 +356,26 @@ def satelital():
     # Se pide a la resolución del zoom MÁXIMO, no a la del sensor: el remuestreo
     # de 10 m a 4,7 m lo hace GDAL una vez y bien, en vez de hacerlo el navegador
     # en cada fotograma. La medida sigue siendo de 10 m — eso no lo cambia nadie.
-    metros_z_max = METROS_TESELA_Z[Z_MAX]
-    datos, limites = leer_bloque('/vsicurl/' + escena['url'], [1, 2, 3], metros_z_max)
+    # ⚠️ Se LEE a 4,7 m y se AMPLÍA a la resolución del zoom máximo, en vez de
+    # pedirle a GDAL cuatro veces más píxeles. Da el mismo resultado —el dato
+    # de origen es de 10 m, así que todo por debajo es interpolación venga de
+    # donde venga— con la cuarta parte de descarga y de memoria: pedir el recorte
+    # entero a 2,4 m son ~250 millones de píxeles en RAM.
+    metros_lectura = METROS_TESELA_Z[15]
+    datos, limites = leer_bloque('/vsicurl/' + escena['url'], [1, 2, 3], metros_lectura)
 
     rgb = np.moveaxis(datos, 0, -1)
     # Lo que no cubre la escena llega como 0 en las tres bandas: se declara
     # transparente en vez de pintarlo de negro, que se leería como agua.
     alfa = (rgb.sum(axis=2) > 0).astype(np.uint8) * 255
     rgb = realzar(rgb, alfa > 0)
-    imagen = enfocar(Image.fromarray(np.dstack([rgb, alfa]), 'RGBA'))
+    imagen = Image.fromarray(np.dstack([rgb, alfa]), 'RGBA')
+    if Z_MAX > 15:
+        escala = 2 ** (Z_MAX - 15)
+        imagen = imagen.resize((imagen.width * escala, imagen.height * escala), Image.Resampling.LANCZOS)
+    # La nitidez va DESPUÉS de ampliar: lo que se quiere devolver es el borde que
+    # la interpolación acaba de suavizar.
+    imagen = enfocar(imagen)
 
     def guardar(t):
         if t.getchannel('A').getextrema()[1] == 0:
@@ -373,7 +384,11 @@ def satelital():
         # Calidad alta a propósito: estas teselas se MIRAN AMPLIADAS —el zoom del
         # mapa pasa de largo la resolución del satélite— y ampliar una compresión
         # agresiva convierte sus artefactos en manchas que parecen terreno.
-        t.save(buf, format='WEBP', quality=90, method=5)
+        # 82 y no 90: al subir un nivel de zoom los píxeles se multiplican por
+        # cuatro y el archivo tiene un tope duro de 25 MiB. Se cede calidad de
+        # compresión —que en una imagen ya interpolada casi no se ve— antes que
+        # ceder el nivel de zoom, que es lo que el Ingeniero está mirando.
+        t.save(buf, format='WEBP', quality=82, method=5)
         return buf.getvalue()
 
     teselas = generar(imagen, limites, guardar)
@@ -825,17 +840,70 @@ METROS_TEMPERATURA = 2000
 # de un recorte costero, que es de décimas.
 TMP_OFFSET, TMP_PASO = 5.0, 0.12
 
-# Rampa FIJA, en °C. Misma familia de color que el recurso solar —frío azul,
-# cálido rojo— para que las dos capas se lean con el mismo ojo.
-RAMPA_TEMPERATURA = [
-    (12.0, (49, 54, 149)), (16.0, (69, 117, 180)), (20.0, (171, 217, 233)),
-    (24.0, (255, 245, 190)), (26.0, (254, 224, 144)), (28.0, (253, 174, 97)),
-    (30.0, (244, 109, 67)), (32.0, (215, 48, 39)), (35.0, (165, 0, 38)),
+# Los nueve colores de la rampa —frío azul, cálido rojo, la misma familia que el
+# recurso solar— para que las dos capas se lean con el mismo ojo.
+COLORES_TEMPERATURA = [
+    (49, 54, 149), (69, 117, 180), (171, 217, 233), (255, 245, 190), (254, 224, 144),
+    (253, 174, 97), (244, 109, 67), (215, 48, 39), (165, 0, 38),
 ]
 
 
-def temperatura():
+def rampa_de_temperatura(minimo, maximo):
+    """
+    LA RAMPA SE AJUSTA AL DATO, y ésta es una corrección de criterio con nombre.
+
+    La primera versión usaba una escala FIJA y ancha (5-35 °C) para que dos
+    recortes se pudieran comparar sin recalibrar. Sobre un corredor costero eso
+    dejaba el mapa de un solo color: los 3 °C que separan al punto más fresco del
+    más cálido caían dentro de un mismo tramo. Se veía honesto y era inútil — un
+    mapa que no enseña su gradiente no informa de nada, y el Ingeniero lo pidió.
+
+    El argumento con el que se defendió la escala fija —«estirarla amplifica el
+    ruido»— confundía dos errores distintos: el ABSOLUTO del modelo (±1 °C, que
+    afecta a todas las celdas por igual y no inventa gradientes) y el RELATIVO
+    entre celdas vecinas del mismo reanálisis, que es mucho menor. El gradiente
+    costa-interior que se ve aquí es señal del modelo, no ruido aleatorio.
+
+    ⚠️ SE CALCULA SOBRE LAS TRECE CAPAS A LA VEZ, nunca por mes. Una escala por
+    mes repintaría el mismo color sobre temperaturas distintas y comparar dos
+    meses engañaría — que es justo el fallo que la escala fija evitaba. Así se ve
+    el gradiente del espacio Y el del calendario, con un solo significado de color.
+
+    Y el precio se paga en la leyenda, no callándolo: los extremos van escritos,
+    para que un rojo intenso no se lea como «hace un calor extremo» cuando lo que
+    dice es «medio grado más que allá».
+    """
+    lo = math.floor(minimo * 10) / 10
+    hi = math.ceil(maximo * 10) / 10
+    if hi - lo < 0.5:                       # un recorte plano de verdad: no se estira más
+        medio = (hi + lo) / 2
+        lo, hi = medio - 0.25, medio + 0.25
+    paso = (hi - lo) / (len(COLORES_TEMPERATURA) - 1)
+    return [(round(lo + i * paso, 2), c) for i, c in enumerate(COLORES_TEMPERATURA)]
+
+
+def temperatura(reusar=False):
     ancho, alto, puntos = malla_de_muestreo(METROS_TEMPERATURA)
+
+    # ── Reusar lo ya muestreado ────────────────────────────────────────────
+    # El muestreo son 352 peticiones a un servicio de otro. Cambiar la RAMPA o
+    # cualquier cosa de la ficha no toca ni un valor —las rejillas guardan el
+    # BYTE, no el color—, así que volver a pedirlas sería gastar cortesía ajena
+    # para nada. Con `--reusar` se leen del disco y solo se rehace la ficha.
+    if reusar:
+        print('🌡️  reusando las rejillas ya muestreadas (no se pide nada a nadie)')
+        rejillas = []
+        for k in range(13):
+            nombre = f'cartagena-temperatura-{"anual" if k == 12 else f"{k + 1:02d}"}.png'
+            ruta = os.path.join(SALIDA, nombre)
+            if not os.path.exists(ruta):
+                sys.exit(f'❌ falta {nombre}: no hay nada que reusar, corra sin --reusar')
+            rejillas.append(np.array(Image.open(ruta).convert('L')))
+        if rejillas[0].shape != (alto, ancho):
+            sys.exit(f'❌ las rejillas del disco miden {rejillas[0].shape} y la malla pide '
+                     f'({alto}, {ancho}): el recorte o el paso cambiaron, hay que remuestrear')
+        return _publicar_temperatura(rejillas, ancho, alto, len(puntos), 0)
+
     print(f'🌡️  muestreando {len(puntos)} puntos ({ancho}×{alto}, uno cada '
           f'{METROS_TEMPERATURA / 1000:g} km) del Global Solar Atlas…')
 
@@ -862,9 +930,15 @@ def temperatura():
             b = int(round((v - TMP_OFFSET) / TMP_PASO)) + 1
             rejillas[k][iy, ix] = min(255, max(1, b))
 
+    return _publicar_temperatura(rejillas, ancho, alto, len(puntos), fallos)
+
+
+def _publicar_temperatura(rejillas, ancho, alto, n_puntos, fallos):
+    """De las trece rejillas a los PNG y la ficha. Separado para poder rehacer la
+    ficha sin volver a muestrear (`--reusar`)."""
     medidos = int(np.count_nonzero(rejillas[12]))
-    if medidos < len(puntos) * 0.9:
-        sys.exit(f'❌ solo respondieron {medidos} de {len(puntos)} puntos: no se publica media capa')
+    if medidos < n_puntos * 0.9:
+        sys.exit(f'❌ solo respondieron {medidos} de {n_puntos} puntos: no se publica media capa')
 
     capas = []
     for k in range(13):
@@ -875,7 +949,7 @@ def temperatura():
             'clave': 'anual' if k == 12 else f'{k + 1:02d}',
             'rotulo': 'Media del año' if k == 12 else MESES[k].capitalize(),
             'archivo': nombre,
-            'cobertura_pct': round(100 * medidos / len(puntos), 1),
+            'cobertura_pct': round(100 * medidos / n_puntos, 1),
             'resumen': {
                 'min': round(float(v.min()), 2), 'p50': round(float(np.median(v)), 2),
                 'max': round(float(v.max()), 2),
@@ -885,8 +959,13 @@ def temperatura():
         print(f'   {capas[-1]["rotulo"]:>14}: {capas[-1]["resumen"]["min"]:.2f} … '
               f'{capas[-1]["resumen"]["max"]:.2f} °C')
 
-    # LA AMPLITUD ESPACIAL, medida y publicada: es la cifra que justifica que el
-    # mapa se vea liso, y sin ella la capa parecería rota.
+    # La rampa, del DATO y no de una tabla: mínimo y máximo de las TRECE capas.
+    rampa = rampa_de_temperatura(min(c['resumen']['min'] for c in capas),
+                                 max(c['resumen']['max'] for c in capas))
+    print(f'   rampa ajustada al recorte: {rampa[0][0]} … {rampa[-1][0]} °C')
+
+    # LA AMPLITUD ESPACIAL, medida y publicada: es la cifra que explica de cuánto
+    # es el gradiente que se ve, para que un color fuerte no se lea como un extremo.
     anual_v = (rejillas[12][rejillas[12] > 0].astype(np.float32) - 1) * TMP_PASO + TMP_OFFSET
     amplitud = float(anual_v.max() - anual_v.min())
     meses_p50 = [c['resumen']['p50'] for c in capas[:12]]
@@ -909,7 +988,8 @@ def temperatura():
             'nota': 'byte 0 = SIN DATO. Con byte v ≥ 1: valor = (v − 1) × paso + offset',
             'offset': TMP_OFFSET, 'paso': TMP_PASO, 'sin_dato': 0,
         },
-        'rampa': [{'c': t, 'rgb': list(c)} for t, c in RAMPA_TEMPERATURA],
+        'rampa': [{'c': t, 'rgb': list(c)} for t, c in rampa],
+        'rampa_ajustada_al_recorte': True,
         'capas': capas,
         'periodo': 'promedio de largo plazo 1994-2025 (no es un día concreto)',
         'fuente': 'Global Solar Atlas 2.0 (Solargis / Banco Mundial / ESMAP), capa TEMP, muestreada por punto',
@@ -943,6 +1023,8 @@ def escribir_ficha(nombre, ficha):
 if __name__ == '__main__':
     p = argparse.ArgumentParser(description='Construye las capas raster autohospedadas.')
     p.add_argument('capa', choices=['satelital', 'termico', 'radiacion', 'temperatura'])
+    p.add_argument('--reusar', action='store_true',
+                   help='rehace la ficha desde las rejillas del disco, sin volver a muestrear')
     p.add_argument('--fechas', type=int, default=12,
                    help='cuántas fechas utilizables buscar para el térmico')
     args = p.parse_args()
@@ -952,6 +1034,6 @@ if __name__ == '__main__':
     elif args.capa == 'radiacion':
         radiacion()
     elif args.capa == 'temperatura':
-        temperatura()
+        temperatura(reusar=args.reusar)
     else:
         termico(args.fechas)

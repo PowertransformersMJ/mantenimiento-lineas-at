@@ -29,7 +29,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 import {
-  capaElegida, capasOrdenadas, oscilacionEstacional, avisoDeIsotermia, avisoDeMuestreo,
+  capaElegida, capasOrdenadas, oscilacionEstacional, avisoDeEscala, avisoDeMuestreo,
   contraLaEds, NOTA_HIPOTESIS,
 } from '../web/src/vistas/temperatura.ts';
 import { valorDeByte, colorDeValor } from '../web/src/vistas/rejilla.ts';
@@ -120,14 +120,22 @@ describe('la rejilla mide lo que dice', () => {
     assert.ok(rgb.every((x) => x >= 0 && x <= 255));
   });
 
-  test('la rampa es FIJA y ancha, no estirada al recorte', () => {
-    // Estirarla a la variación de este recorte (poco más de un grado) dibujaría
-    // un degradado espectacular que sería ruido amplificado, no información.
+  test('la rampa se ajusta al recorte para que el gradiente SE VEA', () => {
+    // Corrección de criterio (`99 §ADR-041`): la escala fija y ancha dejaba el
+    // mapa de un color sobre un corredor costero, y un mapa que no enseña su
+    // gradiente no informa. Se ajusta al dato — y se declara que se ajustó.
     const min = FICHA.rampa[0].c;
     const max = FICHA.rampa[FICHA.rampa.length - 1].c;
-    assert.ok(max - min >= 15,
-      `la rampa cubre solo ${max - min} °C: se ajustó al recorte y eso fabrica un gradiente falso`);
+    const datoMin = Math.min(...FICHA.capas.map((c) => c.resumen.min));
+    const datoMax = Math.max(...FICHA.capas.map((c) => c.resumen.max));
+    assert.ok(min <= datoMin && max >= datoMax, 'la rampa tiene que cubrir todo el dato');
+    assert.ok((max - min) <= (datoMax - datoMin) + 0.5,
+      `la rampa cubre ${max - min} °C para un dato de ${(datoMax - datoMin).toFixed(2)}: sobra escala `
+      + 'y el gradiente se pierde');
+    assert.equal(FICHA.rampa_ajustada_al_recorte, true,
+      'una escala ajustada que no se declara se lee como si fuera universal');
   });
+
 });
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -153,12 +161,15 @@ describe('media no es extremo, y se dice', () => {
       'la media del año no compite con los meses: los resumiría a los dos');
   });
 
-  test('el aviso del mapa liso lleva la cifra MEDIDA, no un adjetivo', () => {
-    const a = avisoDeIsotermia(FICHA);
-    assert.ok(a, 'la ficha trae la amplitud medida: hay que decirla');
-    assert.match(a, new RegExp(FICHA.amplitud_espacial_c.toFixed(1)),
-      'decir «varía poco» sin el número no deja comprobar nada');
-    assert.match(a, /no está roto/, 'un mapa de un color sin explicación se lee como avería');
+  test('el aviso de la escala dice el rango y niega el «calor extremo»', () => {
+    // El riesgo cambió de bando: con la rampa ajustada al recorte el mapa ya no
+    // parece roto — ahora puede parecer que hay una diferencia térmica enorme
+    // donde hay tres grados. Lo que se afirma con color se explica con números.
+    const a = avisoDeEscala(FICHA);
+    assert.ok(a, 'una escala ajustada sin explicar es peor que un mapa liso');
+    assert.match(a, /ajustado a este recorte/);
+    assert.match(a, /NO significa calor extremo/);
+    assert.match(a, new RegExp(FICHA.rampa[0].c.toFixed(1)), 'el extremo frío tiene que ir escrito');
   });
 
   test('el muestreo grueso se declara, con su porqué', () => {

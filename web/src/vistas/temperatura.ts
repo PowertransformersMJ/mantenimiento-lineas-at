@@ -78,21 +78,30 @@ export function oscilacionEstacional(
 }
 
 /**
- * POR QUÉ EL MAPA SE VE LISO. Va pegado a la leyenda, no en una ayuda aparte: un
- * mapa de un solo color sin explicación se lee como una avería, y el reflejo
- * siguiente es estirar la rampa hasta que «se vea algo» — que es exactamente
- * como se fabrica un gradiente que no existe.
+ * QUÉ SIGNIFICA EL COLOR, que aquí no es lo de siempre.
+ *
+ * La escala NO es universal: se ajusta al recorte para que el gradiente se vea.
+ * Ese ajuste es lo que hace útil el mapa —con una escala climática ancha, un
+ * corredor costero sale de un solo color— y a la vez lo que puede engañar: el
+ * rojo del extremo no dice «calor extremo», dice «tres grados más que el azul
+ * del otro extremo». Sin esta frase, la lectura natural es la equivocada.
+ *
+ * ⚠️ Va SIEMPRE, no solo cuando el recorte es plano. Un mapa con gradiente
+ * bonito y sin su escala escrita es más peligroso que uno liso: el liso no
+ * afirma nada, y éste afirma con color.
  */
-export function avisoDeIsotermia(ficha: FichaTemperatura): string | null {
+export function avisoDeEscala(ficha: FichaTemperatura): string | null {
+  const rampa = ficha.rampa ?? [];
+  if (rampa.length < 2) return null;
+  const lo = rampa[0].c;
+  const hi = rampa[rampa.length - 1].c;
   const esp = ficha.amplitud_espacial_c;
-  if (typeof esp !== 'number') return null;
-  const est = ficha.oscilacion_estacional_c;
-  const cola = typeof est === 'number' && est > esp
-    ? ` Lo que sí cambia es el MES: ${est.toFixed(1)} °C entre el más fresco y el más cálido.`
+  const espacio = typeof esp === 'number'
+    ? ` En un mes dado, del punto más fresco al más cálido del recorte hay ${esp.toFixed(1)} °C.`
     : '';
-  return `En este recorte la media anual cambia solo ${esp.toFixed(1)} °C de punta a punta, así que `
-    + `el mapa se ve casi de un color: no está roto, es que el aire no distingue un extremo de la `
-    + `línea del otro.${cola}`;
+  return `El color está ajustado a este recorte —de ${lo.toFixed(1)} a ${hi.toFixed(1)} °C—, no a una `
+    + `escala climática: el rojo NO significa calor extremo, significa unos ${(hi - lo).toFixed(1)} °C `
+    + `más que el azul.${espacio} El gradiente que se ve es real; la escala, propia de este mapa.`;
 }
 
 /**

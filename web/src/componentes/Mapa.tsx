@@ -37,7 +37,7 @@ import {
   type CapaRadiacion, type FichaRadiacion,
 } from '../vistas/radiacion';
 import {
-  avisoDeIsotermia, avisoDeMuestreo as avisoDeMuestreoTemp, capaElegida as capaElegidaTemp,
+  avisoDeEscala, avisoDeMuestreo as avisoDeMuestreoTemp, capaElegida as capaElegidaTemp,
   capasOrdenadas as capasOrdenadasTemp, contraLaEds, oscilacionEstacional, NOTA_HIPOTESIS,
   type FichaTemperatura,
 } from '../vistas/temperatura';
@@ -904,7 +904,7 @@ function LeyendaTemperatura({ ficha, mes, alElegirMes, valor, cargando, edsHipot
     .join(', ');
   const osc = oscilacionEstacional(ficha);
   const muestreo = avisoDeMuestreoTemp(ficha);
-  const liso = avisoDeIsotermia(ficha);
+  const escala = avisoDeEscala(ficha);
   const anual = capas.find((c) => c.clave === 'anual') ?? null;
   const contra = contraLaEds(anual?.resumen.p50 ?? null, edsHipotesis_C);
   const u = ficha.unidad ?? '°C';
@@ -949,7 +949,7 @@ function LeyendaTemperatura({ ficha, mes, alElegirMes, valor, cargando, edsHipot
         </p>
       )}
 
-      {liso && <p className="mapa-capas-n">{liso}</p>}
+      {escala && <p className="mapa-capas-n">{escala}</p>}
       {contra && <p className="mapa-capas-n">{contra.frase}</p>}
 
       <p className="mapa-capas-n aviso">{NOTA_HIPOTESIS}</p>
