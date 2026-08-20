@@ -31,6 +31,8 @@ export interface CodificacionRejilla {
 }
 
 export interface FichaRejilla {
+  /** De qué capa es esta ficha. Lo escribe el generador y lo mira el mapa. */
+  capa?: string;
   titulo?: string;
   /** `[lonMin, latMin, lonMax, latMax]`, el mismo recorte que el mapa base. */
   bbox: [number, number, number, number];
@@ -156,4 +158,68 @@ export function valorEnPunto(
 export function esquinas(ficha: FichaRejilla): [number, number][] {
   const [lonMin, latMin, lonMax, latMax] = ficha.bbox;
   return [[lonMin, latMax], [lonMax, latMax], [lonMax, latMin], [lonMin, latMin]];
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// 5 · CAPAS TEMPORALES — lo que comparten TODAS las rejillas mes a mes
+// ════════════════════════════════════════════════════════════════════════════
+//
+// POR QUÉ VIVEN AQUÍ Y NO EN CADA CAPA. `ADR-036` dejó este archivo agnóstico a
+// propósito: no sabe si mide grados o kilovatios hora, y esa fue la razón de que
+// una capa nueva no obligue a tocar la mecánica. Ordenar doce meses y elegir cuál
+// se pinta es mecánica, no dominio: el recurso solar y la temperatura del aire lo
+// hacen EXACTAMENTE igual, y tenerlo dos veces sería tener dos ordenaciones que
+// el día que discrepen enseñarían meses distintos en la misma pantalla.
+//
+// Lo que NO sube aquí es el dominio: qué significa la magnitud, qué NO se puede
+// deducir de ella y contra qué hipótesis se compara. Eso es de cada capa.
+
+/** Una capa temporal de una rejilla: un mes, o la media del año. */
+export interface CapaTemporal {
+  /** `01`…`12` o `anual`. Estable para el código; el rótulo es lo que se lee. */
+  clave: string;
+  rotulo: string;
+  archivo: string;
+  /** Qué parte de la malla respondió al muestrear. */
+  cobertura_pct: number;
+  resumen: { min: number; p50: number; max: number };
+  peso_kib?: number;
+}
+
+/** Una rejilla que además tiene serie temporal. */
+export interface FichaTemporal extends FichaRejilla {
+  magnitud?: string;
+  unidad?: string;
+  periodo?: string;
+  capas: CapaTemporal[];
+}
+
+/** El orden en que se leen: los doce meses y, al final, la media del año. */
+export function capasOrdenadas<T extends CapaTemporal>(ficha: { capas?: T[] }): T[] {
+  const xs = [...(ficha.capas ?? [])];
+  return xs.sort((a, b) => {
+    if (a.clave === 'anual') return 1;
+    if (b.clave === 'anual') return -1;
+    return a.clave.localeCompare(b.clave);
+  });
+}
+
+/** La capa que toca pintar: la pedida, y si no está, la media del año. */
+export function capaElegida<T extends CapaTemporal>(ficha: { capas?: T[] }, clave: string | null): T | null {
+  const xs = capasOrdenadas(ficha);
+  if (!xs.length) return null;
+  return xs.find((c) => c.clave === clave) ?? xs.find((c) => c.clave === 'anual') ?? xs[0];
+}
+
+/**
+ * Lo que hay que advertir cuando se muestrea MÁS GRUESO que el dato original.
+ *
+ * `porQue` lo pone cada capa porque el motivo es suyo —el recurso solar varía
+ * suave, la temperatura del aire aún más— y un texto genérico no diría nada.
+ */
+export function avisoDeMuestreo(ficha: FichaRejilla, porQue: string): string | null {
+  const nativa = ficha.resolucion_nativa_m;
+  if (!nativa || !ficha.resolucion_m || ficha.resolucion_m <= nativa) return null;
+  return `Muestreado cada ${(ficha.resolucion_m / 1000).toFixed(1)} km sobre un dato de `
+    + `${(nativa / 1000).toFixed(1)} km: ${porQue}, pero lo que se ve es una muestra, no el original.`;
 }

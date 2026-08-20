@@ -59,11 +59,13 @@ from datetime import datetime, timedelta, timezone
 from io import BytesIO
 
 import numpy as np
-import rasterio
-from rasterio.enums import Resampling
-from rasterio.vrt import WarpedVRT
-from rasterio.windows import from_bounds
 from PIL import Image
+
+# ⚠️ `rasterio` NO se importa arriba, y es deliberado: solo lo necesitan las capas
+# de IMAGEN (satelital y térmico), que leen GeoTIFF remotos. Las capas de PUNTO
+# —recurso solar y temperatura del aire— se construyen con `urllib` y `numpy`, y
+# arrastrar GDAL para muestrear un JSON dejaría el script inejecutable en una
+# máquina limpia por una dependencia que esa capa no usa.
 
 # ── El recorte: EXACTAMENTE el del mapa base ────────────────────────────────
 # Si estos números se separan de los del `cartagena.pmtiles`, una capa enseñaría
@@ -130,7 +132,7 @@ def tamano_bloque(metros_px):
     return (int(round((x1 - x0) / metros_px)), int(round((y1 - y0) / metros_px)), (x0, y0, x1, y1))
 
 
-def leer_bloque(url, bandas, metros_px, remuestreo=Resampling.bilinear):
+def leer_bloque(url, bandas, metros_px, remuestreo=None):
     """
     La zona del recorte, ya en Web Mercator y a la resolución que se pida.
 
@@ -144,6 +146,12 @@ def leer_bloque(url, bandas, metros_px, remuestreo=Resampling.bilinear):
     """
     ancho, alto, limites = tamano_bloque(metros_px)
     print(f'   leyendo {ancho}×{alto} px ({metros_px:g} m/píxel) desde la escena…')
+    import rasterio                                       # perezoso: solo capas de imagen
+    from rasterio.enums import Resampling
+    from rasterio.vrt import WarpedVRT
+    from rasterio.windows import from_bounds
+    remuestreo = (Resampling.nearest if remuestreo == 'nearest'
+                  else Resampling.bilinear if remuestreo is None else remuestreo)
     with rasterio.open(url) as src:
         with WarpedVRT(src, crs='EPSG:3857', resampling=remuestreo) as vrt:
             ventana = from_bounds(*limites, vrt.transform)
@@ -454,7 +462,7 @@ def rejilla_de_una_fecha(escena):
     """
     datos, _ = leer_bloque('/vsicurl/' + escena['url'], [1], METROS_LANDSAT)
     qa, _ = leer_bloque('/vsicurl/' + escena['url_qa'], [1], METROS_LANDSAT,
-                        remuestreo=Resampling.nearest)   # una máscara NO se interpola
+                        remuestreo='nearest')            # una máscara NO se interpola
 
     bruto = datos[0].astype(np.float32)
     tapado = (qa[0].astype(np.uint16) & QA_BITS_MALOS) != 0
@@ -715,6 +723,147 @@ def radiacion():
     })
 
 
+# ════════════════════════════════════════════════════════════════════════════
+# 4 · TEMPERATURA DEL AIRE — la que SÍ entra en el cálculo
+# ════════════════════════════════════════════════════════════════════════════
+#
+# POR QUÉ ESTA CAPA Y NO LA DEL SUELO. `ADR-036` publicó la temperatura de la
+# SUPERFICIE (Landsat ST_B10) y `ADR-037` la retiró: es lo que miden los tejados
+# y el asfalto vistos desde arriba en el instante del paso del satélite, y **no
+# entra en ninguna ecuación de este sistema**. La del AIRE sí: es entrada directa
+# de la ampacidad (IEEE 738) y es el marco de las cuatro temperaturas de la
+# hipótesis —EDS, máxima, mínima y la del estado de viento—, que hoy están
+# ADOPTADAS sin una sola fuente local detrás (`TODO-71`).
+#
+# ⚠️ LAS DOS FRASES QUE IMPIDEN EL MAL USO, y van en la leyenda:
+#
+#   1. **ES UNA MEDIA DE LARGO PLAZO (1994-2025), NO UN EXTREMO.** La hipótesis
+#      de tiro máximo se juega con la MÍNIMA histórica y la ampacidad de diseño
+#      con un percentil ALTO; una media no es ni lo uno ni lo otro. Tomar los
+#      27 °C de media como «la mínima del sitio» sería peor que no tener el dato:
+#      el tiro en frío saldría corto y el apoyo terminal parecería sano.
+#   2. **EN ESTE RECORTE EL MAPA ES CASI PLANO.** De punta a punta la media anual
+#      cambia 0,4 °C (27,1 → 27,5; verificado por muestreo el 2026-08-20), o sea
+#      MENOS que el error del propio modelo. Lo que sí cambia de verdad es el MES
+#      —hasta 2,4 °C entre el más fresco y el más cálido en un mismo punto—. Por
+#      eso la rampa es FIJA y ancha: estirarla a los 0,4 °C del recorte dibujaría
+#      un degradado espectacular que sería ruido amplificado, no información.
+#
+# ── La fuente y su licencia (la MISMA del recurso solar, verificada 2026-08-20)
+# Global Solar Atlas 2.0 — Solargis para el Grupo Banco Mundial (ESMAP), capa
+# `TEMP`: temperatura del aire a 2 m, °C, promedio de largo plazo **1994-2025**
+# (versión 2.2.67, actualizada 2026-03-01 — lo declara el propio servicio en
+# `annual.metadata.layers.TEMP`). **CC BY 4.0**: uso comercial permitido con
+# atribución, y su punto de consulta no pide cuenta ni clave. Se muestrea una
+# vez, aquí, y se autohospeda: la aplicación no le pide nada a nadie.
+
+METROS_TEMPERATURA = 2000
+
+# °C. El byte 0 sigue siendo SIN DATO. El rango cubre de un páramo colombiano
+# (5 °C) al Caribe (35,5 °C) para que dos recortes distintos se puedan comparar
+# sin recalibrar nada; el paso de 0,12 °C es más fino que la variación espacial
+# de un recorte costero, que es de décimas.
+TMP_OFFSET, TMP_PASO = 5.0, 0.12
+
+# Rampa FIJA, en °C. Misma familia de color que el recurso solar —frío azul,
+# cálido rojo— para que las dos capas se lean con el mismo ojo.
+RAMPA_TEMPERATURA = [
+    (12.0, (49, 54, 149)), (16.0, (69, 117, 180)), (20.0, (171, 217, 233)),
+    (24.0, (255, 245, 190)), (26.0, (254, 224, 144)), (28.0, (253, 174, 97)),
+    (30.0, (244, 109, 67)), (32.0, (215, 48, 39)), (35.0, (165, 0, 38)),
+]
+
+
+def temperatura():
+    ancho, alto, puntos = malla_de_muestreo(METROS_TEMPERATURA)
+    print(f'🌡️  muestreando {len(puntos)} puntos ({ancho}×{alto}, uno cada '
+          f'{METROS_TEMPERATURA / 1000:g} km) del Global Solar Atlas…')
+
+    # 13 rejillas: los doce meses y la media del año. A diferencia del recurso
+    # solar, aquí NO se divide por los días del mes: la temperatura ya es una
+    # media, no una cantidad que se acumule.
+    rejillas = [np.zeros((alto, ancho), dtype=np.uint8) for _ in range(13)]
+    fallos = 0
+    for n, (ix, iy, lat, lon) in enumerate(puntos):
+        if n and n % 40 == 0:
+            print(f'   {n}/{len(puntos)}…')
+        d = pedir_gsa(lat, lon)
+        time.sleep(0.2)                                      # el servicio es de otro
+        if not d:
+            fallos += 1
+            continue
+        try:
+            mensual = d['monthly']['data']['TEMP']
+            anual = d['annual']['data']['TEMP']
+        except (KeyError, TypeError):
+            fallos += 1
+            continue
+        for k, v in enumerate(list(mensual) + [anual]):
+            b = int(round((v - TMP_OFFSET) / TMP_PASO)) + 1
+            rejillas[k][iy, ix] = min(255, max(1, b))
+
+    medidos = int(np.count_nonzero(rejillas[12]))
+    if medidos < len(puntos) * 0.9:
+        sys.exit(f'❌ solo respondieron {medidos} de {len(puntos)} puntos: no se publica media capa')
+
+    capas = []
+    for k in range(13):
+        nombre = f'cartagena-temperatura-{"anual" if k == 12 else f"{k + 1:02d}"}.png'
+        Image.fromarray(rejillas[k], 'L').save(os.path.join(SALIDA, nombre), optimize=True)
+        v = (rejillas[k][rejillas[k] > 0].astype(np.float32) - 1) * TMP_PASO + TMP_OFFSET
+        capas.append({
+            'clave': 'anual' if k == 12 else f'{k + 1:02d}',
+            'rotulo': 'Media del año' if k == 12 else MESES[k].capitalize(),
+            'archivo': nombre,
+            'cobertura_pct': round(100 * medidos / len(puntos), 1),
+            'resumen': {
+                'min': round(float(v.min()), 2), 'p50': round(float(np.median(v)), 2),
+                'max': round(float(v.max()), 2),
+            },
+            'peso_kib': round(os.path.getsize(os.path.join(SALIDA, nombre)) / 1024, 1),
+        })
+        print(f'   {capas[-1]["rotulo"]:>14}: {capas[-1]["resumen"]["min"]:.2f} … '
+              f'{capas[-1]["resumen"]["max"]:.2f} °C')
+
+    # LA AMPLITUD ESPACIAL, medida y publicada: es la cifra que justifica que el
+    # mapa se vea liso, y sin ella la capa parecería rota.
+    anual_v = (rejillas[12][rejillas[12] > 0].astype(np.float32) - 1) * TMP_PASO + TMP_OFFSET
+    amplitud = float(anual_v.max() - anual_v.min())
+    meses_p50 = [c['resumen']['p50'] for c in capas[:12]]
+    estacional = max(meses_p50) - min(meses_p50)
+    print(f'\n📏 amplitud ESPACIAL de la media anual: {amplitud:.2f} °C · '
+          f'oscilación entre MESES: {estacional:.2f} °C')
+    print(f'✅ 13 capas · {sum(c["peso_kib"] for c in capas):.0f} KiB · {fallos} punto(s) sin respuesta')
+
+    escribir_ficha('temperatura', {
+        'capa': 'temperatura',
+        'titulo': 'Temperatura del aire (Global Solar Atlas)',
+        'magnitud': 'TEMP — temperatura del aire a 2 m',
+        'unidad': '°C',
+        'bbox': list(BBOX),
+        'ancho': ancho,
+        'alto': alto,
+        'resolucion_m': METROS_TEMPERATURA,
+        'resolucion_nativa_m': 1000,
+        'codificacion': {
+            'nota': 'byte 0 = SIN DATO. Con byte v ≥ 1: valor = (v − 1) × paso + offset',
+            'offset': TMP_OFFSET, 'paso': TMP_PASO, 'sin_dato': 0,
+        },
+        'rampa': [{'c': t, 'rgb': list(c)} for t, c in RAMPA_TEMPERATURA],
+        'capas': capas,
+        'periodo': 'promedio de largo plazo 1994-2025 (no es un día concreto)',
+        'fuente': 'Global Solar Atlas 2.0 (Solargis / Banco Mundial / ESMAP), capa TEMP, muestreada por punto',
+        'licencia': 'CC BY 4.0 — uso comercial permitido con atribución',
+        'atribucion': ATRIBUCION_GSA,
+        # Las dos verdades que la pantalla tiene que decir, medidas aquí y no
+        # supuestas allá: sin ellas, un mapa liso se lee como avería y una media
+        # se lee como un extremo.
+        'amplitud_espacial_c': round(amplitud, 2),
+        'oscilacion_estacional_c': round(estacional, 2),
+        'es_media_no_extremo': True,
+    })
+
+
 # ── La ficha que lee la aplicación ──────────────────────────────────────────
 
 def escribir_ficha(nombre, ficha):
@@ -733,7 +882,7 @@ def escribir_ficha(nombre, ficha):
 
 if __name__ == '__main__':
     p = argparse.ArgumentParser(description='Construye las capas raster autohospedadas.')
-    p.add_argument('capa', choices=['satelital', 'termico', 'radiacion'])
+    p.add_argument('capa', choices=['satelital', 'termico', 'radiacion', 'temperatura'])
     p.add_argument('--fechas', type=int, default=12,
                    help='cuántas fechas utilizables buscar para el térmico')
     args = p.parse_args()
@@ -742,5 +891,7 @@ if __name__ == '__main__':
         satelital()
     elif args.capa == 'radiacion':
         radiacion()
+    elif args.capa == 'temperatura':
+        temperatura()
     else:
         termico(args.fechas)

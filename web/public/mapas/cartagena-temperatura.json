@@ -1,0 +1,261 @@
+{
+  "capa": "temperatura",
+  "titulo": "Temperatura del aire (Global Solar Atlas)",
+  "magnitud": "TEMP — temperatura del aire a 2 m",
+  "unidad": "°C",
+  "bbox": [
+    -75.62,
+    10.2,
+    -75.33,
+    10.58
+  ],
+  "ancho": 16,
+  "alto": 22,
+  "resolucion_m": 2000,
+  "resolucion_nativa_m": 1000,
+  "codificacion": {
+    "nota": "byte 0 = SIN DATO. Con byte v ≥ 1: valor = (v − 1) × paso + offset",
+    "offset": 5.0,
+    "paso": 0.12,
+    "sin_dato": 0
+  },
+  "rampa": [
+    {
+      "c": 12.0,
+      "rgb": [
+        49,
+        54,
+        149
+      ]
+    },
+    {
+      "c": 16.0,
+      "rgb": [
+        69,
+        117,
+        180
+      ]
+    },
+    {
+      "c": 20.0,
+      "rgb": [
+        171,
+        217,
+        233
+      ]
+    },
+    {
+      "c": 24.0,
+      "rgb": [
+        255,
+        245,
+        190
+      ]
+    },
+    {
+      "c": 26.0,
+      "rgb": [
+        254,
+        224,
+        144
+      ]
+    },
+    {
+      "c": 28.0,
+      "rgb": [
+        253,
+        174,
+        97
+      ]
+    },
+    {
+      "c": 30.0,
+      "rgb": [
+        244,
+        109,
+        67
+      ]
+    },
+    {
+      "c": 32.0,
+      "rgb": [
+        215,
+        48,
+        39
+      ]
+    },
+    {
+      "c": 35.0,
+      "rgb": [
+        165,
+        0,
+        38
+      ]
+    }
+  ],
+  "capas": [
+    {
+      "clave": "01",
+      "rotulo": "Enero",
+      "archivo": "cartagena-temperatura-01.png",
+      "cobertura_pct": 100.0,
+      "resumen": {
+        "min": 26.72,
+        "p50": 27.32,
+        "max": 27.56
+      },
+      "peso_kib": 0.2
+    },
+    {
+      "clave": "02",
+      "rotulo": "Febrero",
+      "archivo": "cartagena-temperatura-02.png",
+      "cobertura_pct": 100.0,
+      "resumen": {
+        "min": 27.2,
+        "p50": 27.8,
+        "max": 28.4
+      },
+      "peso_kib": 0.2
+    },
+    {
+      "clave": "03",
+      "rotulo": "Marzo",
+      "archivo": "cartagena-temperatura-03.png",
+      "cobertura_pct": 100.0,
+      "resumen": {
+        "min": 27.2,
+        "p50": 27.92,
+        "max": 28.4
+      },
+      "peso_kib": 0.2
+    },
+    {
+      "clave": "04",
+      "rotulo": "Abril",
+      "archivo": "cartagena-temperatura-04.png",
+      "cobertura_pct": 100.0,
+      "resumen": {
+        "min": 27.08,
+        "p50": 27.8,
+        "max": 28.04
+      },
+      "peso_kib": 0.2
+    },
+    {
+      "clave": "05",
+      "rotulo": "Mayo",
+      "archivo": "cartagena-temperatura-05.png",
+      "cobertura_pct": 100.0,
+      "resumen": {
+        "min": 26.48,
+        "p50": 27.44,
+        "max": 27.8
+      },
+      "peso_kib": 0.2
+    },
+    {
+      "clave": "06",
+      "rotulo": "Junio",
+      "archivo": "cartagena-temperatura-06.png",
+      "cobertura_pct": 100.0,
+      "resumen": {
+        "min": 26.36,
+        "p50": 27.32,
+        "max": 27.68
+      },
+      "peso_kib": 0.2
+    },
+    {
+      "clave": "07",
+      "rotulo": "Julio",
+      "archivo": "cartagena-temperatura-07.png",
+      "cobertura_pct": 100.0,
+      "resumen": {
+        "min": 26.48,
+        "p50": 27.5,
+        "max": 27.8
+      },
+      "peso_kib": 0.2
+    },
+    {
+      "clave": "08",
+      "rotulo": "Agosto",
+      "archivo": "cartagena-temperatura-08.png",
+      "cobertura_pct": 100.0,
+      "resumen": {
+        "min": 26.24,
+        "p50": 27.32,
+        "max": 27.68
+      },
+      "peso_kib": 0.2
+    },
+    {
+      "clave": "09",
+      "rotulo": "Septiembre",
+      "archivo": "cartagena-temperatura-09.png",
+      "cobertura_pct": 100.0,
+      "resumen": {
+        "min": 25.88,
+        "p50": 27.08,
+        "max": 27.44
+      },
+      "peso_kib": 0.2
+    },
+    {
+      "clave": "10",
+      "rotulo": "Octubre",
+      "archivo": "cartagena-temperatura-10.png",
+      "cobertura_pct": 100.0,
+      "resumen": {
+        "min": 25.4,
+        "p50": 26.6,
+        "max": 26.96
+      },
+      "peso_kib": 0.2
+    },
+    {
+      "clave": "11",
+      "rotulo": "Noviembre",
+      "archivo": "cartagena-temperatura-11.png",
+      "cobertura_pct": 100.0,
+      "resumen": {
+        "min": 25.28,
+        "p50": 26.6,
+        "max": 26.96
+      },
+      "peso_kib": 0.2
+    },
+    {
+      "clave": "12",
+      "rotulo": "Diciembre",
+      "archivo": "cartagena-temperatura-12.png",
+      "cobertura_pct": 100.0,
+      "resumen": {
+        "min": 25.88,
+        "p50": 26.96,
+        "max": 27.2
+      },
+      "peso_kib": 0.2
+    },
+    {
+      "clave": "anual",
+      "rotulo": "Media del año",
+      "archivo": "cartagena-temperatura-anual.png",
+      "cobertura_pct": 100.0,
+      "resumen": {
+        "min": 26.36,
+        "p50": 27.32,
+        "max": 27.56
+      },
+      "peso_kib": 0.2
+    }
+  ],
+  "periodo": "promedio de largo plazo 1994-2025 (no es un día concreto)",
+  "fuente": "Global Solar Atlas 2.0 (Solargis / Banco Mundial / ESMAP), capa TEMP, muestreada por punto",
+  "licencia": "CC BY 4.0 — uso comercial permitido con atribución",
+  "atribucion": "Global Solar Atlas 2.0 — Solargis s.r.o. para el Grupo Banco Mundial, con fondos de ESMAP (CC BY 4.0)",
+  "amplitud_espacial_c": 1.2,
+  "oscilacion_estacional_c": 1.32,
+  "es_media_no_extremo": true
+}

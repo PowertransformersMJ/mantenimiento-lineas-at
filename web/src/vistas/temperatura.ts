@@ -1,0 +1,143 @@
+// ============================================================================
+// vistas/temperatura.ts — la temperatura del AIRE del corredor, mes a mes
+// ----------------------------------------------------------------------------
+// POR QUÉ ESTA CAPA Y POR QUÉ NO ES LA QUE SE RETIRÓ. `ADR-036` publicó la
+// temperatura de la SUPERFICIE —lo que miden los tejados y el asfalto vistos
+// desde arriba— y `ADR-037` la quitó por una razón de fondo: no entra en ninguna
+// ecuación de este sistema. La del AIRE sí entra, y por dos puertas:
+//
+//   · La **ampacidad** (IEEE 738) se calcula con la temperatura ambiente: es,
+//     junto al viento y al sol, lo que decide cuánta corriente aguanta el
+//     conductor sin pasarse de su temperatura máxima.
+//   · Las **cuatro temperaturas de la hipótesis** —EDS, máxima, mínima y la del
+//     estado de viento— son hoy valores ADOPTADOS, sin una sola fuente local
+//     detrás (`TODO-71`). Esta capa pone por primera vez una cifra del sitio al
+//     lado de esas suposiciones.
+//
+// ⚠️⚠️ LAS DOS TRAMPAS, y hay que decirlas en voz alta porque las dos llevan a
+// firmar un número que no se sostiene:
+//
+//   1. **ES UNA MEDIA DE LARGO PLAZO, NO UN EXTREMO.** El tiro máximo se juega
+//      con la MÍNIMA histórica y la ampacidad de diseño con un percentil ALTO.
+//      Una media no es ni lo uno ni lo otro. Leer los 27 °C de media como «la
+//      mínima del sitio» dejaría el tiro en frío corto y un apoyo terminal
+//      parecería sano sin serlo. Cerrar `TODO-71` exige una SERIE, con sus
+//      percentiles; esto es el marco, no el cierre.
+//   2. **EN UN RECORTE COSTERO EL MAPA SE VE CASI LISO, y no está roto.** La
+//      media anual cambia décimas de grado de punta a punta —menos que el error
+//      del propio modelo—, mientras que entre el mes más fresco y el más cálido
+//      hay grados enteros. Por eso la rampa es FIJA y ancha: estirarla a la
+//      variación del recorte pintaría un degradado espectacular que sería ruido
+//      amplificado. La cifra medida viaja en la ficha y la pantalla la enseña.
+//
+// PURO: sin DOM y sin red. Las mecánicas de la rejilla viven en `rejilla.ts`.
+// ============================================================================
+import {
+  capaElegida as capaElegidaDeRejilla, capasOrdenadas as capasOrdenadasDeRejilla,
+  avisoDeMuestreo as avisoDeMuestreoDeRejilla,
+  type CapaTemporal, type FichaTemporal,
+} from './rejilla.ts';
+
+/** Una capa temporal de la rejilla térmica: un mes, o la media del año. */
+export type CapaTemperatura = CapaTemporal;
+
+export interface FichaTemperatura extends FichaTemporal {
+  /** Cuánto cambia la media anual de punta a punta del recorte, en °C. Medido. */
+  amplitud_espacial_c?: number;
+  /** Cuánto separa al mes más cálido del más fresco, en °C. Medido. */
+  oscilacion_estacional_c?: number;
+  /** Bandera del generador: lo publicado es una media, jamás un extremo. */
+  es_media_no_extremo?: boolean;
+}
+
+/** El orden en que se leen: los doce meses y, al final, la media del año. */
+export function capasOrdenadas(ficha: FichaTemperatura): CapaTemperatura[] {
+  return capasOrdenadasDeRejilla(ficha);
+}
+
+/** La capa que toca pintar: la pedida, y si no está, la media del año. */
+export function capaElegida(ficha: FichaTemperatura, clave: string | null): CapaTemperatura | null {
+  return capaElegidaDeRejilla(ficha, clave);
+}
+
+/**
+ * Cuánto separa al mes más cálido del más fresco, EN GRADOS.
+ *
+ * En grados y no en tanto por ciento, a diferencia del recurso solar: un 8 % de
+ * 27 °C no significa nada —la escala Celsius no tiene cero físico—, y quien lea
+ * un porcentaje sobre una temperatura acabará multiplicándolo por algo.
+ */
+export function oscilacionEstacional(
+  ficha: FichaTemperatura,
+): { alto: CapaTemperatura; bajo: CapaTemperatura; grados: number } | null {
+  const meses = capasOrdenadas(ficha).filter((c) => c.clave !== 'anual');
+  if (meses.length < 2) return null;
+  const alto = meses.reduce((a, b) => (b.resumen.p50 > a.resumen.p50 ? b : a));
+  const bajo = meses.reduce((a, b) => (b.resumen.p50 < a.resumen.p50 ? b : a));
+  return { alto, bajo, grados: alto.resumen.p50 - bajo.resumen.p50 };
+}
+
+/**
+ * POR QUÉ EL MAPA SE VE LISO. Va pegado a la leyenda, no en una ayuda aparte: un
+ * mapa de un solo color sin explicación se lee como una avería, y el reflejo
+ * siguiente es estirar la rampa hasta que «se vea algo» — que es exactamente
+ * como se fabrica un gradiente que no existe.
+ */
+export function avisoDeIsotermia(ficha: FichaTemperatura): string | null {
+  const esp = ficha.amplitud_espacial_c;
+  if (typeof esp !== 'number') return null;
+  const est = ficha.oscilacion_estacional_c;
+  const cola = typeof est === 'number' && est > esp
+    ? ` Lo que sí cambia es el MES: ${est.toFixed(1)} °C entre el más fresco y el más cálido.`
+    : '';
+  return `En este recorte la media anual cambia solo ${esp.toFixed(1)} °C de punta a punta, así que `
+    + `el mapa se ve casi de un color: no está roto, es que el aire no distingue un extremo de la `
+    + `línea del otro.${cola}`;
+}
+
+/**
+ * La frase que impide el mal uso. Nombra las hipótesis concretas que NO cierra.
+ */
+export const NOTA_HIPOTESIS =
+  'Esto es una MEDIA de largo plazo, no un extremo. No cierra la temperatura mínima con la que se '
+  + 'calcula el tiro máximo en frío, ni la ambiente de diseño de la ampacidad: las dos son '
+  + 'percentiles de una SERIE, y una media no lo es. Sirve para saber en qué marco térmico vive la '
+  + 'línea y para discutir con fundamento las temperaturas adoptadas (pestaña Térmica).';
+
+/** Lo que hay que advertir del muestreo, cuando toque. */
+export function avisoDeMuestreo(ficha: FichaTemperatura): string | null {
+  return avisoDeMuestreoDeRejilla(
+    ficha, 'la temperatura del aire varía aún más suave que el recurso solar');
+}
+
+/**
+ * La media del sitio FRENTE a la temperatura que el cálculo da por buena.
+ *
+ * NO dictamina, y el matiz es el mismo que en el pronóstico: comparar no es
+ * validar. Una media por encima de la EDS adoptada no dice que la hipótesis esté
+ * mal —el EDS es una condición de referencia, no el clima—, pero sí dice que la
+ * suposición merece una mirada, y con qué diferencia.
+ */
+export function contraLaEds(
+  mediaAnual_c: number | null,
+  hipotesisEds_c: number | null | undefined,
+): { delta: number; frase: string } | null {
+  const h = typeof hipotesisEds_c === 'number' ? hipotesisEds_c : null;
+  if (mediaAnual_c === null || h === null) return null;
+  const delta = mediaAnual_c - h;
+  if (Math.abs(delta) < 0.5) {
+    return {
+      delta,
+      frase: `La media del sitio (${mediaAnual_c.toFixed(1)} °C) y la temperatura con la que se `
+        + `calcula el estado de cada día (${h.toFixed(0)} °C) coinciden en la práctica.`,
+    };
+  }
+  return {
+    delta,
+    frase: `La media del sitio es ${mediaAnual_c.toFixed(1)} °C y el cálculo usa ${h.toFixed(0)} °C `
+      + `para el estado de cada día: ${Math.abs(delta).toFixed(1)} °C `
+      + `${delta > 0 ? 'por encima' : 'por debajo'}. No lo valida ni lo desmiente —el EDS es una `
+      + 'condición de referencia, no el clima del sitio—, pero es una diferencia que merece '
+      + 'mirarse antes de firmar.',
+  };
+}

@@ -20,43 +20,32 @@
 //
 // PURO: sin DOM y sin red. Las mecánicas de la rejilla viven en `rejilla.ts`.
 // ============================================================================
-import type { FichaRejilla } from './rejilla';
+import {
+  capaElegida as capaElegidaDeRejilla, capasOrdenadas as capasOrdenadasDeRejilla,
+  avisoDeMuestreo as avisoDeMuestreoDeRejilla,
+  type CapaTemporal, type FichaTemporal,
+} from './rejilla.ts';
 
-/** Una capa temporal del atlas: un mes, o la media del año. */
-export interface CapaRadiacion {
-  /** `01`…`12` o `anual`. Estable para el código; el rótulo es lo que se lee. */
-  clave: string;
-  rotulo: string;
-  archivo: string;
-  /** Qué parte de la malla respondió al muestrear. */
-  cobertura_pct: number;
-  resumen: { min: number; p50: number; max: number };
-  peso_kib?: number;
-}
+/**
+ * Una capa temporal del atlas: un mes, o la media del año.
+ *
+ * Es la misma forma que usa cualquier rejilla mensual, así que su dueño es
+ * `rejilla.ts`: el nombre de aquí se conserva para no renombrar nada.
+ */
+export type CapaRadiacion = CapaTemporal;
 
-export interface FichaRadiacion extends FichaRejilla {
-  magnitud?: string;
-  unidad?: string;
-  periodo?: string;
-  capas: CapaRadiacion[];
+export interface FichaRadiacion extends FichaTemporal {
   no_es_irradiancia_instantanea?: boolean;
 }
 
 /** El orden en que se leen: los doce meses y, al final, la media del año. */
 export function capasOrdenadas(ficha: FichaRadiacion): CapaRadiacion[] {
-  const xs = [...(ficha.capas ?? [])];
-  return xs.sort((a, b) => {
-    if (a.clave === 'anual') return 1;
-    if (b.clave === 'anual') return -1;
-    return a.clave.localeCompare(b.clave);
-  });
+  return capasOrdenadasDeRejilla(ficha);
 }
 
 /** La capa que toca pintar: la pedida, y si no está, la media del año. */
 export function capaElegida(ficha: FichaRadiacion, clave: string | null): CapaRadiacion | null {
-  const xs = capasOrdenadas(ficha);
-  if (!xs.length) return null;
-  return xs.find((c) => c.clave === clave) ?? xs.find((c) => c.clave === 'anual') ?? xs[0];
+  return capaElegidaDeRejilla(ficha, clave);
 }
 
 /**
@@ -87,9 +76,6 @@ export const NOTA_AMPACIDAD =
 
 /** Lo que hay que advertir del muestreo, cuando toque. */
 export function avisoDeMuestreo(ficha: FichaRadiacion): string | null {
-  const nativa = ficha.resolucion_nativa_m;
-  if (!nativa || !ficha.resolucion_m || ficha.resolucion_m <= nativa) return null;
-  return `Muestreado cada ${(ficha.resolucion_m / 1000).toFixed(1)} km sobre un dato de `
-    + `${(nativa / 1000).toFixed(1)} km: el recurso solar varía suave y el gradiente se dibuja `
-    + 'igual, pero lo que se ve es una muestra, no el original.';
+  return avisoDeMuestreoDeRejilla(
+    ficha, 'el recurso solar varía suave y el gradiente se dibuja igual');
 }
