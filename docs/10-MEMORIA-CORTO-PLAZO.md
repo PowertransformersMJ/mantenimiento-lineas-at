@@ -83,7 +83,7 @@ en los W/m² instantáneos de la ampacidad.
 | **TODO-59** | **Qué ficha se le pide a CADA tipología.** La línea mezcla 4 (pórticos de 2 y 3 postes, torre reticulada, poste simple) y el molde es de POSTE (`40 §8.3`) | Son tres o cuatro formularios, no uno |
 | **TODO-33** | **50 % o 25 % de RTS** como tope de tiro | Factor 2 sobre un dictamen |
 | **TODO-58** | **¿Dónde deben vivir los datos?** Hoy Firestore (São Paulo) y R2 bajo TUS cuentas personales, con coordenadas y fotos del empleador | La región de Firestore es INMUTABLE |
-| **TODO-44/34** | Alerta de presupuesto en Cloudflare · respaldo de la bóveda (sin remoto, 337 MB) | R2 factura · sin respaldo, la asignación de las 99 fotos deja de ser reproducible |
+| **TODO-44/34** | Alerta de presupuesto en Cloudflare · respaldo de la bóveda: sus **205 fotos (127 MB) están SIN seguimiento** en `fotos/registro-2026-08/` a propósito —por eso su `git status` sale sucio, no por un pendiente | R2 factura · sin respaldo, la asignación de las 99 fotos deja de ser reproducible |
 | **TODO-61/54/68** | ¿App Check? (se enciende en consola, `git revert` no lo deshace) · ¿que el linter vigile la frescura semántica? · ¿que cace un ADR repetido? — el `ADR-023` estuvo duplicado 9 días con todo en verde (`30 · L-47`). Las dos últimas tocan el KERNEL | Las TRES son TUYAS |
 | **TODO-03/25/36** | Cronometrar LN-627 · probar descargas y Salir con su sesión | — |
 
