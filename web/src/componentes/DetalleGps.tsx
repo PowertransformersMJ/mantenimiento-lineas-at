@@ -25,10 +25,18 @@
 // ============================================================================
 import { Suspense, lazy, useMemo } from 'react';
 import type { Apoyo, Hipotesis, Investigacion } from '@lineas/contratos';
-import { soloEstructuras, nombreVisible } from '../vistas/planta';
+import { conReintentos } from '../datos/cargar';
+import { PlantaSvg, RespaldoMapa } from './Linea';
+import { soloEstructuras, nombreVisible, resumenDelLevantamiento } from '../vistas/planta';
 import { aGMS, nf } from '../vistas/formato';
 
-const Mapa = lazy(() => import('./Mapa'));
+// ⚠️ `conReintentos`, y no un `import()` pelado. `datos/cargar.ts` es «la ÚNICA
+// frontera de carga diferida del sistema» y lo es por un fallo que ya ocurrió en
+// producción: el trozo tardó unos segundos en estar disponible, el navegador
+// falló una vez y la página se quedó en blanco PARA SIEMPRE. Una segunda
+// frontera sin reintentos habría reabierto exactamente ese agujero, y aquí duele
+// más: a esta pestaña se llega por enlace directo desde el teléfono, en campo.
+const Mapa = lazy(() => conReintentos(() => import('./Mapa')));
 
 /** Un punto del levantamiento, con lo que el GPS dejó dicho de él. */
 interface FilaGps {
@@ -67,12 +75,10 @@ export function DetalleGps({ apoyos, investigaciones, alVerEvento, hipotesis }: 
     }), [apoyos]);
 
   const estructuras = useMemo(() => soloEstructuras(apoyos).length, [apoyos]);
-  // La peor precisión declarada manda: un levantamiento vale lo que su punto más
-  // flojo, no lo que su media. Promediar precisiones esconde justo el punto por
-  // el que se va a discutir un despeje.
-  const peorPrecision = useMemo(() => filas.reduce<number | null>(
-    (peor, f) => (f.precision_m === null ? peor : (peor === null || f.precision_m > peor ? f.precision_m : peor)),
-    null), [filas]);
+  // Quién es dueño de este hecho: `vistas/planta.ts`. Aquí no se agrega nada —
+  // tomar el sistema y el método de la PRIMERA fila mentiría el día que el
+  // levantamiento sea mixto, y la peor precisión no es un `reduce` de pantalla.
+  const lev = useMemo(() => resumenDelLevantamiento(apoyos), [apoyos]);
 
   return (
     <>
@@ -84,10 +90,19 @@ export function DetalleGps({ apoyos, investigaciones, alVerEvento, hipotesis }: 
           trazado: su tramo de tensión.
         </p>
 
-        <Suspense fallback={<p className="fine">Descargando el mapa…</p>}>
-          <Mapa apoyos={apoyos} eventos={investigaciones} alVerEvento={alVerEvento}
-            hipotesis={hipotesis} panelALado />
-        </Suspense>
+        {/* Las mismas TRES redes que el Resumen, y por los mismos motivos: el
+            error boundary impide que un fallo del mapa se lleve por delante la
+            aplicación entera, y el `respaldo` degrada al esquema geométrico —que
+            funciona sin conexión— en vez de dejar una caja vacía con un panel de
+            capas que parece sano y no hace nada. Un hueco disfrazado de pantalla
+            buena es justo lo que este producto no puede permitirse. */}
+        <RespaldoMapa apoyos={apoyos}>
+          <Suspense fallback={<PlantaSvg apoyos={apoyos} nota="Descargando el mapa…" />}>
+            <Mapa apoyos={apoyos} eventos={investigaciones} alVerEvento={alVerEvento}
+              hipotesis={hipotesis} panelALado
+              respaldo={<PlantaSvg apoyos={apoyos} nota="El mapa no se pudo descargar; se muestra el esquema geométrico (funciona sin conexión). Las coordenadas de abajo siguen completas." />} />
+          </Suspense>
+        </RespaldoMapa>
 
         <p className="leyenda">
           <span className="li ancla" /> anclaje
@@ -101,13 +116,15 @@ export function DetalleGps({ apoyos, investigaciones, alVerEvento, hipotesis }: 
         <h2>Coordenadas levantadas</h2>
         <p className="fine">
           {nf(estructuras)} estructuras y {nf(filas.length - estructuras)} empalmes ·
-          sistema <b>{filas[0]?.sistema ?? '—'}</b> · {filas[0]?.metodo ?? '—'}
-          {peorPrecision !== null && <> · precisión declarada más floja: <b>± {nf(peorPrecision)} m</b></>}.
+          sistema <b>{lev.sistemas.join(' / ') || '—'}</b> · {lev.metodos.join(' / ') || '—'}
+          {lev.peorPrecision_m !== null && (
+            <> · precisión declarada más floja: <b>± {nf(lev.peorPrecision_m)} m</b></>
+          )}.
         </p>
         <p className="advertencia">
           <b>Esta precisión no sirve para verificar despejes.</b> Un GPS de mano sitúa el apoyo en el
           plano con el error que él mismo declara; la cota que entrega arrastra ese mismo error y por
-          eso el relieve no se dibuja ni entra en el vano peso (`docs/40 §8`). Sirve para saber dónde
+          eso el relieve no se dibuja ni entra en el vano peso. Sirve para saber dónde
           está el apoyo y para llegar hasta él, no para dictaminar una distancia vertical.
         </p>
 

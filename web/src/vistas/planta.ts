@@ -154,3 +154,32 @@ export function geometriaSvg(apoyos: Apoyo[], ancho = 640): GeometriaSvg | null 
     })(),
   };
 }
+
+/**
+ * QUÉ DICE EL LEVANTAMIENTO DE SÍ MISMO: en qué sistema, con qué método y con
+ * qué precisión se tomaron los puntos.
+ *
+ * ⚠️ Se agregan los valores DISTINTOS, no se toma el del primer punto. Hoy la
+ * línea entera se levantó con el mismo GPS de mano y las tres listas tienen un
+ * solo elemento; el día que entre un punto con RTK —que es el plan para poder
+ * verificar despejes— una pantalla que lea la primera fila diría «GPS de mano,
+ * ±8 m» de un levantamiento mixto, y eso es peor que no decir nada. El exporte
+ * ya lo agrega así (`exportar/procedencia.js`); esto es lo mismo para pantalla.
+ *
+ * Y la precisión que manda es la PEOR, nunca la media: un levantamiento vale lo
+ * que su punto más flojo, y promediar esconde justo el punto por el que se va a
+ * discutir un despeje.
+ */
+export function resumenDelLevantamiento(apoyos: Apoyo[]): {
+  sistemas: string[]; metodos: string[]; peorPrecision_m: number | null;
+} {
+  const unicos = (xs: (string | null | undefined)[]) =>
+    [...new Set(xs.filter((x): x is string => typeof x === 'string' && x !== ''))];
+  const cs = (apoyos ?? []).map((a) => a.coordenada);
+  const precisiones = cs.map((c) => c?.precision_m).filter((x): x is number => typeof x === 'number');
+  return {
+    sistemas: unicos(cs.map((c) => c?.sistemaReferencia)),
+    metodos: unicos(cs.map((c) => (c?.metodo === 'gps_mano' ? 'GPS de mano' : c?.metodo))),
+    peorPrecision_m: precisiones.length ? Math.max(...precisiones) : null,
+  };
+}

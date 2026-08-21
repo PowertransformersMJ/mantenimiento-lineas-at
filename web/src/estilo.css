@@ -1456,9 +1456,17 @@ p.fund-vivo + .sello-calculo { margin-top: 5px; }
   border-radius: 0; box-shadow: none; background: var(--pnl2);
   padding: 11px 13px;
 }
-/* En pantalla estrecha el panel vuelve DEBAJO, nunca encima: en un teléfono un
-   panel lateral de 310 px deja el mapa en una rendija. */
-@media (max-width: 900px) {
+/* En columna estrecha el panel vuelve DEBAJO, nunca encima: un panel lateral de
+   310 px dejaría el mapa en una rendija.
+
+   ⚠️ SE PREGUNTA POR LA COLUMNA, NO POR LA VENTANA, y es el mismo motivo que ya
+   está escrito arriba para `.resumen-grilla`: el caparazón de tres columnas se
+   come ~460 px, así que una ventana de 1280 deja el contenido en ~816 y la regla
+   de ventana no se dispararía nunca. El resultado sería un mapa de 506 px —MÁS
+   ANGOSTO que el «pequeño» del Resumen— en toda la franja de 1081 a 1364 px de
+   ventana, que es justo el tamaño de un portátil. La pestaña se llama «el mapa
+   en grande»: preguntar por la ventana la convertía en lo contrario. */
+@container contenido (max-width: 900px) {
   .mapa-real--lado { grid-template-columns: 1fr; }
   .mapa-real--lado .mapa-lienzo { height: 62vh; min-height: 380px; }
   .mapa-real--lado .mapa-capas {

@@ -23,12 +23,16 @@
 //      mínima del sitio» dejaría el tiro en frío corto y un apoyo terminal
 //      parecería sano sin serlo. Cerrar `TODO-71` exige una SERIE, con sus
 //      percentiles; esto es el marco, no el cierre.
-//   2. **EN UN RECORTE COSTERO EL MAPA SE VE CASI LISO, y no está roto.** La
-//      media anual cambia décimas de grado de punta a punta —menos que el error
-//      del propio modelo—, mientras que entre el mes más fresco y el más cálido
-//      hay grados enteros. Por eso la rampa es FIJA y ancha: estirarla a la
-//      variación del recorte pintaría un degradado espectacular que sería ruido
-//      amplificado. La cifra medida viaja en la ficha y la pantalla la enseña.
+//   2. **LA ESCALA DE COLOR NO ES UNIVERSAL: SE AJUSTA AL RECORTE.** Y esto es
+//      una CORRECCIÓN de lo que este mismo archivo defendía antes (`99 §ADR-041`).
+//      La primera versión usaba una rampa fija y ancha «para no amplificar
+//      ruido», y sobre un corredor costero eso dejaba el mapa de un solo color:
+//      inútil. El argumento confundía el error ABSOLUTO del modelo (±1 °C, que
+//      corre igual para todas las celdas y NO inventa gradientes) con el
+//      RELATIVO entre celdas vecinas, que es mucho menor. El gradiente es señal.
+//      El precio se paga publicando la escala: el rojo no es calor extremo, son
+//      unos tres grados más que el azul. Un mapa que afirma con color y no dice
+//      su escala es más peligroso que uno liso.
 //
 // PURO: sin DOM y sin red. Las mecánicas de la rejilla viven en `rejilla.ts`.
 // ============================================================================
@@ -90,14 +94,25 @@ export function oscilacionEstacional(
  * bonito y sin su escala escrita es más peligroso que uno liso: el liso no
  * afirma nada, y éste afirma con color.
  */
-export function avisoDeEscala(ficha: FichaTemperatura): string | null {
+export function avisoDeEscala(
+  ficha: FichaTemperatura,
+  /**
+   * La capa que se está mirando. Su amplitud es la ÚNICA honesta para esta
+   * frase: `amplitud_espacial_c` es la de la MEDIA ANUAL, y anunciarla como «la
+   * de un mes» era falso para once de los doce — van de 0,8 a 1,7 °C en este
+   * recorte. Una leyenda que existe para ser exacta no puede redondear a otra
+   * magnitud.
+   */
+  capa?: CapaTemperatura | null,
+): string | null {
   const rampa = ficha.rampa ?? [];
   if (rampa.length < 2) return null;
   const lo = rampa[0].c;
   const hi = rampa[rampa.length - 1].c;
-  const esp = ficha.amplitud_espacial_c;
-  const espacio = typeof esp === 'number'
-    ? ` En un mes dado, del punto más fresco al más cálido del recorte hay ${esp.toFixed(1)} °C.`
+  const esp = capa ? capa.resumen.max - capa.resumen.min : null;
+  const espacio = esp !== null
+    ? ` En ${capa!.rotulo.toLowerCase()}, del punto más fresco al más cálido del recorte hay `
+      + `${esp.toFixed(1)} °C.`
     : '';
   return `El color está ajustado a este recorte —de ${lo.toFixed(1)} a ${hi.toFixed(1)} °C—, no a una `
     + `escala climática: el rojo NO significa calor extremo, significa unos ${(hi - lo).toFixed(1)} °C `

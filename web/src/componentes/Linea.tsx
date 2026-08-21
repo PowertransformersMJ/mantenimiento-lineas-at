@@ -61,7 +61,7 @@ function Kpi({ valor, etiqueta, sub, tono }: { valor: string; etiqueta: string; 
 
 // ── Esquema SVG: es el respaldo del mapa y la vista imprimible ──────────────
 
-function PlantaSvg({ apoyos, nota }: { apoyos: Apoyo[]; nota?: string }) {
+export function PlantaSvg({ apoyos, nota }: { apoyos: Apoyo[]; nota?: string }) {
   const g = useMemo(() => geometriaSvg(apoyos), [apoyos]);
   if (!g) return null;
   return (
@@ -85,7 +85,7 @@ function PlantaSvg({ apoyos, nota }: { apoyos: Apoyo[]; nota?: string }) {
 }
 
 /** Si el trozo del mapa no llega (señal mala, bloqueo), el esquema SVG responde. */
-class RespaldoMapa extends Component<{ apoyos: Apoyo[]; children: ReactNode }, { fallo: boolean }> {
+export class RespaldoMapa extends Component<{ apoyos: Apoyo[]; children: ReactNode }, { fallo: boolean }> {
   state = { fallo: false };
   static getDerivedStateFromError() { return { fallo: true }; }
   render() {

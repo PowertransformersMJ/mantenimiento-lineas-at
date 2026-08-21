@@ -922,7 +922,7 @@ function LeyendaTemperatura({ ficha, mes, alElegirMes, valor, cargando, edsHipot
     .join(', ');
   const osc = oscilacionEstacional(ficha);
   const muestreo = avisoDeMuestreoTemp(ficha);
-  const escala = avisoDeEscala(ficha);
+  const escala = avisoDeEscala(ficha, actual);
   const anual = capas.find((c) => c.clave === 'anual') ?? null;
   const contra = contraLaEds(anual?.resumen.p50 ?? null, edsHipotesis_C);
   const u = ficha.unidad ?? '°C';
@@ -942,9 +942,11 @@ function LeyendaTemperatura({ ficha, mes, alElegirMes, valor, cargando, edsHipot
       {cargando && <p className="mapa-capas-n">Bajando la temperatura de ese mes…</p>}
 
       {/* ⚠️ ESTE BOTÓN NO ES UN ATAJO DE COMODIDAD: es la diferencia entre ver la
-          capa y creer que no funciona. El mapa arranca encuadrado en la LÍNEA
-          —3 km— y en 3 km la temperatura del aire cambia una décima de grado: a
-          esa escala la capa se ve de un color aunque esté perfecta. El gradiente
+          capa y creer que no funciona. El mapa arranca encuadrado en la LÍNEA, y
+          a lo largo de unos pocos kilómetros la temperatura del aire cambia una
+          décima de grado: a esa escala la capa se ve de un color aunque esté
+          perfecta —y ninguna línea de este sistema es tan larga como para que
+          eso cambie—. El gradiente
           vive a escala del RECORTE, entre el mar y el interior. Sin una forma de
           llegar ahí de un clic, lo que el usuario concluye es que la capa está
           rota — y tendría motivos. */}
@@ -954,8 +956,10 @@ function LeyendaTemperatura({ ficha, mes, alElegirMes, valor, cargando, edsHipot
         </button>
       )}
       <p className="mapa-capas-n">
-        Sobre la línea el color es casi uniforme y no es un fallo: en 3 km el aire no cambia. El
-        gradiente se ve al abarcar el recorte entero.
+        {/* Sin cifras de una línea concreta: este componente sirve a cualquiera,
+            y «3 km» era el largo de LN-627 quemado en el código. */}
+        Encuadrado en la línea el color es casi uniforme y no es un fallo: a lo largo de unos pocos
+        kilómetros el aire no cambia. El gradiente se ve al abarcar el recorte entero.
       </p>
 
       <div className="mapa-leyenda-barra" style={{ background: `linear-gradient(90deg, ${gradiente})` }} />
