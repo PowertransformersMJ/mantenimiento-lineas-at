@@ -318,3 +318,39 @@ describe('la satelital no vende detalle que no tiene', () => {
     assert.ok(mib < 25, `la satelital pesa ${mib.toFixed(1)} MiB y el tope por archivo son 25`);
   });
 });
+
+// ════════════════════════════════════════════════════════════════════════════
+// EL ORDEN DE LAS CAPAS — la vista híbrida existía solo en el comentario
+// ════════════════════════════════════════════════════════════════════════════
+//
+// El componente prometía «foto abajo, nombres arriba» y hacía lo contrario: la
+// imagen se anclaba en `tramos`, que se añade DESPUÉS del mapa base, así que
+// quedaba por encima de las doce capas de rótulo. Una foto aérea sin un solo
+// nombre encima es una foto en la que no se sabe dónde está uno — y así estuvo
+// desde el primer día que se encendió la capa (`99 §ADR-034` lo daba por
+// verificado; lo verificado eran los nombres de los APOYOS, que sí van arriba).
+describe('la foto va debajo de los nombres, no encima', () => {
+  const CODIGO = readFileSync(join(RAIZ, 'web/src/componentes/Mapa.tsx'), 'utf-8');
+
+  test('el ancla se calcula del estilo vivo, no se escribe a mano', () => {
+    assert.match(CODIGO, /function primerRotulo\(m: maplibregl\.Map\)/,
+      'el mapa base son 71 capas de una librería que versiona: la lista no se copia');
+    assert.match(CODIGO, /const debajoDe = m\.getLayer\(ID_MEDIDA\) \? ID_MEDIDA\s*\n\s*: \(primerRotulo\(m\)/,
+      'la imagen satelital tiene que anclarse bajo el primer rótulo');
+  });
+
+  test('la capa de MEDIDA se ancla igual, o el orden dependería de los clics', () => {
+    // Encender la temperatura después de la foto la ponía encima de los nombres
+    // otra vez: el resultado dependía de en qué orden se pulsaran las casillas.
+    assert.match(CODIGO, /\}, primerRotulo\(m\) \?\? \(m\.getLayer\('tramos'\)/);
+  });
+
+  test('el callejero NO se apaga bajo la foto', () => {
+    // Apagarlo dejaba el mundo en blanco fuera del recorte de la imagen (31,8 ×
+    // 42 km) y hacía que un mapa averiado y uno sano se vieran idénticos: gris
+    // plano con nombres flotando.
+    assert.ok(!/base === 'callejero' \|\| esRotulo\(l\.id\) \? 'visible' : 'none'/.test(CODIGO),
+      'volvió el apagado del callejero: fuera del recorte el mapa se queda en vacío');
+    assert.match(CODIGO, /m\.setLayoutProperty\(l\.id, 'visibility', 'visible'\)/);
+  });
+});

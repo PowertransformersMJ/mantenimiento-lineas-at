@@ -175,6 +175,21 @@ const ID_MEDIDA = 'capa-medida';
 
 export type NombreCapa = keyof typeof CAPAS_RASTER;
 
+/**
+ * El primer rótulo del mapa base, que es el techo de las capas de imagen.
+ *
+ * Se busca en el estilo VIVO y no en una lista escrita a mano: el mapa base son
+ * 71 capas de `@protomaps/basemaps` y sus nombres cambian con la versión. Si un
+ * día no hubiera ninguno, devuelve `undefined` y quien llama decide — nunca se
+ * inventa un ancla, que dejaría la capa en un sitio arbitrario.
+ */
+function primerRotulo(m: maplibregl.Map): string | undefined {
+  for (const l of m.getStyle().layers) {
+    if ((l as { source?: string }).source === 'protomaps' && esRotulo(l.id)) return l.id;
+  }
+  return undefined;
+}
+
 /** La ficha de la medida que esté encendida. Las dos comparten la mecánica. */
 export type FichaMedida = FichaRadiacion | FichaTemperatura;
 
@@ -463,13 +478,18 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
                 ? ` · ${(ficha as FichaCapa).fecha!.slice(0, 10)}` : ''}`,
             });
           }
-          // Debajo de la línea SIEMPRE: los apoyos y los tramos son el asunto,
-          // la imagen es el fondo. Y el térmico por encima del satelital, que
-          // para eso es una lectura sobre el terreno.
-          // Debajo del térmico si está puesto —el térmico es una LECTURA sobre el
-          // terreno— y siempre debajo de la línea, que es el asunto.
+          // ⚠️ EL ANCLA VA DEBAJO DEL PRIMER RÓTULO, no debajo de `tramos`, y esto
+          // es un arreglo: `tramos` se añade DESPUÉS del estilo base, así que
+          // anclar ahí dejaba la foto por encima de las doce capas de rótulo del
+          // callejero. El componente prometía vista híbrida —foto abajo, nombres
+          // arriba— y hacía lo contrario: una foto aérea sin un solo nombre, en
+          // la que no se sabe dónde está uno. Se calcula del estilo REAL, no de
+          // una lista escrita a mano, porque el mapa base puede cambiar de capas.
+          // Orden que queda, de abajo arriba: callejero · foto · medida · rótulos
+          // · trazado y apoyos. El térmico encima de la foto porque es una
+          // LECTURA sobre el terreno; el trazado encima de todo porque es el asunto.
           const debajoDe = m.getLayer(ID_MEDIDA) ? ID_MEDIDA
-            : (m.getLayer('tramos') ? 'tramos' : undefined);
+            : (primerRotulo(m) ?? (m.getLayer('tramos') ? 'tramos' : undefined));
           m.addLayer({
             id: idCapa,
             type: 'raster',
@@ -500,12 +520,22 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
         }
       }
 
-      // El callejero se apaga bajo la imagen satelital, PERO los rótulos se
-      // quedan: una foto aérea sin un solo nombre no dice dónde está uno.
+      // ⚠️ EL CALLEJERO SE QUEDA ENCENDIDO DEBAJO DE LA FOTO, y esto también es
+      // un arreglo. Antes se apagaba entero salvo rótulos, con tres efectos que
+      // se leían como averías: (1) fuera del recorte de la foto —31,8 × 42 km—
+      // no quedaba NADA, solo nombres flotando en gris; (2) ese gris es la capa
+      // `background` de protomaps, que el bucle no apagaba por no tener fuente,
+      // así que un mapa roto y uno sano se veían idénticos; y (3) el borde de la
+      // foto mostraba su halo contra el vacío.
+      //
+      // La foto es OPACA, así que donde hay imagen no se ve el callejero de
+      // debajo; donde se acaba, el mapa degrada a callejero en vez de a vacío.
+      // Se pinta una fuente más siempre: es el precio, y es el correcto — un
+      // mapa que se queda en blanco al salir del recorte no es más barato, es
+      // peor.
       for (const l of m.getStyle().layers) {
         if ((l as { source?: string }).source !== 'protomaps') continue;
-        m.setLayoutProperty(l.id, 'visibility',
-          base === 'callejero' || esRotulo(l.id) ? 'visible' : 'none');
+        m.setLayoutProperty(l.id, 'visibility', 'visible');
       }
       m.triggerRepaint();
     };
@@ -598,7 +628,11 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
               // romperse en cuadros. No inventa detalle —la celda sigue siendo de
               // 2 km— pero deja de parecer un fallo de la imagen.
               paint: { 'raster-opacity': cfg.opacidad, 'raster-resampling': 'linear' },
-            }, m.getLayer('tramos') ? 'tramos' : undefined);
+              // Debajo de los rótulos igual que la foto: si se anclara en
+              // `tramos`, el resultado dependería del ORDEN de los clics —
+              // encender la medida después de la foto la ponía encima de los
+              // nombres otra vez.
+            }, primerRotulo(m) ?? (m.getLayer('tramos') ? 'tramos' : undefined));
           }
           setRejillaLista(marca);
           setBajandoRadiacion(false);
