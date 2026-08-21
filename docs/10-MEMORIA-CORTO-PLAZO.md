@@ -18,12 +18,13 @@ Olas cerradas: ADR-018 · 020 · 021 · 022 · 023 · 024 · **032** (dato SUPUE
    mueve ninguno por sí solo**, comprobado en producción antes de escribir nada: faltan la altura
    libre y la del amarre, que no van por lote (`33 · L-59`). Falta que él conteste `TODO-57`: si esas
    fichas están en planos y actas o hay que levantarlas.
-2. **Lo último, 20-08** (detalle en `99 §ADR-038/039/040`): la **pantalla del LOTE** · la
-   **temperatura del AIRE** en el mapa —que de paso confirma que la EDS adoptada de 28 °C se
-   sostiene: el sitio tiene 27,3— y la **satelital remuestreada** al nivel 15, que era lo que se veía
-   borroso. A más resolución **no se puede ir por licencia**, no por técnica (`31 · L-60`, `TODO-72`).
-   ⚠️ Corregidas + pestaña «Detalle GPS» (`ADR-041/042`; Fable cazó 3 fallos → `30 · L-61/L-62`).
-   Las tres verificadas en vivo contra producción con su sesión.
+2. **Lo último, 20-08** (`99 §ADR-038` a `042`): pantalla del LOTE · **temperatura ambiente** —que
+   confirma que la EDS adoptada de 28 °C se sostiene: el sitio tiene 27,3— · satelital al nivel 16 ·
+   pestaña «Detalle GPS». Fable cazó 3 fallos que no vi (`30 · L-61/L-62`). Verificadas en vivo.
+   ⚠️ **Sobre la licencia de más resolución: `31 · L-60` puede estar MAL.** Un agente sostiene que
+   las ortos del Estado sí son redistribuibles (CC, autor Catastro Distrital, no IGAC) y que la
+   alerta «gubernamental» solo aplica a otros registros. **Sin confirmar por mí**: `ott/bolivar_alta`
+   resultó ser de 10 m, no sub-métrica. Verificar ANTES de citar `L-60` como cerrado.
 3. **TRES COSAS QUEDARON A MEDIO CAMINO Y SON DE ÉL, no de código:**
    `TODO-57` el dato de la ficha · **ponerse contraseña** (bloquea retirar Google) · `TODO-71` cerrar
    las hipótesis de **viento** y de los **1.000 W/m²** de la ampacidad, que ningún mapa cierra: eso
@@ -33,48 +34,47 @@ Olas cerradas: ADR-018 · 020 · 021 · 022 · 023 · 024 · **032** (dato SUPUE
 5. **Higiene del cerebro:** lo que el kernel marque al arrancar manda —hoy solo quedan excesos
    leves—. El boot va JUSTO: cada línea nueva en `CLAUDE.md`, `05` o `10` obliga a podar otra.
 6. **Las 205 fotos siguen cargadas y visibles** (`99 §ADR-031`), con **tres defectos vivos que no
-   bloquean**: el acuse cuenta mal si la foto ya estaba en el depósito · el mapa de carpetas solo se
-   entiende como objeto y una lista suelta se ignora en silencio · el guardián de orden salta en
-   falso si el mapa no va en orden de recorrido.
+   bloquean** (acuse que cuenta mal, mapa de carpetas solo como objeto, guardián de orden con falso
+   positivo).
+
+## 🔴 ABIERTO — la foto satelital NO SE PINTA (20-08)
+
+Con «Satelital» marcado, el `.pmtiles` **descarga 200 OK** y la fuente se registra —sale la
+atribución de Copernicus— pero la imagen no se dibuja. Verificado en producción con su Chrome.
+⚠️ El aviso «Style is not done loading» que se citó al empezar era de una **sesión anterior** (bundle
+viejo): no es la causa — perseguirlo es repetir `L-58`. El orden de capas y el vacío del borde sí
+estaban rotos y quedaron arreglados (`ADR-034` afirmaba en falso que se vio con rótulos encima).
+**PISTA:** descarga + se registra + no dibuja → mirar `32 · L-55` (fuente raster esperando un
+fotograma que nadie pide) o `visibility`. Control: comprobar si también falla en el Resumen.
 
 ## 🚫 INVARIANTES QUE NO SE PUEDEN ROMPER
 
-**Carcasa (`99 §ADR-018`):** `amanecer` es INALCANZABLE si falta un apoyo por dictaminar · la cobertura se cruza POR APOYO, nunca comparando dos conteos · el veredicto se lee de `utilizacion_pct !== null`, **jamás de `cargaRotura_kgf`** · dueños únicos: `vistas/ejesLinea.ts`, `vistas/vanosLinea.ts` y `vistas/coberturaEjes.ts`.
+No se resumen aquí: cada uno vive ENTERO en su ADR y copiarlos crea una segunda versión que se
+desincroniza. Léelos antes de tocar su subsistema.
 
-**RCA (`99 §ADR-020`):** PROHIBIDO ranking de hipótesis (ordenar es dictaminar), causa raíz sugerida
-por IA, porcentaje de confianza y el estado «no aplica» en una espina · el botón de declarar NO
-EXISTE mientras falte una de las SIETE condiciones (7ª: `ADR-026`) · una hipótesis con sustento SOLO
-climático la topa el motor en «baja».
-
-**Causa raíz (`99 §ADR-026`):** quién lee las causas es `causasDeclaradas()` del núcleo, **nunca** `a.causaRaiz` a pelo — dos lectores eligiendo por su cuenta enseñan causas distintas del mismo expediente · el molde RECHAZA escribir los dos campos a la vez · una causa `contribuyente` **no promete prevención**, solo cambia la probabilidad.
-
-**Acceso (`99 §ADR-024`):** la pantalla de contraseña es **HIGIENE, no la frontera** — la frontera son las reglas y el rol · quien entra por Google pasa SIEMPRE · la marca se lee `=== true` estricto · ante duda, se deja pasar · el recibo se escribe DESPUÉS del cambio y solo si salió bien.
-
-**Fotos (`99 §ADR-031`):** el portero **NO borra y NO lista**, jamás · se cuelga por **nombre canónico**, nunca por posición · decide la **huella**, no `yaCargado` · nunca se le pregunta a la base si una ficha existe (lo DENIEGA, §ADR-028) · primero el OBJETO, después la FICHA · **el acuse no se borra solo**.
-
-**Recordar ≠ proponer (`99 §ADR-029`):** sin decisión suya el campo se queda VACÍO · **cuál de sus puntos es** y **si lo aprueba** NO se heredan jamás · ningún valor recordado se pinta sin su fecha · se APENDA y **CARGADO manda sobre FIRMADO** · la app solo LEE el libro: quien pueda escribirlo puede fabricar un recuerdo.
-
-**Documentación (`99 §ADR-021/022`):** el verde de `brain:check` dice que el cerebro está bien CONSTRUIDO, **no que diga la verdad** · ninguna cifra se copia fuera de su nodo dueño.
-
-**Capas del mapa (`99 §ADR-034/035/036/037`):** las imágenes viajan CON el sitio —cero teselas de
-terceros, y una prueba lo vigila— · una capa de datos se guarda como MEDIDA, nunca como imagen
-pintada · el byte 0 es SIN DATO, jamás cero · el pronóstico es lo ÚNICO que necesita internet, NO se
-guarda y se pregunta por una celda redondeada · la radiación es ENERGÍA DIARIA y **no se convierte**
-en los W/m² instantáneos de la ampacidad.
+· **Carcasa** `§ADR-018` — `amanecer` inalcanzable si falta un apoyo; el veredicto se lee de
+  `utilizacion_pct`, jamás de `cargaRotura_kgf`; dueños únicos en `vistas/`.
+· **RCA** `§ADR-020` — prohibido ranking de hipótesis, causa raíz por IA y porcentaje de confianza.
+· **Causa raíz** `§ADR-026` — quién lee las causas es `causasDeclaradas()`, nunca `a.causaRaiz`.
+· **Acceso** `§ADR-024` — la contraseña es HIGIENE, no la frontera; la frontera son las reglas.
+· **Fotos** `§ADR-031` — el portero NO borra y NO lista; se cuelga por nombre canónico; decide la huella.
+· **Recordar ≠ proponer** `§ADR-029` — sin decisión suya el campo queda VACÍO.
+· **Capas del mapa** `§ADR-034/037` — las imágenes viajan CON el sitio; una capa de datos se guarda
+  como MEDIDA, nunca como imagen; el byte 0 es SIN DATO; el pronóstico no se guarda jamás.
+· **Ficha y lote** `§ADR-030/038` — el lote solo rellena huecos y solo con los tres campos del MODELO.
+· **Documentación** `§ADR-021` — el verde de `brain:check` dice que está bien CONSTRUIDO, no que
+  diga la verdad.
 
 ## 🧭 Cómo retomar
 
-1. **Abrir Claude Code DENTRO de `~/Desktop/GitHub-MJ/mantenimiento-lineas-at/`.** Desde el paraguas
-   el gate bloquea el commit: dice «presupuesto de boot excedido» pero es el canario — remedio `node scripts/session-handoff.mjs --boot-echo`.
-2. Producción **https://mantenimiento-lineas-at.pages.dev** · repo PÚBLICO → **cero bytes de cliente
-   NI DATOS PERSONALES DE NADIE**, ni en pruebas ni en un comentario (`33 · L-23`, `99 §ADR-021`).
-3. **Desplegar**: `npm run build && npm run deploy --workspace web`, en ese orden (`32 · L-35`); las
-   reglas de Firestore van por SU canal y ANTES que el código (`31 · L-22`).
-4. **Verificar contra PRODUCCIÓN con el Chrome del Ingeniero**, preguntando a la pestaña qué bundle
-   cargó — nunca contra `dist/` (`32 · L-18/35`). Esperar 5 lecturas iguales al propagar.
-5. Antes de CADA push: `npm test` + `contrato:verificar` + `brain:check`. Las **coordenadas ya no se
-   buscan a mano**: `githooks/pre-commit` las BLOQUEA antes del cerebro (`30 · L-56`). Todo fallo se
-   documenta en su lección ANTES de commitear. Autenticado aquí: `gh`, `wrangler`, `firebase`.
+1. **Abrir Claude Code DENTRO de `~/Desktop/GitHub-MJ/mantenimiento-lineas-at/`** — desde el paraguas
+   el gate bloquea el commit; remedio: `node scripts/session-handoff.mjs --boot-echo`.
+2. Producción **https://mantenimiento-lineas-at.pages.dev** · repo PÚBLICO → **cero bytes de cliente**
+   (`33 · L-23`). Desplegar: `npm run build && npm run deploy --workspace web`, en ese orden
+   (`32 · L-35`); reglas de Firestore por SU canal y ANTES (`31 · L-22`).
+3. **Verificar contra PRODUCCIÓN con el Chrome del Ingeniero**, nunca contra `dist/` (`32 · L-18/35`).
+4. Antes de CADA push: `npm test` + `contrato:verificar` + `brain:check`. Autenticados: `gh`,
+   `wrangler`, `firebase`.
 
 ## 🔲 Pendientes del INGENIERO
 
