@@ -917,9 +917,17 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
               {nf(guarda.metros.sinGuarda)} m
               {guarda.pctSinGuarda != null && <> — <b>{nf(guarda.pctSinGuarda, 1)} %</b> de la línea</>}.
               {' '}Es <b>daño de operación</b>, no diseño, y <b>no entra en ningún cálculo</b>.
-              {guarda.nSinDato > 0 && (
+              {/* ⚠️ EL CASO «TODO DECLARADO» SE DICE, no se calla. Si aquí solo
+                  desapareciera el aviso, «línea entera comprobada» y «nadie ha
+                  mirado el resto» se verían IGUAL: las dos sin frase. Y son la
+                  diferencia entre un porcentaje que dictamina la línea y uno que
+                  solo describe lo poco que hay declarado. */}
+              {guarda.nSinDato > 0 ? (
                 <> Quedan <b>{guarda.nSinDato} vano(s) sin comprobar</b>: de ésos no consta nada,
                   ni que lleven guarda ni que no.</>
+              ) : (
+                <> El resto de la línea está declarado <b>CON</b> guarda: los {guarda.vanos.length} vanos
+                  tienen respuesta, así que ese porcentaje es de la línea entera.</>
               )}
             </p>
           </>

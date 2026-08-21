@@ -167,6 +167,17 @@ describe('cómo se PINTA el tramo dañado', () => {
       'las capas se crean siempre: sin dato no deben existir');
   });
 
+  test('«todo declarado» se DICE, no se calla', () => {
+    // Si al declararlo todo solo desapareciera el aviso de «sin comprobar»,
+    // «línea entera comprobada» y «nadie ha mirado el resto» se verían igual:
+    // las dos sin frase. Y son la diferencia entre un porcentaje que dictamina
+    // la línea y uno que solo describe lo poco que hay declarado.
+    assert.match(MAPA, /guarda\.nSinDato > 0 \? \(/,
+      'el caso «no queda ninguno sin comprobar» no tiene rama propia');
+    assert.match(MAPA, /El resto de la línea está declarado/,
+      'nadie dice que el resto de la línea SÍ lleva guarda cuando consta que lo lleva');
+  });
+
   test('la leyenda solo aparece si hay dato declarado', () => {
     assert.match(MAPA, /guarda\.tramos\.length > 0 && \(/,
       'una leyenda que dijera «0 m sin guarda» afirmaría que la línea está sana sin haberla mirado');
