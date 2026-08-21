@@ -5,7 +5,7 @@
 | Señal | Valor (al **2026-08-20**) |
 |---|---|
 | **Misión ahora** | **Llenar la ficha estructural.** El motor dictamina desde julio y siguen **0 de 25** con veredicto: la pantalla existe (`99 §ADR-030`) y desde el 20-08 también **por lote** (`§ADR-038`) — que trae el tercio de catálogo y **no mueve ningún veredicto solo**: faltan las dos alturas, que no van por lote (`33 · L-59`). La pregunta es del Ingeniero (`TODO-57`): ¿están en planos y actas, o hay que levantarlas? Herramienta INTERNA, sin cliente ni contrato (`ADR-022`). Pendientes → `10`. |
-| **Build** | 🟢 `npm test` **1.649 pass / 0 fail** · `contrato:verificar` exit 0, **contrato v0.7.0** · verificado-vivo: 2026-08-21 |
+| **Build** | 🟢 `npm test` **1.665 pass / 0 fail** · `contrato:verificar` exit 0, **contrato v0.7.0** · verificado-vivo: 2026-08-21 |
 | **Repo** | `main` · https://github.com/PowertransformersMJ/mantenimiento-lineas-at · **PÚBLICO** (decisión del Ingeniero 2026-07-29) |
 | **Producción** | 🟢 **https://mantenimiento-lineas-at.pages.dev** — Cloudflare Pages, cuenta `ajimenezp99@gmail.com`. **Piel CLARA** desde el 04-08. **Se despliega a mano** y `build` va delante: `deploy` NO construye (`32 · L-35`). Último: **temperatura del aire con su gradiente** y **satelital al nivel 16** (2,4 m/píxel, 18,9 MiB) tras la corrección de criterio del Ingeniero (`ADR-041`). Todo recorrido en vivo con su sesión. **Hash servido == construido.** · verificado-vivo: 2026-08-20 |
 | **Backend** | 🟢 **Un solo trabajador**: el portero de fotos (`evidencias/`), delante de un depósito R2 privado (ADR-010). Los datos viven en **Firestore** con RBAC por *claims* desde el 04-08; **el ingreso exige contraseña y no hay registro público** (ADR-019). |
@@ -21,4 +21,4 @@
 - 🔴 **App Check NO existe** y `CLAUDE.md §1` lo declara «obligatorio desde el día 1». Mientras falte, el sitio público puede llamar a Firebase sin probar que es él. Cierra en `TODO-50 fase 4`.
 
 ## 🧩 Sub-sistemas
-`nucleo/` ✅ · `exportar/` ✅ (workspace puro, ADR-006/007) · pruebas de oro ✅ · cerebro ✅ · CI ✅ · **pestañas 14/14** ✅ · **capas del mapa** ✅ (ADR-034/037: imágenes autohospedadas; la de datos se guarda como MEDIDA) · **segmento RCA** ✅ (ADR-020: fuera de la línea, con clima IDEAM sin servidor) · `evidencias/` (portero de fotos) ✅ **en producción** (ADR-010) · generador de línea ⬜ F2 · base local ⬜ F3 · captura en campo ⬜ F4 · nube ⬜ F5 · mapas offline ⬜ F4+
+`nucleo/` ✅ · `exportar/` ✅ (workspace puro, ADR-006/007) · pruebas de oro ✅ · cerebro ✅ · CI ✅ · **pestañas 14/14** ✅ · **capas del mapa** ✅ (ADR-034/037) · **atlas solar del Caribe** ✅ **en producción** (ADR-045: `#/sol`, NASA POWER horario 2026) · **segmento RCA** ✅ (ADR-020: fuera de la línea, con clima IDEAM sin servidor) · `evidencias/` (portero de fotos) ✅ **en producción** (ADR-010) · generador de línea ⬜ F2 · base local ⬜ F3 · captura en campo ⬜ F4 · nube ⬜ F5 · mapas offline ⬜ F4+

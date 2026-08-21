@@ -4239,3 +4239,78 @@ mapa) y 1,0 s las siguientes.** Tres guardianes nuevos.
 `datos-campo/2026-08-21-cable-de-guarda.md`— y no en este repositorio, que es público: describe dónde
 una línea en servicio no tiene protección contra descargas. Guardián ejecutable:
 `tests/cable-de-guarda.test.js`.)*
+
+---
+
+## ADR-045 · 2026-08-21 · El atlas solar del Caribe: dato horario de 2026 sobre siete departamentos, en su propia pantalla
+
+**Estado:** ✅ Decidido · ⚠️ **NO revisada externamente** · ✅ **auditada con Fable** · ✅ **verificado en vivo contra producción**
+
+### Contexto
+
+El Ingeniero: *«podríamos tomar los datos de índice de radiación solar de IDEAM o NASA POWER»* y, después,
+*«el más reciente que esté […] y cada 2 meses verificar si hay alguna actualización»*, *«a lo largo de cada
+día […] desde inicio del año 2026 en los departamentos de Bolívar, Córdoba, Sucre, Cesar, Magdalena,
+Atlántico y La Guajira»*.
+
+La capa de radiación que ya existía **no sirve para eso, y no es un defecto suyo**: cubre 0,29° × 0,38° (el
+corredor de Cartagena), viaja en kWh/m² **al día** y son promedios de largo plazo por mes. Lo pedido es otra
+cosa —6° × 6°, W/m² **horarios** y **días reales de 2026**— y por eso es otro producto, no una ampliación.
+
+Las alternativas se descartaron **llamándolas** (`31 · L-64`): IDEAM no publica ninguna serie de radiación;
+Cardique tiene las variables exactas y 741 filas (un mes de 2022); NSRDB, que a 4 km habría sido mejor, va
+por 2023. NASA POWER es la única que cumple los tres requisitos a la vez.
+
+### Decisión
+
+**Producto nuevo, no ampliación del existente.** Los dos conviven y responden preguntas distintas.
+
+- **Dato:** NASA POWER `ALLSKY_SFC_SW_DWN`, 36 celdas de 1° (CERES SYN1deg), sin clave. Un PNG en gris por
+  mes —24 horas de ancho, un día por fila— y una ficha. **62 KiB los cinco meses.** El generador
+  (`herramientas/sol-caribe.mjs`) va en Node **sin dependencias**, incluido su propio codificador PNG: tiene
+  que correr igual en la Mac y en Actions, donde lo único garantizado es Node.
+- **Mapa base propio:** `caribe.pmtiles`, 5,14 MiB, z0-10, extraído del build de Protomaps con la MISMA
+  herramienta que hizo el del corredor. **Archivo aparte y perezoso**: quien no abra la pantalla descarga
+  cero bytes. Reutilizar el del corredor no servía — medido: al zoom donde caben los siete departamentos
+  cubre el **5,4 %** de la región.
+- **Los nombres de los departamentos van aparte** (`caribe-departamentos.json`, geoBoundaries/ODbL): el mapa
+  base trae las líneas divisorias pero **no los nombres**, y fronteras mudas no son un atlas.
+- **Pantalla propia en `#/sol`**, no una pestaña: las 14 son funciones de UNA línea y mueren sin apoyos.
+- **`nearest` explícito**, no `linear`: con celdas de 110 km, interpolar dibuja un degradado que nadie midió.
+- **Las tres bandas de 2026 se dibujan distinto** —con horas, solo total del día, sin dato— y **las fechas
+  viajan en la ficha, jamás en el código**: escritas en el código, la frontera miente en silencio en la
+  siguiente reconstrucción y los colores siguen saliendo bonitos.
+- **Vigía cada dos meses** (`.github/workflows/vigia-nasa.yml`): pregunta con TRES consultas y solo hace las
+  36 si hay novedad; **propone, no publica**; y sus guardianes rechazan un archivo que traiga menos horas,
+  que retroceda de fecha, que pierda meses o que se quede sin atribución.
+
+### Alternativas descartadas
+
+- **Ampliar la capa existente.** Otra fuente, otra unidad, otro recuadro y otro eje de tiempo: sería una
+  capa que dice dos cosas.
+- **Un solo `.pmtiles` fusionado** (8,93 MiB, probado): deja la pantalla en blanco al acercarse fuera de
+  Cartagena.
+- **Un atlas de «hora media por mes»** (0,059 MiB, lo propuso un agente): más barato y más bonito, pero es
+  una climatología y él pidió **2026**.
+- **Quitar el callejero para ahorrar**: medido, las calles son el 6-10 % de los bytes.
+
+### Consecuencias
+
+- **La hipótesis de los 1.000 W/m² queda con número y con mapa.** Medido sobre 2026: el máximo de medias
+  horarias de la región es **1.027 W/m²** y **11 de las 36 celdas superan los 1.000 adoptados** — todas en el
+  norte. En la celda de LN-627 el máximo es 999,8: al filo. **Para una línea en La Guajira, Atlántico o
+  Magdalena la hipótesis actual sería optimista**, y esto es una plataforma para muchas líneas. No cierra
+  `TODO-71`: son medias horarias y el pico instantáneo es mayor.
+- **Dos regresiones propias, cazadas y cerradas**: el import estático de `prepararTeselas` fundió el trozo
+  diferido del mapa con el de entrada (820 kB → 1.883 kB) — de ahí nace `datos/teselas.ts`; y `#/sol` no
+  sobrevivía a la carga inicial.
+- **La auditoría adversarial con Fable se pagó sola otra vez** (como en `ADR-042`): encontró un fallo GRAVE
+  que ningún guardián veía porque vive en el estado de React y no en el módulo puro — cambiar de mes dejaba
+  pintado el mes anterior con la etiqueta del nuevo. Midió la colisión sobre los archivos reales. Más cinco
+  hallazgos menores, todos arreglados y verificados en vivo. → detalle en el commit `dfdb806`.
+- **El vigía NO funciona hasta que el Ingeniero toque dos ajustes de GitHub** (ver `docs/10`).
+
+### Crudo de respaldo
+
+*(el diseño salió de un workflow de 4 agentes con medidas —peso del mapa base a cinco zooms, error de
+cuantización, desvío Mercator— y la revisión de Fable. Guardián ejecutable: `tests/sol-caribe.test.js`.)*

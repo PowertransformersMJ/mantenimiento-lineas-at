@@ -66,17 +66,12 @@ mantenimiento-lineas-at/
 │   │                            ningún color quemado fuera de `:root`, ningún `tono` inexistente
 │   ├── estado-linea.test.js     el «cielo»: `amanecer` es INALCANZABLE si falta un dictamen
 │   ├── rca.test.js              el método de causa raíz (27) — incluye el tope climático
-│   └── + estadisticas · vanos · umbrales · cantidades · coherencia · cargas · cargas-vista ·
-│       longitudinal · diagramas · formato · termica-vista · viento · exportar-calculo · informe ·
-│       criterios-apoyo · portero · contrato-evidencia   (el conteo vivo lo da `05`, no este mapa)
+│   └── + una por subsistema. El conteo vivo lo da `05`.
 │
 ├── docs/                        las neuronas (índice en 00-INDICE.md)
 │   ├── .brain-manifest.json     configuración del cerebro: topes, archiveDir, kernelFiles
-│   ├── 00-INDICE.md             enrutamiento síntoma → neurona
-│   ├── 05-ESTADO-GLOBAL.md      signos vitales (auto-cargado)
-│   ├── 10-MEMORIA-CORTO-PLAZO.md pizarra del WIP (auto-cargado)
-│   ├── 20-MEMORIA-ESPACIAL.md   este archivo
-│   ├── 30-LECCIONES.md          MADRE: índice de TODOS los L-NN + las de método
+│   ├── 00 · 05 · 10 · 20 · 30   enrutamiento · signos vitales · pizarra · este mapa · lecciones
+│   │                            (madre). Quién es cada uno: `00-INDICE.md`, que es su dueño
 │   ├── 31-LECCIONES-PROVEEDORES.md  ↳ factura, licencia o SDK de un tercero
 │   ├── 32-LECCIONES-PANTALLA.md     ↳ lo que se ve o se abre ≠ lo que el núcleo produjo
 │   ├── 33-LECCIONES-NUCLEO-Y-DATO.md ↳ el número que se firma · el dato que no sale
@@ -109,6 +104,7 @@ mantenimiento-lineas-at/
 │                                token contra las llaves de Google. `GET` sirve; `PUT` acepta una
 │                                foto bajo diez cerrojos. 🚫 **NO borra y NO lista, jamás** — y ya no
 │                                es costumbre: la prueba se pone roja si aparece `.delete(`/`.list(`
+├── herramientas/sol-caribe.mjs rehace el ATLAS SOLAR (ADR-045)
 ├── herramientas/teselas/        construir-raster.py — rehace las capas del mapa desde datos
 │                             abiertos. ⚠️ ÚNICO Python del repo; no lo usan ni la app ni las pruebas
 ├── herramientas/                sembrar.mjs (línea + expediente) · subir-evidencias.mjs (fotos) ·
@@ -194,10 +190,13 @@ mantenimiento-lineas-at/
 │                             RADIACIÓN solar no es imagen sino MEDIDA (ADR-036/037): un PNG de
 │                             valores por mes + su ficha. Mecánica agnóstica en `vistas/rejilla.ts`;
 │                             dominio en `vistas/radiacion.ts`
+│                             ⚠️ DOS recortes que NO se mezclan: `cartagena*` el corredor y
+│                             `caribe*`+`sol-caribe*` los 7 departamentos (ADR-045), perezosos
 ├── web/public/basemaps-assets/  fuentes y sprites del mapa (autohospedados)
 ├── githooks/pre-commit          BLOQUEA el commit: coordenadas reales y cerebro roto
 ├── .claude/settings.json        hooks de sesión (SÍ se commitea; el resto de .claude/ no)
-└── .github/workflows/ci.yml     integridad del kernel + suite de pruebas
+├── .github/workflows/ci.yml     integridad del kernel + suite de pruebas
+└── …/vigia-nasa.yml             atlas al día cada 2 meses. PROPONE. ⚠️ inerte: TODO-75
 ```
 
 ---
