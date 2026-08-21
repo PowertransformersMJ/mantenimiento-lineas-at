@@ -7,8 +7,9 @@
 ## 🎯 Dónde estamos
 
 **Cifras vivas en `05`.** 12 pestañas + RCA + tres informes. **Mazo E02 listo** (`32 · L-49`).
-Olas cerradas: ADR-018 · 020 · 021 · 022 · 023 · 024 · **032** (dato SUPUESTO) · **034-037 y 039-041**
-(las capas del mapa).
+Olas cerradas: ADR-018 · 020 · 021 · 022 · 023 · 024 · **032** (dato SUPUESTO) · **034-037 y 039-042**
+(las capas del mapa) · **043** (la satelital, CERRADA: pinta en producción y la causa se probó quitando
+el arreglo y viéndola caer otra vez).
 
 ## 🛑 LO PRIMERO AL RETOMAR
 
@@ -18,9 +19,10 @@ Olas cerradas: ADR-018 · 020 · 021 · 022 · 023 · 024 · **032** (dato SUPUE
    mueve ninguno por sí solo**, comprobado en producción antes de escribir nada: faltan la altura
    libre y la del amarre, que no van por lote (`33 · L-59`). Falta que él conteste `TODO-57`: si esas
    fichas están en planos y actas o hay que levantarlas.
-2. **Lo último, 20-08** (`99 §ADR-038` a `042`): pantalla del LOTE · **temperatura ambiente** —que
-   confirma que la EDS adoptada de 28 °C se sostiene: el sitio tiene 27,3— · satelital al nivel 16 ·
-   pestaña «Detalle GPS». Fable cazó 3 fallos que no vi (`30 · L-61/L-62`). Verificadas en vivo.
+2. **Lo último, 21-08** (`99 §ADR-043`): **la satelital SÍ se pintaba; lo roto era mi SONDA** —una
+   variable global para dos pantallas—. Cerrada y vista en producción en las dos pantallas. Lo del
+   20-08 (`ADR-038` a `042`) sigue vigente: LOTE · **temperatura ambiente** —confirma que la EDS
+   adoptada de 28 °C se sostiene: el sitio tiene 27,3— · satelital al nivel 16 · «Detalle GPS».
    ⚠️ **Sobre la licencia de más resolución: `31 · L-60` puede estar MAL.** Un agente sostiene que
    las ortos del Estado sí son redistribuibles (CC, autor Catastro Distrital, no IGAC) y que la
    alerta «gubernamental» solo aplica a otros registros. **Sin confirmar por mí**: `ott/bolivar_alta`
@@ -36,22 +38,6 @@ Olas cerradas: ADR-018 · 020 · 021 · 022 · 023 · 024 · **032** (dato SUPUE
 6. **Las 205 fotos siguen cargadas y visibles** (`99 §ADR-031`), con **tres defectos vivos que no
    bloquean** (acuse que cuenta mal, mapa de carpetas solo como objeto, guardián de orden con falso
    positivo).
-
-## 🔴 ABIERTO — la foto satelital NO SE PINTA (20-08, dos arreglos hechos y SIGUE)
-
-Marcas «Satelital», el `.pmtiles` descarga 200, la fuente se registra —sale la atribución de
-Copernicus— y la imagen no aparece. Pasa en el Resumen Y en Detalle GPS: no es la pestaña nueva.
-
-**Lo ya descartado, para no repetirlo:** el archivo está bien (`pmtiles show`: webp, bounds y zoom
-8-16 correctos) · no es caché (`max-age=0`) · el aviso «Style is not done loading» era de una sesión
-vieja · el orden de capas estaba mal y ya se arregló · `load` no disparaba y se cambió a `style.load`
-· la creación asíncrona podía solapar dos mapas y se cerró.
-
-**Sonda MALA, corregir antes de seguir:** `window.__mapaLineas` es UNA variable global y hay DOS
-componentes de mapa (Resumen y Detalle GPS). La pisa el último en montarse, así que puede estar
-midiendo una instancia ya desmontada — de ahí `loaded()=false` y `getStyle()` vacío. **Ese dato no
-prueba que las capas vayan al mapa equivocado.** Primer paso de la próxima sesión: hacer la sonda por
-componente (p. ej. `__mapaLineas` como array o con la clave de la pestaña) y volver a medir.
 
 ## 🚫 INVARIANTES QUE NO SE PUEDEN ROMPER
 
@@ -79,6 +65,8 @@ desincroniza. Léelos antes de tocar su subsistema.
    (`33 · L-23`). Desplegar: `npm run build && npm run deploy --workspace web`, en ese orden
    (`32 · L-35`); reglas de Firestore por SU canal y ANTES (`31 · L-22`).
 3. **Verificar contra PRODUCCIÓN con el Chrome del Ingeniero**, nunca contra `dist/` (`32 · L-18/35`).
+   Para el MAPA ya no hace falta su navegador: `SONDA_MAPA=1 npm run build` + `sonda-satelital.html`
+   monta el componente real sin sesión, y `__mapas.ver()` lo mide por instancia (`32 · L-63`).
 4. Antes de CADA push: `npm test` + `contrato:verificar` + `brain:check`. Autenticados: `gh`,
    `wrangler`, `firebase`.
 

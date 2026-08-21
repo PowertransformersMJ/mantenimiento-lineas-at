@@ -4043,3 +4043,76 @@ fresco). La tabla de coordenadas lista los 28 puntos. Cero errores en consola.
 
 *(la deliberación fue la propia revisión adversarial; su reporte está resumido arriba punto por punto
 y convertido en `tests/detalle-gps.test.js`, que es la forma ejecutable del crudo.)*
+
+---
+
+## ADR-043 · 2026-08-21 · La satelital SÍ se pintaba: lo roto era la SONDA. Instrumento por instancia y banco de pruebas sin sesión
+
+**Estado:** ✅ Decidido · ⚠️ **NO revisada externamente** · ✅ **verificado en vivo contra producción**
+
+### Contexto
+
+`ADR-041/042` dejaron la capa satelital ABIERTA: dos arreglos hechos el 20-08 y el veredicto era que
+**seguía sin pintarse**. Ese veredicto se apoyaba en una sola medida: `window.__mapaLineas` contestaba
+`loaded() === false` y un estilo vacío.
+
+**Esa medida no podía ser cierta ni falsa: era ILEGIBLE.** `window.__mapaLineas` es UNA variable y el
+componente `Mapa` se monta en DOS pantallas (Resumen y Detalle GPS). La pisaba la última en montarse,
+nadie la borraba al desmontar, y entre «voy a crear un mapa» y «aquí está» hay un `await` de varios
+megabytes. Podía estar contestando por una instancia ya retirada.
+
+### Método — se arregló el INSTRUMENTO antes de volver a diagnosticar
+
+1. **Sonda por instancia** (`componentes/sondaMapa.ts`): una entrada por mapa, con su PANTALLA
+   declarada en el sitio de montaje, baja explícita al desmontar, diario de sucesos, contador de
+   teselas por fuente y el estado tesela a tesela.
+2. **Banco de pruebas sin sesión** (`web/sonda-satelital.html`): monta el componente REAL con apoyos
+   sintéticos derivados del recorte público. Hasta ahora, cada medida sobre el mapa dependía de que
+   alguien abriera su navegador y entrara.
+3. **Se comprobó qué hay DESPLEGADO, no qué se commiteó**: el fuente extraído del *sourcemap* que
+   sirve Cloudflare es idéntico byte a byte a `6ca238f`, y el `.pmtiles` de producción tiene el mismo
+   SHA-256 que el del repositorio. Los dos arreglos ESTABAN en producción.
+4. **Verificación en vivo** con el Chrome del Ingeniero, sobre producción y con su sesión: la foto
+   pinta en **las dos pantallas**, con los nombres encima (vista híbrida) y la fecha de la toma.
+   Números de la sonda: capa visible en el orden 57, primer rótulo en el 58, **12 teselas cargadas y
+   las 12 en la tarjeta gráfica, 0 errores**. Con la temperatura encendida, el apilado correcto:
+   callejero · foto · medida · rótulos · trazado.
+5. **Prueba causal, no coincidencia** (`TODO-66` aplicado a mí mismo): se quitó `style.load` del
+   código actual y **el fallo volvió exacto** — sin «estilo montado» en el diario, el vigilante de
+   15 s disparando y la capa sin añadirse. Se restauró y volvió a pintar. El arreglo de `ed95baa` es
+   la cura, demostrada por retirada y reposición.
+
+### Decisión
+
+- **Ninguna sonda del mapa vuelve a ser global.** Alta con pantalla, baja ANTES del `remove()`. Se
+  retira además el segundo global (`window.__mapa`) que vivía en `crearMapa`: dos sondas globales para
+  lo mismo no es redundancia, son dos sitios donde equivocarse.
+- **`window.__mapaLineas` sobrevive como *getter*** que devuelve la única instancia viva; con cero o
+  con varias **lo dice** en vez de entregar un objeto cualquiera.
+- **El banco de pruebas no se publica**: Vite solo lo construye con `SONDA_MAPA=1`, y hay guardián.
+
+### Alternativas descartadas
+
+- **Seguir depurando el componente.** Era la vía por la que ya se habían ido dos sesiones. No había
+  nada que arreglar ahí: el camino de la imagen estaba sano, y demostrarlo costó veinte minutos con el
+  banco.
+- **Dejar la sonda global «pero con cuidado».** Una sonda que puede mentir no se arregla con
+  disciplina: se arregla o se quita.
+- **Declararlo cerrado con el arreglo ya desplegado y ya.** Sin la prueba de quitar `style.load` no se
+  sabría si el fallo se curó o se escondió.
+
+### Consecuencias
+
+- **La capa satelital queda CERRADA**, con la foto vista en producción y el porqué demostrado.
+- **Una inferencia de `6ca238f` era falsa y queda anotada:** «un mapa sin estilo es un mapa al que ya
+  se le llamó `remove()`». Medido hoy: un mapa que está pintando perfectamente contesta
+  `loaded() === false`. Ese síntoma **no prueba** que el mapa esté muerto. El arreglo que salió de esa
+  inferencia —cerrar la carrera de las dos instancias— sigue siendo correcto por su cuenta.
+- **Se puede depurar el mapa sin el Ingeniero delante**, que era el cuello de botella real de las dos
+  sesiones anteriores.
+- Lección → **`32 · L-63`**.
+
+### Crudo de respaldo
+
+*(sin comité. La evidencia es reproducible y ejecutable: `tests/sonda-mapa.test.js`, el banco
+`web/sonda-satelital.html`, y el experimento de retirada de `style.load` descrito arriba.)*

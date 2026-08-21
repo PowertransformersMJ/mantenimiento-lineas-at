@@ -20,6 +20,11 @@
 
 ## El mapa que no llega a pintarse
 
+### L-63 · Una sonda GLOBAL no puede medir dos instancias — y la primera víctima es el DIAGNÓSTICO
+
+- **Qué pasó:** `window.__mapaLineas` era UNA variable, el mapa se monta en DOS pantallas y nadie la borraba al desmontar: contestaba por una instancia retirada (`loaded()=false`, estilo vacío) y de ahí salió «hay un mapa muerto recibiendo las capas» — dos sesiones en esa dirección. Peor: **un mapa que pinta perfectamente TAMBIÉN contesta `loaded() === false`**; el síntoma no distingue nada.
+- **Regla, tres filos:** (1) si puede haber N de algo, la sonda tiene **N entradas**, con alta y baja —«solo hay uno» caduca sin avisar—; (2) **valídala contra algo que sepas que funciona** antes de diagnosticar con ella (ésta llegó a decir «cero teselas» del callejero, que estaba pintando); (3) con el arreglo puesto, **quítalo y mira si el fallo vuelve**. Entera → `99 §ADR-043`.
+
 ### L-58 · «No pasa nada» al pulsar: mira la PESTAÑA antes que el código
 
 - **Síntoma:** se pulsa el interruptor de una capa del mapa y **no pasa nada**. Ni capa, ni error, ni
@@ -72,13 +77,11 @@
 - **Regla:** al añadir una fuente a un mapa YA CREADO, pídele un fotograma. Y ojo al diagnóstico:
   `isSourceLoaded()` contesta «¿me falta algo de lo que pedí?», no «¿tengo algo?». Para saber si una
   capa de imagen está viva hay que mirar la PANTALLA.
-- **El acompañante del mismo viaje:** el efecto corría antes de que el estilo estuviera armado y
-  reventaba con un `TypeError` invisible. ⚠️ **El primer arreglo —esperar a `isStyleLoaded()`— era
-  la puerta EQUIVOCADA y costó tres despliegues más:** esa función no contesta «¿está el estilo
-  listo?» sino «¿está TODO cargado?», y devuelve `false` mientras a cualquier fuente le falte una
-  tesela. Con un archivo de teselas grande puede quedarse en `false` indefinidamente, y el efecto
-  que la espera **no se ejecuta jamás**. La puerta buena es el evento **`load` del mapa**, guardado
-  en el estado: a partir de ahí `addSource` es seguro.
+- **El acompañante, con su CORRECCIÓN del 21-08:** esperar a `isStyleLoaded()` era la puerta
+  equivocada —contesta «¿está TODO cargado?», no «¿está el estilo listo?»— y costó tres despliegues.
+  Y **`load` TAMPOCO sirve**: espera también a las teselas, así que si a una fuente le falta una no
+  dispara jamás, sin error y sin una petición de red. La puerta buena es **`style.load`**, demostrado
+  quitándolo y viendo caer la capa otra vez (`L-63` · `99 §ADR-043`).
 
 ### L-15 · El worker de MapLibre nace muerto en producción si no se le da su URL
 - **Síntoma:** mapa gris para siempre, sin un solo error. El estilo carga sus 71 capas, el archivo de

@@ -49,6 +49,7 @@
 - `L-15` · El worker de MapLibre nace muerto en producción si no se le da su URL
 - `L-55` · Una capa raster añadida con el mapa quieto no carga NUNCA, y todos los indicadores dicen que sí
 - `L-57` · Un efecto de React que enciende su propio «cargando» se cancela a sí mismo
+- `L-63` · Una sonda GLOBAL no puede medir dos instancias — y la primera víctima no es la sonda, es el diagnóstico
 - `L-58` · «No pasa nada» al pulsar: mira la PESTAÑA antes que el código (una pestaña de fondo congela el mapa)
 - `L-16` · Chrome congela el reloj de animación en pestañas ocultas — y eso engaña dos veces
 - `L-18` · Un despliegue no está vivo hasta que lo ves EN LA PESTAÑA
