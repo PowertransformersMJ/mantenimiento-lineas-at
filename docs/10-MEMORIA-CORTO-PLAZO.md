@@ -6,7 +6,7 @@
 
 ## 🎯 Dónde estamos
 
-**Cifras vivas en `05`.** 12 pestañas + RCA + tres informes. **Mazo E02 listo** (`32 · L-49`).
+**Cifras vivas en `05`.** 14 pestañas + RCA + tres informes. **Mazo E02 listo** (`32 · L-49`).
 Olas cerradas: ADR-018 · 020 · 021 · 022 · 023 · 024 · **032** (dato SUPUESTO) · **034-037 y 039-042**
 (las capas del mapa) · **043** (la satelital, CERRADA: pinta en producción y la causa se probó quitando
 el arreglo y viéndola caer otra vez).
