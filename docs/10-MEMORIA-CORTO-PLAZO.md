@@ -1,15 +1,15 @@
 # 📝 10 — MEMORIA DE CORTO PLAZO (pizarra viva)
 
 > Se **AUTO-CARGA**. Pizarra, no bitácora (§G.3). Tope ~110 líneas / 16k chars.
-> **RELEVO 2026-08-20.** Este nodo ES el relevo: léelo entero antes de tocar nada.
+> **RELEVO 2026-08-21.** Este nodo ES el relevo: léelo entero antes de tocar nada.
 > Si contradice a `docs/.handoff-auto.md` (foto real de git), manda ese.
 
 ## 🎯 Dónde estamos
 
 **Cifras vivas en `05`.** 14 pestañas + RCA + tres informes. **Mazo E02 listo** (`32 · L-49`).
 Olas cerradas: ADR-018 · 020 · 021 · 022 · 023 · 024 · **032** (dato SUPUESTO) · **034-037 y 039-042**
-(las capas del mapa) · **043** (la satelital, CERRADA: pinta en producción y la causa se probó quitando
-el arreglo y viéndola caer otra vez).
+(las capas del mapa) · **043** (satelital cerrada) · **044** (cable de guarda) · **045** (atlas solar
+del Caribe, `#/sol`). Las tres del 21-08 están EN PRODUCCIÓN y vistas con sus ojos.
 
 ## 🛑 LO PRIMERO AL RETOMAR
 
@@ -19,22 +19,23 @@ el arreglo y viéndola caer otra vez).
    mueve ninguno por sí solo**, comprobado en producción antes de escribir nada: faltan la altura
    libre y la del amarre, que no van por lote (`33 · L-59`). Falta que él conteste `TODO-57`: si esas
    fichas están en planos y actas o hay que levantarlas.
-2. **Lo último, 21-08** (`99 §ADR-043`): **la satelital SÍ se pintaba; lo roto era mi SONDA** —una
-   variable global para dos pantallas—. Cerrada y vista en producción en las dos pantallas. Lo del
-   20-08 (`ADR-038` a `042`) sigue vigente: LOTE · **temperatura ambiente** —confirma que la EDS
-   adoptada de 28 °C se sostiene: el sitio tiene 27,3— · satelital al nivel 16 · «Detalle GPS».
-   ⚠️ **Sobre la licencia de más resolución: `31 · L-60` puede estar MAL.** Un agente sostiene que
-   las ortos del Estado sí son redistribuibles (CC, autor Catastro Distrital, no IGAC) y que la
-   alerta «gubernamental» solo aplica a otros registros. **Sin confirmar por mí**: `ott/bolivar_alta`
-   resultó ser de 10 m, no sub-métrica. Verificar ANTES de citar `L-60` como cerrado.
+2. **LO ÚLTIMO, 21-08 — tres olas, las tres desplegadas y VISTAS:**
+   · `ADR-043` la satelital SÍ se pintaba; lo roto era mi sonda (global para dos pantallas).
+   · `ADR-044` **cable de guarda**: 24/24 vanos de LN-627 declarados. E06-E09 y E21-E22 sin guarda
+     (902 m, 29,8 %), el resto con. Se pinta en el mapa. Es DAÑO de operación, no diseño.
+   · `ADR-045` **atlas solar del Caribe** en `#/sol`: NASA POWER horario de 2026 sobre los siete
+     departamentos. Auditado con Fable, que cazó un mes rancio que ningún guardián veía (`dfdb806`).
+   ⚠️ `31 · L-60` (licencia de las ortos del IGAC) **puede estar MAL** y sigue sin confirmar: un
+   agente sostiene que las del Catastro Distrital sí son redistribuibles. Verificar ANTES de citarlo.
 3. **TRES COSAS QUEDARON A MEDIO CAMINO Y SON DE ÉL, no de código:**
    `TODO-57` el dato de la ficha · **ponerse contraseña** (bloquea retirar Google) · `TODO-71` cerrar
    las hipótesis de **viento** y de los **1.000 W/m²** de la ampacidad, que ningún mapa cierra: eso
    es una SERIE histórica con percentiles.
 4. **Verificar que una acción FUNCIONÓ**, no solo que se hizo (`TODO-66`): una que no sirvió es hoy
    indistinguible de una que sirvió.
-5. **Higiene del cerebro:** lo que el kernel marque al arrancar manda —hoy solo quedan excesos
-   leves—. El boot va JUSTO: cada línea nueva en `CLAUDE.md`, `05` o `10` obliga a podar otra.
+5. **Higiene del cerebro:** lo que el kernel marque al arrancar manda. Cada línea nueva en `CLAUDE.md`,
+   `05` o `10` obliga a podar otra. ⚠️ **`20` pide poda de verdad** (17,5k/16k): estaba a DOS caracteres
+   de su tope y cualquier añadido lo revienta. Es tarea propia, no de la ola que le toque después.
 6. **Las 205 fotos siguen cargadas y visibles** (`99 §ADR-031`), con **tres defectos vivos que no
    bloquean** (acuse que cuenta mal, mapa de carpetas solo como objeto, guardián de orden con falso
    positivo).
