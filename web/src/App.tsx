@@ -4,11 +4,22 @@
 // React se usa ÚNICAMENTE para pintar (ADR-005). Aquí no hay lógica de negocio:
 // se lee el estado del almacén, se elige qué pantalla toca, y ya.
 // ============================================================================
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { VERSION_CONTRATO } from '@lineas/contratos';
 import { derivarLevantamiento } from '@lineas/exportar/levantamiento';
-import { useDatos, useRca, almacen } from './datos/enlace';
+import { useAtlasSolar, useDatos, useRca, almacen } from './datos/enlace';
 import { Rca } from './componentes/Rca';
+import { conReintentos } from './datos/cargar';
+// ⚠️ EN DIFERIDO, y no por elegancia: el atlas arrastra MapLibre (cerca de un
+// mega) y es una pantalla que la mayoría de las sesiones no abre nunca. Con el
+// import en directo, MEDIDO, el paquete de entrada pasaba de 820 kB a 1.844 kB —
+// o sea que la cuadrilla se descargaba MapLibre para ver la pantalla de acceso.
+// `conReintentos` y no un `import()` pelado: `datos/cargar.ts` es la ÚNICA
+// frontera de carga diferida del sistema, por un fallo que ya ocurrió en
+// producción (un trozo tardó, el navegador falló una vez, la página se quedó en
+// blanco para siempre).
+const SolCaribe = lazy(() => conReintentos(() => import('./componentes/SolCaribe'))
+  .then((m) => ({ default: m.SolCaribe })));
 import { Contrasena } from './componentes/Contrasena';
 import { SinSesion, Cargando, Vacio, Error_ } from './componentes/Estado';
 import { VistaLinea } from './componentes/Linea';
@@ -114,6 +125,11 @@ function Cabecera() {
         <button type="button" className="boton chico ir-rca" onClick={() => void almacen.abrirRca()}>
           Análisis de causa raíz
         </button>
+        {/* El atlas NO es de esta línea: es del Caribe. Por eso vive en la
+            cabecera, al lado del segmento de causa raíz, y no como pestaña. */}
+        <button type="button" className="boton chico" onClick={() => almacen.abrirAtlasSolar()}>
+          Atlas solar
+        </button>
         <span className="fase">Fase 0 · fundación</span>
       </div>
     </header>
@@ -133,6 +149,7 @@ function Pie() {
 function Contenido() {
   const d = useDatos();
   const rca = useRca();
+  const atlas = useAtlasSolar();
 
   /**
    * Acceso con correo y contraseña — la vía definitiva.
@@ -171,6 +188,19 @@ function Contenido() {
   // El segmento RCA se pinta ENCIMA de la línea, sin destruirla: volver al
   // parque es instantáneo porque la línea nunca se descargó de memoria.
   if (rca.fase !== 'cerrado') return <Rca />;
+
+  // El atlas solar, igual: encima y sin destruir nada. Va DESPUÉS del RCA porque
+  // si los dos estuvieran abiertos manda el que se abrió con la dirección, y el
+  // RCA es el que lee de la base.
+  //
+  // ⚠️ EXIGE SESIÓN, aunque su dato sea PÚBLICO (NASA POWER y OpenStreetMap) y
+  // no traiga un solo byte de cliente. Sin esta guarda, pegar `#/sol` abriría
+  // una pantalla real de la aplicación a cualquiera que tuviera la dirección —
+  // y esa es una decisión de producto que no toma un `if` colocado sin pensar.
+  // El día que se quiera un atlas público, se decide y se documenta.
+  if (atlas && d.fase !== 'sin_sesion' && d.fase !== 'cambiar_contrasena') {
+    return <Suspense fallback={<Cargando />}><SolCaribe /></Suspense>;
+  }
 
   switch (d.fase) {
     case 'sin_sesion': return <SinSesion onEntrar={entrar} onEntrarConGoogle={() => void entrarConGoogle()} />;

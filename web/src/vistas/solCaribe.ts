@@ -37,6 +37,13 @@ export interface FichaSol {
   /** Celdas del cuadro: 6 x 6. NO son los píxeles del archivo. */
   ancho: number;
   alto: number;
+  /**
+   * Iguales a propósito: el píxel ES la celda medida de 1°. Los declara la ficha
+   * porque `rejilla.ts` los exige — y aquí sirven para que la pantalla NO avise
+   * de un remuestreo que no existe.
+   */
+  resolucion_m: number;
+  resolucion_nativa_m: number;
   codificacion: CodificacionRejilla;
   cuadros: { horas: number; porFila: number; celdaAncho: number; celdaAlto: number };
   anio: number;

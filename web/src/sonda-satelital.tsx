@@ -15,7 +15,8 @@
 import { StrictMode, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { Apoyo } from '@lineas/contratos';
-import Mapa, { prepararTeselas } from './componentes/Mapa';
+import Mapa from './componentes/Mapa';
+import { prepararTeselas } from './datos/teselas';
 import './estilo.css';
 
 /**

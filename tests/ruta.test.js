@@ -62,4 +62,13 @@ describe('la gramática de direcciones', () => {
     assert.equal(leerRuta('#/rca/resumen').tipo, 'rca',
       'con la gramática actual, una línea llamada «rca» sería inalcanzable por enlace');
   });
+
+  test('`#/sol` abre el atlas solar, y solo sin segundo tramo', () => {
+    // El atlas no es de ninguna línea: no lleva código detrás. Si alguien pega
+    // `#/sol/loquesea`, NO puede abrirlo — una dirección inventada no debe
+    // abrir una pantalla real; cae al caso de línea, donde «sol» no existe.
+    assert.deepEqual(leerRuta('#/sol'), { tipo: 'sol' });
+    assert.deepEqual(leerRuta('#/sol/'), { tipo: 'sol' });
+    assert.deepEqual(leerRuta('#/sol/marzo'), { tipo: 'linea', codigo: 'sol', pestana: 'marzo' });
+  });
 });

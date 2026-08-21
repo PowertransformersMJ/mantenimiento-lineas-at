@@ -22,11 +22,13 @@
  * descartaba y siempre se cargaba la primera del parque. Con dos líneas, dos
  * ingenieros pueden discutir cifras creyendo que miran la misma.
  *
+ *   #/sol            → el atlas solar del Caribe (no depende de ninguna línea)
  *   #/rca            → el índice de análisis
  *   #/rca/<codigo>   → un análisis concreto
  *   #/<linea>/<pest> → una línea en una pestaña (ya existía y no se toca)
  */
 export type Ruta =
+  | { tipo: 'sol' }
   | { tipo: 'rca'; codigo?: string }
   | { tipo: 'linea'; codigo: string; pestana?: string }
   | null;
@@ -35,6 +37,10 @@ export function leerRuta(hash = location.hash): Ruta {
   const m = /^#\/([^/]+)(?:\/([^/]+))?\/?$/.exec(hash);
   if (!m) return null;
   const [, a, b] = m;
+  // `#/sol` no lleva segundo tramo: el atlas no es de ninguna línea. Si alguien
+  // pega `#/sol/algo`, cae al caso de línea y el código «sol» no existirá — que
+  // es lo correcto: una dirección inventada no debe abrir una pantalla real.
+  if (a === 'sol' && !b) return { tipo: 'sol' };
   if (a === 'rca') return { tipo: 'rca', codigo: b ? decodeURIComponent(b) : undefined };
   return { tipo: 'linea', codigo: decodeURIComponent(a), pestana: b };
 }

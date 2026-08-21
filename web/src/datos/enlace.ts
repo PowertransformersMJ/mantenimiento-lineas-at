@@ -70,6 +70,13 @@ class Almacen {
    * no hay permiso — se dice que todavía no consta.
    */
   #sesion: EstadoSesion = { fase: 'comprobando' };
+  /**
+   * Si el ATLAS SOLAR está en pantalla. Un booleano y no una fase con datos: el
+   * atlas no lee nada de la base — sus archivos viajan con el sitio— así que no
+   * hay nada que cargar, que fallar ni que reintentar. Darle una máquina de
+   * estados como la del RCA sería inventarle problemas que no tiene.
+   */
+  #atlasSolar = false;
   #oyentes = new Set<Oyente>();
 
   leer = (): EstadoDatos => this.#estado;
@@ -95,6 +102,24 @@ class Almacen {
   leerRca = (): EstadoRca => this.#rca;
 
   #ponerRca(e: EstadoRca): void { this.#rca = e; this.#avisar(); }
+
+  leerAtlasSolar = (): boolean => this.#atlasSolar;
+
+  /** Abre el atlas solar ENCIMA de lo que haya, sin destruirlo. */
+  abrirAtlasSolar(): void {
+    if (!this.#atlasSolar) this.#hashPrevio = location.hash || null;
+    irA('#/sol');
+    this.#atlasSolar = true;
+    this.#avisar();
+  }
+
+  /** Vuelve a donde se estaba. Sin esto, recargar volvería a abrir el atlas. */
+  cerrarAtlasSolar(): void {
+    irA(this.#hashPrevio ?? '#/');
+    this.#hashPrevio = null;
+    this.#atlasSolar = false;
+    this.#avisar();
+  }
 
   /** Abre el segmento y trae el índice. El estado de la línea NO se toca. */
   async abrirRca(): Promise<void> {
@@ -262,6 +287,12 @@ class Almacen {
       }
       return;
     }
+
+    // El atlas solar sigue la misma regla que el segmento: la dirección manda.
+    // Sin esto, pegar `#/sol` en el navegador no abriría nada y el botón Atrás
+    // dejaría la dirección en `#/sol` con la línea debajo.
+    const abierto = leerRuta()?.tipo === 'sol';
+    if (abierto !== this.#atlasSolar) { this.#atlasSolar = abierto; this.#avisar(); }
 
     // La dirección ya no habla del segmento: si estaba abierto, se cierra.
     if (r.fase !== 'cerrado') this.#ponerRca({ fase: 'cerrado' });
@@ -548,6 +579,11 @@ export function useDatos(): EstadoDatos {
 /** El gancho del segmento RCA. Misma suscripción, otro trozo del estado. */
 export function useRca(): EstadoRca {
   return useSyncExternalStore(almacen.suscribir, almacen.leerRca, almacen.leerRca);
+}
+
+/** Si el atlas solar está en pantalla. Misma suscripción, otro trozo del estado. */
+export function useAtlasSolar(): boolean {
+  return useSyncExternalStore(almacen.suscribir, almacen.leerAtlasSolar, almacen.leerAtlasSolar);
 }
 
 /**
