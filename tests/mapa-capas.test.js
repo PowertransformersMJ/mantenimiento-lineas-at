@@ -151,7 +151,10 @@ describe('el mapa no le pide teselas a nadie', () => {
     // pintaba con `loaded() === false`. La señal la tiene que dar `style.load`.
     assert.match(CODIGO, /creado\.once\('style\.load', listo\)/,
       '`load` espera a las teselas; `style.load` es lo único que `addSource` necesita');
-    assert.match(CODIGO, /const listo = \(\) => \{[\s\S]{0,300}setMapaCargado\(true\)/,
+    // La lista de argumentos de `listo` NO se vigila: `style.load` y `load` le
+    // pasan su evento y la sonda lo anota para poder decir CUÁL de los dos llegó.
+    // Lo que se vigila es que exista y que encienda la señal.
+    assert.match(CODIGO, /const listo = \([^)]*\) => \{[\s\S]{0,400}setMapaCargado\(true\)/,
       'nadie enciende la señal de que el mapa terminó de cargar');
     const efectos = [...CODIGO.matchAll(/useEffect\(\(\) => \{([\s\S]*?)\}, \[([^\]]*)\]\);/g)];
     for (const [, cuerpo, deps] of efectos) {

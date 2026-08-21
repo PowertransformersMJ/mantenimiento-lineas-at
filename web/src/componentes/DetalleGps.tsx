@@ -99,7 +99,7 @@ export function DetalleGps({ apoyos, investigaciones, alVerEvento, hipotesis }: 
         <RespaldoMapa apoyos={apoyos}>
           <Suspense fallback={<PlantaSvg apoyos={apoyos} nota="Descargando el mapa…" />}>
             <Mapa apoyos={apoyos} eventos={investigaciones} alVerEvento={alVerEvento}
-              hipotesis={hipotesis} panelALado
+              hipotesis={hipotesis} panelALado pantalla="detalle-gps"
               respaldo={<PlantaSvg apoyos={apoyos} nota="El mapa no se pudo descargar; se muestra el esquema geométrico (funciona sin conexión). Las coordenadas de abajo siguen completas." />} />
           </Suspense>
         </RespaldoMapa>

@@ -47,6 +47,7 @@ import {
   type PronosticoEnPantalla,
 } from '../vistas/pronostico';
 import { ATRIBUCION_PRONOSTICO, celdaDeConsulta, pedirPronostico, SinPronostico } from '../datos/pronostico';
+import { anotar, registrarMapa, retirarMapa } from './sondaMapa';
 
 // ⚠️ Cloudflare Pages NO honra las peticiones de rango en estos archivos
 // (verificado: pide 1 KB y responde 200 con los 4,5 MB) — y el lector de
@@ -262,7 +263,7 @@ function fichaPopup(p: ReturnType<typeof derivarLevantamiento>['puntos'][number]
   return `<div class="pop-ficha">${filas.join('<br>')}</div>`;
 }
 
-export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis, panelALado }:
+export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis, panelALado, pantalla = 'sin-declarar' }:
   { apoyos: Apoyo[]; respaldo?: ReactNode;
     /** Expedientes de falla a señalar sobre el mapa. Vacío = línea sin eventos. */
     eventos?: Investigacion[];
@@ -283,7 +284,19 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
      * trazado que se quiere recorrer—. La disposición la decide quien monta el
      * mapa, no el mapa: es la misma pieza en los dos sitios.
      */
-    panelALado?: boolean }) {
+    panelALado?: boolean;
+    /**
+     * EN QUÉ PANTALLA VIVE ESTA INSTANCIA. No pinta nada: es lo único que le
+     * permite a la sonda decir CUÁL de los dos mapas está midiendo.
+     *
+     * ⚠️ Este componente se monta DOS veces —Resumen y Detalle GPS— y la sonda
+     * anterior era una sola variable global que se pisaban entre sí: podía
+     * estar midiendo una instancia ya desmontada y contestar «no cargó» de un
+     * mapa que en realidad estaba muerto (`10 §ABIERTO`). Se declara aquí, en
+     * el sitio de montaje, en vez de adivinarse de otra prop: adivinarlo es
+     * exactamente el error que se está corrigiendo.
+     */
+    pantalla?: string }) {
   const caja = useRef<HTMLDivElement>(null);
   const mapa = useRef<maplibregl.Map | null>(null);
   const [estado, setEstado] = useState<'cargando' | 'listo' | 'fallo'>('cargando');
@@ -319,6 +332,13 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
   const yaPedido = useRef(false);
   /** Si el componente sigue montado. Lo único que decide si se puede pintar la respuesta. */
   const montado = useRef(true);
+  /**
+   * El número que ESTA instancia tiene en la sonda (`sondaMapa.ts`). Referencia
+   * y no estado: la escribe el efecto que crea el mapa y la leen los efectos de
+   * las capas para anotar en el MISMO diario; volver a pintar por esto no tendría
+   * ningún sentido. `0` = todavía sin alta.
+   */
+  const sonda = useRef(0);
   /**
    * EL MAPA VIVO, EN EL ESTADO Y NO EN UNA REFERENCIA.
    *
@@ -393,11 +413,11 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
       creado = crearMapa(caja.current, apoyos, meta, eventos ?? [], alVerEvento);
       mapa.current = creado;
       // EL MAPA, ALCANZABLE DESDE LA CONSOLA — y el MISMO objeto que reciben las
-      // capas, no otro. Hoy se fueron dos horas adivinando por capturas por qué
-      // una capa no se pintaba; con esto, «¿dónde quedó?» se contesta en diez
-      // segundos con `__mapaLineas.getStyle().layers`. El objeto ya está en la
-      // página: exponerlo no abre nada que no estuviera abierto.
-      (window as unknown as { __mapaLineas?: maplibregl.Map }).__mapaLineas = creado;
+      // capas, no otro. Se da de alta en la sonda CON SU PANTALLA (`sondaMapa.ts`),
+      // que es una entrada por instancia y se da de baja al desmontar. La variable
+      // global de antes se pisaba entre las dos pantallas y podía contestar por un
+      // mapa ya retirado: media sesión de diagnóstico falso salió de ahí.
+      sonda.current = registrarMapa(pantalla, creado, caja.current);
       // La señal para las capas: hay un mapa nuevo, vuelvan a aplicarse.
       setMapaVivo(creado);
 
@@ -422,6 +442,7 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
         document.removeEventListener('visibilitychange', alCambiar);
         if (!cancelado && creado && !creado.loaded()) {
           console.warn('[mapa] el mapa no cargó tras 15 s visibles; se pasa al esquema SVG');
+          anotar(sonda.current, 'el vigilante de 15 s visibles se disparó: se cae al esquema SVG');
           setEstado('fallo');
         }
       }, 1000);
@@ -440,9 +461,10 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
       // `style.load` dispara en cuanto el estilo está montado, que es lo único
       // que `addSource` necesita de verdad. Se dejan los dos: el primero que
       // llegue enciende la señal, y `once` garantiza que solo cuenta una vez.
-      const listo = () => {
+      const listo = (ev?: unknown) => {
         clearInterval(reloj);
         document.removeEventListener('visibilitychange', alCambiar);
+        anotar(sonda.current, `estilo montado por «${(ev as { type?: string })?.type ?? '?'}» — a partir de aquí addSource es seguro`);
         // La señal que esperan las capas: a partir de aquí `addSource` es seguro.
         if (!cancelado) setMapaCargado(true);
       };
@@ -455,6 +477,10 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
       // aún se descargaban las teselas, y entonces el mapa a quitar es el de la
       // referencia.
       cancelado = true;
+      // La BAJA en la sonda va ANTES del `remove()`: después, el mapa ya no
+      // contesta ni a `getStyle()`, y una baja que revienta deja la entrada viva
+      // — que es justo la mentira que esta sonda existe para no contar.
+      if (sonda.current) { retirarMapa(sonda.current); sonda.current = 0; }
       (creado ?? mapa.current)?.remove();
       mapa.current = null;
       setMapaVivo(null); setMapaCargado(false);
@@ -488,13 +514,16 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
         if (m.getLayer(idCapa)) {
           m.setLayoutProperty(idCapa, 'visibility', 'visible');
           m.triggerRepaint();
+          anotar(sonda.current, `«${nombre}» ya estaba puesta: se vuelve a hacer visible`);
           continue;
         }
+        anotar(sonda.current, `«${nombre}» ENCENDIDA: se va a bajar el archivo`);
         const capa = CAPAS_RASTER[nombre];
         setBajando(nombre);
         setFalloCapa(null);
         try {
           const meta = await prepararTeselas(capa.archivo);
+          anotar(sonda.current, `archivo «${capa.archivo}» listo · z${meta.zMin}-${meta.zMax} · limites ${meta.limites.map((v) => v.toFixed(3)).join(',')}`);
           const ficha = await fetch(capa.ficha).then((r) => (r.ok ? r.json() : null)).catch(() => null);
           if (cancelado) return;
           if (ficha) setFichas((f) => ({ ...f, [nombre]: ficha as FichaCapa }));
@@ -545,9 +574,11 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
           // que se declara «cargada» sin una sola imagen dentro. Se cazó en
           // producción — verde en pruebas, blanco en pantalla (`32 · L-55`).
           m.triggerRepaint();
+          anotar(sonda.current, `capa «${idCapa}» puesta debajo de «${debajoDe ?? '(nada: va arriba del todo)'}» · orden ${m.getStyle().layers.findIndex((l) => l.id === idCapa)} de ${m.getStyle().layers.length}`);
         } catch (e) {
           if (cancelado) return;
           console.warn('[mapa] capa', nombre, e);
+          anotar(sonda.current, `FALLO al poner «${nombre}»: ${(e as Error)?.message ?? String(e)}`);
           setFalloCapa(`No se pudo descargar la capa «${capa.rotulo}». El mapa sigue igual.`);
           if (nombre === 'satelital') setBase('callejero'); else setMedida(null);
         } finally {
@@ -1227,11 +1258,16 @@ function crearMapa(
       zoom: 12.5,
     });
 
-    // Los errores del mapa (tesela, glifo, sprite) NO revientan la página:
-    // se registran para poder diagnosticarlos. Y la instancia queda accesible
-    // en desarrollo para sondearla desde la consola.
+    // Los errores del mapa (tesela, glifo, sprite) NO revientan la página: se
+    // registran para poder diagnosticarlos. El diario que SÍ se puede consultar
+    // después lo lleva la sonda (`sondaMapa.ts`), que además los cuenta por
+    // fuente; aquí solo queda el eco inmediato en consola.
+    //
+    // ⚠️ Aquí vivía un SEGUNDO global (`window.__mapa`), con la misma avería que
+    // el primero: dos pantallas, una variable, la pisaba la última y nadie la
+    // borraba. Dos sondas globales para lo mismo no es redundancia, es tener dos
+    // sitios donde equivocarse. La sonda es una y va por instancia.
     m.on('error', (e) => console.warn('[mapa]', (e as { error?: Error }).error?.message ?? e));
-    (window as unknown as { __mapa?: maplibregl.Map }).__mapa = m;
 
     m.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-left');
     m.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left');
