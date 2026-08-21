@@ -37,15 +37,21 @@ Olas cerradas: ADR-018 · 020 · 021 · 022 · 023 · 024 · **032** (dato SUPUE
    bloquean** (acuse que cuenta mal, mapa de carpetas solo como objeto, guardián de orden con falso
    positivo).
 
-## 🔴 ABIERTO — la foto satelital NO SE PINTA (20-08)
+## 🔴 ABIERTO — la foto satelital NO SE PINTA (20-08, dos arreglos hechos y SIGUE)
 
-Con «Satelital» marcado, el `.pmtiles` **descarga 200 OK** y la fuente se registra —sale la
-atribución de Copernicus— pero la imagen no se dibuja. Verificado en producción con su Chrome.
-⚠️ El aviso «Style is not done loading» que se citó al empezar era de una **sesión anterior** (bundle
-viejo): no es la causa — perseguirlo es repetir `L-58`. El orden de capas y el vacío del borde sí
-estaban rotos y quedaron arreglados (`ADR-034` afirmaba en falso que se vio con rótulos encima).
-**PISTA:** descarga + se registra + no dibuja → mirar `32 · L-55` (fuente raster esperando un
-fotograma que nadie pide) o `visibility`. Control: comprobar si también falla en el Resumen.
+Marcas «Satelital», el `.pmtiles` descarga 200, la fuente se registra —sale la atribución de
+Copernicus— y la imagen no aparece. Pasa en el Resumen Y en Detalle GPS: no es la pestaña nueva.
+
+**Lo ya descartado, para no repetirlo:** el archivo está bien (`pmtiles show`: webp, bounds y zoom
+8-16 correctos) · no es caché (`max-age=0`) · el aviso «Style is not done loading» era de una sesión
+vieja · el orden de capas estaba mal y ya se arregló · `load` no disparaba y se cambió a `style.load`
+· la creación asíncrona podía solapar dos mapas y se cerró.
+
+**Sonda MALA, corregir antes de seguir:** `window.__mapaLineas` es UNA variable global y hay DOS
+componentes de mapa (Resumen y Detalle GPS). La pisa el último en montarse, así que puede estar
+midiendo una instancia ya desmontada — de ahí `loaded()=false` y `getStyle()` vacío. **Ese dato no
+prueba que las capas vayan al mapa equivocado.** Primer paso de la próxima sesión: hacer la sonda por
+componente (p. ej. `__mapaLineas` como array o con la clave de la pestaña) y volver a medir.
 
 ## 🚫 INVARIANTES QUE NO SE PUEDEN ROMPER
 
