@@ -4121,7 +4121,7 @@ megabytes. Podía estar contestando por una instancia ya retirada.
 
 ## ADR-044 · 2026-08-21 · El cable de guarda entra al sistema como INVENTARIO de daño, vano a vano, y se pinta sobre el mapa
 
-**Estado:** ✅ Decidido · ⚠️ **NO revisada externamente** · ⬜ pendiente de verificar en vivo
+**Estado:** ✅ Decidido · ⚠️ **NO revisada externamente** · ✅ **verificado en vivo contra producción**
 
 ### Contexto
 
@@ -4175,6 +4175,15 @@ nadie**: además cuelga de UN apoyo, y esto es un tramo ENTRE dos.
   esconde da por sano un trozo señalado. Arreglo: funda blanca + color fuera de la paleta, con el color
   en el dueño único (`vistas/tramoColores.ts`) y **guardián que lo compara contra la paleta**.
 - **Nada de esto sirve hasta que el dato esté cargado.** Desplegar primero, declarar después.
+
+### Verificado en vivo (2026-08-21)
+
+Con el Chrome del Ingeniero, sobre producción y con su sesión. Se declararon los cuatro vanos por la
+pantalla nueva —E06→E07, E07→E08, E08→E09 y E21→E22— y el sistema los agrupó **solo**: la leyenda dice
+**E06 → E09 · 607 m · 3 vanos** y **E21 → E22 · 295 m**, **902 m — 29,8 % de la línea**, con
+**«quedan 20 vanos sin comprobar»** al lado. Los dos tramos se distinguen en el mapa contra los colores
+de tramo de tensión. Cero errores. (La medida previa a mano daba 903 m / 29,9 %: la diferencia es el
+redondeo al metro de la matriz de distancias frente a la precisión entera del motor.)
 
 ### Crudo de respaldo
 
