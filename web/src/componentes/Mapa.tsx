@@ -74,7 +74,7 @@ let protocolo: Protocol | null = null;
  */
 const archivos = new Map<string, Promise<MetaTeselas>>();
 
-function prepararTeselas(nombre = 'cartagena.pmtiles'): Promise<MetaTeselas> {
+export function prepararTeselas(nombre = 'cartagena.pmtiles'): Promise<MetaTeselas> {
   if (!protocolo) {
     protocolo = new Protocol();
     maplibregl.addProtocol('pmtiles', protocolo.tile);

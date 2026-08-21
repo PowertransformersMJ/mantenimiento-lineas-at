@@ -137,27 +137,56 @@ function capasDe(m: maplibregl.Map) {
   })));
 }
 
-/** El estado tesela a tesela de una fuente. Es la ÚNICA prueba de que pidió algo. */
+/**
+ * El estado tesela a tesela de una fuente. Es la ÚNICA prueba de que una capa
+ * pidió algo y de que lo que pidió llegó hasta la tarjeta gráfica.
+ *
+ * ⚠️ SE LEE POR `getIds()` + `getTileByID()`, no por el saco interno de teselas.
+ * La primera versión de esta función miraba `_tiles`, que en MapLibre 6 ya no
+ * existe —ahora hay `_inViewTiles`, y es un contenedor propio, no un objeto—, y
+ * contestaba **cero teselas** tan tranquila… también del callejero, que estaba
+ * pintando delante de mis ojos. Un cero de esos es peor que un hueco: se lee
+ * como «no pidió nada» y manda el diagnóstico al lado contrario. Los dos métodos
+ * de arriba son los que usa el propio renderizador.
+ */
 function teselasDe(m: maplibregl.Map, idFuente: string) {
   return seguro(() => {
+    type Tesela = {
+      tileID?: { canonical?: { z: number; x: number; y: number }; overscaledZ?: number };
+      state?: string; texture?: unknown; buckets?: unknown; tileSize?: number;
+    };
     const gestor = (m as unknown as {
-      style?: { tileManagers?: Record<string, { _tiles?: Record<string, { tileID?: { canonical?: { z: number; x: number; y: number } }; state?: string; texture?: unknown }>; used?: boolean; loaded?: () => boolean }> };
+      style?: { tileManagers?: Record<string, {
+        getIds?: () => string[];
+        getTileByID?: (k: string) => Tesela | undefined;
+        getRenderableIds?: () => string[];
+        used?: boolean; loaded?: () => boolean; areTilesLoaded?: () => boolean;
+      }> };
     }).style?.tileManagers?.[idFuente];
     if (!gestor) return 'no hay gestor de teselas para esa fuente';
-    const t = gestor._tiles ?? {};
-    const filas = Object.values(t).map((x) => ({
-      zxy: x.tileID?.canonical ? `${x.tileID.canonical.z}/${x.tileID.canonical.x}/${x.tileID.canonical.y}` : '?',
-      estado: x.state ?? '?',
-      conImagen: Boolean(x.texture),
-    }));
+    const ids = gestor.getIds?.() ?? [];
+    const filas = ids.map((k) => {
+      const t = gestor.getTileByID?.(k);
+      const c = t?.tileID?.canonical;
+      return {
+        zxy: c ? `${c.z}/${c.x}/${c.y}` : '?',
+        estado: t?.state ?? '?',
+        // Una tesela raster con textura ya está EN LA TARJETA GRÁFICA: si no se
+        // ve, el problema ya no es la descarga ni la decodificación.
+        enLaGpu: Boolean(t?.texture),
+        px: t?.tileSize ?? null,
+      };
+    });
     const porEstado: Record<string, number> = {};
     for (const f of filas) porEstado[f.estado] = (porEstado[f.estado] ?? 0) + 1;
     return {
       enUso: gestor.used ?? null,
       cargada: gestor.loaded?.() ?? null,
+      quietas: gestor.areTilesLoaded?.() ?? null,
       nTeselas: filas.length,
+      dibujables: gestor.getRenderableIds?.().length ?? null,
       porEstado,
-      conImagen: filas.filter((f) => f.conImagen).length,
+      enLaGpu: filas.filter((f) => f.enLaGpu).length,
       filas: filas.slice(0, 24),
     };
   });
