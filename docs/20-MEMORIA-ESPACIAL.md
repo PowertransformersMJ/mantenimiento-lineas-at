@@ -134,14 +134,14 @@ mantenimiento-lineas-at/
 ├── web/src/componentes/         React SOLO pinta (ADR-005): Linea (las 13 pestañas ARIA **y** la
 │                                carcasa de 3 columnas), Horizonte (los apoyos en su orden real),
 │                                Mapa (popup completo + tramos + marcador de falla), Distribucion,
-│                                Distancias, Fichas (+FichaEditor · FichaLote, admin, ADR-038),
-│                                FichaCriterios, Falla + Galeria, Fundamentos,
+│                                Distancias, DetalleGps (el mapa a pantalla: MISMO Mapa con
+│                                `panelALado`, ADR-042), Fichas (+FichaEditor · FichaLote, admin,
+│                                ADR-038), FichaCriterios, Falla + Galeria, Fundamentos,
 │                                Umbrales, Termica, Viento, Cargas (los DOS ejes, ADR-011/017),
 │                                Cantidades, Exportar, Sello, Estado · **Cargar** (solo admin) y
 │                                **Fotos** (ADR-031; cuadrilla o superior): las DOS que ESCRIBEN, y
 │                                las dos cuyo efecto no se deshace · **Rca + RcaEditores: NO son
-│                                una pestaña de línea — son un segmento hermano del parque, porque
-│                                un análisis puede abarcar varias líneas (ADR-020)**
+│                                pestaña de línea, son segmento hermano del parque → `99 §ADR-020`**
 ├── web/src/contenido/           doctrina SIN datos de cliente (fundamentos.ts: 9 tarjetas + normas)
 ├── web/src/exportar/            SOLO descargar.js (Blob/DOM) — el resto vive en el workspace
 ├── web/src/vistas/              ⭐ DUEÑOS ÚNICOS — si un número sale de aquí, NO se recalcula en

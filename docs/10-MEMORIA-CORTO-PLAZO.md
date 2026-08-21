@@ -22,7 +22,7 @@ Olas cerradas: ADR-018 · 020 · 021 · 022 · 023 · 024 · **032** (dato SUPUE
    **temperatura del AIRE** en el mapa —que de paso confirma que la EDS adoptada de 28 °C se
    sostiene: el sitio tiene 27,3— y la **satelital remuestreada** al nivel 15, que era lo que se veía
    borroso. A más resolución **no se puede ir por licencia**, no por técnica (`31 · L-60`, `TODO-72`).
-   ⚠️ Las dos se corrigieron el mismo día a petición suya (`ADR-041`, `30 · L-61`).
+   ⚠️ Corregidas + pestaña «Detalle GPS» (`ADR-041/042`; Fable cazó 3 fallos → `30 · L-61/L-62`).
    Las tres verificadas en vivo contra producción con su sesión.
 3. **TRES COSAS QUEDARON A MEDIO CAMINO Y SON DE ÉL, no de código:**
    `TODO-57` el dato de la ficha · **ponerse contraseña** (bloquea retirar Google) · `TODO-71` cerrar

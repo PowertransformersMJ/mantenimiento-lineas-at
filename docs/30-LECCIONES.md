@@ -76,6 +76,7 @@
 - `L-40` · Si el núcleo solo publica la PROSA de un hueco, quien la lea deducirá el hecho — y mal (y una prueba escrita sobre la deducción la BLINDA)
 - `L-41` · Un contrato que no se puede EJECUTAR en una prueba solo está revisado por el compilador
 - `L-45` · Una regla que el motor CALCULA y nadie consume no es una regla: es un comentario (y el grep de `L-28` da luz verde)
+- `L-62` · Una pantalla nueva hereda la doctrina del sitio donde se monta, no solo su aspecto
 - `L-61` · La prudencia que borra la señal no es prudencia: separa el error ABSOLUTO del RELATIVO
 - `L-60` · Un organismo publica VARIAS licencias: la del dato que buscas no es la del que sale primero
 - `L-59` · Un atajo que llena UN campo de tres no mueve el veredicto: mídelo contra el dato real antes de venderlo
@@ -232,6 +233,24 @@
   así no la leímos.
 - **Emparenta con** `L-28` (un módulo que nadie llama es invisible): una lección que el índice no
   lista es exactamente igual de invisible.
+
+### L-62 · Una pantalla nueva hereda la DOCTRINA del sitio donde se monta, no solo su aspecto
+
+- **Síntoma:** una pestaña nueva copió la forma del mapa del Resumen —mismo componente, misma
+  apariencia— y perdió por el camino las tres redes que ese montaje llevaba: carga con reintentos,
+  error boundary y esquema de respaldo. Compilaba, pasaba las 1.607 pruebas y se veía perfecta.
+- **Causa:** al montar algo «igual que allí» se copia lo que se VE (el componente, las props obvias)
+  y se pierde lo que lo PROTEGE, que casi nunca está en el componente sino a su alrededor. Las tres
+  redes vivían en el padre, no en el mapa; ninguna prueba las exigía fuera de su archivo original.
+- **Regla:** antes de montar en un sitio nuevo algo que ya existe en otro, **lee cómo lo monta el
+  sitio viejo, entero**, y pregunta por cada envoltorio: por qué está. Si no hay respuesta, sobra;
+  si la hay, viaja con él. Y en cuanto una envoltura sirve a DOS pantallas, deja de ser detalle del
+  padre: se exporta y una prueba la exige en todos los montajes, no en uno.
+- **Y la lección de método que la descubrió:** estos tres fallos eran invisibles desde dentro —el
+  autor acababa de escribir esa misma doctrina—. Los encontró una **revisión adversarial con otro
+  modelo**, pedida por el Ingeniero. Cuando alguien revisa, se le da la doctrina Y el criterio de
+  gravedad, y **se verifica cada hallazgo con los propios ojos antes de actuar**: son hipótesis
+  (`CLAUDE.md §3.2`). Aquí las tres se confirmaron leyendo el código y la ficha de datos.
 
 ### L-61 · La prudencia que borra la señal no es prudencia: separa el error ABSOLUTO del RELATIVO
 

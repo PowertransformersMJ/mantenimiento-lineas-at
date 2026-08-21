@@ -3974,3 +3974,72 @@ bloques. Cero errores en consola.
 
 *(sin comité: corrección directa sobre observación del dueño, con la evidencia a la vista. Guardianes:
 `tests/temperatura.test.js` y `tests/mapa-capas.test.js`.)*
+
+---
+
+## ADR-042 · 2026-08-20 · El mapa como pantalla: pestaña «Detalle GPS», y lo que una revisión adversarial encontró dentro
+
+**Estado:** ✅ Decidido · ✅ **revisada por Fable 5** (a pedido del Ingeniero) · ✅ **verificado en vivo**
+
+### Contexto
+
+*«necesito que organicemos la parte donde se ven los apoyos en el mapa, el fondo está en la mitad […]
+quizás podemos crear debajo de resumen un apartado que se llame detalle GPS de la línea y ahí se pueda
+apreciar mejor y más grande el mapa con los filtros de fondo a un lado […] verifica con fable»* — el
+Ingeniero, 2026-08-20.
+
+El panel de capas flotaba SOBRE el mapa. Funcionaba mientras fue un selector de dos líneas; al ganar
+la leyenda de la capa encendida —mes, barra de color, avisos— creció hasta tapar el trazado. Y el
+«no veo los gradientes» tenía una causa que no era la rampa (`ADR-041`): el mapa arranca encuadrado en
+la LÍNEA, y a esa escala el aire no cambia. El gradiente vive a escala del RECORTE.
+
+### Decisión
+
+**Pestaña `Detalle GPS`, pegada a Resumen.** Mapa a ancho completo y más alto, controles AL LADO con
+su propio desplazamiento, y debajo las coordenadas levantadas punto por punto. **No es un mapa nuevo**:
+es el mismo componente con una prop de disposición (`panelALado`) — un segundo mapa habría sido un
+segundo sitio donde arreglar cada fallo.
+
+**Botón «Ver todo el recorte»** en la leyenda de temperatura, con la frase que explica por qué hace
+falta. Sin una forma de llegar al recorte de un clic, lo que uno concluye es que la capa está rota.
+
+### Lo que encontró la revisión (Fable 5) — y estaba en lo cierto
+
+1. **Las tres redes del mapa se habían perdido.** `datos/cargar.ts` se declara «la ÚNICA frontera de
+   carga diferida» porque una que falla MATA la aplicación —ya pasó—. La pestaña creó una segunda sin
+   reintentos, sin error boundary y sin `respaldo`: un fallo de descarga se llevaba la aplicación
+   entera, o dejaba una caja vacía con el panel encima, que parece sano y no hace nada. Y a esta
+   pestaña se llega por enlace directo desde el teléfono, en campo.
+2. **La pestaña «en grande» era MÁS PEQUEÑA que el mapa del Resumen** en cualquier portátil: se usó
+   `@media` de ventana para apilar el panel, y el caparazón de tres columnas se come ~460 px, así que
+   la regla no se dispara nunca. El propio `estilo.css` lo tenía escrito 900 líneas antes para otra
+   rejilla. → `@container contenido`.
+3. **La leyenda daba una cifra falsa**: imprimía la amplitud de la MEDIA ANUAL con la frase «en un mes
+   dado». Los meses van de 0,84 a 1,68 °C: falsa para once de los doce.
+
+Y dos de coherencia: la cabecera de `vistas/temperatura.ts` seguía defendiendo la rampa fija que
+`ADR-041` revocó horas antes —una mina para la próxima sesión—, y la pantalla agregaba por su cuenta
+sistema, método y peor precisión tomando los dos primeros de la PRIMERA FILA, cuando el exporte ya los
+agrega distintos precisamente porque pueden mezclarse. Ese hecho tiene ahora dueño para pantalla:
+`vistas/planta.ts · resumenDelLevantamiento`.
+
+### Consecuencias
+
+- **15 pruebas nuevas fijan los tres fallos**, que es lo que impide que vuelvan. Suite: 1.622.
+- **La revisión adversarial con otro modelo se paga sola.** Los tres hallazgos eran invisibles desde
+  dentro: los dos primeros solo se ven leyendo doctrina que yo mismo había escrito, y el tercero
+  exigía contrastar la frase con la ficha real. → lección `L-62`.
+- `PlantaSvg` y `RespaldoMapa` pasan a exportarse desde `Linea.tsx`: las usan DOS pantallas y copiarlas
+  habría creado la segunda red que se desincroniza.
+
+### Verificado en vivo (2026-08-20)
+
+Con el Chrome del Ingeniero, sobre producción y con su sesión: la pestaña aparece bajo Resumen, el
+mapa ocupa el ancho con los controles fuera, los 25 apoyos y los siete tramos se ven de una vez, el
+botón encuadra el recorte y **el gradiente de temperatura se aprecia** (costa cálida, interior más
+fresco). La tabla de coordenadas lista los 28 puntos. Cero errores en consola.
+
+### Crudo de respaldo
+
+*(la deliberación fue la propia revisión adversarial; su reporte está resumido arriba punto por punto
+y convertido en `tests/detalle-gps.test.js`, que es la forma ejecutable del crudo.)*
