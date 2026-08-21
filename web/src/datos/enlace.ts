@@ -105,9 +105,25 @@ class Almacen {
 
   leerAtlasSolar = (): boolean => this.#atlasSolar;
 
-  /** Abre el atlas solar ENCIMA de lo que haya, sin destruirlo. */
+  /**
+   * Abre el atlas solar ENCIMA de la línea.
+   *
+   * ⚠️ CIERRA EL SEGMENTO RCA SI ESTABA ABIERTO, y es un arreglo. `App.tsx`
+   * pinta el RCA ANTES que el atlas, así que sin esto pulsar «Atlas solar» con
+   * un análisis abierto no cambiaba la pantalla pero SÍ reescribía la dirección:
+   * se veía el RCA, la barra decía `#/sol` y el enlace que se copiara llevaba a
+   * otro sitio del que se estaba mirando — en un proyecto que puso las
+   * direcciones en el hash justamente para pegarlas en un correo.
+   *
+   * El `#hashPrevio` NO se pisa si ya lo había puesto el RCA: los dos segmentos
+   * lo comparten, y volver tiene que devolver a la LÍNEA, no al análisis que se
+   * acaba de cerrar.
+   */
   abrirAtlasSolar(): void {
-    if (!this.#atlasSolar) this.#hashPrevio = location.hash || null;
+    if (!this.#atlasSolar && this.#rca.fase === 'cerrado') {
+      this.#hashPrevio = location.hash || null;
+    }
+    if (this.#rca.fase !== 'cerrado') this.#rca = { fase: 'cerrado' };
     irA('#/sol');
     this.#atlasSolar = true;
     this.#avisar();

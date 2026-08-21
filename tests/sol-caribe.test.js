@@ -27,7 +27,8 @@ import { fileURLToPath } from 'node:url';
 import { inflateSync } from 'node:zlib';
 
 import {
-  bandaDelDia, cuadroDe, energiaDelDia, horaMasSoleada, isoDe, resumenDelCuadro,
+  bandaDelDia, cuadroDe, diasDelMes, energiaDelDia, horaMasSoleada, isoDe,
+  mesesOfrecidos, resumenDelCuadro,
 } from '../web/src/vistas/solCaribe.ts';
 
 const url = (r) => fileURLToPath(new URL(r, import.meta.url));
@@ -205,5 +206,33 @@ describe('el archivo publicado es el que la ficha dice', () => {
     assert.match(fichaReal.aviso, /media|MEDIA/,
       'la ficha no avisa de que es la media horaria y no el pico');
     assert.ok(fichaReal.atribucion?.includes('NASA'), 'falta la atribución de NASA POWER');
+  });
+});
+
+describe('los meses que se pueden elegir', () => {
+  test('incluye los que SOLO tienen total del día, no solo los que tienen horas', () => {
+    // Descargar junio, publicarlo en la ficha y no dejar seleccionarlo es
+    // prometer tres bandas y enseñar dos. Lo cazó la revisión adversarial.
+    const f = {
+      ...FICHA,
+      meses: [{ clave: '05', archivo: 'x.png', dias: 31, horasConDato: 744, bytes: 0 }],
+      energiaDiaria: [
+        { d: '2026-05-31', kwh: 6.4 }, { d: '2026-06-15', kwh: 5.9 }, { d: '2026-08-16', kwh: 6.1 },
+      ],
+    };
+    const m = mesesOfrecidos(f);
+    assert.deepEqual(m.map((x) => x.clave), ['05', '06', '08']);
+    assert.ok(m[0].png, 'mayo tiene PNG');
+    assert.equal(m[1].png, null, 'junio NO tiene PNG y tiene que decirlo');
+    assert.equal(m[1].dias, 30, 'junio tiene 30 días aunque no haya PNG');
+    assert.equal(m[2].dias, 31);
+  });
+
+  test('los días de un mes salen sin pasar por Date, y febrero bisiesto', () => {
+    assert.equal(diasDelMes(2026, 2), 28);
+    assert.equal(diasDelMes(2024, 2), 29, '2024 es bisiesto');
+    assert.equal(diasDelMes(2100, 2), 28, '2100 NO es bisiesto: divisible por 100 y no por 400');
+    assert.equal(diasDelMes(2000, 2), 29, '2000 SÍ es bisiesto: divisible por 400');
+    assert.equal(diasDelMes(2026, 4), 30);
   });
 });

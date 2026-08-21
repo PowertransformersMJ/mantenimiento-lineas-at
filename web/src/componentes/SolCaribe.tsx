@@ -25,8 +25,8 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { layers, namedFlavor } from '@protomaps/basemaps';
 import { esquinas, pintarRejilla, valorEnPunto } from '../vistas/rejilla';
 import {
-  bandaDelDia, cuadroDe, energiaDelDia, horaMasSoleada, isoDe, resumenDelCuadro,
-  type FichaSol, type MesSol,
+  bandaDelDia, cuadroDe, energiaDelDia, horaMasSoleada, isoDe, mesesOfrecidos,
+  resumenDelCuadro, type FichaSol, type MesOfrecido,
 } from '../vistas/solCaribe';
 import { prepararTeselas } from '../datos/teselas';
 import { nf } from '../vistas/formato';
@@ -36,6 +36,12 @@ const FICHA = '/mapas/sol-caribe.json';
 const DEPARTAMENTOS = '/mapas/caribe-departamentos.json';
 const BASE = 'caribe.pmtiles';
 const ID_SOL = 'capa-sol';
+
+/** Días entre dos fechas ISO, sin husos: se restan los días julianos. */
+function diasEntre(a: string, b: string): number {
+  const dj = (s: string) => Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10)) / 86400000;
+  return Math.max(0, Math.round(dj(b) - dj(a)));
+}
 
 const MESES = ['', 'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
   'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
@@ -64,7 +70,23 @@ export function SolCaribe() {
   const caja = useRef<HTMLDivElement>(null);
   const mapa = useRef<maplibregl.Map | null>(null);
   const pincel = useRef<HTMLCanvasElement | null>(null);
-  const bytes = useRef<Uint8Array | null>(null);
+  /**
+   * ⚠️ LOS BYTES DEL MES VAN EN EL ESTADO, NO EN UNA REFERENCIA, y esto es un
+   * ARREGLO: con una referencia, cambiar de mes recalculaba el cuadro con los
+   * bytes VIEJOS —el PNG nuevo aún no había llegado— y, si el mes nuevo tenía
+   * los mismos días o menos, el recorte pasaba la guarda de longitud y devolvía
+   * un cuadro del mes ANTERIOR. Peor: lo único que forzaba el recálculo después
+   * era `setDia`/`setHora`, y si los dos coincidían con lo que ya había, React
+   * no repintaba y el mapa se quedaba ahí.
+   *
+   * Medido sobre los archivos reales: la hora con más sol del día 1 es la 11 en
+   * enero, marzo y mayo. Se abre en mayo a las 11, se pasa a marzo, los dos
+   * `set` son inútiles y queda MAYO PINTADO CON LA ETIQUETA DE MARZO — colores
+   * de un mes y números de otro en la misma pantalla. Lo cazó la revisión
+   * adversarial; ningún guardián lo veía porque vive en el estado de React y no
+   * en el módulo puro.
+   */
+  const [bytes, setBytes] = useState<{ mes: string; px: Uint8Array } | null>(null);
   const montado = useRef(true);
 
   const [ficha, setFicha] = useState<FichaSol | null>(null);
@@ -95,8 +117,10 @@ export function SolCaribe() {
     })();
   }, []);
 
-  const mes: MesSol | null = useMemo(
-    () => ficha?.meses.find((m) => m.clave === mesClave) ?? null, [ficha, mesClave]);
+  /** Todos los meses con algo que enseñar, tengan horas o solo total del día. */
+  const ofrecidos = useMemo(() => (ficha ? mesesOfrecidos(ficha) : []), [ficha]);
+  const mes: MesOfrecido | null = useMemo(
+    () => ofrecidos.find((m) => m.clave === mesClave) ?? null, [ofrecidos, mesClave]);
 
   // ── El mapa, una sola vez ─────────────────────────────────────────────────
   useEffect(() => {
@@ -141,7 +165,9 @@ export function SolCaribe() {
             // pero no los NOMBRES, así que sin esto habría fronteras mudas.
             try {
               const dep = await (await fetch(DEPARTAMENTOS)).json();
-              if (cancelado || !m.getSource('departamentos')) {
+              // Estaba al revés y añadía capas a un mapa YA RETIRADO cuando el
+              // efecto se cancelaba; lo tapaba el `catch` de abajo.
+              if (!cancelado && !m.getSource('departamentos')) {
                 m.addSource('departamentos', { type: 'geojson', data: dep });
                 m.addLayer({
                   id: 'dep-borde', type: 'line', source: 'departamentos',
@@ -184,17 +210,22 @@ export function SolCaribe() {
   // ── El mes: se baja entero y se queda en memoria ──────────────────────────
   useEffect(() => {
     if (!ficha || !mes) return;
+    // Un mes sin PNG no tiene nada que bajar: solo consta su total del día.
+    if (!mes.png) { setBytes(null); return; }
     let cancelado = false;
+    const png = mes.png;
     void (async () => {
       try {
-        const { px } = await leerPng(`/mapas/${mes.archivo}`);
+        const { px } = await leerPng(`/mapas/${png.archivo}`);
         if (cancelado) return;
-        bytes.current = px;
+        // Los bytes van ETIQUETADOS con su mes: así el cuadro no puede salir de
+        // un PNG que ya no es el que se está mirando.
+        setBytes({ mes: mes.clave, px });
         // Se entra por la hora con MÁS SOL: abrir a medianoche pinta un mapa
         // negro y se lee como una avería, no como la noche.
         const d = Math.min(dia, mes.dias);
         setDia(d);
-        setHora(horaMasSoleada(px, ficha, mes, d));
+        setHora(horaMasSoleada(px, ficha, png, d));
       } catch (e) {
         if (!cancelado) setFallo((e as Error).message);
       }
@@ -206,9 +237,12 @@ export function SolCaribe() {
 
   // ── Pintar el cuadro ──────────────────────────────────────────────────────
   const cuadro = useMemo(() => {
-    if (!ficha || !mes || !bytes.current) return null;
-    return cuadroDe(bytes.current, ficha, mes, dia, hora);
-  }, [ficha, mes, dia, hora, listoMapa]);
+    // La comparación de mes no es redundante con la dependencia: entre que se
+    // elige un mes y llega su PNG hay un intervalo en el que `bytes` es del
+    // anterior, y ahí es donde se pintaba el mes rancio.
+    if (!ficha || !mes?.png || !bytes || bytes.mes !== mes.clave) return null;
+    return cuadroDe(bytes.px, ficha, mes.png, dia, hora);
+  }, [ficha, mes, dia, hora, bytes]);
 
   useEffect(() => {
     const m = mapa.current;
@@ -252,13 +286,14 @@ export function SolCaribe() {
     const m = mapa.current;
     if (!m || !listoMapa || !ficha) return;
     const alPulsar = (ev: maplibregl.MapMouseEvent) => {
-      const c = bytes.current && mes ? cuadroDe(bytes.current, ficha, mes, dia, hora) : null;
+      const c = bytes && mes?.png && bytes.mes === mes.clave
+        ? cuadroDe(bytes.px, ficha, mes.png, dia, hora) : null;
       if (!c) { setClic(null); return; }
       setClic({ v: valorEnPunto(c, ficha, ev.lngLat.lng, ev.lngLat.lat), lon: ev.lngLat.lng, lat: ev.lngLat.lat });
     };
     m.on('click', alPulsar);
     return () => { m.off('click', alPulsar); };
-  }, [listoMapa, ficha, mes, dia, hora]);
+  }, [listoMapa, ficha, mes, dia, hora, bytes]);
 
   const iso = ficha && mesClave ? isoDe(ficha.anio, mesClave, dia) : null;
   const banda = ficha && iso ? bandaDelDia(ficha, iso) : null;
@@ -297,8 +332,10 @@ export function SolCaribe() {
               <p className="mapa-capas-t">Mes</p>
               <select value={mesClave ?? ''} onChange={(e) => cambiarMes(e.target.value)}
                 aria-label="Mes de 2026">
-                {ficha.meses.map((m) => (
-                  <option key={m.clave} value={m.clave}>{MESES[+m.clave]}</option>
+                {ofrecidos.map((m) => (
+                  <option key={m.clave} value={m.clave}>
+                    {MESES[+m.clave]}{m.png ? '' : ' · solo total del día'}
+                  </option>
                 ))}
               </select>
 
@@ -340,8 +377,12 @@ export function SolCaribe() {
                     )}
                   </p>
                   <p className="mapa-capas-n">
-                    En esta hora: mediana <b>{nf(resumen.mediana ?? 0)} W/m²</b> · de {nf(resumen.min ?? 0)} a{' '}
-                    <b>{nf(resumen.max ?? 0)}</b>.
+                    {/* ⚠️ NADA de `?? 0`: un hueco impreso como «0 W/m²» es el byte 0
+                        leído como byte 1, que es el invariante que más muerde aquí. */}
+                    En esta hora: {resumen.mediana === null
+                      ? <b>no se midió en ninguna celda</b>
+                      : <>mediana <b>{nf(resumen.mediana)} W/m²</b> · de {nf(resumen.min ?? 0)} a{' '}
+                        <b>{nf(resumen.max ?? 0)}</b></>}.
                     {resumen.max !== null && ficha.hipotesisMarcadaEnRampa != null
                       && resumen.max > ficha.hipotesisMarcadaEnRampa && (
                       <> ⚠️ Hay celdas <b>por encima</b> de los {nf(ficha.hipotesisMarcadaEnRampa)} W/m² adoptados.</>
@@ -352,9 +393,9 @@ export function SolCaribe() {
 
               {banda === 'solo_total' && (
                 <p className="advertencia">
-                  <b>De este día no hay reparto por horas.</b> La fuente publica el horario con unos
-                  83 días de retraso; al construir este archivo llegaba al{' '}
-                  <b>{ficha.ultimoDiaConHoras}</b>. Solo consta el total del día, y ese total{' '}
+                  <b>De este día no hay reparto por horas.</b> Al construir este archivo
+                  ({ficha.construido.slice(0, 10)}) la fuente llegaba al{' '}
+                  <b>{ficha.ultimoDiaConHoras}</b> — unos <b>{diasEntre(ficha.ultimoDiaConHoras, ficha.construido.slice(0, 10))} días</b> de retraso. Solo consta el total del día, y ese total{' '}
                   <b>no se reparte</b> entre horas: sería inventar una curva que nadie midió.
                 </p>
               )}
@@ -380,6 +421,7 @@ export function SolCaribe() {
 
               <p className="fine">{ficha.aviso}</p>
               <p className="fine">
+                Límites departamentales: geoBoundaries (ODbL), derivados de OpenStreetMap.{' '}
                 {ficha.fuente} · dato hasta <b>{ficha.ultimoDiaConHoras}</b> por horas
                 {ficha.ultimoDiaConTotal && <> y <b>{ficha.ultimoDiaConTotal}</b> por día</>}.
                 {' '}{ficha.atribucion}

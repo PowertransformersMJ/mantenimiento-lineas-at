@@ -145,3 +145,41 @@ export function horaMasSoleada(
 export function energiaDelDia(ficha: FichaSol, iso: string): number | null {
   return ficha.energiaDiaria.find((e) => e.d === iso)?.kwh ?? null;
 }
+
+/** Un mes que la pantalla puede ofrecer, tenga o no reparto por horas. */
+export interface MesOfrecido {
+  clave: string;
+  /** Los días del mes. Siempre, aunque no haya PNG. */
+  dias: number;
+  /** El mes empaquetado, si existe. `null` = ese mes solo tiene total del día. */
+  png: MesSol | null;
+}
+
+/**
+ * LOS MESES QUE SE PUEDEN ELEGIR — y no son solo los que tienen PNG.
+ *
+ * ⚠️ ESTO ES UN ARREGLO. La primera versión listaba únicamente los meses con
+ * reparto por horas, así que junio, julio y medio agosto quedaban INALCANZABLES:
+ * descargados, pesados, publicados en la ficha… y sin forma de seleccionarlos.
+ * La pantalla presumía de tres bandas y solo dejaba ver dos, y la leyenda decía
+ * «dato hasta el 16 de agosto por día» hablando de días que nadie podía abrir.
+ *
+ * Se unen las dos fuentes: los meses con PNG y los meses que aparecen en la
+ * energía diaria. Lo detectó la revisión adversarial.
+ */
+export function mesesOfrecidos(ficha: FichaSol): MesOfrecido[] {
+  const claves = new Set<string>(ficha.meses.map((m) => m.clave));
+  for (const e of ficha.energiaDiaria) claves.add(e.d.slice(5, 7));
+
+  return [...claves].sort().map((clave) => {
+    const png = ficha.meses.find((m) => m.clave === clave) ?? null;
+    return { clave, png, dias: png ? png.dias : diasDelMes(ficha.anio, +clave) };
+  });
+}
+
+/** Los días de un mes. Sin `Date`: bisiesto explícito, y sin husos. */
+export function diasDelMes(anio: number, mes: number): number {
+  const largos = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  if (mes === 2 && ((anio % 4 === 0 && anio % 100 !== 0) || anio % 400 === 0)) return 29;
+  return largos[mes - 1] ?? 30;
+}
