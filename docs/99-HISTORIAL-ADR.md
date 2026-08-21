@@ -4176,14 +4176,31 @@ nadie**: además cuelga de UN apoyo, y esto es un tramo ENTRE dos.
   en el dueño único (`vistas/tramoColores.ts`) y **guardián que lo compara contra la paleta**.
 - **Nada de esto sirve hasta que el dato esté cargado.** Desplegar primero, declarar después.
 
-### Verificado en vivo (2026-08-21)
+### Verificado en vivo (2026-08-21) — y la línea queda declarada ENTERA
 
-Con el Chrome del Ingeniero, sobre producción y con su sesión. Se declararon los cuatro vanos por la
-pantalla nueva —E06→E07, E07→E08, E08→E09 y E21→E22— y el sistema los agrupó **solo**: la leyenda dice
-**E06 → E09 · 607 m · 3 vanos** y **E21 → E22 · 295 m**, **902 m — 29,8 % de la línea**, con
-**«quedan 20 vanos sin comprobar»** al lado. Los dos tramos se distinguen en el mapa contra los colores
-de tramo de tensión. Cero errores. (La medida previa a mano daba 903 m / 29,9 %: la diferencia es el
-redondeo al metro de la matriz de distancias frente a la precisión entera del motor.)
+Con el Chrome del Ingeniero, sobre producción y con su sesión. Se declararon los cuatro vanos y el
+sistema los agrupó **solo**: **E06 → E09 · 607 m · 3 vanos** y **E21 → E22 · 295 m**, **902 m — 29,8 %
+de la línea**. Se distinguen en el mapa contra los colores de tramo de tensión. Cero errores. (La medida
+previa a mano daba 903 m / 29,9 %: la diferencia es el redondeo al metro de la matriz de distancias
+frente a la precisión entera del motor.)
+
+Preguntado por el resto, el Ingeniero contestó que **sí lleva guarda**, y se declararon los otros 20.
+**24 de 24 vanos con respuesta**, así que ya no queda ninguno en «no consta» y ese 29,8 % es de la
+línea entera — que es lo que la pantalla afirma ahora con esas palabras.
+
+### El defecto de velocidad que salió al cargarla, y por qué importa
+
+Declarar los 24 vanos destapó que **cada declaración tardaba ~25 s**. Causa: para que el mapa se
+enterara, el escritor llamaba a `almacen.cargar()`, que **rehace el arranque entero** —sesión, token,
+permisos, líneas, apoyos, expedientes y fotos— y pone la aplicación en fase «cargando», en la que
+`App.tsx` sustituye la pantalla de la línea. Cada clic destruía y volvía a montar **la propia pantalla
+desde la que se está declarando**, con su mapa.
+
+**Es la misma piedra que este archivo ya tenía escrita DOS veces** (`refrescarLinea` y `guardarFicha`),
+y se pisó con un mazo más grande. Arreglo: se parchea EL APOYO que la base aceptó, con el valor y la
+revisión que **devuelve la escritura** —no los que se pidieron—, igual que `guardarAccion`. El mapa se
+entera igual porque `apoyos` cambia de identidad. **Medido después: 4,6 s la primera vez (rehace el
+mapa) y 1,0 s las siguientes.** Tres guardianes nuevos.
 
 ### Crudo de respaldo
 
