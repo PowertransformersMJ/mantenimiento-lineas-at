@@ -23,12 +23,14 @@
 // ficha de cada apoyo, y lo que recuerda —en cada fila— que ±8 m no sirve para
 // verificar un despeje.
 // ============================================================================
-import { Suspense, lazy, useMemo } from 'react';
+import { Suspense, lazy, useMemo, useState } from 'react';
 import type { Apoyo, Hipotesis, Investigacion } from '@lineas/contratos';
 import { conReintentos } from '../datos/cargar';
 import { PlantaSvg, RespaldoMapa } from './Linea';
 import { soloEstructuras, nombreVisible, resumenDelLevantamiento } from '../vistas/planta';
 import { aGMS, nf } from '../vistas/formato';
+import { cableDeGuarda, type EstadoGuarda } from '../vistas/cableGuarda';
+import { almacen } from '../datos/enlace';
 
 // ⚠️ `conReintentos`, y no un `import()` pelado. `datos/cargar.ts` es «la ÚNICA
 // frontera de carga diferida del sistema» y lo es por un fallo que ya ocurrió en
@@ -51,11 +53,18 @@ interface FilaGps {
   sistema: string;
 }
 
-export function DetalleGps({ apoyos, investigaciones, alVerEvento, hipotesis }: {
+export function DetalleGps({ apoyos, investigaciones, alVerEvento, hipotesis, sesion }: {
   apoyos: Apoyo[];
   investigaciones?: Investigacion[];
   alVerEvento?: (id: string) => void;
   hipotesis?: Hipotesis;
+  /**
+   * Con qué permiso se entró. Solo decide si se ENSEÑA el declarador del cable
+   * de guarda: la frontera de verdad son las reglas de la base, que rechazan la
+   * escritura de quien no puede aunque el control estuviera en pantalla
+   * (`ADR-024`). Esconderlo es cortesía, no seguridad.
+   */
+  sesion?: { rol: string };
 }) {
   const filas = useMemo<FilaGps[]>(() => [...apoyos]
     .sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0))
@@ -112,6 +121,10 @@ export function DetalleGps({ apoyos, investigaciones, alVerEvento, hipotesis }: 
         </p>
       </section>
 
+      {(sesion?.rol === 'admin' || sesion?.rol === 'editor') && (
+        <DeclararCableGuarda apoyos={apoyos} />
+      )}
+
       <section className="panel">
         <h2>Coordenadas levantadas</h2>
         <p className="fine">
@@ -163,5 +176,103 @@ export function DetalleGps({ apoyos, investigaciones, alVerEvento, hipotesis }: 
         </div>
       </section>
     </>
+  );
+}
+
+/**
+ * DECLARAR EL CABLE DE GUARDA, VANO A VANO.
+ *
+ * Vive AQUÍ y no en Fichas a propósito: la ficha son los seis datos que dan
+ * VEREDICTO a un apoyo, y esto no da ninguno — es el estado de la protección de
+ * la línea, y se declara mirando el recorrido, que es justo lo que esta pantalla
+ * enseña. El mapa de arriba pinta lo que aquí se marca.
+ *
+ * ⚠️ TRES ESTADOS, y «no consta» es uno de ellos, no la ausencia de los otros
+ * dos. Se puede volver a «no consta» a propósito: una marca equivocada tiene que
+ * poder deshacerse sin dejar afirmado lo contrario de lo que se quiso decir.
+ *
+ * ⚠️ SE DECLARA POR VANO, y el vano es entre ESTRUCTURAS. Los empalmes no salen
+ * en esta lista: no sostienen conductor, y ofrecerlos invitaría a partir un vano
+ * real en dos falsos (`40 §10`).
+ */
+function DeclararCableGuarda({ apoyos }: { apoyos: Apoyo[] }) {
+  const guarda = useMemo(() => cableDeGuarda(apoyos), [apoyos]);
+  const porId = useMemo(() => new Map(apoyos.map((a) => [a.id, a])), [apoyos]);
+  const [guardando, setGuardando] = useState<string | null>(null);
+  const [fallo, setFallo] = useState<string | null>(null);
+  const [ultimo, setUltimo] = useState<string | null>(null);
+
+  if (!guarda.vanos.length) return null;
+
+  const declarar = async (desdeId: string, estado: EstadoGuarda) => {
+    const apoyo = porId.get(desdeId);
+    if (!apoyo) return;
+    setGuardando(desdeId); setFallo(null); setUltimo(null);
+    try {
+      const acuse = await almacen.declararCableGuarda(
+        desdeId,
+        estado === 'sin_dato' ? null : estado,
+        (apoyo as { revision?: number }).revision ?? 0,
+      );
+      setUltimo(
+        acuse.valor === null
+          ? `El vano que sale de ${acuse.apoyo} vuelve a «no consta».`
+          : `El vano que sale de ${acuse.apoyo} queda declarado ${acuse.valor === 'ausente' ? 'SIN' : 'CON'} cable de guarda.`,
+      );
+    } catch (e) {
+      setFallo((e as Error)?.message ?? 'No se pudo guardar. No se ha escrito nada.');
+    } finally {
+      setGuardando(null);
+    }
+  };
+
+  return (
+    <section className="panel">
+      <h2>Cable de guarda, vano a vano</h2>
+      <p className="saludo">
+        Lo que se marque aquí es lo que el mapa de arriba pinta en <b>rojo cortado</b>. Es
+        <b> inventario de la protección</b> de la línea: <b>no entra en ningún cálculo</b> y no
+        cambia el veredicto de ningún apoyo.
+      </p>
+      <p className="advertencia">
+        <b>«No consta» no es «lo lleva».</b> Un vano sin declarar significa que nadie lo ha
+        comprobado, y por eso no se pinta: dar por sana una parte de la línea que nadie ha mirado es
+        peor que dejarla en blanco.
+        {guarda.nSinDato > 0 && <> Hoy quedan <b>{guarda.nSinDato} de {guarda.vanos.length}</b> sin comprobar.</>}
+      </p>
+      {fallo && <p className="mapa-capas-n alerta">{fallo}</p>}
+      {ultimo && <p className="fine" aria-live="polite">{ultimo}</p>}
+      <div className="tabla-caja">
+        <table className="tabla">
+          <caption>
+            Un vano por fila, entre estructuras. Los empalmes no salen: no sostienen el conductor.
+          </caption>
+          <thead>
+            <tr><th>Vano</th><th className="num">Metros</th><th>Cable de guarda</th></tr>
+          </thead>
+          <tbody>
+            {guarda.vanos.map((v) => (
+              <tr key={v.desdeId}>
+                <td><b>{v.desde}</b> → {v.hasta}</td>
+                <td className="num">{nf(v.metros, 1)}</td>
+                <td>
+                  <select
+                    aria-label={`Cable de guarda del vano ${v.desde} a ${v.hasta}`}
+                    value={v.estado}
+                    disabled={guardando !== null}
+                    onChange={(e) => void declarar(v.desdeId, e.target.value as EstadoGuarda)}
+                  >
+                    <option value="sin_dato">— no consta —</option>
+                    <option value="presente">Lo lleva</option>
+                    <option value="ausente">NO lo lleva</option>
+                  </select>
+                  {guardando === v.desdeId && <span className="fine"> guardando…</span>}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }

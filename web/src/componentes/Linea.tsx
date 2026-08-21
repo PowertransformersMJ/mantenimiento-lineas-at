@@ -772,7 +772,8 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
         )}
         {activa === 'gps' && (
           <DetalleGps apoyos={apoyos} investigaciones={investigaciones}
-            alVerEvento={() => irA('falla')} hipotesis={hipotesis} />
+            alVerEvento={() => irA('falla')} hipotesis={hipotesis}
+            sesion={sesion.fase === 'autenticado' ? { rol: sesion.rol } : undefined} />
         )}
         {activa === 'falla' && <Falla investigaciones={investigaciones} apoyos={apoyos} evidencias={evidencias} noSePudoLeer={noSePudoLeer?.investigaciones} noSePudoLeerFotos={noSePudoLeer?.evidencias} />}
         {activa === 'distancias' && <Distancias apoyos={apoyos} />}

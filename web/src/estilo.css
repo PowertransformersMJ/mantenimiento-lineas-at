@@ -263,6 +263,13 @@ body {
 .li.susp2 { background: var(--az); width: 8px; height: 8px; }
 .li.term2 { background: var(--rd); }
 .li.emp { background: var(--mut); width: 7px; height: 7px; }
+/* El tramo sin cable de guarda: CORTADO. Un cable que falta se lee como línea
+   interrumpida; un cuadrito lleno se leería como un tramo más. El COLOR no está
+   aquí: lo pone `vistas/tramoColores.ts`, el mismo que pinta el mapa, para que
+   la muestra y el trazo no puedan divergir. */
+.li.sin-guarda { border-radius: 0; width: 16px; height: 0;
+  border-top-width: 3px; border-top-style: dashed; outline-width: 2px; outline-style: solid; }
+.mapa-guarda { margin: 2px 0; display: flex; align-items: center; gap: 6px; font-size: .82rem; }
 
 /* ── tablas de instrumento ────────────────────────────────────────────── */
 .tabla { width: 100%; border-collapse: collapse; font-size: 11.8px; font-variant-numeric: tabular-nums; }

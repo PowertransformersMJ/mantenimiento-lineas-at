@@ -65,7 +65,7 @@ import { z } from 'zod';
  * Hay que DESPLEGAR la web con esta versión ANTES de escribir el primer dato con
  * ese valor.
  */
-export const VERSION_CONTRATO = '0.6.0';
+export const VERSION_CONTRATO = '0.7.0';
 
 // ── Identificadores ─────────────────────────────────────────────────────────
 

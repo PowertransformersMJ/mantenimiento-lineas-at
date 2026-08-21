@@ -354,6 +354,42 @@ export const Apoyo = Base.extend({
   nFasesAmarradas: z.number().int().positive().optional(),
 
   /**
+   * EL CABLE DE GUARDA DEL VANO QUE **SALE** DE ESTE APOYO — no del apoyo.
+   *
+   * Un cable de guarda no está en una estructura: está TENDIDO ENTRE DOS. Se
+   * ancla al apoyo de aguas arriba porque un vano tiene un solo origen y así el
+   * dato tiene un dueño único; leerlo es «el vano que va de este apoyo a la
+   * SIGUIENTE ESTRUCTURA».
+   *
+   * ⚠️ A LA SIGUIENTE ESTRUCTURA, NO AL SIGUIENTE PUNTO. Entre dos estructuras
+   * puede haber un empalme —en LN-627 hay uno dentro del vano E06→E07— y un
+   * empalme no sostiene el conductor: tomarlo como extremo partiría un vano real
+   * en dos falsos, que es el error de `40 §10`. Quien deriva esto usa la serie de
+   * ESTRUCTURAS, nunca la de puntos.
+   *
+   * ⚠️ EL ÚLTIMO APOYO DE LA LÍNEA NO TIENE VANO SALIENTE. El molde no lo puede
+   * saber —no conoce el orden ni quién es el último—, así que si aparece ahí se
+   * ignora al derivar y la pantalla no lo ofrece. No es un error del dato: es que
+   * no existe el vano al que se referiría.
+   *
+   * ⚠️ TRES ESTADOS, y el tercero es el importante: `presente`, `ausente` y **el
+   * campo AUSENTE, que significa NO CONSTA**. Que no esté declarado no dice que
+   * el vano lleve guarda: dice que nadie lo ha mirado. Tratar el hueco como un
+   * «sí» pintaría de sano un tramo que nadie ha comprobado, que es exactamente lo
+   * que este sistema no hace en ninguna otra parte (`ADR-029/032`).
+   *
+   * NO ENTRA EN NINGÚN CÁLCULO. Ni en la carga transversal —que cuenta
+   * `3·circuitos` con el guarda declaradamente FUERA— ni en el veredicto de
+   * ningún apoyo. Es inventario: dice en qué parte de la línea falta la
+   * protección contra descargas. Quien lo consuma que no lo convierta en otra
+   * cosa sin decirlo.
+   *
+   * Las FOTOGRAFÍAS de un tramo así no necesitan nada nuevo: una evidencia ya
+   * puede colgar directamente de un apoyo (`ADR-015`).
+   */
+  cableGuardaVanoSaliente: z.enum(['presente', 'ausente']).optional(),
+
+  /**
    * DE DÓNDE SALIÓ CADA UNO de los seis datos que dan veredicto a este apoyo.
    *
    * Opcional en el esquema porque los 26 apoyos ya escritos no lo traen y una

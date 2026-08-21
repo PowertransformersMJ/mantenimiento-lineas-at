@@ -612,6 +612,81 @@ export const repositorioFirestore: Repositorio = {
   },
 
   /**
+   * DECLARA SI EL VANO QUE SALE DE UN APOYO LLEVA CABLE DE GUARDA.
+   *
+   * Va aparte de la ficha estructural y no es pereza: la ficha son los seis
+   * datos que dan VEREDICTO a un apoyo, su molde rechaza por diseño lo que no es
+   * suyo, y esto no da ningún veredicto — es inventario de la protección de la
+   * línea. Colarlo por la ficha habría obligado a aflojar justo el molde que
+   * protege el veredicto.
+   *
+   * `null` BORRA la declaración y devuelve el vano a «no consta». Hace falta:
+   * una marca equivocada tiene que poder deshacerse sin dejar afirmado lo
+   * contrario de lo que se quiso decir, y «presente» no es la forma de borrar
+   * «ausente».
+   *
+   * Mismo cerrojo de revisión que la ficha, y por el mismo motivo: un apoyo no
+   * se borra, así que lo que se pise se pisa para siempre.
+   */
+  async declararCableGuarda(
+    apoyoId: string,
+    valor: 'presente' | 'ausente' | null,
+    revision: number,
+  ): Promise<{ apoyo: string; revision: number; valor: 'presente' | 'ausente' | null }> {
+    const { esperarSesion, credenciales, baseDatos } = await cargarFirebase();
+    const { doc, getDoc, updateDoc, deleteField } = await firestore();
+    const u = await esperarSesion();
+    if (!u) {
+      throw new Error('No hay ninguna sesión abierta: no se puede declarar el cable de guarda.');
+    }
+
+    const { rol, orgId } = await credenciales(u);
+    if (rol !== 'admin' && rol !== 'editor') {
+      throw new Error(
+        `Su sesión entró con el permiso «${rol}», y declarar el cable de guarda exige permiso de `
+        + 'edición. No se ha mandado nada a la base.',
+      );
+    }
+    if (!orgId) {
+      throw new Error(
+        'Su sesión no declara a qué organización pertenece. No se ha mandado nada a la base.',
+      );
+    }
+    if (valor !== null && valor !== 'presente' && valor !== 'ausente') {
+      throw new Error(`«${String(valor)}» no es un estado del cable de guarda. No se ha escrito nada.`);
+    }
+
+    const ref = doc(await baseDatos(), 'apoyos', apoyoId);
+    const actual = await getDoc(ref);
+    if (!actual.exists()) {
+      throw new Error(
+        'Ese apoyo ya no está en la base. No se ha escrito nada: un apoyo no se borra, así que si '
+        + 'no está, lo que hay en pantalla no es lo que hay en la base — recargue antes de insistir.',
+      );
+    }
+    const enLaBase = actual.data() as Record<string, unknown>;
+    const revisionEnLaBase = (enLaBase?.revision as number | undefined) ?? 0;
+    if (revisionEnLaBase !== revision) throw new Error(conflicto('este apoyo'));
+
+    const ahora = new Date().toISOString();
+    // `deleteField()` y no `undefined`: escribir `undefined` no borra nada, deja
+    // el valor viejo en la base y la pantalla enseñaría el nuevo. Borrar es
+    // volver a «no consta», que es un estado legítimo y distinto de «presente».
+    await updateDoc(ref, {
+      cableGuardaVanoSaliente: valor === null ? deleteField() : valor,
+      actualizadoEn: ahora,
+      actualizadoPor: u.uid,
+      revision: revision + 1,
+    });
+
+    return {
+      apoyo: String(enLaBase?.nombreNormalizado ?? enLaBase?.nombreCampo ?? 'apoyo sin nombre'),
+      revision: revision + 1,
+      valor,
+    };
+  },
+
+  /**
    * EL DATO DE CATÁLOGO APLICADO A VARIOS APOYOS A LA VEZ.
    *
    * Es la pieza que más tiempo ahorra y la única capaz de hacer daño

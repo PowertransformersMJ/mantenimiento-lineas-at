@@ -308,6 +308,28 @@ export interface Repositorio {
     ficha: Record<string, unknown>,
     revisiones: Record<string, number>,
   ): Promise<AcuseDeLote>;
+
+  /**
+   * Declara si el VANO QUE SALE de un apoyo lleva cable de guarda.
+   *
+   * Va por su cuenta y NO por la ficha estructural, a propósito: la ficha son
+   * los seis datos que dan VEREDICTO a un apoyo, y esto no da ninguno — es
+   * inventario de la protección de la línea, y el molde de la ficha rechaza por
+   * diseño lo que no es suyo. Meterlo ahí habría obligado a aflojar el molde que
+   * protege el veredicto para colar un dato que no lo toca.
+   *
+   * `null` BORRA la declaración y devuelve el vano a «no consta» — que no es lo
+   * mismo que «lleva guarda». Hace falta poder deshacer una marca equivocada sin
+   * dejar afirmado lo contrario de lo que se quiso decir.
+   *
+   * Mismo cerrojo de revisión que la ficha: si en la base ya no es ésa, no se
+   * escribe nada.
+   */
+  declararCableGuarda(
+    apoyoId: string,
+    valor: 'presente' | 'ausente' | null,
+    revision: number,
+  ): Promise<{ apoyo: string; revision: number; valor: 'presente' | 'ausente' | null }>;
 }
 
 /**
@@ -373,6 +395,9 @@ export const repositorioSinSesion: Repositorio = {
   },
   async guardarFichaApoyoEnLote() {
     throw new Error('No hay ninguna sesión abierta: no se puede guardar la ficha de ningún apoyo.');
+  },
+  async declararCableGuarda(): Promise<never> {
+    throw new Error('Todavía no hay base de datos conectada: no se puede declarar el cable de guarda.');
   },
 };
 

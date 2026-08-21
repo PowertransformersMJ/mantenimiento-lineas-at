@@ -39,6 +39,12 @@ function apoyosSinteticos(limites: [number, number, number, number]): Apoyo[] {
     funcionEstructural: i === 0 || i === 5 ? 'Terminal' : 'Suspensión',
     funcionProcedencia: { origen: 'supuesto', fuente: 'banco de pruebas' },
     version: 1,
+    // Dos tramos SIN cable de guarda, para ver cómo se pintan: uno de dos vanos
+    // seguidos (F2→F4) y otro suelto (F5→F6). Es dato falso de un banco de
+    // pruebas: nunca sale de aquí.
+    ...(i === 1 || i === 2 ? { cableGuardaVanoSaliente: 'ausente' } : {}),
+    ...(i === 4 ? { cableGuardaVanoSaliente: 'ausente' } : {}),
+    ...(i === 0 ? { cableGuardaVanoSaliente: 'presente' } : {}),
   })) as unknown as Apoyo[];
 }
 

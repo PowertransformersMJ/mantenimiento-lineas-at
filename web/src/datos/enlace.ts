@@ -363,6 +363,27 @@ class Almacen {
   }
 
   /**
+   * Declara si el vano que SALE de un apoyo lleva cable de guarda.
+   *
+   * ⚠️ ÉSTE SÍ RECARGA LA LÍNEA, al revés que sus dos vecinos de arriba. No es
+   * una incoherencia: aquéllos devuelven un ACUSE que es el único papel que
+   * queda de la operación y recargar lo borraría. Aquí no hay papel que perder —
+   * lo que hay es un mapa que deriva los tramos dañados de los propios apoyos,
+   * así que sin recargar la marca quedaría en la base y NO en la pantalla. Y una
+   * marca que no se ve se lee como una marca que no se guardó.
+   */
+  async declararCableGuarda(
+    apoyoId: string,
+    valor: 'presente' | 'ausente' | null,
+    revision: number,
+  ) {
+    conectarBase();
+    const acuse = await repositorio.declararCableGuarda(apoyoId, valor, revision);
+    await almacen.cargar();
+    return acuse;
+  }
+
+  /**
    * Escribe el MISMO dato de catálogo en VARIOS apoyos, y **tampoco recarga la
    * línea**, por el mismo motivo que su hermana de arriba: el acuse de un lote
    * —a quién se le escribió, a quién no y por qué— es el único papel que queda

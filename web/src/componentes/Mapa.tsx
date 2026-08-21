@@ -30,7 +30,9 @@ import urlWorker from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import { layers, namedFlavor } from '@protomaps/basemaps';
 import { FUNCIONES_ANCLA, type Apoyo, type Hipotesis, type Investigacion } from '@lineas/contratos';
 import { derivarLevantamiento } from '@lineas/exportar/levantamiento';
-import { COLORES_TRAMO_CSS } from '../vistas/tramoColores';
+import { COLORES_TRAMO_CSS, COLOR_SIN_GUARDA, COLOR_SIN_GUARDA_FUNDA } from '../vistas/tramoColores';
+import { cableDeGuarda } from '../vistas/cableGuarda';
+import { nf } from '../vistas/formato';
 import { esquinas, pintarRejilla, valorEnPunto } from '../vistas/rejilla';
 import {
   avisoDeMuestreo, capaElegida, capasOrdenadas, oscilacionAnual, NOTA_AMPACIDAD,
@@ -379,6 +381,14 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
    * `datos/pronostico.ts`). El eje es la dirección media, y de él sale la única
    * cifra de viento que significa algo para un apoyo: cuánta parte empuja de lado.
    */
+  /**
+   * Los tramos sin cable de guarda, para la LEYENDA. El mapa lo vuelve a
+   * derivar por su cuenta al crearse porque `crearMapa` está fuera de React y no
+   * puede leer este valor; los dos llaman a la MISMA función pura, así que no
+   * hay dos verdades — solo dos lectores del mismo dueño (`vistas/cableGuarda`).
+   */
+  const guarda = useMemo(() => cableDeGuarda(apoyos), [apoyos]);
+
   const geometria = useMemo(() => {
     const E = apoyos.filter((a) => (a.tipoPunto ?? 'Estructura') !== 'Empalme');
     if (!E.length) return null;
@@ -886,6 +896,32 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
               }
               : undefined} />
         )}
+        {/* ⚠️ SOLO SI HAY DATO. Sin declaraciones no se pinta ni se dice nada:
+            «nadie lo ha comprobado» no es «la línea lleva guarda», y una leyenda
+            vacía que dijera «0 m sin guarda» sería exactamente esa mentira. */}
+        {guarda.tramos.length > 0 && (
+          <>
+            <p className="mapa-capas-t">Sin cable de guarda</p>
+            {guarda.tramos.map((t) => (
+              <p key={t.desdeId} className="mapa-guarda">
+                <span className="li sin-guarda"
+                  style={{ borderTopColor: COLOR_SIN_GUARDA, outlineColor: COLOR_SIN_GUARDA_FUNDA }} />
+                <b>{t.desde} → {t.hasta}</b> · {nf(t.metros)} m
+                {t.vanos.length > 1 && <> · {t.vanos.length} vanos</>}
+              </p>
+            ))}
+            <p className="mapa-capas-n">
+              {nf(guarda.metros.sinGuarda)} m
+              {guarda.pctSinGuarda != null && <> — <b>{nf(guarda.pctSinGuarda, 1)} %</b> de la línea</>}.
+              {' '}Es <b>daño de operación</b>, no diseño, y <b>no entra en ningún cálculo</b>.
+              {guarda.nSinDato > 0 && (
+                <> Quedan <b>{guarda.nSinDato} vano(s) sin comprobar</b>: de ésos no consta nada,
+                  ni que lleven guarda ni que no.</>
+              )}
+            </p>
+          </>
+        )}
+
         {pronostico && tiempo && (
           <PanelPronostico p={tiempo} eje={geometria?.eje ?? null}
             celda={geometria ? celdaDeConsulta(geometria.lat, geometria.lon) : null}
@@ -1306,6 +1342,41 @@ function crearMapa(
       })),
     };
 
+    // ── TRAMOS SIN CABLE DE GUARDA ──────────────────────────────────────────
+    //
+    // No es una capa opcional ni un adorno: es el estado real de la protección
+    // de la línea, y el Ingeniero lo declaró como DAÑO ACUMULADO por fallas de
+    // operación, no como diseño (`99 §ADR-044`). Va SIEMPRE que haya dato, y
+    // cuando no lo hay no se pinta nada — porque «nadie lo ha declarado» no es
+    // «lo lleva» (`vistas/cableGuarda.ts`).
+    //
+    // La geometría sigue el RECORRIDO real entre las dos estructuras del tramo,
+    // empalmes incluidos, igual que hace `tramos`: una recta entre extremos
+    // cruzaría por fuera del trazado en cuanto haya un quiebre en medio — y en
+    // esta línea E06 quiebra 118°.
+    const guarda = cableDeGuarda(apoyos);
+    const indiceDe = new Map(ordenados.map((a, i) => [a.id, i]));
+    const sinGuarda: GeoJSON.FeatureCollection = {
+      type: 'FeatureCollection',
+      features: guarda.tramos.map((t) => {
+        const i0 = indiceDe.get(t.desdeId) ?? 0;
+        const i1 = indiceDe.get(t.hastaId) ?? ordenados.length - 1;
+        const recorrido = ordenados.slice(Math.min(i0, i1), Math.max(i0, i1) + 1);
+        return {
+          type: 'Feature' as const,
+          properties: {
+            ficha: `<div class="pop-ficha"><b>Sin cable de guarda</b> · ${escHtml(t.desde)} → ${escHtml(t.hasta)}<br>`
+              + `${t.vanos.length} vano(s) · ${t.metros.toFixed(1)} m<br>`
+              + '<i>Daño de operación declarado, no diseño. No entra en ningún cálculo.</i></div>',
+          },
+          geometry: {
+            type: 'LineString' as const,
+            coordinates: recorrido.map((a) => [a.coordenada.lon, a.coordenada.lat]),
+          },
+        };
+      }),
+    };
+
     const puntos: GeoJSON.FeatureCollection = {
       type: 'FeatureCollection',
       // `ordenados` y `lev.puntos` comparten orden (ambos por `orden`).
@@ -1325,6 +1396,7 @@ function crearMapa(
       m.addSource('trazado', { type: 'geojson', data: trazado });
       m.addSource('tramos', { type: 'geojson', data: tramos });
       m.addSource('puntos', { type: 'geojson', data: puntos });
+      if (sinGuarda.features.length) m.addSource('sin-guarda', { type: 'geojson', data: sinGuarda });
 
       m.addLayer({
         id: 'linea-halo',
@@ -1346,6 +1418,52 @@ function crearMapa(
         source: 'tramos',
         paint: { 'line-color': ['get', 'color'], 'line-width': 3.5, 'line-opacity': 0.95 },
       });
+
+      // ⚠️ ENCIMA de `tramos` y DEBAJO de `apoyos`. Encima de los tramos porque
+      // si quedara debajo lo taparía justo el color del tramo de tensión, que es
+      // opaco al 95 %; debajo de los apoyos porque el apoyo y su nombre son lo
+      // que permite decir DÓNDE está el daño, y taparlos con la marca sería
+      // cambiar un dato por una alarma.
+      if (sinGuarda.features.length) {
+        // ⚠️ FUNDA BLANCA DEBAJO, Y NO ES COSMÉTICA. El primer intento pintaba
+        // la marca en rojo (#dc2626) directamente encima del trazado, y sobre el
+        // PRIMER color de tramo de tensión (#d63b3b) resultaba invisible: los dos
+        // rojos son el mismo a simple vista. Se vio en el banco de pruebas. Una
+        // marca de daño que desaparece sobre un tramo concreto es peor que no
+        // pintarla: da por sano justo un trozo de línea que está señalado.
+        //
+        // La funda blanca separa la marca de CUALQUIER color de debajo —los
+        // cuatro de tramo, el callejero y la foto satelital— y encima va un
+        // discontinuo rojo OSCURO, que no lo usa ninguna otra capa. Y el
+        // discontinuo tampoco es estética: un cable que falta se lee como línea
+        // cortada; los tramos de tensión van todos continuos.
+        m.addLayer({
+          id: 'sin-guarda-halo',
+          type: 'line',
+          source: 'sin-guarda',
+          paint: { 'line-color': COLOR_SIN_GUARDA_FUNDA, 'line-width': 11, 'line-opacity': 0.95 },
+        });
+        m.addLayer({
+          id: 'sin-guarda',
+          type: 'line',
+          source: 'sin-guarda',
+          paint: {
+            'line-color': COLOR_SIN_GUARDA,
+            'line-width': 4.5,
+            'line-dasharray': [1.8, 1.4],
+          },
+        });
+        m.on('click', 'sin-guarda', (ev: maplibregl.MapLayerMouseEvent) => {
+          const f = ev.features?.[0];
+          if (!f) return;
+          new maplibregl.Popup({ offset: 10, closeButton: false, maxWidth: '340px' })
+            .setLngLat(ev.lngLat)
+            .setHTML(String(f.properties?.ficha ?? ''))
+            .addTo(m);
+        });
+        m.on('mouseenter', 'sin-guarda', () => { m.getCanvas().style.cursor = 'pointer'; });
+        m.on('mouseleave', 'sin-guarda', () => { m.getCanvas().style.cursor = ''; });
+      }
 
       m.addLayer({
         id: 'apoyos',

@@ -4116,3 +4116,69 @@ megabytes. Podía estar contestando por una instancia ya retirada.
 
 *(sin comité. La evidencia es reproducible y ejecutable: `tests/sonda-mapa.test.js`, el banco
 `web/sonda-satelital.html`, y el experimento de retirada de `style.load` descrito arriba.)*
+
+---
+
+## ADR-044 · 2026-08-21 · El cable de guarda entra al sistema como INVENTARIO de daño, vano a vano, y se pinta sobre el mapa
+
+**Estado:** ✅ Decidido · ⚠️ **NO revisada externamente** · ⬜ pendiente de verificar en vivo
+
+### Contexto
+
+El Ingeniero aporta que LN-627 tiene tramos **sin cable de guarda** —E06–E09 y E21–E22— y, preguntado,
+precisa lo que cambia el encuadre entero: **no es diseño, es daño acumulado por fallas a lo largo de la
+operación.** Medido contra producción son **903 m de 3.024 (29,9 %)**, y no son vanos cualesquiera:
+**tres de los cuatro vanos más largos de la línea** son justo los que no llevan guarda.
+
+El sistema no tenía dónde ponerlo. El concepto solo existía como **supuesto declarado FUERA** (la carga
+transversal cuenta `3·circuitos` con el guarda excluido) y como campo opcional de la memoria de
+cantidades. Y `Hallazgo` —que parecía el molde— **existe en el contrato y en las reglas pero no lo usa
+nadie**: además cuelga de UN apoyo, y esto es un tramo ENTRE dos.
+
+### Decisión
+
+**El dato va en el APOYO DE AGUAS ARRIBA y describe SU VANO SALIENTE.** Contrato **0.7.0**, aditivo:
+`cableGuardaVanoSaliente: 'presente' | 'ausente'`, opcional.
+
+- **Tres estados, y el tercero es el que importa:** presente · ausente · **campo ausente = NO CONSTA**.
+  Que nadie lo haya declarado no dice que el vano lleve guarda. Tratar el hueco como un «sí» pintaría de
+  sana una línea que nadie ha comprobado (`ADR-029/032`).
+- **A la siguiente ESTRUCTURA, no al siguiente punto.** Un empalme no sostiene conductor —en esta línea
+  hay uno dentro del vano E06→E07— y tomarlo como extremo partiría un vano real en dos falsos (`40 §10`).
+- **No entra en ningún cálculo** y no cambia el veredicto de ningún apoyo. Es inventario.
+- **Se pinta sobre el mapa** (lo que pidió): funda blanca + discontinuo rojo oscuro, encima de los tramos
+  de tensión y debajo de los apoyos, con su leyenda y sus metros. Sin dato **no se crea ni la capa**.
+- **Se declara desde la aplicación**, en «Detalle GPS», vano a vano y con permiso de edición. Escritor
+  propio con el mismo cerrojo de revisión que la ficha — **no** por la ficha estructural, cuyo molde
+  rechaza por diseño lo que no da veredicto.
+- **Las fotos salen gratis:** una evidencia ya puede colgar de un apoyo (`ADR-015`). Sin reglas nuevas.
+
+### Alternativas descartadas
+
+- **Molde general de «daño por tramo» con lista cerrada** (mi recomendación). El Ingeniero eligió
+  **solo cable de guarda**. Queda escrito el coste que acepta: el segundo tipo de daño obliga a reabrir
+  el contrato, y aquí abrir el contrato es de una sola dirección — desplegar antes, cargar después.
+- **Reanimar `Hallazgo`.** Cuelga de un apoyo, exige una `Inspeccion` que no existe y arrastra severidad,
+  origen y confirmación: seis campos inventados para guardar uno que consta.
+- **Guardarlo en el frontend.** Es dato de red de un cliente y **este repositorio es público**. Ni un byte.
+- **Guardar la causa o la fecha del daño.** El Ingeniero eligió *solo el hecho*: lo que consta es que
+  falta, no cuándo ni por cuál falla.
+
+### Consecuencias
+
+- **Prerrequisito de `TODO-57`, no resultado:** `nFasesAmarradas` cuenta «las fases y, si lo lleva, el
+  cable de guarda». En E06, E09, E21 y E22 el guarda muere y esas estructuras se llevan su tiro por un
+  solo lado — el desequilibrio que calcula el eje longitudinal. Hoy no mueve nada: siguen 0/25 sin ficha.
+- **La memoria de cantidades deja de poder suponer** que la longitud de guarda es la de la línea.
+- **Un defecto cazado en el banco, no en producción:** la marca se pintó primero de `#dc2626` sobre un
+  tramo de tensión `#d63b3b` y **desaparecía justo encima de ese tramo**. Una marca de daño que se
+  esconde da por sano un trozo señalado. Arreglo: funda blanca + color fuera de la paleta, con el color
+  en el dueño único (`vistas/tramoColores.ts`) y **guardián que lo compara contra la paleta**.
+- **Nada de esto sirve hasta que el dato esté cargado.** Desplegar primero, declarar después.
+
+### Crudo de respaldo
+
+*(sin comité. El dato de campo, lo medido y las preguntas están en la BÓVEDA —
+`datos-campo/2026-08-21-cable-de-guarda.md`— y no en este repositorio, que es público: describe dónde
+una línea en servicio no tiene protección contra descargas. Guardián ejecutable:
+`tests/cable-de-guarda.test.js`.)*
