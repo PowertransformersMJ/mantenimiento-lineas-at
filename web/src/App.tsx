@@ -156,24 +156,12 @@ function Contenido() {
     await almacen.cargar();
   }
 
-  /** Salida de reserva mientras se completa el cambio. Se retira después. */
-  async function entrarConGoogle() {
-    try {
-      const { cargarFirebase } = await import('./datos/cargar');
-      const f = await cargarFirebase();
-      await f.entrarConGoogle();
-      await almacen.cargar();
-    } catch (e) {
-      almacen.poner({ fase: 'error', mensaje: e instanceof Error ? e.message : 'no se pudo iniciar sesión' });
-    }
-  }
-
   // El segmento RCA se pinta ENCIMA de la línea, sin destruirla: volver al
   // parque es instantáneo porque la línea nunca se descargó de memoria.
   if (rca.fase !== 'cerrado') return <Rca />;
 
   switch (d.fase) {
-    case 'sin_sesion': return <SinSesion onEntrar={entrar} onEntrarConGoogle={() => void entrarConGoogle()} />;
+    case 'sin_sesion': return <SinSesion onEntrar={entrar} />;
     case 'cargando':   return <Cargando />;
     case 'vacio':      return <Vacio />;
     case 'error':      return <Error_ mensaje={d.mensaje} onReintentar={() => void almacen.cargar()} />;

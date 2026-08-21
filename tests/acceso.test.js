@@ -9,6 +9,7 @@
 // camino por el que la pantalla se le dibuje es un fallo grave.
 // ============================================================================
 import { test, describe } from 'node:test';
+import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import {
   puertaDeAcceso, defectosDeContrasena, cambiarContrasena, motivoDelFallo, MIN_CONTRASENA,
@@ -175,5 +176,43 @@ describe('EL ORDEN DE LAS TRES OPERACIONES es el invariante', () => {
     for (const c of ['auth/wrong-password', 'auth/weak-password', 'desconocido']) {
       assert.doesNotMatch(motivoDelFallo(c), /auth\//, 'se le enseñó el código de error al usuario');
     }
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// LA VÍA DE GOOGLE, RETIRADA (`TODO-50` fase 2b)
+// ════════════════════════════════════════════════════════════════════════════
+//
+// POR QUÉ ESTO ES UN GUARDIÁN Y NO UN DETALLE. «Entrar con Google» era una vía
+// de alta PÚBLICA: cualquiera con una cuenta de Google podía crearse una
+// identidad en el proyecto, y el 31-07-2026 ocurrió de verdad — una cuenta ajena
+// se dio de alta sin que nadie la invitara (`99 §ADR-019`). El Ingeniero pidió
+// retirarla en cuanto tuvo contraseña propia.
+//
+// ⚠️ Y LO QUE ESTA PRUEBA **NO** DEMUESTRA, que es lo más importante: que la
+// aplicación no ofrezca el botón NO cierra la puerta. El proveedor sigue
+// habilitado en la consola de Firebase hasta que alguien lo apague ALLÍ, y
+// mientras siga encendido la vía existe aunque no se vea. Es la misma doctrina
+// que el resto del proyecto: la pantalla es HIGIENE, la frontera es la consola y
+// las reglas. Esta prueba vigila la higiene; el cierre real se hace fuera.
+describe('la aplicación no ofrece entrar con Google', () => {
+  const fuente = (r) => readFileSync(new URL(r, import.meta.url), 'utf-8');
+  const APP = fuente('../web/src/App.tsx');
+  const PANTALLA = fuente('../web/src/componentes/Estado.tsx');
+
+  test('la pantalla de acceso no pinta ningún botón de Google', () => {
+    assert.ok(!/Entrar con Google/.test(PANTALLA),
+      'volvió el botón: era una vía de alta pública, y por ahí entró una cuenta ajena');
+    assert.ok(!/onEntrarConGoogle/.test(PANTALLA));
+  });
+
+  test('y la aplicación no tiene una función que lo intente', () => {
+    assert.ok(!/entrarConGoogle\(\)/.test(APP),
+      'la vía sigue cableada aunque no se vea: un botón que vuelva la reactiva entera');
+  });
+
+  test('el alta sigue siendo un acto administrativo, y se dice', () => {
+    assert.match(PANTALLA, /No hay registro/,
+      'sin esa frase, quien no pueda entrar no sabe que tiene que pedirlo');
   });
 });

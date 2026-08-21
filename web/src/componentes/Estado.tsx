@@ -36,9 +36,8 @@ export function Estado({ titulo, children, nota, accion }: Props) {
  * retira. Se quita en cuanto la contraseña del administrador esté probada:
  * retirarlo antes lo dejaría a él fuera de su propio sistema.
  */
-export function SinSesion({ onEntrar, onEntrarConGoogle }: {
+export function SinSesion({ onEntrar }: {
   onEntrar: (correo: string, contrasena: string) => Promise<void>;
-  onEntrarConGoogle?: () => void;
 }) {
   const [correo, setCorreo] = useState('');
   const [contrasena, setContrasena] = useState('');
@@ -92,14 +91,6 @@ export function SinSesion({ onEntrar, onEntrarConGoogle }: {
         olvidado su contraseña, avísele: nadie puede darse de alta por su cuenta.
       </p>
 
-      {onEntrarConGoogle && (
-        <p className="fine acceso-reserva">
-          <button className="boton chico" type="button" onClick={onEntrarConGoogle}>
-            Entrar con Google
-          </button>
-          {' '}Vía en retirada, disponible mientras se completa el cambio a contraseña.
-        </p>
-      )}
     </section>
   );
 }
