@@ -169,6 +169,33 @@
 - ⚠️ **Volvió a pasar el 04-08-2026** con la colección `analisis`, y se escribió otra lección sin ver
   ésta. La recaída está anotada en `32 · L-36`, y la regla para no repetirla en `30 · L-39`.
 
+### L-64 · Para una hipótesis INSTANTÁNEA no sirve una serie de MEDIAS HORARIAS
+Verificado el 2026-08-21 llamando a cada fuente, no de memoria.
+
+- **La pregunta:** ¿se pueden tomar de IDEAM o NASA POWER los datos de radiación solar para cerrar
+  los **1.000 W/m² adoptados** de la ampacidad (`TODO-71`)?
+- **Lo que hay, comprobado:**
+
+  | Fuente | Existe | Resolución | Paso |
+  |---|---|---|---|
+  | **IDEAM** (portal abierto) | ❌ **ninguna serie de radiación**; el catálogo no tiene esa categoría | — | — |
+  | **Cardique** (autoridad de Bolívar) | ✅ GHI **medida** + viento, en la zona | estación | **741 filas: solo enero de 2022** |
+  | **NASA POWER** | ✅ sin clave, HTTP 200 en 0,8 s, 2001→hoy | **1° ≈ 110 km** | 1 h |
+  | **Global Solar Atlas** (ya en uso) | ✅ | 250 m mapa · ~1 km TMY | 1 h (año típico) |
+
+- **Y el fallo de fondo, que no es de ninguna de ellas:** el valor adoptado es una irradiancia
+  **INSTANTÁNEA** y todo lo disponible son **MEDIAS HORARIAS** (NASA POWER las publica en `Wh/m²`,
+  que en paso horario ES la media). Una media horaria está siempre POR DEBAJO del pico instantáneo
+  que contiene, y el promediado espacial de una celda de 1° lo rebaja más todavía.
+- **De ahí la regla, y el sentido importa:** en ampacidad, **más sol supuesto = conductor más
+  caliente = menos amperios**, así que 1.000 W/m² es el lado CONSERVADOR. Con medias horarias se
+  puede **defender** ese valor como cota superior; **bajarlo con ellas subiría la ampacidad** sobre
+  una prueba que no dice lo que parece. Lo primero es legítimo; lo segundo es el error peligroso.
+- **Regla general:** antes de buscar la fuente, escribe qué MAGNITUD exige la hipótesis —instantánea
+  o promediada, y sobre qué ventana—. Media docena de portales pueden tener «radiación solar» y
+  ninguno tener lo que se necesita. Y comprueba el TAMAÑO de la serie antes de celebrarla: la de
+  Cardique tenía las variables exactas y un mes de historia.
+
 ### L-37 · Un portal de datos abierto miente de tres formas distintas, y ninguna da error
 Verificado el 2026-08-04 contra `datos.gov.co` (IDEAM), integrando el clima del segmento RCA.
 

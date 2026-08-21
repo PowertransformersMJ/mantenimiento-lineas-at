@@ -41,6 +41,7 @@
 - `L-13` · El ingreso explícito exige TRES piezas, y ninguna avisa de que falta
 - `L-22` · Desplegar el código sin desplegar las reglas de Firestore: el dato existe y no llega
 - `L-25` · Un alta «gratuita» puede esconder un formulario de pago, y ahí Claude se detiene
+- `L-64` · Para una hipótesis INSTANTÁNEA no sirve una serie de medias horarias (y mira el tamaño antes de celebrar)
 - `L-37` · Un portal de datos abierto miente de tres formas: la consulta que se cuelga, la estación que no mide lo que crees, y el campo con lat/lon intercambiadas
 - `L-38` · Cuando la defensa canónica exige plan de pago, se DETECTA en vez de PREVENIR — y se escribe que es un compromiso, no un descuido
 
