@@ -1,5 +1,5 @@
 // ============================================================================
-// vistas/temperatura.ts — la temperatura del AIRE del corredor, mes a mes
+// vistas/temperatura.ts — la temperatura AMBIENTE del corredor, mes a mes
 // ----------------------------------------------------------------------------
 // POR QUÉ ESTA CAPA Y POR QUÉ NO ES LA QUE SE RETIRÓ. `ADR-036` publicó la
 // temperatura de la SUPERFICIE —lo que miden los tejados y el asfalto vistos
@@ -131,7 +131,7 @@ export const NOTA_HIPOTESIS =
 /** Lo que hay que advertir del muestreo, cuando toque. */
 export function avisoDeMuestreo(ficha: FichaTemperatura): string | null {
   return avisoDeMuestreoDeRejilla(
-    ficha, 'la temperatura del aire varía aún más suave que el recurso solar');
+    ficha, 'la temperatura ambiente varía aún más suave que el recurso solar');
 }
 
 /**

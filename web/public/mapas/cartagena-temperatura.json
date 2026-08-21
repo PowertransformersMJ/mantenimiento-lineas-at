@@ -1,7 +1,7 @@
 {
   "capa": "temperatura",
-  "titulo": "Temperatura del aire (Global Solar Atlas)",
-  "magnitud": "TEMP — temperatura del aire a 2 m",
+  "titulo": "Temperatura ambiente (Global Solar Atlas)",
+  "magnitud": "TEMP — temperatura ambiente (aire a 2 m)",
   "unidad": "°C",
   "bbox": [
     -75.62,

@@ -153,13 +153,13 @@ export const MEDIDAS = {
     fallo: 'No se pudo cargar el recurso solar. El mapa sigue igual.',
   },
   temperatura: {
-    rotulo: 'Temperatura del aire',
+    rotulo: 'Temperatura ambiente',
     ficha: '/mapas/cartagena-temperatura.json',
     // Algo más translúcida que el sol: la temperatura se mira SOBRE el terreno
     // —dónde está el mar, dónde la ciudad— y a 0,68 el fondo desaparecía.
     opacidad: 0.6,
     bajando: 'Bajando la temperatura de ese mes…',
-    fallo: 'No se pudo cargar la temperatura del aire. El mapa sigue igual.',
+    fallo: 'No se pudo cargar la temperatura ambiente. El mapa sigue igual.',
   },
 } as const;
 

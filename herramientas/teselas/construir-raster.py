@@ -799,7 +799,11 @@ def radiacion():
 
 
 # ════════════════════════════════════════════════════════════════════════════
-# 4 · TEMPERATURA DEL AIRE — la que SÍ entra en el cálculo
+# 4 · TEMPERATURA AMBIENTE — la que SÍ entra en el cálculo
+#
+# Se llama AMBIENTE porque así la nombra la norma (IEEE 738: «ambient
+# temperature») y así la nombra quien firma. Es la del AIRE a 2 m: el nombre
+# físico y el normativo son la misma medida, y el segundo es el que se entiende.
 # ════════════════════════════════════════════════════════════════════════════
 #
 # POR QUÉ ESTA CAPA Y NO LA DEL SUELO. `ADR-036` publicó la temperatura de la
@@ -976,8 +980,8 @@ def _publicar_temperatura(rejillas, ancho, alto, n_puntos, fallos):
 
     escribir_ficha('temperatura', {
         'capa': 'temperatura',
-        'titulo': 'Temperatura del aire (Global Solar Atlas)',
-        'magnitud': 'TEMP — temperatura del aire a 2 m',
+        'titulo': 'Temperatura ambiente (Global Solar Atlas)',
+        'magnitud': 'TEMP — temperatura ambiente (aire a 2 m)',
         'unidad': '°C',
         'bbox': list(BBOX),
         'ancho': ancho,
