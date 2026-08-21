@@ -146,7 +146,7 @@ def tamano_bloque(metros_px):
     return (int(round((x1 - x0) / metros_px)), int(round((y1 - y0) / metros_px)), (x0, y0, x1, y1))
 
 
-def leer_bloque(url, bandas, metros_px, remuestreo=None):
+def leer_bloque(url, bandas, metros_px, remuestreo=None, con_mascara=False):
     """
     La zona del recorte, ya en Web Mercator y a la resolución que se pida.
 
@@ -171,6 +171,15 @@ def leer_bloque(url, bandas, metros_px, remuestreo=None):
             ventana = from_bounds(*limites, vrt.transform)
             datos = vrt.read(bandas, window=ventana, out_shape=(len(bandas), alto, ancho),
                              resampling=remuestreo)
+            # LA MÁSCARA DEL PROPIO ARCHIVO: qué píxeles trae la escena y cuáles
+            # son relleno. Es un dato del GeoTIFF, no una suposición sobre el
+            # color — y por eso distingue «aquí no hubo pasada» de «aquí el mar
+            # refleja casi nada».
+            mascara = (vrt.read_masks(1, window=ventana, out_shape=(alto, ancho),
+                                      resampling=Resampling.nearest)
+                       if con_mascara else None)
+    if con_mascara:
+        return datos, limites, mascara
     return datos, limites
 
 
@@ -341,11 +350,18 @@ def buscar_sentinel(meses=12):
     if not d.get('features'):
         sys.exit('❌ ninguna escena con menos del 5 % de nubes sobre el recorte')
     f = la_mas_reciente_despejada(d['features'])
+    eb = f.get('bbox') or [None] * 4
     return {
         'id': f['id'],
         'fecha': f['properties']['datetime'],
         'nubes_pct': f['properties'].get('eo:cloud_cover'),
         'url': f['assets']['visual']['href'],
+        # Lo que decide si el recorte queda LLENO: cuánto relleno trae la escena
+        # y si su extensión contiene al recorte entero.
+        'sin_dato_pct': f['properties'].get('s2:nodata_pixel_percentage'),
+        'contiene_recorte': (None not in eb
+                             and eb[0] <= BBOX[0] and eb[1] <= BBOX[1]
+                             and eb[2] >= BBOX[2] and eb[3] >= BBOX[3]),
     }
 
 
@@ -362,12 +378,34 @@ def satelital():
     # donde venga— con la cuarta parte de descarga y de memoria: pedir el recorte
     # entero a 2,4 m son ~250 millones de píxeles en RAM.
     metros_lectura = METROS_TESELA_Z[15]
-    datos, limites = leer_bloque('/vsicurl/' + escena['url'], [1, 2, 3], metros_lectura)
+    datos, limites, mascara = leer_bloque('/vsicurl/' + escena['url'], [1, 2, 3],
+                                          metros_lectura, con_mascara=True)
 
     rgb = np.moveaxis(datos, 0, -1)
-    # Lo que no cubre la escena llega como 0 en las tres bandas: se declara
-    # transparente en vez de pintarlo de negro, que se leería como agua.
-    alfa = (rgb.sum(axis=2) > 0).astype(np.uint8) * 255
+    # ⚠️ EL HUECO LO DICE EL ARCHIVO, NO EL COLOR. Antes se marcaba como «sin
+    # dato» todo píxel con las tres bandas a cero, y eso agujereaba el MAR: el
+    # agua profunda no refleja casi nada en el visible, así que el color verdadero
+    # sale 0,0,0 y la capa se volvía transparente justo donde sí había medida.
+    # Medido sobre el recorte: el 39 % del rectángulo salía vacío y el mar abierto
+    # perdía la mitad de sus píxeles. La máscara del GeoTIFF distingue lo que la
+    # heurística no podía: «aquí no hubo pasada» de «aquí el mar es negro».
+    # ⚠️ SI LA ESCENA LLENA EL RECORTE, NO HAY NADA TRANSPARENTE. Y hay que
+    # decidirlo así porque NI EL COLOR NI LA MÁSCARA DEL ARCHIVO SIRVEN: el
+    # producto de color verdadero declara el 0 como «sin dato», y el agua
+    # profunda vale 0 en las tres bandas porque no refleja casi nada en el
+    # visible. Las dos vías —la heurística y `read_masks`— dan el mismo error de
+    # origen y agujerean el MAR. Medido: el 39 % del rectángulo salía vacío y el
+    # mar abierto perdía la mitad de sus píxeles, que es lo que se veía como una
+    # capa incompleta a lo largo de la geografía.
+    #
+    # El dato que sí lo resuelve es de la escena, no del píxel: si declara 0 % de
+    # relleno y su extensión CONTIENE el recorte, entonces cada píxel del recorte
+    # fue medido — por oscuro que salga. Cuando no se cumpla, se vuelve a la
+    # máscara del archivo, que es lo correcto para un recorte a caballo entre dos
+    # pasadas.
+    llena = escena.get('contiene_recorte') and (escena.get('sin_dato_pct') or 0) == 0
+    alfa = (np.full(rgb.shape[:2], 255, dtype=np.uint8) if llena else mascara)
+    print(f'   cobertura: {"COMPLETA (la escena llena el recorte)" if llena else "parcial — se usa la máscara del archivo"}')
     rgb = realzar(rgb, alfa > 0)
     imagen = Image.fromarray(np.dstack([rgb, alfa]), 'RGBA')
     if Z_MAX > 15:
@@ -407,6 +445,8 @@ def satelital():
         'fecha': escena['fecha'],
         'nubes_pct': round(escena['nubes_pct'], 2),
         'resolucion_m': 10,
+        'cobertura': ('completa: la escena contiene el recorte y no declara relleno'
+                      if llena else 'parcial: hay zonas sin pasada, marcadas transparentes'),
         'realce': (f'contraste estirado entre los percentiles {REALCE_PCT[0]} y {REALCE_PCT[1]}, '
                    f'gamma {REALCE_GAMMA} y máscara borrosa (radio {REALCE_NITIDEZ[0]} px, '
                    f'{int(REALCE_NITIDEZ[1] * 100)} %) — TODO cosmético: sirve para ver el terreno, '

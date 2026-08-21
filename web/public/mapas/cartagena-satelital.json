@@ -5,6 +5,7 @@
   "fecha": "2026-08-08T15:40:16.254000Z",
   "nubes_pct": 0.63,
   "resolucion_m": 10,
+  "cobertura": "completa: la escena contiene el recorte y no declara relleno",
   "realce": "contraste estirado entre los percentiles 1.0 y 99.0, gamma 0.88 y máscara borrosa (radio 1.0 px, 60 %) — TODO cosmético: sirve para ver el terreno, no para comparar radiometría",
   "zoom_max": 16,
   "metros_por_pixel_publicados": 2.3,
