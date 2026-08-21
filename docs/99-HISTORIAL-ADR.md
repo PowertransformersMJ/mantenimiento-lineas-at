@@ -1479,6 +1479,32 @@ encontraron por separado, cada uno ejecutando el motor:
   fila, que sí se publican; llevarlos al texto del veredicto queda pendiente. Tampoco viaja
   `funcionProcedencia`, y en LN-627 vale «deducido_geometria».
 
+
+### ⚠️ DEUDA DESCUBIERTA el 2026-08-21: el apoyo MIXTO no existe en este modelo
+
+Este eje tiene **dos casos y solo dos**: `terminal` —todos los conductores tiran a un lado,
+`FL = ±H`— y `desequilibrio` —todos siguen de largo, `FL = (H₂−H₁)·cos(α/2)`—. Los dos calculan
+**UNA carga por conductor** y la multiplican por `nFasesAmarradas`: dan por supuesto que **todos los
+conductores amarrados están en el MISMO caso**.
+
+Existe un apoyo real que no es ninguno de los dos: aquel donde **las fases siguen de largo pero el
+cable de guarda TERMINA ahí**, porque el vano siguiente lo perdió y el cable quedó recogido y amarrado
+a la estructura. Conviven un desequilibrio (las fases) y un terminal (el guarda) sobre la misma
+estructura.
+
+**Y el error va al lado peligroso.** Con `nFasesAmarradas = 4` el motor publica
+`(H₂−H₁)·cos(α/2) · 4`, cuando lo real es `3·(H₂−H₁)·cos(α/2) + 1·H_guarda`. Como la diferencia entre
+tramos contiguos es normalmente mucho menor que el tiro entero, **el número sale corto**: un «CUMPLE»
+de más. Bajar el conteo a 3 tampoco lo arregla — sigue faltando el término del guarda. Es la misma
+forma que el hallazgo del apoyo de DERIVACIÓN de arriba: una carga que el sistema no ve, saliendo en
+verde.
+
+**Mientras no se modele, un apoyo así no puede recibir veredicto longitudinal**: hueco con el motivo
+escrito, que es lo que este sistema hace siempre que el modelo no alcanza. Falta además el dato que
+decidiría la magnitud —si el guarda recogido quedó TENSO o flojo—, y hoy no existe ningún campo donde
+ponerlo. Qué apoyos concretos de LN-627 están así vive en la BÓVEDA, no aquí: este repositorio es
+público.
+
 ### Crudo de respaldo
 
 `research-archive/2026-08-03-workflow-capacidad-longitudinal.json`
