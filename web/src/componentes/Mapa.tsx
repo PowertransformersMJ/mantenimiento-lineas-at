@@ -412,12 +412,36 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
           setEstado('fallo');
         }
       }, 1000);
-      creado.once('load', () => {
+      // ⚠️ EL MAPA, ALCANZABLE DESDE LA CONSOLA. No es un descuido: hoy se han ido
+      // dos horas en adivinar por qué una capa no se pintaba, mirando capturas de
+      // pantalla. El objeto ya está en la página —cualquiera puede llegar a él con
+      // las herramientas del navegador—, así que exponerlo no abre nada nuevo; lo
+      // que hace es que la pregunta «¿dónde quedó esta capa?» se conteste en diez
+      // segundos con `__mapaLineas.getStyle().layers` en vez de por eliminación.
+      (window as unknown as { __mapaLineas?: maplibregl.Map }).__mapaLineas = creado;
+      // ⚠️ SE ESPERA A `style.load`, NO SOLO A `load`, Y ESTA ES LA TERCERA VEZ QUE
+      // ESTE PROYECTO TROPIEZA CON LA MISMA PIEDRA (`32 · L-55`, `L-58`).
+      //
+      // `load` no significa «el estilo está listo»: significa «el estilo Y las
+      // primeras teselas están listos». Si a una sola fuente le falta una tesela,
+      // `load` NO dispara — y no dispara NUNCA, sin un error, sin un aviso. Eso es
+      // lo que pasaba: medido en producción, el mapa estaba en pantalla pintando
+      // el callejero con `loaded() === false` y sin estilo accesible, así que
+      // `setMapaCargado(true)` no llegaba, el efecto de las capas salía por la
+      // puerta de atrás en su primera línea y la foto satelital no se añadía
+      // jamás. El interruptor se marcaba y no pasaba nada.
+      //
+      // `style.load` dispara en cuanto el estilo está montado, que es lo único
+      // que `addSource` necesita de verdad. Se dejan los dos: el primero que
+      // llegue enciende la señal, y `once` garantiza que solo cuenta una vez.
+      const listo = () => {
         clearInterval(reloj);
         document.removeEventListener('visibilitychange', alCambiar);
         // La señal que esperan las capas: a partir de aquí `addSource` es seguro.
         if (!cancelado) setMapaCargado(true);
-      });
+      };
+      creado.once('style.load', listo);
+      creado.once('load', listo);
     })();
 
     return () => {

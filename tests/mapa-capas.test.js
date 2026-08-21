@@ -145,7 +145,13 @@ describe('el mapa no le pide teselas a nadie', () => {
     // ejecuta jamás y el interruptor se queda muerto, sin capa y sin error.
     assert.ok(!/isStyleLoaded\(\)/.test(CODIGO),
       'alguien volvió a usar isStyleLoaded() como puerta: no lo es');
-    assert.match(CODIGO, /once\('load'[\s\S]{0,300}setMapaCargado\(true\)/,
+    // ⚠️ Y NO BASTA CON `load`: ése espera también a las TESELAS, así que si a una
+    // fuente le falta una, no dispara nunca —sin error y sin aviso— y las capas
+    // se quedan esperando una señal que no llega. Medido en producción: el mapa
+    // pintaba con `loaded() === false`. La señal la tiene que dar `style.load`.
+    assert.match(CODIGO, /creado\.once\('style\.load', listo\)/,
+      '`load` espera a las teselas; `style.load` es lo único que `addSource` necesita');
+    assert.match(CODIGO, /const listo = \(\) => \{[\s\S]{0,300}setMapaCargado\(true\)/,
       'nadie enciende la señal de que el mapa terminó de cargar');
     const efectos = [...CODIGO.matchAll(/useEffect\(\(\) => \{([\s\S]*?)\}, \[([^\]]*)\]\);/g)];
     for (const [, cuerpo, deps] of efectos) {
@@ -330,8 +336,6 @@ describe('la satelital no vende detalle que no tiene', () => {
 // desde el primer día que se encendió la capa (`99 §ADR-034` lo daba por
 // verificado; lo verificado eran los nombres de los APOYOS, que sí van arriba).
 describe('la foto va debajo de los nombres, no encima', () => {
-  const CODIGO = readFileSync(join(RAIZ, 'web/src/componentes/Mapa.tsx'), 'utf-8');
-
   test('el ancla se calcula del estilo vivo, no se escribe a mano', () => {
     assert.match(CODIGO, /function primerRotulo\(m: maplibregl\.Map\)/,
       'el mapa base son 71 capas de una librería que versiona: la lista no se copia');
