@@ -129,6 +129,38 @@ describe('cable de guarda — qué tramos le faltan a la línea', () => {
   });
 });
 
+describe('declarar un vano no puede reiniciar la aplicación', () => {
+  const ENLACE = readFileSync(fileURLToPath(new URL('../web/src/datos/enlace.ts', import.meta.url)), 'utf-8');
+  const metodo = ENLACE.slice(
+    ENLACE.indexOf('async declararCableGuarda('),
+    ENLACE.indexOf('async declararCableGuarda(') + 1400,
+  );
+
+  test('NO llama a `cargar()` ni a `abrir()`', () => {
+    // `cargar()` rehace el arranque entero y pone la aplicación en fase
+    // «cargando», en la que App.tsx sustituye la pantalla de la línea: cada clic
+    // destruía la propia pantalla desde la que se declara. Medido en producción:
+    // ~25 s por vano, diez minutos para una línea de 24. La misma piedra que ya
+    // tienen escrita `refrescarLinea` y `guardarFicha`.
+    assert.ok(!/almacen\.cargar\(\)|this\.cargar\(\)|this\.abrir\(/.test(metodo),
+      'declarar un vano vuelve a recargar la aplicación entera');
+  });
+
+  test('parchea el apoyo con lo que DEVOLVIÓ la base, no con lo que se pidió', () => {
+    // Escribir el valor local en vez del confirmado abriría una segunda verdad:
+    // la pantalla enseñaría lo que se intentó, no lo que quedó guardado.
+    assert.match(metodo, /revision: acuse\.revision/,
+      'la revisión no sale del acuse de la escritura');
+  });
+
+  test('borrar deja el campo FUERA, no vacío', () => {
+    // «No consta» es la AUSENCIA del dato. Dejar la clave con un valor vacío
+    // haría que el molde y la derivación vieran cosas distintas.
+    assert.match(metodo, /valor === null/, 'no hay rama para borrar la declaración');
+    assert.match(metodo, /\.\.\.resto/, 'el campo no se retira del objeto al borrar');
+  });
+});
+
 describe('cómo se PINTA el tramo dañado', () => {
   test('la marca NO usa ningún color de tramo de tensión', () => {
     // El primer intento la pintó de `#dc2626` sobre un trazado cuyo primer tramo

@@ -365,12 +365,24 @@ class Almacen {
   /**
    * Declara si el vano que SALE de un apoyo lleva cable de guarda.
    *
-   * ⚠️ ÉSTE SÍ RECARGA LA LÍNEA, al revés que sus dos vecinos de arriba. No es
-   * una incoherencia: aquéllos devuelven un ACUSE que es el único papel que
-   * queda de la operación y recargar lo borraría. Aquí no hay papel que perder —
-   * lo que hay es un mapa que deriva los tramos dañados de los propios apoyos,
-   * así que sin recargar la marca quedaría en la base y NO en la pantalla. Y una
-   * marca que no se ve se lee como una marca que no se guardó.
+   * ⚠️ NO RECARGA NADA: PARCHEA EL APOYO que la base acaba de aceptar.
+   *
+   * La primera versión llamaba a `almacen.cargar()` para que el mapa se
+   * enterara, y era la misma piedra que ya tienen escrita `refrescarLinea` y
+   * `guardarFicha` unas líneas más arriba —con un mazo más grande—: `cargar()`
+   * rehace el ARRANQUE ENTERO (sesión, token, permisos, líneas, apoyos,
+   * expedientes y fotos) y pone la aplicación en fase «cargando», en la que
+   * `App.tsx` sustituye la pantalla de la línea. O sea que cada clic destruía y
+   * volvía a montar la propia pantalla desde la que se está declarando, y el
+   * mapa con ella. **Medido en producción: unos 25 s por vano**, y declarar una
+   * línea de 24 vanos se iba a diez minutos de relojes de arena.
+   *
+   * El parche no abre una segunda verdad: el valor y la revisión que se escriben
+   * son los que **devuelve la escritura**, o sea lo que la base aceptó. Es el
+   * mismo patrón que `guardarAccion`, que refresca su lista y no la aplicación.
+   *
+   * Y el mapa se entera igual: `apoyos` cambia de identidad, que es justo la
+   * señal por la que el mapa se rehace.
    */
   async declararCableGuarda(
     apoyoId: string,
@@ -379,7 +391,22 @@ class Almacen {
   ) {
     conectarBase();
     const acuse = await repositorio.declararCableGuarda(apoyoId, valor, revision);
-    await almacen.cargar();
+    const e = this.#estado;
+    if (e.fase === 'listo') {
+      this.poner({
+        ...e,
+        apoyos: e.apoyos.map((a) => {
+          if (a.id !== apoyoId) return a;
+          // `null` BORRA el campo, no lo pone a nada: «no consta» es la AUSENCIA
+          // del dato, y dejar la clave con un valor vacío haría que el molde y la
+          // derivación vieran cosas distintas.
+          const { cableGuardaVanoSaliente: _fuera, ...resto } = a;
+          return valor === null
+            ? { ...resto, revision: acuse.revision }
+            : { ...resto, cableGuardaVanoSaliente: valor, revision: acuse.revision };
+        }),
+      });
+    }
     return acuse;
   }
 
