@@ -28,7 +28,7 @@
 //       + 7b) bóveda: commits ≠ origin vía fs [warn]
 // ===========================================================
 const KERNEL_VERSION = '1.8.0';
-import { readFileSync, readdirSync, existsSync } from 'fs';
+import { readFileSync, readdirSync, existsSync, statSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { createHash } from 'crypto';
@@ -230,7 +230,7 @@ if (hasSwSection && swFile) {
     }
   }
 } else head('  ℹ️  sin service-worker o sin §4 — omitido');
-if (BOOT && swFile) say('  ✅ cache verificada (SW↔manager↔05)');
+if (BOOT && hasSwSection && swFile) say('  ✅ cache verificada (SW↔manager↔05)');
 
 // 5) Referencias cruzadas
 head('\n5) Referencias cruzadas (huecos en el cerebro):');
@@ -322,7 +322,10 @@ if (BOOT) head('  ⏭️  omitido en --boot');
 else if (!archiveDir) info('manifest sin archiveDir — gate omitido (declararlo, §G.4)');
 else if (!existsSync(archiveDir)) info(`archiveDir no existe en esta máquina (${manifest.archiveDir}) — bóveda no clonada; gate omitido`);
 else {
-  const files = readdirSync(archiveDir).filter((f) => /\.(json|md)$/i.test(f) && !/^README/i.test(f) && f !== 'runs.log');
+  // v1.9: una deliberación es una CARPETA (la convención real) o un fichero suelto .json/.jsonl/.md.
+  // Antes solo casaban ficheros sueltos del nivel superior → 0 crudos indexados y un ✅ vacuo con la bóveda llena.
+  const files = readdirSync(archiveDir).filter((f) => !/^README/i.test(f) && f !== 'runs.log' && !f.startsWith('.')
+    && (/\.(json|jsonl|md)$/i.test(f) || statSync(join(archiveDir, f)).isDirectory()));
   const readmePath = join(archiveDir, 'README.md');
   const readme = existsSync(readmePath) ? read(readmePath) : '';
   let bad = 0;
@@ -336,7 +339,7 @@ else {
   const refd = new Set();
   for (const sf of scanFiles) {
     if (!existsSync(sf)) continue;
-    for (const m of read(sf).matchAll(/research-archive\/([\w][\w.-]+\.(?:json|md))/g)) refd.add(m[1]);
+    for (const m of read(sf).matchAll(/research-archive\/([\w][\w.-]+(?:\.(?:json|jsonl|md))?)\/?/g)) refd.add(m[1]);
   }
   const danglingRefs = [...refd].filter((f) => !existsSync(join(archiveDir, f)));
   if (danglingRefs.length) { warn(`anclas de deliberación que NO resuelven en archiveDir: ${danglingRefs.join(', ')}`); bad++; }
@@ -363,7 +366,7 @@ else {
     const local = headRef ? refSha(headRef) : null;
     const remote = headRef ? refSha(headRef.replace('refs/heads/', 'refs/remotes/origin/')) : null;
     if (local && remote && local !== remote)
-      warn(`bóveda: HEAD local (${local.slice(0, 7)}) ≠ origin (${remote.slice(0, 7)}) → push pendiente (o pull si origin avanzó) — M-03`);
+      warn(`bóveda: HEAD local (${local.slice(0, 7)}) ≠ origin (${remote.slice(0, 7)}) → push pendiente (o pull si origin avanzó)`);
     else if (local && remote) ok('bóveda: HEAD local == origin (respaldo remoto al día)');
   }
 }

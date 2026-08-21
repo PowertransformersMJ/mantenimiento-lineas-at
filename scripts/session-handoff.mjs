@@ -27,7 +27,7 @@ const git = (args, cwd = ROOT) => {
   catch { return '(git no disponible)'; }
 };
 
-// Guardián de la bóveda compartida (M-03 §49): el gate vive pegado al recurso, no en doctrina.
+// Guardián de la bóveda compartida: el gate vive pegado al recurso, no en doctrina.
 // Devuelve null si no hay bóveda/git; si hay, {root, dirty: n} con n = archivos sin commitear.
 const boveda = () => {
   try {
@@ -36,9 +36,10 @@ const boveda = () => {
     let dir = join(ROOT, archiveDir);
     for (let i = 0; i < 4 && !existsSync(join(dir, '.git')); i++) dir = join(dir, '..');
     if (!existsSync(join(dir, '.git'))) return null;
-    const porcelain = git(['status', '--porcelain'], dir);
+    // -uall: sin él, un directorio nuevo con 200 fotos se reporta como "1 archivo" y el aviso miente por defecto.
+    const porcelain = git(['status', '--porcelain', '-uall'], dir);
     if (porcelain === '(git no disponible)') return null;
-    return { root: dir, dirty: porcelain ? porcelain.split('\n').length : 0 };
+    return { root: dir, dirty: porcelain ? porcelain.split('\n').length : 0, remoto: !!git(['remote'], dir) };
   } catch { return null; }
 };
 
@@ -95,18 +96,18 @@ try {
       }
     }
     const b = boveda();
-    if (b && b.dirty) console.log(`\n⚠️ BÓVEDA COMPARTIDA SUCIA (M-03 §49): ${b.dirty} archivo(s) sin commitear en ${b.root} — commitea+pushea AHORA (respaldo ajeno también vale, aunque el crudo sea de otro cerebro).`);
+    if (b && b.dirty) console.log(`\n⚠️ BÓVEDA SUCIA: ${b.dirty} archivo(s) sin commitear en ${b.root} — commitea AHORA${b.remoto ? ' y pushea' : ' (NO hay remoto: el commit es la única red que tienes)'} (respaldo ajeno también vale, aunque el crudo sea de otro cerebro).`);
     process.exit(0);
   }
 
   const b = boveda();
   const foto = [
     `# 🕹️ Handoff automático (escrito por hook, no por Claude) — ${new Date().toISOString()}`,
-    `> Foto REAL de git al cierre/compactación. Si contradice a docs/10, ESTA es la verdad (M-01).`,
+    `> Foto REAL de git al cierre/compactación. Si contradice a docs/10, ESTA es la verdad.`,
     ``,
     `- Branch: ${git(['branch', '--show-current'])} · HEAD: ${git(['log', '-1', '--format=%h · %s'])}`,
     `- Sucios sin commit: ${git(['status', '--porcelain']) || '(limpio)'}`,
-    `- Bóveda (brain-private): ${b ? (b.dirty ? `⚠️ SUCIA — ${b.dirty} archivo(s) sin commitear (M-03: commitear+pushear)` : 'limpia ✅') : '(no accesible)'}`,
+    `- Bóveda (brain-private): ${b ? (b.dirty ? `⚠️ SUCIA — ${b.dirty} archivo(s) sin commitear${b.remoto ? ' (commitear+pushear)' : ' (commitear; sin remoto)'}` : 'limpia ✅') : '(no accesible)'}`,
     ``,
     `## Últimos commits (24h)`,
     git(['log', '--since=24hours', '--format=- %h %s']) || '- (ninguno)',

@@ -4312,5 +4312,9 @@ por 2023. NASA POWER es la única que cumple los tres requisitos a la vez.
 
 ### Crudo de respaldo
 
-*(el diseño salió de un workflow de 4 agentes con medidas —peso del mapa base a cinco zooms, error de
-cuantización, desvío Mercator— y la revisión de Fable. Guardián ejecutable: `tests/sol-caribe.test.js`.)*
+`research-archive/2026-08-21-workflow-atlas-solar-caribe.json` — las cuatro dimensiones del diseño con
+sus medidas (peso del mapa base a cinco zooms, error de cuantización, desvío Mercator, reparto de bytes
+por capa). 4 agentes, 0 fallos.
+`research-archive/2026-08-21-auditoria-fable-atlas-solar.md` — la revisión adversarial ENTERA, tal cual
+la devolvió, con lo que verificó a favor y lo que declaró no haber revisado.
+Guardián ejecutable: `tests/sol-caribe.test.js`.
