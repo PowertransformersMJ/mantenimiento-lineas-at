@@ -383,8 +383,21 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
       }
       if (cancelado || !caja.current) return;
       setEstado('listo');
+      // ⚠️ ENTRE LA GUARDA DE ENTRADA Y ESTA LÍNEA HAY UN `await`, y ahí cabe otro
+      // efecto: la guarda mira `mapa.current`, que todavía es null mientras se
+      // descargan las teselas. Si el de antes dejó un mapa a medio crear, aquí se
+      // retira ANTES de poner el nuevo — dos instancias sobre el mismo contenedor
+      // dejan una pintando y otra recibiendo las capas, que es la peor avería
+      // posible: el interruptor se marca, no da error y no pasa nada.
+      if (mapa.current) mapa.current.remove();
       creado = crearMapa(caja.current, apoyos, meta, eventos ?? [], alVerEvento);
       mapa.current = creado;
+      // EL MAPA, ALCANZABLE DESDE LA CONSOLA — y el MISMO objeto que reciben las
+      // capas, no otro. Hoy se fueron dos horas adivinando por capturas por qué
+      // una capa no se pintaba; con esto, «¿dónde quedó?» se contesta en diez
+      // segundos con `__mapaLineas.getStyle().layers`. El objeto ya está en la
+      // página: exponerlo no abre nada que no estuviera abierto.
+      (window as unknown as { __mapaLineas?: maplibregl.Map }).__mapaLineas = creado;
       // La señal para las capas: hay un mapa nuevo, vuelvan a aplicarse.
       setMapaVivo(creado);
 
@@ -412,13 +425,6 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
           setEstado('fallo');
         }
       }, 1000);
-      // ⚠️ EL MAPA, ALCANZABLE DESDE LA CONSOLA. No es un descuido: hoy se han ido
-      // dos horas en adivinar por qué una capa no se pintaba, mirando capturas de
-      // pantalla. El objeto ya está en la página —cualquiera puede llegar a él con
-      // las herramientas del navegador—, así que exponerlo no abre nada nuevo; lo
-      // que hace es que la pregunta «¿dónde quedó esta capa?» se conteste en diez
-      // segundos con `__mapaLineas.getStyle().layers` en vez de por eliminación.
-      (window as unknown as { __mapaLineas?: maplibregl.Map }).__mapaLineas = creado;
       // ⚠️ SE ESPERA A `style.load`, NO SOLO A `load`, Y ESTA ES LA TERCERA VEZ QUE
       // ESTE PROYECTO TROPIEZA CON LA MISMA PIEDRA (`32 · L-55`, `L-58`).
       //
@@ -445,7 +451,12 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
     })();
 
     return () => {
-      cancelado = true; creado?.remove(); mapa.current = null;
+      // Se retira LO QUE HAYA: `creado` sigue null si el efecto se limpia mientras
+      // aún se descargaban las teselas, y entonces el mapa a quitar es el de la
+      // referencia.
+      cancelado = true;
+      (creado ?? mapa.current)?.remove();
+      mapa.current = null;
       setMapaVivo(null); setMapaCargado(false);
     };
     // `apoyos` llega estable tras la carga; el mapa no se reconstruye por render.
