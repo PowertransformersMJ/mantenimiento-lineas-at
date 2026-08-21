@@ -545,6 +545,12 @@ class Almacen {
         if (ruta.codigo) await this.abrirAnalisisPorCodigo(ruta.codigo);
         else await this.abrirRca();
       }
+
+      // El atlas solar, lo mismo — y hace falta decirlo AQUÍ: `abrir()` reescribe
+      // la dirección a la línea, así que sin esto pegar `#/sol` en el navegador
+      // cargaba la línea y se llevaba por delante la dirección. Medido en
+      // producción: la barra pasaba de `#/sol` a `#/LN-627/resumen` sola.
+      if (ruta?.tipo === 'sol') this.abrirAtlasSolar();
     } catch (e) {
       this.poner({ fase: 'error', mensaje: e instanceof Error ? e.message : 'error desconocido' });
     }
