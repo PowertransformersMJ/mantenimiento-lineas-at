@@ -902,14 +902,17 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
         {guarda.tramos.length > 0 && (
           <>
             <p className="mapa-capas-t">Sin cable de guarda</p>
-            {guarda.tramos.map((t) => (
-              <p key={t.desdeId} className="mapa-guarda">
-                <span className="li sin-guarda"
-                  style={{ borderTopColor: COLOR_SIN_GUARDA, outlineColor: COLOR_SIN_GUARDA_FUNDA }} />
-                <b>{t.desde} → {t.hasta}</b> · {nf(t.metros)} m
-                {t.vanos.length > 1 && <> · {t.vanos.length} vanos</>}
-              </p>
-            ))}
+            {guarda.tramos.map((t) => {
+              const [d, h] = extremosCortos(t.desde, t.hasta);
+              return (
+                <p key={t.desdeId} className="mapa-guarda">
+                  <span className="li sin-guarda"
+                    style={{ borderTopColor: COLOR_SIN_GUARDA, outlineColor: COLOR_SIN_GUARDA_FUNDA }} />
+                  <b>{d} → {h}</b> · {nf(t.metros)} m
+                  {t.vanos.length > 1 && <> · {t.vanos.length} vanos</>}
+                </p>
+              );
+            })}
             <p className="mapa-capas-n">
               {nf(guarda.metros.sinGuarda)} m
               {guarda.pctSinGuarda != null && <> — <b>{nf(guarda.pctSinGuarda, 1)} %</b> de la línea</>}.
@@ -930,6 +933,24 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
       </div>
     </div>
   );
+}
+
+/**
+ * Los dos extremos de un tramo, sin el prefijo que comparten.
+ *
+ * «LN-627 E06 → LN-627 E09» dice dos veces el nombre de la línea en un panel de
+ * 240 px, y se parte en dos renglones. Se recorta el prefijo COMÚN y se corta en
+ * el último espacio, no en cualquier letra: sin eso, «E06» y «E09» compartirían
+ * también el «E0» y quedarían en «6» y «9».
+ *
+ * Se calcula, no se escribe a mano: el código de la línea no está en este
+ * componente, y dejarlo escrito lo rompería en la siguiente línea que se cargue.
+ */
+function extremosCortos(a: string, b: string): [string, string] {
+  let i = 0;
+  while (i < a.length && i < b.length && a[i] === b[i]) i++;
+  const corte = a.slice(0, i).lastIndexOf(' ') + 1;
+  return corte > 0 ? [a.slice(corte), b.slice(corte)] : [a, b];
 }
 
 /** La fecha de una toma, corta y en local. Sin hora no se sabe si es mediodía. */
