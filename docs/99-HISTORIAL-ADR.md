@@ -1505,6 +1505,11 @@ decidiría la magnitud —si el guarda recogido quedó TENSO o flojo—, y hoy n
 ponerlo. Qué apoyos concretos de LN-627 están así vive en la BÓVEDA, no aquí: este repositorio es
 público.
 
+> **CERRADO POR EL DUEÑO el 2026-08-21: «omite las dos cosas, esto no es relevante».** Ni el freno ni
+> el modelado del caso mixto se construyen. Queda escrito el hallazgo —que es real y sigue siendo una
+> limitación del modelo— y queda escrito que el Ingeniero, que es quien conoce la línea, lo descartó
+> por no relevante. **No se vuelve a plantear**: quien lea esto que no lo reabra sin dato nuevo.
+
 ### Crudo de respaldo
 
 `research-archive/2026-08-03-workflow-capacidad-longitudinal.json`
