@@ -32,7 +32,8 @@ El día que un número salga mal, la discusión debe ser sobre el cálculo, no s
 | `docs/00-INDICE.md` | enrutamiento síntoma → neurona | bajo demanda |
 | `docs/20-MEMORIA-ESPACIAL.md` | dónde vive cada cosa | trigger 🟡 |
 | `docs/30-LECCIONES.md` | madre: índice de TODOS los `L-NN` + las de método | trigger 🧪 |
-| `docs/31-LECCIONES-PROVEEDORES.md` | ↳ factura, licencia o SDK de un tercero | trigger 🧪 |
+| `docs/31-LECCIONES-PROVEEDORES.md` | ↳ ANTES de contratar: licencia y coste de un tercero | trigger 🧪 |
+| `docs/35-LECCIONES-ACCESO-Y-PORTALES.md` | ↳ DESPUÉS: el tercero no deja entrar, o miente sin dar error | trigger 🧪 |
 | `docs/32-LECCIONES-PANTALLA.md` | ↳ lo que se VE o se ABRE no es lo que el núcleo produjo | trigger 🧪 |
 | `docs/33-LECCIONES-NUCLEO-Y-DATO.md` | ↳ el número que se firma · el dato que no sale | trigger 🧪 |
 | `docs/34-LECCIONES-MAPA.md` | ↳ el mapa: no pinta, o pinta lo que no se puede leer | trigger 🧪 |
@@ -108,11 +109,10 @@ pagado por el Ingeniero. Y **la ausencia de bandera nunca es aprobación**.
 - **Ante un conflicto se ACEPTA y se pone en cuarentena; nunca se rechaza y descarta** (rechazar
   convierte un problema de calidad de dato en pérdida de jornada de campo).
 
-**Lo que se descartó y por qué** (detalle en `99 §ADR-001`): GitHub Pages (exige repo público en
-cuenta Free, el sitio queda público aun pagando, y sus términos **prohíben el uso comercial**) ·
-Firebase Storage y Functions (*"Not applicable"* en plan gratuito; facturación obligatoria y
-retroactiva desde el 03-02-2026) · Supabase · MapTiler y Stadia gratis (**uso comercial prohibido**) ·
-teselas de `tile.openstreetmap.org` (**el uso offline está prohibido textualmente**).
+**Lo que se descartó y por qué** (detalle en `99 §ADR-001`): GitHub Pages (repo público obligado y
+**uso comercial prohibido**) · Firebase Storage y Functions (facturación obligatoria y retroactiva
+desde el 03-02-2026) · Supabase · MapTiler y Stadia gratis (**uso comercial prohibido**) · teselas de
+`tile.openstreetmap.org` (**el uso offline está prohibido textualmente**).
 
 ---
 
@@ -154,14 +154,14 @@ verifican con fuente y fecha** (`30 · L-09`). Los hallazgos de un comité o sub
 **hipótesis**: re-verifícalos con tus propios ojos antes de actuar o de reportárselos al Ingeniero.
 
 ### 3.3 IAP — Impact Analysis Previo
-Antes de CUALQUIER commit no trivial, 5 secciones: (A) archivos a modificar · (B) archivos INTACTOS
-verificados · (C) código muerto · (D) alcance del refactor · (E) riesgos + rollback + pruebas.
+Antes de CUALQUIER commit no trivial: (A) archivos a modificar · (B) archivos INTACTOS verificados ·
+(C) código muerto · (D) alcance del refactor · (E) riesgos + rollback + pruebas.
 
 ### 3.4 🏛️ Piensa como arquitecto (SIEMPRE, antes de tocar nada)
 Cada cambio se decide por: negocio · escala · seguridad-por-diseño · costo · mantenibilidad ·
-integración. Cero monolitos, módulos desacoplados. **NO** microservicios/Kubernetes/gRPC por moda:
-aquí la escala la da la plataforma. La arquitectura de información (UX jerárquica) también es
-arquitectura. *El código hace que funcione; la arquitectura hace que sobreviva.*
+integración. Módulos desacoplados; **NO** microservicios/Kubernetes/gRPC por moda —aquí la escala la
+da la plataforma—. La arquitectura de información también es arquitectura. *El código hace que
+funcione; la arquitectura hace que sobreviva.*
 
 ### 3.5 🧠 Calidad por defecto — auto-crítica SIEMPRE · Comité ×3 por iniciativa propia
 - **Auto-crítica siempre (casi gratis):** antes de entregar cualquier respuesta sustantiva, una
@@ -206,8 +206,8 @@ pida.
 - **🟡 Desorientación:** ¿dónde vive esto? → `20`.
 - **🧪 Experiencia:** antes de operación riesgosa o repetitiva → `30`: el índice COMPLETO **y**, ahí
   mismo y completas, las de MÉTODO (verde que engaña, agente que muere, fixture que miente). Si el
-  síntoma es de un tercero → `31`; de lo que se ve o se abre → `32`; del número que se firma o del
-  dato que no sale → `33`; del MAPA → `34`. Los `L-NN` no se renumeran jamás: los cita el código.
+  síntoma es de licencia o coste → `31`; de un tercero que no deja entrar o miente → `35`; de lo que
+  se ve o se abre → `32`; del número que se firma → `33`; del MAPA → `34`. Los `L-NN` no se renumeran.
 - **🔵 Dominio/auditoría:** análisis especializado → skill relevante + `40`.
 - **🟢 Historia:** el "por qué" de algo → `00` → `99`.
 - **🛰️ Decisión Fuerte:** antes de algo caro de revertir (arquitectura, modelo de datos, seguridad,

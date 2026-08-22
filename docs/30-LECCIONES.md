@@ -4,7 +4,7 @@
 > (trigger 🧪 de `CLAUDE.md §G.2`). Cada lección es un gotcha que ya se pagó una vez.
 > Formato: `L-NN · título` → **Síntoma** / **Causa** / **Regla**.
 >
-> **Qué es este archivo:** el ÍNDICE de las 65 lecciones —**49 repartidas por tema en CUATRO hijos
+> **Qué es este archivo:** el ÍNDICE de las 65 lecciones —**49 repartidas por tema en CINCO hijos
 > y 16 de MÉTODO aquí mismo, completas**: cómo se delibera, cómo se verifica y cuándo algo está de
 > verdad terminado—. Las de método se quedan porque no son de ninguna pieza: valen para las tres, y
 > son las que más se citan desde otras neuronas. Si el síntoma huele a un tercero, a lo que se ve o
@@ -30,7 +30,7 @@
 
 ## Índice completo
 
-### `docs/31-LECCIONES-PROVEEDORES.md` — lo que depende de un TERCERO: su factura, su licencia o su SDK
+### `docs/31-LECCIONES-PROVEEDORES.md` — ANTES de contratar: licencia y coste de un tercero
 
 - `L-01` · GitHub Pages no puede servir este proyecto
 - `L-02` · "Gratis" y "sin tarjeta" no son lo mismo
@@ -38,15 +38,18 @@
 - `L-54` · Cuando ningún proveedor deja usar su capa, el camino no es renunciar: es procesar el dato abierto
 - `L-04` · A esta escala, el coste de almacenamiento NO es el criterio de decisión
 - `L-10` · El módulo de campo NO es 100 % offline: el mapa se cae sin señal
+- `L-25` · Un alta «gratuita» puede esconder un formulario de pago, y ahí Claude se detiene
+- `L-60` · Un organismo publica VARIAS licencias: la del dato que buscas no es la del que sale primero
+
+### `docs/35-LECCIONES-ACCESO-Y-PORTALES.md` — DESPUÉS: el tercero no deja entrar, o contesta 200 y miente
+
 - `L-11` · IndexedDB: una capa opcional tumbó el acceso al dato, y lo hizo DOS veces
 - `L-12` · Dos trampas de Firebase Auth que rompen el ingreso sin avisar
 - `L-13` · El ingreso explícito exige TRES piezas, y ninguna avisa de que falta
 - `L-22` · Desplegar el código sin desplegar las reglas de Firestore: el dato existe y no llega
-- `L-25` · Un alta «gratuita» puede esconder un formulario de pago, y ahí Claude se detiene
-- `L-64` · Para una hipótesis INSTANTÁNEA no sirve una serie de medias horarias (y mira el tamaño antes de celebrar)
-- `L-60` · Un organismo publica VARIAS licencias: la del dato que buscas no es la del que sale primero
 - `L-37` · Un portal de datos abierto miente de tres formas: la consulta que se cuelga, la estación que no mide lo que crees, y el campo con lat/lon intercambiadas
 - `L-38` · Cuando la defensa canónica exige plan de pago, se DETECTA en vez de PREVENIR — y se escribe que es un compromiso, no un descuido
+- `L-64` · Para una hipótesis INSTANTÁNEA no sirve una serie de medias horarias (y mira el tamaño antes de celebrar)
 
 ### `docs/32-LECCIONES-PANTALLA.md` — el cálculo salió bien y el usuario ve otra cosa: despliegue, cachés, mapa, imágenes, cifras
 

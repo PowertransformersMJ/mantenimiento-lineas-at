@@ -4518,3 +4518,76 @@ buena intención:
 `research-archive/2026-08-21-auditoria-cerebro-6-lentes.json` — los 43 hallazgos con su evidencia
 `archivo:línea` y, para los 15 descartados, **por qué** se cayeron. Guardianes ejecutables:
 `tests/radiacion.test.js`, `tests/ficha-estructural.test.js`, `tests/contrato-evidencia.test.js`.
+
+
+---
+
+## ADR-048 · 2026-08-21 · La familia de lecciones se parte por donde ya estaba partida, y el techo real es el ARRANQUE
+
+**Estado:** ✅ Decidido · **NO revisada externamente**.
+
+### Contexto
+
+`ADR-016` partió el nodo de lecciones en madre + 3 hijos y dejó escrito el presupuesto: cada hijo
+arranca en ~110-130 líneas y su tope de 260 líneas / 20.000 caracteres «le deja sitio para unas 13
+lecciones más». La estimación se quedó corta porque **aquí una lección ocupa entre 1.400 y 3.000
+caracteres**, no las ~700 que suponía ese cálculo. Resultado, al cerrar `ADR-047`: `32` al **118 %**,
+`31` al **99 %** y `33` al **99,9 %**. El linter pedía «SHARD/poda» y bloqueaba commits del cerebro.
+
+### Decisión
+
+**Se parte por la frontera que cada archivo ya traía escrita por dentro, no por una nueva.**
+
+- **`32` → `32` + `34`** (hecho en `ADR-047`): sus dos secciones eran «el mapa que no llega a
+  pintarse» (7 lecciones) y «del cálculo a los ojos» (11). Corte limpio y equilibrado.
+- **`31` → `31` + `35`**: sus dos secciones eran «lo que se firma y lo que se paga» (8) y «cuando el
+  proveedor no deja entrar ni leer» (7). Y el corte no es solo de tamaño, es de **momento**: `31` se
+  consulta **ANTES** de contratar —licencia, coste, si se puede usar en un trabajo que se factura— y
+  `35` **DESPUÉS**, cuando el tercero ya está contratado y aun así el dato no llega. Son dos
+  preguntas de dos días distintos: tenerlas en un archivo obligaba a leer las dos siempre.
+- **`33` NO se parte, y se dice por qué.** Su frontera interna reparte **3 contra 12** (el dato que
+  no puede salir: `L-07`, `L-23`, `L-50` · el número que se firma: las otras doce). Un nodo de tres
+  lecciones cuesta una fila **permanente** en el router always-on y ahorra poco. Queda al 99,9 %:
+  **la siguiente lección de ese tema obliga a decidir entre poda y corte**, y esa decisión es del
+  Ingeniero (`TODO-78`).
+
+### El techo real, que no es el tope de cada hijo
+
+Cada neurona nueva paga una fila en `CLAUDE.md §0`, que es **always-on**: se lee entera en cada
+arranque. El gate `boot-gate` la cierra en 31.500 caracteres y hoy va en **31.493 — siete de
+margen**. O sea que **el número de hijos ya no lo limita el tamaño de los hijos: lo limita el
+arranque.** Los dos cortes de hoy se pagaron destilando el propio router (dos párrafos que decían lo
+mismo con más palabras). Ese pozo no es infinito.
+
+Se deja escrito para que la próxima vez no se descubra a mitad de un corte: **antes de partir una
+neurona, mirar el margen de arranque, no solo el tope del hijo.**
+
+### Alternativas descartadas
+
+- **Subir los topes de los hijos.** Fabricar el verde (`ADR-021`, `30 · L-56`).
+- **Subir el objetivo de arranque de 31.500.** Es el presupuesto de contexto que se paga en CADA
+  sesión, la cifra que más cuesta de todo el cerebro. Se destila el router, no se sube el techo.
+- **Comprimir los cuerpos de las lecciones.** Es lo primero que se ofrece y lo peor que se puede
+  hacer: la lección ES el activo. Se poda lo que se REPITE (una cabecera que enumera lo que ya está
+  en el índice de la madre) y jamás el síntoma, la causa o la regla.
+- **Colapsar las cinco hijas en una fila del router.** El gate #10 exige registro DIRECTO de cada
+  neurona: una hija que el router no nombra es una hija huérfana.
+
+### Consecuencias
+
+- Familia de lecciones: madre + **cinco** hijos (`31` licencia y coste · `32` pantalla · `33` núcleo
+  y dato · `34` mapa · `35` acceso y portales). 65 lecciones, todas las referencias resolviendo.
+- `31` baja de 19.753 a **8.187** caracteres y `35` nace con 12.566: los dos con sitio para años.
+- **Y el `00` vuelve a ser un índice.** Su tabla de ADRs se había convertido en un segundo historial:
+  48 filas de ~250 caracteres —resumen de la decisión Y su estado de revisión— que se llevaban el
+  **79 %** del nodo y se desincronizaban solas. Se comprobó primero que los **48** ADRs llevan su
+  línea `**Estado:**` en `99`, o sea que la tabla no era el dueño de nada: solo la copia. Ahora cada
+  fila es `ADR · fecha · TÍTULO · crudo`, ordenada por número. **De 16.271 a 12.199 caracteres**, y
+  sitio para unas quince decisiones más antes de volver a mirar.
+- El enrutamiento por síntoma de `CLAUDE.md §G.2` y de `00` distingue ahora **licencia/coste** de
+  **no me deja entrar**, que era la confusión más común al buscar.
+
+### Crudo de respaldo
+
+Sin comité: es la aplicación del mecanismo de `ADR-016` a dos hijos que llegaron a su tope, con las
+medidas de `brain:check` de este mismo día. Guardián: el propio gate de capacidad y el `boot-gate`.

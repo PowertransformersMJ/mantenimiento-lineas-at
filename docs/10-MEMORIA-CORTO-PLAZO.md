@@ -19,24 +19,22 @@ radiación por fin se APRECIA). Las cuatro del 21-08 están EN PRODUCCIÓN y ver
    mueve ninguno por sí solo**, comprobado en producción antes de escribir nada: faltan la altura
    libre y la del amarre, que no van por lote (`33 · L-59`). Falta que él conteste `TODO-57`: si esas
    fichas están en planos y actas o hay que levantarlas.
-2. **LO ÚLTIMO — `ADR-046`, y lo encontró ÉL:** «la capa de radiación... no puedo apreciarla en la
-   página». No estaba rota —se pintaba, respondía al clic, todo en verde—: le faltaban las DOS
-   correcciones que ya se habían pagado en la capa hermana de temperatura y que nunca cruzaron —el
-   botón «Ver todo el recorte» (`ADR-042`) y la rampa ajustada al dato (`ADR-041`)—. Encuadrada en
-   los 3 km de la línea salía de un color. Ya está en producción, con guardián que recorre las DOS
-   capas. **Lección `32 · L-65`: una corrección es deuda con toda la familia, no con el módulo donde
-   se descubrió.** Antes, ese mismo día:
+2. **LO ÚLTIMO — `ADR-046`, y lo encontró ÉL:** «la capa de radiación no puedo apreciarla en la
+   página». No estaba rota: le faltaban las dos correcciones que ya se habían pagado en la capa
+   hermana —el botón «Ver todo el recorte» y la rampa ajustada al dato— y encuadrada en los 3 km
+   salía de un color. En producción, con guardián que recorre las DOS capas. **`34 · L-65`: una
+   corrección es deuda con toda la familia.** Antes, ese mismo día:
    `ADR-043` la sonda del mapa · `ADR-044` cable de guarda, 24/24 vanos declarados · `ADR-045` atlas
    solar en `#/sol`, auditado con Fable. Los tres ENTEROS en `99`; aquí no se copian.
-   ⚠️ `31 · L-60` (licencia de las ortos del IGAC) **puede estar MAL** y sigue sin confirmar: un
-   agente sostiene que las del Catastro Distrital sí son redistribuibles. Verificar ANTES de citarlo.
-3. **TRES SON DE ÉL, no de código** (detalle en su tabla): `TODO-57` el dato de la ficha ·
-   **ponerse contraseña** (bloquea retirar Google) · `TODO-71` viento y los 1.000 W/m².
-4. **Verificar que una acción FUNCIONÓ**, no solo que se hizo (`TODO-66`).
-5. **Higiene del cerebro — mantenimiento integral hecho el 21-08 (`99 §ADR-047`).** Auditoría de
-   6 lentes con refutador: **28 huecos confirmados y cerrados**, 15 tumbados. El nodo del MAPA se
-   partió a `docs/34` y todas las neuronas caben en su tope. Lo consolidado se MOVIÓ a su dueño,
-   nunca se borró. Regla que sigue: cada línea nueva en `CLAUDE.md`, `05` o `10` poda otra.
+   ⚠️ `31 · L-60` (licencia de las ortos del IGAC) **puede estar MAL**: un agente sostiene que las
+   del Catastro Distrital sí son redistribuibles. Verificar ANTES de citarlo.
+3. **TRES SON DE ÉL** (detalle en su tabla): `TODO-57` el dato de la ficha · **ponerse contraseña**
+   (bloquea retirar Google) · `TODO-71` viento y los 1.000 W/m².
+4. **Verificar que una acción FUNCIONÓ**, no que se hizo (`TODO-66`).
+5. **Higiene del cerebro — mantenimiento integral el 21-08 (`99 §ADR-047/048`).** 6 lentes con
+   refutador: **28 huecos confirmados y cerrados**, 15 tumbados. La familia de lecciones pasa a
+   madre + 5 hijos (`34` mapa, `35` acceso) y el `00` vuelve a ser índice. Lo consolidado se MOVIÓ a
+   su dueño. ⚠️ El techo ya no es el tope del hijo: **es el ARRANQUE**, con 7 caracteres de margen.
 6. **Las 205 fotos siguen cargadas y visibles** (`99 §ADR-031`), con **tres defectos vivos que no
    bloquean**: acuse que cuenta mal, mapa de carpetas solo como objeto, orden con falso positivo.
 
@@ -69,8 +67,7 @@ desincroniza. Léelos antes de tocar su subsistema.
 3. **Verificar contra PRODUCCIÓN con el Chrome del Ingeniero**, nunca contra `dist/` (`32 · L-18/35`).
    Para el MAPA ya no hace falta su navegador: `SONDA_MAPA=1 npm run build` + `sonda-satelital.html`
    monta el componente real sin sesión, y `__mapas.ver()` lo mide por instancia (`32 · L-63`).
-4. Antes de CADA push: `npm test` + `contrato:verificar` + `brain:check`. Autenticados: `gh`,
-   `wrangler`, `firebase`.
+4. Antes de CADA push: `npm test` + `contrato:verificar` + `brain:check`. Autenticados: `gh`, `wrangler`, `firebase`.
 
 ## 🔲 Pendientes del INGENIERO
 
@@ -88,6 +85,7 @@ desincroniza. Léelos antes de tocar su subsistema.
 | **TODO-44/34** | Alerta de presupuesto en Cloudflare · **respaldo FUERA de esta Mac**: las 205 fotos (127 MB) **ya están versionadas** en la bóveda desde el 21-08, pero `brain-private` **no tiene remoto** (decisión de ecosistema, ADR-059) | R2 factura · un fallo de disco se lleva la bóveda entera, no solo las fotos |
 | **TODO-61/54/68** | ¿App Check? (se enciende en consola, `git revert` no lo deshace) · ¿que el linter vigile la frescura semántica? · ¿que cace un ADR repetido? — el `ADR-023` estuvo duplicado 9 días con todo en verde (`30 · L-47`). Las dos últimas tocan el KERNEL | Las TRES son TUYAS |
 | **TODO-76** | **¿Se guarda que un apoyo es autosoportado / retenido?** Usted declaró que NINGUNO de LN-627 lleva retenida (`40 §Dato de campo`). Hoy **no cabe en el modelo**: iría por APOYO (25 declaraciones), nunca por línea. ¿Campo `tieneRetenida` sí/no, o «configuración» más ancha? | Cierra media incógnita de la capacidad longitudinal; la otra media —la sección— sigue abierta |
+| **TODO-78** | **El nodo `33` queda al 99,9 %**: la siguiente lección de ese tema obliga a elegir entre podar o partirlo — y partirlo cuesta arranque para siempre (`99 §ADR-048`) | Perder texto, o pagar contexto cada sesión |
 | **TODO-03/25/36** | Cronometrar LN-627 · probar descargas y Salir con su sesión | — |
 
 ## 🔲 Pendientes de CLAUDE — en este orden
