@@ -21,7 +21,7 @@
   },
   "rampa": [
     {
-      "c": 3.0,
+      "c": 4.3,
       "rgb": [
         49,
         54,
@@ -29,7 +29,7 @@
       ]
     },
     {
-      "c": 3.8,
+      "c": 4.59,
       "rgb": [
         69,
         117,
@@ -37,7 +37,7 @@
       ]
     },
     {
-      "c": 4.4,
+      "c": 4.88,
       "rgb": [
         171,
         217,
@@ -45,7 +45,7 @@
       ]
     },
     {
-      "c": 4.8,
+      "c": 5.16,
       "rgb": [
         255,
         245,
@@ -53,7 +53,7 @@
       ]
     },
     {
-      "c": 5.2,
+      "c": 5.45,
       "rgb": [
         254,
         224,
@@ -61,7 +61,7 @@
       ]
     },
     {
-      "c": 5.6,
+      "c": 5.74,
       "rgb": [
         253,
         174,
@@ -69,7 +69,7 @@
       ]
     },
     {
-      "c": 6.0,
+      "c": 6.03,
       "rgb": [
         244,
         109,
@@ -77,7 +77,7 @@
       ]
     },
     {
-      "c": 6.6,
+      "c": 6.31,
       "rgb": [
         215,
         48,
@@ -85,7 +85,7 @@
       ]
     },
     {
-      "c": 7.5,
+      "c": 6.6,
       "rgb": [
         165,
         0,
@@ -93,6 +93,7 @@
       ]
     }
   ],
+  "rampa_ajustada_al_recorte": true,
   "capas": [
     {
       "clave": "01",
@@ -251,6 +252,7 @@
       "peso_kib": 0.2
     }
   ],
+  "amplitud_espacial": 0.48,
   "periodo": "promedio de largo plazo (no es un día concreto)",
   "fuente": "Global Solar Atlas 2.0 (Solargis / Banco Mundial / ESMAP), muestreado por punto",
   "licencia": "CC BY 4.0 — uso comercial permitido con atribución",

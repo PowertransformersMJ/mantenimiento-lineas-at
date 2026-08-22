@@ -18,8 +18,12 @@
 │       │                                personal o de acceso vive AQUÍ, nunca en el repo público
 │       ├── research-archive/            crudos de deliberación (comités, workflows, consejo
 │       │                                externo). Su README.md es el índice ÚNICO
+│       ├── datos-campo/                 lo que el Ingeniero DIJO o midió en campo. Dato real: se
+│       │                                cita desde el ADR, nunca se copia. NO entra en el índice de
+│       │                                research-archive — es otra cosa
+│       ├── entregables/                 mazos e informes ya entregados
 │       ├── fixtures/                    datos reales de cliente que usan las pruebas
-│       └── fotos/                        material de campo
+│       └── fotos/                        material de campo (207 archivos, ya versionados)
 ├── powertransformersmj.github.io/       proyecto hermano (SGM · TRANSPOWER)
 └── mantenimiento-lineas-at/             ← ESTE repo
 ```
@@ -59,24 +63,13 @@ mantenimiento-lineas-at/
 │                                que la app pinta; `package.json` de ese paquete NO manda).
 │                                activos · eventos · rca · ia · index
 │
-├── tests/
-│   ├── nucleo.test.js           pruebas de oro del núcleo — la red de seguridad de la migración
-│   ├── exportar.test.js         GPX/KML/CSV contra la tabla del módulo original (golden, ADR-006)
-│   ├── estilo-tokens.test.js    5 guardias del tablero de color: ninguna variable sin declarar,
-│   │                            ningún color quemado fuera de `:root`, ningún `tono` inexistente
-│   ├── estado-linea.test.js     el «cielo»: `amanecer` es INALCANZABLE si falta un dictamen
-│   ├── rca.test.js              el método de causa raíz (27) — incluye el tope climático
-│   └── + una por subsistema. El conteo vivo lo da `05`.
+├── tests/                       una por subsistema, con el mismo nombre que él. Las de ORO:
+│   │                            `nucleo.test.js` (la red de la migración) y `exportar.test.js`
+│   └──                          (GPX/KML/CSV contra la tabla del original). Conteo vivo → `05`.
 │
-├── docs/                        las neuronas (índice en 00-INDICE.md)
-│   ├── .brain-manifest.json     configuración del cerebro: topes, archiveDir, kernelFiles
-│   ├── 00 · 05 · 10 · 20 · 30   enrutamiento · signos vitales · pizarra · este mapa · lecciones
-│   │                            (madre). Quién es cada uno: `00-INDICE.md`, que es su dueño
-│   ├── 31-LECCIONES-PROVEEDORES.md  ↳ factura, licencia o SDK de un tercero
-│   ├── 32-LECCIONES-PANTALLA.md     ↳ lo que se ve o se abre ≠ lo que el núcleo produjo
-│   ├── 33-LECCIONES-NUCLEO-Y-DATO.md ↳ el número que se firma · el dato que no sale
-│   ├── 40-DOMINIO-LINEAS-AT.md  ingeniería de líneas AT
-│   └── 99-HISTORIAL-ADR.md      por qué se decidió cada cosa
+├── docs/                        las neuronas. **Quién es cada una es del `00-INDICE.md`**, su
+│   └── .brain-manifest.json     dueño: aquí no se repite. Este archivo es la configuración del
+│                                cerebro (topes, archiveDir, kernelFiles) y NO es una neurona
 │
 ├── scripts/                     🔑 KERNEL — NO se edita aquí
 │   ├── .kernel-version.json     sello de integridad (SÍ se commitea)
@@ -101,9 +94,8 @@ mantenimiento-lineas-at/
 │                                ⚠️ `identidad.js` deriva el id de una FOTO (de su huella); el de un
 │                                PUNTO sigue vetado y con guardián (ADR-028/031)
 ├── evidencias/                  🚪 EL PORTERO (Worker, ADR-010 + **ADR-031**): verifica la FIRMA del
-│                                token contra las llaves de Google. `GET` sirve; `PUT` acepta una
-│                                foto bajo diez cerrojos. 🚫 **NO borra y NO lista, jamás** — y ya no
-│                                es costumbre: la prueba se pone roja si aparece `.delete(`/`.list(`
+│                                token. `GET` sirve, `PUT` acepta bajo diez cerrojos.
+│                                🚫 **NO borra y NO lista, jamás** — con prueba que lo bloquea
 ├── herramientas/sol-caribe.mjs rehace el ATLAS SOLAR (ADR-045)
 ├── herramientas/teselas/        construir-raster.py — rehace las capas del mapa desde datos
 │                             abiertos. ⚠️ ÚNICO Python del repo; no lo usan ni la app ni las pruebas
@@ -113,22 +105,22 @@ mantenimiento-lineas-at/
 │                                recibir la contraseña por tubería o argumento (ADR-019)
 │   ├── semillas-emitidas.json   📗 EL LIBRO DE IDENTIDAD (ADR-027): quién ES cada punto. Solo crece;
 │   │                            una fila escrita NO SE TOCA JAMÁS — de ella cuelgan 99 fotos
-│   ├── decisiones-firmadas.json 📘 EL LIBRO DE DECISIONES (ADR-029): qué DECIDIÓ él sobre puntos que
-│   │                            todavía no están cargados. LIBRO MAYOR: se apenda, nunca se pisa, y
-│   │                            manda la última fechada. **NO da identidad** — eso solo lo da el
-│   │                            libro de arriba. Generado, no escrito a mano
-│   └── publicar-decisiones.mjs  el generador del anterior, con LISTA BLANCA de campos: un campo
-│                                nuevo en la bóveda NO se publica hasta que alguien lo añada a
-│                                propósito. Corre en local, jamás en CI (la bóveda no está allí)
+│   ├── decisiones-firmadas.json 📘 EL LIBRO DE DECISIONES (ADR-029): qué DECIDIÓ él. Se apenda,
+│   │                            manda la última fechada y **NO da identidad**. Generado
+│   └── publicar-decisiones.mjs  lo genera con LISTA BLANCA de campos. Local, jamás en CI
 ├── firestore.rules              🔒 parte del CONTRATO, no configuración: RBAC por *claims* y un
 │   firebase.json                catch-all que niega todo lo no declarado. **Se despliega por SU
 │   firestore.indexes.json       canal**, no con el sitio (`31 · L-22`)
-├── disenos/                     5 maquetas HTML autocontenidas de la carcasa. Ganó `5-horizonte`
-│                                y ya está implementada (ADR-018). NO es código de la aplicación
-├── web/src/estilo.css           el tablero de color: ~61 tokens en `:root`, paleta CLARA desde el
-│                                04-08. Ningún color se escribe fuera de ahí — lo vigila una prueba
-├── web/src/componentes/         React SOLO pinta (ADR-005): Linea (las 13 pestañas ARIA **y** la
-│                                carcasa de 3 columnas), Horizonte (los apoyos en su orden real),
+├── disenos/                     5 maquetas HTML de la carcasa; ganó `5-horizonte` (ADR-018).
+│                                NO es código de la aplicación
+├── web/src/estilo.css           el tablero de color: ~61 tokens en `:root`, paleta CLARA. Ningún
+│                                color se escribe fuera de ahí — lo vigila una prueba
+├── web/src/componentes/         React SOLO pinta (ADR-005): Linea (las pestañas ARIA —cuántas son,
+│                                en `05`— **y** la carcasa de 3 columnas), **RedDeSeguridad** (la red
+│                                que evita la página en blanco de TODA la aplicación; se monta en
+│                                `web/src/main.tsx`), **SolCaribe** (el atlas del Caribe, ADR-045:
+│                                no es pestaña, es PANTALLA, y no cuelga de ninguna línea),
+│                                Horizonte (los apoyos en su orden real),
 │                                Mapa (popup completo + tramos + marcador de falla), Distribucion,
 │                                Distancias, DetalleGps (el mapa a pantalla: MISMO Mapa con
 │                                `panelALado`, ADR-042), Fichas (+FichaEditor · FichaLote, admin,
@@ -149,47 +141,38 @@ mantenimiento-lineas-at/
 │   │                            `sondeos_clima`. Las acciones CAPA van APARTE del análisis a
 │   │                            propósito → `99 §ADR-020`)
 │   ├── fichaLote.ts             quién puede recibir un dato de catálogo (ADR-038)
+│   ├── cableGuarda.ts           los tramos SIN cable de guarda, vano a vano (ADR-044). El hueco
+│   │                            significa NO CONSTA, jamás «lo lleva»
+│   ├── solCaribe.ts             el cuadro de una hora del atlas solar (ADR-045)
+│   ├── radiacion.ts             el recurso solar del corredor (ADR-037/046): rampa ajustada al
+│   │                            recorte y su aviso de escala, que va SIEMPRE
 │   ├── temperatura.ts           la temperatura del AIRE del mapa (ADR-039): media, no extremo
 │   ├── coberturaEjes.ts         qué se sabe de CADA apoyo, eje por eje: los 4 estados
 │   │                            (ambos · solo transversal · solo longitudinal · ninguno) y los
 │   │                            textos del horizonte. Lo piden `estadoLinea` y `Horizonte`
 │   ├── estadoLinea.ts           el CIELO de la línea (amanecer/atardecer/tormenta/niebla). Pide el
 │   │                            cruce a `coberturaEjes.ts`: NO lo reimplementa
-│   └── fotosNuevas.ts           (ADR-031) cifras y frases de Fotos. El «106 entrarían nuevas» que él
-│                                lee ANTES de firmar sale de aquí: es la única defensa contra colgar
-│                                una foto del apoyo equivocado, que las reglas prohíben borrar
-│                                De dónde salió cada uno, porque duplicarlos es reabrir un fallo ya
-│                                pagado: `ejesLinea` de `Cargas.tsx` · `vanosLinea` de `DetalleVanos`
-│                                (para que dibujo y tabla no discrepen) · `coberturaEjes` de
-│                                `Horizonte.tsx`, donde el cruce estaba MAL —pintaba hueco sin
-│                                distinguir a qué eje le faltaba el dato (`TODO-53`)—.
+│   └── fotosNuevas.ts           (ADR-031) cifras y frases de Fotos, incluido el «106 entrarían
+│                                nuevas» que él lee ANTES de firmar
+│                                De dónde salió cada uno → `99 §ADR-018`.
 │                                El resto: formato (nf + textoNucleo: coma decimal en la prosa del
 │                                núcleo, L-26) + tramoColores + diagramas.ts (las 9 figuras de
 │                                Fundamentos) + termicaDatos / vientoDatos / criteriosApoyo /
 │                                cargasDatos / longitudinalDatos / planta / tramos.
-│                                ⚠️ Una vista PROBADA que importe a OTRA lleva `.ts` explícito
-│                                (`allowImportingTsExtensions`): sin extensión `node --test` no
-│                                resuelve. La vieja regla «no puede importar `./planta`, arrastra
-│                                `@lineas/contratos` sin compilar» YA NO APLICA — el type-stripping
-│                                lo resuelve: `fichaLote.ts`, verde en v24.15 y en CI v22.23 (20-08).
-├── web/src/datos/               repositorio · enlace (useSyncExternalStore) · firebase (ingreso:
-│                                correo+contraseña y Google de reserva) · firestore · cargar
-│                                (reintentos) · clima.ts (IDEAM **desde el navegador**, porque el
-│                                proyecto no tiene cómputo servidor que no facture; y SOLO cuando el
-│                                Ingeniero lo pide, nunca al pintar) · **registroSemillas.ts** y
-│                                **registroDecisiones.ts**: UNA línea cada uno, la única que trae al
-│                                navegador los dos libros de `herramientas/`. La aplicación LEE y no
-│                                escribe: quien pueda escribirlos puede estrenar una identidad o
-│                                fabricar un recuerdo (ADR-027/029)
-│                                · **fotos.ts** (ADR-031): lo único de la subida que toca la red;
-│                                primero el OBJETO y después la FICHA (al revés, ficha al vacío)
-│                                · **pronostico.ts** (ADR-035): la ÚNICA pieza del mapa que necesita
-│                                internet. NO guarda nada —un pronóstico no es un hecho fechado— y
-│                                pregunta por una CELDA redondeada, nunca por la línea
-├── web/public/mapas/            Callejero y satelital: PMTiles del MISMO bbox (ADR-034). La
-│                             RADIACIÓN solar no es imagen sino MEDIDA (ADR-036/037): un PNG de
-│                             valores por mes + su ficha. Mecánica agnóstica en `vistas/rejilla.ts`;
-│                             dominio en `vistas/radiacion.ts`
+│                                ⚠️ Una vista PROBADA que importe a OTRA lleva `.ts` explícito, o
+│                                `node --test` no resuelve.
+├── web/src/datos/               repositorio · enlace (useSyncExternalStore, y el dueño de la RUTA
+│                                junto a ruta.ts) · firebase · firestore · cargar (LA única frontera
+│                                de carga diferida, con reintentos) · teselas.ts (prepara un PMTiles
+│                                sin fundir el trozo del mapa con el de entrada) · clima.ts (IDEAM
+│                                desde el navegador, y solo si él lo pide) · **registroSemillas.ts**
+│                                y **registroDecisiones.ts** (ADR-027/029: la app LEE, no escribe)
+│                                · **fotos.ts** (ADR-031: primero el OBJETO, después la FICHA)
+│                                · **pronostico.ts** (ADR-035: la ÚNICA pieza del mapa que pide
+│                                internet, y NO guarda nada)
+├── web/public/mapas/            Callejero y satelital: PMTiles del MISMO bbox (ADR-034). Las capas
+│                             de MEDIDA (radiación, temperatura) no son imagen: un PNG de valores
+│                             por mes + su ficha (ADR-036/037). Mecánica en `vistas/rejilla.ts`
 │                             ⚠️ DOS recortes que NO se mezclan: `cartagena*` el corredor y
 │                             `caribe*`+`sol-caribe*` los 7 departamentos (ADR-045), perezosos
 ├── web/public/basemaps-assets/  fuentes y sprites del mapa (autohospedados)

@@ -32,11 +32,13 @@
 // ============================================================================
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
 import {
   CAMPOS_DE_FICHA, CAMPOS_POR_LOTE, ORIGENES_DE_FICHA, BLOQUES_DE_FICHA,
   revisarGeometria, aplicarFicha, loQueVaACambiar, datosSupuestos, avisoDeSupuestos,
   etiquetaDeOrigen,
+  selloDeOrigen,
   numeroTecleado,
   comoSeEntendio,
 } from '../web/src/vistas/fichaEstructural.ts';
@@ -746,5 +748,59 @@ describe('un número tecleado por una persona en Colombia', () => {
     assert.match(comoSeEntendio('9.000', 'kgf'), /9\.000 kgf/);
     assert.match(comoSeEntendio('nueve mil', 'kgf'), /no es un número/);
     assert.equal(comoSeEntendio('', 'kgf'), null);
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// NINGÚN ORIGEN SE IMPRIME EN CRUDO — cazado por la auditoría del 2026-08-21
+// ----------------------------------------------------------------------------
+// El criterio del dueño único estaba escrito («si el acuse dijera
+// `catalogo_fabricante` y la pantalla "lo dice la placa", parecerían dos cosas
+// distintas») y se cumplía en la ficha… mientras `Sello.tsx` mantenía su propia
+// lista con CINCO entradas, dos inexistentes en el contrato (`medido`,
+// `calculado`) y sin cuatro de las siete reales. Para ésas imprimía el
+// identificador crudo —`documento_proyecto`— al pie de una tabla firmable, que
+// es justo donde un producto de trazabilidad no puede hablar en jerga.
+//
+// Esta prueba recorre los SIETE valores del contrato: el día que entre el
+// octavo, se pone roja antes de que llegue a una pantalla (`34 · L-65`).
+// ════════════════════════════════════════════════════════════════════════════
+describe('el vocabulario del origen es de UN dueño y cubre el contrato entero', () => {
+  const VALORES = Procedencia.options;
+
+  test('son siete, y si el contrato crece esta prueba lo dice', () => {
+    assert.equal(VALORES.length, 7, 'entró un origen nuevo: hay que traducirlo en los DOS registros');
+  });
+
+  for (const v of VALORES) {
+    test(`«${v}» tiene traducción en los dos registros, y ninguna es el identificador`, () => {
+      for (const [registro, fn] of [['ficha', etiquetaDeOrigen], ['sello', selloDeOrigen]]) {
+        const dicho = fn(v);
+        assert.notEqual(dicho, v,
+          `el registro «${registro}» devuelve el identificador crudo para «${v}»: eso acaba `
+          + 'impreso en una pantalla o en un sello firmable');
+        assert.ok(dicho.length > 3);
+      }
+    });
+  }
+
+  test('un hueco se declara, no se inventa', () => {
+    assert.equal(selloDeOrigen(undefined), 'origen no declarado');
+    assert.equal(selloDeOrigen(null), 'origen no declarado');
+  });
+
+  test('ninguna pantalla se guarda su propia lista de orígenes', () => {
+    // El guardián que faltaba: el criterio vivía en un comentario y el olvido
+    // volvió igual. Se comprueba en el texto porque el fallo es de ESTRUCTURA,
+    // no de valor — una lista local pasa todas las pruebas de valor.
+    for (const f of ['Sello.tsx', 'Fundamentos.tsx', 'Fichas.tsx']) {
+      const txt = readFileSync(new URL(`../web/src/componentes/${f}`, import.meta.url), 'utf-8');
+      assert.ok(!/catalogo_fabricante\s*:/.test(txt),
+        `${f} vuelve a tener su propia tabla de orígenes: el dueño es vistas/fichaEstructural.ts`);
+      // Ojo: comparar la procedencia para DECIDIR algo («¿es supuesto?») es
+      // legítimo. Lo que no lo es es TRADUCIRLA: un ternario que devuelve texto.
+      assert.ok(!/procedencia === '[a-z_]+'\s*\?\s*'/.test(txt),
+        `${f} traduce un origen con un ternario suelto: eso deja los otros seis en crudo`);
+    }
   });
 });

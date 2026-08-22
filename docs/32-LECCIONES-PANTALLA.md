@@ -4,111 +4,35 @@
 > operación riesgosa o repetitiva (trigger 🧪 de `CLAUDE.md §G.2`). Los `L-NN` conservan su número
 > original — se MOVIERON de la madre, no se renumeraron.
 > **Qué guarda:** el cálculo salió bien y el usuario ve otra cosa. El camino del dato hasta los
-> ojos: despliegue, cachés, mapa, imágenes, formato de cifras, densidad y promesas de la interfaz.
-> **Se consulta cuando:** «desplegué, dijo *Deployment complete* y la pantalla sigue igual»
-> (`L-18`, tres cachés en serie) · «el mapa es un rectángulo gris y no hay ni un error» (`L-15`, el
-> worker de MapLibre nace muerto en el empaquetado; `L-16`, Chrome congela el reloj de animación en
-> pestañas ocultas y engaña al que verifica) · «los marcos de las fotos están y las fotos no»
-> (`L-30`) · «ese número está mal escrito»: el informe dice 1.726 y en Colombia se lee mil
-> setecientos veintiséis (`L-26`) · «esto se ve pobre, se ve muy oscuro» (`L-21`: casi nunca es la
-> paleta, es la densidad) · «la pestaña promete algo que el archivo exportado no cumple» (`L-20`) ·
-> «salen 24 párrafos y 22 son iguales» (`L-27`).
+> ojos: despliegue, cachés, imágenes, formato de cifras, densidad y promesas de la interfaz.
+> **El MAPA ya no vive aquí:** se partió a `docs/34-LECCIONES-MAPA.md` el 21-08 (`99 §ADR-047`).
+> **Se consulta cuando:** el despliegue no se ve · las fotos no cargan · una cifra se lee mal · la
+> pantalla promete lo que el archivo no cumple. Qué lección es cada síntoma lo dice el índice de la
+> madre (`30`), que es su dueño: aquí no se repite.
 > **Hilo común:** nada falla, nada avisa, y lo que se muestra no es lo que el núcleo produjo.
 > Formato: `L-NN · título` → **Síntoma** / **Causa** / **Regla**.
 
 ---
 
-## El mapa que no llega a pintarse
-
-### L-63 · Una sonda GLOBAL no puede medir dos instancias — y la primera víctima es el DIAGNÓSTICO
-
-- **Qué pasó:** `window.__mapaLineas` era UNA variable, el mapa se monta en DOS pantallas y nadie la borraba al desmontar: contestaba por una instancia retirada (`loaded()=false`, estilo vacío) y de ahí salió «hay un mapa muerto recibiendo las capas» — dos sesiones en esa dirección. Peor: **un mapa que pinta perfectamente TAMBIÉN contesta `loaded() === false`**; el síntoma no distingue nada.
-- **Regla, tres filos:** (1) si puede haber N de algo, la sonda tiene **N entradas**, con alta y baja —«solo hay uno» caduca sin avisar—; (2) **valídala contra algo que sepas que funciona** antes de diagnosticar con ella (ésta llegó a decir «cero teselas» del callejero, que estaba pintando); (3) con el arreglo puesto, **quítalo y mira si el fallo vuelve**. Entera → `99 §ADR-043`.
-
-### L-58 · «No pasa nada» al pulsar: mira la PESTAÑA antes que el código
-
-- **Síntoma:** se pulsa el interruptor de una capa del mapa y **no pasa nada**. Ni capa, ni error, ni
-  una sola petición de red. Se vuelve a pulsar y sigue igual.
-- **Causa, la de verdad:** la pestaña estaba **de fondo**. Chrome congela ahí el reloj de animación
-  (`L-16`), MapLibre pinta con ese reloj, y su evento `load` —que es la puerta que espera cada capa
-  para poder añadir fuentes— **no llega nunca**. `document.visibilityState` decía `hidden` y eso
-  explicaba el síntoma entero.
-- **⚠️ Lo que costó tres despliegues fue el DIAGNÓSTICO, no el arreglo.** Se persiguieron dos causas
-  plausibles antes de mirar lo obvio, y las dos dejaron cambios que se quedan porque son correctos
-  por su cuenta —pero **ninguna era el síntoma**:
-  1. el mapa vivía en un `ref`, y una referencia no dispara efectos: si un efecto de capa cae en el
-     instante en que la referencia es `null`, sale y no vuelve. El mapa pasó al ESTADO;
-  2. la puerta era `isStyleLoaded()`, que no contesta «¿está el estilo listo?» sino «¿está TODO
-     cargado?» y puede no ponerse en `true` nunca (esto sí produjo un error real:
-     «Style is not done loading»). La puerta buena es el evento `load`.
-- **Regla, y es de método:** ante «no pasa nada» sin error ni petición, la primera comprobación es
-  `document.visibilityState` y la segunda es tocar OTRO interruptor del mismo panel — si ése
-  responde, el problema no es React ni el estado. Automatizar la verificación en una pestaña de
-  fondo convierte un mapa que funciona en un mapa que parece roto, y a quien lo depura le hace
-  inventar causas.
-
-
-### L-57 · Un efecto de React que enciende su propio «cargando» se cancela a sí mismo
-
-- **Síntoma:** se enciende la capa del pronóstico, la petición SALE, el servicio responde **200**… y
-  la pantalla se queda en «consultando…» para siempre. Sin error, sin nada en consola.
-- **Causa:** el efecto tenía `pidiendoTiempo` en su lista de dependencias y lo ponía a `true` como
-  primera línea. Eso vuelve a disparar el efecto, React ejecuta la LIMPIEZA del pase anterior, y esa
-  limpieza marcaba la petición en vuelo como cancelada (`cancelado = true`). Cuando la respuesta
-  llegó, ya no había nadie escuchando. El patrón «bandera de cargando + limpieza que cancela» se
-  muerde la cola en cuanto la bandera es una dependencia.
-- **Arreglo:** el freno pasa a una REFERENCIA (`useRef`), fuera del ciclo de render, y la lista de
-  dependencias se queda con lo que de verdad cambia la consulta. Lo único que decide si se puede
-  pintar la respuesta es si el componente sigue montado.
-- **Regla:** en un efecto que consulta, ninguna bandera que el propio efecto escriba puede estar en
-  sus dependencias. Y para diagnosticarlo: mirar la RED antes que el código — ver el 200 con la
-  respuesta entera fue lo que descartó de golpe la fuente, la licencia, el CORS y la URL, y dejó el
-  fallo donde estaba, en el ciclo de vida.
-
-### L-55 · Una capa raster añadida con el mapa quieto no carga NUNCA, y no se queja
-
-- **Síntoma:** se enciende la capa satelital y el mapa se queda **BLANCO**. La capa existe, la fuente
-  existe, `isSourceLoaded()` dice `true`, la atribución aparece abajo… y no hay ni una imagen. Cero
-  errores, cero peticiones de tesela. Las pruebas, en verde.
-- **Causa:** MapLibre termina de dar de alta una fuente raster esperando un
-  `requestAnimationFrame`. Con el mapa quieto ese momento no llega jamás: la fuente se queda a medio
-  nacer y nunca pide teselas. `loaded()` dice `true` porque no espera ninguna — no pidió ninguna.
-- **Arreglo:** `m.triggerRepaint()` justo después de añadir la capa.
-- **Regla:** al añadir una fuente a un mapa YA CREADO, pídele un fotograma. Y ojo al diagnóstico:
-  `isSourceLoaded()` contesta «¿me falta algo de lo que pedí?», no «¿tengo algo?». Para saber si una
-  capa de imagen está viva hay que mirar la PANTALLA.
-- **El acompañante, con su CORRECCIÓN del 21-08:** esperar a `isStyleLoaded()` era la puerta
-  equivocada —contesta «¿está TODO cargado?», no «¿está el estilo listo?»— y costó tres despliegues.
-  Y **`load` TAMPOCO sirve**: espera también a las teselas, así que si a una fuente le falta una no
-  dispara jamás, sin error y sin una petición de red. La puerta buena es **`style.load`**, demostrado
-  quitándolo y viendo caer la capa otra vez (`L-63` · `99 §ADR-043`).
-
-### L-15 · El worker de MapLibre nace muerto en producción si no se le da su URL
-- **Síntoma:** mapa gris para siempre, sin un solo error. El estilo carga sus 71 capas, el archivo de
-  teselas se descarga… y nada se pinta. Sonda interna: el worker existía como objeto, tenía **7
-  tareas enviadas y 0 respuestas**.
-- **Causa:** el worker autogenerado de MapLibre no arranca en el empaquetado de producción. Y el
-  arreglo tiene su propia trampa: `maplibre-gl-worker.mjs` **importa** `./maplibre-gl-shared.mjs`,
-  así que servirlo con `?url` a secas lo deja cojo (19 kB) y muere igual de mudo.
-- **Regla:** `import urlWorker from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'` +
-  `maplibregl.setWorkerUrl(urlWorker)`. El `?worker&url` hace que Vite lo compile como entrada de
-  worker **empaquetando sus dependencias** (~468 kB, no 19). Verificación rápida de que quedó bien:
-  el tamaño del asset emitido.
-
-### L-16 · Chrome congela el reloj de animación en pestañas ocultas — y eso engaña dos veces
-- **Síntoma:** con el worker ya arreglado, el mapa seguía sin pintar **en la pestaña controlada por
-  herramientas**: estilo cargado, teselas procesadas, glifos descargados… y cero fotogramas.
-- **Causa:** con `visibilityState === 'hidden'`, `requestAnimationFrame` **no dispara jamás**.
-  MapLibre pinta con ese reloj y su evento `load` solo llega tras el primer fotograma. Engaña al que
-  prueba por herramientas (ve «roto» lo que funciona) y al usuario real, si un vigilante de tiempo
-  condena al respaldo a quien abre la página en una pestaña de fondo.
-- **Regla:** todo vigilante de carga del mapa cuenta **solo tiempo visible** (acumula entre
-  `visibilitychange`). Y al verificar por herramientas: si nada pinta pero nada da error, comprobar
-  `visibilityState` y la latencia de `requestAnimationFrame` ANTES de diagnosticar el código.
-
----
-
 ## Del cálculo a los ojos: despliegue, cifras y promesas
+
+### L-66 · Una escritura NO recarga la aplicación: parchea lo que la base devolvió
+
+- **Síntoma:** se declara un dato desde la pantalla, la escritura funciona… y la pantalla se congela
+  **unos 25 s por cada clic**, con el mapa parpadeando. Declarar los 24 vanos de una línea se iba a
+  diez minutos de relojes de arena. Nada falla y ninguna prueba se pone roja: el dato queda bien.
+- **Causa:** para «que la pantalla se entere» se llamó a `almacen.cargar()`, que rehace el **arranque
+  entero** —sesión, token, permisos, líneas, apoyos, expedientes y fotos— y deja la aplicación en
+  fase «cargando», donde `App.tsx` **sustituye la pantalla de la línea**. O sea que cada clic
+  destruía y volvía a montar la propia pantalla desde la que se estaba escribiendo.
+- **Regla:** tras escribir, **parchea en memoria lo que la escritura DEVOLVIÓ** —el valor y la
+  revisión que la base aceptó, nunca lo que se envió— y deja que el cambio de identidad del array
+  avise a quien mire. Un recargue completo solo se justifica cuando la escritura pudo cambiar algo
+  que la pantalla no puede deducir.
+- **Ojo, que es reincidente:** la misma piedra estaba escrita **tres veces** en el mismo archivo
+  (`refrescarLinea`, `guardarFicha` y el cable de guarda, `web/src/datos/enlace.ts`). Por eso es
+  lección y no comentario: un patrón que se repite en el mismo archivo ya no es un descuido.
+  Entera → `99 §ADR-044`.
 
 ### L-18 · Un despliegue no está vivo hasta que lo ves EN LA PESTAÑA
 - **Tres cachés en serie, y cada una engañó una vez:** el comando imprime *"Deployment complete"* y

@@ -18,10 +18,17 @@
 // ============================================================================
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 
 import {
-  capasOrdenadas, capaElegida, oscilacionAnual, avisoDeMuestreo, NOTA_AMPACIDAD,
+  capasOrdenadas, capaElegida, oscilacionAnual, avisoDeMuestreo, avisoDeEscala,
+  NOTA_AMPACIDAD, NOTA_ENCUADRE,
 } from '../web/src/vistas/radiacion.ts';
+
+const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..');
+const leer = (p) => readFileSync(join(RAIZ, p), 'utf-8');
 
 const capa = (clave, rotulo, p50) => ({
   clave, rotulo, archivo: `x-${clave}.png`, cobertura_pct: 100,
@@ -108,5 +115,129 @@ describe('las dos frases que impiden el mal uso', () => {
   test('si se muestrea al nativo o más fino, no se molesta con el aviso', () => {
     assert.equal(avisoDeMuestreo({ ...FICHA, resolucion_m: 1000 }), null);
     assert.equal(avisoDeMuestreo({ ...FICHA, resolucion_nativa_m: undefined }), null);
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// PODER APRECIAR LA CAPA — el hueco que encontró el Ingeniero el 2026-08-21
+// ----------------------------------------------------------------------------
+// La capa se pintaba, se descargaba y respondía al clic: todo verde. Y aun así
+// no se podía APRECIAR, por dos motivos que ya se habían resuelto en la capa
+// hermana de temperatura y que nunca cruzaron:
+//
+//   · la rampa era FIJA y ancha (3,0 - 7,5), y la media del año ocupaba el 11 %
+//     de la escala → `99 §ADR-041`, `30 · L-61`;
+//   · no había forma de abarcar el recorte de un clic, y ceñida a los 3 km de la
+//     línea el recurso solar es el mismo en todas las celdas → `99 §ADR-042`.
+//
+// Estas pruebas existen para que la próxima capa que nazca no repita el hueco.
+// ════════════════════════════════════════════════════════════════════════════
+describe('la escala se publica, porque el color afirma', () => {
+
+  test('el aviso da la escala del recorte y niega la lectura fácil', () => {
+    const a = avisoDeEscala(FICHA, null);
+    assert.match(a, /ajustado a este recorte/);
+    assert.match(a, /NO significa sol extremo/,
+      'un rojo sin su número se lee como «aquí pega un sol brutal»');
+    // Sin capa no se inventa una amplitud espacial.
+    assert.ok(!/del punto más flojo/.test(a));
+  });
+
+  test('la amplitud que se anuncia es la del MES mostrado, no la de la media anual', () => {
+    // El mismo fallo ya cazado en temperatura: imprimir la amplitud de la media
+    // anual con la frase «en este mes» es falso para casi todos los meses.
+    const marzo = FICHA.capas.find((c) => c.clave === '03');
+    const nov = FICHA.capas.find((c) => c.clave === '11');
+    const aMar = avisoDeEscala({ ...FICHA, capas: FICHA.capas.map((c) => (c.clave === '03'
+      ? { ...c, resumen: { ...c.resumen, min: 5.8, max: 6.6 } } : c)) },
+    { ...marzo, resumen: { min: 5.8, p50: 6.2, max: 6.6 } });
+    const aNov = avisoDeEscala(FICHA, nov);
+    assert.notEqual(aMar, aNov, 'dos meses con amplitudes distintas no pueden dar la misma frase');
+    assert.match(aMar, /marzo/i, 'la frase dice de qué mes habla');
+    assert.match(aMar, /0\.80/, 'la amplitud del mes mostrado, medida, no una constante');
+  });
+
+  test('una ficha sin rampa no revienta ni se inventa una escala', () => {
+    assert.equal(avisoDeEscala({ ...FICHA, rampa: [] }, null), null);
+  });
+
+  test('la nota del encuadre explica el mapa liso SIN invitar a estirar la rampa', () => {
+    assert.match(NOTA_ENCUADRE, /no es un fallo/);
+    assert.match(NOTA_ENCUADRE, /recorte entero/);
+    assert.ok(!/3 km|LN-627/.test(NOTA_ENCUADRE),
+      'esto sirve a cualquier línea: el largo de LN-627 no se quema en el texto');
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+describe('la ficha publicada trae la escala de ESTE recorte', () => {
+  const FICHA_REAL = JSON.parse(leer('web/public/mapas/cartagena-radiacion.json'));
+
+  test('la rampa se declara ajustada al recorte', () => {
+    assert.equal(FICHA_REAL.rampa_ajustada_al_recorte, true);
+  });
+
+  test('las trece capas ocupan la mayor parte de la escala, no un rincón', () => {
+    // El invariante que faltaba. Con la rampa fija (3,0 - 7,5) los datos reales
+    // —4,38 a 6,54— ocupaban el 48 % de la escala y la media del año, el 11 %:
+    // el mapa salía de un color y parecía roto.
+    const lo = Math.min(...FICHA_REAL.capas.map((c) => c.resumen.min));
+    const hi = Math.max(...FICHA_REAL.capas.map((c) => c.resumen.max));
+    const r0 = FICHA_REAL.rampa[0].c;
+    const r1 = FICHA_REAL.rampa[FICHA_REAL.rampa.length - 1].c;
+    const ocupa = (hi - lo) / (r1 - r0);
+    assert.ok(ocupa > 0.8, `los datos ocupan el ${(ocupa * 100).toFixed(0)} % de la rampa: `
+      + 'una escala que no es de este recorte deja el mapa de un solo color');
+    assert.ok(r0 <= lo && r1 >= hi, 'la rampa tiene que cubrir el dato, no recortarlo');
+  });
+
+  test('el generador sabe rehacer la ficha SIN volver a muestrear', () => {
+    // 352 peticiones a un servicio ajeno para cambiar un color no se piden. Que
+    // la temperatura tuviera `--reusar` y el sol no fue lo que hizo parecer caro
+    // corregir esta escala.
+    const gen = leer('herramientas/teselas/construir-raster.py');
+    assert.match(gen, /def radiacion\(reusar=False\)/);
+    assert.match(gen, /def _publicar_radiacion\(/);
+    assert.match(gen, /radiacion\(reusar=args\.reusar\)/);
+  });
+
+  test('la rampa NO se calcula por mes: un color, un valor', () => {
+    // Una escala por mes repintaría el mismo color sobre valores distintos y
+    // comparar dos meses engañaría — que es lo único que la rampa fija protegía.
+    const gen = leer('herramientas/teselas/construir-raster.py');
+    assert.match(gen, /rampa_de_radiacion\(min\(c\['resumen'\]\['min'\] for c in capas\)/);
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+describe('las dos capas de medida se miran con las mismas herramientas', () => {
+  const MAPA = leer('web/src/componentes/Mapa.tsx');
+
+  test('las DOS leyendas reciben el encuadre, no solo la de temperatura', () => {
+    // Éste es el guardián del hueco: `alEncuadrar` nació en la leyenda de
+    // temperatura y a la del sol nunca se le pasó. Sin botón, la capa se ve de un
+    // color y quien la enciende concluye que está rota — y tendría motivos.
+    for (const leyenda of ['LeyendaRadiacion', 'LeyendaTemperatura']) {
+      const i = MAPA.indexOf(`<${leyenda} `);
+      assert.ok(i > 0, `no se monta ${leyenda}`);
+      const bloque = MAPA.slice(i, MAPA.indexOf('/>', i));
+      assert.match(bloque, /alEncuadrar=/,
+        `${leyenda} se monta sin forma de abarcar el recorte: a escala de la línea `
+        + 'su capa se ve de un solo color y parece rota');
+    }
+  });
+
+  test('el encuadre al recorte tiene UN dueño, no una copia por leyenda', () => {
+    // Ojo: el OTRO `fitBounds` del archivo es el encuadre inicial a la línea, que
+    // es otra cosa. Lo que no puede haber es una copia dentro de cada leyenda.
+    assert.equal((MAPA.match(/const encuadrarRecorte =/g) ?? []).length, 1);
+    const alRecorte = (MAPA.match(/fitBounds\(\[\[x0, y0\], \[x1, y1\]\]/g) ?? []).length;
+    assert.equal(alRecorte, 1,
+      'dos copias del encuadre al recorte son dos comportamientos que un día discrepan: '
+      + 'cada capa encuadraría distinto');
+  });
+
+  test('la leyenda del sol le pasa a la escala la capa que está pintando', () => {
+    assert.match(MAPA, /avisoDeEscalaSol\(ficha, actual\)/);
   });
 });

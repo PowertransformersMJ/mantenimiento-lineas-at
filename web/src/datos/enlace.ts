@@ -412,7 +412,7 @@ class Almacen {
   /**
    * Declara si el vano que SALE de un apoyo lleva cable de guarda.
    *
-   * ⚠️ NO RECARGA NADA: PARCHEA EL APOYO que la base acaba de aceptar.
+   * ⚠️ NO RECARGA NADA: PARCHEA EL APOYO que la base acaba de aceptar (`32 · L-66`).
    *
    * La primera versión llamaba a `almacen.cargar()` para que el mapa se
    * enterara, y era la misma piedra que ya tienen escrita `refrescarLinea` y

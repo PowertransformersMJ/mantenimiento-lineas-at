@@ -1,25 +1,19 @@
 # 🧪 33 — LECCIONES · NÚCLEO Y DATO (el que se firma y el que no sale)
 
-> Hijo de `docs/30-LECCIONES.md`. Misma memoria procedimental, mismo formato
-> (`L-NN · título` → **Síntoma** / **Causa** / **Regla**) y **los mismos identificadores**: aquí no
-> se renumera nada, solo cambia el archivo donde vive la definición.
-> **Qué guarda:** las dos caras del mismo dato — el que sale firmado hacia el cliente (cálculo
-> portado, reglas de dominio, guardianes de valor) y el que jamás debe salir de este repositorio.
-> **Se consulta cuando:** *«este número del informe firmable no me cuadra»* — un apoyo de derivación
-> publicó CERO carga longitudinal con las 555 pruebas en verde (`L-19`), un guardián contaba
-> intentos en vez de resultados y publicó otro cero falso (`L-32`), la pantalla afirmó «5 apoyos
-> tiran hacia los dos lados» y tres eran ruido de tendido (`L-29`); *«voy a tocar `nucleo/` o sus
-> pruebas de oro»* (`L-05` se porta, no se reescribe; `L-06` está verificado, no supuesto); y su
-> gemelo de riesgo, el dato que no puede salir: *«¿puedo commitear este archivo?»* (`L-07` en el
-> código, `L-23` dentro de una prueba o de la propia documentación), *«¿quién puede bajar estas
-> fotos?»* (`L-31`: el portero se saltaba entero si faltaba una variable, y nada avisaba).
+> Hijo de `docs/30-LECCIONES.md`. Mismo formato (`L-NN · título` → **Síntoma** / **Causa** /
+> **Regla**) y **los mismos identificadores**: aquí no se renumera nada.
+> **Qué guarda:** las dos caras del mismo dato — el que sale firmado hacia el cliente y el que
+> jamás debe salir de este repositorio.
+> **Se consulta cuando:** *«este número no me cuadra»* · *«voy a tocar `nucleo/`»* · *«¿puedo
+> commitear esto?»* · *«¿quién puede bajar estas fotos?»*. Qué lección es cada síntoma lo dice el
+> índice de la madre (`30`), su dueño.
 
 ---
 
 ## El motor que se portó, y el dato que no puede salir
 
 ### L-05 · El valor del HTML de 30 MB no es el HTML: son 115 funciones de ingeniería
-- **Síntoma:** tentación de tratar el archivo como un prototipo desechable y reescribirlo de cero.
+- **Síntoma:** tentación de tratarlo como prototipo desechable y reescribirlo de cero.
 - **Causa:** el 92 % del archivo (27,7 MB) son imágenes en base64 y un DOCX embebido. El código real
   son ~2,4 MB, y dentro de ellos está el criterio de ingeniería acumulado: Vincenty, tramos de
   tensión, VIR, catenaria, cambio de estado, IEEE 738, cargas de viento, validaciones de coherencia.

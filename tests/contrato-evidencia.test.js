@@ -125,3 +125,28 @@ test('una evidencia dice de qué línea es, y ese campo sobrevive al molde', () 
   const { lineaId, ...huerfana } = doc;
   assert.equal(Evidencia.safeParse(huerfana).success, false);
 });
+
+// ════════════════════════════════════════════════════════════════════════════
+// EL ESPEJO DE LA VERSIÓN — cazado por la auditoría del cerebro del 2026-08-21
+// ----------------------------------------------------------------------------
+// `contratos/package.json` declara, en su propio comentario, que la versión que
+// MANDA es `VERSION_CONTRATO` y que ese campo «la espeja y se sube con ella».
+// El 20-08 el código subió a 0.7.0 y el paquete se quedó en 0.6.0: la regla
+// vivía escrita DENTRO del archivo que nadie abre, y un aviso que solo existe
+// en un comentario no es un aviso (`30 · L-56`).
+//
+// Hoy solo desalinea un número. El día que algo lea la versión del paquete —el
+// sello de pantalla ya lo hace con la del núcleo— publicaría en un informe
+// firmable una versión de contrato que no es la que produjo la cifra.
+// ════════════════════════════════════════════════════════════════════════════
+describe('la versión del molde y su espejo', () => {
+  test('`contratos/package.json` dice exactamente lo mismo que `VERSION_CONTRATO`', async () => {
+    const { VERSION_CONTRATO } = await import('../contratos/src/comunes.ts');
+    const paquete = JSON.parse(readFileSync(
+      new URL('../contratos/package.json', import.meta.url), 'utf-8'));
+    assert.equal(paquete.version, VERSION_CONTRATO,
+      'el paquete y el código declaran versiones distintas del molde de los datos: '
+      + 'la que MANDA es VERSION_CONTRATO y el paquete la espeja, así que se suben en el '
+      + 'MISMO cambio');
+  });
+});

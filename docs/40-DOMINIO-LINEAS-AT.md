@@ -405,6 +405,27 @@ tipo — y es decisión de ingeniería, no de programación (`TODO-59`).
   fabricante; en las revisadas no hay ninguna (sí hay placas de NUMERACIÓN, que es otra cosa).
 - **La capacidad longitudinal**, que además depende de la sección y de si hay retenida.
 
+### Dato de campo: **ningún apoyo de LN-627 tiene retenida** (declaración del Ingeniero, 2026-08-21)
+
+Lo dijo así: *«ningún apoyo tiene retenida, todos son autosoportados»*. Cierra **una** de las dos
+incógnitas que el contrato nombra al prohibir usar `cargaRotura_kgf` como capacidad longitudinal, y
+hay que decir cuál, porque la que queda es la peligrosa:
+
+| Modo de error que cabía en ese número | ¿Sigue vivo? |
+|---|---|
+| «REVISAR» sobre un terminal **retenido sano** (falsa alarma) | ❌ **Descartado**: no hay ni una retenida |
+| «CUMPLE» sobre un poste con el **eje débil** hacia la línea (falsa tranquilidad) | ✅ **SIGUE VIVO**: la sección no está declarada |
+
+Así que **NO habilita** deducir la capacidad longitudinal de la carga de rotura, y el sistema debe
+seguir sin intentarlo. Segunda consecuencia, práctica: cuando el eje longitudinal empiece a decir
+«hace falta retenida a un lado o a los dos», serán **recomendaciones de instalar algo que no
+existe**, no comprobaciones de que lo instalado basta — y eso cambia un presupuesto.
+
+**No cabe en el modelo todavía** y por eso no se guardó: `TipoApoyo` es material y forma, no
+configuración, y no hay campo de retenida en el contrato. Es propiedad **del APOYO, no de la línea**
+(`TODO-76`). Declaración completa, con lo que NO contesta: bóveda,
+`datos-campo/2026-08-21-apoyos-autosoportados.md`.
+
 De los cinco datos de la ficha, el único observable en una fotografía es **cuántos conductores
 amarran** — y aun ése es una observación que confirma una persona (`99 §ADR-004`).
 

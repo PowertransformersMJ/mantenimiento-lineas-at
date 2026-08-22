@@ -11,16 +11,11 @@
 // ============================================================================
 import nucleoPkg from '@lineas/nucleo/package.json';
 import type { Conductor, Hipotesis } from '@lineas/contratos';
-
-const ETIQUETA_PROCEDENCIA: Record<string, string> = {
-  catalogo_fabricante: 'catálogo — pendiente ficha del proveedor',
-  confirmado_humano: 'confirmado por el Ingeniero',
-  supuesto: 'supuesto, sin validar',
-  medido: 'medido en campo',
-  calculado: 'calculado por el sistema',
-};
-
-const etiqueta = (p?: string) => (p ? ETIQUETA_PROCEDENCIA[p] ?? p : null);
+// ⚠️ La lista de orígenes NO vive aquí. Vivió, con cinco entradas de las que dos
+// (`medido`, `calculado`) no existen en el contrato y cuatro de las reales
+// faltaban: este sello imprimía `documento_proyecto` en crudo al pie de una
+// tabla firmable. El dueño único es `vistas/fichaEstructural.ts` (`34 · L-65`).
+import { selloDeOrigen } from '../vistas/fichaEstructural';
 
 /**
  * @param origen  de dónde salen los datos de ENTRADA (no el cálculo).
@@ -30,8 +25,8 @@ export function Sello({ hipotesis, conductor, origen }:
   { hipotesis?: Hipotesis; conductor?: Conductor; origen?: string }) {
 
   const partes = [`Motor @lineas/nucleo v${nucleoPkg.version}`];
-  if (hipotesis) partes.push(`hipótesis «${hipotesis.nombre}» (${etiqueta(hipotesis.procedencia) ?? hipotesis.procedencia})`);
-  if (conductor) partes.push(`conductor: ${etiqueta(conductor.procedencia) ?? conductor.procedencia}`);
+  if (hipotesis) partes.push(`hipótesis «${hipotesis.nombre}» (${selloDeOrigen(hipotesis.procedencia)})`);
+  if (conductor) partes.push(`conductor: ${selloDeOrigen(conductor.procedencia)}`);
   if (origen) partes.push(origen);
 
   return <span className="sello-calculo">{partes.join(' · ')}</span>;

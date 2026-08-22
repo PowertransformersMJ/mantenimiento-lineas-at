@@ -33,8 +33,9 @@ El día que un número salga mal, la discusión debe ser sobre el cálculo, no s
 | `docs/20-MEMORIA-ESPACIAL.md` | dónde vive cada cosa | trigger 🟡 |
 | `docs/30-LECCIONES.md` | madre: índice de TODOS los `L-NN` + las de método | trigger 🧪 |
 | `docs/31-LECCIONES-PROVEEDORES.md` | ↳ factura, licencia o SDK de un tercero | trigger 🧪 |
-| `docs/32-LECCIONES-PANTALLA.md` | ↳ lo que se VE o se ABRE no es lo que el núcleo produjo (incluye el CSV en Excel) | trigger 🧪 |
+| `docs/32-LECCIONES-PANTALLA.md` | ↳ lo que se VE o se ABRE no es lo que el núcleo produjo | trigger 🧪 |
 | `docs/33-LECCIONES-NUCLEO-Y-DATO.md` | ↳ el número que se firma · el dato que no sale | trigger 🧪 |
+| `docs/34-LECCIONES-MAPA.md` | ↳ el mapa: no pinta, o pinta lo que no se puede leer | trigger 🧪 |
 | `docs/40-DOMINIO-LINEAS-AT.md` | ingeniería de líneas AT: fórmulas y procedencia | trigger 🔵 |
 | `docs/99-HISTORIAL-ADR.md` | por qué se decidió cada cosa (`ADR-NNN`) | trigger 🟢 |
 
@@ -206,7 +207,7 @@ pida.
 - **🧪 Experiencia:** antes de operación riesgosa o repetitiva → `30`: el índice COMPLETO **y**, ahí
   mismo y completas, las de MÉTODO (verde que engaña, agente que muere, fixture que miente). Si el
   síntoma es de un tercero → `31`; de lo que se ve o se abre → `32`; del número que se firma o del
-  dato que no sale → `33`. Los `L-NN` no se renumeran jamás: los cita el código fuente.
+  dato que no sale → `33`; del MAPA → `34`. Los `L-NN` no se renumeran jamás: los cita el código.
 - **🔵 Dominio/auditoría:** análisis especializado → skill relevante + `40`.
 - **🟢 Historia:** el "por qué" de algo → `00` → `99`.
 - **🛰️ Decisión Fuerte:** antes de algo caro de revertir (arquitectura, modelo de datos, seguridad,

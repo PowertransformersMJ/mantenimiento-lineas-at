@@ -13,14 +13,15 @@
     "docs/05-ESTADO-GLOBAL.md": { "lines": 25, "chars": 4000 },
     "docs/10-MEMORIA-CORTO-PLAZO.md": { "lines": 110, "chars": 16000 },
     "docs/20-MEMORIA-ESPACIAL.md": { "lines": 280, "chars": 16000 },
-    "docs/30-LECCIONES.md": { "lines": 350, "chars": 40000 },
+    "docs/30-LECCIONES.md": { "lines": 420, "chars": 40000 },
     "docs/31-LECCIONES-PROVEEDORES.md": { "lines": 260, "chars": 20000 },
     "docs/32-LECCIONES-PANTALLA.md": { "lines": 260, "chars": 20000 },
     "docs/33-LECCIONES-NUCLEO-Y-DATO.md": { "lines": 260, "chars": 20000 },
+    "docs/34-LECCIONES-MAPA.md": { "lines": 260, "chars": 20000 },
     "docs/00-INDICE.md": { "lines": 450, "chars": 16000 },
     "docs/60-WORKFLOWS.md": { "lines": 160, "chars": 14000 }
   },
-  "_capsLeccionesRazon": "30 se shardeo en 3 hijas por tema (madre = indice + lecciones de metodo). Cada hija arranca en ~110-130 lineas: el tope de 260L/20000c le deja sitio para ~13 lecciones mas, y el aviso pre-shard (>=90%) salta a las 234 lineas, con margen para partirla sin prisa. Los L-NN NO se renumeran al mover: los cita el codigo fuente, que el linter no mira.",
+  "_cap30LineasRazon": "El tope de LINEAS de la madre subio de 350 a 420 el 21-08. La madre es el INDICE: crece una linea por leccion, por diseno, y hoy indexa 64 en 5 secciones. Su presupuesto real es el de CARACTERES (31k de 40k), que es la unidad de contexto; el de lineas media otra cosa. No se sube el de chars: ese si vigila el tamano. ", "_capsLeccionesRazon": "30 se shardeo en 3 hijas por tema (y en 4 desde el 21-08: 32 se partio en 32+34 al llegar a 118% de su tope, ADR-047) (madre = indice + lecciones de metodo). Cada hija arranca en ~110-130 lineas: el tope de 260L/20000c le deja sitio para ~13 lecciones mas, y el aviso pre-shard (>=90%) salta a las 234 lineas, con margen para partirla sin prisa. Los L-NN NO se renumeran al mover: los cita el codigo fuente, que el linter no mira.",
   "archiveDir": "../brain-private/mantenimiento-lineas-at/research-archive",
   "specsDir": "specs",
   "staleDays": 10,
@@ -32,7 +33,7 @@
     "scripts/boot-gate.mjs",
     "scripts/brain-archive.mjs"
   ],
-  "_kernelFilesRazon": "Los 6 del kernel canonico v1.8.0. Declarar de MENOS es la forma silenciosa de quedarse con medio kernel viejo: pull.mjs copia SOLO lo declarado y el gate #0 solo hashea lo declarado.",
+  "_kernelFilesRazon": "Los 6 del kernel canonico v1.9.0 (verificado 2026-08-21, en el mismo commit que el brain:pull; se re-verifica cada vez que se corre brain:pull). Declarar de MENOS es la forma silenciosa de quedarse con medio kernel viejo: pull.mjs copia SOLO lo declarado y el gate #0 solo hashea lo declarado.",
   "orphanAllowlist": [".handoff-auto.md", ".estado-auto.md", ".boot-marker"],
   "_orphanAllowlistRazon": "Sidecars escritos por HOOK (session-handoff.mjs --boot-echo), gitignored, efimeros. Su ruta de lectura es el hook SessionStart, no el grafo de neuronas.",
   "peers": [],
@@ -48,10 +49,10 @@
     }
   ],
   "deepAudit": {
-    "last": "2026-07-28",
-    "coveredHeaderCount": 0,
+    "last": "2026-08-21",
+    "coveredHeaderCount": 46,
     "maxAdrGap": 12,
     "maxDays": 30,
-    "_que": "Auditoria Nivel-2 del cerebro (skill auditoria-cerebro): correrla cuando el linter lo pida (gate #14). Proyecto recien nacido: la primera cobertura real de headers se fija al cerrar la Fase 1."
+    "_que": "Auditoria Nivel-2 del cerebro (skill auditoria-cerebro): correrla cuando el linter lo pida (gate #14). La del 2026-08-21 fueron 6 lentes con refutador por hallazgo -> crudo 2026-08-21-auditoria-cerebro-6-lentes.json en la boveda, 28 confirmados de 43. OJO CON EL CERO: brain-check calcula gap = coveredHeaderCount ? headers - coveredHeaderCount : 0, asi que con coveredHeaderCount en 0 el disparador por ADRs NO EXISTE y solo manda maxDays. Estuvo asi del 28-07 al 21-08, con 32 ADRs nuevos sin auditar y el linter diciendo cerebro sano. El 46 es el numero de cabeceras ## de docs/99 el dia de la auditoria: se sube cada vez que se corre una."
   }
 }

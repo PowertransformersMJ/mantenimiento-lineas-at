@@ -20,6 +20,7 @@ import { ampacidad, temperaturaLimite } from '@lineas/nucleo/termica';
 import { derivarLevantamiento } from '@lineas/exportar/levantamiento';
 import { TARJETAS, MARCO_NORMATIVO, INTRO_FUNDAMENTOS } from '../contenido/fundamentos';
 import { conductorParaNucleo, paramsParaNucleo, calcularTramos } from '../vistas/tramos';
+import { selloDeOrigen } from '../vistas/fichaEstructural';
 import { diagrama, type IdDiagrama, type DatosDiagrama } from '../vistas/diagramas';
 import { vanos, soloEstructuras, nombreVisible } from '../vistas/planta';
 import { nf } from '../vistas/formato';
@@ -66,7 +67,7 @@ function valorVivo(id: string, x: Ctx): ReactNode {
     case 'tens': {
       if (!gob) return null;
       const eds = gob.estados.eds.H, vto = gob.estados.viento.H;
-      return <>RTS = <b>{nf(c.rts_kgf)} kgf</b> ({c.procedencia === 'catalogo_fabricante' ? 'catálogo, pendiente ficha del proveedor' : c.procedencia}) ·
+      return <>RTS = <b>{nf(c.rts_kgf)} kgf</b> ({selloDeOrigen(c.procedencia)}) ·
         EDS = {nf(eds)} kgf ({(eds / c.rts_kgf * 100).toFixed(1)} %) · con viento {nf(vto)} kgf ({(vto / c.rts_kgf * 100).toFixed(1)} %) ·
         tope adoptado (50 % — pendiente de cierre normativo) = {nf(tiroMaximoAdmisible(c.rts_kgf))} kgf.</>;
     }

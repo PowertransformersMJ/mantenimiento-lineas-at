@@ -26,7 +26,8 @@ import { cableDeGuarda } from '../vistas/cableGuarda';
 import { nf } from '../vistas/formato';
 import { esquinas, pintarRejilla, valorEnPunto } from '../vistas/rejilla';
 import {
-  avisoDeMuestreo, capaElegida, capasOrdenadas, oscilacionAnual, NOTA_AMPACIDAD,
+  avisoDeEscala as avisoDeEscalaSol, avisoDeMuestreo, capaElegida, capasOrdenadas,
+  oscilacionAnual, NOTA_AMPACIDAD, NOTA_ENCUADRE,
   type CapaRadiacion, type FichaRadiacion,
 } from '../vistas/radiacion';
 import {
@@ -739,6 +740,26 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
     return () => { flecha.current?.remove(); flecha.current = null; };
   }, [pronostico, tiempo, geometria, mapaVivo]);
 
+  /**
+   * LLEVAR EL MAPA AL RECORTE ENTERO DE LA CAPA ENCENDIDA.
+   *
+   * ⚠️ NO ES UN ATAJO DE COMODIDAD: es la diferencia entre ver la capa y creer
+   * que no funciona (`99 §ADR-042`). El mapa arranca encuadrado en la LÍNEA, y a
+   * lo largo de unos pocos kilómetros ni la temperatura del aire ni el recurso
+   * solar cambian nada — a esa escala la capa se ve de un color aunque esté
+   * perfecta. El gradiente vive a escala del RECORTE.
+   *
+   * Vive AQUÍ y una sola vez: nació dentro de la leyenda de temperatura y a la
+   * del sol nunca se le pasó, que es justo el hueco que el Ingeniero encontró.
+   * Una acción con dos dueños es una acción que un día hace dos cosas distintas.
+   */
+  const encuadrarRecorte = mapaVivo && fichaMedida?.bbox
+    ? () => {
+      const [x0, y0, x1, y1] = fichaMedida.bbox;
+      mapaVivo.fitBounds([[x0, y0], [x1, y1]], { padding: 24, duration: 700 });
+    }
+    : undefined;
+
   if (estado === 'fallo' && respaldo) return <>{respaldo}</>;
 
   return (
@@ -808,19 +829,14 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
         {medida === 'radiacion' && fichaMedida?.capa === 'radiacion' && (
           <LeyendaRadiacion ficha={fichaMedida as FichaRadiacion} mes={mesRadiacion} alElegirMes={(c) => {
             setMesRadiacion(c); setValorClic(null);
-          }} valor={valorClic} cargando={bajandoRadiacion} />
+          }} valor={valorClic} cargando={bajandoRadiacion} alEncuadrar={encuadrarRecorte} />
         )}
         {medida === 'temperatura' && fichaMedida?.capa === 'temperatura' && (
           <LeyendaTemperatura ficha={fichaMedida as FichaTemperatura} mes={mesRadiacion} alElegirMes={(c) => {
             setMesRadiacion(c); setValorClic(null);
           }} valor={valorClic} cargando={bajandoRadiacion}
             edsHipotesis_C={hipotesis?.tempEds_C}
-            alEncuadrar={mapaVivo && fichaMedida?.bbox
-              ? () => {
-                const [x0, y0, x1, y1] = (fichaMedida as FichaTemperatura).bbox;
-                mapaVivo.fitBounds([[x0, y0], [x1, y1]], { padding: 24, duration: 700 });
-              }
-              : undefined} />
+            alEncuadrar={encuadrarRecorte} />
         )}
         {/* ⚠️ SOLO SI HAY DATO. Sin declaraciones no se pinta ni se dice nada:
             «nadie lo ha comprobado» no es «la línea lleva guarda», y una leyenda
@@ -906,12 +922,14 @@ function fechaCorta(iso: string): string {
  * este mapa no la sustituye. Sin ella, poner una cifra de sol al lado de una
  * línea invita exactamente a la conversión que no se puede hacer.
  */
-function LeyendaRadiacion({ ficha, mes, alElegirMes, valor, cargando }: {
+function LeyendaRadiacion({ ficha, mes, alElegirMes, valor, cargando, alEncuadrar }: {
   ficha: FichaRadiacion;
   mes: string | null;
   alElegirMes: (clave: string) => void;
   valor: { c: number | null; lon: number; lat: number } | null;
   cargando: boolean;
+  /** Lleva el mapa al recorte entero. Sin esto la capa se ve de un color. */
+  alEncuadrar?: () => void;
 }) {
   const capas = capasOrdenadas(ficha);
   const actual: CapaRadiacion | null = capaElegida(ficha, mes);
@@ -924,6 +942,7 @@ function LeyendaRadiacion({ ficha, mes, alElegirMes, valor, cargando }: {
     .join(', ');
   const osc = oscilacionAnual(ficha);
   const muestreo = avisoDeMuestreo(ficha);
+  const escala = avisoDeEscalaSol(ficha, actual);
   const u = ficha.unidad ?? 'kWh/m² al día';
 
   return (
@@ -940,10 +959,21 @@ function LeyendaRadiacion({ ficha, mes, alElegirMes, valor, cargando }: {
       </label>
       {cargando && <p className="mapa-capas-n">Bajando el recurso de ese mes…</p>}
 
+      {/* ⚠️ La razón entera está en `vistas/radiacion.ts` y en `99 §ADR-042`: sin
+          una forma de abarcar el recorte de un clic, lo que se concluye es que la
+          capa está rota — y con motivo, porque ceñida a la línea se ve de un color. */}
+      {alEncuadrar && (
+        <button type="button" className="boton chico" onClick={alEncuadrar}>
+          Ver todo el recorte
+        </button>
+      )}
+      <p className="mapa-capas-n">{NOTA_ENCUADRE}</p>
+
       <div className="mapa-leyenda-barra" style={{ background: `linear-gradient(90deg, ${gradiente})` }} />
       <div className="mapa-leyenda-esc">
         <span>{min} {u}</span><span>{max}</span>
       </div>
+      {escala && <p className="mapa-capas-n">{escala}</p>}
 
       <p className="mapa-capas-n">
         {actual.rotulo}: mediana <b>{actual.resumen.p50.toFixed(2)} {u}</b> · de{' '}

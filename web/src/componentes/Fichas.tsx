@@ -13,7 +13,7 @@ import { tramosDeTension } from '@lineas/nucleo/mecanica';
 import { soloEstructuras, nombreVisible, vanos } from '../vistas/planta';
 import { nf, aGMS } from '../vistas/formato';
 import { contextoDeLinea } from '../vistas/ejesLinea';
-import { avisoDeSupuestos, estadoDelApoyo, etiquetaDeOrigen } from '../vistas/fichaEstructural';
+import { avisoDeSupuestos, estadoDelApoyo, etiquetaDeOrigen, selloDeOrigen } from '../vistas/fichaEstructural';
 import { FichaCriterios } from './FichaCriterios';
 import { FichaEditor } from './FichaEditor';
 import { FichaLote } from './FichaLote';
@@ -273,7 +273,7 @@ export function Fichas({ apoyos, linea, conductor, hipotesis, evidencias = [], s
               {f.tramo && <><dt>Tramo de tensión</dt><dd>{f.tramo}</dd></>}
               <dt>Función — procedencia</dt>
               <dd>{f.esEstructura
-                ? `${a.funcionEstructural} · ${a.funcionProcedencia === 'confirmado_humano' ? 'confirmada por el Ingeniero' : a.funcionProcedencia}`
+                ? `${a.funcionEstructural} · ${selloDeOrigen(a.funcionProcedencia)}`
                 : 'no aplica: el empalme no sostiene el conductor'}</dd>
             </dl>
           </div>

@@ -37,6 +37,18 @@ const DEPARTAMENTOS = '/mapas/caribe-departamentos.json';
 const BASE = 'caribe.pmtiles';
 const ID_SOL = 'capa-sol';
 
+/**
+ * EL VACÍO DE FUERA DEL RECORTE SE PINTA COMO PAPEL, NO COMO MAPA ROTO.
+ *
+ * `caribe.pmtiles` cubre exactamente los 6°x6° del atlas (-77,7 … -71,13) y el
+ * lienzo es más ancho que alto: al encuadrar el recorte entero sobran franjas a
+ * los lados donde no hay ni una tesela. Con el gris del mapa base se leen como
+ * cartografía que no cargó —y el reflejo siguiente es buscar una avería que no
+ * existe—; con el color del papel del sitio se leen como lo que son: fuera del
+ * atlas. Dentro del recorte no cambia nada: la tierra y el mar tapan el fondo.
+ */
+const FUERA_DEL_RECORTE = '#f5f1e8';
+
 /** Días entre dos fechas ISO, sin husos: se restan los días julianos. */
 function diasEntre(a: string, b: string): number {
   const dj = (s: string) => Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10)) / 86400000;
@@ -130,6 +142,16 @@ export function SolCaribe() {
       try {
         const meta = await prepararTeselas(BASE);
         if (cancelado || !caja.current) return;
+
+        // El fondo del mapa base, repintado (ver `FUERA_DEL_RECORTE`). Se toca la
+        // capa por su TIPO y no solo por su nombre: si un día el mapa base deja de
+        // traer un fondo, esto no hace nada en vez de romper el estilo entero.
+        const capasBase = layers('protomaps', namedFlavor('light'), { lang: 'es' });
+        for (const capa of capasBase) {
+          if (capa.type === 'background') {
+            capa.paint = { ...capa.paint, 'background-color': FUERA_DEL_RECORTE };
+          }
+        }
         const m = new maplibregl.Map({
           container: caja.current,
           style: {
@@ -144,7 +166,7 @@ export function SolCaribe() {
                 attribution: '© <a href="https://openstreetmap.org/copyright">OpenStreetMap</a>',
               },
             },
-            layers: layers('protomaps', namedFlavor('light'), { lang: 'es' }),
+            layers: capasBase,
           },
           attributionControl: { compact: false },
           bounds: ficha.bbox as [number, number, number, number],

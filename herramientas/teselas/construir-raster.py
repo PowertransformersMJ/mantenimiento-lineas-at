@@ -698,6 +698,13 @@ def termico(cuantas=12):
 # ESMAP. Datos bajo **CC BY 4.0**: uso comercial permitido con atribución. Su
 # punto de consulta pública no pide cuenta ni clave.
 #
+# ⚠️ LA ESCALA DE COLOR NO ES UNIVERSAL: SE AJUSTA AL RECORTE, y es una
+# CORRECCIÓN de lo que esta misma sección defendía antes. La rampa fija y ancha
+# (3,0 - 7,5) dejaba el mapa de un solo color sobre este corredor —la media del
+# año ocupaba el 11 % de la escala— y una capa que no enseña su gradiente no
+# informa de nada. Es el mismo arreglo que `99 §ADR-041` le hizo a la capa
+# hermana de temperatura y que nunca llegó aquí. Ver `rampa_de_radiacion`.
+#
 # ⚠️ SE MUESTREA UNA VEZ, AQUÍ, Y SE AUTOHOSPEDA. La aplicación no le pide nada a
 # nadie: baja la rejilla ya construida. Y se muestrea GRUESO a propósito —una
 # celda cada 2 km sobre un dato de 1 km— porque el recurso solar varía suave: de
@@ -713,13 +720,59 @@ METROS_RADIACION = 2000
 # resolución de la que tiene el propio dato (~1 %).
 RAD_OFFSET, RAD_PASO = 0.0, 0.03
 
-# Rampa fija, en kWh/m² al día. Los cortes cubren de un sitio nublado del trópico
-# a un desierto de altura: así dos recortes distintos se pueden comparar.
-RAMPA_RADIACION = [
-    (3.0, (49, 54, 149)), (3.8, (69, 117, 180)), (4.4, (171, 217, 233)),
-    (4.8, (255, 245, 190)), (5.2, (254, 224, 144)), (5.6, (253, 174, 97)),
-    (6.0, (244, 109, 67)), (6.6, (215, 48, 39)), (7.5, (165, 0, 38)),
+# Los nueve colores de la rampa —frío azul, cálido rojo—. Viven AQUÍ y una sola
+# vez: el recurso solar y la temperatura del aire se leen con el mismo ojo, y dos
+# listas iguales son dos listas que el día que alguien retoque una discrepan.
+COLORES_RAMPA = [
+    (49, 54, 149), (69, 117, 180), (171, 217, 233), (255, 245, 190), (254, 224, 144),
+    (253, 174, 97), (244, 109, 67), (215, 48, 39), (165, 0, 38),
 ]
+
+
+def _rampa_ajustada(minimo, maximo, span_minimo, colores, grano=0.1):
+    """
+    UNA RAMPA QUE SE AJUSTA AL DATO DEL RECORTE. Dueño único de la mecánica: la
+    usan el recurso solar y la temperatura del aire, y tenerla dos veces sería
+    tener dos criterios que el día que discrepen pintan escalas distintas.
+
+    `span_minimo` protege el caso del recorte plano DE VERDAD: si toda la serie
+    cabe en menos que eso, estirarla dibujaría un degradado que es ruido.
+    """
+    lo = math.floor(minimo / grano) * grano
+    hi = math.ceil(maximo / grano) * grano
+    if hi - lo < span_minimo:
+        medio = (hi + lo) / 2
+        lo, hi = medio - span_minimo / 2, medio + span_minimo / 2
+    paso = (hi - lo) / (len(colores) - 1)
+    return [(round(lo + i * paso, 2), c) for i, c in enumerate(colores)]
+
+
+def rampa_de_radiacion(minimo, maximo):
+    """
+    LA RAMPA DEL SOL SE AJUSTA AL RECORTE, y esto es una CORRECCIÓN de criterio.
+
+    La primera versión usaba una escala FIJA y ancha (3,0 - 7,5 kWh/m² al día)
+    «para que dos recortes distintos se pudieran comparar». Medido sobre los
+    archivos reales de este recorte: los trece meses caben entre 4,38 y 6,54, o
+    sea menos de la mitad de la rampa — y la media del año, que es la capa que se
+    abre por defecto, cabe entre 5,19 y 5,67: el 11 % de la escala. El mapa salía
+    de un solo color y el Ingeniero no podía apreciar la capa.
+
+    Es exactamente el fallo que `99 §ADR-041` corrigió en la capa hermana de
+    temperatura (lección `30 · L-61`): confundir el error ABSOLUTO del modelo
+    —común a todas las celdas, que desplaza el mapa entero y no inventa
+    gradientes— con el RELATIVO entre celdas vecinas, que es mucho menor y es
+    justo lo que se dibuja. Aquella corrección nunca se propagó a esta capa.
+
+    ⚠️ SE CALCULA SOBRE LAS TRECE CAPAS A LA VEZ, nunca por mes. Una escala por
+    mes repintaría el mismo color sobre valores distintos y comparar dos meses
+    engañaría — que es lo único que la escala fija sí protegía.
+
+    El precio se paga en la leyenda, no callándolo: los extremos van escritos
+    para que un rojo intenso no se lea como «sol extremo» cuando lo que dice es
+    «dos kilovatios hora más que allá».
+    """
+    return _rampa_ajustada(minimo, maximo, 0.3, COLORES_RAMPA)
 
 MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
          'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
@@ -762,8 +815,29 @@ def pedir_gsa(lat, lon, intentos=3):
     return None
 
 
-def radiacion():
+def radiacion(reusar=False):
     ancho, alto, puntos = malla_de_muestreo(METROS_RADIACION)
+
+    # ── Reusar lo ya muestreado ────────────────────────────────────────────
+    # El muestreo son 352 peticiones a un servicio de otro. Cambiar la RAMPA no
+    # toca ni un valor —las rejillas guardan el BYTE, no el color—, así que
+    # volver a pedirlas sería gastar cortesía ajena para nada. Con `--reusar` se
+    # leen del disco y solo se rehace la ficha. (Existía para la temperatura y no
+    # para el sol: por eso corregir esta escala parecía caro y no lo era.)
+    if reusar:
+        print('☀️  reusando las rejillas ya muestreadas (no se pide nada a nadie)')
+        rejillas = []
+        for k in range(13):
+            nombre = f'cartagena-radiacion-{"anual" if k == 12 else f"{k + 1:02d}"}.png'
+            ruta = os.path.join(SALIDA, nombre)
+            if not os.path.exists(ruta):
+                sys.exit(f'❌ falta {nombre}: no hay nada que reusar, corra sin --reusar')
+            rejillas.append(np.array(Image.open(ruta).convert('L')))
+        if rejillas[0].shape != (alto, ancho):
+            sys.exit(f'❌ las rejillas del disco miden {rejillas[0].shape} y la malla pide '
+                     f'({alto}, {ancho}): el recorte o el paso cambiaron, hay que remuestrear')
+        return _publicar_radiacion(rejillas, ancho, alto, len(puntos), 0)
+
     print(f'☀️  muestreando {len(puntos)} puntos ({ancho}×{alto}, uno cada '
           f'{METROS_RADIACION / 1000:g} km) del Global Solar Atlas…')
 
@@ -790,9 +864,15 @@ def radiacion():
             b = int(round((v - RAD_OFFSET) / RAD_PASO)) + 1
             rejillas[k][iy, ix] = min(255, max(1, b))
 
+    return _publicar_radiacion(rejillas, ancho, alto, len(puntos), fallos)
+
+
+def _publicar_radiacion(rejillas, ancho, alto, n_puntos, fallos):
+    """De las trece rejillas a los PNG y la ficha. Separado para poder rehacer la
+    ficha sin volver a muestrear (`--reusar`)."""
     medidos = int(np.count_nonzero(rejillas[12]))
-    if medidos < len(puntos) * 0.9:
-        sys.exit(f'❌ solo respondieron {medidos} de {len(puntos)} puntos: no se publica media capa')
+    if medidos < n_puntos * 0.9:
+        sys.exit(f'❌ solo respondieron {medidos} de {n_puntos} puntos: no se publica media capa')
 
     capas = []
     for k in range(13):
@@ -803,7 +883,7 @@ def radiacion():
             'clave': 'anual' if k == 12 else f'{k + 1:02d}',
             'rotulo': 'Media del año' if k == 12 else MESES[k].capitalize(),
             'archivo': nombre,
-            'cobertura_pct': round(100 * medidos / len(puntos), 1),
+            'cobertura_pct': round(100 * medidos / n_puntos, 1),
             'resumen': {
                 'min': round(float(v.min()), 2), 'p50': round(float(np.median(v)), 2),
                 'max': round(float(v.max()), 2),
@@ -813,7 +893,19 @@ def radiacion():
         print(f'   {capas[-1]["rotulo"]:>14}: {capas[-1]["resumen"]["min"]:.2f} … '
               f'{capas[-1]["resumen"]["max"]:.2f} kWh/m² al día')
 
-    print(f'\n✅ 13 capas · {sum(c["peso_kib"] for c in capas):.0f} KiB · {fallos} punto(s) sin respuesta')
+    # La rampa, del DATO y no de una tabla: mínimo y máximo de las TRECE capas.
+    rampa = rampa_de_radiacion(min(c['resumen']['min'] for c in capas),
+                               max(c['resumen']['max'] for c in capas))
+    print(f'   rampa ajustada al recorte: {rampa[0][0]} … {rampa[-1][0]} kWh/m² al día')
+
+    # LA AMPLITUD ESPACIAL, medida y publicada: es la cifra que explica de cuánto
+    # es el gradiente que se ve, para que un color fuerte no se lea como extremo.
+    anual_v = (rejillas[12][rejillas[12] > 0].astype(np.float32) - 1) * RAD_PASO + RAD_OFFSET
+    amplitud = float(anual_v.max() - anual_v.min())
+    meses_p50 = [c['resumen']['p50'] for c in capas[:12]]
+    print(f'\n📏 amplitud ESPACIAL de la media anual: {amplitud:.2f} kWh/m² al día · '
+          f'oscilación entre MESES: {max(meses_p50) - min(meses_p50):.2f}')
+    print(f'✅ 13 capas · {sum(c["peso_kib"] for c in capas):.0f} KiB · {fallos} punto(s) sin respuesta')
     escribir_ficha('radiacion', {
         'capa': 'radiacion',
         'titulo': 'Radiación solar (Global Solar Atlas)',
@@ -828,8 +920,13 @@ def radiacion():
             'nota': 'byte 0 = SIN DATO. Con byte v ≥ 1: valor = (v − 1) × paso + offset',
             'offset': RAD_OFFSET, 'paso': RAD_PASO, 'sin_dato': 0,
         },
-        'rampa': [{'c': t, 'rgb': list(c)} for t, c in RAMPA_RADIACION],
+        'rampa': [{'c': t, 'rgb': list(c)} for t, c in rampa],
+        'rampa_ajustada_al_recorte': True,
         'capas': capas,
+        # La cifra que explica el gradiente que se ve. Sin ella, un color fuerte
+        # se lee como «aquí pega un sol brutal» cuando dice «medio kilovatio hora
+        # más que en el otro extremo del recorte».
+        'amplitud_espacial': round(amplitud, 2),
         'periodo': 'promedio de largo plazo (no es un día concreto)',
         'fuente': 'Global Solar Atlas 2.0 (Solargis / Banco Mundial / ESMAP), muestreado por punto',
         'licencia': 'CC BY 4.0 — uso comercial permitido con atribución',
@@ -884,12 +981,9 @@ METROS_TEMPERATURA = 2000
 # de un recorte costero, que es de décimas.
 TMP_OFFSET, TMP_PASO = 5.0, 0.12
 
-# Los nueve colores de la rampa —frío azul, cálido rojo, la misma familia que el
-# recurso solar— para que las dos capas se lean con el mismo ojo.
-COLORES_TEMPERATURA = [
-    (49, 54, 149), (69, 117, 180), (171, 217, 233), (255, 245, 190), (254, 224, 144),
-    (253, 174, 97), (244, 109, 67), (215, 48, 39), (165, 0, 38),
-]
+# Los mismos nueve colores del recurso solar, para que las dos capas se lean con
+# el mismo ojo. El nombre se conserva porque lo cita el resto de esta sección.
+COLORES_TEMPERATURA = COLORES_RAMPA
 
 
 def rampa_de_temperatura(minimo, maximo):
@@ -917,13 +1011,7 @@ def rampa_de_temperatura(minimo, maximo):
     para que un rojo intenso no se lea como «hace un calor extremo» cuando lo que
     dice es «medio grado más que allá».
     """
-    lo = math.floor(minimo * 10) / 10
-    hi = math.ceil(maximo * 10) / 10
-    if hi - lo < 0.5:                       # un recorte plano de verdad: no se estira más
-        medio = (hi + lo) / 2
-        lo, hi = medio - 0.25, medio + 0.25
-    paso = (hi - lo) / (len(COLORES_TEMPERATURA) - 1)
-    return [(round(lo + i * paso, 2), c) for i, c in enumerate(COLORES_TEMPERATURA)]
+    return _rampa_ajustada(minimo, maximo, 0.5, COLORES_TEMPERATURA)
 
 
 def temperatura(reusar=False):
@@ -1076,7 +1164,7 @@ if __name__ == '__main__':
     if args.capa == 'satelital':
         satelital()
     elif args.capa == 'radiacion':
-        radiacion()
+        radiacion(reusar=args.reusar)
     elif args.capa == 'temperatura':
         temperatura(reusar=args.reusar)
     else:

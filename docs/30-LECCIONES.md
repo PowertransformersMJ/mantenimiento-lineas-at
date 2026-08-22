@@ -4,8 +4,8 @@
 > (trigger 🧪 de `CLAUDE.md §G.2`). Cada lección es un gotcha que ya se pagó una vez.
 > Formato: `L-NN · título` → **Síntoma** / **Causa** / **Regla**.
 >
-> **Qué es este archivo:** el ÍNDICE de las 57 lecciones —**43 repartidas por tema en tres hijos y
-> 14 de MÉTODO aquí mismo, completas**: cómo se delibera, cómo se verifica y cuándo algo está de
+> **Qué es este archivo:** el ÍNDICE de las 65 lecciones —**49 repartidas por tema en CUATRO hijos
+> y 16 de MÉTODO aquí mismo, completas**: cómo se delibera, cómo se verifica y cuándo algo está de
 > verdad terminado—. Las de método se quedan porque no son de ninguna pieza: valen para las tres, y
 > son las que más se citan desde otras neuronas. Si el síntoma huele a un tercero, a lo que se ve o
 > se abre, o al número que se firma, el índice te manda directo al hijo: no hay que leerse los
@@ -13,7 +13,9 @@
 >
 > **Los identificadores NO se renumeran nunca.** Un `L-NN` citado en otra neurona o en un comentario
 > del código sigue apuntando al mismo gotcha, viva donde viva su cuerpo. Y ojo con la aritmética: los
-> números llegan hasta 58 pero las lecciones son 57 — el 14 se fusionó en `L-13` y no existe.
+> números llegan hasta 66 pero las lecciones son 65 — el 14 se fusionó en `L-13` y no existe.
+> Se recuenta con `grep -c '^### L-' docs/3?-*.md`, no de memoria: en el 21-08 llevaba seis de
+> retraso y tres lecciones enrutadas al hijo equivocado.
 >
 > ⚠️ **ANTES de escribir una lección nueva, busca el SÍNTOMA en los cuatro archivos.** Desde que la
 > familia se repartió, ninguno se lee entero, y el 04-08-2026 se escribió `L-36` sin ver que `L-22`
@@ -42,17 +44,13 @@
 - `L-22` · Desplegar el código sin desplegar las reglas de Firestore: el dato existe y no llega
 - `L-25` · Un alta «gratuita» puede esconder un formulario de pago, y ahí Claude se detiene
 - `L-64` · Para una hipótesis INSTANTÁNEA no sirve una serie de medias horarias (y mira el tamaño antes de celebrar)
+- `L-60` · Un organismo publica VARIAS licencias: la del dato que buscas no es la del que sale primero
 - `L-37` · Un portal de datos abierto miente de tres formas: la consulta que se cuelga, la estación que no mide lo que crees, y el campo con lat/lon intercambiadas
 - `L-38` · Cuando la defensa canónica exige plan de pago, se DETECTA en vez de PREVENIR — y se escribe que es un compromiso, no un descuido
 
 ### `docs/32-LECCIONES-PANTALLA.md` — el cálculo salió bien y el usuario ve otra cosa: despliegue, cachés, mapa, imágenes, cifras
 
-- `L-15` · El worker de MapLibre nace muerto en producción si no se le da su URL
-- `L-55` · Una capa raster añadida con el mapa quieto no carga NUNCA, y todos los indicadores dicen que sí
-- `L-57` · Un efecto de React que enciende su propio «cargando» se cancela a sí mismo
-- `L-63` · Una sonda GLOBAL no puede medir dos instancias — y la primera víctima no es la sonda, es el diagnóstico
-- `L-58` · «No pasa nada» al pulsar: mira la PESTAÑA antes que el código (una pestaña de fondo congela el mapa)
-- `L-16` · Chrome congela el reloj de animación en pestañas ocultas — y eso engaña dos veces
+- `L-66` · Una escritura NO recarga la aplicación: parchea lo que la base devolvió (recargar destruye la pantalla desde la que se escribe)
 - `L-18` · Un despliegue no está vivo hasta que lo ves EN LA PESTAÑA
 - `L-20` · La pantalla no puede prometer lo que el archivo no cumple
 - `L-21` · "Se ve muy oscuro / no se ve de alto nivel" casi nunca es la paleta
@@ -64,6 +62,16 @@
 - `L-44` · Un tercer estado que la pantalla aplana se convierte en un aprobado
 - `L-48` · Silenciar `stderr` convirtió un guion que reventó en un guion que "funcionó"
 - `L-49` · Volver a guardar un `.pptx` clonado con python-pptx lo deja inservible
+
+### `docs/34-LECCIONES-MAPA.md` — el mapa no pinta, o pinta algo que no se puede leer
+
+- `L-15` · El worker de MapLibre nace muerto en producción si no se le da su URL
+- `L-16` · Chrome congela el reloj de animación en pestañas ocultas — y eso engaña dos veces
+- `L-55` · Una capa raster añadida con el mapa quieto no carga NUNCA, y todos los indicadores dicen que sí
+- `L-57` · Un efecto de React que enciende su propio «cargando» se cancela a sí mismo
+- `L-58` · «No pasa nada» al pulsar: mira la PESTAÑA antes que el código (una pestaña de fondo congela el mapa)
+- `L-63` · Una sonda GLOBAL no puede medir dos instancias — y la primera víctima no es la sonda, es el diagnóstico
+- `L-65` · Un criterio corregido es una deuda con TODA la familia de módulos, no con el módulo donde se descubrió (y el guardián tiene que RECORRER a los hermanos)
 
 ### `docs/33-LECCIONES-NUCLEO-Y-DATO.md` — el número que se firma y el dato que no puede salir de este repositorio
 
@@ -78,9 +86,6 @@
 - `L-40` · Si el núcleo solo publica la PROSA de un hueco, quien la lea deducirá el hecho — y mal (y una prueba escrita sobre la deducción la BLINDA)
 - `L-41` · Un contrato que no se puede EJECUTAR en una prueba solo está revisado por el compilador
 - `L-45` · Una regla que el motor CALCULA y nadie consume no es una regla: es un comentario (y el grep de `L-28` da luz verde)
-- `L-62` · Una pantalla nueva hereda la doctrina del sitio donde se monta, no solo su aspecto
-- `L-61` · La prudencia que borra la señal no es prudencia: separa el error ABSOLUTO del RELATIVO
-- `L-60` · Un organismo publica VARIAS licencias: la del dato que buscas no es la del que sale primero
 - `L-59` · Un atajo que llena UN campo de tres no mueve el veredicto: mídelo contra el dato real antes de venderlo
 - `L-53` · Una marca que se dispara con una forma de dato que el sistema no escribe es peor que no tenerla (y su prueba la blinda)
 - `L-50` · Un archivo que se DECLARA sintético es donde mejor se esconde un dato real: la cabecera hace el trabajo de la sospecha
@@ -102,6 +107,8 @@
 - `L-47` · Un número de ADR duplicado no lo caza ningún gate, y la historia de decisiones se FUSIONA, nunca se elige
 - `L-51` · «Hecho» es lo que se VE en producción, no lo que está verde en el repositorio
 - `L-52` · Un invariante que la prueba ENUNCIA y la máquina cumple por velocidad no está garantizado
+- `L-61` · La prudencia que borra la señal no es prudencia: separa el error ABSOLUTO del RELATIVO
+- `L-62` · Una pantalla nueva hereda la doctrina del sitio donde se monta, no solo su aspecto
 
 ---
 
@@ -347,6 +354,11 @@
   a servir el contrato 0.5.0, verificado en el pie de la página.
 
 ### L-52 · Un invariante que la prueba ENUNCIA y la máquina cumple por velocidad no está garantizado
+
+- **Crudo de respaldo:** `research-archive/2026-08-17-medicion-instante-de-carga.json` — las 5.000
+  repeticiones en caliente, los 200 procesos en frío antes (17 % partidas) y 200 después (0), las 20
+  corridas con el fallo reintroducido y el reproductor entero. Caro de rehacer y no se llegaba a él
+  desde ninguna neurona.
 
 - **Síntoma:** `tests/carga-contra-contrato.test.js` falló **1 de cada 4 corridas** de `npm test`; las
   otras tres daban verde entero. La que caía se llama *«una carga entera comparte el mismo instante:

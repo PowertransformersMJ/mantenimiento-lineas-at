@@ -1,15 +1,15 @@
 # 📝 10 — MEMORIA DE CORTO PLAZO (pizarra viva)
 
 > Se **AUTO-CARGA**. Pizarra, no bitácora (§G.3). Tope ~110 líneas / 16k chars.
-> **RELEVO 2026-08-21.** Este nodo ES el relevo: léelo entero antes de tocar nada.
-> Si contradice a `docs/.handoff-auto.md` (foto real de git), manda ese.
+> **RELEVO 2026-08-21.** Este nodo ES el relevo: léelo entero. Si contradice a
+> `docs/.handoff-auto.md` (foto real de git), manda ese.
 
 ## 🎯 Dónde estamos
 
 **Cifras vivas en `05`.** 14 pestañas + RCA + tres informes. **Mazo E02 listo** (`32 · L-49`).
-Olas cerradas: ADR-018 · 020 · 021 · 022 · 023 · 024 · **032** (dato SUPUESTO) · **034-037 y 039-042**
-(las capas del mapa) · **043** (satelital cerrada) · **044** (cable de guarda) · **045** (atlas solar
-del Caribe, `#/sol`). Las tres del 21-08 están EN PRODUCCIÓN y vistas con sus ojos.
+Olas cerradas: ADR-018 · 020-024 · **032** · **034-037 y 039-042** (las capas del mapa) · **043**
+(satelital) · **044** (cable de guarda) · **045** (atlas solar, `#/sol`) · **046** (la capa de
+radiación por fin se APRECIA). Las cuatro del 21-08 están EN PRODUCCIÓN y verificadas en vivo.
 
 ## 🛑 LO PRIMERO AL RETOMAR
 
@@ -19,26 +19,26 @@ del Caribe, `#/sol`). Las tres del 21-08 están EN PRODUCCIÓN y vistas con sus 
    mueve ninguno por sí solo**, comprobado en producción antes de escribir nada: faltan la altura
    libre y la del amarre, que no van por lote (`33 · L-59`). Falta que él conteste `TODO-57`: si esas
    fichas están en planos y actas o hay que levantarlas.
-2. **LO ÚLTIMO, 21-08 — tres olas, las tres desplegadas y VISTAS:**
-   · `ADR-043` la satelital SÍ se pintaba; lo roto era mi sonda (global para dos pantallas).
-   · `ADR-044` **cable de guarda**: 24/24 vanos de LN-627 declarados. E06-E09 y E21-E22 sin guarda
-     (902 m, 29,8 %), el resto con. Se pinta en el mapa. Es DAÑO de operación, no diseño.
-   · `ADR-045` **atlas solar del Caribe** en `#/sol`: NASA POWER horario de 2026 sobre los siete
-     departamentos. Auditado con Fable, que cazó un mes rancio que ningún guardián veía (`dfdb806`).
+2. **LO ÚLTIMO — `ADR-046`, y lo encontró ÉL:** «la capa de radiación... no puedo apreciarla en la
+   página». No estaba rota —se pintaba, respondía al clic, todo en verde—: le faltaban las DOS
+   correcciones que ya se habían pagado en la capa hermana de temperatura y que nunca cruzaron —el
+   botón «Ver todo el recorte» (`ADR-042`) y la rampa ajustada al dato (`ADR-041`)—. Encuadrada en
+   los 3 km de la línea salía de un color. Ya está en producción, con guardián que recorre las DOS
+   capas. **Lección `32 · L-65`: una corrección es deuda con toda la familia, no con el módulo donde
+   se descubrió.** Antes, ese mismo día:
+   `ADR-043` la sonda del mapa · `ADR-044` cable de guarda, 24/24 vanos declarados · `ADR-045` atlas
+   solar en `#/sol`, auditado con Fable. Los tres ENTEROS en `99`; aquí no se copian.
    ⚠️ `31 · L-60` (licencia de las ortos del IGAC) **puede estar MAL** y sigue sin confirmar: un
    agente sostiene que las del Catastro Distrital sí son redistribuibles. Verificar ANTES de citarlo.
-3. **TRES COSAS QUEDARON A MEDIO CAMINO Y SON DE ÉL, no de código:**
-   `TODO-57` el dato de la ficha · **ponerse contraseña** (bloquea retirar Google) · `TODO-71` cerrar
-   las hipótesis de **viento** y de los **1.000 W/m²** de la ampacidad, que ningún mapa cierra: eso
-   es una SERIE histórica con percentiles.
-4. **Verificar que una acción FUNCIONÓ**, no solo que se hizo (`TODO-66`): una que no sirvió es hoy
-   indistinguible de una que sirvió.
-5. **Higiene del cerebro:** lo que el kernel marque al arrancar manda. Cada línea nueva en `CLAUDE.md`,
-   `05` o `10` obliga a podar otra. ⚠️ **`20` pide poda de verdad** (17,5k/16k): estaba a DOS caracteres
-   de su tope y cualquier añadido lo revienta. Es tarea propia, no de la ola que le toque después.
+3. **TRES SON DE ÉL, no de código** (detalle en su tabla): `TODO-57` el dato de la ficha ·
+   **ponerse contraseña** (bloquea retirar Google) · `TODO-71` viento y los 1.000 W/m².
+4. **Verificar que una acción FUNCIONÓ**, no solo que se hizo (`TODO-66`).
+5. **Higiene del cerebro — mantenimiento integral hecho el 21-08 (`99 §ADR-047`).** Auditoría de
+   6 lentes con refutador: **28 huecos confirmados y cerrados**, 15 tumbados. El nodo del MAPA se
+   partió a `docs/34` y todas las neuronas caben en su tope. Lo consolidado se MOVIÓ a su dueño,
+   nunca se borró. Regla que sigue: cada línea nueva en `CLAUDE.md`, `05` o `10` poda otra.
 6. **Las 205 fotos siguen cargadas y visibles** (`99 §ADR-031`), con **tres defectos vivos que no
-   bloquean** (acuse que cuenta mal, mapa de carpetas solo como objeto, guardián de orden con falso
-   positivo).
+   bloquean**: acuse que cuenta mal, mapa de carpetas solo como objeto, orden con falso positivo.
 
 ## 🚫 INVARIANTES QUE NO SE PUEDEN ROMPER
 
@@ -52,16 +52,17 @@ desincroniza. Léelos antes de tocar su subsistema.
 · **Acceso** `§ADR-024` — la contraseña es HIGIENE, no la frontera; la frontera son las reglas.
 · **Fotos** `§ADR-031` — el portero NO borra y NO lista; se cuelga por nombre canónico; decide la huella.
 · **Recordar ≠ proponer** `§ADR-029` — sin decisión suya el campo queda VACÍO.
-· **Capas del mapa** `§ADR-034/037` — las imágenes viajan CON el sitio; una capa de datos se guarda
-  como MEDIDA, nunca como imagen; el byte 0 es SIN DATO; el pronóstico no se guarda jamás.
+· **Capas del mapa** `§ADR-034/037/046` — las imágenes viajan CON el sitio; una capa de datos se
+  guarda como MEDIDA, nunca como imagen; el byte 0 es SIN DATO; el pronóstico no se guarda jamás; y
+  toda capa de medida trae encuadre al recorte Y escala publicada, las DOS o ninguna.
 · **Ficha y lote** `§ADR-030/038` — el lote solo rellena huecos y solo con los tres campos del MODELO.
 · **Documentación** `§ADR-021` — el verde de `brain:check` dice que está bien CONSTRUIDO, no que
   diga la verdad.
 
 ## 🧭 Cómo retomar
 
-1. **Abrir Claude Code DENTRO de `~/Desktop/GitHub-MJ/mantenimiento-lineas-at/`** — desde el paraguas
-   el gate bloquea el commit; remedio: `node scripts/session-handoff.mjs --boot-echo`.
+1. **Abrir Claude Code DENTRO del proyecto** — desde el paraguas el gate bloquea el commit
+   (remedio: `node scripts/session-handoff.mjs --boot-echo`).
 2. Producción **https://mantenimiento-lineas-at.pages.dev** · repo PÚBLICO → **cero bytes de cliente**
    (`33 · L-23`). Desplegar: `npm run build && npm run deploy --workspace web`, en ese orden
    (`32 · L-35`); reglas de Firestore por SU canal y ANTES (`31 · L-22`).
@@ -84,8 +85,9 @@ desincroniza. Léelos antes de tocar su subsistema.
 | **TODO-59** | **Qué ficha se le pide a CADA tipología.** La línea mezcla 4 (pórticos de 2 y 3 postes, torre reticulada, poste simple) y el molde es de POSTE (`40 §8.3`) | Son tres o cuatro formularios, no uno |
 | **TODO-33** | **50 % o 25 % de RTS** como tope de tiro | Factor 2 sobre un dictamen |
 | **TODO-58** | **¿Dónde deben vivir los datos?** Hoy Firestore (São Paulo) y R2 bajo TUS cuentas personales, con coordenadas y fotos del empleador | La región de Firestore es INMUTABLE |
-| **TODO-44/34** | Alerta de presupuesto en Cloudflare · respaldo de la bóveda: sus **205 fotos (127 MB) están SIN seguimiento** en `fotos/registro-2026-08/` a propósito —por eso su `git status` sale sucio, no por un pendiente | R2 factura · sin respaldo, la asignación de las 99 fotos deja de ser reproducible |
+| **TODO-44/34** | Alerta de presupuesto en Cloudflare · **respaldo FUERA de esta Mac**: las 205 fotos (127 MB) **ya están versionadas** en la bóveda desde el 21-08, pero `brain-private` **no tiene remoto** (decisión de ecosistema, ADR-059) | R2 factura · un fallo de disco se lleva la bóveda entera, no solo las fotos |
 | **TODO-61/54/68** | ¿App Check? (se enciende en consola, `git revert` no lo deshace) · ¿que el linter vigile la frescura semántica? · ¿que cace un ADR repetido? — el `ADR-023` estuvo duplicado 9 días con todo en verde (`30 · L-47`). Las dos últimas tocan el KERNEL | Las TRES son TUYAS |
+| **TODO-76** | **¿Se guarda que un apoyo es autosoportado / retenido?** Usted declaró que NINGUNO de LN-627 lleva retenida (`40 §Dato de campo`). Hoy **no cabe en el modelo**: iría por APOYO (25 declaraciones), nunca por línea. ¿Campo `tieneRetenida` sí/no, o «configuración» más ancha? | Cierra media incógnita de la capacidad longitudinal; la otra media —la sección— sigue abierta |
 | **TODO-03/25/36** | Cronometrar LN-627 · probar descargas y Salir con su sesión | — |
 
 ## 🔲 Pendientes de CLAUDE — en este orden
@@ -95,16 +97,13 @@ desincroniza. Léelos antes de tocar su subsistema.
 | **TODO-70** | **Cerrar la ola de la ficha (ADR-030).** ✅ ① 19-08 (`ADR-032`) marca del dato SUPUESTO · ✅ ④ 19-08 (`ADR-033`) el sembrador respeta el cerrojo —falta correrlo contra la base, espera la llave— · ✅ ② **HECHO 20-08** (`ADR-038`): la pantalla del LOTE, verificada en vivo. **Queda SOLO ③: el gesto «Confirmo este dato»**, que exige su propio molde porque `FichaEstructural` rechaza `confirmado_humano` por diseño — confirmar no es un origen, es un acto posterior | `99 §ADR-030/032/033/038` |
 | **TODO-66** | **Que una acción pruebe que FUNCIONÓ**, no solo que se hizo. Lo dejó fuera el Ingeniero el 07-08 y queda como deuda declarada en `99 §ADR-026`: bloque de verificación posterior (cuándo, quién, si fue eficaz y cómo se comprobó); la cerrada queda «pendiente de verificar eficacia» hasta esa fecha | `99 §ADR-026` |
 | **TODO-50** | **Blindaje**: ✅ F1 · ✅ F2a · ✅ F3 pantalla de cambio · ⬜ **2b retirar Google** — espera la contraseña | `99 §ADR-019/024` |
-| **TODO-52** | RCA: solo queda el **lienzo del árbol** (cosmético; en papel la lista sangrada se lee igual) | `99 §ADR-020` |
-| **TODO-49/48** | Contador de PARQUE (no construible hoy) · deuda de ADR-017: al veredicto longitudinal le falta el ruido de tendido y el piso de validez | `99 §ADR-017/018` |
+| **TODO-52/49/48** | RCA: el **lienzo del árbol** (cosmético) · contador de PARQUE (no construible hoy) · deuda de ADR-017: al veredicto longitudinal le falta el ruido de tendido y el piso de validez | `99 §ADR-017/018/020` |
+| **TODO-77** | **Triar los 51 hallazgos de la auditoría del entorno (09-08)**: unos ya se cerraron sin dejar rastro documental y de otros nadie sabe; el crudo no puede decir qué queda | crudo `2026-08-09-plan-entorno.md` |
 | **TODO-30/11 · 13-23** | XSD real de GPX/KML en CI · nota técnica de LN-627 · y F3-F5: invalidación por tramo, sincronización, Firestore vs D1, flujo IA, secretos | crudo de **ADR-013** |
 
 ## ✅ Consolidado — el detalle vive en su dueño, no aquí
 
-- **La línea**: 25 estructuras + 3 empalmes, 7 tramos, 3.024 m (`40 §10`). **Hallazgos reales**
-  (14 vanos fuera de banda del VIR, 3 apoyos que amplifican, los 2 terminales con el tiro entero):
-  `40 §10` y `99 §ADR-013/017`.
-- **Callejones ya probados**: índice completo en `30`, y el que más se repite es **«verde no prueba
-  nada»** — pruebas (`L-33`), oráculo contaminado (`32 · L-35`), fixture con la forma equivocada
-  (`33 · L-53`) y un guardián cuyo resultado no bloquea (`30 · L-56`).
-- **IDEAM**: ~11 días de desfase y **rayos sin dato utilizable** (`31 · L-37`).
+- **La línea** (25 estructuras + 3 empalmes, 7 tramos, 3.024 m) y sus hallazgos reales —14 vanos
+  fuera de banda del VIR, 3 apoyos que amplifican, 2 terminales con el tiro entero— → `40 §10` y
+  `99 §ADR-013/017`. **IDEAM**: ~11 días de desfase, rayos sin dato utilizable (`31 · L-37`).
+- **Callejones ya probados**: índice completo en `30`; el que más se repite es **«verde no prueba nada»** (`L-33` · `32 · L-35` · `33 · L-53` · `30 · L-56`).

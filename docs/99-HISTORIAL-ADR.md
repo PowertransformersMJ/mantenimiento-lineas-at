@@ -1660,6 +1660,16 @@ partió en dos —blanco sobre los círculos rojos, tinta oscura sobre las tarje
   hueco— da 3. Los tres estados nuevos **no son observables con el dato de hoy** (0 de 24 en ambos
   ejes): están probados contra fixtures, no vistos en producción. Se dice, no se disimula.
 
+### De dónde salió cada dueño único de `web/src/vistas/`
+
+Se anota aquí —y no en el mapa del repo, que dice DÓNDE vive cada cosa y no POR QUÉ— porque
+duplicar uno de estos dueños es reabrir un fallo ya pagado:
+
+- `ejesLinea` salió de `Cargas.tsx`.
+- `vanosLinea` salió de `DetalleVanos`, para que el dibujo y la tabla no puedan discrepar.
+- `coberturaEjes` salió de `Horizonte.tsx`, **donde el cruce estaba MAL**: pintaba hueco sin
+  distinguir a qué eje le faltaba el dato (`TODO-53`).
+
 ### Crudo de respaldo
 
 `research-archive/2026-08-04-workflow-critica-carcasa.json` (la crítica de oficio, 4+1 agentes)
@@ -2433,6 +2443,8 @@ una prueba dedicada a esa trampa.
 
 ## ADR-027 · 2026-08-16 · La identidad de un punto nace de su NOMBRE CANÓNICO; las semillas posicionales de julio quedan ancladas en un registro que solo crece
 
+**Estado:** ✅ Decidido · ⚠️ **NO revisada externamente** *(el estado vivía solo en la tabla de `00`; se trae a su dueño el 21-08).*
+
 ### Contexto
 
 La cuadrilla volvió a campo el **11 y 12 de agosto de 2026** y trajo tres puntos que el
@@ -2614,6 +2626,8 @@ el acta de aprobación fechada del 2026-08-16) y `LN-627-falla.json` en la bóve
 
 ## ADR-028 · 2026-08-17 · La carga de puntos se hace DESDE la aplicación: la identidad se acuña en el repositorio y el navegador solo la busca
 
+**Estado:** ✅ Decidido · ⚠️ **NO revisada externamente** *(el estado vivía solo en la tabla de `00`; se trae a su dueño el 21-08).*
+
 ### Contexto
 
 Cargar un punto nuevo en la base exigía correr `herramientas/sembrar.mjs` con una **llave de cuenta
@@ -2705,6 +2719,8 @@ crítico con veto y el plan) · `research-archive/2026-08-17-workflow-construir-
 ---
 
 ## ADR-029 · 2026-08-17 · RECORDAR no es PROPONER: la pantalla le devuelve lo que él ya firmó, con la fecha pegada
+
+**Estado:** ✅ Decidido · ⚠️ **NO revisada externamente** *(el estado vivía solo en la tabla de `00`; se trae a su dueño el 21-08).*
 
 ### Contexto
 
@@ -2956,9 +2972,14 @@ y `tests/ficha-editable.test.js` (41), con mundo sintético.)*
 
 ## ADR-031 · 2026-08-17 · Las fotos se suben DESDE la aplicación; el portero deja de ser solo-lectura bajo diez cerrojos
 
-**Estado:** ✅ Decidido · ⚠️ **NO revisada externamente** · ⬜ **sin verificar en vivo** (la pestaña
-no se ha visto todavía contra producción con el Chrome del Ingeniero, ni ha entrado una sola foto
-por esta vía).
+**Estado:** ✅ Decidido · ⚠️ **NO revisada externamente** · ✅ **VERIFICADO EN VIVO el 2026-08-17**.
+
+> **Actualización de estado (21-08).** Esta cabecera dijo hasta hoy *«sin verificar en vivo… ni ha
+> entrado una sola foto por esta vía»*, y llevaba cuatro días siendo falsa: las **106 que faltaban
+> entraron por esta pestaña** con la sesión del Ingeniero y las **205 se ven** en la galería. Quedan
+> **tres defectos vivos que NO bloquean**: el acuse cuenta mal, el mapa de carpetas solo se acepta
+> como objeto y el guardián de orden da un falso positivo. Se corrige el estado en vez de reescribir
+> el cuerpo: un ADR se apenda (`CLAUDE.md §2`). Lo cazó la auditoría del cerebro del 21-08.
 
 ### Contexto
 
@@ -4318,3 +4339,182 @@ por capa). 4 agentes, 0 fallos.
 `research-archive/2026-08-21-auditoria-fable-atlas-solar.md` — la revisión adversarial ENTERA, tal cual
 la devolvió, con lo que verificó a favor y lo que declaró no haber revisado.
 Guardián ejecutable: `tests/sol-caribe.test.js`.
+
+
+---
+
+## ADR-046 · 2026-08-21 · Una capa que se pinta y no se puede APRECIAR: el criterio de `ADR-041/042` nunca cruzó a la capa hermana
+
+**Estado:** ✅ Decidido · **NO revisada externamente** · ✅ **verificado en vivo** (producción, sesión
+del Ingeniero, 2026-08-21).
+
+### Contexto
+
+Lo dijo el Ingeniero, y con esas palabras: *«la capa de radiación que estábamos trabajando la pude
+apreciar mientras la incluías, sin embargo no puedo apreciarla en la página»*.
+
+Se comprobó en PRODUCCIÓN, con su sesión, antes de tocar una línea de código. La capa **no estaba
+rota**: el paquete servido era el mismo que el construido (`md5` idéntico), la ficha respondía 200, la
+rejilla se pintaba, el clic devolvía el valor del punto y las 1.665 pruebas estaban en verde. Todo lo
+que un guardián sabe mirar decía que sí.
+
+Y aun así era inservible, por **dos cosas que este proyecto YA había resuelto** — en la capa hermana,
+la de temperatura, y nunca trajo aquí:
+
+1. **El encuadre** (`ADR-042`). El mapa arranca ceñido a la LÍNEA: 3.024 m. La rejilla del recurso
+   solar tiene celdas de 2 km, así que dentro de ese encuadre caben dos o tres celdas con
+   prácticamente el mismo valor — **una mancha de un solo color**. `LeyendaTemperatura` recibía
+   `alEncuadrar` («Ver todo el recorte») desde el 20 de agosto; `LeyendaRadiacion` **no lo recibía**,
+   y su comentario en `Mapa.tsx` ya advertía, palabra por palabra, lo que iba a pasar: *«sin una
+   forma de llegar ahí de un clic, lo que el usuario concluye es que la capa está rota — y tendría
+   motivos»*.
+2. **La rampa fija** (`ADR-041`, `30 · L-61`). El sol seguía con una escala universal de 3,0 a
+   7,5 kWh/m² al día, elegida «para que dos recortes distintos se pudieran comparar». Medido sobre
+   los archivos reales: las trece capas ocupan el **48 %** de esa escala y la **media del año —que es
+   la capa que se abre por defecto— el 11 %**. Es exactamente el fallo que `ADR-041` corrigió en
+   temperatura tras pedirlo él, y cuyo argumento («no amplificar ruido») ya se declaró equivocado:
+   confundía el error ABSOLUTO del modelo, común a todas las celdas, con el RELATIVO entre vecinas.
+
+### Decisión
+
+**Un criterio corregido se propaga a TODA la familia, y se deja un guardián que lo vigile.**
+
+- **`LeyendaRadiacion` recibe el encuadre**, y el encuadre pasa a tener **un solo dueño**:
+  `encuadrarRecorte` vive en `Mapa.tsx` y las dos leyendas lo reciben. Nació dentro de una de ellas y
+  por eso no llegó a la otra.
+- **La rampa del sol se ajusta al recorte**, calculada sobre las **trece capas a la vez** —nunca por
+  mes— y **publicando la escala**: *«el rojo NO significa sol extremo, significa unos 2,30 kWh/m² al
+  día más que el azul»*. Rampa nueva: **4,30 … 6,60**, que el dato ocupa al **94 %**.
+- **La mecánica de la rampa tiene un dueño único** en el generador (`_rampa_ajustada`), que usan las
+  dos capas. La de temperatura se recalculó y sale **idéntica** a la publicada: cero regresión.
+- **El generador aprende `--reusar` para el sol.** Lo tenía la temperatura y no el sol, y eso era lo
+  único que hacía parecer cara esta corrección: sin él, cambiar un color costaba **352 peticiones** a
+  un servicio ajeno. Con él costó cero.
+- **De propina, el vacío del atlas deja de parecer una avería**: fuera de los 6°×6° de
+  `caribe.pmtiles` el fondo se pinta del color del papel del sitio y no del gris del mapa base.
+
+### Alternativas descartadas
+
+- **Una rampa por mes.** Daría el contraste máximo y **rompería la comparación entre meses**: el
+  mismo color sobre valores distintos. Es lo único que la escala fija sí protegía, y se conserva.
+- **Volver a muestrear el Global Solar Atlas.** 352 peticiones a un servicio de otro para cambiar un
+  color. Las rejillas guardan el **byte**, no el color: no había ni un valor que rehacer.
+- **Dejar la escala fija «por comparabilidad entre recortes».** Ese argumento ya se cayó en
+  `ADR-041`, y además **hoy solo existe un recorte**: se estaba pagando un precio real por una
+  comparación que nadie puede hacer.
+- **Estirar la rampa sin publicar la escala.** Es como se fabrica un gradiente que no existe. El
+  aviso va SIEMPRE, no solo cuando el recorte sale plano.
+
+### Consecuencias
+
+- La capa **se aprecia**: en marzo, del punto más flojo al más soleado del recorte hay
+  **0,72 kWh/m² al día**, y ahora eso se ve y se lee escrito.
+- **Once pruebas nuevas** (`tests/radiacion.test.js`), y tres son el guardián del hueco de verdad:
+  que **las dos** leyendas reciban el encuadre, que el encuadre al recorte tenga **una sola** copia y
+  que las trece capas ocupen **más del 80 %** de la rampa. Sin ellas, la próxima capa repite el
+  fallo.
+- **Lección `32 · L-65`**: una corrección de criterio es una deuda con toda la familia de módulos,
+  no con el módulo donde se descubrió.
+- Lo que **NO** cambia: sigue siendo ENERGÍA DIARIA y la ampacidad sigue comiendo una IRRADIANCIA
+  INSTANTÁNEA de 1.000 W/m² ADOPTADOS. Esta capa **no cierra `TODO-71`** y lo dice en pantalla.
+
+### Crudo de respaldo
+
+Sin comité: es la aplicación de un criterio ya deliberado (`ADR-041/042`) a un módulo que se quedó
+fuera. Guardián ejecutable: `tests/radiacion.test.js`. Verificación en vivo: producción con la sesión
+del Ingeniero, capa encendida, «Ver todo el recorte» pulsado y mes cambiado a marzo.
+
+
+---
+
+## ADR-047 · 2026-08-21 · Mantenimiento integral del cerebro: 28 huecos que el linter no podía ver, y el nodo del mapa se parte
+
+**Estado:** ✅ Decidido · **NO revisada externamente** · ✅ auditoría Nivel-2 corrida y archivada.
+
+### Contexto
+
+Lo pidió el Ingeniero con una frase que es un diagnóstico: *«estás dejando muchos huecos al momento
+de solicitarte que documentes todo»*. Y tenía razón medible. El linter decía **CEREBRO SANO** el
+mismo día en que:
+
+- La fila «Producción» del `05` —nodo que se auto-carga en CADA arranque— seguía diciendo que lo
+  último desplegado era el mapa de temperatura del 20-08. Tres olas después. El propio nodo se
+  contradecía consigo mismo ocho líneas más abajo.
+- El índice de lecciones enrutaba `L-60`, `L-61` y `L-62` al **hijo equivocado**: quien los buscara
+  ahí concluiría que no existen.
+- La cabecera de ese índice, que se declara a sí misma *«la ÚNICA cifra válida»*, decía **57**
+  lecciones cuando eran **64**.
+- `ADR-031` afirmaba *«ni ha entrado una sola foto por esta vía»* con las **205** dentro.
+- El disparador de la auditoría profunda estaba **muerto por construcción**: el linter calcula
+  `gap = coveredHeaderCount ? headers - coveredHeaderCount : 0` y el manifiesto tenía
+  `coveredHeaderCount: 0`, así que el aviso «hay muchos ADRs sin auditar» **no podía saltar nunca**.
+  Del 28-07 al 21-08: **32 ADRs nuevos sin una sola pasada semántica**, y verde todo el tiempo.
+
+Es `ADR-021` repitiéndose con nombre y apellido: **el linter valida ESTRUCTURA, no VERDAD**.
+
+### Método
+
+Auditoría Nivel-2 con **6 lentes independientes** (frescura de los nodos always-on · trabajo hecho y
+no documentado · contradicciones y SSoT · **criterios adoptados en un módulo y no propagados a su
+hermano** · capacidad y poda · bóveda, crudos y pendientes) y **un refutador por hallazgo**, con la
+consigna *«ante la duda, NO real»*. 49 agentes Opus, 4,45 M tokens, 0 fallos.
+
+**43 hallazgos, 28 confirmados y 15 tumbados por la refutación** — incluido uno que citaba un archivo
+que esta misma sesión ya había corregido. La refutación no solo filtra al auditado: filtra al auditor.
+
+### Decisión
+
+**Cerrar los 28 en el mismo turno**, y donde el hueco lo permitía, dejar un guardián en vez de una
+buena intención:
+
+1. **Verdad de los nodos:** `05` (producción, fecha, «25 apoyos» que decía 24), `30` (recuento y las
+   tres lecciones mal enrutadas), `20` (13 pestañas → las pestañas viven en `05`; alta de
+   `SolCaribe`, `RedDeSeguridad`, `cableGuarda`, `solCaribe`, `radiacion`; las dos carpetas de la
+   bóveda que faltaban), `ADR-031` (estado corregido por apéndice, nunca reescribiendo el cuerpo).
+2. **El disparador muerto se enciende:** `coveredHeaderCount: 46` y el porqué del cero **escrito** en
+   el manifiesto, para que nadie vuelva a leer ese `maxAdrGap: 12` como si vigilara algo.
+3. **El nodo del MAPA se parte a `docs/34-LECCIONES-MAPA.md`.** `32` estaba al **118 %** de su tope y
+   el archivo ya traía la frontera dibujada por dentro: sus dos secciones son «el mapa que no llega a
+   pintarse» y «del cálculo a los ojos». Se parte por ahí. Los `L-NN` **no se renumeran** (`ADR-016`).
+4. **Poda por consolidación, nunca por borrado:** el «porqué» de los dueños únicos de `vistas/` se
+   MUEVE del mapa al `§ADR-018`; el estado de revisión de `ADR-027/028/029`, que vivía **solo** en la
+   tabla del `00`, se rescata a su ADR ANTES de destilar la tabla; `00` deja de ser un segundo
+   historial y vuelve a ser índice.
+5. **Dos lecciones nuevas** de lo que la auditoría destapó: `34 · L-65` (un criterio corregido es
+   deuda con toda la familia) y `32 · L-66` (una escritura no recarga la aplicación: parchea lo que
+   la base devolvió — una piedra que este proyecto pisó **tres veces** y nunca escribió).
+6. **Un defecto de producto que salió de rebote:** el vocabulario del ORIGEN de un dato tenía dueño
+   único declarado y **tres traducciones rivales** conviviendo. `Sello.tsx` guardaba su propia lista
+   con cinco entradas, **dos inexistentes en el contrato** (`medido`, `calculado`), y le faltaban
+   cuatro de las siete reales: para ésas **imprimía el identificador crudo** —`documento_proyecto`—
+   al pie de una tabla firmable. En un producto cuya razón de ser es la trazabilidad, eso no es
+   cosmético. Un solo dueño, dos registros (ficha y sello), y una prueba que **recorre los siete**.
+7. **El dato de campo que no llegó a ningún nodo:** *«ningún apoyo tiene retenida, todos son
+   autosoportados»* entra a `40` con lo que cierra —el modo de error de falsa alarma— y lo que
+   **deja vivo**, que es el peligroso (`TODO-76`).
+
+### Alternativas descartadas
+
+- **Subir los topes para que el linter calle.** Es fabricar el verde que este proyecto desprecia
+  (`ADR-021`, `30 · L-56`). El único tope que se movió es el de **líneas** de la madre `30`, y por
+  una razón escrita: la madre es un ÍNDICE que crece una línea por lección, y su presupuesto real es
+  el de caracteres (31k de 40k), que no se tocó.
+- **Reescribir los ADRs viejos** para que digan la verdad de hoy. Un ADR se **apenda** (`§2`): el
+  estado de `ADR-031` se corrige con un párrafo fechado, y el cuerpo original se queda como estaba.
+- **Dejar el shard para después.** El `32` bloqueaba commits del cerebro y la familia entera está
+  al 90 % de su tope: aplazarlo era heredar el problema a la siguiente ola.
+
+### Consecuencias
+
+- **`brain:check` verde de verdad**: 13 neuronas, todas dentro de su tope, boot en 31.484 c de 31.500.
+- **65 lecciones** en 4 hijos + método, con las referencias resolviendo (65 usadas / 65 definidas).
+- **1.687 pruebas** (10 más que al empezar) y **tres guardianes nuevos** donde antes había comentario:
+  el espejo de la versión del contrato, el vocabulario del origen y el encuadre de las dos capas.
+- Queda dicho lo que **no** se hizo: `31` y `33` siguen al 99 % de su tope. El siguiente shard de la
+  familia es una decisión suya, no un reflejo.
+
+### Crudo de respaldo
+
+`research-archive/2026-08-21-auditoria-cerebro-6-lentes.json` — los 43 hallazgos con su evidencia
+`archivo:línea` y, para los 15 descartados, **por qué** se cayeron. Guardianes ejecutables:
+`tests/radiacion.test.js`, `tests/ficha-estructural.test.js`, `tests/contrato-evidencia.test.js`.

@@ -187,8 +187,43 @@ export const ORIGENES_DE_FICHA: readonly { valor: string; etiqueta: string; avis
 export function etiquetaDeOrigen(valor: string | null | undefined): string {
   const x = ORIGENES_DE_FICHA.find((o) => o.valor === valor);
   if (x) return x.etiqueta;
+  // Los tres valores del contrato que NO se pueden elegir al escribir una ficha
+  // pero SÍ pueden venir de otro camino, y que hasta el 21-08 caían al `return`
+  // de abajo: la pantalla imprimía el identificador crudo.
   if (valor === 'confirmado_humano') return 'Confirmado personalmente';
+  if (valor === 'deducido_geometria') return 'Lo dedujo el sistema del GPS';
+  if (valor === 'importado') return 'Vino de otro sistema';
   return valor ?? 'origen no declarado';
+}
+
+/**
+ * EL MISMO ORIGEN, EN EL REGISTRO DEL SELLO. Dos registros, UN dueño.
+ *
+ * El sello de trazabilidad no hace una pregunta, deja constancia: al pie de una
+ * tabla no se lee «Lo dice la placa del apoyo» sino «catálogo». Son dos formas
+ * de decir lo mismo y por eso viven juntas — separadas, se desincronizan, que es
+ * justo lo que pasó: `Sello.tsx` tenía su propia lista con **cinco** entradas,
+ * dos de ellas (`medido`, `calculado`) inexistentes en el contrato, y le
+ * faltaban cuatro de las siete reales. Para esas cuatro imprimía el
+ * identificador crudo en un sello firmable (`34 · L-65`: la auditoría del 21-08).
+ *
+ * ⚠️ Cubre los SIETE valores de `Procedencia` (`contratos/src/comunes.ts`) y una
+ * prueba los recorre: si mañana entra el octavo, se pone roja.
+ */
+const SELLO_POR_ORIGEN: Readonly<Record<string, string>> = Object.freeze({
+  levantamiento_campo: 'medido en campo',
+  deducido_geometria: 'deducido del GPS por el sistema',
+  catalogo_fabricante: 'catálogo — pendiente ficha del proveedor',
+  documento_proyecto: 'plano o acta de montaje del proyecto',
+  confirmado_humano: 'confirmado por el Ingeniero',
+  importado: 'importado de otro sistema',
+  supuesto: 'supuesto, sin validar',
+});
+
+/** El origen tal y como se estampa en un sello. Nunca devuelve el identificador crudo. */
+export function selloDeOrigen(valor: string | null | undefined): string {
+  if (!valor) return 'origen no declarado';
+  return SELLO_POR_ORIGEN[valor] ?? valor;
 }
 
 /** Los tres campos que SÍ se pueden aplicar a un lote: son del modelo, no del ejemplar. */
