@@ -16,6 +16,26 @@
 
 ## Del cálculo a los ojos: despliegue, cifras y promesas
 
+### L-67 · Un guardián que vigila la FUNCIÓN y no a quien la LLAMA cubre media carrera
+
+- **Síntoma:** el 15-08 se arregló «un fallo al guardar destruye la pantalla del análisis», con su
+  prueba. Verde desde entonces. Y el 22-08, al triar la auditoría vieja, resultó que en **tres
+  sitios** el texto del ingeniero se seguía borrando al fallar el guardado — incluido el enunciado de
+  la **causa raíz**, el acto más caro del expediente. Y la franja roja decía, en negrita, *«Lo que
+  escribiste sigue en pantalla y no se ha perdido»*: mentía.
+- **Causa:** las cuatro funciones que escriben **se tragan el fallo a propósito** —lo convierten en
+  la franja, que es lo correcto— y devolvían `void`. Así que su `await` **termina bien aunque no se
+  haya escrito nada**, y quien llamaba vaciaba el formulario igual: `setEnunciado('')`, `setR(null)`,
+  `setQue('')`. La prueba miraba el estado que la función deja y **nunca a sus llamadores**.
+- **Regla:** cuando una función se traga un fallo, **tiene que devolver si funcionó** —aquí,
+  `Promise<boolean>`— y el guardián debe recorrer **a quien la llama**, no solo a ella. La pregunta
+  que caza esto: *«¿qué hace la pantalla justo DESPUÉS del await?»*. Y si la interfaz promete algo
+  («no se ha perdido nada»), esa promesa se prueba: una frase en negrita es una afirmación del
+  producto, igual que una cifra.
+- **El patrón:** emparenta con `34 · L-65` (una corrección es deuda con toda la familia) y con
+  `30 · L-56` (un guardián que no bloquea es un adorno). Aquí el guardián bloqueaba… la mitad
+  equivocada. Entera → `99 §ADR-049`.
+
 ### L-66 · Una escritura NO recarga la aplicación: parchea lo que la base devolvió
 
 - **Síntoma:** se declara un dato desde la pantalla, la escritura funciona… y la pantalla se congela

@@ -71,7 +71,11 @@ function Evidencias({ todas, puestas, alternar }:
   );
 }
 
-function Guardar({ onGuardar, aviso }: { onGuardar: () => Promise<void>; aviso?: string | null }) {
+// `Promise<unknown>` y no `Promise<void>`: desde el 22-08 las escrituras del
+// expediente DEVUELVEN si la base confirmó (`32 · L-67`). Estos cuatro editores
+// no necesitan el dato —no vacían ningún campo al guardar, el texto sigue en su
+// estado— pero el tipo tiene que dejarlas pasar.
+function Guardar({ onGuardar, aviso }: { onGuardar: () => Promise<unknown>; aviso?: string | null }) {
   const [g, setG] = useState(false);
   return (
     <div className="rca-guardar">
@@ -436,7 +440,7 @@ export function ClimaEvento({ sondeos }: { sondeos: SondeoClima[] }) {
     if (!r) return;
     setGuardando(true);
     try {
-      await almacen.guardarSondeo({
+      const ok = await almacen.guardarSondeo({
         consultadoEn: new Date().toISOString(),
         punto: { lat: Number(lat), lon: Number(lon), ocurrioEn: new Date(cuando).toISOString() },
         desde: r.desde, hasta: r.hasta,
@@ -447,7 +451,11 @@ export function ClimaEvento({ sondeos }: { sondeos: SondeoClima[] }) {
         fueraDeVentana: r.fueraDeVentana,
         nota: r.nota,
       });
-      setR(null);   // ya está en el expediente: se deja de enseñar como borrador
+      // Solo se deja de enseñar el borrador si la base lo confirmó. Si falla y
+      // se borrara igual, la consulta entera desaparece de la pantalla SIN estar
+      // guardada, y habría que volver a pedírsela a un portal que este mismo
+      // proyecto tiene documentado que se cuelga 90 s (`nucleo/clima.js`).
+      if (ok) setR(null);
     } finally { setGuardando(false); }
   };
 
@@ -580,7 +588,10 @@ export function EditorAcciones({ acciones, arbol }: { acciones: AccionCapa[]; ar
   const crear = async () => {
     if (!que.trim()) return;
     setCreando(true);
-    try { await almacen.crearAccion(clase, que.trim()); setQue(''); } finally { setCreando(false); }
+    // El campo se vacía SOLO si la acción llegó a crearse (`32 · L-67`).
+    try {
+      if (await almacen.crearAccion(clase, que.trim())) setQue('');
+    } finally { setCreando(false); }
   };
 
   return (

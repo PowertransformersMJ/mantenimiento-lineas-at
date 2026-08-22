@@ -164,13 +164,20 @@ class Almacen {
     // interno: un enlace que un ingeniero pega en un chat tiene que decir de qué
     // expediente habla («RCA-2026-08-04-0227»), no un UUID sin significado.
     if (a.codigo) irA(`#/rca/${encodeURIComponent(a.codigo)}`);
+    // ⚠️ EL MOTIVO NO SE TIRA. Sin evidencias el análisis SIGUE abriéndose
+    // —enlazarlas es una parte, no la condición para trabajar; una capa opcional
+    // nunca tiene veto sobre una esencial (`35 · L-11`)—, pero «no hay» y «no se
+    // pudo mirar» son cosas distintas y la pantalla tiene que poder decir cuál
+    // de las dos es. Antes los tres `catch` estaban vacíos y el expediente
+    // afirmaba que no había nada (`32 · L-44`).
+    const noSePudoLeer: { evidencias?: string; acciones?: string; sondeos?: string } = {};
+    const porQue = (e: unknown) => (e instanceof Error ? e.message : 'fallo desconocido');
+
     let evidencias: Evidencia[] = [];
     try {
       evidencias = await repositorio.evidenciasDeAnalisis(a.id, a.alcance.investigacionIds);
-    } catch {
-      // Sin evidencias el análisis SIGUE abriéndose: enlazarlas es una parte, no
-      // la condición para poder trabajar. Una capa opcional nunca tiene veto
-      // sobre una esencial (`31 · L-11`).
+    } catch (e) {
+      noSePudoLeer.evidencias = porQue(e);
     }
 
     // Las acciones viven en su propia colección, así que son otra lectura — y va
@@ -179,14 +186,17 @@ class Almacen {
     let acciones: AccionCapa[] = [];
     try {
       acciones = await repositorio.listarAcciones(a.id);
-    } catch { /* el análisis se abre igual */ }
+    } catch (e) { noSePudoLeer.acciones = porQue(e); }   // el análisis se abre igual
 
     let sondeos: SondeoClima[] = [];
     try {
       sondeos = await repositorio.listarSondeos(a.id);
-    } catch { /* el análisis se abre igual */ }
+    } catch (e) { noSePudoLeer.sondeos = porQue(e); }    // el análisis se abre igual
 
-    this.#ponerRca({ fase: 'abierto', analisis: a, indice, evidencias, acciones, sondeos });
+    this.#ponerRca({
+      fase: 'abierto', analisis: a, indice, evidencias, acciones, sondeos,
+      ...(Object.keys(noSePudoLeer).length ? { noSePudoLeer } : {}),
+    });
   }
 
   /**
@@ -196,27 +206,31 @@ class Almacen {
    * memoria: si la escritura no llegó, la pantalla tiene que enseñar lo que hay,
    * no lo que se pidió. Es la misma regla que se sigue al crear un análisis.
    */
-  async crearAccion(clase: 'correctiva' | 'preventiva', que: string): Promise<void> {
+  async crearAccion(clase: 'correctiva' | 'preventiva', que: string): Promise<boolean> {
     const r = this.#rca;
-    if (r.fase !== 'abierto') return;
+    if (r.fase !== 'abierto') return false;
     try {
       await repositorio.crearAccion(r.analisis.id, { clase, que });
       this.#ponerRca({ ...r, falloAlGuardar: undefined, acciones: await repositorio.listarAcciones(r.analisis.id) });
+      return true;
     } catch (e) {
       this.#ponerRca({ ...r, falloAlGuardar: { mensaje: e instanceof Error ? e.message : 'fallo desconocido', queSeIntentaba: 'crear la acción' } });
+      return false;
     }
   }
 
   /** Guarda un cambio de una acción y refresca la lista. */
-  async guardarAccion(accionId: string, parche: Record<string, unknown>): Promise<void> {
+  async guardarAccion(accionId: string, parche: Record<string, unknown>): Promise<boolean> {
     const r = this.#rca;
-    if (r.fase !== 'abierto') return;
+    if (r.fase !== 'abierto') return false;
     const previa = r.acciones.find((x) => x.id === accionId);
     try {
       await repositorio.guardarAccion(accionId, parche, previa?.revision ?? 0);
       this.#ponerRca({ ...r, falloAlGuardar: undefined, acciones: await repositorio.listarAcciones(r.analisis.id) });
+      return true;
     } catch (e) {
       this.#ponerRca({ ...r, falloAlGuardar: { mensaje: e instanceof Error ? e.message : 'fallo desconocido', queSeIntentaba: 'guardar la acción' } });
+      return false;
     }
   }
 
@@ -227,14 +241,16 @@ class Almacen {
    * administrador. Por eso guardar es un acto DELIBERADO y no un efecto de
    * haber consultado — consultar es mirar; guardar es dejar constancia.
    */
-  async guardarSondeo(sondeo: Record<string, unknown>): Promise<void> {
+  async guardarSondeo(sondeo: Record<string, unknown>): Promise<boolean> {
     const r = this.#rca;
-    if (r.fase !== 'abierto') return;
+    if (r.fase !== 'abierto') return false;
     try {
       await repositorio.guardarSondeo(r.analisis.id, sondeo);
       this.#ponerRca({ ...r, falloAlGuardar: undefined, sondeos: await repositorio.listarSondeos(r.analisis.id) });
+      return true;
     } catch (e) {
       this.#ponerRca({ ...r, falloAlGuardar: { mensaje: e instanceof Error ? e.message : 'fallo desconocido', queSeIntentaba: 'congelar el sondeo de clima' } });
+      return false;
     }
   }
 
@@ -343,17 +359,19 @@ class Almacen {
   }
 
   /** Guarda una parte del análisis y refresca lo que hay en pantalla. */
-  async guardarParte(parche: Record<string, unknown>): Promise<void> {
+  async guardarParte(parche: Record<string, unknown>): Promise<boolean> {
     const r = this.#rca;
-    if (r.fase !== 'abierto') return;
+    if (r.fase !== 'abierto') return false;
     const previo = r.analisis;
     try {
       await repositorio.guardarParte(previo.id, parche, previo.revision ?? 0);
       const indice = await repositorio.listarAnalisis();
       const a = indice.find((x) => x.id === previo.id);
       if (a) await this.#abrirAnalisis(a, indice);   // reabrir limpia el aviso: ya no hay fallo
+      return true;
     } catch (e) {
       this.#ponerRca({ ...r, falloAlGuardar: { mensaje: e instanceof Error ? e.message : 'fallo desconocido', queSeIntentaba: 'guardar los cambios del análisis' } });
+      return false;
     }
   }
 

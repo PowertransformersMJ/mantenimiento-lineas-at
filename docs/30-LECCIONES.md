@@ -4,7 +4,7 @@
 > (trigger 🧪 de `CLAUDE.md §G.2`). Cada lección es un gotcha que ya se pagó una vez.
 > Formato: `L-NN · título` → **Síntoma** / **Causa** / **Regla**.
 >
-> **Qué es este archivo:** el ÍNDICE de las 65 lecciones —**49 repartidas por tema en CINCO hijos
+> **Qué es este archivo:** el ÍNDICE de las 66 lecciones —**50 repartidas por tema en CINCO hijos
 > y 16 de MÉTODO aquí mismo, completas**: cómo se delibera, cómo se verifica y cuándo algo está de
 > verdad terminado—. Las de método se quedan porque no son de ninguna pieza: valen para las tres, y
 > son las que más se citan desde otras neuronas. Si el síntoma huele a un tercero, a lo que se ve o
@@ -13,7 +13,7 @@
 >
 > **Los identificadores NO se renumeran nunca.** Un `L-NN` citado en otra neurona o en un comentario
 > del código sigue apuntando al mismo gotcha, viva donde viva su cuerpo. Y ojo con la aritmética: los
-> números llegan hasta 66 pero las lecciones son 65 — el 14 se fusionó en `L-13` y no existe.
+> números llegan hasta 67 pero las lecciones son 66 — el 14 se fusionó en `L-13` y no existe.
 > Se recuenta con `grep -c '^### L-' docs/3?-*.md`, no de memoria: en el 21-08 llevaba seis de
 > retraso y tres lecciones enrutadas al hijo equivocado.
 >
@@ -53,6 +53,7 @@
 
 ### `docs/32-LECCIONES-PANTALLA.md` — el cálculo salió bien y el usuario ve otra cosa: despliegue, cachés, mapa, imágenes, cifras
 
+- `L-67` · Un guardián que vigila la FUNCIÓN y no a quien la LLAMA cubre media carrera (y una promesa de la interfaz se prueba como una cifra)
 - `L-66` · Una escritura NO recarga la aplicación: parchea lo que la base devolvió (recargar destruye la pantalla desde la que se escribe)
 - `L-18` · Un despliegue no está vivo hasta que lo ves EN LA PESTAÑA
 - `L-20` · La pantalla no puede prometer lo que el archivo no cumple

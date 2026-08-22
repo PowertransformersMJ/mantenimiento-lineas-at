@@ -188,7 +188,19 @@ export type EstadoRca =
        * puede ESCRIBIR, lo que hay en pantalla sigue siendo válido y es justo lo
        * que no se debe tirar.
        */
-      falloAlGuardar?: { mensaje: string; queSeIntentaba: string } }
+      falloAlGuardar?: { mensaje: string; queSeIntentaba: string };
+      /**
+       * Qué NO se pudo LEER al abrir el expediente, y por qué.
+       *
+       * El tercer estado que ya tiene la línea (`ADR-032`, `32 · L-44`), traído
+       * al expediente: «llegó con datos» · «llegó vacío» · «no se pudo leer».
+       * Sin él, un fallo de lectura de las evidencias se pintaba como «este
+       * análisis no tiene ninguna evidencia disponible» — y con esa frase
+       * delante alguien descarta una familia de causas «por falta de evidencia»
+       * cuando las fotos existían y solo no se pudieron traer. Eso entra en un
+       * informe firmado.
+       */
+      noSePudoLeer?: { evidencias?: string; acciones?: string; sondeos?: string } }
   | { fase: 'error'; mensaje: string };
 
 /**

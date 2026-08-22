@@ -1235,7 +1235,11 @@ p.fund-vivo + .sello-calculo { margin-top: 5px; }
    Se apoyan en `.sello`, que ya es la familia de la casa para esto: no se
    inventa un lenguaje visual nuevo. */
 .pill {
-  display: inline-block; font-size: 10.5px; font-weight: 600; border-radius: 20px;
+  /* `margin: 0` no es adorno: la pastilla «cerrado» se escribe `class="pill ok"`
+     y `.ok` (arriba) es un estilo de PÁRRAFO que le colaba 10 px de margen
+     superior. Salía unos milímetros más abajo que sus vecinas de la misma
+     columna, la única descuadrada de la tabla. */
+  display: inline-block; margin: 0; font-size: 10.5px; font-weight: 600; border-radius: 20px;
   padding: 3px 10px; text-transform: uppercase; letter-spacing: .5px; white-space: nowrap;
   background: var(--pill2); color: var(--mut); border: 1px solid var(--bd);
 }

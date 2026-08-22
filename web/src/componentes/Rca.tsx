@@ -136,7 +136,7 @@ function Indice({ analisis, avisoRuta }: { analisis: AnalisisCausa[]; avisoRuta?
 
 // ── Un análisis abierto ─────────────────────────────────────────────────────
 
-function Abierto({ a, evidencias, acciones, sondeos, fallo }: { a: AnalisisCausa; evidencias: Evidencia[]; acciones: AccionCapa[]; sondeos: SondeoClima[]; fallo?: { mensaje: string; queSeIntentaba: string } }) {
+function Abierto({ a, evidencias, acciones, sondeos, fallo, noSePudoLeer }: { a: AnalisisCausa; evidencias: Evidencia[]; acciones: AccionCapa[]; sondeos: SondeoClima[]; fallo?: { mensaje: string; queSeIntentaba: string }; noSePudoLeer?: { evidencias?: string; acciones?: string; sondeos?: string } }) {
   const cond = condicionesCausaRaiz(a);
   const respaldo = auditarRespaldo(a);
   const faltan = cond.condiciones.filter((c) => !c.cumple);
@@ -173,7 +173,7 @@ function Abierto({ a, evidencias, acciones, sondeos, fallo }: { a: AnalisisCausa
         </section>
       )}
 
-      <TablaDescartes a={a} evidencias={evidencias} />
+      <TablaDescartes a={a} evidencias={evidencias} noSePudoLeer={noSePudoLeer?.evidencias} />
 
       <EditorPorques a={a} evidencias={evidencias} />
       <EditorArbol a={a} evidencias={evidencias} />
@@ -269,7 +269,7 @@ function Abierto({ a, evidencias, acciones, sondeos, fallo }: { a: AnalisisCausa
  *
  * Las once salen siempre, incluso las que nadie ha tocado.
  */
-function TablaDescartes({ a, evidencias }: { a: AnalisisCausa; evidencias: Evidencia[] }) {
+function TablaDescartes({ a, evidencias, noSePudoLeer }: { a: AnalisisCausa; evidencias: Evidencia[]; noSePudoLeer?: string }) {
   const [borrador, setBorrador] = useState(() => {
     // Se indexa por TEXTO a propósito: mientras se edita, «estado» puede estar
     // vacío —«sin mirar»—, que no es un valor del contrato. Solo lo que tiene
@@ -325,7 +325,19 @@ function TablaDescartes({ a, evidencias }: { a: AnalisisCausa; evidencias: Evide
         enlazada; decir «no evaluable» exige nombrar el dato que falta. No existe el estado
         «no aplica»: es el atajo que vacía un Ishikawa sin descartar nada.
       </p>
-      {evidencias.length === 0 && (
+      {/* ⚠️ TRES ESTADOS, NO DOS. «No hay» y «no se pudo mirar» se leen igual en
+          una pantalla y son cosas opuestas: con la primera se descarta una
+          familia con la conciencia tranquila (`32 · L-44`). */}
+      {evidencias.length === 0 && noSePudoLeer && (
+        <p className="aviso">
+          <b>No se pudieron leer las evidencias de este expediente.</b> Eso <b>no</b> significa que
+          no haya: significa que no se pudo comprobar. <b>No descarte ni sostenga ninguna familia
+          apoyándose en esta pantalla</b> hasta que carguen — lo que decida aquí quedaría escrito
+          como si nadie hubiera mirado.
+          <span className="fine"> Motivo técnico: {noSePudoLeer}</span>
+        </p>
+      )}
+      {evidencias.length === 0 && !noSePudoLeer && (
         <p className="aviso">
           <b>Este análisis no tiene ninguna evidencia disponible</b> para enlazar. Mientras siga
           así, marcar «descartada» o «sostenida» dejará el aviso de «sin evidencia enlazada» — y
@@ -423,7 +435,15 @@ function Declarar({ a }: { a: AnalisisCausa }) {
       // Se escribe SOLO la lista: mandar los dos campos a la vez lo rechaza el
       // molde de los datos a propósito, porque dejaría el documento diciendo dos
       // cosas del mismo hecho (la trampa `estado`/`cerrado`).
-      await almacen.guardarParte({
+      // ⚠️ EL FORMULARIO SOLO SE VACÍA SI LA BASE CONFIRMÓ. Antes se vaciaba
+      // siempre: `guardarParte` se traga el fallo —lo convierte en la franja
+      // roja— así que este `await` terminaba bien incluso cuando no se había
+      // escrito nada, y el enunciado de la causa raíz recién redactado
+      // desaparecía del formulario. Y la franja decía, en negrita, «Lo que
+      // escribiste sigue en pantalla y no se ha perdido»: mentía, en el acto más
+      // caro de todo el expediente y al final de una pantalla muy larga, donde
+      // el aviso ni siquiera se ve (`32 · L-67`).
+      const guardado = await almacen.guardarParte({
         causasRaiz: [
           ...(a.causasRaiz ?? []),
           {
@@ -435,7 +455,7 @@ function Declarar({ a }: { a: AnalisisCausa }) {
         ],
         estado: 'en_revision',
       });
-      setNodoId(''); setEnunciado('');
+      if (guardado) { setNodoId(''); setEnunciado(''); }
     } finally { setG(false); }
   };
 
@@ -519,7 +539,7 @@ export function Rca() {
       {r.fase === 'cargando' && <section className="panel vacio"><div className="vacio-t">Cargando…</div></section>}
       {r.fase === 'error' && <section className="panel vacio"><div className="vacio-t">No se pudieron leer los análisis</div><p className="vacio-c">{r.mensaje}</p></section>}
       {r.fase === 'indice' && <Indice analisis={r.analisis} avisoRuta={r.avisoRuta} />}
-      {r.fase === 'abierto' && <Abierto a={r.analisis} evidencias={r.evidencias} acciones={r.acciones} sondeos={r.sondeos} fallo={r.falloAlGuardar} />}
+      {r.fase === 'abierto' && <Abierto a={r.analisis} evidencias={r.evidencias} acciones={r.acciones} sondeos={r.sondeos} fallo={r.falloAlGuardar} noSePudoLeer={r.noSePudoLeer} />}
     </div>
   );
 }

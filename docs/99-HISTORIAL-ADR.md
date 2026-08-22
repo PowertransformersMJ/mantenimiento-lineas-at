@@ -4591,3 +4591,88 @@ neurona, mirar el margen de arranque, no solo el tope del hijo.**
 
 Sin comité: es la aplicación del mecanismo de `ADR-016` a dos hijos que llegaron a su tope, con las
 medidas de `brain:check` de este mismo día. Guardián: el propio gate de capacidad y el `boot-gate`.
+
+
+---
+
+## ADR-049 · 2026-08-22 · Triaje de los 51 hallazgos del entorno, y las dos mentiras que salieron vivas del que se dio por cerrado
+
+**Estado:** ✅ Decidido · **NO revisada externamente** · las dos correcciones, ✅ **verificadas en
+vivo** contra producción.
+
+### Contexto
+
+La auditoría del entorno del **2026-08-09** dejó 51 hallazgos con `archivo:línea`. Nadie los trió:
+unos se cerraron sin dejar rastro documental y de otros nadie sabía (`TODO-77`). Doce días y
+diecinueve ADRs después, el crudo ya no podía decir qué quedaba vivo.
+
+### Método
+
+Cinco agentes, uno por bloque del plan, contra el código de HOY. Y **un refutador por cada
+hallazgo que se declarara cerrado**, con la consigna *«demuestra que sigue vivo; ante la duda,
+VIVO»*: declarar cerrado algo que sigue vivo es el error peligroso, porque se deja de mirar.
+
+**El resultado incomoda: de los 7 que se dieron por cerrados, la refutación bajó 5 a PARCIAL.** Y el
+patrón es siempre el mismo, el de `34 · L-65`: **arreglado donde se veía, vivo en la pieza hermana.**
+
+- El **sello de trazabilidad** se corrigió en pantalla el 21-08 (`ADR-046`) y sigue imprimiendo el
+  identificador crudo en el **informe firmable** (`exportar/informe.js:331`), en las tablas de
+  cantidades y en el **CSV de compras** — donde una prueba llegaba a EXIGIR la jerga.
+- La **red de seguridad** cubre la aplicación entera… menos el mapa, que tiene la suya propia,
+  escrita más cerca, **sin registro en consola y con un texto falso** («El mapa no se pudo
+  descargar» cuando lo que falló fue dibujar). Justo las dos pantallas de más piezas móviles.
+
+Dos refutaciones murieron por límite de uso; sus hallazgos se re-comprobaron a mano y quedaron
+**cerrados**. Cuenta final: **43 vivos · 5 parciales · 2 cerrados**.
+
+### Decisión
+
+**Cerrar en el mismo turno los dos hallazgos en los que el producto MIENTE**, y dejar el resto
+triado con evidencia fresca para que se decida con datos.
+
+**1 · El formulario se vaciaba aunque no se hubiera guardado nada.** Las cuatro escrituras del
+expediente se tragan el fallo a propósito —lo convierten en la franja roja— y devolvían `void`: su
+`await` terminaba bien aunque no se escribiera nada. Y quien llamaba vaciaba igual. Tres sitios:
+
+| Dónde | Qué se borraba |
+|---|---|
+| **Declarar la causa raíz** (`Rca.tsx`) | el enunciado recién redactado y el nodo elegido |
+| **Congelar el sondeo de IDEAM** (`RcaEditores.tsx`) | la consulta entera — y hay que volver a pedírsela a un portal que este proyecto tiene documentado que se cuelga 90 s |
+| **Crear una acción correctiva** (`RcaEditores.tsx`) | el texto de la acción |
+
+Y encima la franja decía, en negrita, *«Lo que escribiste sigue en pantalla y no se ha perdido»*.
+**Mentía**, en el acto más caro del expediente y al final de una pantalla tan larga que el aviso ni
+se ve. Ahora las cuatro devuelven `Promise<boolean>` y el formulario **solo se vacía si la base
+confirmó**. El patrón ya existía en la casa: `FichaEditor.tsx` lo hacía bien.
+
+**2 · Dentro del expediente, «no hay» y «no se pudo mirar» se decían igual.** El tercer estado se
+había puesto en la pestaña Falla y en la galería de la línea (`ADR-032`, `32 · L-44`) y **no** dentro
+del análisis: tres `catch` vacíos en `#abrirAnalisis` y la pantalla afirmando «este análisis no tiene
+ninguna evidencia disponible». Con esa frase delante se descarta una familia de causas *por falta de
+evidencia* con las fotos existiendo — y eso entra en un informe firmado. Ahora el motivo viaja en el
+estado y la pantalla lo dice en ámbar, añadiendo lo que **no** se debe hacer con ella en ese estado.
+Lo mismo en la ficha del apoyo, que decía «No hay fotografías cargadas de E07» sin haber podido leer.
+
+### Alternativas descartadas
+
+- **Que las escrituras vuelvan a lanzar el error.** Rompería lo que `ADR-032` ganó: el fallo de
+  escritura vive en el estado, no en una excepción que cada pantalla trate a su manera.
+- **Ablandar la frase de la franja** («puede que se haya perdido»). Es rendirse: la frase era
+  correcta como intención; lo que estaba mal era el código. Ahora se cumple, y una prueba la ata.
+- **Arreglar los 43 vivos de una tacada.** Varios son decisiones suyas —la escala de verosimilitud
+  de tres o cinco valores, ordenar la lista de expedientes— y otros tocan el molde de los datos.
+  Triados y priorizados, no ejecutados a ciegas.
+
+### Consecuencias
+
+- **Ocho pruebas nuevas** y la lección `32 · L-67`: **un guardián que vigila la función y no a quien
+  la llama cubre media carrera.** El de 15-08 estaba en verde mientras el trabajo se perdía.
+- Queda `TODO-79` con los **43 vivos + 5 parciales**, ordenados por gravedad, en el crudo.
+- Los dos restos más caros del lote parcial —el identificador crudo en el **informe firmable** y la
+  red del **mapa** que se traga el fallo— quedan nombrados con su `archivo:línea`.
+
+### Crudo de respaldo
+
+`research-archive/2026-08-22-triaje-51-hallazgos-entorno.json` — los 50 hallazgos con su estado de
+hoy, evidencia `archivo:línea`, qué le pasa al usuario y el arreglo concreto. Guardián ejecutable:
+`tests/rca-fallo-guardar.test.js`.

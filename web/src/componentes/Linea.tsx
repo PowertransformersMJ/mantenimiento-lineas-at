@@ -785,7 +785,7 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
             SIEMPRE se puede leer, y es el botón lo que se guarda. */}
         {activa === 'fichas' && (
           <Fichas apoyos={apoyos} linea={linea} conductor={conductor} hipotesis={hipotesis}
-            evidencias={evidencias}
+            evidencias={evidencias} noSePudoLeerFotos={noSePudoLeer?.evidencias}
             sesion={sesion.fase === 'autenticado'
               ? { correo: sesion.correo, rol: sesion.rol, orgId: sesion.orgId, uid: sesion.uid }
               : undefined} />

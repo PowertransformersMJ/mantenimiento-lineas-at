@@ -13,19 +13,17 @@ radiación por fin se APRECIA). Las cuatro del 21-08 están EN PRODUCCIÓN y ver
 
 ## 🛑 LO PRIMERO AL RETOMAR
 
-1. **EL CUELLO DE BOTELLA NO ES CÓDIGO: ES EL DATO.** La ficha estructural se escribe y está EN
-   PRODUCCIÓN (`99 §ADR-030`), y desde el 20-08 también **por lote** (`99 §ADR-038`): el dato de
-   catálogo entra en los 25 apoyos de un gesto. Siguen **0 de 25 con veredicto** — y el lote **no
-   mueve ninguno por sí solo**, comprobado en producción antes de escribir nada: faltan la altura
-   libre y la del amarre, que no van por lote (`33 · L-59`). Falta que él conteste `TODO-57`: si esas
-   fichas están en planos y actas o hay que levantarlas.
-2. **LO ÚLTIMO — `ADR-046`, y lo encontró ÉL:** «la capa de radiación no puedo apreciarla en la
-   página». No estaba rota: le faltaban las dos correcciones que ya se habían pagado en la capa
-   hermana —el botón «Ver todo el recorte» y la rampa ajustada al dato— y encuadrada en los 3 km
-   salía de un color. En producción, con guardián que recorre las DOS capas. **`34 · L-65`: una
-   corrección es deuda con toda la familia.** Antes, ese mismo día:
-   `ADR-043` la sonda del mapa · `ADR-044` cable de guarda, 24/24 vanos declarados · `ADR-045` atlas
-   solar en `#/sol`, auditado con Fable. Los tres ENTEROS en `99`; aquí no se copian.
+1. **EL CUELLO DE BOTELLA NO ES CÓDIGO: ES EL DATO.** La ficha estructural se escribe y está en
+   producción (`99 §ADR-030`), y desde el 20-08 también **por lote** (`§ADR-038`). Siguen **0 de 25
+   con veredicto**, y el lote **no mueve ninguno solo**: faltan las dos alturas (`33 · L-59`). Falta
+   que él conteste `TODO-57`: si esas fichas están en planos y actas o hay que levantarlas.
+2. **EL PATRÓN QUE DOMINÓ LAS DOS ÚLTIMAS TANDAS, y lo destapó él:** *«arreglado donde se veía,
+   vivo en la pieza hermana»*. Lo encontró mirando la capa de radiación (`ADR-046`) y se repitió al
+   triar los 51 hallazgos del entorno (`ADR-049`): **de 7 dados por cerrados, 5 eran PARCIALES**. De
+   ahí salen las dos lecciones que gobiernan lo que viene: **`34 · L-65`** —una corrección es deuda
+   con toda la familia— y **`32 · L-67`** —un guardián que vigila la función y no a quien la llama
+   cubre media carrera—. Lo cerrado del 21 y 22-08 vive entero en `99 §ADR-043 a 049`; el saldo
+   pendiente, en `TODO-79`.
    ⚠️ `31 · L-60` (licencia de las ortos del IGAC) **puede estar MAL**: un agente sostiene que las
    del Catastro Distrital sí son redistribuibles. Verificar ANTES de citarlo.
 3. **TRES SON DE ÉL** (detalle en su tabla): `TODO-57` el dato de la ficha · **ponerse contraseña**
@@ -35,8 +33,7 @@ radiación por fin se APRECIA). Las cuatro del 21-08 están EN PRODUCCIÓN y ver
    refutador: **28 huecos confirmados y cerrados**, 15 tumbados. La familia de lecciones pasa a
    madre + 5 hijos (`34` mapa, `35` acceso) y el `00` vuelve a ser índice. Lo consolidado se MOVIÓ a
    su dueño. ⚠️ El techo ya no es el tope del hijo: **es el ARRANQUE**, con 7 caracteres de margen.
-6. **Las 205 fotos siguen cargadas y visibles** (`99 §ADR-031`), con **tres defectos vivos que no
-   bloquean**: acuse que cuenta mal, mapa de carpetas solo como objeto, orden con falso positivo.
+6. **Las 205 fotos siguen cargadas y visibles** (`99 §ADR-031`), con tres defectos que no bloquean.
 
 ## 🚫 INVARIANTES QUE NO SE PUEDEN ROMPER
 
@@ -54,8 +51,7 @@ desincroniza. Léelos antes de tocar su subsistema.
   guarda como MEDIDA, nunca como imagen; el byte 0 es SIN DATO; el pronóstico no se guarda jamás; y
   toda capa de medida trae encuadre al recorte Y escala publicada, las DOS o ninguna.
 · **Ficha y lote** `§ADR-030/038` — el lote solo rellena huecos y solo con los tres campos del MODELO.
-· **Documentación** `§ADR-021` — el verde de `brain:check` dice que está bien CONSTRUIDO, no que
-  diga la verdad.
+· **Documentación** `§ADR-021` — el verde de `brain:check` dice que está bien CONSTRUIDO, no que diga la verdad.
 
 ## 🧭 Cómo retomar
 
@@ -96,7 +92,7 @@ desincroniza. Léelos antes de tocar su subsistema.
 | **TODO-66** | **Que una acción pruebe que FUNCIONÓ**, no solo que se hizo. Lo dejó fuera el Ingeniero el 07-08 y queda como deuda declarada en `99 §ADR-026`: bloque de verificación posterior (cuándo, quién, si fue eficaz y cómo se comprobó); la cerrada queda «pendiente de verificar eficacia» hasta esa fecha | `99 §ADR-026` |
 | **TODO-50** | **Blindaje**: ✅ F1 · ✅ F2a · ✅ F3 pantalla de cambio · ⬜ **2b retirar Google** — espera la contraseña | `99 §ADR-019/024` |
 | **TODO-52/49/48** | RCA: el **lienzo del árbol** (cosmético) · contador de PARQUE (no construible hoy) · deuda de ADR-017: al veredicto longitudinal le falta el ruido de tendido y el piso de validez | `99 §ADR-017/018/020` |
-| **TODO-77** | **Triar los 51 hallazgos de la auditoría del entorno (09-08)**: unos ya se cerraron sin dejar rastro documental y de otros nadie sabe; el crudo no puede decir qué queda | crudo `2026-08-09-plan-entorno.md` |
+| **TODO-79** | **Saldo del entorno: 43 vivos + 5 parciales**, triados contra el código de hoy y ordenados por gravedad (`99 §ADR-049` · crudo `2026-08-22-triaje-51-hallazgos-entorno.json`). Los dos restos más caros: el identificador crudo en el **informe firmable** (`exportar/informe.js:331`) y la red del **mapa**, que se traga el fallo y encima dice «no se pudo descargar» cuando falló dibujar | Varios son decisión suya (escala de verosimilitud, orden de la lista); otros tocan el molde |
 | **TODO-30/11 · 13-23** | XSD real de GPX/KML en CI · nota técnica de LN-627 · y F3-F5: invalidación por tramo, sincronización, Firestore vs D1, flujo IA, secretos | crudo de **ADR-013** |
 
 ## ✅ Consolidado — el detalle vive en su dueño, no aquí

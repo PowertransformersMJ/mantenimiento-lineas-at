@@ -120,6 +120,7 @@ Guarda `research-archive/` (crudos de deliberación: comités, consejos externos
 | `ADR-046` | 2026-08-21 | Una capa que se pinta y no se puede APRECIAR: el criterio de `ADR-041/042` nunca cruzó a la capa hermana | *(`tests/radiacion.test.js`)* |
 | `ADR-047` | 2026-08-21 | Mantenimiento integral del cerebro: 28 huecos que el linter no podía ver, y el nodo del mapa se parte | `research-archive/2026-08-21-auditoria-cerebro-6-lentes.json` |
 | `ADR-048` | 2026-08-21 | La familia de lecciones se parte por donde ya estaba partida, y el techo real es el ARRANQUE | *(gate de capacidad + `boot-gate`)* |
+| `ADR-049` | 2026-08-22 | Triaje de los 51 hallazgos del entorno, y las dos mentiras que salieron vivas del que se dio por cerrado | `research-archive/2026-08-22-triaje-51-hallazgos-entorno.json` |
 
 > Toda decisión cara de revertir entra aquí con su ADR y su crudo enlazado. Si hubo comité o consejo
 > externo y el crudo no está archivado, la tarea **no está cerrada** (`CLAUDE.md §G.4`).

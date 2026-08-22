@@ -110,3 +110,106 @@ describe('la franja de aviso existe en la hoja de estilos', () => {
       + 'el mismo fallo silencioso que ya documenta `estilo-tokens.test.js`');
   });
 });
+
+// ════════════════════════════════════════════════════════════════════════════
+// LA MITAD QUE FALTABA — cazada al triar la auditoría del entorno (2026-08-22)
+// ----------------------------------------------------------------------------
+// El arreglo de arriba era real y esta prueba lo vigilaba… y aun así el trabajo
+// se seguía perdiendo en tres sitios. Porque las cuatro escrituras SE TRAGAN el
+// fallo —lo convierten en la franja roja, que es lo correcto— y por eso su
+// `await` termina BIEN aunque no se haya escrito nada. Quien las llamaba vaciaba
+// el formulario igual:
+//
+//   · declarar la CAUSA RAÍZ (`Rca.tsx`) → `setNodoId(''); setEnunciado('')`
+//   · congelar el SONDEO de IDEAM (`RcaEditores.tsx`) → `setR(null)`
+//   · crear una ACCIÓN correctiva (`RcaEditores.tsx`) → `setQue('')`
+//
+// Y la franja decía, en negrita, «Lo que escribiste sigue en pantalla y no se ha
+// perdido». Mentía, en el acto más caro del expediente y al final de una
+// pantalla tan larga que el aviso ni siquiera se ve.
+//
+// La lección: **un guardián que vigila la función pero no a quien la llama solo
+// cubre la mitad del recorrido** (`32 · L-67`).
+// ════════════════════════════════════════════════════════════════════════════
+describe('el formulario solo se vacía si la base CONFIRMÓ', () => {
+  const editores = readFileSync(join(RAIZ, 'web/src/componentes/RcaEditores.tsx'), 'utf-8');
+
+  test('las cuatro escrituras DICEN si se guardó, en vez de devolver nada', () => {
+    for (const fn of ['crearAccion', 'guardarAccion', 'guardarSondeo', 'guardarParte']) {
+      const c = cuerpo(enlace, fn);
+      assert.match(c, /Promise<boolean>/,
+        `${fn} devuelve \`void\`: quien la llama no puede saber si escribir funcionó, y vaciará `
+        + 'el formulario igual cuando falle');
+      assert.match(c, /return true;/, `${fn} nunca dice que sí`);
+      assert.match(c, /return false;/, `${fn} nunca dice que no`);
+    }
+  });
+
+  test('declarar la causa raíz no borra el enunciado si no se guardó', () => {
+    const i = pantalla.indexOf('const declarar = async ()');
+    assert.notEqual(i, -1);
+    const c = pantalla.slice(i, i + 1600);
+    assert.match(c, /const guardado = await almacen\.guardarParte/,
+      'se ignora lo que devuelve la escritura');
+    assert.match(c, /if \(guardado\) \{ setNodoId\(''\); setEnunciado\(''\); \}/,
+      'el formulario de la causa raíz se vacía sin comprobar que la base lo aceptó');
+  });
+
+  test('el sondeo de clima no desaparece de la pantalla si no se congeló', () => {
+    const i = editores.indexOf('const guardar = async ()');
+    assert.notEqual(i, -1);
+    const c = editores.slice(i, i + 1800);
+    assert.match(c, /const ok = await almacen\.guardarSondeo/);
+    assert.match(c, /if \(ok\) setR\(null\);/,
+      'la consulta se borra de la pantalla aunque no se haya guardado — y hay que volver a '
+      + 'pedírsela a un portal que este proyecto tiene documentado que se cuelga 90 s');
+  });
+
+  test('la acción correctiva no se borra del campo si no se creó', () => {
+    const i = editores.indexOf('const crear = async ()');
+    assert.notEqual(i, -1);
+    const c = editores.slice(i, i + 700);
+    assert.match(c, /if \(await almacen\.crearAccion\(.*\)\) setQue\(''\)/,
+      'el campo se vacía aunque la acción no se haya creado');
+  });
+
+  test('la franja no promete algo que el código no cumpla', () => {
+    // Si mañana alguien vuelve a vaciar un formulario sin comprobar, esta frase
+    // se convierte en una mentira. Va atada a las tres pruebas de arriba.
+    assert.match(pantalla, /sigue en pantalla y no se ha perdido/,
+      'si se retira la promesa, retira también las comprobaciones que la sostienen');
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+describe('«no hay» y «no se pudo mirar» no se dicen igual DENTRO del expediente', () => {
+  test('abrir un análisis no se traga el motivo de una lectura fallida', () => {
+    const i = enlace.indexOf('async #abrirAnalisis(');
+    assert.notEqual(i, -1);
+    const c = enlace.slice(i, i + 2600);
+    assert.ok(!/catch \{\s*\/\*[^*]*\*\/\s*\}/.test(c) && !/catch \{\s*\}/.test(c),
+      'un `catch` vacío al abrir el expediente convierte «no se pudo leer» en «no hay»');
+    assert.match(c, /noSePudoLeer\.evidencias = /);
+    assert.match(c, /noSePudoLeer\.acciones = /);
+    assert.match(c, /noSePudoLeer\.sondeos = /);
+  });
+
+  test('la tabla de familias distingue los tres estados', () => {
+    assert.match(pantalla, /No se pudieron leer las evidencias de este expediente/,
+      'sin este tercer estado se descarta una familia «por falta de evidencia» con las fotos '
+      + 'existiendo, y eso entra en un informe firmado');
+    assert.match(pantalla, /No descarte ni sostenga ninguna familia/,
+      'no basta con avisar: hay que decir qué NO se puede hacer con la pantalla en ese estado');
+    assert.match(pantalla, /evidencias\.length === 0 && !noSePudoLeer/,
+      'el mensaje de «no hay» tiene que excluir el caso de «no se pudo leer»');
+  });
+
+  test('la ficha del apoyo también lo distingue, no solo la pestaña Falla', () => {
+    const fichas = readFileSync(join(RAIZ, 'web/src/componentes/Fichas.tsx'), 'utf-8');
+    const linea = readFileSync(join(RAIZ, 'web/src/componentes/Linea.tsx'), 'utf-8');
+    assert.match(fichas, /noSePudoLeer=\{noSePudoLeerFotos\}/,
+      'la galería de la ficha dice «no hay fotografías» aunque la lectura haya fallado');
+    assert.match(linea, /noSePudoLeerFotos=\{noSePudoLeer\?\.evidencias\}/,
+      'nadie le pasa el aviso a la pestaña Fichas');
+  });
+});

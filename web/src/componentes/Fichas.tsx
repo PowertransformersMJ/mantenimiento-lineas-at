@@ -71,8 +71,14 @@ interface FichaPunto {
   enVano: string | null;             // para empalmes: dentro de qué vano viven
 }
 
-export function Fichas({ apoyos, linea, conductor, hipotesis, evidencias = [], sesion }:
+export function Fichas({ apoyos, linea, conductor, hipotesis, evidencias = [], sesion, noSePudoLeerFotos }:
   { apoyos: Apoyo[];
+    /**
+     * Por qué no se pudieron leer las fichas de foto, si fue el caso. La pestaña
+     * Falla ya lo pintaba y ésta no: decía «No hay fotografías cargadas de E07»
+     * con las fotos existiendo (`32 · L-44`, auditoría del entorno 09-08).
+     */
+    noSePudoLeerFotos?: string;
     linea?: { tensionMaxima_kV?: number; tensionNominal_kV?: number; circuitos?: number };
     /**
      * El conductor y la hipótesis NO son decoración de esta pestaña: son lo que
@@ -464,7 +470,7 @@ export function Fichas({ apoyos, linea, conductor, hipotesis, evidencias = [], s
             galería a que el punto sea estructura las dejaría invisibles para
             siempre — subidas, pagadas y sin poder verse. Un empalme tiene su
             propio UUID y su propia ficha; sus fotos son suyas. */}
-        <Galeria evidencias={fotosDelPunto} rotulos={{
+        <Galeria evidencias={fotosDelPunto} noSePudoLeer={noSePudoLeerFotos} rotulos={{
           titulo: 'Fotografías de este punto',
           deQue: `de ${nombreVisible(a)}`,
           alt: `Fotografía de ${nombreVisible(a)}`,
