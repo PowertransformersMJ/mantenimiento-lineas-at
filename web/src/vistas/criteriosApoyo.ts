@@ -38,10 +38,20 @@ import {
   coherenciaFuncionDeflexion,
   fugaEspecifica,
   avisoPuestaTierra,
+  umbralPuestaTierra,
+  textoCriterioTierra,
 } from '@lineas/nucleo/coherencia';
 import { vanoViento } from '@lineas/nucleo/geodesia';
 
 export type Veredicto = 'cumple' | 'revisar' | 'no_evaluable';
+
+/**
+ * De dónde salió el tope contra el que se juzga. El núcleo es JavaScript con
+ * JSDoc, así que la unión se declara aquí para que TypeScript no la dé por
+ * `string` — y una falta de ortografía en «hipotesis_declarada» pase inadvertida
+ * hasta el informe firmado.
+ */
+type ProcedenciaUmbral = 'hipotesis_declarada' | 'criterio_diseno';
 
 /**
  * @property id        identificador ESTABLE de la fila. Es con lo que la
@@ -80,6 +90,16 @@ export interface ContextoApoyo {
   tensionMaxima_kV?: number | null;
   vanoAnterior_m?: number | null;
   vanoSiguiente_m?: number | null;
+  /**
+   * El tope de puesta a tierra que declara la HIPÓTESIS de la línea, tal cual
+   * viene y sin interpretar: quién decide qué umbral rige es el núcleo
+   * (`umbralPuestaTierra`), no esta pantalla. Ausente o nulo = no declarado, y
+   * entonces manda el criterio de diseño de siempre — que se imprime diciendo
+   * que lo es. Hasta §ADR-052 esta ficha llevaba su propio `10` escrito en
+   * código, y con un tope declarado habría juzgado el mismo apoyo distinto que
+   * la tabla de Umbrales.
+   */
+  resistenciaTierraMax_ohm?: number | null;
 }
 
 // ── Forma de lo que devuelve el núcleo ──────────────────────────────────────
@@ -153,20 +173,24 @@ const CRITERIO_FUGA =
   'VALORES TRANSCRITOS, NO VERIFICADOS CONTRA EL TEXTO DE LA NORMA: comprobar antes de firmar.';
 
 /**
- * El umbral se pasa EXPLÍCITO al núcleo en vez de dejarle su valor por defecto.
- * Motivo: cuando el apoyo cumple, el núcleo no devuelve nada y el texto del
- * criterio lo escribe esta vista; si cada uno llevara su propia cifra, un apoyo
- * a 10 Ω y otro a 12 Ω acabarían citando umbrales distintos en la misma pantalla.
+ * El umbral se pasa EXPLÍCITO al núcleo en vez de dejarle su valor por defecto,
+ * y lo decide el NÚCLEO a partir de la hipótesis, no esta vista. Dos motivos, y
+ * el segundo costaba caro:
  *
- * PENDIENTE declarado: un tope de diseño es una decisión de ingeniería fechada y
- * su sitio es la hipótesis (que se versiona y se congela al firmar), no una
- * constante de programa. Mientras la hipótesis no lo traiga, manda este 10 Ω.
+ *  1. Cuando el apoyo cumple, el núcleo no devuelve nada y el texto del criterio
+ *     lo escribe esta vista; si cada uno llevara su propia cifra, un apoyo a
+ *     10 Ω y otro a 12 Ω acabarían citando umbrales distintos en la misma
+ *     pantalla.
+ *  2. El PENDIENTE que había declarado aquí —«mientras la hipótesis no lo
+ *     traiga, manda este 10 Ω»— era la tercera versión del mismo número: el
+ *     motor leía la hipótesis, este archivo leía su constante, y el día que el
+ *     Ingeniero declarara 25 Ω la tabla de Umbrales habría juzgado con 25 y esta
+ *     ficha con 10. Ahora el tope lo resuelve `umbralPuestaTierra(hipotesis)` en
+ *     el núcleo, que devuelve el número Y de dónde salió (§ADR-052).
  */
-const UMBRAL_TIERRA_OHM = 10;
-
-const CRITERIO_TIERRA =
-  `CRITERIO DE DISEÑO (sin norma citada): resistencia de puesta a tierra ≤ ${UMBRAL_TIERRA_OHM} Ω. ` +
-  'Umbral configurable — el valor firme lo fija la hipótesis del proyecto.';
+// El TEXTO también tiene un solo dueño, y está en el núcleo: si esta pantalla
+// escribiera su propia frase, un día diría «criterio de diseño» de un tope que
+// declaró el Ingeniero. Se importa `textoCriterioTierra` y no se reescribe.
 
 const CRITERIO_VANO_VIENTO =
   'Sin umbral, a propósito: el vano viento (semisuma de los vanos adyacentes) es una ' +
@@ -235,12 +259,12 @@ export function criteriosDeApoyo(
   // filtra, devuelve lista vacía, y una lista vacía leída sin cuidado se lee
   // como conformidad. Es el peor error posible aquí: un verde inventado.
   const tipo = a.tipoPunto ?? 'Estructura';
-  if (tipo !== 'Estructura') return noAplicaPorTipo(tipo);
+  if (tipo !== 'Estructura') return noAplicaPorTipo(tipo, c);
 
   return [
     criterioFuncion(a, c, nombre),
     criterioFuga(a, c),
-    criterioTierra(a, nombre),
+    criterioTierra(a, c, nombre),
     criterioVanoViento(c),
     criterioVanoPeso(),
   ];
@@ -377,14 +401,20 @@ function criterioFuga(a: Partial<Apoyo>, c: ContextoApoyo): Criterio {
 // 3 · RESISTENCIA DE PUESTA A TIERRA
 // ════════════════════════════════════════════════════════════════════════════
 
-function criterioTierra(a: Partial<Apoyo>, nombre: string): Criterio {
+function criterioTierra(a: Partial<Apoyo>, c: ContextoApoyo, nombre: string): Criterio {
   const id = 'puesta_tierra';
   const etiqueta = 'Resistencia de puesta a tierra';
   const r = num(a.puestaTierra?.resistencia_ohm);
 
+  // QUIÉN DECIDE EL TOPE ES EL NÚCLEO. Esta vista solo le alcanza lo que la
+  // hipótesis declara —o no declara— y publica la procedencia que le devuelva.
+  const { ohm, procedencia } = umbralPuestaTierra(
+    { resistenciaTierraMax_ohm: c.resistenciaTierraMax_ohm ?? undefined },
+  ) as { ohm: number; procedencia: ProcedenciaUmbral };
+
   const avisos = avisoPuestaTierra(
     [{ nombre, tipoPunto: 'Estructura', puestaTierra: { resistencia_ohm: r ?? undefined } }],
-    UMBRAL_TIERRA_OHM,
+    ohm, procedencia,
   ) as AvisoNucleo[];
   const v = avisos[0];
 
@@ -394,8 +424,9 @@ function criterioTierra(a: Partial<Apoyo>, nombre: string): Criterio {
   // certificar una puesta a tierra que no existe.
   if (!v) {
     return {
-      id, etiqueta, valor: conUnidad(r ?? 0, 'Ω'), veredicto: 'cumple', criterio: CRITERIO_TIERRA,
-      detalle: `Medida y dentro del criterio adoptado (≤ ${UMBRAL_TIERRA_OHM} Ω). Es el valor que decide si una descarga se drena al terreno o eleva el potencial de la estructura hasta cebar el arco hacia el conductor.`,
+      id, etiqueta, valor: conUnidad(r ?? 0, 'Ω'), veredicto: 'cumple',
+      criterio: textoCriterioTierra(ohm, procedencia),
+      detalle: `Medida y dentro del ${procedencia === 'hipotesis_declarada' ? 'tope declarado' : 'criterio adoptado'} (≤ ${ohm} Ω). Es el valor que decide si una descarga se drena al terreno o eleva el potencial de la estructura hasta cebar el arco hacia el conductor.`,
     };
   }
 
@@ -485,15 +516,23 @@ function criterioVanoPeso(): Criterio {
  * cambia de forma según el punto— pero ninguno tiene veredicto, y el motivo es
  * el mismo: ese punto no sostiene el conductor.
  */
-function noAplicaPorTipo(tipo: string): Criterio[] {
+function noAplicaPorTipo(tipo: string, c: ContextoApoyo): Criterio[] {
   const porQue = `Este punto está declarado «${tipo}»: no sostiene el conductor.`;
+  // Aunque aquí no se juzgue nada, el texto del criterio de tierra sale del
+  // MISMO sitio que en la ficha de una estructura: si un empalme citara 10 Ω
+  // mientras el apoyo de al lado cita el tope declarado, la pantalla volvería a
+  // tener dos versiones del número — que es lo que §ADR-052 cerró.
+  const tierra = umbralPuestaTierra(
+    { resistenciaTierraMax_ohm: c.resistenciaTierraMax_ohm ?? undefined },
+  ) as { ohm: number; procedencia: ProcedenciaUmbral };
   const filas: Array<[string, string, string, string]> = [
     ['funcion_vs_deflexion', 'Función estructural frente a la deflexión',
       'no tiene función estructural que contrastar, y su posición puede estar a mitad de vano.', CRITERIO_FUNCION],
     ['fuga_especifica', 'Distancia de fuga específica de la cadena',
       'no lleva cadena de aisladores.', CRITERIO_FUGA],
     ['puesta_tierra', 'Resistencia de puesta a tierra',
-      'no tiene puesta a tierra que medir. Que no aparezca ningún aviso NO significa que cumpla.', CRITERIO_TIERRA],
+      'no tiene puesta a tierra que medir. Que no aparezca ningún aviso NO significa que cumpla.',
+      textoCriterioTierra(tierra.ohm, tierra.procedencia)],
     ['vano_viento', 'Vano viento del apoyo',
       'no recibe carga de viento del conductor: no interrumpe el vano.', CRITERIO_VANO_VIENTO],
     ['vano_peso', 'Vano peso del apoyo',

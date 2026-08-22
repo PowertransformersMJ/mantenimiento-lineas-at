@@ -132,6 +132,33 @@ describe('las secciones que dependen de una decisión humana lo declaran', () =>
     assert.match(html(), /Congelar la hipótesis de cálculo/);
   });
 
+  test('sin despeje declarado, declararlo es una decisión pendiente', () => {
+    assert.match(html(), /Declarar el despeje mínimo por categoría de terreno/);
+  });
+
+  test('CON el despeje ya declarado, el pendiente SE TACHA', () => {
+    // ⚠️ `despejeMinimo_m` es una TABLA por categoría de terreno, no un número:
+    // un mínimo único para toda la línea no es defendible. Preguntarle
+    // `Number.isFinite()` a una tabla da siempre falso, así que este pendiente
+    // salía en TODOS los informes —incluso con los cinco mínimos declarados y el
+    // resto de pantallas usándolos—. Un pendiente que nunca se tacha enseña a
+    // ignorar la lista entera, y ésta es la sección que más mueve el proyecto
+    // (§ADR-052).
+    const h = html({ hipotesis: { ...BASE.hipotesis, despejeMinimo_m: {
+      vias_zonas_peatonales: 5.8, bosque_o_cultivo_sin_control: 8.3,
+    } } });
+    assert.ok(!/Declarar el despeje mínimo por categoría de terreno/.test(h),
+      'el despeje ya está declarado y el informe lo sigue pidiendo');
+    // Y lo que NO cambia: que el despeje siga sin poder VERIFICARSE es otra cosa
+    // —faltan la cota de sujeción y el perfil del terreno— y eso se sigue diciendo.
+    assert.match(h, /despeje mínimo de la flecha al terreno/);
+  });
+
+  test('una tabla de despejes VACÍA cuenta como no declarado', () => {
+    const h = html({ hipotesis: { ...BASE.hipotesis, despejeMinimo_m: {} } });
+    assert.match(h, /Declarar el despeje mínimo por categoría de terreno/);
+  });
+
   test('LA ÚNICA sección que no se deriva sola lo dice en el propio papel', () => {
     const h = html();
     assert.match(h, /única sección de este informe que no se calcula sola/);

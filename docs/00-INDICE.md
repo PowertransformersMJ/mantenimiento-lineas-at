@@ -42,6 +42,7 @@ Guarda `research-archive/` (crudos de deliberación: comités, consejos externos
 | «desplegué y la pantalla sigue igual», «ese número está mal escrito» | `32` |
 | «el mapa es un rectángulo gris», «enciendo la capa y no pasa nada», «no veo el gradiente» | `34` |
 | «este número del informe firmable no cuadra» | `33` |
+| «declaré el dato y el sistema sigue con el valor por defecto» | `30 · L-68` + `99 §ADR-013/052` |
 | «¿qué es el vano ideal de regulación?», «¿de dónde sale esta fórmula?» | `40` |
 | «¿por qué se eligió este stack y no el otro?» | `99` |
 | «¿por qué la prueba espera exactamente este número?» | `40 §8` y `tests/nucleo.test.js` |
@@ -123,6 +124,7 @@ Guarda `research-archive/` (crudos de deliberación: comités, consejos externos
 | `ADR-049` | 2026-08-22 | Triaje de los 51 hallazgos del entorno, y las dos mentiras que salieron vivas del que se dio por cerrado | `research-archive/2026-08-22-triaje-51-hallazgos-entorno.json` |
 | `ADR-050` | 2026-08-22 | La escala de verosimilitud son TRES, y una hipótesis rival se cierra yendo a probarla — no con una etiqueta | *(`tests/rca-contrato-parte.test.js`)* |
 | `ADR-051` | 2026-08-22 | Lo primero que se ve tiene que ser verdad: la banda, la pestaña, el tope y la versión del motor | *(`tests/tope-de-tiro.test.js` · `tests/banda-y-pestanas.test.js`)* |
+| `ADR-052` | 2026-08-22 | El número que se firma: un solo tope de puesta a tierra, y un pendiente que por fin se tacha | *(`tests/umbral-tierra.test.js` · `tests/campos-del-molde.test.js`)* |
 
 > Toda decisión cara de revertir entra aquí con su ADR y su crudo enlazado. Si hubo comité o consejo
 > externo y el crudo no está archivado, la tarea **no está cerrada** (`CLAUDE.md §G.4`).

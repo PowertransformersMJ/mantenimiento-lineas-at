@@ -64,8 +64,33 @@ import { z } from 'zod';
  * — `validar()` lo descarta EN SILENCIO y el apoyo desaparece de la pantalla.
  * Hay que DESPLEGAR la web con esta versión ANTES de escribir el primer dato con
  * ese valor.
+ *
+ * 0.7.0 — MENOR (un campo opcional; nada renombrado ni cambiado de tipo):
+ * `Apoyo.cableGuardaVanoSaliente`, el estado del cable de guarda del VANO QUE
+ * SALE de ese apoyo (ADR-044). Va en el apoyo de aguas arriba porque un guarda
+ * no está en una estructura: está tendido ENTRE dos, y así el dato tiene dueño
+ * único. Tres estados y el que importa es el tercero — presente · ausente ·
+ * CAMPO AUSENTE = no consta: que nadie lo haya declarado no dice que el vano
+ * lleve guarda. (Entrada escrita a posteriori en 0.8.0: el bump de 0.7.0 subió
+ * la cifra sin dejar su renglón aquí, y este registro es el único sitio donde
+ * se puede leer qué cambió sin abrir el historial de git.)
+ *
+ * 0.8.0 — MENOR (dos campos opcionales en `Hipotesis`; nada renombrado ni
+ * cambiado de tipo, cero migración, y los documentos de 0.7.0 validan sin
+ * tocarlos): `resistenciaTierraMax_ohm` y `corrienteOperacion_A`. Los DOS ya se
+ * leían en `nucleo/umbrales.js` y ninguno existía aquí, así que la validación
+ * de lectura los descartaba en silencio y sus ramas eran INALCANZABLES: el
+ * informe firmable decía «umbral adoptado por defecto» pasara lo que pasara, y
+ * el indicador de ampacidad mandaba a declarar un campo que la base tiraba a la
+ * basura. Es el fallo que §ADR-013 cerró para `tiroAdmisible_pct`, vivo en las
+ * piezas hermanas (§ADR-052).
+ *
+ * ⚠️ Como todo lo aditivo aquí, es de UNA SOLA DIRECCIÓN: una hipótesis
+ * guardada con un tope de tierra propio NO sobrevive a un bundle desplegado con
+ * el contrato anterior — se descarta en silencio y el informe vuelve a los
+ * 10 Ω sin decir nada. DESPLEGAR esta versión ANTES de declarar el primer tope.
  */
-export const VERSION_CONTRATO = '0.7.0';
+export const VERSION_CONTRATO = '0.8.0';
 
 // ── Identificadores ─────────────────────────────────────────────────────────
 

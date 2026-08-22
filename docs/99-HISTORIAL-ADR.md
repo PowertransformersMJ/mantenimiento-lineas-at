@@ -4836,3 +4836,112 @@ las cuatro compartían la misma forma — una señal que no mira el dato:
 Hallazgos nº 1, 4, 7 y 8 de «Lo que ya miente» y nº 4 y 10 de «Mentirá en cuanto cambie una lista»
 del triaje (`research-archive/2026-08-22-triaje-51-hallazgos-entorno.json`). Guardianes:
 `tests/tope-de-tiro.test.js`, `tests/banda-y-pestanas.test.js` y el gate de `githooks/pre-commit`.
+
+---
+
+## ADR-052 · 2026-08-22 · El número que se firma: un solo tope de puesta a tierra, y un pendiente que por fin se tacha
+
+**Estado:** ✅ Decidido · **NO revisada externamente** · ⏳ pendiente de verificar en vivo en producción.
+
+### Contexto
+
+Segunda fase del saldo del triaje (`ADR-049`) sobre la página, y la eligió el Ingeniero por lo que
+rinde: **el número que se firma**. Entraron dos hallazgos (nº 27 y nº 32 del triaje) y, al abrirlos,
+salieron **dos más de la misma familia** — que es exactamente lo que avisaba `34 · L-65`: *una
+corrección es deuda con toda la familia*.
+
+1. **El tope de puesta a tierra tenía TRES versiones y ninguna miraba a las otras.**
+   `nucleo/umbrales.js:522` leía `hipotesis.resistenciaTierraMax_ohm` —bien— pero **ese campo no
+   existía en el molde**: `validar()` (`web/src/datos/firestore.ts`) descarta en silencio lo que el
+   contrato no declara, así que la rama «declarado» era **INALCANZABLE**. Pasara lo que pasara, el
+   umbral valía 10 Ω y el informe firmable escribía «adoptado por defecto». Mientras tanto,
+   `nucleo/coherencia.js` caía a un `10` escrito en la firma de la función y la ficha del apoyo
+   comparaba contra un `UMBRAL_TIERRA_OHM = 10` suyo (`web/src/vistas/criteriosApoyo.ts:165`), con el
+   pendiente escrito al lado. El día que el Ingeniero declarara 25 Ω, la pestaña Umbrales habría
+   juzgado con 25 y la ficha del **mismo apoyo** con 10: dos veredictos distintos sobre la misma
+   estructura, el mismo día. **Es el fallo que `ADR-013` cerró para `tiroAdmisible_pct` y que
+   `ADR-051` cerró para el tope de tiro, vivo en la pieza hermana.**
+2. **El informe gerencial exigía «declarar el despeje mínimo» PARA SIEMPRE.** `gerencial.js:342`
+   preguntaba `Number.isFinite(hipotesis.despejeMinimo_m)`, y ese campo es una **TABLA por categoría
+   de terreno** (`activos.ts:616`), no un número: una tabla nunca es finita. El resto del sistema lo
+   trataba bien —Fundamentos recorre sus entradas, `umbrales.js` la usa como tabla—; solo el
+   gerencial la medía como si fuera un número suelto. Resultado: en la sección más corta y la que más
+   mueve el proyecto, un pendiente que **nunca se podía tachar** aunque los cinco mínimos estuvieran
+   declarados. Un pendiente eterno enseña a ignorar la lista entera.
+3. **(Encontrado al arreglar el 1)** `procedenciaUmbral` **no salía del núcleo.** `ADR-013` lo añadió
+   «como CAMPO y no solo dentro de la prosa» para que el informe pudiera decir si el tope lo declaró
+   el Ingeniero o lo adoptó el sistema… y la **lista blanca de `fila()`** (`umbrales.js:105`) se lo
+   comía. `exportar/informe.js:484` lo lee, recibía `undefined` **siempre**, y por tanto el informe
+   firmable llamaría **«adoptado por defecto» a un tope declarado por él**. Las pruebas del informe no
+   lo veían porque construían el indicador **a mano, con el campo ya puesto**: un fixture que miente
+   (`30 · L-33`).
+4. **(Encontrado al barrer la familia)** El mismo patrón en otras dos ramas de `umbrales.js`:
+   `hipotesis.corrienteOperacion_A` —que el motor pide **por su nombre** en el texto que lee el
+   Ingeniero— tampoco existía en el molde, así que el mensaje mandaba a declarar un campo que la base
+   tira a la basura; y `hipotesis.ampacidad_A`, además de muerta, habría sido un **segundo dueño** de
+   un número que tiene uno solo (`nucleo/termica.js`, IEEE 738).
+
+### Decisión
+
+- **Al molde, aditivo y opcional** (contrato **0.7.0 → 0.8.0**, cero migración):
+  `resistenciaTierraMax_ohm` y `corrienteOperacion_A`. Que existan **no decide nada** —el artículo
+  del RETIE sigue sin verificar aquí— pero hacen alcanzable lo que el motor ya sabía hacer.
+- **UN dueño del número**: `umbralPuestaTierra(hipotesis)` en `nucleo/coherencia.js`, que devuelve el
+  valor **y de dónde salió** (`hipotesis_declarada` | `criterio_diseno`), calcado de `topeDeTiro()`.
+  **Y un dueño del TEXTO**: `textoCriterioTierra(ohm, procedencia)`, que usan el aviso del núcleo y
+  la ficha de la pantalla — si la frase tuviera dos autores, un día una diría «criterio de diseño»
+  de un tope que él declaró. La ficha pierde su constante y pide el tope con la hipótesis.
+- **El cero y los negativos no son un tope**: caen al criterio. Con 0 Ω, el aviso crítico publicaría
+  «∞× el criterio», y un aviso ilegible es un aviso que no existe.
+- **La FUENTE de la fila de tierra deja de decir «RETIE».** Decía «RETIE» en la misma celda en la que
+  el criterio avisa de que el artículo del RETIE **no está verificado** en este repositorio: lo que
+  se firma no puede decir las dos cosas. Sin tope declarado, la fuente es «criterio de diseño (sin
+  norma)»; con tope declarado, la norma que el Ingeniero ponga en su hipótesis.
+- **`procedenciaUmbral` llega al consumidor**: entra en la lista blanca de `fila()` y viaja en las dos
+  filas que pueden tener tope declarado (tiro y tierra).
+- **El gerencial comprueba la TABLA**, como ya hacía Fundamentos: si tiene alguna entrada, el
+  pendiente se tacha. Lo que **no** cambia es que el despeje siga sin poder verificarse —faltan la
+  cota de sujeción y el perfil del terreno—, y eso se sigue diciendo en su sitio.
+- **Se retira la rama muerta** `?? hipotesis.ampacidad_A` (§3.3.C): muerta hoy y, viva, un segundo
+  dueño de la ampacidad. La de placa siempre gana por optimista, y un día en calma le quita al
+  conductor cerca de un tercio de su capacidad.
+- **La versión del motor sube a 0.3.0** (la ata el gate de `pre-commit` de `ADR-051`).
+- **El registro de versiones del contrato recupera su hueco**: la entrada de **0.7.0** nunca se
+  escribió —el bump subió la cifra y no dejó su renglón—, y ese registro es el único sitio donde se
+  lee qué cambió sin abrir el historial de git.
+
+### Alternativas descartadas
+
+- **Que `umbrales.js` importara el dueño del número.** El módulo es PURO a propósito: no importa
+  nada, ni siquiera del núcleo. Se repite el criterio y **lo que impide que se separen no es la buena
+  voluntad, es el guardián** que exige el mismo número a motor, tabla y ficha.
+- **Añadir `ampacidad_A` al molde para que la rama viviera.** Habría legalizado un segundo dueño de
+  un número que el propio módulo declara con dueño único. Se resuelve al revés: se retira la rama.
+- **Declarar un tope de tierra en el sembrador para «ver el cambio».** Sería inventarle un criterio
+  al Ingeniero. Sin decisión suya, el campo queda vacío (`ADR-029`).
+- **Dejar la fuente «RETIE» y matizarla en la prosa.** Es lo que ya hacía, y por eso el mismo papel
+  decía dos cosas.
+- **Cazar esta familia a mano una tercera vez.** Sale caro y no se puede prometer: por eso el
+  guardián vigila **la función** —la frontera motor↔molde— y no a quien la llama (`32 · L-67`).
+
+### Consecuencias
+
+- **26 pruebas nuevas** (1.745 en total, 0 fallos) en dos archivos nuevos —`tests/umbral-tierra.test.js`
+  y `tests/campos-del-molde.test.js`— más las de la ficha y el gerencial. El guardián de familia se
+  probó **en los dos sentidos**: con el campo fuera del molde, falla; con el campo dentro, pasa.
+- **Una prueba cambió de veredicto a propósito**: la que exigía `fuente === 'RETIE'` en la fila de
+  tierra. No es una regresión, es la corrección — y queda escrito aquí para que dentro de un año se
+  sepa por qué.
+- **Lo que el Ingeniero verá en producción**: en el informe gerencial desaparece «Declarar el despeje
+  mínimo» (su hipótesis ya declara los cinco mínimos); en la tabla de umbrales, la fila de tierra
+  deja de atribuirse al RETIE y dice de dónde salieron sus 10 Ω. Lo demás **no cambia hasta que él
+  declare un tope**: por diseño.
+- **Queda abierto y declarado**: el indicador de ampacidad seguirá «no evaluable» aunque él declare
+  la corriente de operación, porque **nadie le pasa la ampacidad calculada** — elegir con qué
+  ambiente se calcula es una decisión de ingeniería, no una tubería que se conecta sola.
+
+### Crudo de respaldo
+
+Hallazgos nº 27 y nº 32 del triaje (`research-archive/2026-08-22-triaje-51-hallazgos-entorno.json`).
+Guardianes: `tests/umbral-tierra.test.js`, `tests/campos-del-molde.test.js`, las dos pruebas nuevas
+de `tests/gerencial.test.js` y el gate de versión del motor en `githooks/pre-commit`.

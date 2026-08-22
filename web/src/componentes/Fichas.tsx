@@ -462,6 +462,12 @@ export function Fichas({ apoyos, linea, conductor, hipotesis, evidencias = [], s
             // sale «no evaluable» — no se sustituye por la nominal, que daría un
             // veredicto más benévolo que el real.
             tensionMaxima_kV: linea?.tensionMaxima_kV ?? null,
+            // El tope de puesta a tierra viaja en la HIPÓTESIS, que se versiona
+            // y se congela al firmar. Va tal cual, sin interpretar: quién decide
+            // qué umbral rige —y si es declarado o adoptado— es el núcleo. Antes
+            // de §ADR-052 esta ficha comparaba contra un 10 Ω propio y habría
+            // juzgado el mismo apoyo distinto que la tabla de Umbrales.
+            resistenciaTierraMax_ohm: hipotesis?.resistenciaTierraMax_ohm ?? null,
           }} />
         )}
 

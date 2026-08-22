@@ -614,6 +614,34 @@ export const Hipotesis = Base.extend({
 
   /** Distancia mínima al terreno EXIGIDA, por categoría de terreno. Un valor único no es defendible. */
   despejeMinimo_m: z.record(z.string(), z.number().positive()).optional(),
+
+  /**
+   * Tope de RESISTENCIA DE PUESTA A TIERRA que el Ingeniero adopta para esta
+   * línea, en ohmios. Si no se declara, el sistema usa 10 Ω y lo dice con esas
+   * palabras: criterio de diseño habitual, NO una norma citada.
+   *
+   * ⚠️ ADITIVO Y OPCIONAL. Que el campo exista no decide nada: el artículo y la
+   * tabla del RETIE aplicables siguen SIN verificar contra fuente en este
+   * repositorio. Lo que arregla es otra cosa — antes de §ADR-052 el motor ya
+   * leía este campo (`nucleo/umbrales.js`) y el molde no lo admitía, así que la
+   * validación de lectura lo descartaba en silencio y la rama «declarado en la
+   * hipótesis» era INALCANZABLE: pasara lo que pasara el umbral valía 10 Ω y el
+   * informe firmable decía «adoptado por defecto». Es exactamente el fallo que
+   * §ADR-013 cerró para `tiroAdmisible_pct`, vivo en la pieza hermana.
+   */
+  resistenciaTierraMax_ohm: z.number().positive().optional(),
+
+  /**
+   * Corriente de OPERACIÓN de la línea, en amperios: lo que de verdad circula,
+   * y contra lo que se compara la ampacidad calculada por IEEE 738.
+   *
+   * ⚠️ ADITIVO Y OPCIONAL, y aquí por el mismo motivo que el campo de arriba: el
+   * motor la pedía por su nombre —«No se declara la corriente de operación
+   * (`hipotesis.corrienteOperacion_A`)»— y el molde no la admitía, así que el
+   * mensaje mandaba a declarar un campo que la validación tiraba a la basura.
+   * Es un dato de OPERACIÓN: no se deduce de la geometría ni del conductor.
+   */
+  corrienteOperacion_A: z.number().positive().optional(),
   normaReferencia: z.string().optional(),
   procedencia: Procedencia,
   /** Congelada = ya se firmó un informe con ella; no se toca nunca más. */

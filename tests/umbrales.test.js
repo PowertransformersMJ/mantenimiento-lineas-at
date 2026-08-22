@@ -93,8 +93,19 @@ describe('umbrales — la forma de la tabla es un contrato', () => {
 
   test('cada fila lleva exactamente los nueve campos del contrato', () => {
     const campos = ['id', 'etiqueta', 'valor', 'unidad', 'umbral', 'comparador', 'estado', 'criterio', 'fuente'];
+    // El DÉCIMO campo es opcional y solo lo llevan las filas cuyo umbral puede
+    // venir declarado en la hipótesis: de dónde salió ese número. Va como CAMPO
+    // porque el informe firmable lo lee para no llamar «adoptado por defecto» a
+    // un tope que declaró el Ingeniero (§ADR-013 lo creó, §ADR-052 lo hizo
+    // llegar: la lista blanca de `fila()` se lo comía en silencio).
+    const CON_PROCEDENCIA = new Set(['tiro_maximo_pct_rts', 'resistencia_puesta_tierra']);
     for (const i of evaluarUmbrales(LINEA_COMPLETA)) {
-      assert.deepEqual(Object.keys(i).sort(), [...campos].sort(), `campos de ${i.id}`);
+      const esperados = CON_PROCEDENCIA.has(i.id) ? [...campos, 'procedenciaUmbral'] : campos;
+      assert.deepEqual(Object.keys(i).sort(), [...esperados].sort(), `campos de ${i.id}`);
+      if (CON_PROCEDENCIA.has(i.id)) {
+        assert.ok(['hipotesis_declarada', 'criterio_clasico', 'criterio_diseno'].includes(i.procedenciaUmbral),
+          `${i.id} no dice de dónde salió su umbral`);
+      }
       assert.ok(['cumple', 'revisar', 'no_evaluable'].includes(i.estado), `estado válido en ${i.id}`);
       assert.ok(['<=', '>=', 'entre', 'ninguno'].includes(i.comparador), `comparador válido en ${i.id}`);
       assert.equal(typeof i.criterio, 'string');
@@ -440,12 +451,38 @@ describe('umbrales — indicador 7: resistencia de puesta a tierra', () => {
     const i = buscar(evaluarUmbrales(e), 'resistencia_puesta_tierra');
     assert.equal(i.umbral, 20);
     assert.equal(i.estado, 'cumple', '15 Ω ≤ 20 Ω declarados');
+    assert.equal(i.procedenciaUmbral, 'hipotesis_declarada');
+  });
+
+  test('un tope de 0 Ω o negativo no se cuela: cae al criterio de diseño', () => {
+    // Dividir por él publicaría «∞× el criterio» en un aviso crítico.
+    for (const malo of [0, -5, '20', null, NaN]) {
+      const e = { ...conPat(15), hipotesis: { ...HIPOTESIS, resistenciaTierraMax_ohm: malo } };
+      const i = buscar(evaluarUmbrales(e), 'resistencia_puesta_tierra');
+      assert.equal(i.umbral, 10, `un tope de ${String(malo)} Ω no es un tope`);
+      assert.equal(i.procedenciaUmbral, 'criterio_diseno');
+    }
   });
 
   test('declara que el artículo del RETIE no está verificado en el repositorio', () => {
     const i = buscar(evaluarUmbrales(conPat(4)), 'resistencia_puesta_tierra');
-    assert.equal(i.fuente, 'RETIE');
     assert.match(i.criterio, /NO están verificados/, 'las cifras de norma no se citan de memoria');
+    // ⚠️ CAMBIO DELIBERADO (§ADR-052). La FUENTE decía «RETIE» en la misma celda
+    // en la que el criterio avisa de que el artículo del RETIE no está
+    // verificado aquí: lo que se firma no puede decir las dos cosas. Sin tope
+    // declarado, la fuente es lo que es.
+    assert.equal(i.fuente, 'criterio de diseño (sin norma)');
+    assert.equal(i.procedenciaUmbral, 'criterio_diseno');
+  });
+
+  test('con tope declarado, la fuente es la norma que declare la hipótesis', () => {
+    const e = {
+      ...conPat(4),
+      hipotesis: { ...HIPOTESIS, resistenciaTierraMax_ohm: 25, normaReferencia: 'RETIE Libro 3, Tabla 3.x' },
+    };
+    const i = buscar(evaluarUmbrales(e), 'resistencia_puesta_tierra');
+    assert.equal(i.fuente, 'RETIE Libro 3, Tabla 3.x');
+    assert.match(i.criterio, /procedencia: hipotesis_declarada/);
   });
 });
 

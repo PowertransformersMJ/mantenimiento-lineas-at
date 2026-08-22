@@ -1,7 +1,6 @@
 # 🗺️ 20 — MEMORIA ESPACIAL (dónde vive cada cosa)
 
-> **No se auto-carga.** Se consulta ante desorientación (trigger 🟡 de `CLAUDE.md §G.2`): *"¿dónde
-> está este módulo / esta función / este flujo?"*.
+> **No se auto-carga.** Se consulta ante desorientación (trigger 🟡 de `CLAUDE.md §G.2`).
 > **Regla de frescura:** si mueves, creas, renombras o eliminas algo, actualizas este nodo en el
 > MISMO cambio. Un mapa desactualizado es peor que no tener mapa.
 
@@ -20,7 +19,7 @@
 │       │                                externo). Su README.md es el índice ÚNICO
 │       ├── datos-campo/                 lo que el Ingeniero DIJO o midió en campo. Dato real: se
 │       │                                cita desde el ADR, nunca se copia. NO entra en el índice de
-│       │                                research-archive — es otra cosa
+│       │                                research-archive
 │       ├── entregables/                 mazos e informes ya entregados
 │       ├── fixtures/                    datos reales de cliente que usan las pruebas
 │       └── fotos/                        material de campo (207 archivos, ya versionados)
@@ -28,10 +27,9 @@
 └── mantenimiento-lineas-at/             ← ESTE repo
 ```
 
-**Por qué importa la posición:** el repo debe ser **hermano** de `brain-private/`. Si no, la ruta
-`../brain-private` no resuelve y `npm run brain:pull` y el `archiveDir` del manifiesto se rompen.
-Mover el repo sin mover la bóveda **no da error** — el linter degrada a `info` y sigue diciendo
-"SANO". Se mueven juntos, siempre.
+**Por qué importa la posición:** el repo debe ser **hermano** de `brain-private/`, o `brain:pull` y
+el `archiveDir` se rompen. Moverlo sin la bóveda **no da error**: el linter degrada a `info` y sigue
+diciendo "SANO". Se mueven juntos, siempre.
 
 ---
 
@@ -40,7 +38,7 @@ Mover el repo sin mover la bóveda **no da error** — el linter degrada a `info
 ```
 mantenimiento-lineas-at/
 ├── CLAUDE.md                    tronco encefálico (auto-cargado)
-├── README.md                    puerta de entrada para humanos
+├── README.md                    puerta de entrada humana
 ├── package.json                 los 5 comandos del cerebro + test
 │
 ├── nucleo/                      ⭐ EL ACTIVO: cálculo de ingeniería, funciones PURAS
@@ -60,16 +58,19 @@ mantenimiento-lineas-at/
 │
 ├── contratos/                   ⭐ WORKSPACE @lineas/contratos — los esquemas Zod que ambos lados
 │                                obedecen. `comunes.ts` es el dueño de `VERSION_CONTRATO` (la cifra
-│                                que la app pinta; `package.json` de ese paquete NO manda).
+│                                que la app pinta; el `package.json` del paquete NO manda) y lleva
+│                                el registro de qué cambió en cada versión.
 │                                activos · eventos · rca · ia · index
 │
 ├── tests/                       una por subsistema, con el mismo nombre que él. Las de ORO:
 │   │                            `nucleo.test.js` (la red de la migración) y `exportar.test.js`
-│   └──                          (GPX/KML/CSV contra la tabla del original). Conteo vivo → `05`.
+│   │                            (GPX/KML/CSV contra la tabla del original). Conteo vivo → `05`.
+│   └──                          Las de FRONTERA molde↔motor↔papel, que no se fían de un fixture:
+│                                `campos-del-molde` · `umbral-tierra` · `tope-de-tiro` (`30 · L-68`).
 │
-├── docs/                        las neuronas. **Quién es cada una es del `00-INDICE.md`**, su
-│   └── .brain-manifest.json     dueño: aquí no se repite. Este archivo es la configuración del
-│                                cerebro (topes, archiveDir, kernelFiles) y NO es una neurona
+├── docs/                        las neuronas. **Quién es cada una es del `00-INDICE.md`**: aquí no
+│   └── .brain-manifest.json     se repite. Es la configuración del cerebro (topes, archiveDir,
+│                                kernelFiles) y NO es una neurona
 │
 ├── scripts/                     🔑 KERNEL — NO se edita aquí
 │   ├── .kernel-version.json     sello de integridad (SÍ se commitea)
@@ -147,18 +148,19 @@ mantenimiento-lineas-at/
 │   ├── radiacion.ts             el recurso solar del corredor (ADR-037/046): rampa ajustada al
 │   │                            recorte y su aviso de escala, que va SIEMPRE
 │   ├── temperatura.ts           la temperatura del AIRE del mapa (ADR-039): media, no extremo
-│   ├── coberturaEjes.ts         qué se sabe de CADA apoyo, eje por eje: los 4 estados
-│   │                            (ambos · solo transversal · solo longitudinal · ninguno) y los
-│   │                            textos del horizonte. Lo piden `estadoLinea` y `Horizonte`
+│   ├── coberturaEjes.ts         qué se sabe de CADA apoyo, eje por eje: los 4 estados (ambos · solo
+│   │                            transversal · solo longitudinal · ninguno) y los textos del
+│   │                            horizonte. Lo piden `estadoLinea` y `Horizonte`
 │   ├── estadoLinea.ts           el CIELO de la línea (amanecer/atardecer/tormenta/niebla). Pide el
 │   │                            cruce a `coberturaEjes.ts`: NO lo reimplementa
-│   └── fotosNuevas.ts           (ADR-031) cifras y frases de Fotos, incluido el «106 entrarían
-│                                nuevas» que él lee ANTES de firmar
+│   └── fotosNuevas.ts           (ADR-031) cifras y frases de Fotos, con el «106 entrarían nuevas»
+│                                que él lee ANTES de firmar
 │                                De dónde salió cada uno → `99 §ADR-018`.
 │                                El resto: formato (nf + textoNucleo: coma decimal en la prosa del
 │                                núcleo, L-26) + tramoColores + diagramas.ts (las 9 figuras de
-│                                Fundamentos) + termicaDatos / vientoDatos / criteriosApoyo /
-│                                cargasDatos / longitudinalDatos / planta / tramos.
+│                                Fundamentos) + termicaDatos / vientoDatos / criteriosApoyo (pide el
+│                                tope de tierra al núcleo, ADR-052) / cargasDatos / longitudinalDatos
+│                                / planta / tramos.
 │                                ⚠️ Una vista PROBADA que importe a OTRA lleva `.ts` explícito, o
 │                                `node --test` no resuelve.
 ├── web/src/datos/               repositorio · enlace (useSyncExternalStore, y el dueño de la RUTA
@@ -174,7 +176,7 @@ mantenimiento-lineas-at/
 │                             de MEDIDA (radiación, temperatura) no son imagen: un PNG de valores
 │                             por mes + su ficha (ADR-036/037). Mecánica en `vistas/rejilla.ts`
 │                             ⚠️ DOS recortes que NO se mezclan: `cartagena*` el corredor y
-│                             `caribe*`+`sol-caribe*` los 7 departamentos (ADR-045), perezosos
+│                             `caribe*`+`sol-caribe*` los 7 dptos (ADR-045), perezosos
 ├── web/public/basemaps-assets/  fuentes y sprites del mapa (autohospedados)
 ├── githooks/pre-commit          BLOQUEA el commit: coordenadas reales y cerebro roto
 ├── .claude/settings.json        hooks de sesión (SÍ se commitea; el resto de .claude/ no)
@@ -190,8 +192,9 @@ mantenimiento-lineas-at/
 |---|---|
 | `nucleo/` ↔ resto | `nucleo/` **no importa nada**: ni DOM, ni red, ni base, ni configuración. Entran números, salen números — por eso es probable y portable. |
 | `scripts/*.mjs` | Kernel canónico. Editarlo aquí dispara el gate #0 *"fork prohibido"* y bloquea el commit: se edita en `../brain-private/kernel/`, se bumpea `VERSION` y se reparte con `brain:pull`. |
+| Molde ↔ motor | Un campo que el motor lee de la hipótesis y el molde no admite es una rama INALCANZABLE: `validar()` lo tira en silencio. Lo vigila `tests/campos-del-molde.test.js` (`ADR-052`). |
 | Repo ↔ bóveda | Coordenadas reales, fotos de campo, informes y el HTML original **nunca** cruzan al repo: es **público**. |
-| `docs/` ↔ `CLAUDE.md` | `CLAUDE.md` es router, no bitácora: ahí no va historial ni tareas (`§G.3`). |
+| `docs/` ↔ `CLAUDE.md` | `CLAUDE.md` es router, no bitácora: ni historial ni tareas (`§G.3`). |
 
 ---
 
@@ -199,18 +202,14 @@ mantenimiento-lineas-at/
 
 | Quiero… | Empiezo en… |
 |---|---|
-| entender una fórmula | `docs/40-DOMINIO-LINEAS-AT.md`, luego el módulo de `nucleo/` |
-| saber por qué una prueba espera ese número | `docs/40 §8` (tabla de verificación) |
+| entender una fórmula | `docs/40`, luego el módulo de `nucleo/` |
+| por qué una prueba espera ese número | `docs/40 §8` (tabla de verificación) |
 | añadir un cálculo nuevo | `nucleo/` + prueba en `tests/` en el MISMO cambio |
-| cambiar el comportamiento del cerebro | `../brain-private/kernel/` (no aquí) |
 | ajustar topes de contexto de las neuronas | `docs/.brain-manifest.json` → `caps` |
-| ver el estado real del despliegue | `git fetch` primero — los refs locales mienten (`§3.3`) |
 
 ---
 
 ## §5 — Origen de los datos
 
-El módulo de campo original (`LN-627_Modulo_Campo_10.html`, 30 MB) **no vive en el repo**. Es la
-fuente de la que se portó `nucleo/` y de la que salen los fixtures de la bóveda. Su inventario
-—qué contenía y qué se extrajo de él— está en `docs/40-DOMINIO-LINEAS-AT.md` y en
-`docs/33-LECCIONES-NUCLEO-Y-DATO.md · L-05`.
+El módulo de campo original (`LN-627_Modulo_Campo_10.html`, 30 MB) **no vive en el repo**: de él se
+portó `nucleo/` y de él salen los fixtures de la bóveda. Su inventario → `docs/40` y `33 · L-05`.

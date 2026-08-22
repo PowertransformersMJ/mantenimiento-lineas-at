@@ -379,6 +379,67 @@ export function fugaEspecifica(entrada) {
 // ════════════════════════════════════════════════════════════════════════════
 
 /**
+ * El criterio habitual, escrito como lo que es: una COSTUMBRE DE DISEÑO, no una
+ * norma citada. El artículo y la tabla del RETIE aplicables NO están verificados
+ * contra fuente en este repositorio (`30 · L-09`: las cifras de norma no se
+ * citan de memoria), y por eso el número se publica siempre con su procedencia
+ * al lado en vez de presentarse como si viniera del reglamento.
+ */
+export const UMBRAL_TIERRA_CRITERIO_OHM = 10;
+
+/**
+ * QUÉ TOPE DE PUESTA A TIERRA RIGE, Y DE DÓNDE SALIÓ.
+ *
+ * ⚠️ UN TOPE DE DISEÑO ES UNA DECISIÓN DE INGENIERÍA FECHADA, no una constante
+ * de programa: viaja en la hipótesis, que se versiona y se congela al firmar. Si
+ * la hipótesis no lo declara se usan los 10 Ω de siempre, y se dice.
+ *
+ * Esta función existe porque el número tenía TRES versiones y ninguna miraba a
+ * las otras (`99 §ADR-052`): el motor de umbrales leía `resistenciaTierraMax_ohm`
+ * de la hipótesis —un campo que el MOLDE no admitía, así que la base lo tiraba
+ * en silencio y la rama era inalcanzable—, este módulo caía a un `10` escrito en
+ * la firma, y la ficha del apoyo comparaba contra un `UMBRAL_TIERRA_OHM = 10`
+ * suyo. El día que el Ingeniero declarara 25 Ω, la tabla de umbrales habría
+ * juzgado con 25 y la ficha del mismo apoyo con 10: dos veredictos distintos
+ * sobre la misma estructura, el mismo día. Es el mismo fallo que §ADR-051 cerró
+ * para el tope de tiro, vivo en la pieza hermana (`34 · L-65`).
+ *
+ * El cero y los negativos NO se aceptan como tope: dividir por ellos publicaría
+ * un «∞× el criterio» en un aviso crítico. Caen al criterio de diseño.
+ *
+ * @param {{resistenciaTierraMax_ohm?: number}} [hipotesis]
+ * @returns {{ohm: number, procedencia: 'hipotesis_declarada'|'criterio_diseno'}}
+ */
+export function umbralPuestaTierra(hipotesis) {
+  const d = hipotesis?.resistenciaTierraMax_ohm;
+  const declarado = typeof d === 'number' && Number.isFinite(d) && d > 0 ? d : null;
+  return {
+    ohm: declarado ?? UMBRAL_TIERRA_CRITERIO_OHM,
+    procedencia: declarado != null ? 'hipotesis_declarada' : 'criterio_diseno',
+  };
+}
+
+/**
+ * EL TEXTO DEL CRITERIO DE TIERRA, con dueño único.
+ *
+ * Existe por lo mismo que la función de arriba: la frase que lee el Ingeniero
+ * tiene que decir si los ohmios los puso él o los puso el sistema, y si cada
+ * pantalla la escribe por su cuenta, un día una dirá «criterio de diseño» de un
+ * tope que él declaró. Lo usan el aviso del apoyo y la ficha de la pantalla.
+ *
+ * @param {number} ohm
+ * @param {'hipotesis_declarada'|'criterio_diseno'} procedencia
+ */
+export function textoCriterioTierra(ohm, procedencia) {
+  return procedencia === 'hipotesis_declarada'
+    ? `TOPE DECLARADO EN LA HIPÓTESIS de la línea: resistencia de puesta a tierra ≤ ${ohm} Ω `
+      + '(procedencia: hipotesis_declarada). Se versiona y se congela con ella al firmar.'
+    : `CRITERIO DE DISEÑO (sin norma citada): resistencia de puesta a tierra ≤ ${ohm} Ω `
+      + '(procedencia: criterio_diseno). La hipótesis no declara `resistenciaTierraMax_ohm`; '
+      + 'el valor firme lo fija ella.';
+}
+
+/**
  * La resistencia de puesta a tierra del apoyo es lo que decide si una descarga
  * atmosférica se drena al terreno o eleva el potencial de la estructura hasta
  * cebar el arco DESDE la torre HACIA el conductor (flameo inverso). Una línea
@@ -387,7 +448,11 @@ export function fugaEspecifica(entrada) {
  *
  * El umbral por defecto (10 Ω) es un CRITERIO DE DISEÑO habitual, **no una
  * cifra de norma verificada en este repositorio**: por eso es un parámetro y no
- * una constante escondida. El valor real lo fija la hipótesis del proyecto.
+ * una constante escondida. El valor real lo fija la hipótesis del proyecto, y
+ * quien llama debe pedírselo a `umbralPuestaTierra(hipotesis)` —el dueño único
+ * del número— en vez de dejar correr este defecto: un defecto que se acepta sin
+ * mirar la hipótesis es la tercera versión del tope, que es justo lo que
+ * §ADR-052 vino a cerrar.
  *
  * Un apoyo SIN MEDICIÓN no es un apoyo que cumple: es un apoyo del que no se
  * sabe nada. Se reporta, porque el hueco de evidencia es el hallazgo.
@@ -395,14 +460,17 @@ export function fugaEspecifica(entrada) {
  * @param {Array<{nombre?: string, tipoPunto?: string,
  *                puestaTierra?: {resistencia_ohm?: number},
  *                resistencia_ohm?: number}>} apoyos
- * @param {number} [umbral_ohm=10]
+ * @param {number} [umbral_ohm=UMBRAL_TIERRA_CRITERIO_OHM]
+ * @param {'hipotesis_declarada'|'criterio_diseno'} [procedencia='criterio_diseno'] de dónde
+ *        salió ese umbral. ADITIVO: quien llame con dos argumentos sigue funcionando, pero
+ *        entonces el aviso dice que el número lo puso el sistema — que es la verdad mientras
+ *        nadie le pase la procedencia.
  * @returns {Aviso[]} ordenados de mayor a menor severidad
  */
-export function avisoPuestaTierra(apoyos, umbral_ohm = 10) {
+export function avisoPuestaTierra(apoyos, umbral_ohm = UMBRAL_TIERRA_CRITERIO_OHM,
+                                  procedencia = 'criterio_diseno') {
   const E = soloEstructuras(apoyos);
-  const criterio =
-    `CRITERIO DE DISEÑO (sin norma citada): resistencia de puesta a tierra ≤ ${umbral_ohm} Ω. ` +
-    'Umbral configurable — el valor firme lo fija la hipótesis del proyecto.';
+  const criterio = textoCriterioTierra(umbral_ohm, procedencia);
 
   /** @type {Aviso[]} */
   const avisos = [];

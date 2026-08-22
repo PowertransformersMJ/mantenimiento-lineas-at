@@ -113,6 +113,7 @@
 - `L-52` · Un invariante que la prueba ENUNCIA y la máquina cumple por velocidad no está garantizado
 - `L-61` · La prudencia que borra la señal no es prudencia: separa el error ABSOLUTO del RELATIVO
 - `L-62` · Una pantalla nueva hereda la doctrina del sitio donde se monta, no solo su aspecto
+- `L-68` · Un guardián que compara contra un fixture NO cruza la frontera: tiene que recorrer la tubería
 
 ---
 
@@ -227,6 +228,23 @@
 - **Regla:** el fixture aporta el ORIGEN del dato, no el resultado; y una coordenada resuelta se fija
   con sus 17 cifras (a 15, el factor de 60° cruzó de 0,999…9 a 1,000…096 y el apoyo pasó a contarse
   como amplificador: en un criterio con forma `> 1`, el último bit ES el criterio).
+- **Volvió a pasar (22-08, `ADR-052`)** y esta vez con el papel que se firma: ver `L-68`.
+
+### L-68 · Un guardián que compara contra un fixture NO cruza la frontera: tiene que recorrer la tubería
+- **Síntoma:** `procedenciaUmbral` —el campo que le dice al informe firmable si el tope lo declaró el
+  Ingeniero o lo adoptó el sistema— se ponía en el núcleo desde `ADR-013` y la lista blanca de
+  `fila()` se lo comía. Nadie lo vio en dos meses: las pruebas del informe **construían el indicador
+  a mano, con el campo ya puesto** (es `L-34`, ahora con precio). El informe habría llamado «adoptado
+  por defecto» a un tope declarado por él. Misma forma, tres sitios: el motor leía de la hipótesis
+  campos que el **molde** no admitía y `validar()` los tira EN SILENCIO — sin error y sin aviso—, así
+  que la rama «declarado» era inalcanzable (`ADR-013` con el tope de tiro, `ADR-052` con el de tierra
+  y la corriente de operación).
+- **Regla:** un guardián que solo mira SU lado de la frontera certifica su lado. Si el dato tiene que
+  atravesar molde → base → motor → papel, la prueba **recorre la tubería real** y compara el número
+  del extremo, no un objeto amasado a mano. Y se prueba **en los dos sentidos**: rompe el sistema a
+  propósito y exige que el guardián se ponga rojo — si no lo hace, no estaba vigilando nada
+  (`L-56`). Vigila la FUNCIÓN, no a quien la llama (`32 · L-67`): así cubre también la pieza hermana
+  que todavía no existe.
 
 ### L-39 · Con la familia repartida, una lección nueva se DUPLICA si no buscas el síntoma en los cuatro archivos
 - **Síntoma:** el 04-08-2026 se pagó una tarde a *«Missing or insufficient permissions»* al añadir la

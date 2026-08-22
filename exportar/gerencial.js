@@ -339,7 +339,17 @@ function seccionDecisiones({ indicadores, hipotesis, cargas, umbralUtilizacion }
     filas.push(fila(['<b>Congelar la hipótesis de cálculo</b>',
       'Mientras no esté congelada, las cifras impresas pueden dejar de corresponder sin que nada avise.']));
   }
-  if (!Number.isFinite(objeto(hipotesis).despejeMinimo_m)) {
+  // ⚠️ `despejeMinimo_m` es una TABLA por categoría de terreno —vía, cultivo,
+  // zona habitada—, no un número suelto: un valor único para toda la línea no es
+  // defendible y por eso el molde lo define como registro. Preguntar
+  // `Number.isFinite()` por una tabla da SIEMPRE falso, así que esta decisión
+  // aparecía como pendiente incluso con los cinco mínimos ya declarados y las
+  // demás pantallas usándolos. Un pendiente que nunca se tacha enseña a ignorar
+  // la lista entera, que es la sección más corta y la que más mueve el proyecto.
+  // Se comprueba lo mismo que la pestaña Fundamentos: que la tabla tenga alguna
+  // entrada (§ADR-052).
+  const despejes = objeto(objeto(hipotesis).despejeMinimo_m);
+  if (!Object.keys(despejes).length) {
     filas.push(fila(['<b>Declarar el despeje mínimo por categoría de terreno</b>',
       'Sin él, la verificación de seguridad al terreno queda bloqueada por completo.']));
   }

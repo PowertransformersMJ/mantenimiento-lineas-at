@@ -102,8 +102,21 @@ const veredicto = (valor, umbral, comparador) => {
 };
 
 /** Arma la fila. El orden de las claves es el del typedef, para que el exporte sea estable. */
-const fila = ({ id, etiqueta, valor, unidad, umbral, comparador, estado, criterio, fuente }) =>
-  ({ id, etiqueta, valor, unidad, umbral, comparador, estado, criterio, fuente });
+// ⚠️ ESTA LISTA ES EL CONTRATO DE LA FILA, y por eso se copia campo a campo en
+// vez de dejar pasar el objeto entero: lo que no está aquí NO existe para quien
+// consume la tabla. Justo por eso hay que añadir el campo nuevo también aquí —
+// `procedenciaUmbral` se puso en `base` en §ADR-013 «como CAMPO y no solo dentro
+// de la prosa» y esta lista se lo comía en silencio, así que el informe firmable
+// —que lo lee en `exportar/informe.js` para decir si el tope lo declaró el
+// Ingeniero o lo adoptó el sistema— recibía `undefined` SIEMPRE y llamaba
+// «adoptado por defecto» a un tope declarado. Las pruebas del informe no lo
+// veían porque construían el indicador a mano, con el campo ya puesto: un
+// fixture que miente (`30 · L-33`). Lo caza `tests/umbral-tierra.test.js`
+// recorriendo la tabla REAL (§ADR-052).
+const fila = ({ id, etiqueta, valor, unidad, umbral, comparador, estado, criterio, fuente,
+                procedenciaUmbral }) =>
+  ({ id, etiqueta, valor, unidad, umbral, comparador, estado, criterio, fuente,
+     ...(procedenciaUmbral === undefined ? {} : { procedenciaUmbral }) });
 
 /**
  * La fila cuando falta el dato. Conserva umbral y comparador a propósito: el
@@ -519,14 +532,36 @@ function indicadorDespeje(apoyos, hipotesis) {
 // existe. Si solo una parte de los apoyos está medida se evalúa lo medido y se
 // declara la cobertura — un verde sobre 3 de 40 apoyos no es un verde de línea.
 function indicadorPuestaTierra(apoyos, hipotesis) {
-  const umbral = numero(hipotesis.resistenciaTierraMax_ohm) ?? 10;
+  // Mismo criterio que `umbralPuestaTierra()` de coherencia.js, que es el dueño
+  // único del número para las pantallas. Aquí se repite en vez de importarse
+  // porque este módulo es PURO a propósito (ver cabecera), y lo que garantiza
+  // que los dos no se separen no es la buena voluntad: es el guardián de
+  // `tests/umbral-tierra.test.js`, que declara un tope propio y exige que motor,
+  // tabla y ficha den el MISMO número. Cero y negativos caen al criterio: un
+  // tope de 0 Ω publicaría «∞× el criterio» en la ficha del apoyo.
+  const declarado = numero(hipotesis.resistenciaTierraMax_ohm);
+  const valido = declarado != null && declarado > 0 ? declarado : null;
+  const umbral = valido ?? 10;
+  const procedencia = valido != null ? 'hipotesis_declarada' : 'criterio_diseno';
   const base = {
     id: 'resistencia_puesta_tierra',
     etiqueta: 'Resistencia de puesta a tierra (peor apoyo medido)',
     unidad: 'Ω',
     umbral,
+    // ADITIVO, igual que en la fila del tiro (§ADR-013): de dónde salió el
+    // umbral, como CAMPO y no solo dentro de la prosa del criterio. Quien quiera
+    // repetir la frase correctamente no debería tener que leerse un párrafo con
+    // una expresión regular.
+    procedenciaUmbral: procedencia,
     comparador: '<=',
-    fuente: FUENTES.retie,
+    // La FUENTE dice de dónde viene el criterio, y hasta hoy decía «RETIE» en la
+    // misma celda en la que el texto avisa de que el artículo del RETIE no está
+    // verificado aquí. Lo que se firma no puede decir las dos cosas: sin tope
+    // declarado la fuente es lo que es —un criterio de diseño sin norma—, y con
+    // tope declarado es la norma que el Ingeniero haya puesto en su hipótesis.
+    fuente: valido != null
+      ? (hipotesis.normaReferencia || 'hipótesis de cálculo de la línea')
+      : FUENTES.diseno,
   };
 
   const medidas = apoyos
@@ -551,8 +586,10 @@ function indicadorPuestaTierra(apoyos, hipotesis) {
     criterio: `${cobertura}${medidas.length < apoyos.length ? ' — el resto no está medido, así que este '
       + 'resultado NO es un veredicto de la línea completa' : ''}. Peor caso: ${f(peor.r, 2)} Ω en ${nombre}`
       + `${excedidos ? `; ${excedidos} apoyo(s) por encima del umbral` : ''}. `
-      + `Umbral de ${f(umbral, 0)} Ω ${numero(hipotesis.resistenciaTierraMax_ohm) != null
-        ? 'declarado en la hipótesis' : 'adoptado por defecto'}: el artículo y la tabla del RETIE aplicables `
+      + `Umbral de ${f(umbral, 0)} Ω ${valido != null
+        ? `tomado de la hipótesis de la línea (procedencia: ${procedencia})`
+        : `adoptado por defecto (procedencia: ${procedencia}): la hipótesis no declara `
+          + '`resistenciaTierraMax_ohm`'}. El artículo y la tabla del RETIE aplicables `
       + 'NO están verificados con fuente en este repositorio. Confirmar antes de firmar.',
   });
 }
@@ -564,7 +601,13 @@ function indicadorPuestaTierra(apoyos, hipotesis) {
 // único dueño. Sin corriente declarada no hay indicador — y esa corriente es un
 // dato de operación que el sistema no puede deducir de la geometría.
 function indicadorAmpacidad(conductor, hipotesis) {
-  const ampacidad_A = numero(conductor.ampacidad_A) ?? numero(hipotesis.ampacidad_A);
+  // SOLO del conductor, a propósito. Hasta §ADR-052 había un `?? hipotesis.ampacidad_A`
+  // detrás: una rama MUERTA —el molde no admite ese campo, así que la base lo
+  // descartaba en silencio— y, si hubiera vivido, un SEGUNDO dueño de un número
+  // que tiene uno solo (`nucleo/termica.js`, IEEE 738). Una ampacidad declarada
+  // a mano en la hipótesis competiría con la calculada con el ambiente real, y
+  // la de placa siempre gana por optimista.
+  const ampacidad_A = numero(conductor.ampacidad_A);
   const base = {
     id: 'ampacidad_vs_corriente',
     etiqueta: 'Corriente de operación frente a la ampacidad',

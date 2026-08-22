@@ -131,6 +131,38 @@ describe('criterios 2 a 5 — lo que hoy NO se puede evaluar, y lo dice', () => 
     assert.notEqual(f.veredicto, 'cumple');
   });
 
+  test('el tope de tierra DECLARADO en la hipótesis manda sobre el criterio', () => {
+    // El caso que hoy no se da y que rompía la coherencia: 18 Ω medidos. Con el
+    // criterio de diseño (10 Ω) es «revisar»; con 25 Ω declarados por el
+    // Ingeniero, «cumple». Hasta §ADR-052 esta ficha comparaba contra un 10 Ω
+    // escrito en su propio código y habría dicho «revisar» mientras la pestaña
+    // Umbrales, que sí leía la hipótesis, decía «cumple»: dos veredictos sobre
+    // el mismo apoyo el mismo día.
+    const medido = apoyo({ puestaTierra: { resistencia_ohm: 18 } });
+
+    const sinDeclarar = buscar(criteriosDeApoyo(medido, { deflexion_grados: 5 }), 'tierra');
+    assert.equal(sinDeclarar.veredicto, 'revisar', '18 Ω > 10 Ω del criterio de diseño');
+    assert.match(sinDeclarar.criterio, /criterio_diseno/);
+
+    const declarado = buscar(criteriosDeApoyo(medido, {
+      deflexion_grados: 5, resistenciaTierraMax_ohm: 25,
+    }), 'tierra');
+    assert.equal(declarado.veredicto, 'cumple', '18 Ω ≤ 25 Ω declarados en la hipótesis');
+    assert.match(declarado.criterio, /25 Ω/);
+    assert.match(declarado.criterio, /hipotesis_declarada/,
+      'la ficha tiene que decir que el tope lo declaró él, no el sistema');
+  });
+
+  test('un empalme cita el MISMO tope que el apoyo de al lado', () => {
+    // No juzga nada, pero si citara 10 Ω mientras la estructura vecina cita los
+    // 25 Ω declarados, la pantalla volvería a tener dos versiones del número.
+    const f = buscar(criteriosDeApoyo(
+      apoyo({ tipoPunto: 'Empalme' }), { deflexion_grados: null, resistenciaTierraMax_ohm: 25 },
+    ), 'tierra');
+    assert.equal(f.veredicto, 'no_evaluable');
+    assert.match(f.criterio, /25 Ω/);
+  });
+
   test('el vano peso SIEMPRE es no evaluable con este levantamiento', () => {
     // No es un pendiente de programación: la altimetría de un GPS de mano (±8 m)
     // no da la cota del punto de sujeción, y sin ella el vano peso no existe.
