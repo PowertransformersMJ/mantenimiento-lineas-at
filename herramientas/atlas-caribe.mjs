@@ -143,8 +143,28 @@ async function pedir(url, intentos = 4) {
 const hoy = () => new Date().toISOString().slice(0, 10).replace(/-/g, '');
 const diasDelMes = (a, m) => new Date(a, m, 0).getDate();
 
+/**
+ * DE LA UNIDAD DE LA FUENTE A LA UNIDAD QUE SE PUBLICA.
+ *
+ * ⚠️ EXISTE POR UN FACTOR DE 24 QUE NO SE VE. En el paso HORARIO, NASA publica
+ * `PRECTOTCORR` como una TASA en mm/día — «si lloviera a este ritmo todo el
+ * día»—, no como los milímetros que cayeron en esa hora. Medido y comprobado
+ * contra el agregado diario oficial: la MEDIA de las 24 tasas horarias es
+ * exactamente el total del día (37,76/24 = 1,57 mm, y el diario dice 1,57).
+ * Publicar el crudo habría enseñado «17,5 mm en esa hora» donde cayeron 0,73.
+ *
+ * El viento pasa de m/s a km/h por lo mismo pero al revés: la hipótesis de la
+ * línea está en km/h y comparar dos unidades a ojo es como se cuelan los errores
+ * de un orden de magnitud.
+ *
+ * Se aplica AL BAJAR, para que todo lo demás —extremos, codificación, ficha—
+ * trabaje ya en la unidad publicada y no haya dos verdades en el mismo archivo.
+ * El hueco (`<= -900`) NO se multiplica: sigue siendo hueco.
+ */
+const convertir = (v, factor) => (v === null || !Number.isFinite(v) || v <= -900 ? v : v * factor);
+
 // ── 1 · Las horas, celda por celda ──────────────────────────────────────────
-async function bajarHorario(param, desde, hasta, aviso) {
+async function bajarHorario(param, desde, hasta, aviso, factor = 1) {
   const celdas = new Map();
   let n = 0;
   for (let fy = 0; fy < ALTO; fy++) {
@@ -157,7 +177,8 @@ async function bajarHorario(param, desde, hasta, aviso) {
       const j = await pedir(u);
       const serie = j?.properties?.parameter?.[param];
       if (!serie) throw new Error(`la celda ${lon},${lat} no trajo el parámetro ${param}`);
-      celdas.set(`${fx},${fy}`, serie);
+      celdas.set(`${fx},${fy}`, factor === 1 ? serie
+        : Object.fromEntries(Object.entries(serie).map(([k, v]) => [k, convertir(v, factor)])));
       aviso?.(++n, ANCHO * ALTO);
     }
   }
@@ -168,7 +189,7 @@ async function bajarHorario(param, desde, hasta, aviso) {
 //
 // Mediana regional por día: un promedio se lo lleva la celda extrema, y aquí lo
 // que se enseña es «cómo fue el día en la región», no un total.
-async function bajarDiario(param, desde, hasta) {
+async function bajarDiario(param, desde, hasta, factor = 1) {
   const u = `https://power.larc.nasa.gov/api/temporal/daily/regional?parameters=${param}`
     + `&community=RE&latitude-min=${SUR}&latitude-max=${NORTE}`
     + `&longitude-min=${OESTE}&longitude-max=${ESTE}&start=${desde}&end=${hasta}&format=JSON`;
@@ -185,7 +206,7 @@ async function bajarDiario(param, desde, hasta) {
   return [...porDia.entries()].sort().map(([d, vs]) => {
     vs.sort((a, b) => a - b);
     return { d: `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`,
-      v: +vs[Math.floor(vs.length / 2)].toFixed(2) };
+      v: +(vs[Math.floor(vs.length / 2)] * factor).toFixed(2) };
   });
 }
 
@@ -261,6 +282,41 @@ const RAMPA_TEMP = [
   { c: 44, rgb: [110, 25, 40] },
 ];
 
+/**
+ * ⚠️ LA RAMPA DEL VIENTO. Va de la calma al viento que de verdad sopla en la
+ * región, NO hasta los 100 km/h de la hipótesis: estirarla hasta ahí dejaría
+ * todo el mapa del mismo color, porque una media horaria de un año no se acerca
+ * a un extremo de diseño. La escala se ajusta a lo medido y el aviso explica por
+ * qué ese extremo NO se marca aquí.
+ */
+const RAMPA_VIENTO = [
+  { c: 0, rgb: [235, 238, 240] },
+  { c: 5, rgb: [200, 220, 230] },
+  { c: 10, rgb: [150, 195, 205] },
+  { c: 15, rgb: [110, 170, 165] },
+  { c: 20, rgb: [130, 175, 110] },
+  { c: 25, rgb: [200, 190, 90] },
+  { c: 30, rgb: [235, 155, 60] },
+  { c: 40, rgb: [215, 85, 50] },
+  { c: 55, rgb: [140, 30, 45] },
+];
+
+/**
+ * ⚠️ LA RAMPA DE LA LLUVIA arranca en el BLANCO DEL PAPEL, no en un azul claro:
+ * la hora sin lluvia es la mayoría de las horas del año, y pintarla de color
+ * llenaría el mapa de agua que no cayó. El azul aparece cuando llueve.
+ */
+const RAMPA_LLUVIA = [
+  { c: 0, rgb: [245, 241, 232] },
+  { c: 0.5, rgb: [205, 225, 230] },
+  { c: 1.5, rgb: [150, 200, 220] },
+  { c: 3, rgb: [95, 165, 210] },
+  { c: 6, rgb: [55, 120, 190] },
+  { c: 12, rgb: [40, 80, 160] },
+  { c: 22, rgb: [70, 45, 130] },
+  { c: 45, rgb: [90, 25, 90] },
+];
+
 export const PERFILES = Object.freeze({
   sol: Object.freeze({
     capa: 'sol-caribe',
@@ -314,6 +370,73 @@ export const PERFILES = Object.freeze({
       + 'no los sustituye por una medida de sitio.',
     fuente: 'NASA POWER (MERRA-2), parámetro T2M, comunidad RE',
   }),
+
+  viento: Object.freeze({
+    capa: 'viento-caribe',
+    prefijo: 'viento-caribe',
+    param: 'WS10M',
+    // A 10 m y no a 2 m: 10 m es la altura meteorológica estándar y la más
+    // cercana a la del conductor. A 2 m el suelo frena el aire y el número sale
+    // corto justo donde importa.
+    paramDiario: 'WS10M_MAX',
+    // De m/s a km/h. La hipótesis de la línea está en km/h, y comparar dos
+    // unidades a ojo es como se cuelan los errores de un orden de magnitud.
+    factor: 3.6,
+    factorDiario: 3.6,
+    titulo: 'Viento del Caribe colombiano, hora a hora',
+    unidad: 'km/h',
+    // paso 0,4 → hasta 101,6 km/h representables, por encima incluso del extremo
+    // adoptado. El motor comprueba el encaje y se niega a publicar si se sale.
+    codificacion: { offset: 0, paso: 0.4, sin_dato: 0 },
+    rampa: RAMPA_VIENTO,
+    // ⚠️ NO se marca la hipótesis, y es deliberado. Ver el aviso.
+    hipotesisMarcadaEnRampa: undefined,
+    etiquetaHipotesis: undefined,
+    resumenDiarioEtiqueta: 'Máxima del día',
+    resumenDiarioUnidad: 'km/h (mediana regional de la máxima diaria)',
+    resumenDiarioAviso: 'Es la máxima de cada celda, resumida por la mediana de las 36: '
+      + 'no es la máxima de la región, que siempre será mayor.',
+    aviso: 'ESTE MAPA NO VALIDA NI DESMIENTE LA HIPÓTESIS DE VIENTO, y por eso los '
+      + '100 km/h adoptados NO están marcados en la escala. La hipótesis es un EXTREMO DE DISEÑO '
+      + '—una velocidad con periodo de retorno de decenas de años—; esto son medias horarias de UN '
+      + 'año sobre celdas de 111 km. Que ningún día de 2026 se acerque a esa cifra no dice nada '
+      + 'sobre si el extremo es correcto, y creerlo sería el error caro. Sirve para la semana de '
+      + 'trabajo —el viento es carga sobre la estructura y es seguridad de la cuadrilla— y para '
+      + 'saber cómo sopla la región; cerrar la hipótesis pide una serie con extremos y periodo de '
+      + 'retorno, no una media.',
+    fuente: 'NASA POWER (MERRA-2), parámetro WS10M, comunidad RE',
+  }),
+
+  lluvia: Object.freeze({
+    capa: 'lluvia-caribe',
+    prefijo: 'lluvia-caribe',
+    param: 'PRECTOTCORR',
+    paramDiario: 'PRECTOTCORR',
+    // ⚠️ EL FACTOR QUE NO SE VE. En el paso horario NASA publica esto como una
+    // TASA en mm/día, no como los milímetros de esa hora. Comprobado contra el
+    // agregado diario oficial: la media de las 24 tasas ES el total del día. Sin
+    // este 1/24, una hora de 17,5 se leería como un aguacero cuando cayeron 0,73.
+    factor: 1 / 24,
+    // El diario SÍ viene ya en milímetros del día: no se toca.
+    factorDiario: 1,
+    titulo: 'Lluvia del Caribe colombiano, hora a hora',
+    unidad: 'mm',
+    // paso 0,25 → hasta 63,5 mm en una hora, muy por encima de cualquier aguacero
+    // que una media de celda de 111 km pueda producir.
+    codificacion: { offset: 0, paso: 0.25, sin_dato: 0 },
+    rampa: RAMPA_LLUVIA,
+    hipotesisMarcadaEnRampa: undefined,
+    etiquetaHipotesis: undefined,
+    resumenDiarioEtiqueta: 'Total del día',
+    resumenDiarioUnidad: 'mm caídos en el día (mediana regional)',
+    resumenDiarioAviso: 'Es el total de cada celda, resumido por la mediana de las 36: '
+      + 'la celda más lluviosa de ese día recibió más.',
+    aviso: 'Son los milímetros caídos en cada hora, promediados sobre una celda de 111 km: un '
+      + 'aguacero de media hora sobre un apoyo se reparte y sale más flojo de lo que fue. Sirve '
+      + 'para decidir la semana —si se sube o no se sube— y para leer la temporada; NO es una '
+      + 'medición de pluviómetro ni sustituye al sondeo del IDEAM, que sí es un hecho fechado.',
+    fuente: 'NASA POWER (MERRA-2), parámetro PRECTOTCORR, comunidad RE',
+  }),
 });
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -327,10 +450,10 @@ export async function construirAtlas(perfil, { salida = 'web/public/mapas', anio
 
   console.log(`· ${perfil.capa} · horas: ${ANCHO * ALTO} celdas, ${desde} → ${hasta}`);
   const celdas = await bajarHorario(perfil.param, desde, hasta,
-    (n, t) => process.stdout.write(`\r  ${n}/${t}`));
+    (n, t) => process.stdout.write(`\r  ${n}/${t}`), perfil.factor ?? 1);
   console.log('');
   console.log(`· resumen del día (${perfil.paramDiario}): 1 llamada regional`);
-  const diario = await bajarDiario(perfil.paramDiario, desde, hasta);
+  const diario = await bajarDiario(perfil.paramDiario, desde, hasta, perfil.factorDiario ?? 1);
 
   // Hasta dónde llega CADA cosa. Se mide, no se supone.
   let ultimaHora = null;

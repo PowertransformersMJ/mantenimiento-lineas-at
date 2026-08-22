@@ -95,9 +95,10 @@ mantenimiento-lineas-at/
 ├── evidencias/                  🚪 EL PORTERO (Worker, ADR-010 + **ADR-031**): verifica la FIRMA del
 │                                token. `GET` sirve, `PUT` acepta bajo diez cerrojos.
 │                                🚫 **NO borra y NO lista** — con prueba que lo bloquea
-├── herramientas/atlas-caribe.mjs EL MOTOR de los dos atlas (ADR-053). Cada uno es un PERFIL:
-│                                `sol-caribe.mjs` (ADR-045; ⚠️ ese nombre lo llama el vigía y no se
-│                                cambia) y `temp-caribe.mjs` (ADR-053)
+├── herramientas/atlas-caribe.mjs EL MOTOR de los CUATRO atlas (ADR-053/055), cada uno un PERFIL:
+│                                `sol-caribe` (⚠️ ese nombre lo llama el vigía) · `temp-caribe` ·
+│                                `viento-caribe` · `lluvia-caribe`. El perfil lleva `factor`: la
+│                                lluvia horaria de NASA es una TASA mm/día, va ÷24 (ADR-055)
 ├── herramientas/teselas/        construir-raster.py — rehace las capas del mapa desde datos
 │                             abiertos. ⚠️ ÚNICO Python del repo; no lo usan app ni pruebas
 ├── herramientas/                sembrar.mjs (línea + expediente) · subir-evidencias.mjs (fotos) ·
@@ -118,9 +119,9 @@ mantenimiento-lineas-at/
 ├── web/src/componentes/         React SOLO pinta (ADR-005): Linea (las pestañas ARIA —cuántas son,
 │                                en `05`— **y** la carcasa de 3 columnas), **RedDeSeguridad** (la red
 │                                que evita la página en blanco de TODA la aplicación, montada en
-│                                `web/src/main.tsx`), **AtlasCaribe** (LOS DOS atlas, ADR-045/053:
-│                                pantalla propia, y embebido PEREZOSO en Detalle GPS con la línea
-│                                marcada), Horizonte (los apoyos en su orden real), Mapa (popup +
+│                                `web/src/main.tsx`), **AtlasCaribe** (LOS CUATRO atlas con selector,
+│                                ADR-045/053/055: pantalla propia, y embebido PEREZOSO en Detalle GPS
+│                                con la línea marcada), Horizonte (los apoyos en su orden real), Mapa (popup +
 │                                tramos + marcador de falla), Distribucion, Distancias, DetalleGps
 │                                (el mapa a pantalla: MISMO Mapa con `panelALado`, ADR-042), Fichas
 │                                (+FichaEditor · FichaLote, admin, ADR-038), FichaCriterios,
@@ -141,13 +142,13 @@ mantenimiento-lineas-at/
 │   │                            `sondeos_clima`. Las acciones CAPA van APARTE del análisis a
 │   │                            propósito → `99 §ADR-020`)
 │   ├── fichaLote.ts             quién puede recibir un dato de catálogo (ADR-038)
-│   ├── cableGuarda.ts           los tramos SIN cable de guarda, vano a vano (ADR-044). El hueco
-│   │                            significa NO CONSTA, nunca «lo lleva»
+│   ├── cableGuarda.ts           los tramos SIN cable de guarda (ADR-044). El hueco significa NO
+│   │                            CONSTA, nunca «lo lleva»
 │   ├── atlasCaribe.ts           el cuadro de una hora de CUALQUIERA de los dos atlas (ADR-053)
 │   ├── radiacion.ts             el recurso solar del corredor (ADR-037/046): rampa ajustada al
-│   │                            recorte y su aviso de escala, SIEMPRE
+│   │                            recorte y su aviso de escala
 │   ├── temperatura.ts           el AIRE del corredor (ADR-039): media, no extremo.
-│   │                            ⚠️ NO es el atlas regional: otra fuente y otro recuadro
+│   │                            ⚠️ NO es el atlas regional: otra fuente, otro recuadro
 │   ├── coberturaEjes.ts         qué se sabe de CADA apoyo, eje por eje: los 4 estados y los textos
 │   │                            del horizonte. Lo piden `estadoLinea` y `Horizonte`
 │   ├── estadoLinea.ts           el CIELO de la línea (amanecer/atardecer/tormenta/niebla). Pide el
@@ -172,11 +173,10 @@ mantenimiento-lineas-at/
 │                                primero el OBJETO, después la FICHA) · **pronostico.ts** (ADR-035: la
 │                                ÚNICA pieza del mapa que pide internet, y NO guarda nada)
 ├── web/public/mapas/            Callejero y satelital: PMTiles del MISMO bbox (ADR-034). Capas
-│                             de MEDIDA (radiación, temperatura) no son imagen: un PNG de valores
-│                             por mes + su ficha (ADR-036/037). Mecánica en `vistas/rejilla.ts`
+│                             de MEDIDA no son imagen: un PNG de valores + su ficha (ADR-036/037).
+│                             Mecánica en `vistas/rejilla.ts`
 │                             ⚠️ DOS recortes que NO se mezclan: `cartagena*` el corredor y
-│                             `caribe*`+`sol-caribe*`+`temp-caribe*` los 7 dptos (ADR-045/053),
-│                             perezosos
+│                             `caribe*`+`sol|temp|viento|lluvia-caribe*` los 7 dptos, perezosos
 ├── web/public/basemaps-assets/  fuentes y sprites del mapa
 ├── githooks/pre-commit          BLOQUEA el commit: coordenadas reales y cerebro roto
 ├── .claude/settings.json        hooks de sesión (SÍ se commitea; el resto de .claude/ no)

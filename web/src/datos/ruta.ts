@@ -23,13 +23,15 @@
  * ingenieros pueden discutir cifras creyendo que miran la misma.
  *
  *   #/sol            → el atlas solar del Caribe (no depende de ninguna línea)
- *   #/temperatura    → el atlas de temperatura del aire, su gemelo
+ *   #/temperatura    → el atlas de temperatura del aire
+ *   #/viento         → el atlas de viento
+ *   #/lluvia         → el atlas de lluvia
  *   #/rca            → el índice de análisis
  *   #/rca/<codigo>   → un análisis concreto
  *   #/<linea>/<pest> → una línea en una pestaña (ya existía y no se toca)
  */
 /** Los atlas regionales. La clave es la del componente, no un texto suelto. */
-export type ClaveAtlas = 'sol' | 'temperatura';
+export type ClaveAtlas = 'sol' | 'temperatura' | 'viento' | 'lluvia';
 
 /**
  * QUÉ DIRECCIÓN ABRE CADA ATLAS. Una tabla y no un `if` por atlas: añadir el
@@ -39,9 +41,19 @@ export type ClaveAtlas = 'sol' | 'temperatura';
 export const HASH_ATLAS: Record<ClaveAtlas, string> = {
   sol: '#/sol',
   temperatura: '#/temperatura',
+  viento: '#/viento',
+  lluvia: '#/lluvia',
 };
 
-const POR_HASH: Record<string, ClaveAtlas> = { sol: 'sol', temperatura: 'temperatura' };
+/**
+ * La vuelta: de la dirección a la clave. Se DERIVA de la tabla de arriba en vez
+ * de escribirse otra vez — con dos listas, el día que se añada el quinto atlas
+ * una de las dos se olvidará y `#/loquesea` abriría el atlas de al lado sin dar
+ * un solo error.
+ */
+const POR_HASH: Record<string, ClaveAtlas> = Object.fromEntries(
+  Object.entries(HASH_ATLAS).map(([clave, hash]) => [hash.replace('#/', ''), clave as ClaveAtlas]),
+);
 
 export type Ruta =
   | { tipo: 'atlas'; cual: ClaveAtlas }

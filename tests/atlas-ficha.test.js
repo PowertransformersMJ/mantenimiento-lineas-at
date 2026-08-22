@@ -31,12 +31,12 @@ import { mesesOfrecidos, bandaDelDia, resumenDelDia } from '../web/src/vistas/at
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MAPAS = join(RAIZ, 'web/public/mapas');
 
-/** Los dos productos publicados. Añadir un tercero es una fila aquí. */
-const ATLAS = ['sol-caribe', 'temp-caribe'];
+/** Los productos publicados. Añadir uno es una fila aquí. */
+const ATLAS = ['sol-caribe', 'temp-caribe', 'viento-caribe', 'lluvia-caribe'];
 
 const ficha = (prefijo) => JSON.parse(readFileSync(join(MAPAS, `${prefijo}.json`), 'utf-8'));
 
-describe('los dos atlas están publicados y son legibles', () => {
+describe('los atlas están publicados y son legibles', () => {
   for (const prefijo of ATLAS) {
     test(`${prefijo}: la ficha existe y trae lo que la pantalla pide`, () => {
       assert.ok(existsSync(join(MAPAS, `${prefijo}.json`)), `falta ${prefijo}.json`);
@@ -121,26 +121,53 @@ describe('los dos atlas están publicados y son legibles', () => {
 });
 
 // ════════════════════════════════════════════════════════════════════════════
-describe('los dos atlas son gemelos, no primos', () => {
+describe('los atlas son gemelos, no primos', () => {
   test('mismo recuadro, misma malla y los mismos siete departamentos', () => {
-    const [sol, temp] = ATLAS.map(ficha);
-    assert.deepEqual(sol.bbox, temp.bbox, 'los dos atlas tienen que cubrir lo mismo');
-    assert.equal(sol.ancho, temp.ancho);
-    assert.equal(sol.alto, temp.alto);
-    assert.deepEqual(sol.departamentos, temp.departamentos);
-    assert.deepEqual(sol.cuadros, temp.cuadros);
+    const [primero, ...resto] = ATLAS.map(ficha);
+    for (const f of resto) {
+      assert.deepEqual(f.bbox, primero.bbox, `${f.capa} no cubre el mismo recuadro`);
+      assert.equal(f.ancho, primero.ancho, `${f.capa}: otra malla`);
+      assert.equal(f.alto, primero.alto, `${f.capa}: otra malla`);
+      assert.deepEqual(f.departamentos, primero.departamentos, `${f.capa}: otros departamentos`);
+      assert.deepEqual(f.cuadros, primero.cuadros, `${f.capa}: otro empaquetado`);
+    }
   });
 
-  test('cada uno mide lo SUYO: ni la unidad ni la marca de hipótesis se repiten', () => {
-    const [sol, temp] = ATLAS.map(ficha);
-    assert.notEqual(sol.unidad, temp.unidad);
-    assert.notEqual(sol.capa, temp.capa);
-    // La marca de la rampa es lo que convierte el mapa en una conversación: en
-    // el sol son los 1.000 W/m² adoptados de la ampacidad; en la temperatura,
-    // los 32 °C del escenario de referencia. Si un día coincidieran, una de las
-    // dos estaría copiada de la otra.
-    assert.notEqual(sol.hipotesisMarcadaEnRampa, temp.hipotesisMarcadaEnRampa);
-    assert.equal(temp.hipotesisMarcadaEnRampa, 32,
-      'la marca de la temperatura es el escenario de REFERENCIA de la pestaña Térmica');
+  test('cada uno mide lo SUYO: ni la capa ni la unidad se repiten', () => {
+    const fichas = ATLAS.map(ficha);
+    const capas = fichas.map((f) => f.capa);
+    assert.equal(new Set(capas).size, capas.length, 'dos atlas comparten nombre de capa');
+    const unidades = fichas.map((f) => f.unidad);
+    assert.equal(new Set(unidades).size, unidades.length,
+      'dos atlas publican la misma unidad: o uno está copiado del otro, o falta convertir');
+  });
+
+  test('la marca de hipótesis está donde tiene sentido, y NO donde engañaría', () => {
+    const por = Object.fromEntries(ATLAS.map((p) => [p, ficha(p)]));
+    // Donde el mapa SÍ puede acercar la conversación, se marca:
+    assert.equal(por['sol-caribe'].hipotesisMarcadaEnRampa, 1000,
+      'el sol marca los 1.000 W/m² adoptados de la ampacidad');
+    assert.equal(por['temp-caribe'].hipotesisMarcadaEnRampa, 32,
+      'la temperatura marca el escenario de REFERENCIA de la pestaña Térmica');
+    // ⚠️ Y donde NO, no se marca. El viento de la hipótesis son 100 km/h con
+    // periodo de retorno de decenas de años; un año de medias horarias ni lo
+    // confirma ni lo desmiente, y marcarlo invitaría a la comparación falsa que
+    // `99 §ADR-035` ya prohibió para el pronóstico.
+    assert.equal(por['viento-caribe'].hipotesisMarcadaEnRampa, undefined,
+      'el viento NO puede marcar los 100 km/h: son un extremo de diseño, no un día');
+    assert.match(por['viento-caribe'].aviso, /NO VALIDA NI DESMIENTE/,
+      'y el aviso tiene que decirlo con esas palabras');
+    assert.equal(por['lluvia-caribe'].hipotesisMarcadaEnRampa, undefined);
+  });
+
+  test('la lluvia horaria está en milímetros de esa hora, no en la tasa de la fuente', () => {
+    // ⚠️ EL FACTOR DE 24. NASA publica el paso horario de `PRECTOTCORR` como una
+    // TASA en mm/día. Sin convertir, una hora se leería 24 veces más lluviosa de
+    // lo que fue. El máximo publicado tiene que ser compatible con milímetros de
+    // una hora — con la tasa cruda, el máximo del año rondaría los 1.000.
+    const f = ficha('lluvia-caribe');
+    assert.equal(f.unidad, 'mm');
+    assert.ok(f.medido.max < 100,
+      `el máximo publicado (${f.medido?.max}) parece la tasa mm/día sin dividir entre 24`);
   });
 });

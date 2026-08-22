@@ -5130,3 +5130,78 @@ flecha, viento y veredicto mecánico»*.
 
 `brain-private/mantenimiento-lineas-at/fixtures/LN-627-geometria-ampliacion-2026-08-21.json` (el
 fixture donde él autora, con la corrección fechada) y `fixtures/gpx/Waypoints_21-AUG-26.gpx`.
+
+---
+
+## ADR-055 · 2026-08-22 · El tiempo del año entero: viento y lluvia entran como atlas, porque un pronóstico no llega hasta diciembre
+
+**Estado:** ✅ Decidido · **NO revisada externamente** · ⏳ pendiente de verificar en vivo.
+
+### Contexto
+
+El Ingeniero pidió *«que el pronóstico del tiempo se pueda apreciar a lo largo del año por cada mes
+por cada día, que me permita escoger o filtrar»*.
+
+Lo pedido no cabe en el pronóstico, y no por una limitación técnica: **un pronóstico mira hacia
+adelante unos días**. La capa de `ADR-035` trae MET Norway en tiempo real y tiene además una decisión
+de fondo que sigue en pie — *no se guarda nunca*, porque un pronóstico archivado se leería dentro de
+un año como si alguien hubiera medido algo. Lo que recorre el año día a día es el **histórico
+medido**, que es exactamente lo que hacen los atlas del Caribe (`ADR-045/053`).
+
+### Decisión
+
+- **Dos atlas nuevos con el mismo motor: VIENTO y LLUVIA.** Con el sol y la temperatura ya
+  publicados, el Ingeniero tiene el tiempo de 2026 completo: mes, día y hora, con selector. Es su
+  petición literal, servida por la máquina que ya existía.
+- **El viento va a 10 m (`WS10M`), no a 2 m**: 10 m es la altura meteorológica estándar y la más
+  cercana a la del conductor; a 2 m el suelo frena el aire y el número sale corto justo donde importa.
+  Se publica en **km/h**, la unidad de la hipótesis, porque comparar m/s con km/h a ojo es como se
+  cuelan los errores de un orden de magnitud.
+- **⚠️ EL VIENTO NO MARCA LA HIPÓTESIS EN LA ESCALA, y es deliberado.** Los 100 km/h adoptados son un
+  EXTREMO DE DISEÑO con periodo de retorno de decenas de años; esto son medias horarias de UN año
+  sobre celdas de 111 km. Marcarlos invitaría a la comparación falsa que `ADR-035` ya prohibió para
+  el pronóstico: *«que el jueves sople menos no dice nada sobre si el extremo adoptado es correcto, y
+  creerlo sería el error caro»*. El aviso lo dice con esas palabras y el guardián lo exige.
+- **LA LLUVIA LLEVA UN FACTOR DE 24 QUE NO SE VE.** En el paso horario NASA publica `PRECTOTCORR`
+  como una **TASA en mm/día** —«si lloviera a este ritmo todo el día»—, no como los milímetros de esa
+  hora. Comprobado contra el agregado diario oficial: la media de las 24 tasas ES el total del día
+  (37,76/24 = 1,57 mm, y el diario dice 1,57). Sin convertir, una hora de 17,5 se habría leído como
+  un aguacero cuando cayeron 0,73 mm. El motor aplica la conversión **al bajar**, para que extremos,
+  codificación y ficha trabajen ya en la unidad publicada y no haya dos verdades en el mismo archivo.
+- **UN SOLO BOTÓN en la cabecera y un SELECTOR dentro.** Con cuatro atlas, un botón por atlas llenaba
+  la cabecera y obligaba a salir y volver a entrar para comparar el sol de un día con su viento. Lo
+  que se compara se pone al lado, no a dos clics. El selector va ARRIBA y separado del mes y el día:
+  cambiar de atlas no es filtrar, es cambiar de qué habla la pantalla.
+- **La tabla de direcciones se DERIVA en un solo sentido.** `POR_HASH` sale de `HASH_ATLAS` en vez de
+  escribirse aparte: con dos listas, el día que entre el quinto atlas una se olvidaría y `#/loquesea`
+  abriría el atlas de al lado sin dar un solo error.
+
+### Alternativas descartadas
+
+- **Estirar el pronóstico a un año.** No existe: MET Norway publica días, no meses. Y archivarlo para
+  «tener histórico» es exactamente lo que `ADR-035` prohibió.
+- **Marcar los 100 km/h en la escala del viento.** Habría dejado todo el mapa del mismo color —el
+  máximo medido son 54,4 km/h— y, peor, habría sugerido que un año de medias puede validar un
+  extremo de diseño.
+- **Publicar la lluvia horaria tal como viene.** Es la trampa: números 24 veces mayores, con unidad
+  plausible y sin un solo error.
+- **Un tercer y cuarto botón en la cabecera.** Cinco botones y ninguna forma de comparar.
+
+### Consecuencias
+
+- **El dato**: viento **157 KiB** (0 … 54,4 km/h) y lluvia **25 KiB** (0 … 42,4 mm), 8 meses cada uno,
+  horas hasta el **2026-08-19**. La lluvia comprime mucho porque la mayoría de las horas del año son
+  cero, y eso es una medida, no un hueco.
+- **El guardián de la rampa volvió a cazar un defecto real**: la de la lluvia acababa en 25 mm y se
+  midieron 42,4 — el aguacero más fuerte del año habría salido del color del borde, como si el dato
+  estuviera recortado. Es la segunda vez que ese guardián paga su coste.
+- **1.778 pruebas en verde** (+12). El guardián de fichas recorre ahora los cuatro atlas y comprueba
+  además que **ninguno repite unidad ni capa** —dos atlas con la misma unidad delatan una copia o una
+  conversión olvidada— y que la lluvia publicada **no es la tasa cruda** (máximo < 100).
+- **Queda dicho lo que NO cierra**: `TODO-71` sigue abierto. El viento del año no valida la hipótesis,
+  y ahora hay un mapa que lo dice en vez de un hueco que lo insinúa.
+
+### Crudo de respaldo
+
+Las cuatro fichas publicadas en `web/public/mapas/*.json`, que citan fuente, parámetro y fechas. La
+comprobación del factor de 24 se hizo contra la API diaria de NASA POWER el 2026-08-22.

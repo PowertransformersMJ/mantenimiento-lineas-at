@@ -48,8 +48,8 @@ import { almacen } from '../datos/enlace';
 const DEPARTAMENTOS = '/mapas/caribe-departamentos.json';
 const BASE = 'caribe.pmtiles';
 
-/** Cuál de los dos atlas. Es lo ÚNICO que esta pantalla necesita saber. */
-export type ClaveAtlas = 'sol' | 'temperatura';
+/** Cuál de los atlas. Es lo ÚNICO que esta pantalla necesita saber. */
+export type ClaveAtlas = 'sol' | 'temperatura' | 'viento' | 'lluvia';
 
 /**
  * LOS DOS PRODUCTOS. Aquí solo va lo que la ficha no puede traer: dónde está esa
@@ -58,21 +58,40 @@ export type ClaveAtlas = 'sol' | 'temperatura';
  * un perfil en el generador y una línea aquí, no una pantalla nueva.
  */
 export const ATLAS: Record<ClaveAtlas, {
-  ficha: string; idCapa: string; titulo: string; entradilla: string;
+  ficha: string; idCapa: string; titulo: string; entradilla: string; rotulo: string;
 }> = {
   sol: {
     ficha: '/mapas/sol-caribe.json',
     idCapa: 'capa-sol',
     titulo: 'Atlas solar del Caribe',
     entradilla: 'Irradiancia solar',
+    rotulo: 'Sol',
   },
   temperatura: {
     ficha: '/mapas/temp-caribe.json',
     idCapa: 'capa-temp',
     titulo: 'Atlas de temperatura del Caribe',
     entradilla: 'Temperatura del aire a 2 m',
+    rotulo: 'Temperatura',
+  },
+  viento: {
+    ficha: '/mapas/viento-caribe.json',
+    idCapa: 'capa-viento',
+    titulo: 'Atlas de viento del Caribe',
+    entradilla: 'Viento a 10 m',
+    rotulo: 'Viento',
+  },
+  lluvia: {
+    ficha: '/mapas/lluvia-caribe.json',
+    idCapa: 'capa-lluvia',
+    titulo: 'Atlas de lluvia del Caribe',
+    entradilla: 'Lluvia caída',
+    rotulo: 'Lluvia',
   },
 };
+
+/** El orden en que se ofrecen. No es alfabético: es el orden en que nacieron. */
+export const ATLAS_EN_ORDEN: ClaveAtlas[] = ['sol', 'temperatura', 'viento', 'lluvia'];
 
 /**
  * EL VACÍO DE FUERA DEL RECORTE SE PINTA COMO PAPEL, NO COMO MAPA ROTO.
@@ -115,7 +134,7 @@ async function leerPng(url: string): Promise<{ px: Uint8Array; ancho: number; al
   return { px, ancho: l.width, alto: l.height };
 }
 
-export function AtlasCaribe({ atlas, embebido = false, marca }: {
+export function AtlasCaribe({ atlas, embebido = false, marca, alCambiarAtlas }: {
   atlas: ClaveAtlas;
   /**
    * Dentro de otra pestaña, no como pantalla completa. Cambia dos cosas y solo
@@ -133,6 +152,15 @@ export function AtlasCaribe({ atlas, embebido = false, marca }: {
    * que es público (`33 · L-23`).
    */
   marca?: { lon: number; lat: number; nombre: string } | null;
+  /**
+   * Cambiar de atlas SIN salir de la pantalla. Si no se pasa, no se ofrece el
+   * selector — que es lo correcto donde no hay a dónde ir.
+   *
+   * Existe porque con cuatro atlas la cabecera se llenaba de botones y obligaba
+   * a salir y volver a entrar para comparar el sol de un día con su viento. Lo
+   * que se compara se pone al lado, no a dos clics.
+   */
+  alCambiarAtlas?: (cual: ClaveAtlas) => void;
 }) {
   const def = ATLAS[atlas];
   const caja = useRef<HTMLDivElement>(null);
@@ -446,6 +474,22 @@ export function AtlasCaribe({ atlas, embebido = false, marca }: {
           <button type="button" className="boton chico" onClick={() => almacen.cerrarAtlas()}>Volver</button>
         )}
       </div>
+      {/* EL SELECTOR DE ATLAS. Va ARRIBA del todo y no dentro del panel de
+          controles: cambiar de atlas no es filtrar un mes, es cambiar de qué
+          habla la pantalla entera. Mezclarlo con el mes y el día invitaría a
+          leerlo como un filtro más y a perder de vista qué se está mirando. */}
+      {alCambiarAtlas && (
+        <div className="acciones" role="group" aria-label="Qué atlas se mira">
+          {ATLAS_EN_ORDEN.map((c) => (
+            <button key={c} type="button"
+              className={'boton chico' + (c === atlas ? ' activo' : '')}
+              aria-pressed={c === atlas}
+              onClick={() => c !== atlas && alCambiarAtlas(c)}>
+              {ATLAS[c].rotulo}
+            </button>
+          ))}
+        </div>
+      )}
       <p className="saludo">
         {def.entradilla} <b>hora a hora</b> sobre {ficha?.departamentos.join(', ')}.
         Cada cuadro es una celda de <b>1°</b> (unos 111 km) medida por satélite: se pinta a cuadros

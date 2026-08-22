@@ -29,10 +29,10 @@
    promete caché eterna y las cabeceras dicen otra. ⚠️ `31 · L-60` (ortos del IGAC) **puede estar
    MAL**: verificar ANTES.
 4. **SON DE ÉL** (detalle en su tabla): `TODO-57` el dato de la ficha · **contraseña** (bloquea
-   retirar Google) · `TODO-71` viento y los 1.000 W/m² —el atlas de temperatura acerca su otra
-   mitad: la región llegó a **42 °C**, dos por encima del peor escenario adoptado— · `TODO-33`
-   50 % o 25 % · `TODO-76` retenida · `TODO-78` el nodo `33` al 99,9 %, y `ADR-052` ya generó la
-   lección que lo desborda (aparcada en `30 · L-68`) · **`TODO-80`**: qué tope de tierra rige.
+   retirar Google) · `TODO-71` viento y los 1.000 W/m² —los atlas lo acercan pero NO lo cierran:
+   42 °C medidos (2 sobre el peor escenario) y viento hasta 54 km/h, lejos de los 100 adoptados—
+   · `TODO-33` 50 % o 25 % · `TODO-76` retenida · `TODO-78` el nodo `33` al 99,9 % (`30 · L-68`)
+   · **`TODO-80`**: qué tope de tierra rige.
 5. **Higiene** (`99 §ADR-047/048`). ⚠️ El techo es el **ARRANQUE**, y `20`, `30` y `33` van al 99 %.
 
 ## 🚫 INVARIANTES QUE NO SE PUEDEN ROMPER
@@ -55,8 +55,8 @@ Cada uno vive ENTERO en su ADR: esto es el índice, léelo antes de tocar ese su
 · **Documentación** `§ADR-021` — el verde de `brain:check` dice bien CONSTRUIDO, no verdad.
 · **El número que se firma** `§ADR-052` — un tope declarado manda en TODAS las piezas, y el molde
   tiene que admitirlo o la base lo tira en silencio.
-· **Atlas** `§ADR-045/053` — UN motor y UNA pantalla para los dos; lo que los distingue viaja en la
-  FICHA. En Detalle GPS, perezosos: cero bytes hasta pulsarlos.
+· **Atlas** `§ADR-045/053/055` — UN motor y UNA pantalla para los CUATRO (sol · temperatura · viento
+  · lluvia). El viento NO marca la hipótesis: un año de medias no valida un extremo de diseño.
 
 ## 🧭 Cómo retomar
 

@@ -127,12 +127,14 @@ function Cabecera() {
         </button>
         {/* Los atlas NO son de esta línea: son del Caribe. Por eso viven en la
             cabecera, al lado del segmento de causa raíz, y no como pestañas.
-            También se abren desde «Detalle GPS», con la línea marcada dentro. */}
+            También se abren desde «Detalle GPS», con la línea marcada dentro.
+
+            UN SOLO BOTÓN para los cuatro: con uno por atlas la cabecera se
+            llenaba, y para comparar el sol de un día con su viento había que
+            salir y volver a entrar. Se entra por el solar —el primero que
+            existió— y dentro se cambia sin salir. */}
         <button type="button" className="boton chico" onClick={() => almacen.abrirAtlas('sol')}>
-          Atlas solar
-        </button>
-        <button type="button" className="boton chico" onClick={() => almacen.abrirAtlas('temperatura')}>
-          Atlas de temperatura
+          Atlas del Caribe
         </button>
         <span className="fase">Fase 0 · fundación</span>
       </div>
@@ -203,7 +205,11 @@ function Contenido() {
   // y esa es una decisión de producto que no toma un `if` colocado sin pensar.
   // El día que se quiera un atlas público, se decide y se documenta.
   if (atlas && d.fase !== 'sin_sesion' && d.fase !== 'cambiar_contrasena') {
-    return <Suspense fallback={<Cargando />}><AtlasCaribe atlas={atlas} /></Suspense>;
+    return (
+      <Suspense fallback={<Cargando />}>
+        <AtlasCaribe atlas={atlas} alCambiarAtlas={(c) => almacen.abrirAtlas(c)} />
+      </Suspense>
+    );
   }
 
   switch (d.fase) {

@@ -328,9 +328,10 @@ function AtlasDelCaribe({ apoyos }: { apoyos: Apoyo[] }) {
     <section className="panel">
       <h2>El clima de la región, sobre el mapa</h2>
       <p className="saludo">
-        Los dos atlas del Caribe —<b>sol</b> y <b>temperatura del aire</b>— hora a hora, sobre los
-        siete departamentos. Son de la REGIÓN, no de esta línea: se abren aquí con{' '}
-        <b>el punto de la línea marcado</b> para poder leer qué le toca a ella.
+        Los cuatro atlas del Caribe —<b>sol</b>, <b>temperatura del aire</b>, <b>viento</b> y{' '}
+        <b>lluvia</b>— hora a hora y día a día de todo el año, sobre los siete departamentos. Son de
+        la REGIÓN, no de esta línea: se abren aquí con <b>el punto de la línea marcado</b> para poder
+        leer qué le toca a ella. Dentro se cambia de uno a otro sin salir.
       </p>
       <p className="fine">
         No se descarga nada hasta que abra uno: el mapa regional pesa 5 MiB y esta pestaña se
@@ -338,20 +339,20 @@ function AtlasDelCaribe({ apoyos }: { apoyos: Apoyo[] }) {
       </p>
 
       <div className="acciones">
-        {(['sol', 'temperatura'] as ClaveAtlas[]).map((c) => (
-          <button key={c} type="button"
-            className={'boton chico' + (abierto === c ? ' activo' : '')}
-            aria-pressed={abierto === c}
-            onClick={() => setAbierto(abierto === c ? null : c)}>
-            {abierto === c ? 'Cerrar ' : 'Ver '}
-            {c === 'sol' ? 'atlas solar' : 'atlas de temperatura'}
-          </button>
-        ))}
+        {/* UN botón para abrir y otro para cerrar sería un botón de más: el mismo
+            alterna, y dice lo que hará al pulsarlo. Con el atlas ya abierto,
+            cambiar de uno a otro se hace DENTRO, sin cerrar y volver a abrir. */}
+        <button type="button" className={'boton chico' + (abierto ? ' activo' : '')}
+          aria-pressed={Boolean(abierto)}
+          onClick={() => setAbierto(abierto ? null : 'sol')}>
+          {abierto ? 'Cerrar el atlas' : 'Ver los atlas del Caribe'}
+        </button>
       </div>
 
       {abierto && (
         <Suspense fallback={<p className="fine">Bajando el atlas…</p>}>
-          <AtlasCaribe atlas={abierto} embebido marca={marca} />
+          <AtlasCaribe atlas={abierto} embebido marca={marca}
+            alCambiarAtlas={(c: ClaveAtlas) => setAbierto(c)} />
         </Suspense>
       )}
     </section>
