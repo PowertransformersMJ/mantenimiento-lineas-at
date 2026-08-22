@@ -1270,6 +1270,14 @@ p.fund-vivo + .sello-calculo { margin-top: 5px; }
 }
 .rca-enunciado { margin: 6px 0 0; font-size: 13px; line-height: 1.5; color: var(--tx); }
 
+/* CÓMO SE PUSO A PRUEBA UNA HIPÓTESIS — el bloque con el que se cierra una
+   rival (`99 §ADR-050`). Va separado por un filete y no encerrado en otra caja:
+   dentro de `.rca-cadena` una segunda caja se lee como «otra cosa», y esto es la
+   segunda mitad de la misma hipótesis. Sin paleta nueva. */
+.rca-rival { margin-top: 10px; padding-top: 9px; border-top: 1px dashed var(--bd); }
+.rca-rival .rca-etiqueta { margin-bottom: 6px; }
+.rca-rival .rca-select { margin-top: 6px; }
+
 /* ── LA FICHA ESTRUCTURAL: escribir el dato que desbloquea el veredicto ─────
    (TODO-57 · ADR-030)
 

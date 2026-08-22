@@ -4676,3 +4676,83 @@ Lo mismo en la ficha del apoyo, que decía «No hay fotografías cargadas de E07
 `research-archive/2026-08-22-triaje-51-hallazgos-entorno.json` — los 50 hallazgos con su estado de
 hoy, evidencia `archivo:línea`, qué le pasa al usuario y el arreglo concreto. Guardián ejecutable:
 `tests/rca-fallo-guardar.test.js`.
+
+
+---
+
+## ADR-050 · 2026-08-22 · La escala de verosimilitud son TRES, y una hipótesis rival se cierra yendo a probarla — no con una etiqueta
+
+**Estado:** ✅ Decidido **por el Ingeniero** · **NO revisada externamente** · ✅ **verificado en vivo**
+en producción con su sesión.
+
+### Contexto
+
+La auditoría del entorno dejó este hallazgo abierto con una decisión pendiente suya: *«¿la escala son
+tres valores o cinco?»*. El desplegable de la pantalla ofrecía **cinco** —`descartada`, `baja`,
+`media`, `alta`, `confirmada`— y el molde (`contratos/src/eventos.ts`) admite **tres**. Elegir
+cualquiera de las dos que sobraban hacía que el contrato rechazara el guardado, y eran justo las dos
+con las que se cierra un análisis. La suite estaba en verde porque **las pruebas del motor usaban
+esos valores**: el oráculo bendecía lo imposible (`30 · L-33`).
+
+Al ir a implementarlo apareció algo más grande, y hay que decirlo antes que nada:
+
+> **Hoy una hipótesis rival no se puede cerrar por NINGUNA vía, y por lo tanto un expediente con más
+> de una hipótesis no se puede cerrar.**
+
+Las dos vías existían y las dos estaban rotas:
+
+1. `verosimilitud: 'descartada'` — la pantalla la ofrecía y **el molde la rechazaba**. Vía muerta.
+2. `queSeHizo` + `resultado` (qué se hizo para probarla y cómo quedó) — la vía que el método declara
+   **la buena** (`99 §ADR-026`: *«no exige un veredicto: exige que conste QUÉ SE HIZO y CÓMO
+   QUEDÓ»*). Está en el molde (`contratos/src/rca.ts`) y el motor la exige en la séptima condición…
+   y **no existía en ninguna pantalla**. Nadie podía escribirla.
+
+Con las dos rotas, la séptima condición de cierre era **inalcanzable** en cuanto hubiera una
+hipótesis que no fuera «alta». Es `33 · L-45` con nombre y apellido: una regla que el motor calcula
+y ninguna pantalla consume.
+
+### Decisión
+
+**Tres valores** (`alta` · `media` · `baja`), y la vía de cierre es **una sola**: ir a probar la
+hipótesis y escribir qué se hizo y cómo quedó.
+
+- **La escala se LEE del molde, no se copia.** `VEROSIMILITUD_UI = Verosimilitud.options`. El fallo
+  no fue tener cinco: fue tener **dos listas**. Ahora hay una, y una prueba vigila que nadie vuelva
+  a escribir un `<option>` a mano.
+- **Se construye la pieza que faltaba**: en cada hipótesis, «qué se hizo para probarla» y «cómo
+  quedó» —`resistió` · `refutada` · **`no concluyente`**—. Ese tercero cierra la rival igual, y es
+  deliberado: obligar a concluir fabricaría la certeza que este método existe para impedir.
+- **El motor se alinea.** Se retiran las ramas de `confirmada` y `descartada`, que ningún dato válido
+  podía disparar, y con ellas las dos pruebas que las bendecían. Medido antes de tocar: `confirmada`
+  era un **sinónimo exacto** de `alta` —no aportaba ni un comportamiento— y `descartada` solo servía
+  para dos cosas, saltarse el respaldo y salir del recuento de rivales.
+- **Y toda hipótesis necesita respaldo, sin excepción.** `descartada` eximía del defecto «sin
+  evidencia enlazada». Sin ella, la regla queda igual que la que ya rige para las familias de causas:
+  *tumbar algo también exige decir con qué*.
+
+### Alternativas descartadas
+
+- **Subir el molde a cinco valores** (lo que la auditoría creía «lo más probable»). Se midió y no se
+  sostiene: `confirmada` no aporta nada que `alta` no haga ya, y `descartada` es una etiqueta que
+  saca una hipótesis del tablero **sin haber ido a probarla** — justo lo contrario de lo que pide la
+  séptima condición. Cinco valores habrían dado una puerta trasera con aspecto de rigor.
+- **Recortar el desplegable a tres y ya.** Era el atajo, y habría dejado el expediente **sin ninguna
+  forma de cerrar una rival**: peor que el fallo original, porque el análisis no cerraría nunca y
+  nadie sabría por qué.
+- **Tocar solo la pantalla y dejar el motor leyendo cinco.** Es la divergencia que causó todo esto.
+
+### Consecuencias
+
+- **La séptima condición pasa de inalcanzable a alcanzable.** Un expediente con hipótesis rivales
+  se puede cerrar por primera vez — diciendo qué se hizo con cada una.
+- **1.700 pruebas** (5 nuevas) y un guardián que ata el desplegable al molde.
+- Quien tenga hipótesis ya guardadas no pierde nada: `descartada` y `confirmada` **nunca pudieron
+  guardarse**, así que no hay un solo dato que migrar.
+- Cambio de criterio declarado: una hipótesis «baja» **ya no cuenta como cerrada**. Bajarle la
+  verosimilitud es una opinión sobre ella; cerrarla es haber ido a mirar.
+
+### Crudo de respaldo
+
+La decisión es del Ingeniero (2026-08-22), sobre el hallazgo nº 1 de «Mentirá en cuanto cambie una
+lista» del triaje (`research-archive/2026-08-22-triaje-51-hallazgos-entorno.json`). Guardianes:
+`tests/rca-contrato-parte.test.js` y `tests/rca.test.js`.

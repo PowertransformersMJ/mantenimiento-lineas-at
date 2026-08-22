@@ -167,18 +167,19 @@ describe('las hipótesis son hipótesis, no creencias', () => {
     assert.match(h.defectos.join(' '), /no es una hipótesis, es una creencia/);
   });
 
-  test('sin evidencia enlazada, defectuosa — salvo que esté descartada', () => {
-    const [viva] = revisarHipotesis([{
-      id: ID(1), espina: 'conductor', enunciado: 'x', verosimilitud: 'media',
-      sustento: 's', queLaRefutaria: 'r', evidenciaIds: [],
-    }]);
-    assert.match(viva.defectos.join(' '), /Sin evidencia enlazada/);
-
-    const [muerta] = revisarHipotesis([{
-      id: ID(1), espina: 'conductor', enunciado: 'x', verosimilitud: 'descartada',
-      sustento: 's', queLaRefutaria: 'r', evidenciaIds: [],
-    }]);
-    assert.equal(muerta.defectos.length, 0, 'una hipótesis ya descartada no necesita respaldo');
+  test('sin evidencia enlazada, defectuosa — TODA hipótesis, sin excepción', () => {
+    // Hasta el 22-08 una hipótesis `descartada` quedaba exenta. Ese valor no
+    // existe en el molde (la escala son tres) y esta prueba lo bendecía: es el
+    // oráculo contaminado de `30 · L-33`. Ahora la regla es la misma que ya regía
+    // para las familias de causas — tumbar algo también exige decir con qué.
+    for (const v of ['baja', 'media', 'alta']) {
+      const [h] = revisarHipotesis([{
+        id: ID(1), espina: 'conductor', enunciado: 'x', verosimilitud: v,
+        sustento: 's', queLaRefutaria: 'r', evidenciaIds: [],
+      }]);
+      assert.match(h.defectos.join(' '), /Sin evidencia enlazada/,
+        `una hipótesis «${v}» sin respaldo tiene que salir marcada`);
+    }
   });
 });
 
@@ -321,8 +322,13 @@ describe('la SÉPTIMA condición: las hipótesis rivales no se dejan vivas y cal
     assert.equal(cond([SOSTENIDA, RIVAL({ queSeHizo: '   ', resultado: 'refutada' })]).cumple, false);
   });
 
-  test('una rival ya DESCARTADA no es rival', () => {
-    assert.equal(cond([SOSTENIDA, RIVAL({ verosimilitud: 'descartada' })]).cumple, true);
+  test('bajarle la verosimilitud a una rival NO la cierra: hay que decir qué se hizo', () => {
+    // El atajo que la escala de cinco valores permitía —marcarla «descartada» y
+    // seguir— ya no existe: ese valor no está en el molde. Una rival se cierra
+    // por una sola vía, la que el método declara buena.
+    assert.equal(cond([SOSTENIDA, RIVAL({ verosimilitud: 'baja' })]).cumple, false,
+      'poner «baja» es una opinión sobre la hipótesis, no haberla ido a probar');
+    assert.equal(cond([SOSTENIDA, RIVAL({ queSeHizo: 'se midió el par de apriete', resultado: 'refutada' })]).cumple, true);
   });
 
   test('LA TRAMPA: la topada por clima no queda atrapada para siempre', () => {

@@ -402,7 +402,11 @@ export function revisarHipotesis(hipotesis = []) {
     const defectos = [];
     let verosimilitud = h.verosimilitud;
 
-    if (h.sustentoSoloClimatico && ['media', 'alta', 'confirmada'].includes(verosimilitud)) {
+    // La escala son TRES —`alta` · `media` · `baja`— y así lo declara el molde
+    // (decisión del Ingeniero, 2026-08-22, `99 §ADR-050`). Este motor leía además
+    // `confirmada` y `descartada`, que el molde nunca admitió: eran ramas que no
+    // podían dispararse con un dato válido, y sus pruebas las bendecían.
+    if (h.sustentoSoloClimatico && ['media', 'alta'].includes(verosimilitud)) {
       defectos.push(
         'Sustento únicamente meteorológico: topada en «baja». Que hubiera ese clima el día del '
         + 'evento no prueba que lo causara — hace falta evidencia física del mecanismo.',
@@ -412,7 +416,11 @@ export function revisarHipotesis(hipotesis = []) {
     if (!h.queLaRefutaria || !String(h.queLaRefutaria).trim()) {
       defectos.push('No declara qué evidencia la refutaría: eso no es una hipótesis, es una creencia.');
     }
-    if ((h.evidenciaIds ?? []).length === 0 && verosimilitud !== 'descartada') {
+    // TODA hipótesis necesita respaldo, sin excepción. Antes `descartada` quedaba
+    // exenta; sin ella, la regla es la misma que ya rige para las familias de
+    // causas (`«descartada» sin evidencia enlazada` más arriba): tumbar algo
+    // también exige decir con qué.
+    if ((h.evidenciaIds ?? []).length === 0) {
       defectos.push('Sin evidencia enlazada.');
     }
 
@@ -504,15 +512,21 @@ export function condicionesCausaRaiz({ espinas = [], cadenas = [], arbol = [], h
   const sinMirar = tabla.filter((e) => e.estado === 'no_evaluable' && !e.datoQueFalta);
   const conDefectos = tabla.filter((e) => e.defectos.length);
   const accionables = cadenas.map(fuerzaCadena).filter((f) => f.esAccionable);
-  const sostenidas = revisadas.filter((h) => ['alta', 'confirmada'].includes(h.verosimilitudEfectiva));
+  const sostenidas = revisadas.filter((h) => h.verosimilitudEfectiva === 'alta');
   const pendientesCriticas = ausencias.filter((a) => a.estado === 'pendiente' || a.estado === 'solicitado');
 
-  // Una RIVAL es toda hipótesis que ni sostiene la conclusión ni se descartó: es
-  // la que sigue viva y callada. Se cierra diciendo qué se hizo y cómo quedó —no
+  // Una RIVAL es toda hipótesis que no sostiene la conclusión y sigue viva y
+  // callada. **Se cierra por una sola vía: diciendo qué se hizo y cómo quedó** —no
   // con un veredicto—, y por eso basta con que consten las dos cosas.
+  //
+  // Había una segunda vía, `verosimilitud: 'descartada'`, y era una vía muerta: el
+  // molde nunca admitió ese valor, así que ninguna hipótesis pudo cerrarse jamás
+  // por ahí. Como la pantalla tampoco ofrecía dónde escribir «qué se hizo», esta
+  // condición era **inalcanzable** para cualquier análisis con una hipótesis que
+  // no fuera «alta»: el expediente no se podía cerrar. Se retira la vía muerta y
+  // se construye la que el método declara buena (`99 §ADR-050`).
   const rivalesAbiertas = revisadas.filter((h) => (
-    !['alta', 'confirmada'].includes(h.verosimilitudEfectiva)
-    && h.verosimilitudEfectiva !== 'descartada'
+    h.verosimilitudEfectiva !== 'alta'
     && !(h.resultado && String(h.queSeHizo ?? '').trim())
   ));
 

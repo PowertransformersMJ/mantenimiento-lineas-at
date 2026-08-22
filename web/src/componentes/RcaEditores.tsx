@@ -15,6 +15,7 @@
 // ============================================================================
 import { useState } from 'react';
 import { fuerzaCadena, diagnosticoCadena, validarArbol, resumenBarreras, revisarHipotesis, resumenAcciones, ESPINAS_CON_ROTULO } from '@lineas/nucleo/rca';
+import { Verosimilitud } from '@lineas/contratos';
 import type { AccionCapa, AnalisisCausa, Evidencia, SondeoClima } from '@lineas/contratos';
 import { almacen } from '../datos/enlace';
 
@@ -27,6 +28,21 @@ import { almacen } from '../datos/enlace';
  * solo se podía razonar sobre once (`33 · L-19`).
  */
 export const ESPINAS_UI: [string, string][] = ESPINAS_CON_ROTULO as [string, string][];
+
+/**
+ * LA ESCALA DE VEROSIMILITUD, LEÍDA DEL MOLDE — no copiada de él.
+ *
+ * Es el arreglo de raíz del hallazgo del 09-08: la escala vivía escrita a mano en
+ * este desplegable (cinco valores) y en `contratos/src/eventos.ts` (tres), sin
+ * nada que las comparara. Elegir una de las dos que sobraban hacía que el molde
+ * rechazara el guardado — y eran justo «descartada» y «confirmada», las dos con
+ * las que se cierra un análisis.
+ *
+ * Ahora no hay dos listas: hay una. El día que la escala cambie en el molde, este
+ * desplegable cambia solo. Una prueba lo vigila igualmente, por si alguien vuelve
+ * a escribir `<option>` a mano (`99 §ADR-050`).
+ */
+export const VEROSIMILITUD_UI: readonly string[] = Verosimilitud.options;
 
 const NIVELES_UI: [string, string][] = [
   ['efecto', '1 · efecto — lo que se ve'],
@@ -310,13 +326,18 @@ export function EditorHipotesis({ a, evidencias }: { a: AnalisisCausa; evidencia
                 onChange={(e) => cambiar(i, 'espina', e.target.value)}>
                 {ESPINAS_UI.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
               </select>
+              {/* ⚠️ LOS TRES DEL MOLDE, NI UNO MÁS. Este desplegable ofreció durante
+                  semanas «descartada» y «confirmada», que `Verosimilitud` no admite
+                  (`contratos/src/eventos.ts`): elegirlas hacía que el guardado lo
+                  rechazara el molde — justo en las dos opciones con las que se cierra
+                  un análisis. Decisión del Ingeniero (2026-08-22): **la escala son
+                  TRES**. Una rival no se saca del tablero con una etiqueta, sino
+                  diciendo qué se hizo y cómo quedó, aquí abajo (`99 §ADR-050`).
+                  Se construye desde `VEROSIMILITUD_UI`, y una prueba lo compara
+                  contra el molde: dos listas sueltas fue el fallo. */}
               <select className="rca-select rca-select-corto" value={h.verosimilitud}
                 onChange={(e) => cambiar(i, 'verosimilitud', e.target.value)}>
-                <option value="descartada">descartada</option>
-                <option value="baja">baja</option>
-                <option value="media">media</option>
-                <option value="alta">alta</option>
-                <option value="confirmada">confirmada</option>
+                {VEROSIMILITUD_UI.map((v) => <option key={v} value={v}>{v}</option>)}
               </select>
               {r?.topadaPorClima && <span className="pill av">topada en baja</span>}
               <button type="button" className="rca-quitar"
@@ -343,6 +364,30 @@ export function EditorHipotesis({ a, evidencias }: { a: AnalisisCausa; evidencia
                 (h.evidenciaIds ?? []).includes(id)
                   ? h.evidenciaIds.filter((z: string) => z !== id)
                   : [...(h.evidenciaIds ?? []), id])} />
+
+            {/* ⚠️ LA PIEZA SIN LA CUAL UN EXPEDIENTE NO PUEDE CERRARSE, y que hasta
+                el 22-08 no existía en ninguna pantalla. El molde la tenía
+                (`contratos/src/rca.ts`), el motor la exigía (la SÉPTIMA condición,
+                `99 §ADR-026`) y nadie la escribía: la condición era inalcanzable en
+                cuanto hubiera una hipótesis que no fuera «alta» (`33 · L-45`).
+
+                NO pide un veredicto: pide que conste que alguien FUE A MIRAR.
+                «No concluyente» cierra la rival igual — obligar a concluir fabricaría
+                la certeza que este método existe para impedir. Lo que ya no se puede
+                es dejarla viva y callada. */}
+            <div className="rca-rival">
+              <p className="rca-etiqueta">Cómo se puso a prueba</p>
+              <textarea className="rca-motivo" rows={2} value={h.queSeHizo ?? ''}
+                placeholder="QUÉ SE HIZO para probarla — el compañero de «qué la tumbaría»"
+                onChange={(e) => cambiar(i, 'queSeHizo', e.target.value)} />
+              <select className="rca-select" value={h.resultado ?? ''}
+                onChange={(e) => cambiar(i, 'resultado', e.target.value || undefined)}>
+                <option value="">— cómo quedó (sin declarar) —</option>
+                <option value="resistio">resistió: se probó y sigue en pie</option>
+                <option value="refutada">refutada: la prueba la tumbó</option>
+                <option value="no_concluyente">no concluyente: se intentó y no se pudo concluir</option>
+              </select>
+            </div>
 
             {r?.defectos.map((d: string) => <div key={d} className="rca-defecto">⚠ {d}</div>)}
           </div>

@@ -14,7 +14,9 @@
 // ============================================================================
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { ParteDeAnalisis } from '../contratos/src/rca.ts';
+import { Verosimilitud } from '../contratos/src/eventos.ts';
 
 const ok = (p) => ParteDeAnalisis.safeParse(p);
 
@@ -204,5 +206,68 @@ describe('el candado de las DOS causas raíz', () => {
 
   test('una causa sin tipo se rechaza: el tipo manda sobre qué se puede prometer', () => {
     assert.equal(ok({ causasRaiz: [CAUSA] }).success, false);
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// LA ESCALA DE VEROSIMILITUD: UNA LISTA, NO DOS (decisión del Ingeniero, 22-08)
+// ----------------------------------------------------------------------------
+// El desplegable de la pantalla ofrecía CINCO valores —`descartada`, `baja`,
+// `media`, `alta`, `confirmada`— y el molde admite TRES. Elegir cualquiera de las
+// dos que sobraban hacía que el guardado lo rechazara el contrato… y eran justo
+// las dos con las que se cierra un análisis. La suite pasaba en verde porque las
+// pruebas del motor USABAN esos valores: el oráculo bendecía lo imposible
+// (`30 · L-33`).
+//
+// El arreglo de raíz no es recortar el desplegable: es que **no haya dos listas**.
+// La pantalla lee `Verosimilitud.options` del molde, así que el día que la escala
+// cambie, el desplegable cambia solo. Esta prueba vigila que nadie vuelva a
+// escribir `<option>` a mano — que es como nació el fallo (`99 §ADR-050`).
+// ════════════════════════════════════════════════════════════════════════════
+describe('la escala de verosimilitud tiene UN dueño: el molde', () => {
+  const editores = readFileSync(
+    new URL('../web/src/componentes/RcaEditores.tsx', import.meta.url), 'utf-8');
+
+  test('el molde declara TRES valores, y son los del método', () => {
+    assert.deepEqual([...Verosimilitud.options].sort(), ['alta', 'baja', 'media']);
+  });
+
+  test('la pantalla LEE la escala del molde, no la copia', () => {
+    assert.match(editores, /VEROSIMILITUD_UI: readonly string\[\] = Verosimilitud\.options/,
+      'la escala vuelve a estar escrita a mano en la pantalla: es exactamente como nació el fallo');
+    assert.match(editores, /\{VEROSIMILITUD_UI\.map\(/);
+  });
+
+  test('el desplegable de la hipótesis no tiene ni un `option` escrito a mano', () => {
+    // Se mira SOLO el desplegable de la verosimilitud: `descartada` también es un
+    // estado válido de una ACCIÓN correctiva, que es otro enum y otro asunto.
+    const i = editores.indexOf("cambiar(i, 'verosimilitud'");
+    assert.notEqual(i, -1, 'no existe el desplegable de verosimilitud: ¿se renombró?');
+    const bloque = editores.slice(i, editores.indexOf('</select>', i));
+    assert.ok(!/<option value="/.test(bloque),
+      'volvió a haber una lista escrita a mano en la pantalla: es exactamente como nació el fallo');
+    assert.match(bloque, /VEROSIMILITUD_UI\.map\(/);
+  });
+
+  test('una hipótesis con la escala vieja NO pasa el molde', () => {
+    for (const v of ['descartada', 'confirmada']) {
+      assert.equal(Verosimilitud.safeParse(v).success, false,
+        `«${v}» sigue entrando: la escala volvió a ser de cinco sin decirlo`);
+    }
+  });
+
+  test('la pantalla SÍ deja cerrar una rival: «qué se hizo» y «cómo quedó»', () => {
+    // Sin esto, quitar `descartada` dejaría el expediente sin ninguna forma de
+    // cerrar una hipótesis rival — y la séptima condición (`99 §ADR-026`) sería
+    // inalcanzable. Era el estado real hasta el 22-08: el molde y el motor tenían
+    // los dos campos y ninguna pantalla los escribía (`33 · L-45`).
+    assert.match(editores, /cambiar\(i, 'queSeHizo'/,
+      'no hay dónde escribir qué se hizo para probar la hipótesis');
+    assert.match(editores, /cambiar\(i, 'resultado'/,
+      'no hay dónde declarar cómo quedó');
+    for (const r of ['resistio', 'refutada', 'no_concluyente']) {
+      assert.match(editores, new RegExp(`value="${r}"`),
+        `falta «${r}» — y «no_concluyente» es el que impide fabricar certeza`);
+    }
   });
 });

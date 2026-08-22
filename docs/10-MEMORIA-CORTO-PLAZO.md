@@ -48,9 +48,11 @@ desincroniza. Léelos antes de tocar su subsistema.
 · **Fotos** `§ADR-031` — el portero NO borra y NO lista; se cuelga por nombre canónico; decide la huella.
 · **Recordar ≠ proponer** `§ADR-029` — sin decisión suya el campo queda VACÍO.
 · **Capas del mapa** `§ADR-034/037/046` — las imágenes viajan CON el sitio; una capa de datos se
-  guarda como MEDIDA, nunca como imagen; el byte 0 es SIN DATO; el pronóstico no se guarda jamás; y
-  toda capa de medida trae encuadre al recorte Y escala publicada, las DOS o ninguna.
+  guarda como MEDIDA (byte 0 = SIN DATO); el pronóstico no se guarda jamás; y toda capa de medida
+  trae encuadre al recorte Y escala publicada, las DOS o ninguna.
 · **Ficha y lote** `§ADR-030/038` — el lote solo rellena huecos y solo con los tres campos del MODELO.
+· **Verosimilitud** `§ADR-050` — la escala son TRES y se LEE del molde; una rival se cierra diciendo
+  qué se hizo y cómo quedó, nunca con una etiqueta.
 · **Documentación** `§ADR-021` — el verde de `brain:check` dice que está bien CONSTRUIDO, no que diga la verdad.
 
 ## 🧭 Cómo retomar
@@ -69,7 +71,7 @@ desincroniza. Léelos antes de tocar su subsistema.
 
 | # | Qué | Por qué importa |
 |---|---|---|
-| **NUEVO** | **Ponerse contraseña.** ⚠️ La llave admin ya NO está en Descargas: regenerarla (Consola Firebase → Configuración → Cuentas de servicio → Generar nueva clave) y guardarla FUERA de Descargas. Después: `usuarios.mjs contrasena … --definitiva` (sin `--definitiva` la cuenta queda provisional y se revocan sus sesiones) | Desbloquea retirar Google (fase 2b). Ya está VERIFICADO que la pantalla no le aparece entrando por Google |
+| **NUEVO** | **Ponerse contraseña.** La llave admin ya NO está en Descargas: regenerarla (Consola Firebase → Cuentas de servicio → Generar nueva clave) y guardarla fuera de Descargas. Después: `usuarios.mjs contrasena … --definitiva` (sin eso la cuenta queda provisional y se revocan sus sesiones) | Desbloquea retirar Google (fase 2b) |
 | **TODO-57** | **La FICHA ESTRUCTURAL — ya se puede ESCRIBIR, y está EN PRODUCCIÓN** (`99 §ADR-030`). Deja de estar bloqueada por el código: falta **el DATO**. ¿Lo tiene la empresa en planos o actas, o hay que levantarlo? Los seis: carga de rotura · altura libre · altura del amarre · capacidad longitudinal (con **qué ES** ese número) · fases amarradas · tipo de apoyo | **EL CUELLO DE BOTELLA REAL.** Al meter el primero saldrán «REVISAR»: no son averías nuevas, es lo que ya pasaba y no se veía |
 | **TODO-75** | **Dos ajustes de GitHub, o el vigía del atlas solar no sirve** (`99 §ADR-045`). Verificado con `gh`: el token por defecto es de SOLO LECTURA y `main` NO está protegida (404 «Branch not protected»). ① Settings → Actions → General → permitir que Actions **cree** propuestas. ② Proteger `main` exigiendo el CI — un PR abierto por el robot NO dispara `ci.yml`, así que llegaría sin un solo check | Sin los dos, el vigía o no abre nada o abre algo que nadie ha revisado. Primer disparo: 3-ene |
 | **TODO-69** | **Verificar el pórtico de ORIGEN** de la línea (la carga de agosto quedó cerrada, `99 §ADR-027/028/031`) | Es el único punto de esa carga que nadie ha mirado |
@@ -89,11 +91,11 @@ desincroniza. Léelos antes de tocar su subsistema.
 | # | Qué | Dónde está el plan |
 |---|---|---|
 | **TODO-70** | **Cerrar la ola de la ficha (ADR-030).** ✅ ① 19-08 (`ADR-032`) marca del dato SUPUESTO · ✅ ④ 19-08 (`ADR-033`) el sembrador respeta el cerrojo —falta correrlo contra la base, espera la llave— · ✅ ② **HECHO 20-08** (`ADR-038`): la pantalla del LOTE, verificada en vivo. **Queda SOLO ③: el gesto «Confirmo este dato»**, que exige su propio molde porque `FichaEstructural` rechaza `confirmado_humano` por diseño — confirmar no es un origen, es un acto posterior | `99 §ADR-030/032/033/038` |
-| **TODO-66** | **Que una acción pruebe que FUNCIONÓ**, no solo que se hizo. Lo dejó fuera el Ingeniero el 07-08 y queda como deuda declarada en `99 §ADR-026`: bloque de verificación posterior (cuándo, quién, si fue eficaz y cómo se comprobó); la cerrada queda «pendiente de verificar eficacia» hasta esa fecha | `99 §ADR-026` |
+| **TODO-66** | **Que una acción pruebe que FUNCIONÓ**, no solo que se hizo (deuda declarada en `99 §ADR-026`): bloque de verificación posterior —cuándo, quién, si fue eficaz y cómo se comprobó— y la cerrada queda «pendiente de verificar eficacia» hasta esa fecha | `99 §ADR-026` |
 | **TODO-50** | **Blindaje**: ✅ F1 · ✅ F2a · ✅ F3 pantalla de cambio · ⬜ **2b retirar Google** — espera la contraseña | `99 §ADR-019/024` |
-| **TODO-52/49/48** | RCA: el **lienzo del árbol** (cosmético) · contador de PARQUE (no construible hoy) · deuda de ADR-017: al veredicto longitudinal le falta el ruido de tendido y el piso de validez | `99 §ADR-017/018/020` |
-| **TODO-79** | **Saldo del entorno: 43 vivos + 5 parciales**, triados contra el código de hoy y ordenados por gravedad (`99 §ADR-049` · crudo `2026-08-22-triaje-51-hallazgos-entorno.json`). Los dos restos más caros: el identificador crudo en el **informe firmable** (`exportar/informe.js:331`) y la red del **mapa**, que se traga el fallo y encima dice «no se pudo descargar» cuando falló dibujar | Varios son decisión suya (escala de verosimilitud, orden de la lista); otros tocan el molde |
-| **TODO-30/11 · 13-23** | XSD real de GPX/KML en CI · nota técnica de LN-627 · y F3-F5: invalidación por tramo, sincronización, Firestore vs D1, flujo IA, secretos | crudo de **ADR-013** |
+| **TODO-52/49/48** | RCA: el lienzo del árbol (cosmético) · contador de PARQUE (no construible hoy) · deuda de ADR-017: al veredicto longitudinal le falta el ruido de tendido y el piso de validez | `99 §ADR-017/018/020` |
+| **TODO-79** | **Saldo del entorno: 42 vivos + 5 parciales** (la verosimilitud se cerró el 22-08, `§ADR-050`), triados contra el código de hoy y ordenados por gravedad (`99 §ADR-049` · crudo `2026-08-22-triaje-51-hallazgos-entorno.json`). Los dos restos más caros: el identificador crudo en el **informe firmable** (`exportar/informe.js:331`) y la red del **mapa**, que se traga el fallo y encima dice «no se pudo descargar» cuando falló dibujar | Varios son decisión suya (escala de verosimilitud, orden de la lista); otros tocan el molde |
+| **TODO-30/11 · 13-23** | XSD real de GPX/KML en CI · nota técnica de LN-627 · F3-F5 (sincronización, Firestore vs D1, flujo IA, secretos) | crudo de **ADR-013** |
 
 ## ✅ Consolidado — el detalle vive en su dueño, no aquí
 
