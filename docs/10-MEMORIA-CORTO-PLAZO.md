@@ -1,61 +1,64 @@
 # 📝 10 — MEMORIA DE CORTO PLAZO (pizarra viva)
 
 > Se **AUTO-CARGA**. Pizarra, no bitácora (§G.3). Tope ~110 líneas / 16k chars.
-> **RELEVO 2026-08-21.** Este nodo ES el relevo: léelo entero. Si contradice a
+> **RELEVO 2026-08-22.** Este nodo ES el relevo: léelo entero. Si contradice a
 > `docs/.handoff-auto.md` (foto real de git), manda ese.
 
 ## 🎯 Dónde estamos
 
-**Cifras vivas en `05`.** 14 pestañas + RCA + tres informes. **Mazo E02 listo** (`32 · L-49`).
-Olas cerradas: ADR-018 · 020-024 · **032** · **034-037 y 039-042** (las capas del mapa) · **043**
-(satelital) · **044** (cable de guarda) · **045** (atlas solar, `#/sol`) · **046** (la capa de
-radiación por fin se APRECIA). Las cuatro del 21-08 están EN PRODUCCIÓN y verificadas en vivo.
+**Cifras vivas en `05`.** 14 pestañas + RCA + tres informes. Olas cerradas: ADR-018 · 020-024 ·
+**032** · **034-042** (capas del mapa) · **043-045** (satelital, cable de guarda, atlas solar) ·
+**046-051** (21 y 22-08). Todo EN PRODUCCIÓN y verificado en vivo con su sesión.
+
+> 🧭 **SE VA POR FASES, y es orden suya (22-08).** El **módulo RCA queda APARCADO** —lo cerrado ahí
+> es `§ADR-049/050`; lo que falta NO se toca hasta que él lo diga—. La fase viva es **la página**.
 
 ## 🛑 LO PRIMERO AL RETOMAR
 
-1. **EL CUELLO DE BOTELLA NO ES CÓDIGO: ES EL DATO.** La ficha estructural se escribe y está en
-   producción (`99 §ADR-030`), y desde el 20-08 también **por lote** (`§ADR-038`). Siguen **0 de 25
-   con veredicto**, y el lote **no mueve ninguno solo**: faltan las dos alturas (`33 · L-59`). Falta
-   que él conteste `TODO-57`: si esas fichas están en planos y actas o hay que levantarlas.
-2. **EL PATRÓN QUE DOMINÓ LAS DOS ÚLTIMAS TANDAS, y lo destapó él:** *«arreglado donde se veía,
-   vivo en la pieza hermana»*. Lo encontró mirando la capa de radiación (`ADR-046`) y se repitió al
-   triar los 51 hallazgos del entorno (`ADR-049`): **de 7 dados por cerrados, 5 eran PARCIALES**. De
-   ahí salen las dos lecciones que gobiernan lo que viene: **`34 · L-65`** —una corrección es deuda
-   con toda la familia— y **`32 · L-67`** —un guardián que vigila la función y no a quien la llama
-   cubre media carrera—. Lo cerrado del 21 y 22-08 vive entero en `99 §ADR-043 a 049`; el saldo
-   pendiente, en `TODO-79`.
-   ⚠️ `31 · L-60` (licencia de las ortos del IGAC) **puede estar MAL**: un agente sostiene que las
-   del Catastro Distrital sí son redistribuibles. Verificar ANTES de citarlo.
-3. **TRES SON DE ÉL** (detalle en su tabla): `TODO-57` el dato de la ficha · **ponerse contraseña**
-   (bloquea retirar Google) · `TODO-71` viento y los 1.000 W/m².
-4. **Verificar que una acción FUNCIONÓ**, no que se hizo (`TODO-66`).
-5. **Higiene del cerebro — mantenimiento integral el 21-08 (`99 §ADR-047/048`).** 6 lentes con
-   refutador: **28 huecos confirmados y cerrados**, 15 tumbados. La familia de lecciones pasa a
-   madre + 5 hijos (`34` mapa, `35` acceso) y el `00` vuelve a ser índice. Lo consolidado se MOVIÓ a
-   su dueño. ⚠️ El techo ya no es el tope del hijo: **es el ARRANQUE**, con 7 caracteres de margen.
+1. **EL CUELLO DE BOTELLA NO ES CÓDIGO: ES EL DATO.** La ficha se escribe, y por lote
+   (`99 §ADR-030/038`). Siguen **0 de 25 con veredicto** y el lote no mueve ninguno solo: faltan las
+   dos alturas (`33 · L-59`). Falta que él conteste `TODO-57`.
+2. **EL PATRÓN QUE LO DOMINA TODO, y lo destapó él:** *«arreglado donde se veía, vivo en la pieza
+   hermana»*. Salió en la capa de radiación (`ADR-046`) y se repitió al triar los 51 hallazgos del
+   entorno (`ADR-049`): **de 7 dados por cerrados, 5 eran PARCIALES**. De ahí las dos lecciones que
+   gobiernan lo que viene: **`34 · L-65`** —una corrección es deuda con toda la familia— y
+   **`32 · L-67`** —un guardián que vigila la función y no a quien la llama cubre media carrera—.
+3. **LA FASE ABIERTA: la página.** Cerrada la primera tanda (`§ADR-051`: la banda, el color de la
+   pestaña, el tope de tiro y la versión del motor, todos derivados del dato). **Las tres candidatas
+   para la siguiente, en orden de lo que rinde** —él elige—:
+   ① **el número que se firma**: el tope de puesta a tierra tiene TRES versiones (el motor lee un
+   campo que NO está en el molde, así que el informe dice siempre «adoptado por defecto») y el
+   gerencial exige el despeje mínimo para siempre aunque esté declarado. ② **se lee**: renglones de
+   200 caracteres, encabezados desalineados de sus cifras, rótulos del Horizonte a 6 px, y el mapa
+   que en 13" echa los indicadores fuera. ③ **no se cae**: una foto que falle deja la galería en
+   blanco; la cartografía promete caché eterna y las cabeceras dicen otra cosa.
+   ⚠️ `31 · L-60` (licencia de las ortos del IGAC) **puede estar MAL**: verificar ANTES de citarlo.
+4. **SON DE ÉL** (detalle en su tabla): `TODO-57` el dato de la ficha · **contraseña** (bloquea
+   retirar Google) · `TODO-71` viento y los 1.000 W/m² · `TODO-33` si el tope es 50 % o 25 %, que
+   ahora es UNA decisión y no tres sitios · `TODO-76` retenida · `TODO-78` el nodo `33` al 99,9 %.
+5. **Higiene del cerebro** (`99 §ADR-047/048`): 28 huecos cerrados, familia de lecciones a 5 hijos,
+   `00` vuelve a ser índice. ⚠️ El techo ya no es el tope del hijo: **es el ARRANQUE**, al límite.
 6. **Las 205 fotos siguen cargadas y visibles** (`99 §ADR-031`); tres defectos no bloquean.
 
 ## 🚫 INVARIANTES QUE NO SE PUEDEN ROMPER
 
-No se resumen aquí: cada uno vive ENTERO en su ADR y copiarlos crea una segunda versión que se
-desincroniza. Léelos antes de tocar su subsistema.
+Cada uno vive ENTERO en su ADR: esto es el índice, léelo antes de tocar su subsistema.
 
-· **Carcasa** `§ADR-018` — `amanecer` inalcanzable si falta un apoyo; el veredicto se lee de
+· **Carcasa** `§ADR-018` — `amanecer` inalcanzable si falta un apoyo; el veredicto sale de
   `utilizacion_pct`, jamás de `cargaRotura_kgf`; dueños únicos en `vistas/`.
-· **RCA** `§ADR-020` — prohibido ranking de hipótesis, causa raíz por IA y porcentaje de confianza.
-· **Causa raíz** `§ADR-026` — quién lee las causas es `causasDeclaradas()`, nunca `a.causaRaiz`.
-· **Acceso** `§ADR-024` — la contraseña es HIGIENE, no la frontera; la frontera son las reglas.
-· **Fotos** `§ADR-031` — el portero NO borra y NO lista; se cuelga por nombre canónico; decide la huella.
+· **RCA** `§ADR-020/026` — prohibido rankear hipótesis, causa raíz por IA y % de confianza; quien lee
+  las causas es `causasDeclaradas()`.
+· **Acceso** `§ADR-024` — la contraseña es HIGIENE; la frontera son las reglas.
+· **Fotos** `§ADR-031` — el portero NO borra y NO lista; se cuelga por nombre canónico.
 · **Recordar ≠ proponer** `§ADR-029` — sin decisión suya el campo queda VACÍO.
-· **Capas del mapa** `§ADR-034/037/046` — viajan CON el sitio; una capa de datos se guarda como
-  MEDIDA (byte 0 = SIN DATO); el pronóstico no se guarda; y toda capa de medida trae encuadre al
-  recorte Y escala publicada, las DOS o ninguna.
+· **Capas del mapa** `§ADR-034/037/046` — viajan CON el sitio; se guardan como MEDIDA (byte 0 = SIN
+  DATO); el pronóstico no se guarda; y toda capa trae encuadre Y escala, las DOS o ninguna.
 · **Ficha y lote** `§ADR-030/038` — el lote solo rellena huecos, y solo los tres campos del MODELO.
 · **Verosimilitud** `§ADR-050` — la escala son TRES y se LEE del molde; una rival se cierra diciendo
   qué se hizo y cómo quedó, nunca con una etiqueta.
 · **Señales de la página** `§ADR-051` — banda, color de pestaña y tope de tiro salen del DATO, con un
-  solo dueño cada uno; la versión del motor la ata un gate de `pre-commit`.
-· **Documentación** `§ADR-021` — el verde de `brain:check` dice que está bien CONSTRUIDO, no que diga la verdad.
+  solo dueño; la versión del motor la ata un gate de `pre-commit`.
+· **Documentación** `§ADR-021` — el verde de `brain:check` dice bien CONSTRUIDO, no que diga verdad.
 
 ## 🧭 Cómo retomar
 
@@ -95,12 +98,11 @@ desincroniza. Léelos antes de tocar su subsistema.
 | **TODO-66** | **Que una acción pruebe que FUNCIONÓ**, no solo que se hizo (deuda declarada en `99 §ADR-026`): bloque de verificación posterior —cuándo, quién, si fue eficaz y cómo se comprobó— y la cerrada queda «pendiente de verificar eficacia» hasta esa fecha | `99 §ADR-026` |
 | **TODO-50** | **Blindaje**: ✅ F1 · ✅ F2a · ✅ F3 pantalla de cambio · ⬜ **2b retirar Google** — espera la contraseña | `99 §ADR-019/024` |
 | **TODO-52/49/48** | RCA: el lienzo del árbol (cosmético) · contador de PARQUE (no construible hoy) · deuda de ADR-017: al veredicto longitudinal le falta el ruido de tendido y el piso de validez | `99 §ADR-017/018/020` |
-| **TODO-79** | **Saldo del entorno: 36 vivos + 5 parciales** (cerrados el 22-08: la verosimilitud `§ADR-050` y seis de la página `§ADR-051`), triados contra el código de hoy y ordenados por gravedad (`99 §ADR-049` · crudo `2026-08-22-triaje-51-hallazgos-entorno.json`). Los dos restos más caros: el identificador crudo en el **informe firmable** (`exportar/informe.js:331`) y la red del **mapa**, que se traga el fallo y encima dice «no se pudo descargar» cuando falló dibujar | Varios son decisión suya (escala de verosimilitud, orden de la lista); otros tocan el molde |
+| **TODO-79** | **Saldo del entorno: 36 vivos + 5 parciales**, triados contra el código de hoy y ordenados por gravedad (`99 §ADR-049` · crudo `2026-08-22-triaje-51-hallazgos-entorno.json`). Los dos restos más caros: el identificador crudo en el **informe firmable** (`exportar/informe.js:331`) y la red del **mapa**, que se traga el fallo y dice «no se pudo descargar» cuando falló dibujar | Varios son decisión suya; otros tocan el molde |
 | **TODO-30/11 · 13-23** | XSD real de GPX/KML en CI · nota técnica de LN-627 · F3-F5 (sincronización, Firestore vs D1, flujo IA, secretos) | crudo de **ADR-013** |
 
 ## ✅ Consolidado — el detalle vive en su dueño, no aquí
 
-- **La línea** (25 estructuras + 3 empalmes, 7 tramos, 3.024 m) y sus hallazgos reales —14 vanos
-  fuera de banda del VIR, 3 apoyos que amplifican, 2 terminales con el tiro entero— → `40 §10` y
-  `99 §ADR-013/017`. **IDEAM**: ~11 días de desfase, rayos sin dato utilizable (`31 · L-37`).
-- **Callejones ya probados**: índice completo en `30`; el que más se repite es **«verde no prueba nada»** (`L-33` · `32 · L-35` · `33 · L-53` · `30 · L-56`).
+La línea y sus hallazgos reales → `40 §10` y `99 §ADR-013/017` · IDEAM (~11 días de desfase, rayos
+sin dato) → `35 · L-37` · callejones probados → `30`, y el que más se repite es **«verde no prueba
+nada»** (`L-33` · `32 · L-35` · `33 · L-53` · `30 · L-56`).
