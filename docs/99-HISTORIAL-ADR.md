@@ -4841,7 +4841,11 @@ del triaje (`research-archive/2026-08-22-triaje-51-hallazgos-entorno.json`). Gua
 
 ## ADR-052 · 2026-08-22 · El número que se firma: un solo tope de puesta a tierra, y un pendiente que por fin se tacha
 
-**Estado:** ✅ Decidido · **NO revisada externamente** · ⏳ pendiente de verificar en vivo en producción.
+**Estado:** ✅ Decidido · **NO revisada externamente** · ✅ **verificado en vivo** en producción con
+la sesión del Ingeniero: motor `v0.3.0` y contrato `v0.8.0` servidos (hash servido == construido), la
+fila de tierra ya no se atribuye al RETIE, la ficha de E01 publica «(procedencia: criterio_diseno)», y
+la hipótesis de LN-627 **sí declara** los cinco despejes —que era la condición para que el pendiente
+del gerencial se tachara—.
 
 ### Contexto
 

@@ -7,8 +7,7 @@
 
 **Cifras vivas en `05`.** 14 pestañas + RCA + tres informes. Olas cerradas: ADR-018 · 020-024 ·
 **032** · **034-042** (capas del mapa) · **043-045** (satelital, cable de guarda, atlas solar) ·
-**046-052** (21 y 22-08). Todo EN PRODUCCIÓN y verificado en vivo con su sesión — **menos `ADR-052`,
-desplegado y AÚN SIN RECORRER con él.**
+**046-052** (21 y 22-08). Todo EN PRODUCCIÓN y verificado en vivo con su sesión.
 
 > 🧭 **SE VA POR FASES, orden suya (22-08).** El **módulo RCA queda APARCADO** —lo cerrado ahí es
 > `§ADR-049/050`; lo que falta NO se toca hasta que él lo diga—. La fase viva es **la página**.
