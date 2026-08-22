@@ -43,6 +43,34 @@ if [ -n "$fugas" ]; then
 fi
 
 staged=$(git diff --cached --name-only)
+# ═══════════════════════════════════════════════════════════════
+# 🔢 LA VERSIÓN DEL MOTOR — se sube en el MISMO commit que lo cambia
+# ═══════════════════════════════════════════════════════════════
+# El sello que acompaña a cada tabla calculada imprime `@lineas/nucleo v0.x.y`, y
+# ese número es lo que permite defender un informe tres años después: dos
+# informes calculados con motores que juzgan distinto no pueden salir firmados
+# con la misma versión. Estuvo congelado en 0.1.0 mientras entraban las acciones
+# correctivas, las causas raíz en plural, la barrera de contención, cinco
+# familias nuevas y la capacidad longitudinal: la trazabilidad convertida en
+# adorno (`99 §ADR-051`).
+#
+# Cambio de comentario o de prueba: `git commit --no-verify`, a conciencia.
+motor=$(git diff --cached --name-only -- nucleo/ | grep -v '^nucleo/package.json$' || true)
+if [ -n "$motor" ]; then
+  if ! git diff --cached -U0 -- nucleo/package.json | grep -qE '^\+.*"version"'; then
+    echo ""
+    echo "❌ COMMIT BLOQUEADO: cambia el MOTOR y su versión se queda igual."
+    echo "$motor" | sed 's/^/   · /'
+    echo ""
+    echo "   El sello de cada tabla calculada imprime esa versión: si no sube, dos"
+    echo "   informes con motores distintos salen firmados con el mismo número."
+    echo "   Sube 'version' en nucleo/package.json, o usa --no-verify si el cambio"
+    echo "   no toca el cálculo (un comentario, una prueba)."
+    exit 1
+  fi
+fi
+
+
 echo "$staged" | grep -qE '^(CLAUDE\.md|docs/)' || exit 0   # nada del cerebro staged → no aplica
 
 if ! command -v node >/dev/null 2>&1; then

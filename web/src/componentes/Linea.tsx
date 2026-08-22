@@ -106,7 +106,12 @@ const PESTANAS = [
   { id: 'gps', rotulo: 'Detalle GPS', lista: true },
   { id: 'distancias', rotulo: 'Distancias', lista: true },
   { id: 'fichas', rotulo: 'Fichas', lista: true },
-  { id: 'falla', rotulo: 'Falla', lista: true, roja: true },
+  // ⚠️ SIN `roja` FIJO. Lo estuvo, y pintaba la pestaña en rojo tuviera eventos
+  // o ninguno: alarma permanente que no mira el dato, mientras dentro decía
+  // «esta línea no tiene ningún expediente». Una alarma que siempre suena deja
+  // de ser una alarma. El rojo lo decide ahora el número de expedientes abiertos
+  // (`99 §ADR-051`).
+  { id: 'falla', rotulo: 'Falla', lista: true },
   { id: 'fundamentos', rotulo: 'Fundamentos', lista: true },
   { id: 'mecanico', rotulo: 'Mecánico', lista: true },
   { id: 'termica', rotulo: 'Térmica', lista: true },
@@ -151,11 +156,25 @@ const soloAdmin = (p: (typeof PESTANAS)[number]): boolean => 'soloAdmin' in p &&
  * Los tres semáforos salen de los datos, no de un texto: si mañana la línea
  * está sana, la banda lo dice sola.
  */
-function BandaEstado({ eventos, calidad, filasMecanico, hipotesis }: {
+function BandaEstado({ eventos, calidad, filasMecanico, excedidos, hipotesis }: {
   eventos: number; calidad: { atencion: number; aviso: number };
-  filasMecanico: number; hipotesis: Hipotesis;
+  filasMecanico: number;
+  /**
+   * Cuántos tramos pasan del tope de tiro adoptado. Llega YA CONTADO desde el
+   * mismo dueño que usa la pestaña Mecánico (`vistas/tramos.ts`), y no se
+   * recalcula aquí: dos cuentas del mismo número es cómo se acaba con una
+   * pantalla en verde y otra en rojo sobre la misma línea.
+   *
+   * ⚠️ Estuvo FIJADO A CERO en el código, con el tono escrito a mano como
+   * «bien». O sea que lo primero que ve quien dirige el mantenimiento era un
+   * punto verde que decía que el cálculo mecánico estaba bien **aunque hubiera
+   * tramos por encima del umbral**, y para enterarse había que entrar a la
+   * pestaña. Era la única de las cuatro fichas que no derivaba del dato, y
+   * mentía hacia el lado peligroso (`99 §ADR-051`).
+   */
+  excedidos: number;
+  hipotesis: Hipotesis;
 }) {
-  const excedidos = 0;   // lo calcula Mecánico; aquí solo se informa el alcance
   const fichas = [
     {
       t: 'Eventos de falla',
@@ -171,8 +190,13 @@ function BandaEstado({ eventos, calidad, filasMecanico, hipotesis }: {
     },
     {
       t: 'Cálculo mecánico',
-      v: filasMecanico ? `${nf(filasMecanico)} tramos calculados${excedidos ? ` · ${excedidos} excedidos` : ''}` : 'sin tramos',
-      tono: 'bien',
+      // «Sin tramos» tampoco es un aprobado: es que no se calculó nada. Un hueco
+      // pintado de verde es el patrón que este proyecto tiene por lección
+      // (`32 · L-44`), y estaba aquí mismo.
+      v: !filasMecanico ? 'sin tramos calculados'
+        : excedidos ? `${nf(filasMecanico)} tramos · ${nf(excedidos)} sobre el tope adoptado`
+        : `${nf(filasMecanico)} tramos calculados`,
+      tono: !filasMecanico || excedidos ? 'atender' : 'bien',
     },
     {
       t: 'Hipótesis de cálculo',
@@ -223,6 +247,12 @@ function Resumen({ apoyos, investigaciones, alVerEvento, hipotesis, conductor }:
              tramos: lev.tramos, calidad: calidadLevantamiento(lev), coherencia };
   }, [apoyos]);
 
+  // El MISMO dueño que la pestaña Mecánico, no una segunda cuenta: si un día se
+  // discute el tope, las dos pantallas cambian el mismo día (`99 §ADR-051`).
+  const excedidos = useMemo(
+    () => calcularTramos(apoyos, conductor, hipotesis).filter((f) => f.excede).length,
+    [apoyos, conductor, hipotesis]);
+
   if (!r.e) return null;
 
   return (
@@ -234,6 +264,7 @@ function Resumen({ apoyos, investigaciones, alVerEvento, hipotesis, conductor }:
           aviso: r.calidad.filter((c) => c.severidad === 'aviso').length,
         }}
         filasMecanico={r.tramos.length}
+        excedidos={excedidos}
         hipotesis={hipotesis}
       />
       <p className="saludo">
@@ -580,6 +611,12 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
     /** Por qué se abrió esta línea y no la que pedía el enlace. */
     avisoRuta?: string; lineas?: TLinea[] }) {
 
+  /**
+   * Cuántos expedientes de falla siguen ABIERTOS. Es lo que decide si la pestaña
+   * «Falla» va en rojo — antes iba en rojo siempre, mirara o no el dato.
+   */
+  const eventosAbiertos = investigaciones.filter((i) => !i.cerrada).length;
+
   // Quién entró y con qué permiso. Solo lo consume la pestaña que ESCRIBE.
   const sesion = useSesion();
   const esAdmin = sesion.fase === 'autenticado' && sesion.rol === 'admin';
@@ -729,7 +766,8 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
                 aria-selected={activa === p.id}
                 aria-controls="panel-linea"
                 tabIndex={activa === p.id ? 0 : -1}
-                className={'pestana' + (activa === p.id ? ' activa' : '') + ('roja' in p && p.roja ? ' roja' : '')}
+                className={'pestana' + (activa === p.id ? ' activa' : '')
+                  + (p.id === 'falla' && eventosAbiertos ? ' roja' : '')}
                 disabled={!p.lista}
                 title={p.lista ? undefined : 'En construcción'}
                 onClick={() => p.lista && irA(p.id)}

@@ -218,7 +218,42 @@ export function estadosDelTramo(tramo, conductor, params) {
 }
 
 /**
- * Tensión mecánica máxima admisible: 50 % de la carga de rotura.
- * Ningún estado debe superarla.
+ * El tope clásico, escrito como lo que es: una COSTUMBRE heredada, no una norma
+ * citada. Por eso su procedencia se publica al lado del número.
  */
-export const tiroMaximoAdmisible = (rts) => 0.5 * rts;
+export const TOPE_TIRO_CLASICO_PCT = 50;
+
+/**
+ * QUÉ TOPE DE TIRO RIGE, Y DE DÓNDE SALIÓ.
+ *
+ * ⚠️ UN TOPE DE DISEÑO ES UNA DECISIÓN DE INGENIERÍA FECHADA, no una constante
+ * de programa: viaja en la hipótesis, que se versiona y se congela al firmar. Si
+ * la hipótesis no lo declara se usa el 50 % de toda la vida, y se dice.
+ *
+ * Esta función existe porque el número tenía DOS dueños. `umbrales.js` leía la
+ * hipótesis —bien— y la pantalla leía un `0,5` escrito en código, así que el día
+ * que alguien declarara un tope propio la pestaña Umbrales habría evaluado
+ * contra el valor declarado mientras Fundamentos y Mecánico seguían con el 50:
+ * **dos veredictos distintos sobre el mismo tramo, en la misma línea, el mismo
+ * día**. Hoy cuadraba por suerte, porque nadie lo había declarado todavía
+ * (`99 §ADR-051`).
+ *
+ * @param {{tiroAdmisible_pct?: number}} [hipotesis]
+ * @returns {{pct: number, procedencia: 'hipotesis_declarada'|'criterio_clasico'}}
+ */
+export function topeDeTiro(hipotesis) {
+  const d = hipotesis?.tiroAdmisible_pct;
+  const declarado = typeof d === 'number' && Number.isFinite(d) ? d : null;
+  return {
+    pct: declarado ?? TOPE_TIRO_CLASICO_PCT,
+    procedencia: declarado != null ? 'hipotesis_declarada' : 'criterio_clasico',
+  };
+}
+
+/**
+ * Tensión mecánica máxima admisible. Ningún estado debe superarla.
+ *
+ * Sin hipótesis devuelve el 50 % clásico, que es lo que hacía antes: la firma es
+ * ADITIVA a propósito, para no romper a quien la llame con un solo argumento.
+ */
+export const tiroMaximoAdmisible = (rts, hipotesis) => (rts * topeDeTiro(hipotesis).pct) / 100;

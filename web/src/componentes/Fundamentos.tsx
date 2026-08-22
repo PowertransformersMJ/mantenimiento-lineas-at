@@ -13,7 +13,7 @@
 // ============================================================================
 import { useMemo, type ReactNode } from 'react';
 import type { Apoyo, Conductor, Hipotesis } from '@lineas/contratos';
-import { tramosDeTension, estadosDelTramo, flechaCatenaria, tiroMaximoAdmisible }
+import { tramosDeTension, estadosDelTramo, flechaCatenaria, tiroMaximoAdmisible, topeDeTiro }
   from '@lineas/nucleo/mecanica';
 import { vanoViento } from '@lineas/nucleo/geodesia';
 import { ampacidad, temperaturaLimite } from '@lineas/nucleo/termica';
@@ -67,9 +67,16 @@ function valorVivo(id: string, x: Ctx): ReactNode {
     case 'tens': {
       if (!gob) return null;
       const eds = gob.estados.eds.H, vto = gob.estados.viento.H;
+      // ⚠️ EL TOPE SE PIDE, NO SE ESCRIBE. Este texto decía «50 %» a mano mientras
+      // la FIGURA de esta misma tarjeta ya dibujaba el tope declarado en la
+      // hipótesis: el día que se declarara uno propio, el dibujo y el texto de la
+      // misma tarjeta habrían dicho cosas distintas (`99 §ADR-051`).
+      const tope = topeDeTiro(h);
       return <>RTS = <b>{nf(c.rts_kgf)} kgf</b> ({selloDeOrigen(c.procedencia)}) ·
         EDS = {nf(eds)} kgf ({(eds / c.rts_kgf * 100).toFixed(1)} %) · con viento {nf(vto)} kgf ({(vto / c.rts_kgf * 100).toFixed(1)} %) ·
-        tope adoptado (50 % — pendiente de cierre normativo) = {nf(tiroMaximoAdmisible(c.rts_kgf))} kgf.</>;
+        tope adoptado ({tope.pct} %{tope.procedencia === 'criterio_clasico'
+          ? ' — criterio clásico, pendiente de cierre normativo'
+          : ' — declarado en la hipótesis'}) = {nf(tiroMaximoAdmisible(c.rts_kgf, h))} kgf.</>;
     }
     case 'cambio': {
       if (!gob) return null;
@@ -154,7 +161,8 @@ export function Fundamentos({ apoyos, conductor, hipotesis }:
       flechaMin_m: gob ? flechaCatenaria(conductor.masaLineal_kg_m, gob.vanoMax, gob.estados.tMin.H) : undefined,
       pctEds: gob ? (gob.estados.eds.H / conductor.rts_kgf) * 100 : undefined,
       pctViento: gob ? (gob.estados.viento.H / conductor.rts_kgf) * 100 : undefined,
-      pctTope: (hipotesis as { tiroAdmisible_pct?: number }).tiroAdmisible_pct ?? 50,
+      // El MISMO dueño que el texto de la tarjeta y que la pestaña Umbrales.
+      pctTope: topeDeTiro(hipotesis).pct,
       deflexion_grados: mayorDeflexion,
       vanos_m: filas[0]?.nVanos ? L.slice(0, 4) : undefined,
       tMax_C: hipotesis.tempMax_C,

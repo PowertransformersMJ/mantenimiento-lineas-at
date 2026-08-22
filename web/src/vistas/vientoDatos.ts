@@ -31,7 +31,7 @@
 // Ver docs/40-DOMINIO-LINEAS-AT.md §3 (viento) y §8 (deuda declarada).
 // ============================================================================
 import {
-  presionDinamica, cargaViento, cargaResultante, flechaCatenaria, tiroMaximoAdmisible,
+  presionDinamica, cargaViento, cargaResultante, flechaCatenaria, tiroMaximoAdmisible, topeDeTiro,
 } from '@lineas/nucleo/mecanica';
 import type { Conductor, Hipotesis } from '@lineas/contratos';
 import type { FilaTramo } from './tramos';
@@ -314,15 +314,18 @@ export function caracterizacionViento(
   // núcleo y no escrito aquí: si un día se discute y se cambia, se cambia en un
   // solo sitio y las dos pantallas dicen lo mismo el mismo día.
   if (rts_kgf !== null) {
-    const admisible = tiroMaximoAdmisible(rts_kgf);
+    const tope = topeDeTiro(hipotesis ?? undefined);
+    const admisible = tiroMaximoAdmisible(rts_kgf, hipotesis ?? undefined);
     const excedidos = filas.filter((f) => f.tiroViento_kgf !== null && f.tiroViento_kgf > admisible);
     if (excedidos.length) {
       avisos.push({
         severidad: 'atencion',
         concepto: `El estado de viento por sí solo supera el tiro admisible en ${excedidos.length} tramo(s)`,
         motivo: `Tramos ${excedidos.map((f) => f.n).join(', ')}: el tiro con viento pasa del `
-          + 'umbral adoptado (50 % de la carga de rotura). Con la hipótesis declarada, el viento '
-          + 'no es el caso cómodo de esta línea: hay que revisarlo antes de firmar.',
+          + `umbral adoptado (${tope.pct} % de la carga de rotura`
+          + `${tope.procedencia === 'criterio_clasico' ? ', criterio clásico' : ', declarado en la hipótesis'}). `
+          + 'Con la hipótesis declarada, el viento no es el caso cómodo de esta línea: hay que '
+          + 'revisarlo antes de firmar.',
       });
     }
   }

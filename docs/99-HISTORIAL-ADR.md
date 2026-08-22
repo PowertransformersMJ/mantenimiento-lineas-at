@@ -4756,3 +4756,83 @@ hipótesis y escribir qué se hizo y cómo quedó.
 La decisión es del Ingeniero (2026-08-22), sobre el hallazgo nº 1 de «Mentirá en cuanto cambie una
 lista» del triaje (`research-archive/2026-08-22-triaje-51-hallazgos-entorno.json`). Guardianes:
 `tests/rca-contrato-parte.test.js` y `tests/rca.test.js`.
+
+
+---
+
+## ADR-051 · 2026-08-22 · Lo primero que se ve tiene que ser verdad: la banda, la pestaña, el tope y la versión del motor
+
+**Estado:** ✅ Decidido · **NO revisada externamente** · ✅ **verificado en vivo** en producción con
+la sesión del Ingeniero.
+
+### Contexto
+
+Primera fase del saldo del triaje (`ADR-049`) sobre **la página**, y se eligió por un criterio:
+**cerrar lo que la página AFIRMA y no es verdad**, antes que lo que se ve apretado. Cuatro cosas, y
+las cuatro compartían la misma forma — una señal que no mira el dato:
+
+1. **La banda «Cálculo mecánico», siempre en verde.** El número de tramos excedidos estaba
+   **fijado a cero en el código** (`const excedidos = 0`) y el tono escrito a mano como «bien». Si
+   la pestaña Mecánico mostraba tramos por encima del umbral, el Resumen seguía verde. Era la única
+   de las cuatro fichas de la banda que no derivaba del dato — y mentía hacia el lado peligroso:
+   lo primero que ve quien dirige el mantenimiento es un punto verde, y no entra.
+   De regalo, `sin tramos` **también** salía verde: un hueco pintado de aprobado (`32 · L-44`).
+2. **La pestaña «Falla», siempre en rojo**, tuviera expedientes o ninguno, mientras dentro decía
+   «esta línea no tiene ningún expediente». Una alarma que suena siempre deja de ser una alarma.
+3. **El tope de tiro tenía DOS dueños.** `nucleo/umbrales.js` lo leía de la **hipótesis** —bien, con
+   su procedencia publicada— y las pantallas leían un `0,5` escrito en código. Hoy cuadraba **por
+   suerte**: nadie había declarado un tope propio. El día que se declarara, Umbrales habría evaluado
+   contra el valor declarado mientras Fundamentos y Mecánico seguían con el 50 — **dos veredictos
+   distintos sobre el mismo tramo**. Y dentro de la MISMA tarjeta de Fundamentos, la **figura** ya
+   dibujaba el tope declarado mientras el **texto** decía 50 %: dibujo y letra en desacuerdo.
+4. **El sello decía «Motor v0.1.0»** desde hacía dos semanas y media, con las acciones correctivas,
+   las causas raíz en plural, la barrera de contención, cinco familias nuevas y la capacidad
+   longitudinal dentro. Dos informes calculados con motores que juzgan distinto salían firmados con
+   el mismo número: la trazabilidad convertida en adorno.
+
+### Decisión
+
+- **La banda cuenta de verdad**, y lo cuenta el **mismo dueño** que la pestaña Mecánico
+  (`vistas/tramos.ts`), no una segunda cuenta. Con tramos excedidos pasa a «atender» y los nombra;
+  sin un solo tramo calculado, también — porque eso no es un aprobado.
+- **El rojo de «Falla» sale del número de expedientes ABIERTOS.** Ninguna pestaña vuelve a llevar el
+  color escrito en la lista.
+- **El tope de tiro tiene UN dueño**: `topeDeTiro(hipotesis)` en `nucleo/mecanica.js`, que devuelve
+  el porcentaje **y de dónde salió** —`hipotesis_declarada` o `criterio_clasico`—. Las tres pantallas
+  lo piden con la hipótesis, y el texto que lee el Ingeniero **imprime esa procedencia**: el 50 no se
+  presenta como norma, se presenta como la costumbre heredada que es. `tiroMaximoAdmisible(rts)`
+  sigue funcionando con un solo argumento: la firma es aditiva.
+- **La versión del motor sube a 0.2.0**, y **un guardián de `pre-commit` la ata**: si cambia algo de
+  `nucleo/` y su `version` se queda igual, el commit se bloquea con el porqué. Probado en los dos
+  sentidos antes de darlo por bueno.
+- **Se retira la copia dormida** `dibujarTramos` (47 líneas): una segunda tabla de tramos completa,
+  con su propio tope y sus propios textos, que **no llamaba nadie**. Mientras estuvo ahí, quien fuera
+  a corregir un texto podía corregirlo en la copia equivocada y creer que quedó hecho (`30 · L-28`).
+
+### Alternativas descartadas
+
+- **Que la banda recalculara los excedidos por su cuenta.** Es el mismo error que se está cerrando:
+  dos cuentas del mismo número acaban en dos pantallas que dicen cosas distintas.
+- **Dejar el rojo de «Falla» fijo «porque una línea con expedientes siempre los tendrá».** Falso: un
+  expediente se cierra, y el color tiene que apagarse con él.
+- **Subir el tope al molde como campo obligatorio.** Habría obligado a declarar un criterio que
+  todavía está abierto. Se resuelve al revés: se admite que no esté, y se dice.
+- **Bumpear el motor a 1.0.0.** Nada de esto está cerrado contra norma; un `1.0` diría lo contrario.
+
+### Consecuencias
+
+- **19 pruebas nuevas** (1.719 en total) en dos archivos nuevos, `tests/tope-de-tiro.test.js` y
+  `tests/banda-y-pestanas.test.js`. La del tope es la que más vale: declara un tope propio —el caso
+  que hoy no se da— y exige que el motor, la tabla de umbrales y la pantalla den el **mismo número**.
+- Verificado en producción: la tabla de tramos de LN-627 tiene **7 filas y 0 excedidas**, así que el
+  verde de la banda ahora es *cierto*, no *fijo*; y la pestaña «Falla» sale roja porque hay **1**
+  expediente abierto, no porque esté escrito.
+- Queda dicho lo que **no** se tocó: el `.pestana.roja` sigue ganándole el color al `.activa` cuando
+  la pestaña roja está seleccionada. Con el rojo ya derivado del dato, esa combinación es legítima y
+  el subrayado ámbar sigue marcando la selección; si molesta, es una línea de CSS.
+
+### Crudo de respaldo
+
+Hallazgos nº 1, 4, 7 y 8 de «Lo que ya miente» y nº 4 y 10 de «Mentirá en cuanto cambie una lista»
+del triaje (`research-archive/2026-08-22-triaje-51-hallazgos-entorno.json`). Guardianes:
+`tests/tope-de-tiro.test.js`, `tests/banda-y-pestanas.test.js` y el gate de `githooks/pre-commit`.

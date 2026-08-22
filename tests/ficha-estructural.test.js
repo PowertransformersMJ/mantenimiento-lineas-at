@@ -799,8 +799,12 @@ describe('el vocabulario del origen es de UN dueño y cubre el contrato entero',
         `${f} vuelve a tener su propia tabla de orígenes: el dueño es vistas/fichaEstructural.ts`);
       // Ojo: comparar la procedencia para DECIDIR algo («¿es supuesto?») es
       // legítimo. Lo que no lo es es TRADUCIRLA: un ternario que devuelve texto.
-      assert.ok(!/procedencia === '[a-z_]+'\s*\?\s*'/.test(txt),
-        `${f} traduce un origen con un ternario suelto: eso deja los otros seis en crudo`);
+      // Se compara contra los SIETE valores del molde, no contra cualquier
+      // cadena: `tope.procedencia === 'criterio_clasico'` es la procedencia del
+      // TOPE DE TIRO, otra cosa, y traducirla ahí es correcto.
+      const origenes = VALORES.join('|');
+      assert.ok(!new RegExp(`procedencia === '(${origenes})'\\s*\\?\\s*'`).test(txt),
+        `${f} traduce un origen del dato con un ternario suelto: deja los otros seis en crudo`);
     }
   });
 });
