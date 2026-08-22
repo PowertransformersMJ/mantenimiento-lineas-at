@@ -4954,7 +4954,11 @@ de `tests/gerencial.test.js` y el gate de versión del motor en `githooks/pre-co
 
 ## ADR-053 · 2026-08-22 · Un atlas de temperatura, un solo motor para los dos, y los dos dentro de Detalle GPS
 
-**Estado:** ✅ Decidido · **NO revisada externamente** · ⏳ pendiente de verificar en vivo en producción.
+**Estado:** ✅ Decidido · **NO revisada externamente** · ✅ **verificado en vivo** en producción con
+la sesión del Ingeniero: `#/temperatura` abre SU atlas (agosto, día 19 el último con horas, 13:00 la
+hora punta), la leyenda dice «hay celdas **por encima** de 32 °C», y en **Detalle GPS** el panel
+llega **sin descargar un solo byte del atlas** —comprobado con `performance.getEntriesByType`, cero
+recursos `caribe*` antes de pulsar— y al abrirlo pinta el punto **LN-627** dentro del mapa.
 
 ### Contexto
 
