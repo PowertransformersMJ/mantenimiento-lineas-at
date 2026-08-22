@@ -27,7 +27,7 @@
 //   (7) archiveDir íntegro [warn, --full]               (16) Fiabilidad M-22: `verificado-vivo` stale [info, --full]
 //       + 7b) bóveda: commits ≠ origin vía fs [warn]
 // ===========================================================
-const KERNEL_VERSION = '1.8.0';
+const KERNEL_VERSION = '1.9.0';
 import { readFileSync, readdirSync, existsSync, statSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -516,7 +516,7 @@ else {
 //     Cura del hueco "documentado ✅ ≠ real": una afirmación sobre realidad externa
 //     (desplegado/live/datos) lleva `verificado-vivo: YYYY-MM-DD`; este gate avisa cuando se
 //     vuelve stale. Opt-in: 0 marcadores → 0 hallazgos → no rompe ningún repo (mecaniza M-22).
-head('\n16) Fiabilidad (M-22): claims `verificado-vivo` vs realidad:');
+head('\n16) Fiabilidad: claims `verificado-vivo` vs realidad:');
 if (BOOT) head('  ⏭️  omitido en --boot');
 else {
   const vlStaleDays = manifest.verifiedLiveStaleDays || 30;
@@ -529,11 +529,11 @@ else {
     for (const m of read(p).matchAll(/verificado-vivo:\s*(\d{4}-\d{2}-\d{2})/gi)) {
       total++;
       const days = Math.floor((today - new Date(m[1])) / 86400000);
-      if (days > vlStaleDays) { info(`claim "verificado-vivo: ${m[1]}" en ${rel} tiene ${days}d (> ${vlStaleDays}) → re-verificar contra realidad o retirar la afirmación (M-22)`); stale++; }
+      if (days > vlStaleDays) { info(`claim "verificado-vivo: ${m[1]}" en ${rel} tiene ${days}d (> ${vlStaleDays}) → re-verificar contra realidad o retirar la afirmación`); stale++; }
     }
   }
   if (total && !stale) ok(`${total} claim(s) \`verificado-vivo\` vigentes (≤ ${vlStaleDays}d)`);
-  else if (!total) ok('check de fiabilidad activo (sin marcadores `verificado-vivo:` aún — opt-in M-22/§257)');
+  else if (!total) ok('check de fiabilidad activo (sin marcadores `verificado-vivo:` aún — opt-in)');
 }
 
 // ---- salida (presupuesto de stdout en --boot) ----

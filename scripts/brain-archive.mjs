@@ -9,7 +9,7 @@
 //
 //   npm run brain:archive -- --adr 52 --title "Mi título" [--modelo FABLE-5] [--todo TODO-32] [--dry-run]
 //
-// Hace: (1) apéndea a docs/99 el esqueleto del ADR (7 puntos §2 con [JUICIO PENDIENTE]);
+// Hace: (1) apéndea a docs/99 el esqueleto del ADR (8 puntos §2 con [JUICIO PENDIENTE]);
 //       (2) inserta la fila en docs/00 (tras la última fila §); (3) corre brain-index
 //       (reconcilia la columna Línea); (4) imprime el checklist de cierre restante.
 // NO toca: 05 (juicio), 10 (poda = juicio), deepAudit (solo auditorías Nivel-2).
@@ -41,7 +41,10 @@ const adr = [
   `**${NN}.4 Tests/verificación**: [JUICIO PENDIENTE — evidencia resoluble: comando/§/ruta]`,
   `**${NN}.5 Anti-patterns evitados (§3)**: [JUICIO PENDIENTE]`,
   `**${NN}.6 Archivos modificados/INTACTOS**: [JUICIO PENDIENTE]`,
-  `**${NN}.7 Doctrina aplicada + cache bump (§4 si aplica)**: [JUICIO PENDIENTE]`,
+  `**${NN}.7 Doctrina aplicada**: [JUICIO PENDIENTE]`,
+  // v1.9: la casilla .8 nació de la auditoría Nivel-2 — sin ella, lo que una deliberación DESPEJA
+  // (falsos positivos y su porqué) se pierde y el próximo auditor lo vuelve a pagar.
+  `**${NN}.8 Verificado sano / no re-auditar**: [JUICIO PENDIENTE — lo que se despejó y por qué era falso; "ninguno" es respuesta válida]`,
 ].join('\n');
 
 const idx = readFileSync(idxP, 'utf8').split('\n');
