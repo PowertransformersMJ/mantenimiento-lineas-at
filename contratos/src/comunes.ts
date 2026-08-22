@@ -89,8 +89,21 @@ import { z } from 'zod';
  * guardada con un tope de tierra propio NO sobrevive a un bundle desplegado con
  * el contrato anterior — se descarta en silencio y el informe vuelve a los
  * 10 Ω sin decir nada. DESPLEGAR esta versión ANTES de declarar el primer tope.
+ *
+ * 0.9.0 — MENOR (una restricción que se AFLOJA; nada renombrado ni cambiado de
+ * tipo, cero migración): `Apoyo.orden` deja de exigir no negativo. Sigue siendo
+ * `number`, así que los 28 documentos escritos validan sin tocarlos. Lo que
+ * habilita es lo que faltaba desde julio: colocar un punto ANTES del primero.
+ * El primero tiene el orden 0 y bisecar por delante solo daba un negativo, así
+ * que el pórtico del extremo de ORIGEN no tenía por dónde entrar y la única
+ * alternativa era correr los 28 de producción. Ahora entra con `mínimo − 1`
+ * (`99 §ADR-054`).
+ *
+ * ⚠️ MISMA DIRECCIÓN ÚNICA que 0.5.0: un documento con `orden: -1` NO valida
+ * contra un bundle desplegado con el contrato anterior y se descarta EN
+ * SILENCIO — el punto simplemente no aparece. DESPLEGAR antes de cargarlo.
  */
-export const VERSION_CONTRATO = '0.8.0';
+export const VERSION_CONTRATO = '0.9.0';
 
 // ── Identificadores ─────────────────────────────────────────────────────────
 

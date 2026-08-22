@@ -77,6 +77,7 @@ export const CAMPOS_DEL_PUNTO = Object.freeze([
   'funcionConfirmadaEn',   // fecha de FIRMA, no de captura
   'insertarDespuesDe',     // dónde dijo él que va
   'insertarAlFinal',       // ídem
+  'insertarAlPrincipio',   // ídem — el extremo de ORIGEN (§ADR-054)
   'aprobadoPor',           // se comprueba que existe; NO se copia (ver DECIDIDO_POR)
   'aprobadoEn',            // fecha de DECISIÓN
 ]);
@@ -128,11 +129,24 @@ const REDACCION = Object.freeze({
       + 'que ese pórtico es el final de la línea, así que el papel entra CONFIRMADO por usted y no '
       + 'supuesto.',
   },
+  // ⚠️ REDACCIÓN REESCRITA EL 22-08. Decía que estaba pendiente de que usted lo
+  // verificara en campo. Fue el 21-08, lo verificó, y el punto que trajo NO es el
+  // que se había levantado el 11: está a 4,6 km del anterior. Preguntado con las
+  // dos coordenadas delante, decidió que manda el nuevo. La redacción anterior no
+  // se conserva aquí porque este archivo produce el extracto VIGENTE; la historia
+  // del cambio vive en la bóveda y en `99 §ADR-054`, que es donde se audita.
   'LN-627 PORTICO ORIGEN': {
-    porQue: 'Usted quiere verificarlo en campo antes de darlo por bueno. Pendiente no es descartado.',
-    porQueNoSeOfrece: 'No tiene nombre emitido en el libro de identidad, así que esta pantalla no '
-      + 'puede darle identidad; y va ANTES del primer punto cargado, que es un camino que todavía '
-      + 'no existe.',
+    porQue: 'Es el pórtico de subestación del extremo de ORIGEN: ancla el conductor por definición, '
+      + 'y por eso aquí se corta el primer tramo de tensión. Usted lo verificó en campo el 21 de '
+      + 'agosto de 2026 y el punto que trajo NO coincide con el que se había levantado el 11: está '
+      + 'a 4,6 km de aquél. Con las dos posiciones delante usted decidió que manda el del 21, así '
+      + 'que el papel entra CONFIRMADO por usted y no supuesto. Va ANTES del primer punto cargado, '
+      + 'que es un camino que hubo que construir a propósito.',
+  },
+  'LN-627 EMP E01-E02': {
+    porQue: 'Empalme nuevo, dentro del vano E01 → E02. Se declara Suspensión igual que los tres '
+      + 'empalmes anteriores: da lo mismo para el cálculo, porque un empalme no es apoyo y no abre '
+      + 'vano, pero se declara en vez de dejarse al defecto.',
   },
 });
 
@@ -340,6 +354,7 @@ export function filaDesdeElFixture(puntoCrudo, { actas = [], registro = {}, codi
   // insertarAlFinal) para que la traducción a la ficha sea COPIA, no lectura.
   const sitio = {};
   if (p.insertarAlFinal === true) sitio.insertarAlFinal = true;
+  else if (p.insertarAlPrincipio === true) sitio.insertarAlPrincipio = true;
   else if (typeof p.insertarDespuesDe === 'string' && p.insertarDespuesDe) sitio.insertarDespuesDe = p.insertarDespuesDe;
   else {
     throw new Error(`«${sobre}» está aprobado pero no dice dónde va. Sin sitio no hay vano, y sin vano el punto no significa nada.`);
@@ -426,10 +441,31 @@ export function construirLibro(fixture, { codigoLinea, registro = {}, yaPublicad
     // sabe de la línea que se le pidió, y borrar lo que no entiende sería el
     // camino más corto a perder decisiones de otra línea sin enterarse.
     ...Object.fromEntries(Object.entries(yaPublicado).filter(([k]) => !k.startsWith('_') && k !== codigoLinea)),
-    [codigoLinea]: {
-      decisiones: apendar(paginaPrevia.decisiones ?? [], decisiones),
-      pendientes: apendar(paginaPrevia.pendientes ?? [], pendientes),
-    },
+    [codigoLinea]: (() => {
+      const filasDecididas = apendar(paginaPrevia.decisiones ?? [], decisiones);
+      return {
+        decisiones: filasDecididas,
+        // ⚠️ UN PENDIENTE QUE YA SE DECIDIÓ DEJA DE SER UN PENDIENTE.
+        //
+        // `pendientes` no es un histórico: es la lista de lo que TODAVÍA espera
+        // una respuesta suya, y de ella depende una garantía estructural — que
+        // ningún nombre pendiente tenga identidad emitida, para que la pantalla
+        // no pueda ofrecerlo. El día que un pendiente se resuelve, su fila tiene
+        // que salir o esa garantía se vuelve imposible de cumplir sin mentir.
+        //
+        // El caso que lo destapó: «LN-627 PORTICO ORIGEN» estuvo pendiente desde
+        // el 16-08 —él quería verificarlo en campo—, lo verificó el 21-08 y lo
+        // aprobó el 22-08. Con la fila vieja dentro, el libro decía a la vez que
+        // estaba decidido y que estaba esperando (§ADR-054).
+        //
+        // NO SE PIERDE NADA: la fila de decisión que la sustituye lleva su propia
+        // fecha, la bóveda conserva el pendiente original, y el porqué del cambio
+        // vive en su ADR. Lo que se retira es una afirmación que dejó de ser
+        // verdad, no un hecho.
+        pendientes: apendar(paginaPrevia.pendientes ?? [], pendientes)
+          .filter((p) => !filasDecididas.some((dec) => dec.sobre === p.sobre)),
+      };
+    })(),
   };
   return libro;
 }

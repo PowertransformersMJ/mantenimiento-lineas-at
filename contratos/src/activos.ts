@@ -211,17 +211,29 @@ export const Apoyo = Base.extend({
    * de un vano ya levantado (un empalme a mitad de camino) entra por BISECCIÓN:
    * recibe el orden que hay entre sus vecinos —(2+3)/2 = 2,5— en vez de correr
    * una posición a todos los que van detrás. Renumerar obligaría a reescribir
-   * los 26 documentos ya en producción para registrar un hecho que no cambió, y
-   * movería las fotos de apoyo, que se resuelven por este mismo campo.
+   * los 26 documentos ya en producción para registrar un hecho que no cambió.
    *
-   * El cambio es ADITIVO: `z.number()` admite todo lo que admitía
-   * `z.number().int()`, así que los documentos ya escritos siguen validando sin
-   * tocarlos. Pero es de una sola dirección: un documento con `orden: 2.5` NO
-   * valida contra un bundle desplegado con el contrato anterior, y ahí no da
-   * error — se descarta EN SILENCIO. Por eso se despliega la web primero y se
-   * siembra después.
+   * NO ES NO NEGATIVO desde 0.9.0, y por el mismo motivo llevado al otro
+   * extremo: un punto que aparece ANTES del primero —el pórtico del extremo de
+   * ORIGEN— no tenía por dónde entrar. El primero tiene el orden 0, así que
+   * bisecar por delante solo podía dar un número negativo, y el molde lo
+   * rechazaba; la única alternativa era correr los 28 documentos de producción.
+   * Ahora entra con `mínimo − 1` y no se toca ni uno (`99 §ADR-054`).
+   *
+   * ⚠️ EL EJE NO TIENE ORIGEN, Y ESO ES LO CORRECTO. `orden` dice en qué
+   * SECUENCIA va un punto, no cuántos hay antes de él: es un orden relativo. Un
+   * −1 no significa «antes de que empiece la línea», significa «antes que el que
+   * hoy es primero». Quien quiera contar posiciones cuenta la lista ordenada, no
+   * lee este número.
+   *
+   * El cambio es ADITIVO en las dos ocasiones: `z.number()` admite todo lo que
+   * admitían `z.number().int()` y `.nonnegative()`, así que los documentos ya
+   * escritos siguen validando sin tocarlos. Pero es de una sola dirección: un
+   * documento con `orden: 2.5` o `orden: -1` NO valida contra un bundle
+   * desplegado con el contrato anterior, y ahí no da error — se descarta EN
+   * SILENCIO. Por eso se despliega la web primero y se carga después.
    */
-  orden: z.number().nonnegative(),
+  orden: z.number(),
   /**
    * Qué es este punto. **Decide si entra o no al cálculo.** Por defecto se
    * asume `Estructura`, pero si el levantamiento trae empalmes hay que

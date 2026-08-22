@@ -5041,3 +5041,92 @@ la que se llega desde el teléfono, en campo»*—.
 Sin comité: la deliberación fue la medición previa contra NASA POWER (tres celdas, rango 15,3–38,5 °C
 en cinco meses) y la lectura del código existente. La fuente y sus fechas quedan en las dos fichas
 publicadas, que son el crudo de este ADR.
+
+---
+
+## ADR-054 · 2026-08-22 · El extremo de ORIGEN entra sin mover a nadie, y un pórtico que estaba a 4,6 km de donde se creía
+
+**Estado:** ✅ Decidido · **NO revisada externamente** · ⏳ pendiente de que el Ingeniero pulse
+«aprobar» en la pantalla de Cargar; el código y los libros ya están.
+
+### Contexto
+
+El Ingeniero trajo el GPX del **21 de agosto** con tres waypoints y pidió preview antes de aprobar.
+Los tres se midieron contra los 28 puntos cargados con la geodesia del núcleo:
+
+1. **`627 EPM TUBL`** — a **2,62 m** del empalme `EMP E03-E04` que ya estaba cargado, y a 3,19 m de
+   cota. El aparato declara ±8 m por toma, así que dos tomas del mismo punto pueden separarse hasta
+   16 m: usa el **16 %** del margen. Él confirmó que es el mismo. **No se carga.**
+2. **`627 E01 EMP TUB`** — empalme nuevo dentro del vano E01→E02, a 3,8 m de E01 y con 3,0 m de
+   desvío respecto a la recta del vano.
+3. **`627 E PORT PROE`** — el pórtico del extremo de ORIGEN… **a 4.609 m del punto que la bóveda
+   tenía autorizado con ese mismo nombre** desde el 11 de agosto. No es error de GPS.
+
+Esa tercera discrepancia era el hallazgo. `ADR-027` había dejado el pórtico de origen «pendiente de
+verificación» y la bóveda declaraba el bloqueo con precisión: entre él y E01 había **4.604 m de línea
+SIN LEVANTAR**, y esos metros *«NO son un vano — serían 13,7 veces el vano máximo real y contaminarían
+flecha, viento y veredicto mecánico»*.
+
+### Decisión
+
+- **MANDA EL DEL 21-AGO.** Preguntado con las dos coordenadas y las dos distancias delante, el
+  Ingeniero decidió que el pórtico de origen es el que acaba de levantar, a **9,1 m de E01**. La
+  consecuencia mayor: **desaparece el tramo de 4.604 m sin levantar** y la línea queda completa de
+  extremo a extremo. El punto del 11-AGO **no se borra**: se declara superado desde un fixture nuevo
+  y fechado, porque se levantó y con él se razonó seis días.
+- **`Apoyo.orden` deja de exigir no negativo** (contrato **0.8.0 → 0.9.0**, aflojar una restricción =
+  MENOR, cero migración). Era lo único que faltaba: el primero tiene el orden 0, bisecar por delante
+  solo daba un negativo, y la alternativa era correr los 28 documentos de producción. Ahora el
+  extremo de origen entra con **`mínimo − 1`** y no se toca ninguno.
+- **El eje no tiene origen, y eso es lo correcto.** `orden` dice en qué SECUENCIA va un punto, no
+  cuántos hay antes: un −1 no significa «antes de que empiece la línea», significa «antes que el que
+  hoy es primero».
+- **Los TRES caminos aprenden lo mismo**: la pantalla de carga (`importar/punto.js`), el sembrador
+  (`herramientas/construir-apoyos.mjs`) y la vista que ofrece las posiciones. Dejar al sembrador sin
+  saber colocar lo que la pantalla sí coloca habría sido dos caminos con dos verdades.
+- **`insertarAntesDe` solo vale para el primero.** Intercalar dentro del recorrido se dice DETRÁS del
+  vecino anterior: es la misma posición dicha una sola vez, y ofrecer las dos formas de decirla es
+  ofrecer dos sitios donde equivocarse.
+- **«Al principio» va el ÚLTIMO de la lista de posiciones**, no el primero: la lista está en orden de
+  recorrido y poner ese extremo arriba invitaría a elegirlo por estar primero — el mismo sesgo que
+  esta pantalla evita al no ordenar por cercanía.
+- **Un pendiente resuelto sale de `pendientes`.** El libro de decisiones tenía al pórtico a la vez
+  decidido y esperando. `pendientes` no es un histórico: es lo que TODAVÍA espera respuesta, y de esa
+  lista depende una garantía estructural —que ningún pendiente tenga identidad emitida— que sería
+  imposible de cumplir sin mentir.
+- **La cota del empalme se carga tal cual: −8,48 m.** El aparato dio un valor bajo el nivel del mar
+  donde E01 —a 3,8 m— tiene 0,8 m. Es una lectura mala, no entra en ningún cálculo (un empalme no da
+  veredicto) y el sistema ya declara ±8 m en toda cota de GPS de mano. Maquillarla sería peor.
+
+### Alternativas descartadas
+
+- **Renumerar los 28 documentos.** Ya NO por el motivo que decía el código —«movería 64 de las 99
+  fotos, que se resuelven por este mismo campo»—, que **dejó de ser cierto** en `ADR-027` (el id sale
+  del nombre canónico) y `ADR-031` (la foto se casa con el `nombreNormalizado`). Se descarta por el
+  motivo que sigue siendo verdad: reescribir 28 documentos de producción para registrar un hecho que
+  no cambió en ninguno de ellos. El comentario caduco queda corregido en su sitio.
+- **Cargar el pórtico del 11-AGO y el del 21-AGO como dos puntos.** El Ingeniero decidió que es uno.
+- **Borrar la fila del pórtico del 11-AGO de la bóveda.** Es un hecho, no un borrador.
+
+### Consecuencias
+
+- **La línea pasaría a 26 estructuras y 4 empalmes**: longitud 3.023,7 → **3.032,8 m**, vanos 24 → 25,
+  promedio 125,99 → **121,31 m**, mínimo 13,35 → **9,12 m**, coeficiente de variación 61,35 → **65,28 %**
+  y relación máx/mín 25,22 → **36,93**.
+- **Aparece un aviso de calidad nuevo y merecido**: «vano de 9,1 m (8 % del promedio) llegando a
+  E01 — un vano muy corto entre estructuras es atípico». En una salida de subestación lo es; el
+  sistema lo señala igual, que es su trabajo.
+- **Dos identidades emitidas**: `LN-627 PORTICO ORIGEN` (`ad1d2379…`) y `LN-627 EMP E01-E02`
+  (`f20ae216…`). El id del pórtico es **exactamente el que la prueba de identidad reservaba desde el
+  16-08** sin haberlo escrito: reservar y emitir dos semanas después no cambia el número.
+- **1.766 pruebas en verde**, con **19 guardianes actualizados** que fijaban el estado anterior
+  —«el pórtico no está emitido», «antes del primero no se ofrece», «el molde exige no negativo»—.
+  Cada uno lleva escrito por qué se dio la vuelta. Dos se reescribieron contra un **libro sintético**
+  en vez de contra la línea real, para que no vuelvan a caducar cuando un punto se cargue.
+- **Nada está cargado todavía.** Escribir en Firestore lo hace él desde la pantalla con su sesión: es
+  el acto irreversible y no lo dispara Claude.
+
+### Crudo de respaldo
+
+`brain-private/mantenimiento-lineas-at/fixtures/LN-627-geometria-ampliacion-2026-08-21.json` (el
+fixture donde él autora, con la corrección fechada) y `fixtures/gpx/Waypoints_21-AUG-26.gpx`.

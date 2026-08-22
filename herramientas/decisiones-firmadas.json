@@ -36,18 +36,37 @@
         "funcionConfirmada": true,
         "funcionConfirmadaEn": "2026-08-17",
         "porQue": "Es el pórtico de subestación del extremo final: ancla el conductor por definición, y por eso aquí se corta el último tramo de tensión. El 17 de agosto de 2026 usted declaró que ese pórtico es el final de la línea, así que el papel entra CONFIRMADO por usted y no supuesto."
-      }
-    ],
-    "pendientes": [
+      },
       {
         "sobre": "LN-627 PORTICO ORIGEN",
         "decididoPor": "el Ingeniero",
-        "decididoEn": "2026-08-16",
-        "estado": "pendiente_verificacion",
-        "porQue": "Usted quiere verificarlo en campo antes de darlo por bueno. Pendiente no es descartado.",
-        "seOfreceEnLaPantalla": false,
-        "porQueNoSeOfrece": "No tiene nombre emitido en el libro de identidad, así que esta pantalla no puede darle identidad; y va ANTES del primer punto cargado, que es un camino que todavía no existe."
+        "decididoEn": "2026-08-22",
+        "origenDelLevantamiento": "ampliación 21 AGO 2026 — pórtico del extremo de ORIGEN, verificado en campo por el Ingeniero",
+        "estado": "aprobado",
+        "tipoPunto": "Estructura",
+        "sitio": {
+          "insertarAlPrincipio": true
+        },
+        "funcionEstructural": "Terminal",
+        "funcionConfirmada": true,
+        "funcionConfirmadaEn": "2026-08-22",
+        "porQue": "Es el pórtico de subestación del extremo de ORIGEN: ancla el conductor por definición, y por eso aquí se corta el primer tramo de tensión. Usted lo verificó en campo el 21 de agosto de 2026 y el punto que trajo NO coincide con el que se había levantado el 11: está a 4,6 km de aquél. Con las dos posiciones delante usted decidió que manda el del 21, así que el papel entra CONFIRMADO por usted y no supuesto. Va ANTES del primer punto cargado, que es un camino que hubo que construir a propósito."
+      },
+      {
+        "sobre": "LN-627 EMP E01-E02",
+        "decididoPor": "el Ingeniero",
+        "decididoEn": "2026-08-22",
+        "origenDelLevantamiento": "ampliación 21 AGO 2026 — empalme dentro del vano E01 → E02",
+        "estado": "aprobado",
+        "tipoPunto": "Empalme",
+        "sitio": {
+          "insertarDespuesDe": "LN-627 E01"
+        },
+        "funcionEstructural": "Suspensión",
+        "funcionConfirmada": false,
+        "porQue": "Empalme nuevo, dentro del vano E01 → E02. Se declara Suspensión igual que los tres empalmes anteriores: da lo mismo para el cálculo, porque un empalme no es apoyo y no abre vano, pero se declara en vez de dejarse al defecto."
       }
-    ]
+    ],
+    "pendientes": []
   }
 }

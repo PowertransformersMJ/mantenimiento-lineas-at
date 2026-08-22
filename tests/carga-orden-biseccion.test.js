@@ -307,23 +307,48 @@ describe('ANCLAR EN UN PUNTO YA INTERCALADO — el nuevo va detrás de ÉL', () 
 // ════════════════════════════════════════════════════════════════════════════
 describe('LO QUE NO SE PUEDE COLOCAR SE NIEGA CON EL MOTIVO ESCRITO', () => {
 
-  test('un punto ANTES del primero se para: hoy no hay por dónde entrar', () => {
-    // Bisecar por delante daría orden negativo, y correr los 26 es justo lo que
-    // esta bisección existe para evitar. Es el caso del pórtico del extremo de
-    // origen: cuando se apruebe, se construye el camino a propósito.
-    assert.throws(() => construirPuntoNuevo(BASE, decision('LN-627 PORTICO FIN', { insertarAntesDe: 'LN-627 E01' }), OPC),
-      /va antes de/);
-    assert.throws(() => construirPuntoNuevo(BASE, decision('LN-627 PORTICO FIN', { insertarAlPrincipio: true }), OPC),
-      /va antes de/);
+  // ⚠️ CAMBIO DELIBERADO (§ADR-054). Estas dos pruebas exigían que un punto ANTES
+  // del primero se PARARA, y era lo correcto mientras no existiera el camino: el
+  // primero tiene el orden 0 y el molde no admitía negativos. El Ingeniero
+  // verificó el pórtico de origen en campo el 21-08 y pidió construirlo, así que
+  // ahora entra por `mínimo − 1` y la exigencia se da la vuelta: lo que hay que
+  // vigilar es que entre SIN TOCAR a ninguno de los que ya están.
+  test('un punto ANTES del primero entra con mínimo − 1, y no mueve a nadie', () => {
+    const antes = BASE.map((a) => ({ nombre: a.nombreNormalizado, orden: a.orden }));
+    const { documento: doc } = construirPuntoNuevo(BASE, decision('LN-627 PORTICO ORIGEN', { insertarAlPrincipio: true }), OPC);
+    const minimo = Math.min(...BASE.map((a) => a.orden));
+
+    assert.equal(doc.orden, minimo - 1, 'el pórtico de origen va justo delante del que hoy es primero');
+    assert.ok(doc.orden < minimo, 'y por tanto ordena ANTES que él');
+    // Lo que de verdad protege esta ola: los 26 documentos de producción NO se
+    // tocan. Si algún día alguien «arregla» esto renumerando, aquí se ve.
+    assert.deepEqual(BASE.map((a) => ({ nombre: a.nombreNormalizado, orden: a.orden })), antes,
+      'colocar un punto delante REESCRIBIÓ a los que ya estaban');
   });
 
-  test('y ese motivo llega al acuse, con las fotos nombradas', () => {
-    const plan = planDeCarga(BASE, [decision('LN-627 PORTICO FIN', { insertarAntesDe: 'LN-627 E01' })], OPC);
-    assert.equal(plan.documentos.length, 0);
-    assert.equal(plan.bloqueados.length, 1);
-    assert.match(plan.bloqueados[0].motivo, /va antes de/);
-    assert.match(plan.bloqueados[0].motivo, /26 puntos ya cargados/);
-    assert.match(plan.bloqueados[0].motivo, /fotos/);
+  test('«antes de» un punto que NO es el primero sigue sin camino, y lo dice', () => {
+    // Bisecar hacia atrás desde el interior de la lista es la misma cuenta que
+    // «después del anterior». Ofrecer las dos formas de decir lo mismo es
+    // ofrecer dos sitios donde equivocarse.
+    assert.throws(() => construirPuntoNuevo(BASE, decision('LN-627 PORTICO ORIGEN', { insertarAntesDe: 'LN-627 E03' }), OPC),
+      /no es el primero/);
+  });
+
+  test('«antes de» el primero, nombrándolo, es lo mismo que al principio', () => {
+    const { documento: porNombre } = construirPuntoNuevo(BASE, decision('LN-627 PORTICO ORIGEN', { insertarAntesDe: 'LN-627 E01' }), OPC);
+    const { documento: alPrincipio } = construirPuntoNuevo(BASE, decision('LN-627 PORTICO ORIGEN', { insertarAlPrincipio: true }), OPC);
+    assert.equal(porNombre.orden, alPrincipio.orden);
+  });
+
+  test('dos puntos delante del primero NO se pisan', () => {
+    // El segundo tiene que quedar detrás del primero que se declaró, igual que
+    // pasa por detrás: el orden en que se declaran es el orden del recorrido.
+    const plan = planDeCarga(BASE, [
+      decision('LN-627 PORTICO ORIGEN', { insertarAlPrincipio: true }),
+      decision('LN-627 EMP E03-E04', { tipoPunto: 'Empalme', funcionEstructural: 'Suspensión', insertarAlPrincipio: true }),
+    ], OPC);
+    const ordenes = plan.documentos.map((d) => d.orden);
+    assert.equal(new Set(ordenes).size, ordenes.length, 'dos puntos delante recibieron el MISMO orden');
   });
 
   test('un punto que no dice DÓNDE va no se coloca «donde quepa»', () => {

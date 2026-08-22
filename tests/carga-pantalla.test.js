@@ -30,7 +30,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 import {
-  AL_FINAL, actaDeLaCarga, cifrasDeLaCarga, consecuenciaDeFuncion, CONSECUENCIA_TIPO,
+  AL_FINAL, AL_PRINCIPIO, actaDeLaCarga, cifrasDeLaCarga, consecuenciaDeFuncion, CONSECUENCIA_TIPO,
   decisionDeLaFicha, faltantesDe, fichaEnBlanco, nombresParaLaFicha, posicionesPosibles,
   rotuloDelSitio, textoCota, textoDistancia,
 } from '../web/src/vistas/puntosNuevos.ts';
@@ -155,7 +155,10 @@ describe('EL SISTEMA NO ELIGE EL VANO: enseña distancias crudas y ya', () => {
     // Clasificar por distancia es un dictamen disfrazado de lista: el primero de
     // una lista se lee como el bueno, y el aparato declara ±8 m.
     const sitios = posicionesPosibles(BASE, 5.0015, -70);
-    assert.deepEqual(sitios.map((s) => s.valor), ['LX-001 A01', 'LX-001 A02', AL_FINAL]);
+    // El orden es el del RECORRIDO, y los dos extremos van al final de la lista:
+    // «al principio» es el último a propósito, para que nadie lo elija por estar
+    // arriba — el mismo sesgo que se evita al no ordenar por cercanía (§ADR-054).
+    assert.deepEqual(sitios.map((s) => s.valor), ['LX-001 A01', 'LX-001 A02', AL_FINAL, AL_PRINCIPIO]);
     // El más cercano NO es el primero de la lista: si alguien ordenara por
     // cercanía, esta comprobación se rompería.
     const masCerca = [...sitios].sort((a, b) => a.distanciaAtras_m - b.distanciaAtras_m)[0];
@@ -170,11 +173,22 @@ describe('EL SISTEMA NO ELIGE EL VANO: enseña distancias crudas y ya', () => {
     assert.equal(textoDistancia(null), 'sin medir');
   });
 
-  test('el hueco de ANTES del primer punto no se ofrece siquiera', () => {
-    // Ofrecerlo para después negarlo sería peor que no ofrecerlo: hoy no existe
-    // camino para colocar un punto ahí sin mover todo lo que ya está cargado.
+  // ⚠️ SE DIO LA VUELTA EL 22-08 (§ADR-054). Esta prueba exigía que el hueco de
+  // ANTES del primero NI SE OFRECIERA, porque no existía camino para colocarlo
+  // sin mover todo lo cargado — y ofrecer algo para después negarlo es peor que
+  // no ofrecerlo. El camino se construyó para el pórtico del extremo de ORIGEN,
+  // así que ahora sí se ofrece; lo que se vigila es que se ofrezca BIEN.
+  test('el hueco de ANTES del primer punto se ofrece, y nombra al primero', () => {
     const sitios = posicionesPosibles(BASE, 4.9990, -70);
-    assert.ok(!sitios.some((s) => /antes de/.test(s.rotulo)));
+    const alPrincipio = sitios.find((s) => s.valor === AL_PRINCIPIO);
+    assert.ok(alPrincipio, 'no se ofrece colocar antes del primero');
+    assert.match(alPrincipio.rotulo, /^al principio de la línea, antes de /);
+    assert.match(alPrincipio.rotulo, /LX-001 A01/, 'no dice delante de QUÉ punto va');
+    // No tiene vecino por detrás, y se declara como ausencia y no como cero: un
+    // 0 se leería como «pegado a él».
+    assert.equal(alPrincipio.distanciaAtras_m, null);
+    assert.ok(Number.isFinite(alPrincipio.distanciaAdelante_m));
+    // Y el recorrido sigue empezando por el primer punto de la línea.
     assert.equal(sitios[0].valor, 'LX-001 A01');
   });
 
@@ -182,6 +196,7 @@ describe('EL SISTEMA NO ELIGE EL VANO: enseña distancias crudas y ya', () => {
     const sitios = posicionesPosibles(BASE, 5.0015, -70);
     assert.match(rotuloDelSitio(sitios, 'LX-001 A02'), /^detrás de /);
     assert.match(rotuloDelSitio(sitios, AL_FINAL), /^al final de la línea/);
+    assert.match(rotuloDelSitio(sitios, AL_PRINCIPIO), /^al principio de la línea/);
     assert.equal(rotuloDelSitio(sitios, ''), 'sin sitio declarado');
   });
 });

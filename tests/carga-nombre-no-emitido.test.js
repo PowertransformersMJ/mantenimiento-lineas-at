@@ -19,10 +19,15 @@
 // este diseño le cobra algo, y se prueba aquí precisamente para que nadie lo
 // «arregle» más adelante sin darse cuenta de lo que estaría abriendo.
 //
-// EL CASO REAL QUE LO MOTIVA: «LN-627 PORTICO ORIGEN». El Ingeniero ordenó
-// verificarlo en campo antes de cargarlo, así que su nombre NO está emitido.
-// Mientras no lo esté, esta prueba garantiza que la pantalla no puede cargarlo
-// por accidente.
+// EL CASO REAL QUE LO MOTIVÓ FUE «LN-627 PORTICO ORIGEN»: el Ingeniero ordenó
+// verificarlo en campo antes de cargarlo, así que su nombre estuvo SIN emitir
+// desde el 16-08. Lo verificó el 21-08 y lo aprobó el 22-08, así que ya tiene
+// fila (§ADR-054) y ya no sirve de control.
+//
+// ⚠️ POR ESO EL CONTROL ES AHORA UN NOMBRE QUE NO EXISTE, y así debe quedarse:
+// lo que esta prueba protege es la REGLA —la pantalla no estrena identidades—,
+// no un punto concreto. Atarla a un punto la hace caducar el día que ese punto
+// se cargue, y entonces alguien la «arregla» borrándola.
 //
 // ⚠️ Coordenadas y horas, TODAS inventadas. Los nombres canónicos ya son
 // públicos (viven en el registro del repositorio); no lo son las coordenadas.
@@ -66,6 +71,13 @@ const BASE = [
   apoyo('LN-627 E03', 2, 5.0020, 'Terminal'),
 ];
 
+/**
+ * Un nombre canónico que NO está anotado en el libro. La prueba comprueba
+ * primero que sigue sin estarlo: si algún día se emite, hay que cambiarlo aquí
+ * en vez de dejar que la prueba se vuelva verde sin vigilar nada.
+ */
+const NO_EMITIDO = 'LN-627 E25';
+
 const OPC = {
   codigoLinea: LINEA,
   creadoPor: 'uid-del-ingeniero',
@@ -89,13 +101,13 @@ const decision = (nombreCanonico) => ({
 describe('UN NOMBRE NO ANOTADO SE PARA EN SECO', () => {
 
   test('«LN-627 PORTICO ORIGEN», aprobado y todo, no se puede cargar', () => {
-    assert.throws(() => construirPuntoNuevo(BASE, decision('LN-627 PORTICO ORIGEN'), OPC),
+    assert.throws(() => construirPuntoNuevo(BASE, decision(NO_EMITIDO), OPC),
       /no está en el registro/,
       'si esto deja de lanzar, la aplicación puede estrenar identidad permanente sin que nadie la revise');
   });
 
   test('y no es que esté mal escrito: ese nombre NO está en el libro', () => {
-    assert.equal(REGISTRO[LINEA]['LN-627 PORTICO ORIGEN'], undefined,
+    assert.equal(REGISTRO[LINEA][NO_EMITIDO], undefined,
       'una fila en el registro significa «esto ya existe y sostiene fotos». El pórtico de origen todavía no.');
   });
 
@@ -103,10 +115,10 @@ describe('UN NOMBRE NO ANOTADO SE PARA EN SECO', () => {
     // Es lo único que va a leer el Ingeniero. Un «error de validación» le deja
     // sin saber si el problema es suyo, del archivo o del programa.
     try {
-      construirPuntoNuevo(BASE, decision('LN-627 PORTICO ORIGEN'), OPC);
+      construirPuntoNuevo(BASE, decision(NO_EMITIDO), OPC);
       assert.fail('tenía que haber lanzado');
     } catch (err) {
-      assert.match(err.message, /LN-627 PORTICO ORIGEN/, 'nombra el punto: puede haber varios en la pantalla');
+      assert.match(err.message, new RegExp(NO_EMITIDO), 'nombra el punto: puede haber varios en la pantalla');
       assert.match(err.message, /anotarlo en el libro de nombres/);
       assert.match(err.message, /repositorio/);
       assert.match(err.message, /fotos/, 'y dice por qué la regla existe, no solo que existe');
@@ -148,14 +160,14 @@ describe('EN EL PLAN: lo que no se puede cargar se DECLARA, y no arrastra a lo b
 
   const plan = planDeCarga(BASE, [
     { ...decision('LN-627 E04'), insertarAlFinal: true },
-    { ...decision('LN-627 PORTICO ORIGEN'), nombreCampo: 'MARCA 12', insertarAlFinal: true },
+    { ...decision(NO_EMITIDO), nombreCampo: 'MARCA 12', insertarAlFinal: true },
   ], OPC);
 
   test('el bueno se carga y el imposible sale en `bloqueados`, no en un error de pantalla', () => {
     assert.equal(plan.documentos.length, 1);
     assert.equal(plan.documentos[0].nombreNormalizado, 'LN-627 E04');
     assert.equal(plan.bloqueados.length, 1);
-    assert.equal(plan.bloqueados[0].nombreCanonico, 'LN-627 PORTICO ORIGEN');
+    assert.equal(plan.bloqueados[0].nombreCanonico, NO_EMITIDO);
     assert.equal(plan.bloqueados[0].nombreCampo, 'MARCA 12',
       'con el nombre del aparato, que es como él lo va a reconocer en la lista');
   });
@@ -170,7 +182,7 @@ describe('EN EL PLAN: lo que no se puede cargar se DECLARA, y no arrastra a lo b
     // día alguien «resolviera» esto calculando el hash, aquí aparecería un
     // segundo documento y esta prueba se pondría roja.
     assert.equal(plan.documentos.length, 1);
-    for (const d of plan.documentos) assert.notEqual(d.nombreNormalizado, 'LN-627 PORTICO ORIGEN');
+    for (const d of plan.documentos) assert.notEqual(d.nombreNormalizado, NO_EMITIDO);
   });
 
   test('las cifras del DESPUÉS no cuentan el bloqueado', () => {
@@ -179,7 +191,7 @@ describe('EN EL PLAN: lo que no se puede cargar se DECLARA, y no arrastra a lo b
   });
 
   test('un plan entero de nombres no anotados no escribe nada y no revienta', () => {
-    const nada = planDeCarga(BASE, [decision('LN-627 PORTICO ORIGEN'), decision('LN-627 E99')], OPC);
+    const nada = planDeCarga(BASE, [decision(NO_EMITIDO), decision('LN-627 E99')], OPC);
     assert.deepEqual(nada.documentos, []);
     assert.equal(nada.bloqueados.length, 2);
     assert.deepEqual(nada.antes, nada.despues);

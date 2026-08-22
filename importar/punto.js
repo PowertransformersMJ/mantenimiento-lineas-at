@@ -129,18 +129,45 @@ function ordenDe(apoyos, decision) {
   if (decision.insertarAlFinal) {
     return Math.max(...apoyos.map((a) => a.orden)) + 1;
   }
-  // Un punto que va ANTES del primero no tiene hoy por dónde entrar, y hay que
-  // decirlo en vez de colocarlo en cualquier sitio. Bisecar por delante daría
-  // orden negativo, que el molde no admite; y la alternativa —correr los 26 de
-  // producción— es justo lo que esta bisección existe para evitar, porque
-  // movería 64 de las 99 fotos. Es el caso del pórtico del extremo de origen:
-  // cuando se apruebe, se construye el camino a propósito.
-  if (decision.insertarAntesDe || decision.insertarAlPrincipio) {
-    const primero = [...apoyos].sort((a, b) => a.orden - b.orden)[0];
+
+  // ── ANTES DEL PRIMERO ─────────────────────────────────────────────────────
+  //
+  // Es el caso del pórtico del extremo de ORIGEN, y hasta §ADR-054 no existía:
+  // el primero tiene el orden 0, bisecar por delante solo daba un negativo y el
+  // molde lo rechazaba. Este archivo LANZABA a propósito, diciendo que había que
+  // construir el camino en vez de colocar el punto «donde quepa».
+  //
+  // El camino es simplemente el simétrico del final: `mínimo − 1`. Lo que
+  // faltaba no era la cuenta, era el permiso — `Apoyo.orden` dejó de exigir no
+  // negativo en el contrato 0.9.0. Así entra UN documento y no se toca ninguno
+  // de los que ya están.
+  //
+  // ⚠️ EL ARGUMENTO QUE JUSTIFICABA LANZAR YA NO ERA CIERTO, y merece quedar
+  // escrito: decía que renumerar «movería 64 de las 99 fotos, que se resuelven
+  // por este mismo campo». Desde §ADR-027 el id de un punto sale de su NOMBRE
+  // CANÓNICO —no de su posición— y desde §ADR-031 cada foto se casa con el apoyo
+  // cuyo `nombreNormalizado` coincide exactamente. Ni el id ni las fotos
+  // dependen ya del orden. La decisión de NO renumerar se mantiene igual, pero
+  // por el motivo que sigue siendo verdad: reescribir 28 documentos de
+  // producción para registrar un hecho que no cambió en ninguno de ellos.
+  if (decision.insertarAlPrincipio) {
+    return Math.min(...apoyos.map((a) => a.orden)) - 1;
+  }
+
+  // Colocarlo «antes de» un punto CONCRETO que no es el primero sigue sin tener
+  // camino, y sigue lanzando: bisecar hacia atrás desde el interior de la lista
+  // es la misma cuenta que «después del anterior», y ofrecer las dos formas de
+  // decir lo mismo es ofrecer dos sitios donde equivocarse.
+  if (decision.insertarAntesDe) {
+    const enOrden = [...apoyos].sort((a, b) => a.orden - b.orden);
+    const primero = enOrden[0];
+    if (decision.insertarAntesDe === primero?.nombreNormalizado) {
+      return primero.orden - 1;
+    }
     throw new Error(
-      `Este punto va antes de «${decision.insertarAntesDe ?? primero?.nombreNormalizado ?? 'todo lo cargado'}». ` +
-      `Colocarlo hoy obligaría a mover los ${apoyos.length} puntos ya cargados, y eso dejaría huérfanas las fotos que cuelgan de ellos. ` +
-      'No se puede cargar todavía: hay que construir ese camino a propósito, no colocarlo «donde quepa».'
+      `«${etiqueta}» pide ir antes de «${decision.insertarAntesDe}», que no es el primero de la línea. ` +
+      'Para intercalar dentro del recorrido se declara DETRÁS de su vecino anterior: es la misma ' +
+      'posición dicha una sola vez, y así no hay dos formas de decirla.'
     );
   }
   if (!decision.insertarDespuesDe) {

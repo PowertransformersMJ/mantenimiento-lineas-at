@@ -54,9 +54,10 @@ describe('BUSCAR Y CALCULAR DAN LO MISMO — fila por fila, sin excepción', () 
 
   const filas = Object.entries(REGISTRO[LINEA]);
 
-  test('el registro trae las 28 filas emitidas de esta línea', () => {
-    assert.equal(filas.length, 28,
-      '26 de julio + los 2 aprobados en agosto. Si esta cuenta cambia, cambió el registro y hay que mirar por qué.');
+  test('el registro trae las 30 filas emitidas de esta línea', () => {
+    assert.equal(filas.length, 30,
+      '26 de julio + 2 del 16-08 + 2 del 22-08 (pórtico de ORIGEN y EMP E01-E02, §ADR-054). '
+      + 'Si esta cuenta cambia, cambió el registro y hay que mirar por qué.');
   });
 
   for (const [nombre, fila] of filas) {
@@ -92,14 +93,19 @@ describe('BUSCAR Y CALCULAR DAN LO MISMO — fila por fila, sin excepción', () 
 describe('LO QUE NO ESTÁ ANOTADO NO SE INVENTA — se para con el motivo escrito', () => {
 
   test('un nombre que nunca se anotó LANZA, y dice qué hay que hacer', () => {
+    // ⚠️ El nombre de control ERA «LN-627 PORTICO ORIGEN» hasta el 22-08, cuando
+    // se emitió (§ADR-054). Se cambia por uno que no existe: lo que esta prueba
+    // vigila es la FUNCIÓN —no inventar identidades— y no un punto concreto.
+    const NO_ANOTADO = 'LN-627 E25';
+    assert.equal(REGISTRO[LINEA][NO_ANOTADO], undefined, 'el nombre de control se emitió: hay que cambiarlo');
     assert.throws(
-      () => idDelRegistro(LINEA, 'LN-627 PORTICO ORIGEN', REGISTRO),
+      () => idDelRegistro(LINEA, NO_ANOTADO, REGISTRO),
       /no está en el registro/,
       'devolver algo aquí sería estrenar identidad permanente desde el navegador',
     );
     // El mensaje no es decorativo: es lo único que el Ingeniero va a leer.
     try {
-      idDelRegistro(LINEA, 'LN-627 PORTICO ORIGEN', REGISTRO);
+      idDelRegistro(LINEA, NO_ANOTADO, REGISTRO);
     } catch (err) {
       assert.match(err.message, /anotarlo en el libro de nombres/);
       assert.match(err.message, /repositorio/);
@@ -148,8 +154,8 @@ describe('LO QUE NO ESTÁ ANOTADO NO SE INVENTA — se para con el motivo escrit
 // ════════════════════════════════════════════════════════════════════════════
 describe('EL DESPLEGABLE SOLO PUEDE OFRECER LO QUE EXISTE Y FALTA', () => {
 
-  test('sin nada cargado, ofrece los 28 nombres anotados', () => {
-    assert.equal(nombresDisponibles(REGISTRO, LINEA, []).length, 28);
+  test('sin nada cargado, ofrece los 30 nombres anotados', () => {
+    assert.equal(nombresDisponibles(REGISTRO, LINEA, []).length, 30);
   });
 
   test('lo ya cargado desaparece de la lista — dé el nombre o dé el documento', () => {
@@ -160,7 +166,7 @@ describe('EL DESPLEGABLE SOLO PUEDE OFRECER LO QUE EXISTE Y FALTA', () => {
       { nombreNormalizado: 'LN-627 E01' }, { nombreNormalizado: 'LN-627 E02' },
     ]);
     assert.deepEqual(porTexto, porDocumento);
-    assert.equal(porTexto.length, 26);
+    assert.equal(porTexto.length, 28, '30 anotados menos los 2 que ya están cargados');
     assert.ok(!porTexto.includes('LN-627 E01'));
     assert.ok(porTexto.includes('LN-627 PORTICO FIN'), 'lo aprobado y no cargado sigue ofreciéndose');
   });
@@ -178,10 +184,13 @@ describe('EL DESPLEGABLE SOLO PUEDE OFRECER LO QUE EXISTE Y FALTA', () => {
     }
   });
 
-  test('«LN-627 PORTICO ORIGEN» no está en el registro, y por tanto tampoco en el desplegable', () => {
-    assert.equal(REGISTRO[LINEA]['LN-627 PORTICO ORIGEN'], undefined,
-      'una fila del registro significa «esto ya existe y sostiene fotos». El pórtico de origen todavía no.');
-    assert.ok(!nombresDisponibles(REGISTRO, LINEA, []).includes('LN-627 PORTICO ORIGEN'));
+  test('«LN-627 PORTICO ORIGEN» YA está en el registro, y el desplegable lo ofrece', () => {
+    // Se dio la vuelta el 22-08 (§ADR-054): verificado en campo el 21-08 y
+    // aprobado por el Ingeniero. Mientras no esté CARGADO sigue apareciendo en
+    // el desplegable, que es justo lo que esa lista significa: nombres con
+    // identidad emitida que todavía no están en la base.
+    assert.ok(REGISTRO[LINEA]['LN-627 PORTICO ORIGEN']);
+    assert.ok(nombresDisponibles(REGISTRO, LINEA, []).includes('LN-627 PORTICO ORIGEN'));
   });
 
   test('el orden de la lista es el de EMISIÓN, que es el del recorrido — no alfabético', () => {

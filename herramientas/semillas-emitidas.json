@@ -3,33 +3,185 @@
   "_porQueEstaEnElRepoPublico": "Para que la prueba que fija estos 26 ids pueda correr en CI, donde la bóveda privada NO está montada. Si el registro viviera en la bóveda, esa prueba se saltaría sola justo donde importa. No hay dato de cliente aquí: los nombres canónicos ya estaban publicados en herramientas/sembrar.mjs y los ids son sha256 de «transpower|LN-627|apoyo-N». Ni coordenada, ni nombre de subestación, ni foto.",
   "_porQueSeGuardaElId": "No es redundancia: convierte el archivo en un registro AUTO-VERIFICABLE. La prueba recalcula el id desde la semilla y lo compara con esta columna; si alguien toca la fórmula del hash, se pone rojo en CI en vez de en producción.",
   "LN-627": {
-    "LN-627 E01": { "semilla": "apoyo-0", "id": "9be709a3-703f-c2be-07f9-a01c8b0a62fd", "emitidoEn": "2026-07-30", "origen": "levantamiento 25-26 JUL 2026 · semilla POSICIONAL legada" },
-    "LN-627 E02": { "semilla": "apoyo-1", "id": "24e428a7-021e-6fbf-15de-60d95fcd8c33", "emitidoEn": "2026-07-30", "origen": "levantamiento 25-26 JUL 2026 · semilla POSICIONAL legada" },
-    "LN-627 E03": { "semilla": "apoyo-2", "id": "5d8b0480-0e0f-0b4b-8e04-a4c82f938726", "emitidoEn": "2026-07-30", "origen": "levantamiento 25-26 JUL 2026 · semilla POSICIONAL legada" },
-    "LN-627 E04": { "semilla": "apoyo-3", "id": "e2962c9c-75b0-e6b5-882e-9d84beb37179", "emitidoEn": "2026-07-30", "origen": "levantamiento 25-26 JUL 2026 · semilla POSICIONAL legada" },
-    "LN-627 E05": { "semilla": "apoyo-4", "id": "d0bb2996-6ab7-02e1-ece9-299fe7a640fc", "emitidoEn": "2026-07-30", "origen": "levantamiento 25-26 JUL 2026 · semilla POSICIONAL legada" },
-    "LN-627 EMP E05-E06": { "semilla": "apoyo-5", "id": "1bf7ee09-09e7-231b-3a52-fe21fe21e376", "emitidoEn": "2026-07-30", "origen": "levantamiento 25-26 JUL 2026 · semilla POSICIONAL legada" },
-    "LN-627 E06": { "semilla": "apoyo-6", "id": "ea81e5c8-084e-d9d7-17ac-3f50af5ed6ab", "emitidoEn": "2026-07-30", "origen": "levantamiento 25-26 JUL 2026 · semilla POSICIONAL legada" },
-    "LN-627 EMP E06-E07": { "semilla": "apoyo-7", "id": "5e76f48e-6157-8392-f1cf-cc4c463e4c85", "emitidoEn": "2026-07-30", "origen": "levantamiento 25-26 JUL 2026 · semilla POSICIONAL legada" },
-    "LN-627 E07": { "semilla": "apoyo-8", "id": "d902331d-6447-5f5f-e1a4-8aaa3861a3e8", "emitidoEn": "2026-07-30", "origen": "levantamiento 25-26 JUL 2026 · semilla POSICIONAL legada · el GPS lo grabó como «E02»" },
-    "LN-627 E08": { "semilla": "apoyo-9", "id": "7ad73170-de34-5855-eba4-ee1aec7750ad", "emitidoEn": "2026-07-30", "origen": "levantamiento 25-26 JUL 2026 · semilla POSICIONAL legada" },
-    "LN-627 E09": { "semilla": "apoyo-10", "id": "4fa05bc7-96be-b36b-22a7-af4e036fe2ab", "emitidoEn": "2026-07-30", "origen": "levantamiento 25-26 JUL 2026 · semilla POSICIONAL legada" },
-    "LN-627 E10": { "semilla": "apoyo-11", "id": "194a3b1d-926b-23f7-68fe-b181f445e5b9", "emitidoEn": "2026-07-30", "origen": "levantamiento 25-26 JUL 2026 · semilla POSICIONAL legada" },
-    "LN-627 E11": { "semilla": "apoyo-12", "id": "b879abbd-4eac-2191-09fa-f7509c7b62d4", "emitidoEn": "2026-07-30", "origen": "levantamiento 25-26 JUL 2026 · semilla POSICIONAL legada" },
-    "LN-627 E12": { "semilla": "apoyo-13", "id": "1f8a8904-0ff3-d026-6de6-b2217425e69c", "emitidoEn": "2026-07-30", "origen": "levantamiento 25-26 JUL 2026 · semilla POSICIONAL legada" },
-    "LN-627 E13": { "semilla": "apoyo-14", "id": "26400b10-8159-6676-6c7d-b4ada9c2cdd5", "emitidoEn": "2026-07-30", "origen": "levantamiento 25-26 JUL 2026 · semilla POSICIONAL legada" },
-    "LN-627 E14": { "semilla": "apoyo-15", "id": "6211ed35-65b3-88b6-04cc-7da23b97e26c", "emitidoEn": "2026-07-30", "origen": "levantamiento 25-26 JUL 2026 · semilla POSICIONAL legada" },
-    "LN-627 E15": { "semilla": "apoyo-16", "id": "cfeb4552-e6e1-09cf-3bd6-74cf2955a35a", "emitidoEn": "2026-07-30", "origen": "levantamiento 25-26 JUL 2026 · semilla POSICIONAL legada" },
-    "LN-627 E16": { "semilla": "apoyo-17", "id": "445d3548-cdce-711f-9889-03849563721f", "emitidoEn": "2026-07-30", "origen": "levantamiento 25-26 JUL 2026 · semilla POSICIONAL legada" },
-    "LN-627 E17": { "semilla": "apoyo-18", "id": "4f9eac22-bcae-0849-eb79-854e4f63cad6", "emitidoEn": "2026-07-30", "origen": "levantamiento 25-26 JUL 2026 · semilla POSICIONAL legada" },
-    "LN-627 E18": { "semilla": "apoyo-19", "id": "193b2977-15e3-030e-d3d5-c7ff390a1f1f", "emitidoEn": "2026-07-30", "origen": "levantamiento 25-26 JUL 2026 · semilla POSICIONAL legada" },
-    "LN-627 E19": { "semilla": "apoyo-20", "id": "951449d1-bae6-b445-0656-c79fc0fb3ade", "emitidoEn": "2026-07-30", "origen": "levantamiento 25-26 JUL 2026 · semilla POSICIONAL legada" },
-    "LN-627 E20": { "semilla": "apoyo-21", "id": "d313f5aa-78d3-87af-fd06-eaa51a6792eb", "emitidoEn": "2026-07-30", "origen": "levantamiento 25-26 JUL 2026 · semilla POSICIONAL legada" },
-    "LN-627 E21": { "semilla": "apoyo-22", "id": "45e356e6-8605-3b50-19dd-ad22a2428cb6", "emitidoEn": "2026-07-30", "origen": "levantamiento 25-26 JUL 2026 · semilla POSICIONAL legada" },
-    "LN-627 E22": { "semilla": "apoyo-23", "id": "3a5e2905-9db1-5bb2-4785-19a015ca737a", "emitidoEn": "2026-07-30", "origen": "levantamiento 25-26 JUL 2026 · semilla POSICIONAL legada" },
-    "LN-627 E23": { "semilla": "apoyo-24", "id": "38d94a98-fcd4-8f45-3623-a18c9e8fb1b7", "emitidoEn": "2026-07-30", "origen": "levantamiento 25-26 JUL 2026 · semilla POSICIONAL legada" },
-    "LN-627 E24": { "semilla": "apoyo-25", "id": "152a1678-f71a-6f9a-f76e-2a2d2384ef87", "emitidoEn": "2026-07-30", "origen": "levantamiento 25-26 JUL 2026 · semilla POSICIONAL legada" },
-    "LN-627 EMP E03-E04": { "semilla": "punto:LN-627 EMP E03-E04", "id": "63721695-2e3c-eff9-97f7-175b7598b189", "emitidoEn": "2026-08-16", "origen": "ampliación 11-12 AGO 2026 · semilla del NOMBRE CANÓNICO" },
-    "LN-627 PORTICO FIN": { "semilla": "punto:LN-627 PORTICO FIN", "id": "5c069a95-965e-d2ab-b54b-8a598c239dea", "emitidoEn": "2026-08-16", "origen": "ampliación 11-12 AGO 2026 · semilla del NOMBRE CANÓNICO" }
+    "LN-627 E01": {
+      "semilla": "apoyo-0",
+      "id": "9be709a3-703f-c2be-07f9-a01c8b0a62fd",
+      "emitidoEn": "2026-07-30",
+      "origen": "levantamiento 25-26 JUL 2026 · semilla POSICIONAL legada"
+    },
+    "LN-627 E02": {
+      "semilla": "apoyo-1",
+      "id": "24e428a7-021e-6fbf-15de-60d95fcd8c33",
+      "emitidoEn": "2026-07-30",
+      "origen": "levantamiento 25-26 JUL 2026 · semilla POSICIONAL legada"
+    },
+    "LN-627 E03": {
+      "semilla": "apoyo-2",
+      "id": "5d8b0480-0e0f-0b4b-8e04-a4c82f938726",
+      "emitidoEn": "2026-07-30",
+      "origen": "levantamiento 25-26 JUL 2026 · semilla POSICIONAL legada"
+    },
+    "LN-627 E04": {
+      "semilla": "apoyo-3",
+      "id": "e2962c9c-75b0-e6b5-882e-9d84beb37179",
+      "emitidoEn": "2026-07-30",
+      "origen": "levantamiento 25-26 JUL 2026 · semilla POSICIONAL legada"
+    },
+    "LN-627 E05": {
+      "semilla": "apoyo-4",
+      "id": "d0bb2996-6ab7-02e1-ece9-299fe7a640fc",
+      "emitidoEn": "2026-07-30",
+      "origen": "levantamiento 25-26 JUL 2026 · semilla POSICIONAL legada"
+    },
+    "LN-627 EMP E05-E06": {
+      "semilla": "apoyo-5",
+      "id": "1bf7ee09-09e7-231b-3a52-fe21fe21e376",
+      "emitidoEn": "2026-07-30",
+      "origen": "levantamiento 25-26 JUL 2026 · semilla POSICIONAL legada"
+    },
+    "LN-627 E06": {
+      "semilla": "apoyo-6",
+      "id": "ea81e5c8-084e-d9d7-17ac-3f50af5ed6ab",
+      "emitidoEn": "2026-07-30",
+      "origen": "levantamiento 25-26 JUL 2026 · semilla POSICIONAL legada"
+    },
+    "LN-627 EMP E06-E07": {
+      "semilla": "apoyo-7",
+      "id": "5e76f48e-6157-8392-f1cf-cc4c463e4c85",
+      "emitidoEn": "2026-07-30",
+      "origen": "levantamiento 25-26 JUL 2026 · semilla POSICIONAL legada"
+    },
+    "LN-627 E07": {
+      "semilla": "apoyo-8",
+      "id": "d902331d-6447-5f5f-e1a4-8aaa3861a3e8",
+      "emitidoEn": "2026-07-30",
+      "origen": "levantamiento 25-26 JUL 2026 · semilla POSICIONAL legada · el GPS lo grabó como «E02»"
+    },
+    "LN-627 E08": {
+      "semilla": "apoyo-9",
+      "id": "7ad73170-de34-5855-eba4-ee1aec7750ad",
+      "emitidoEn": "2026-07-30",
+      "origen": "levantamiento 25-26 JUL 2026 · semilla POSICIONAL legada"
+    },
+    "LN-627 E09": {
+      "semilla": "apoyo-10",
+      "id": "4fa05bc7-96be-b36b-22a7-af4e036fe2ab",
+      "emitidoEn": "2026-07-30",
+      "origen": "levantamiento 25-26 JUL 2026 · semilla POSICIONAL legada"
+    },
+    "LN-627 E10": {
+      "semilla": "apoyo-11",
+      "id": "194a3b1d-926b-23f7-68fe-b181f445e5b9",
+      "emitidoEn": "2026-07-30",
+      "origen": "levantamiento 25-26 JUL 2026 · semilla POSICIONAL legada"
+    },
+    "LN-627 E11": {
+      "semilla": "apoyo-12",
+      "id": "b879abbd-4eac-2191-09fa-f7509c7b62d4",
+      "emitidoEn": "2026-07-30",
+      "origen": "levantamiento 25-26 JUL 2026 · semilla POSICIONAL legada"
+    },
+    "LN-627 E12": {
+      "semilla": "apoyo-13",
+      "id": "1f8a8904-0ff3-d026-6de6-b2217425e69c",
+      "emitidoEn": "2026-07-30",
+      "origen": "levantamiento 25-26 JUL 2026 · semilla POSICIONAL legada"
+    },
+    "LN-627 E13": {
+      "semilla": "apoyo-14",
+      "id": "26400b10-8159-6676-6c7d-b4ada9c2cdd5",
+      "emitidoEn": "2026-07-30",
+      "origen": "levantamiento 25-26 JUL 2026 · semilla POSICIONAL legada"
+    },
+    "LN-627 E14": {
+      "semilla": "apoyo-15",
+      "id": "6211ed35-65b3-88b6-04cc-7da23b97e26c",
+      "emitidoEn": "2026-07-30",
+      "origen": "levantamiento 25-26 JUL 2026 · semilla POSICIONAL legada"
+    },
+    "LN-627 E15": {
+      "semilla": "apoyo-16",
+      "id": "cfeb4552-e6e1-09cf-3bd6-74cf2955a35a",
+      "emitidoEn": "2026-07-30",
+      "origen": "levantamiento 25-26 JUL 2026 · semilla POSICIONAL legada"
+    },
+    "LN-627 E16": {
+      "semilla": "apoyo-17",
+      "id": "445d3548-cdce-711f-9889-03849563721f",
+      "emitidoEn": "2026-07-30",
+      "origen": "levantamiento 25-26 JUL 2026 · semilla POSICIONAL legada"
+    },
+    "LN-627 E17": {
+      "semilla": "apoyo-18",
+      "id": "4f9eac22-bcae-0849-eb79-854e4f63cad6",
+      "emitidoEn": "2026-07-30",
+      "origen": "levantamiento 25-26 JUL 2026 · semilla POSICIONAL legada"
+    },
+    "LN-627 E18": {
+      "semilla": "apoyo-19",
+      "id": "193b2977-15e3-030e-d3d5-c7ff390a1f1f",
+      "emitidoEn": "2026-07-30",
+      "origen": "levantamiento 25-26 JUL 2026 · semilla POSICIONAL legada"
+    },
+    "LN-627 E19": {
+      "semilla": "apoyo-20",
+      "id": "951449d1-bae6-b445-0656-c79fc0fb3ade",
+      "emitidoEn": "2026-07-30",
+      "origen": "levantamiento 25-26 JUL 2026 · semilla POSICIONAL legada"
+    },
+    "LN-627 E20": {
+      "semilla": "apoyo-21",
+      "id": "d313f5aa-78d3-87af-fd06-eaa51a6792eb",
+      "emitidoEn": "2026-07-30",
+      "origen": "levantamiento 25-26 JUL 2026 · semilla POSICIONAL legada"
+    },
+    "LN-627 E21": {
+      "semilla": "apoyo-22",
+      "id": "45e356e6-8605-3b50-19dd-ad22a2428cb6",
+      "emitidoEn": "2026-07-30",
+      "origen": "levantamiento 25-26 JUL 2026 · semilla POSICIONAL legada"
+    },
+    "LN-627 E22": {
+      "semilla": "apoyo-23",
+      "id": "3a5e2905-9db1-5bb2-4785-19a015ca737a",
+      "emitidoEn": "2026-07-30",
+      "origen": "levantamiento 25-26 JUL 2026 · semilla POSICIONAL legada"
+    },
+    "LN-627 E23": {
+      "semilla": "apoyo-24",
+      "id": "38d94a98-fcd4-8f45-3623-a18c9e8fb1b7",
+      "emitidoEn": "2026-07-30",
+      "origen": "levantamiento 25-26 JUL 2026 · semilla POSICIONAL legada"
+    },
+    "LN-627 E24": {
+      "semilla": "apoyo-25",
+      "id": "152a1678-f71a-6f9a-f76e-2a2d2384ef87",
+      "emitidoEn": "2026-07-30",
+      "origen": "levantamiento 25-26 JUL 2026 · semilla POSICIONAL legada"
+    },
+    "LN-627 EMP E03-E04": {
+      "semilla": "punto:LN-627 EMP E03-E04",
+      "id": "63721695-2e3c-eff9-97f7-175b7598b189",
+      "emitidoEn": "2026-08-16",
+      "origen": "ampliación 11-12 AGO 2026 · semilla del NOMBRE CANÓNICO"
+    },
+    "LN-627 PORTICO FIN": {
+      "semilla": "punto:LN-627 PORTICO FIN",
+      "id": "5c069a95-965e-d2ab-b54b-8a598c239dea",
+      "emitidoEn": "2026-08-16",
+      "origen": "ampliación 11-12 AGO 2026 · semilla del NOMBRE CANÓNICO"
+    },
+    "LN-627 PORTICO ORIGEN": {
+      "semilla": "punto:LN-627 PORTICO ORIGEN",
+      "id": "ad1d2379-a3a3-68dd-e5d2-700ab07f57e3",
+      "emitidoEn": "2026-08-22",
+      "origen": "ampliación 21 AGO 2026 — pórtico del extremo de ORIGEN, verificado en campo por el Ingeniero"
+    },
+    "LN-627 EMP E01-E02": {
+      "semilla": "punto:LN-627 EMP E01-E02",
+      "id": "f20ae216-d4c0-c8ff-7b8e-c88520a2353d",
+      "emitidoEn": "2026-08-22",
+      "origen": "ampliación 21 AGO 2026 — empalme dentro del vano E01 → E02"
+    }
   }
 }

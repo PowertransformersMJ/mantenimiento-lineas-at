@@ -73,7 +73,7 @@ import { leerArchivos, type ArchivoAportado } from '../importar/leerArchivo';
 import { descargar, selloFecha } from '../exportar/descargar';
 import { nf } from '../vistas/formato';
 import {
-  AL_FINAL, PRECISION_DECLARADA_M,
+  AL_FINAL, AL_PRINCIPIO, PRECISION_DECLARADA_M,
   actaDeLaCarga, cifrasDeLaCarga, consecuenciaDeFuncion, CONSECUENCIA_TIPO,
   decisionDeLaFicha, faltantesDe, fichaEnBlanco, nombresParaLaFicha, posicionesPosibles,
   contarPuntos, rotuloDelSitio, textoCota, textoDistancia, textoHora,
@@ -878,8 +878,16 @@ function FichaPunto({
           <option value="">— elija uno —</option>
           {sitios.map((s) => (
             <option key={s.valor} value={s.valor}>
-              {s.rotulo} — a {textoDistancia(s.distanciaAtras_m)}
-              {s.valor !== AL_FINAL && ` de él y a ${textoDistancia(s.distanciaAdelante_m)} del siguiente`}
+              {/* Los dos extremos solo tienen UN vecino, y por eso se leen
+                  distinto. Al final no hay «siguiente»; al principio no hay
+                  «anterior». Imprimir «a — de él» en el extremo que no tiene
+                  vecino se lee como un dato que falta, no como un extremo. */}
+              {s.rotulo} — a{' '}
+              {s.valor === AL_PRINCIPIO
+                ? `${textoDistancia(s.distanciaAdelante_m)} de él`
+                : s.valor === AL_FINAL
+                  ? textoDistancia(s.distanciaAtras_m)
+                  : `${textoDistancia(s.distanciaAtras_m)} de él y a ${textoDistancia(s.distanciaAdelante_m)} del siguiente`}
             </option>
           ))}
         </select>

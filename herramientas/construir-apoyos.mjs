@@ -266,18 +266,31 @@ function ordenDe(apoyos, p) {
   if (p.insertarAlFinal) {
     return Math.max(...apoyos.map((a) => a.orden)) + 1;
   }
-  // Un punto que va ANTES del primero no tiene hoy por dónde entrar, y hay que
-  // decirlo en vez de colocarlo en cualquier sitio. Bisecar por delante daría
-  // orden −1 y el contrato exige `nonnegative` (contratos/src/activos.ts); la
-  // alternativa —correr los 26 de producción— es justo lo que esta bisección
-  // existe para evitar, porque movería 64 de las 99 fotos. Es el caso del
-  // pórtico del extremo de origen: cuando se apruebe, se construye el camino.
-  if (p.insertarAntesDe || p.insertarAlPrincipio) {
-    throw new Error(
-      `«${p.nombreCanonico}» quiere ir ANTES de «${p.insertarAntesDe ?? 'todo'}», y ese camino no existe todavía. ` +
-      'No se coloca «donde quepa»: un punto mal situado inventa vanos y envenena el cálculo. ' +
-      'Hay que construirlo a propósito (orden ≥ 0 obliga a renumerar, y renumerar mueve las fotos).'
-    );
+  // ── ANTES DEL PRIMERO ─────────────────────────────────────────────────────
+  //
+  // Hasta §ADR-054 esto abortaba: bisecar por delante daba −1 y el contrato
+  // exigía `nonnegative`. Se aflojó esa restricción (contrato 0.9.0) porque la
+  // única alternativa era correr los 26 documentos de producción para registrar
+  // un hecho que no cambió en ninguno de ellos.
+  //
+  // Es el simétrico exacto de `insertarAlFinal`, y por eso se escribe igual. El
+  // pórtico del extremo de ORIGEN entra con `mínimo − 1` y los demás se quedan
+  // donde están.
+  //
+  // ⚠️ `insertarAntesDe` solo vale para el PRIMERO. Para intercalar dentro del
+  // recorrido se declara DETRÁS del vecino anterior: es la misma posición dicha
+  // una sola vez, y ofrecer las dos formas es ofrecer dos sitios donde
+  // equivocarse.
+  if (p.insertarAlPrincipio || p.insertarAntesDe) {
+    const enOrden = [...apoyos].sort((a, b) => a.orden - b.orden);
+    const primero = enOrden[0];
+    if (p.insertarAntesDe && p.insertarAntesDe !== primero?.nombreNormalizado) {
+      throw new Error(
+        `«${p.nombreCanonico}» pide ir antes de «${p.insertarAntesDe}», que no es el primero del levantamiento. ` +
+        'Para intercalar dentro del recorrido se declara DETRÁS de su vecino anterior.'
+      );
+    }
+    return Math.min(...apoyos.map((a) => a.orden)) - 1;
   }
   if (!p.insertarDespuesDe) {
     throw new Error(`El punto nuevo «${p.nombreCanonico}» no dice dónde va: falta insertarDespuesDe o insertarAlFinal. Sin posición no hay vano, y sin vano el punto no significa nada.`);

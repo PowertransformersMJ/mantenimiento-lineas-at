@@ -553,20 +553,36 @@ describe('LA AUDITORÍA DEL 16-08', () => {
     assert.ok(linea, 'desapareció el campo `orden` del molde del apoyo');
     assert.ok(!/\.int\(\)/.test(linea),
       'el molde volvió a exigir `orden` entero: el empalme intercalado se descartaría en silencio');
-    assert.ok(/nonnegative\(\)/.test(linea), 'el molde dejó de exigir `orden` no negativo');
+    // ⚠️ El molde DEJÓ de exigir no negativo a propósito el 22-08 (§ADR-054): sin
+    // eso, el pórtico del extremo de ORIGEN —que va antes del primero— no tenía
+    // por dónde entrar, y la única alternativa era correr los 28 documentos de
+    // producción. Lo que sí se vigila es que siga siendo un NÚMERO: si alguien
+    // lo cambiara a texto o lo quitara, un orden inválido se descartaría en
+    // silencio y el punto desaparecería del mapa igual que con el entero.
+    assert.ok(/z\.number\(\)/.test(linea), 'el `orden` dejó de ser un número');
   });
 
-  test('un punto que va ANTES del primero aborta en vez de colocarse donde quepa', () => {
-    // Es el caso del pórtico del extremo de origen, que el Ingeniero dejó
-    // pendiente de verificar. Marcarlo «al final» lo dejaba detrás del pórtico
-    // del otro extremo, con dos vanos falsos de kilómetros y sin un solo aviso.
+  test('un punto delante del primero entra con mínimo − 1, y no corre a nadie', () => {
+    // ⚠️ SE DIO LA VUELTA EL 22-08 (§ADR-054). Antes abortaba, porque bisecar por
+    // delante daba −1 y el molde exigía no negativo. Se aflojó esa restricción, y
+    // aquí se vigila lo que de verdad protegía aquel aborto: que colocar delante
+    // NO le mueva el orden a ninguno de los que ya estaban.
+    const { apoyos } = construir([nuevo('LN-627 PORTICO ORIGEN', null, { insertarAlPrincipio: true })]);
+    const portico = apoyos.find((a) => a.nombreNormalizado === 'LN-627 PORTICO ORIGEN');
+    const resto = apoyos.filter((a) => a !== portico);
+    assert.ok(portico, 'el sembrador no construyó el pórtico de origen');
+    assert.equal(portico.orden, Math.min(...resto.map((a) => a.orden)) - 1);
+    assert.ok(resto.every((a) => a.orden >= 0), 'a alguno de los que ya estaban se le movió el orden');
+    // Y ordena PRIMERO, que es lo único que el número significa.
+    assert.equal([...apoyos].sort((a, b) => a.orden - b.orden)[0].nombreNormalizado, 'LN-627 PORTICO ORIGEN');
+  });
+
+  test('«antes de» un punto que NO es el primero sigue abortando', () => {
+    // Intercalar dentro del recorrido se dice DETRÁS del vecino anterior. Dos
+    // formas de decir la misma posición son dos sitios donde equivocarse.
     assert.throws(
-      () => construir([nuevo('LN-627 PORTICO ORIGEN', null, { insertarAntesDe: 'LN-627 E01' })]),
-      /ANTES/,
-    );
-    assert.throws(
-      () => construir([nuevo('LN-627 PORTICO ORIGEN', null, { insertarAlPrincipio: true })]),
-      /ANTES/,
+      () => construir([nuevo('LN-627 PORTICO ORIGEN', null, { insertarAntesDe: 'LN-627 E03' })]),
+      /no es el primero/,
     );
   });
 });

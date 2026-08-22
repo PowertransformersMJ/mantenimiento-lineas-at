@@ -5,7 +5,7 @@
 | Señal | Valor (al **2026-08-22**) |
 |---|---|
 | **Misión ahora** | **Llenar la ficha estructural.** El motor dictamina desde julio y siguen **0 de 25** con veredicto: la pantalla existe (`99 §ADR-030`) y desde el 20-08 también **por lote** (`§ADR-038`) — que trae el tercio de catálogo y **no mueve ningún veredicto solo**: faltan las dos alturas, que no van por lote (`33 · L-59`). Pregunta del Ingeniero (`TODO-57`): ¿están en planos y actas, o hay que levantarlas? Herramienta INTERNA (`ADR-022`). Pendientes → `10`. |
-| **Build** | 🟢 `npm test` **1.759 pass / 0 fail** · `contrato:verificar` exit 0, **contrato v0.8.0** · motor v0.3.0 · verificado-vivo: 2026-08-22 |
+| **Build** | 🟢 `npm test` **1.766 pass / 0 fail** · `contrato:verificar` exit 0, **contrato v0.9.0** · motor v0.3.0 · verificado-vivo: 2026-08-22 |
 | **Repo** | `main` · https://github.com/PowertransformersMJ/mantenimiento-lineas-at · **PÚBLICO** (decisión del Ingeniero 2026-07-29) |
 | **Producción** | 🟢 **https://mantenimiento-lineas-at.pages.dev** — Cloudflare Pages, cuenta `ajimenezp99@gmail.com`. **Piel CLARA** desde el 04-08. **Se despliega a mano**, `build` delante: `deploy` NO construye (`32 · L-35`). Último: **los dos atlas del Caribe** —sol y TEMPERATURA, un motor, y ambos en Detalle GPS sin pesar hasta abrirlos (`ADR-053`)—, tras el número que se firma (`ADR-052`). **Recorridos en vivo con su sesión**, con el punto de LN-627 dentro del atlas. **Hash servido == construido.** · verificado-vivo: 2026-08-22 |
 | **Backend** | 🟢 **Un solo trabajador**: el portero de fotos (`evidencias/`), delante de un R2 privado (ADR-010). Los datos viven en **Firestore** con RBAC por *claims*; **el ingreso exige contraseña y no hay registro público** (ADR-019). |

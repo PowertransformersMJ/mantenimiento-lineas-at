@@ -41,6 +41,16 @@ import { nf } from './formato.ts';
 /** Valor con que la pantalla dice «va al final de la línea». No es un nombre. */
 export const AL_FINAL = '__al_final__';
 
+/**
+ * Valor con que la pantalla dice «va ANTES del primero». Tampoco es un nombre.
+ *
+ * Existe desde §ADR-054, para el pórtico del extremo de ORIGEN. Hasta entonces
+ * un punto delante del primero no tenía camino —el molde no admitía un orden por
+ * debajo de 0— y la lista no lo ofrecía porque habría sido ofrecer algo que
+ * después se negaba.
+ */
+export const AL_PRINCIPIO = '__al_principio__';
+
 /** Precisión declarada de un GPS de mano, en metros. La declara `@lineas/importar`. */
 export const PRECISION_DECLARADA_M = 8;
 
@@ -103,6 +113,22 @@ export function posicionesPosibles(apoyos: Apoyo[], lat: number, lon: number): O
     distanciaAtras_m: distancia(ultimo, lat, lon),
     distanciaAdelante_m: null,
   });
+
+  // Y la simétrica, que es la que faltaba: el extremo de ORIGEN. Va la ÚLTIMA de
+  // la lista y no la primera a propósito — la lista está en el orden del
+  // recorrido, y quien la lee espera empezar por donde empieza la línea; poner
+  // «antes del primero» arriba del todo invitaría a elegirla por estar primero,
+  // que es exactamente el sesgo que esta pantalla evita al no ordenar por
+  // cercanía.
+  const primero = secuencia[0];
+  if (primero) {
+    opciones.push({
+      valor: AL_PRINCIPIO,
+      rotulo: `al principio de la línea, antes de ${nombreVisible(primero)}`,
+      distanciaAtras_m: null,
+      distanciaAdelante_m: distancia(primero, lat, lon),
+    });
+  }
   return opciones;
 }
 
@@ -274,6 +300,7 @@ export interface DecisionDeCarga {
   utc?: string;
   motivoPendiente?: string;
   insertarAlFinal?: boolean;
+  insertarAlPrincipio?: boolean;
   insertarDespuesDe?: string;
 }
 
@@ -299,6 +326,7 @@ export function decisionDeLaFicha(f: FichaDeCarga): DecisionDeCarga {
   if (f.utc !== undefined) d.utc = f.utc;
   if (f.motivoPendiente.trim()) d.motivoPendiente = f.motivoPendiente.trim();
   if (f.sitio === AL_FINAL) d.insertarAlFinal = true;
+  else if (f.sitio === AL_PRINCIPIO) d.insertarAlPrincipio = true;
   else if (f.sitio) d.insertarDespuesDe = f.sitio;
   return d;
 }
@@ -388,6 +416,7 @@ interface FilaFirmada {
 /** Cómo se lee un sitio guardado, sin depender de que la línea esté cargada. */
 const comoSeLeeUnSitio = (valor: string): string => {
   if (valor === AL_FINAL) return 'al final de la línea';
+  if (valor === AL_PRINCIPIO) return 'al principio de la línea';
   return valor ? `detrás de ${valor}` : 'sin sitio declarado';
 };
 
@@ -466,6 +495,8 @@ export function recordarEnLaFicha(
   }
   if (valores.insertarAlFinal === true) {
     candidatos.push({ campo: 'sitio', valor: AL_FINAL, comoSeLee: comoSeLeeUnSitio(AL_FINAL), clave: 'insertarAlFinal' });
+  } else if (valores.insertarAlPrincipio === true) {
+    candidatos.push({ campo: 'sitio', valor: AL_PRINCIPIO, comoSeLee: comoSeLeeUnSitio(AL_PRINCIPIO), clave: 'insertarAlPrincipio' });
   } else if (typeof valores.insertarDespuesDe === 'string') {
     const v = valores.insertarDespuesDe;
     candidatos.push({ campo: 'sitio', valor: v, comoSeLee: comoSeLeeUnSitio(v), clave: 'insertarDespuesDe' });
@@ -664,8 +695,9 @@ export function loQueYaDecidio(
 
 /** El sitio de una fila del libro, en castellano. Sin geometría: lo dijo él. */
 function sitioDeLaFila(d: FilaFirmada): string {
-  const sitio = (d as { sitio?: { insertarAlFinal?: boolean; insertarDespuesDe?: string } }).sitio;
+  const sitio = (d as { sitio?: { insertarAlFinal?: boolean; insertarAlPrincipio?: boolean; insertarDespuesDe?: string } }).sitio;
   if (sitio?.insertarAlFinal === true) return comoSeLeeUnSitio(AL_FINAL);
+  if (sitio?.insertarAlPrincipio === true) return comoSeLeeUnSitio(AL_PRINCIPIO);
   if (sitio?.insertarDespuesDe) return comoSeLeeUnSitio(sitio.insertarDespuesDe);
   return '';
 }
@@ -863,7 +895,9 @@ export function actaDeLaCarga(entrada: {
         tipoPunto: f.tipoPunto,
         funcionEstructural: f.funcionEstructural,
         funcionConfirmada: f.funcionConfirmada,
-        donde: f.sitio === AL_FINAL ? 'al final de la línea' : `detrás de ${f.sitio}`,
+        donde: f.sitio === AL_FINAL ? 'al final de la línea'
+          : f.sitio === AL_PRINCIPIO ? 'al principio de la línea'
+          : `detrás de ${f.sitio}`,
         lat: f.lat,
         lon: f.lon,
         porQue: f.porQue.trim(),

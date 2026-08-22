@@ -14,8 +14,7 @@
 
 ## 🛑 LO PRIMERO AL RETOMAR
 
-1. **EL CUELLO DE BOTELLA NO ES CÓDIGO: ES EL DATO** (`05` lo detalla): 0 de 25 con veredicto, y
-   falta que él conteste `TODO-57`.
+1. **EL CUELLO DE BOTELLA NO ES CÓDIGO: ES EL DATO** (`05`): 0 de 25 con veredicto; falta `TODO-57`.
 2. **EL PATRÓN QUE LO DOMINA TODO, y lo destapó él:** *«arreglado donde se veía, vivo en la pieza
    hermana»*. Salió en la capa de radiación (`ADR-046`), se repitió al triar los 51 hallazgos
    (`ADR-049`: de 7 dados por cerrados, 5 eran PARCIALES) y otra vez en `ADR-052`, donde el tope de
@@ -34,8 +33,7 @@
    mitad: la región llegó a **42 °C**, dos por encima del peor escenario adoptado— · `TODO-33`
    50 % o 25 % · `TODO-76` retenida · `TODO-78` el nodo `33` al 99,9 %, y `ADR-052` ya generó la
    lección que lo desborda (aparcada en `30 · L-68`) · **`TODO-80`**: qué tope de tierra rige.
-5. **Higiene del cerebro** (`99 §ADR-047/048`). ⚠️ El techo ya no es el tope del hijo: **es el
-   ARRANQUE**, y `20`, `30` y `33` van al 99 %. Podar antes de escribir.
+5. **Higiene** (`99 §ADR-047/048`). ⚠️ El techo es el **ARRANQUE**, y `20`, `30` y `33` van al 99 %.
 
 ## 🚫 INVARIANTES QUE NO SE PUEDEN ROMPER
 
@@ -43,12 +41,13 @@ Cada uno vive ENTERO en su ADR: esto es el índice, léelo antes de tocar ese su
 
 · **Carcasa** `§ADR-018` — `amanecer` inalcanzable si falta un apoyo; el veredicto sale de
   `utilizacion_pct`, nunca de `cargaRotura_kgf`; dueños únicos en `vistas/`.
+· **Puntos nuevos** `§ADR-027/054` — identidad por NOMBRE, anotada en el repo ANTES; se biseca y el origen entra con `mínimo − 1`: nunca se renumera.
 · **RCA** `§ADR-020/026` — prohibido rankear hipótesis, causa raíz por IA y % de confianza; quien
   lee las causas es `causasDeclaradas()`.
 · **Acceso** `§ADR-024` — la contraseña es HIGIENE, la frontera son las reglas. · **Fotos** `§ADR-031` — el portero NO borra y NO lista; cuelga por nombre canónico.
 · **Capas del mapa** `§ADR-034/037/046` — viajan CON el sitio; se guardan como MEDIDA (byte 0 = SIN
   DATO); el pronóstico no se guarda; toda capa trae encuadre Y escala, las dos o ninguna.
-· **Ficha y lote** `§ADR-030/038` — el lote solo rellena huecos, y solo los 3 del MODELO. · **Recordar ≠ proponer** `§ADR-029` — sin decisión suya el campo queda VACÍO.
+· **Ficha y lote** `§ADR-030/038` — el lote rellena huecos, y solo los 3 del MODELO. · **Recordar ≠ proponer** `§ADR-029` — sin decisión suya el campo queda VACÍO.
 · **Verosimilitud** `§ADR-050` — la escala son TRES y se LEE del molde; una rival se cierra
   diciendo qué se hizo y cómo quedó, no con etiqueta.
 · **Señales de la página** `§ADR-051` — banda, pestaña y tope de tiro salen del DATO, con un solo
@@ -74,16 +73,16 @@ Cada uno vive ENTERO en su ADR: esto es el índice, léelo antes de tocar ese su
 
 | # | Qué | Por qué importa |
 |---|---|---|
-| **CLAVE** | **Ponerse contraseña.** La llave admin ya NO está en Descargas: regenerarla (Consola Firebase → Cuentas de servicio → Generar nueva clave) y guardarla fuera de Descargas. Después: `usuarios.mjs contrasena … --definitiva`, o la cuenta queda provisional y se revocan sus sesiones | Desbloquea retirar Google (2b) |
+| **CLAVE** | **Ponerse contraseña.** La llave admin ya NO está en Descargas: regenerarla (Consola Firebase → Cuentas de servicio) y guardarla fuera de Descargas. Después: `usuarios.mjs contrasena … --definitiva`, o la cuenta queda provisional y se revocan sus sesiones | Desbloquea retirar Google (2b) |
 | **TODO-57** | **La FICHA ESTRUCTURAL — ya se puede ESCRIBIR, y está EN PRODUCCIÓN** (`99 §ADR-030`). Deja de estar bloqueada por el código: falta **el DATO**. ¿Lo tiene la empresa en planos o actas, o hay que levantarlo? Los seis: carga de rotura · altura libre · altura del amarre · capacidad longitudinal (con **qué ES** ese número) · fases amarradas · tipo de apoyo | **EL CUELLO DE BOTELLA REAL.** Al meter el primero saldrán «REVISAR»: no son averías nuevas, es lo que ya pasaba y no se veía |
-| **TODO-75** | **Dos ajustes de GitHub, o el vigía de LOS DOS atlas no sirve** (`99 §ADR-045/053`). Verificado con `gh`: su token es de SOLO LECTURA y `main` no está protegida. ① Actions → General → permitir que Actions **cree** propuestas. ② Proteger `main` exigiendo el CI: un PR del robot no dispara `ci.yml` y llegaría sin un check | Sin los dos, el vigía no abre nada o abre algo sin revisar |
-| **TODO-69** | **Verificar el pórtico de ORIGEN** (`99 §ADR-027/028/031`) | El único punto de esa carga que nadie ha mirado |
-| **TODO-72** | **¿Autorización del IGAC para sus ortoimágenes** (o la tiene AFINIA por convenio)? Cubren esto a **3 m** en Bolívar y **10 cm** en Turbaco, contra los 10 m de Sentinel-2. La licencia publicada las veta para un sitio que las republique (`99 §ADR-040`, `31 · L-60`); el generador ya sabe pedirlas | Única vía a más resolución real en el mapa |
+| **TODO-75** | **Dos ajustes de GitHub, o el vigía de los atlas no sirve** (`§ADR-045/053`). Verificado con `gh`: su token es de SOLO LECTURA y `main` no está protegida. ① Actions → General → permitir que Actions **cree** propuestas. ② Proteger `main` exigiendo el CI: un PR del robot no dispara `ci.yml` | Sin los dos, no abre nada o abre algo sin revisar |
+| **TODO-69** | ✅ Verificado 21-08: el pórtico de ORIGEN **no estaba donde se creía** —a 4,6 km del punto del 11-AGO—. Manda el nuevo, a 9,1 m de E01 (`§ADR-054`). **Falta que pulse «aprobar»** en Cargar: camino, libros e identidades ya están | Desaparecen los 4.604 m sin levantar: la línea queda COMPLETA |
+| **TODO-72** | **¿Autorización del IGAC para sus ortoimágenes** (o la tiene AFINIA por convenio)? Cubren esto a **3 m** en Bolívar y **10 cm** en Turbaco, contra los 10 m de Sentinel-2. La licencia publicada las veta para un sitio que las republique (`99 §ADR-040`, `31 · L-60`) | Única vía a más resolución real en el mapa |
 | **TODO-71** | **¿Se cierran las hipótesis con dato real?** Ninguna se cierra con un mapa: el **viento** (`ADR-035`) y los **1.000 W/m² adoptados** de la ampacidad, que el recurso solar rodea (`ADR-037`) sin sustituirlos —energía diaria ≠ irradiancia instantánea— | De ahí salen los tiros y la capacidad |
-| **TODO-59** | **Qué ficha se le pide a CADA tipología.** La línea mezcla 4 (pórticos de 2 y 3 postes, torre reticulada, poste simple) y el molde es de POSTE (`40 §8.3`) | Son 3 o 4 formularios, no uno |
+| **TODO-59** | **Qué ficha se le pide a CADA tipología.** La línea mezcla 4 (pórticos de 2 y 3 postes, torre reticulada, poste simple) y el molde es de POSTE (`40 §8.3`) | Son 3 o 4 formularios |
 | **TODO-33** | **50 % o 25 % de RTS** como tope de tiro. Ya no hay dos dueños del número (`§ADR-051`): falta decidir CUÁL rige | Factor 2 sobre un dictamen |
-| **TODO-58** | **¿Dónde deben vivir los datos?** Hoy Firestore (São Paulo) y R2 bajo TUS cuentas, con coordenadas y fotos del empleador | La región de Firestore es INMUTABLE |
-| **TODO-44/34** | Alerta de presupuesto en Cloudflare · **respaldo FUERA de esta Mac**: las 205 fotos (127 MB) ya están versionadas en la bóveda, pero `brain-private` **no tiene remoto** (ADR-059) | R2 factura · un fallo de disco se lleva la bóveda entera, no solo las fotos |
+| **TODO-58** | **¿Dónde deben vivir los datos?** Hoy Firestore (São Paulo) y R2 bajo TUS cuentas, con datos del empleador | La región de Firestore es INMUTABLE |
+| **TODO-44/34** | Alerta de gasto en Cloudflare · **respaldo FUERA de esta Mac**: las 205 fotos ya están versionadas en la bóveda, pero `brain-private` **no tiene remoto** (ADR-059) | R2 factura · un fallo de disco se lleva la bóveda entera |
 | **TODO-61/54/68** | ¿App Check? (se enciende en consola, `git revert` no lo deshace) · ¿que el linter vigile la frescura semántica? · ¿que cace un ADR repetido? (`30 · L-47`). Las dos últimas tocan el KERNEL | Las TRES son TUYAS |
 | **TODO-76** | **¿Se guarda que un apoyo es autosoportado / retenido?** Usted declaró que NINGUNO de LN-627 lleva retenida (`40 §Dato de campo`). Hoy **no cabe en el modelo**: iría por APOYO (25 declaraciones), nunca por línea. ¿Campo `tieneRetenida` sí/no, o «configuración» más ancha? | Cierra media incógnita de la capacidad longitudinal; la otra media —la sección— sigue abierta |
 | **TODO-78** | **El nodo `33` queda al 99,9 %**: la siguiente lección de ese tema obliga a elegir entre podar o partirlo — y partirlo cuesta arranque para siempre (`99 §ADR-048`) | Perder texto, o pagar contexto cada sesión |
@@ -98,8 +97,8 @@ Cada uno vive ENTERO en su ADR: esto es el índice, léelo antes de tocar ese su
 | **TODO-66** | **Que una acción pruebe que FUNCIONÓ**, no solo que se hizo (deuda declarada en `99 §ADR-026`): bloque de verificación posterior —cuándo, quién, si fue eficaz y cómo se comprobó— y la cerrada queda «pendiente de verificar eficacia» hasta esa fecha | `99 §ADR-026` |
 | **TODO-50** | **Blindaje**: ✅ F1 · ✅ F2a · ✅ F3 pantalla de cambio · ⬜ **2b retirar Google** — espera la contraseña | `99 §ADR-019/024` |
 | **TODO-52/49/48** | RCA: el lienzo del árbol (cosmético) · contador de PARQUE (no construible hoy) · deuda de ADR-017: al veredicto longitudinal le falta el ruido de tendido y el piso de validez | `99 §ADR-017/018/020` |
-| **TODO-79** | **Saldo del entorno: 34 vivos + 5 parciales** (`ADR-052` cerró el 27 y el 32), triados contra el código de hoy y por gravedad (`99 §ADR-049` · crudo `2026-08-22-triaje-51-hallazgos-entorno.json`). Los dos restos más caros: el identificador crudo en el **informe firmable** (`exportar/informe.js:331`) y la red del **mapa**, que se traga el fallo y dice «no se pudo descargar» cuando falló dibujar | Varios son decisión suya; otros tocan el molde |
-| **TODO-30/11 · 13-23** | XSD real de GPX/KML en CI · nota técnica de LN-627 · F3-F5 (sincronización, Firestore vs D1, IA, secretos) | crudo de **ADR-013** |
+| **TODO-79** | **Saldo del entorno: 34 vivos + 5 parciales** (`ADR-052` cerró el 27 y el 32), triados por gravedad (`99 §ADR-049` · crudo `2026-08-22-triaje-51-hallazgos-entorno.json`). Los dos restos más caros: el identificador crudo en el **informe firmable** (`exportar/informe.js:331`) y la red del **mapa**, que se traga el fallo y dice «no se pudo descargar» cuando falló dibujar | Varios son decisión suya; otros tocan el molde |
+| **TODO-30/11 · 13-23** | XSD de GPX/KML en CI · nota técnica de LN-627 · F3-F5 | crudo de **ADR-013** |
 
 ## ✅ Consolidado — el detalle vive en su dueño, no aquí
 

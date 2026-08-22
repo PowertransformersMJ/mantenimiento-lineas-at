@@ -114,6 +114,12 @@ const IDS_EN_PRODUCCION = {
 const IDS_AMPLIACION = {
   'LN-627 EMP E03-E04': '63721695-2e3c-eff9-97f7-175b7598b189',
   'LN-627 PORTICO FIN': '5c069a95-965e-d2ab-b54b-8a598c239dea',
+  // Los dos del 21-08, emitidos el 22-08 (§ADR-054). El del pórtico de ORIGEN es
+  // el mismo id que esta prueba tenía RESERVADO desde el 16-08 sin haberlo
+  // escrito: la fórmula dio exactamente lo previsto, que es la comprobación de
+  // que reservar un id y emitirlo dos semanas después no cambia nada.
+  'LN-627 PORTICO ORIGEN': 'ad1d2379-a3a3-68dd-e5d2-700ab07f57e3',
+  'LN-627 EMP E01-E02':    'f20ae216-d4c0-c8ff-7b8e-c88520a2353d',
 };
 
 /**
@@ -181,12 +187,21 @@ describe('LOS DOS PUNTOS NUEVOS — y el tercero, que NO se emite', () => {
     }
   });
 
-  test('«LN-627 PORTICO ORIGEN» NO está emitido: el Ingeniero ordenó verificarlo antes', () => {
-    assert.equal(REGISTRO[LINEA]['LN-627 PORTICO ORIGEN'], undefined,
-      'una fila en el registro significa «esto ya existe y sostiene fotos». El pórtico de origen todavía no.');
-    // Su id queda RESERVADO y comprobado: el día que se apruebe con ese nombre,
-    // este es el que le toca. Como nunca se escribió, no deja huérfanos.
+  // ⚠️ SE DIO LA VUELTA EL 22-08 (§ADR-054), y por eso queda escrito aquí. Esta
+  // prueba exigía que el pórtico de origen NO tuviera identidad emitida, porque
+  // el 16-08 el Ingeniero lo dejó pendiente de verificar en campo. El 21-08 fue,
+  // lo verificó, y el 22-08 ordenó construirlo. Lo que se vigila ahora es lo
+  // contrario: que SÍ esté emitido, y que su id sea el que la fórmula da — no
+  // uno cualquiera que alguien escribiera a mano el día de la prisa.
+  test('«LN-627 PORTICO ORIGEN» YA está emitido: se verificó en campo el 21-08', () => {
+    assert.ok(REGISTRO[LINEA]['LN-627 PORTICO ORIGEN'],
+      'el Ingeniero lo verificó en campo el 21-08 y ordenó construirlo el 22-08: tiene que tener fila');
+    // Y el id emitido es EXACTAMENTE el que esta prueba reservaba desde el 16-08,
+    // cuando la fila todavía no existía. Reservar y emitir dos semanas después
+    // no cambia el número: eso es lo que hace fiable la fórmula.
     assert.equal(idDePunto(LINEA, 'LN-627 PORTICO ORIGEN'), ID_RESERVADO_PORTICO_ORIGEN);
+    assert.equal(REGISTRO[LINEA]['LN-627 PORTICO ORIGEN'].id, ID_RESERVADO_PORTICO_ORIGEN);
+    assert.equal(REGISTRO[LINEA]['LN-627 PORTICO ORIGEN'].semilla, 'punto:LN-627 PORTICO ORIGEN');
   });
 });
 
@@ -204,7 +219,7 @@ describe('EL REGISTRO SE VERIFICA A SÍ MISMO', () => {
     }
   });
 
-  test('el registro tiene exactamente las 28 filas emitidas (26 de julio + 2 de agosto)', () => {
+  test('el registro tiene exactamente las 30 filas emitidas (26 de julio + 2 + 2 de agosto)', () => {
     assert.deepEqual(
       filasDe(LINEA).map(([n]) => n).sort(),
       [...Object.keys(IDS_EN_PRODUCCION), ...Object.keys(IDS_AMPLIACION)].sort(),
@@ -220,20 +235,23 @@ describe('EL REGISTRO SE VERIFICA A SÍ MISMO', () => {
     assert.equal(new Set(semillas).size, semillas.length);
   });
 
-  test('verificarRegistro no encuentra colisiones ni semillas por emitir en los 28 conocidos', () => {
+  test('verificarRegistro no encuentra colisiones ni semillas por emitir en los 30 conocidos', () => {
     const nombres = filasDe(LINEA).map(([n]) => n);
     const { nuevas, conocidas, colisiones } = verificarRegistro(LINEA, nombres);
     assert.deepEqual(colisiones, []);
     assert.deepEqual(nuevas, []);
-    assert.equal(conocidas.length, 28);
+    assert.equal(conocidas.length, 30);
   });
 
-  test('verificarRegistro DELATA al punto que todavía no tiene semilla emitida', () => {
-    const { nuevas } = verificarRegistro(LINEA, ['LN-627 E01', 'LN-627 PORTICO ORIGEN']);
+  test('verificarRegistro DELATA a un punto que todavía no tiene semilla emitida', () => {
+    // Ya no sirve el pórtico de origen —se emitió el 22-08—, así que se usa un
+    // nombre que NO existe. La prueba vigila la función, no a un punto concreto.
+    const PORVENIR = 'LN-627 E25';
+    assert.equal(REGISTRO[LINEA][PORVENIR], undefined, 'el nombre de control se emitió: hay que cambiarlo');
+    const { nuevas } = verificarRegistro(LINEA, ['LN-627 E01', PORVENIR]);
     assert.equal(nuevas.length, 1);
-    assert.equal(nuevas[0].nombreCanonico, 'LN-627 PORTICO ORIGEN');
-    assert.equal(nuevas[0].semilla, 'punto:LN-627 PORTICO ORIGEN');
-    assert.equal(nuevas[0].id, ID_RESERVADO_PORTICO_ORIGEN);
+    assert.equal(nuevas[0].nombreCanonico, PORVENIR);
+    assert.equal(nuevas[0].semilla, `punto:${PORVENIR}`);
   });
 });
 

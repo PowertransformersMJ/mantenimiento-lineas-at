@@ -164,7 +164,8 @@ describe('EL LIBRO NO LLEVA NI UN BYTE DE CLIENTE', () => {
     for (const f of LIBRO[LINEA].decisiones) {
       for (const k of Object.keys(f)) assert.ok(DECISION.has(k), `campo no previsto en una decisión: «${k}»`);
       for (const k of Object.keys(f.sitio ?? {})) {
-        assert.ok(['insertarDespuesDe', 'insertarAlFinal'].includes(k), `campo no previsto en «sitio»: «${k}»`);
+        assert.ok(['insertarDespuesDe', 'insertarAlFinal', 'insertarAlPrincipio'].includes(k),
+          `campo no previsto en «sitio»: «${k}»`);
       }
     }
     for (const f of LIBRO[LINEA].pendientes) {
@@ -264,15 +265,37 @@ describe('SE RECUERDA LO QUE ÉL DECIDIÓ, Y SOLO ESO', () => {
     assert.equal(decisionVigente(undefined, LINEA, 'LN-627 E01'), undefined, 'ni sin libro');
   });
 
+  // ⚠️ CAMBIÓ EL 22-08 (§ADR-054). Esta prueba se apoyaba en que «LN-627 PORTICO
+  // ORIGEN» estaba pendiente; el Ingeniero lo verificó en campo el 21-08 y lo
+  // decidió el 22-08, así que su fila salió de `pendientes` — un pendiente
+  // resuelto deja de ser un pendiente, o la garantía de que ningún pendiente
+  // tiene identidad emitida sería imposible de cumplir sin mentir.
+  //
+  // La lista quedó VACÍA, y eso NO es motivo para borrar la prueba: lo que
+  // vigila —que un pendiente no se ofrezca ni rellene nada— sigue siendo la
+  // regla, y se comprueba con un libro sintético para que no dependa de que en
+  // este momento haya o no un pendiente real.
   test('el pendiente NO se ofrece: no es una decisión y no rellena nada', () => {
-    const pendientes = pendientesDe(LIBRO, LINEA);
+    const SOBRE = 'LX-002 PORTICO ORIGEN';
+    const libroConPendiente = {
+      'LX-002': {
+        decisiones: [],
+        pendientes: [{
+          sobre: SOBRE, decididoPor: 'el Ingeniero', decididoEn: '2026-08-16',
+          estado: 'pendiente_verificacion', porQue: 'quiere verificarlo en campo antes de darlo por bueno',
+          seOfreceEnLaPantalla: false,
+          porQueNoSeOfrece: 'no tiene nombre emitido en el libro de identidad, así que no se le puede dar identidad',
+        }],
+      },
+    };
+    const pendientes = pendientesDe(libroConPendiente, 'LX-002');
     assert.equal(pendientes.length, 1);
-    assert.equal(pendientes[0].sobre, 'LN-627 PORTICO ORIGEN');
+    assert.equal(pendientes[0].sobre, SOBRE);
     assert.equal(pendientes[0].estado, 'pendiente_verificacion');
     // Y no aparece por la puerta de las decisiones, ni por descuido:
-    assert.equal(decisionVigente(LIBRO, LINEA, 'LN-627 PORTICO ORIGEN'), undefined);
-    assert.ok(!decisionesVigentes(LIBRO, LINEA).some((d) => d.sobre === 'LN-627 PORTICO ORIGEN'));
-    assert.ok(estaPendiente(LIBRO, LINEA, 'LN-627 PORTICO ORIGEN'));
+    assert.equal(decisionVigente(libroConPendiente, 'LX-002', SOBRE), undefined);
+    assert.ok(!decisionesVigentes(libroConPendiente, 'LX-002').some((d) => d.sobre === SOBRE));
+    assert.ok(estaPendiente(libroConPendiente, 'LX-002', SOBRE));
   });
 
   test('lo recordado NO incluye el nombre ni la aprobación — las dos que él contesta siempre', () => {
@@ -364,7 +387,7 @@ describe('CAMBIAR DE OPINIÓN APENDA, NO PISA — manda la ÚLTIMA fechada', () 
     const vigentes = decisionesVigentes(libroConDosFilas, 'LX-001');
     assert.equal(vigentes.length, 1, 'dos filas del mismo nombre son UNA decisión vigente');
     assert.equal(decisionesVigentes(LIBRO, LINEA).map((d) => d.sobre).join(' · '),
-      'LN-627 EMP E03-E04 · LN-627 PORTICO FIN');
+      'LN-627 EMP E03-E04 · LN-627 PORTICO FIN · LN-627 PORTICO ORIGEN · LN-627 EMP E01-E02');
   });
 });
 
@@ -432,9 +455,24 @@ describe('EL EMPAREJAMIENTO LO HACE ÉL, Y SE DICE POR QUÉ', () => {
 
   test('un pendiente no rellena nada ni aunque llegue a nombrarse', () => {
     // No puede llegar (no tiene semilla), pero si llegara, lo que NO puede pasar
-    // es que rellene una ficha.
-    const { emparejados, sinEmparejar } = emparejarConDecisiones(LIBRO, LINEA, [
-      punto('w1', 'punto del archivo 1', 'LN-627 PORTICO ORIGEN'),
+    // es que rellene una ficha. Se comprueba con un libro sintético desde el
+    // 22-08: la línea real ya no tiene pendientes (§ADR-054), y atar esta regla
+    // a que exista uno la haría caducar sola.
+    const SOBRE = 'LX-002 PORTICO ORIGEN';
+    const libroConPendiente = {
+      'LX-002': {
+        decisiones: [],
+        pendientes: [{
+          sobre: SOBRE, decididoPor: 'el Ingeniero', decididoEn: '2026-08-16',
+          estado: 'pendiente_verificacion',
+          porQue: 'quiere verificarlo en campo antes de darlo por bueno. Pendiente no es descartado.',
+          seOfreceEnLaPantalla: false,
+          porQueNoSeOfrece: 'no tiene nombre emitido en el libro de identidad, así que no se le puede dar identidad',
+        }],
+      },
+    };
+    const { emparejados, sinEmparejar } = emparejarConDecisiones(libroConPendiente, 'LX-002', [
+      punto('w1', 'punto del archivo 1', SOBRE),
     ]);
     assert.equal(emparejados.length, 0);
     assert.equal(sinEmparejar[0].motivo, SIN_EMPAREJAR.PENDIENTE);
@@ -445,7 +483,8 @@ describe('EL EMPAREJAMIENTO LO HACE ÉL, Y SE DICE POR QUÉ', () => {
     const { decisionesSinPunto } = emparejarConDecisiones(LIBRO, LINEA, [
       punto('w1', 'punto del archivo 1', 'LN-627 PORTICO FIN'),
     ]);
-    assert.deepEqual(decisionesSinPunto.map((d) => d.sobre), ['LN-627 EMP E03-E04']);
+    assert.deepEqual(decisionesSinPunto.map((d) => d.sobre),
+      ['LN-627 EMP E03-E04', 'LN-627 PORTICO ORIGEN', 'LN-627 EMP E01-E02']);
   });
 
   test('sin puntos y sin libro no revienta nada, y no se inventa nada', () => {
@@ -537,16 +576,27 @@ describe('EL EXTRACTO SIGUE SIENDO LO QUE DICE LA BÓVEDA', async () => {
   const BOVEDA = join(AQUI, '..', '..', 'brain-private', 'mantenimiento-lineas-at', 'fixtures');
   const F_JULIO = join(BOVEDA, 'LN-627-geometria.json');
   const F_AGOSTO = join(BOVEDA, 'LN-627-geometria-ampliacion-2026-08.json');
-  const SIN_BOVEDA = !(existsSync(F_JULIO) && existsSync(F_AGOSTO))
+  // ⚠️ LAS AMPLIACIONES SON VARIAS Y CRECEN. Ampliar un levantamiento es un hecho
+  // fechado y cada jornada de campo trae su archivo: mezclarlas destruiría la
+  // línea base de julio. El libro público sale de TODAS, en orden, y por eso esta
+  // lista se recorre en vez de nombrar un fixture suelto (§ADR-054).
+  const F_AGOSTO_21 = join(BOVEDA, 'LN-627-geometria-ampliacion-2026-08-21.json');
+  const AMPLIACIONES = [F_AGOSTO, F_AGOSTO_21];
+  const SIN_BOVEDA = !(existsSync(F_JULIO) && AMPLIACIONES.every((f) => existsSync(f)))
     && 'fixtures en la bóveda privada, no disponibles aquí (esperado en CI)';
 
   const { construirLibro, motivosParaNoPublicar } = await import('../herramientas/publicar-decisiones.mjs');
   const { construirApoyos } = await import('../herramientas/construir-apoyos.mjs');
   const leer = (r) => JSON.parse(readFileSync(r, 'utf-8'));
-  const fixture = SIN_BOVEDA ? null : leer(F_AGOSTO);
+  const fixture = SIN_BOVEDA ? null : leer(F_AGOSTO_21);
+  const fixtures = SIN_BOVEDA ? [] : AMPLIACIONES.map(leer);
 
   test('regenerar desde la bóveda da EXACTAMENTE el archivo commiteado', { skip: SIN_BOVEDA }, () => {
-    const regenerado = construirLibro(fixture, { codigoLinea: LINEA, registro: SEMILLAS, yaPublicado: LIBRO });
+    // Se encadena igual que se publicó: cada ampliación sobre lo que ya había.
+    const regenerado = fixtures.reduce(
+      (yaPublicado, f) => construirLibro(f, { codigoLinea: LINEA, registro: SEMILLAS, yaPublicado }),
+      {},
+    );
     assert.equal(`${JSON.stringify(regenerado, null, 2)}\n`, CRUDO,
       'el extracto ya no refleja la bóveda: o alguien lo editó a mano, o la bóveda cambió y falta republicar');
   });
@@ -561,10 +611,19 @@ describe('EL EXTRACTO SIGUE SIENDO LO QUE DICE LA BÓVEDA', async () => {
 
   test('ni un punto de la bóveda se queda fuera del libro, en un lado o en el otro', () => {
     if (SIN_BOVEDA) return;
-    for (const p of fixture.puntos) {
-      const donde = p.estado === 'aprobado' ? 'decisiones' : 'pendientes';
-      assert.ok(LIBRO[LINEA][donde].some((f) => f.sobre === p.nombreCanonico),
-        `«${p.nombreCanonico}» está en la bóveda como «${p.estado}» y no aparece en ${donde} del libro público`);
+    // El estado que vale es el de la ampliación MÁS RECIENTE que nombre el punto:
+    // «LN-627 PORTICO ORIGEN» está pendiente en la del 11-AGO y aprobado en la del
+    // 21-AGO, y manda la segunda. Un pendiente resuelto no se queda en las dos
+    // listas a la vez.
+    const ultimoEstado = new Map();
+    for (const f of fixtures) for (const p of f.puntos ?? []) ultimoEstado.set(p.nombreCanonico, p.estado);
+    for (const [nombre, estado] of ultimoEstado) {
+      const donde = estado === 'aprobado' ? 'decisiones' : 'pendientes';
+      assert.ok(LIBRO[LINEA][donde].some((f) => f.sobre === nombre),
+        `«${nombre}» está en la bóveda como «${estado}» y no aparece en ${donde} del libro público`);
+      const elOtro = donde === 'decisiones' ? 'pendientes' : 'decisiones';
+      assert.ok(!LIBRO[LINEA][elOtro].some((f) => f.sobre === nombre),
+        `«${nombre}» aparece a la vez en decisiones y en pendientes: el libro se contradice`);
     }
   });
 
@@ -573,7 +632,8 @@ describe('EL EXTRACTO SIGUE SIENDO LO QUE DICE LA BÓVEDA', async () => {
     // sembrador, que carga de verdad) y la del navegador (este extracto). Si
     // divergen, el Ingeniero vería recordado un papel estructural distinto del
     // que el sembrador escribiría — y no reventaría nada.
-    const { apoyos } = construirApoyos(LINEA, leer(F_JULIO), fixture.puntos, { ahora: '2026-08-16T00:00:00.000Z' });
+    const { apoyos } = construirApoyos(LINEA, leer(F_JULIO), fixtures.flatMap((f) => f.puntos ?? []),
+      { ahora: '2026-08-16T00:00:00.000Z' });
     for (const fila of LIBRO[LINEA].decisiones) {
       const doc = apoyos.find((a) => a.nombreNormalizado === fila.sobre);
       assert.ok(doc, `el sembrador no construye «${fila.sobre}», pero el libro dice que está decidido`);
