@@ -1493,11 +1493,18 @@ p.fund-vivo + .sello-calculo { margin-top: 5px; }
   }
 }
 
-/* ── Atlas solar del Caribe ────────────────────────────────────────────────
+/* ── Los atlas del Caribe ──────────────────────────────────────────────────
    La franja de días es el trozo con más riesgo de la pantalla: mal dibujada se
    lee como UNA sola serie y mezcla dos magnitudes distintas. Por eso los tres
-   estados se distinguen por RELLENO y por BORDE, no solo por color. */
+   estados se distinguen por RELLENO y por BORDE, no solo por color.
+
+   `.acciones` es la fila de botones que abre cada atlas dentro de Detalle GPS.
+   El botón que está abierto se marca con el MISMO recurso que el día activo de
+   la franja —contorno, no relleno—: un relleno de color aquí competiría con los
+   sellos de estado, que en esta aplicación significan juicio y no selección. */
 .sol-cabecera { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.acciones { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 4px; }
+.acciones .boton.activo { outline: 2px solid var(--acc); outline-offset: 1px; font-weight: 700; }
 .sol-dias { display: flex; flex-wrap: wrap; gap: 3px; margin: 2px 0 6px; }
 .sol-dia {
   width: 26px; height: 22px; font: inherit; font-size: .74rem; cursor: pointer;

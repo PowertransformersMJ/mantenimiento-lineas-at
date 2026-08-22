@@ -13,17 +13,15 @@
 ├── brain-private/                       🔐 bóveda LOCAL, nunca pública
 │   ├── kernel/                          🔑 kernel canónico — escritor único
 │   └── mantenimiento-lineas-at/         ← la carpeta de ESTE proyecto en la bóveda
-│       ├── NOTAS-OPERATIVAS.md          🔑 credenciales, llave admin, USUARIOS Y ROLES. Todo dato
-│       │                                personal o de acceso vive AQUÍ, nunca en el repo público
-│       ├── research-archive/            crudos de deliberación (comités, workflows, consejo
-│       │                                externo). Su README.md es el índice ÚNICO
+│       ├── NOTAS-OPERATIVAS.md          🔑 credenciales, llave admin, usuarios y roles. Todo dato
+│       │                                personal o de acceso vive AQUÍ, nunca en el repo
+│       ├── research-archive/            crudos de deliberación (comités, workflows, consejo).
+│       │                                Su README.md es el índice ÚNICO
 │       ├── datos-campo/                 lo que el Ingeniero DIJO o midió en campo. Dato real: se
-│       │                                cita desde el ADR, nunca se copia. NO entra en el índice de
-│       │                                research-archive
-│       ├── entregables/                 mazos e informes ya entregados
-│       ├── fixtures/                    datos reales de cliente que usan las pruebas
-│       └── fotos/                        material de campo (207 archivos, ya versionados)
-├── powertransformersmj.github.io/       proyecto hermano (SGM · TRANSPOWER)
+│       │                                cita desde el ADR, nunca se copia
+│       ├── fixtures/                    datos reales de cliente que usan las pruebas · entregables/
+│       └── fotos/                        material de campo (207 archivos, versionados)
+├── powertransformersmj.github.io/       proyecto hermano (SGM)
 └── mantenimiento-lineas-at/             ← ESTE repo
 ```
 
@@ -57,16 +55,16 @@ mantenimiento-lineas-at/
 │   └── clima.js                 sondeo meteorológico de un evento Y sus límites redactados
 │
 ├── contratos/                   ⭐ WORKSPACE @lineas/contratos — los esquemas Zod que ambos lados
-│                                obedecen. `comunes.ts` es el dueño de `VERSION_CONTRATO` (la cifra
-│                                que la app pinta; el `package.json` del paquete NO manda) y lleva
-│                                el registro de qué cambió en cada versión.
-│                                activos · eventos · rca · ia · index
+│                                obedecen. `comunes.ts` es el dueño de `VERSION_CONTRATO` (el
+│                                `package.json` del paquete NO manda) y lleva el registro de qué
+│                                cambió en cada versión. activos · eventos · rca · ia · index
 │
 ├── tests/                       una por subsistema, con el mismo nombre que él. Las de ORO:
 │   │                            `nucleo.test.js` (la red de la migración) y `exportar.test.js`
 │   │                            (GPX/KML/CSV contra la tabla del original). Conteo vivo → `05`.
-│   └──                          Las de FRONTERA molde↔motor↔papel, que no se fían de un fixture:
-│                                `campos-del-molde` · `umbral-tierra` · `tope-de-tiro` (`30 · L-68`).
+│   └──                          Las de FRONTERA (molde↔motor↔papel · ficha↔pantalla), que no se
+│                                fían de un fixture: `campos-del-molde` · `umbral-tierra` ·
+│                                `tope-de-tiro` · `atlas-ficha` (`30 · L-68`).
 │
 ├── docs/                        las neuronas. **Quién es cada una es del `00-INDICE.md`**: aquí no
 │   └── .brain-manifest.json     se repite. Es la configuración del cerebro (topes, archiveDir,
@@ -96,43 +94,44 @@ mantenimiento-lineas-at/
 │                                PUNTO sigue vetado y con guardián (ADR-028/031)
 ├── evidencias/                  🚪 EL PORTERO (Worker, ADR-010 + **ADR-031**): verifica la FIRMA del
 │                                token. `GET` sirve, `PUT` acepta bajo diez cerrojos.
-│                                🚫 **NO borra y NO lista, jamás** — con prueba que lo bloquea
-├── herramientas/sol-caribe.mjs rehace el ATLAS SOLAR (ADR-045)
+│                                🚫 **NO borra y NO lista** — con prueba que lo bloquea
+├── herramientas/atlas-caribe.mjs EL MOTOR de los dos atlas (ADR-053). Cada uno es un PERFIL:
+│                                `sol-caribe.mjs` (ADR-045; ⚠️ ese nombre lo llama el vigía y no se
+│                                cambia) y `temp-caribe.mjs` (ADR-053)
 ├── herramientas/teselas/        construir-raster.py — rehace las capas del mapa desde datos
-│                             abiertos. ⚠️ ÚNICO Python del repo; no lo usan ni la app ni las pruebas
+│                             abiertos. ⚠️ ÚNICO Python del repo; no lo usan app ni pruebas
 ├── herramientas/                sembrar.mjs (línea + expediente) · subir-evidencias.mjs (fotos) ·
 │                                ⚠️ usuarios.mjs — **la ÚNICA vía de alta de personas**: alta,
 │                                contrasena, rol, baja, restituir, auditar. Rechaza a propósito
 │                                recibir la contraseña por tubería o argumento (ADR-019)
 │   ├── semillas-emitidas.json   📗 EL LIBRO DE IDENTIDAD (ADR-027): quién ES cada punto. Solo crece;
-│   │                            una fila escrita NO SE TOCA JAMÁS — de ella cuelgan 99 fotos
+│   │                            una fila escrita NO SE TOCA JAMÁS: de ella cuelgan 99 fotos
 │   ├── decisiones-firmadas.json 📘 EL LIBRO DE DECISIONES (ADR-029): qué DECIDIÓ él. Se apenda,
-│   │                            manda la última fechada y **NO da identidad**. Generado
+│   │                            manda la última fechada y **NO da identidad**
 │   └── publicar-decisiones.mjs  lo genera con LISTA BLANCA de campos. Local, jamás en CI
 ├── firestore.rules              🔒 parte del CONTRATO, no configuración: RBAC por *claims* y un
-│   firebase.json                catch-all que niega todo lo no declarado. **Se despliega por SU
-│   firestore.indexes.json       canal**, no con el sitio (`31 · L-22`)
-├── disenos/                     5 maquetas HTML de la carcasa; ganó `5-horizonte` (ADR-018).
-│                                NO es código de la aplicación
+│   firebase.json                catch-all que niega lo no declarado. **Se despliega por SU canal**,
+│   firestore.indexes.json       no con el sitio (`31 · L-22`)
+├── disenos/                     5 maquetas HTML de la carcasa; ganó `5-horizonte` (ADR-018)
 ├── web/src/estilo.css           el tablero de color: ~61 tokens en `:root`, paleta CLARA. Ningún
-│                                color se escribe fuera de ahí — lo vigila una prueba
+│                                color se escribe fuera de ahí; lo vigila una prueba
 ├── web/src/componentes/         React SOLO pinta (ADR-005): Linea (las pestañas ARIA —cuántas son,
 │                                en `05`— **y** la carcasa de 3 columnas), **RedDeSeguridad** (la red
-│                                que evita la página en blanco de TODA la aplicación; se monta en
-│                                `web/src/main.tsx`), **SolCaribe** (el atlas del Caribe, ADR-045:
-│                                no es pestaña, es PANTALLA, y no cuelga de ninguna línea),
-│                                Horizonte (los apoyos en su orden real),
-│                                Mapa (popup completo + tramos + marcador de falla), Distribucion,
-│                                Distancias, DetalleGps (el mapa a pantalla: MISMO Mapa con
-│                                `panelALado`, ADR-042), Fichas (+FichaEditor · FichaLote, admin,
-│                                ADR-038), FichaCriterios, Falla + Galeria, Fundamentos,
-│                                Umbrales, Termica, Viento, Cargas (los DOS ejes, ADR-011/017),
+│                                que evita la página en blanco de TODA la aplicación, montada en
+│                                `web/src/main.tsx`), **AtlasCaribe** (LOS DOS atlas, ADR-045/053:
+│                                pantalla propia, y embebido PEREZOSO en Detalle GPS con la línea
+│                                marcada), Horizonte (los apoyos en su orden real), Mapa (popup +
+│                                tramos + marcador de falla), Distribucion, Distancias, DetalleGps
+│                                (el mapa a pantalla: MISMO Mapa con `panelALado`, ADR-042), Fichas
+│                                (+FichaEditor · FichaLote, admin, ADR-038), FichaCriterios,
+│                                Falla + Galeria, Fundamentos, Umbrales, Termica, Viento,
+│                                Cargas (los DOS ejes, ADR-011/017),
 │                                Cantidades, Exportar, Sello, Estado · **Cargar** (solo admin) y
 │                                **Fotos** (ADR-031; cuadrilla o superior): las DOS que ESCRIBEN, y
 │                                las dos cuyo efecto no se deshace · **Rca + RcaEditores: NO son
 │                                pestaña de línea, son segmento hermano del parque → `99 §ADR-020`**
 ├── web/src/contenido/           doctrina SIN datos de cliente (fundamentos.ts: 9 tarjetas + normas)
-├── web/src/exportar/            SOLO descargar.js (Blob/DOM) — el resto vive en el workspace
+├── web/src/exportar/            SOLO descargar.js (Blob/DOM); el resto, en el workspace
 ├── web/src/vistas/              ⭐ DUEÑOS ÚNICOS — si un número sale de aquí, NO se recalcula en
 │   │                            ninguna pantalla (`99 §ADR-018`):
 │   ├── ejesLinea.ts             los DOS ejes de carga de una línea
@@ -143,18 +142,18 @@ mantenimiento-lineas-at/
 │   │                            propósito → `99 §ADR-020`)
 │   ├── fichaLote.ts             quién puede recibir un dato de catálogo (ADR-038)
 │   ├── cableGuarda.ts           los tramos SIN cable de guarda, vano a vano (ADR-044). El hueco
-│   │                            significa NO CONSTA, jamás «lo lleva»
-│   ├── solCaribe.ts             el cuadro de una hora del atlas solar (ADR-045)
+│   │                            significa NO CONSTA, nunca «lo lleva»
+│   ├── atlasCaribe.ts           el cuadro de una hora de CUALQUIERA de los dos atlas (ADR-053)
 │   ├── radiacion.ts             el recurso solar del corredor (ADR-037/046): rampa ajustada al
-│   │                            recorte y su aviso de escala, que va SIEMPRE
-│   ├── temperatura.ts           la temperatura del AIRE del mapa (ADR-039): media, no extremo
-│   ├── coberturaEjes.ts         qué se sabe de CADA apoyo, eje por eje: los 4 estados (ambos · solo
-│   │                            transversal · solo longitudinal · ninguno) y los textos del
-│   │                            horizonte. Lo piden `estadoLinea` y `Horizonte`
+│   │                            recorte y su aviso de escala, SIEMPRE
+│   ├── temperatura.ts           el AIRE del corredor (ADR-039): media, no extremo.
+│   │                            ⚠️ NO es el atlas regional: otra fuente y otro recuadro
+│   ├── coberturaEjes.ts         qué se sabe de CADA apoyo, eje por eje: los 4 estados y los textos
+│   │                            del horizonte. Lo piden `estadoLinea` y `Horizonte`
 │   ├── estadoLinea.ts           el CIELO de la línea (amanecer/atardecer/tormenta/niebla). Pide el
-│   │                            cruce a `coberturaEjes.ts`: NO lo reimplementa
+│   │                            cruce a `coberturaEjes.ts`, no lo reimplementa
 │   └── fotosNuevas.ts           (ADR-031) cifras y frases de Fotos, con el «106 entrarían nuevas»
-│                                que él lee ANTES de firmar
+│                                que él lee ANTES de firmar.
 │                                De dónde salió cada uno → `99 §ADR-018`.
 │                                El resto: formato (nf + textoNucleo: coma decimal en la prosa del
 │                                núcleo, L-26) + tramoColores + diagramas.ts (las 9 figuras de
@@ -163,25 +162,26 @@ mantenimiento-lineas-at/
 │                                / planta / tramos.
 │                                ⚠️ Una vista PROBADA que importe a OTRA lleva `.ts` explícito, o
 │                                `node --test` no resuelve.
-├── web/src/datos/               repositorio · enlace (useSyncExternalStore, y el dueño de la RUTA
-│                                junto a ruta.ts) · firebase · firestore · cargar (LA única frontera
-│                                de carga diferida, con reintentos) · teselas.ts (prepara un PMTiles
-│                                sin fundir el trozo del mapa con el de entrada) · clima.ts (IDEAM
-│                                desde el navegador, y solo si él lo pide) · **registroSemillas.ts**
-│                                y **registroDecisiones.ts** (ADR-027/029: la app LEE, no escribe)
-│                                · **fotos.ts** (ADR-031: primero el OBJETO, después la FICHA)
-│                                · **pronostico.ts** (ADR-035: la ÚNICA pieza del mapa que pide
-│                                internet, y NO guarda nada)
-├── web/public/mapas/            Callejero y satelital: PMTiles del MISMO bbox (ADR-034). Las capas
+├── web/src/datos/               repositorio · enlace (useSyncExternalStore; dueño de la RUTA junto
+│                                a ruta.ts, que también sabe qué `#/…` abre cada atlas) · firebase ·
+│                                firestore · cargar (LA única frontera de carga diferida, con
+│                                reintentos) · teselas.ts (prepara un PMTiles sin fundir el trozo del
+│                                mapa con el de entrada) · clima.ts (IDEAM desde el navegador, solo si
+│                                él lo pide) · **registroSemillas.ts** y **registroDecisiones.ts**
+│                                (ADR-027/029: la app LEE, no escribe) · **fotos.ts** (ADR-031:
+│                                primero el OBJETO, después la FICHA) · **pronostico.ts** (ADR-035: la
+│                                ÚNICA pieza del mapa que pide internet, y NO guarda nada)
+├── web/public/mapas/            Callejero y satelital: PMTiles del MISMO bbox (ADR-034). Capas
 │                             de MEDIDA (radiación, temperatura) no son imagen: un PNG de valores
 │                             por mes + su ficha (ADR-036/037). Mecánica en `vistas/rejilla.ts`
 │                             ⚠️ DOS recortes que NO se mezclan: `cartagena*` el corredor y
-│                             `caribe*`+`sol-caribe*` los 7 dptos (ADR-045), perezosos
-├── web/public/basemaps-assets/  fuentes y sprites del mapa (autohospedados)
+│                             `caribe*`+`sol-caribe*`+`temp-caribe*` los 7 dptos (ADR-045/053),
+│                             perezosos
+├── web/public/basemaps-assets/  fuentes y sprites del mapa
 ├── githooks/pre-commit          BLOQUEA el commit: coordenadas reales y cerebro roto
 ├── .claude/settings.json        hooks de sesión (SÍ se commitea; el resto de .claude/ no)
 ├── .github/workflows/ci.yml     integridad del kernel + suite de pruebas
-└── …/vigia-nasa.yml             atlas al día cada 2 meses. PROPONE. ⚠️ inerte: TODO-75
+└── …/vigia-nasa.yml             LOS DOS atlas al día cada 2 meses, en matriz. PROPONE. ⚠️ TODO-75
 ```
 
 ---
@@ -212,4 +212,4 @@ mantenimiento-lineas-at/
 ## §5 — Origen de los datos
 
 El módulo de campo original (`LN-627_Modulo_Campo_10.html`, 30 MB) **no vive en el repo**: de él se
-portó `nucleo/` y de él salen los fixtures de la bóveda. Su inventario → `docs/40` y `33 · L-05`.
+portó `nucleo/`. Inventario → `docs/40` y `33 · L-05`.

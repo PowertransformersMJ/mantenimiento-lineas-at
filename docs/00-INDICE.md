@@ -125,6 +125,7 @@ Guarda `research-archive/` (crudos de deliberación: comités, consejos externos
 | `ADR-050` | 2026-08-22 | La escala de verosimilitud son TRES, y una hipótesis rival se cierra yendo a probarla — no con una etiqueta | *(`tests/rca-contrato-parte.test.js`)* |
 | `ADR-051` | 2026-08-22 | Lo primero que se ve tiene que ser verdad: la banda, la pestaña, el tope y la versión del motor | *(`tests/tope-de-tiro.test.js` · `tests/banda-y-pestanas.test.js`)* |
 | `ADR-052` | 2026-08-22 | El número que se firma: un solo tope de puesta a tierra, y un pendiente que por fin se tacha | *(`tests/umbral-tierra.test.js` · `tests/campos-del-molde.test.js`)* |
+| `ADR-053` | 2026-08-22 | Un atlas de temperatura, un solo motor para los dos, y los dos dentro de Detalle GPS | *(`tests/atlas-ficha.test.js` · `tests/atlas-caribe.test.js`)* |
 
 > Toda decisión cara de revertir entra aquí con su ADR y su crudo enlazado. Si hubo comité o consejo
 > externo y el crudo no está archivado, la tarea **no está cerrada** (`CLAUDE.md §G.4`).

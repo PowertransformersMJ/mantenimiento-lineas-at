@@ -20,7 +20,7 @@
 // ============================================================================
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { leerRuta } from '../web/src/datos/ruta.ts';
+import { leerRuta, HASH_ATLAS } from '../web/src/datos/ruta.ts';
 
 describe('la gramática de direcciones', () => {
   test('#/rca es el índice de análisis', () => {
@@ -67,8 +67,28 @@ describe('la gramática de direcciones', () => {
     // El atlas no es de ninguna línea: no lleva código detrás. Si alguien pega
     // `#/sol/loquesea`, NO puede abrirlo — una dirección inventada no debe
     // abrir una pantalla real; cae al caso de línea, donde «sol» no existe.
-    assert.deepEqual(leerRuta('#/sol'), { tipo: 'sol' });
-    assert.deepEqual(leerRuta('#/sol/'), { tipo: 'sol' });
+    assert.deepEqual(leerRuta('#/sol'), { tipo: 'atlas', cual: 'sol' });
+    assert.deepEqual(leerRuta('#/sol/'), { tipo: 'atlas', cual: 'sol' });
     assert.deepEqual(leerRuta('#/sol/marzo'), { tipo: 'linea', codigo: 'sol', pestana: 'marzo' });
+  });
+
+  test('`#/temperatura` abre SU atlas, no el del sol', () => {
+    // Los dos atlas comparten pantalla y comparten estado. El día que la tabla
+    // de direcciones y la de aperturas se separen, `#/temperatura` abriría el
+    // solar y nadie vería un error: los colores seguirían saliendo bonitos.
+    assert.deepEqual(leerRuta('#/temperatura'), { tipo: 'atlas', cual: 'temperatura' });
+    assert.deepEqual(leerRuta('#/temperatura/'), { tipo: 'atlas', cual: 'temperatura' });
+    assert.notDeepEqual(leerRuta('#/temperatura'), leerRuta('#/sol'));
+    assert.deepEqual(leerRuta('#/temperatura/mayo'),
+      { tipo: 'linea', codigo: 'temperatura', pestana: 'mayo' });
+  });
+
+  test('cada atlas y su dirección salen de la MISMA tabla', () => {
+    // Sin esto, añadir el tercer atlas es añadirlo en dos sitios — y el segundo
+    // se olvida el día que se tenga prisa.
+    for (const [cual, hash] of Object.entries(HASH_ATLAS)) {
+      assert.deepEqual(leerRuta(hash), { tipo: 'atlas', cual },
+        `${hash} tiene que abrir el atlas «${cual}»`);
+    }
   });
 });

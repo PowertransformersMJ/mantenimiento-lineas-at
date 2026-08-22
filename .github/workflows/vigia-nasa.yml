@@ -1,7 +1,13 @@
 name: Vigía · NASA POWER horario
 
-# Cada dos meses le pregunta a NASA si ya publicó más horas de radiación solar.
-# Si las hay, ABRE UNA PROPUESTA. No publica: propone.
+# Cada dos meses le pregunta a NASA si ya publicó más horas — de radiación solar
+# Y de temperatura del aire, que son DOS atlas y van a ritmos distintos: medido
+# el 2026-08-22, el horario del sol iba 84 días por detrás y el de la temperatura
+# 3. Si las hay, ABRE UNA PROPUESTA por atlas. No publica: propone.
+#
+# ⚠️ LOS DOS EN LA MISMA MATRIZ, y no un flujo por atlas: un segundo archivo casi
+# igual es un segundo sitio donde arreglar cada fallo, y el que se olvida siempre
+# es el segundo (`34 · L-65`).
 #
 # POR QUÉ PROPONE Y NO PUBLICA. Un robot que commitea y despliega una capa de
 # datos sin nadie mirando es un robot que puede publicar una capa mala un domingo
@@ -54,6 +60,18 @@ jobs:
   mirar:
     name: ¿Publicó NASA más horas?
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - clave: sol
+            prefijo: sol-caribe
+            param: ALLSKY_SFC_SW_DWN
+            nombre: solar
+          - clave: temperatura
+            prefijo: temp-caribe
+            param: T2M
+            nombre: de temperatura
     outputs:
       hay: ${{ steps.comparar.outputs.hay }}
       publicado: ${{ steps.comparar.outputs.publicado }}
@@ -69,11 +87,12 @@ jobs:
         id: comparar
         run: |
           set -euo pipefail
-          NUESTRO=$(node -p "require('./web/public/mapas/sol-caribe.json').ultimoDiaConHoras")
-          echo "· lo nuestro llega al $NUESTRO"
+          FICHA="./web/public/mapas/${{ matrix.prefijo }}.json"
+          NUESTRO=$(node -p "require('$FICHA').ultimoDiaConHoras")
+          echo "· atlas ${{ matrix.nombre }}: lo nuestro llega al $NUESTRO"
 
           HOY=$(date -u +%Y%m%d)
-          ANIO=$(node -p "require('./web/public/mapas/sol-caribe.json').anio")
+          ANIO=$(node -p "require('$FICHA').anio")
           # Tres celdas repartidas del recuadro. Si NASA publicó más horas, lo
           # habrá hecho para todas; preguntar por tres es la muestra suficiente
           # y detecta además una publicación DESIGUAL, que sería una anomalía.
@@ -81,11 +100,11 @@ jobs:
           for P in "-75.5 10.5" "-72.5 11.5" "-76.5 8.5"; do
             set -- $P
             U=$(curl -sS --retry 3 --retry-delay 5 --max-time 90 \
-              "https://power.larc.nasa.gov/api/temporal/hourly/point?parameters=ALLSKY_SFC_SW_DWN&community=RE&longitude=$1&latitude=$2&start=${ANIO}0101&end=${HOY}&format=JSON&time-standard=LST" \
+              "https://power.larc.nasa.gov/api/temporal/hourly/point?parameters=${{ matrix.param }}&community=RE&longitude=$1&latitude=$2&start=${ANIO}0101&end=${HOY}&format=JSON&time-standard=LST" \
               | node -e "
                 let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{
                   const j=JSON.parse(s);
-                  const p=j?.properties?.parameter?.ALLSKY_SFC_SW_DWN;
+                  const p=j?.properties?.parameter?.['${{ matrix.param }}'];
                   if(!p){console.error('sin el parámetro esperado');process.exit(1);}
                   const v=Object.entries(p).filter(([,x])=>x>-900);
                   if(!v.length){console.error('sin una sola hora con dato');process.exit(1);}
@@ -118,6 +137,22 @@ jobs:
     needs: mirar
     if: needs.mirar.outputs.hay == 'si'
     runs-on: ubuntu-latest
+    strategy:
+      # ⚠️ `fail-fast: false` y no el defecto: si el atlas solar falla, el de
+      # temperatura tiene que llegar igual. Son dos productos, no dos pasos.
+      fail-fast: false
+      matrix:
+        include:
+          - clave: sol
+            prefijo: sol-caribe
+            herramienta: sol-caribe.mjs
+            nombre: solar
+            avisoEsperado: 'MEDIA|media'
+          - clave: temperatura
+            prefijo: temp-caribe
+            herramienta: temp-caribe.mjs
+            nombre: de temperatura
+            avisoEsperado: '2 m|IEEE 738'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -127,7 +162,7 @@ jobs:
           node-version: '22'
 
       - name: Reconstruir el atlas
-        run: node herramientas/sol-caribe.mjs
+        run: node herramientas/${{ matrix.herramienta }}
 
       # ⚠️ LOS GUARDIANES VAN ANTES DE PROPONER NADA, y bloquean. Sin esto, la
       # forma de romper esto no es un error rojo: es una capa que se vacía sola,
@@ -136,9 +171,10 @@ jobs:
         run: |
           set -euo pipefail
           node -e "
-            const nuevo = require('./web/public/mapas/sol-caribe.json');
+            const prefijo = '${{ matrix.prefijo }}';
+            const nuevo = require('./web/public/mapas/' + prefijo + '.json');
             const { execSync } = require('node:child_process');
-            const viejo = JSON.parse(execSync('git show HEAD:web/public/mapas/sol-caribe.json').toString());
+            const viejo = JSON.parse(execSync('git show HEAD:web/public/mapas/' + prefijo + '.json').toString());
             const fallos = [];
             const horasDe = (f) => f.meses.reduce((s, m) => s + m.horasConDato, 0);
             if (horasDe(nuevo) < horasDe(viejo))
@@ -148,7 +184,9 @@ jobs:
             if (nuevo.meses.length < viejo.meses.length)
               fallos.push(\`se publican menos meses: \${viejo.meses.length} → \${nuevo.meses.length}\`);
             if (!nuevo.atribucion?.includes('NASA')) fallos.push('la ficha perdió la atribución de NASA');
-            if (!nuevo.aviso?.match(/MEDIA|media/)) fallos.push('la ficha perdió el aviso de que es la media horaria');
+            if (!nuevo.aviso?.match(/${{ matrix.avisoEsperado }}/)) fallos.push('la ficha perdió su aviso: lo que el dato NO es');
+            if (nuevo.medido && (nuevo.medido.min < nuevo.rampa[0].c || nuevo.medido.max > nuevo.rampa[nuevo.rampa.length-1].c))
+              fallos.push('lo medido se sale de la rampa: el extremo se publicaría aplanado');
             if (nuevo.bbox.join() !== viejo.bbox.join()) fallos.push('el recuadro cambió de tamaño');
             if (nuevo.ancho !== viejo.ancho || nuevo.alto !== viejo.alto) fallos.push('la malla cambió de tamaño');
             if (fallos.length) {
@@ -168,10 +206,10 @@ jobs:
       - name: Abrir la propuesta
         uses: peter-evans/create-pull-request@v6
         with:
-          branch: vigia/nasa-power
-          title: 'Atlas solar: NASA publicó hasta ${{ needs.mirar.outputs.publicado }}'
+          branch: vigia/nasa-power-${{ matrix.clave }}
+          title: 'Atlas ${{ matrix.nombre }}: NASA publicó hasta ${{ needs.mirar.outputs.publicado }}'
           commit-message: |
-            Atlas solar al día: horas hasta ${{ needs.mirar.outputs.publicado }}
+            Atlas ${{ matrix.nombre }} al día: horas hasta ${{ needs.mirar.outputs.publicado }}
 
             Reconstruido por el vigía. Antes llegaba al ${{ needs.mirar.outputs.nuestro }}.
           body: |
@@ -184,10 +222,11 @@ jobs:
 
             Se reconstruyó el atlas y **pasó los guardianes**: ni retrocede la
             última hora, ni pierde meses, ni cambia el recuadro o la malla, ni se
-            queda sin atribución ni sin el aviso de la media horaria. La suite
-            completa está en verde.
+            queda sin atribución, ni sin su aviso de lo que el dato NO es, ni se
+            le sale lo medido de la rampa. La suite completa está en verde.
 
             **Antes de aprobar, mira el mapa**: fusiona, espera al despliegue y
-            abre `#/sol`. Verde en las pruebas no prueba que se vea
+            abre el atlas ${{ matrix.nombre }} —desde la cabecera o desde
+            «Detalle GPS»—. Verde en las pruebas no prueba que se vea
             (`docs/99 §ADR-021`).
           labels: dato, atlas-solar

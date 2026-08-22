@@ -23,12 +23,28 @@
  * ingenieros pueden discutir cifras creyendo que miran la misma.
  *
  *   #/sol            → el atlas solar del Caribe (no depende de ninguna línea)
+ *   #/temperatura    → el atlas de temperatura del aire, su gemelo
  *   #/rca            → el índice de análisis
  *   #/rca/<codigo>   → un análisis concreto
  *   #/<linea>/<pest> → una línea en una pestaña (ya existía y no se toca)
  */
+/** Los atlas regionales. La clave es la del componente, no un texto suelto. */
+export type ClaveAtlas = 'sol' | 'temperatura';
+
+/**
+ * QUÉ DIRECCIÓN ABRE CADA ATLAS. Una tabla y no un `if` por atlas: añadir el
+ * tercero es una fila, y —lo que importa— la dirección y la vuelta atrás salen
+ * del MISMO sitio. Con dos listas, un día `#/temperatura` abriría el solar.
+ */
+export const HASH_ATLAS: Record<ClaveAtlas, string> = {
+  sol: '#/sol',
+  temperatura: '#/temperatura',
+};
+
+const POR_HASH: Record<string, ClaveAtlas> = { sol: 'sol', temperatura: 'temperatura' };
+
 export type Ruta =
-  | { tipo: 'sol' }
+  | { tipo: 'atlas'; cual: ClaveAtlas }
   | { tipo: 'rca'; codigo?: string }
   | { tipo: 'linea'; codigo: string; pestana?: string }
   | null;
@@ -37,10 +53,10 @@ export function leerRuta(hash = location.hash): Ruta {
   const m = /^#\/([^/]+)(?:\/([^/]+))?\/?$/.exec(hash);
   if (!m) return null;
   const [, a, b] = m;
-  // `#/sol` no lleva segundo tramo: el atlas no es de ninguna línea. Si alguien
-  // pega `#/sol/algo`, cae al caso de línea y el código «sol» no existirá — que
-  // es lo correcto: una dirección inventada no debe abrir una pantalla real.
-  if (a === 'sol' && !b) return { tipo: 'sol' };
+  // Un atlas no lleva segundo tramo: no es de ninguna línea. Si alguien pega
+  // `#/sol/algo`, cae al caso de línea y el código «sol» no existirá — que es lo
+  // correcto: una dirección inventada no debe abrir una pantalla real.
+  if (!b && POR_HASH[a]) return { tipo: 'atlas', cual: POR_HASH[a] };
   if (a === 'rca') return { tipo: 'rca', codigo: b ? decodeURIComponent(b) : undefined };
   return { tipo: 'linea', codigo: decodeURIComponent(a), pestana: b };
 }

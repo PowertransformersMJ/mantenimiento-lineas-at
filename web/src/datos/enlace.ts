@@ -21,7 +21,7 @@ import type { AccionCapa, AnalisisCausa, Evidencia, Linea, SondeoClima } from '@
 import { cargarFirebase } from './cargar';
 import { puertaDeAcceso } from '@lineas/contratos';
 import { repositorio, usarRepositorio, type AcuseDeFicha, type AcuseDeLote, type EstadoDatos, type EstadoRca, type EstadoSesion, type ResultadoCarga } from './repositorio';
-import { leerRuta } from './ruta';
+import { leerRuta, HASH_ATLAS, type ClaveAtlas } from './ruta';
 import { repositorioFirestore } from './firestore';
 
 /**
@@ -71,12 +71,16 @@ class Almacen {
    */
   #sesion: EstadoSesion = { fase: 'comprobando' };
   /**
-   * Si el ATLAS SOLAR está en pantalla. Un booleano y no una fase con datos: el
-   * atlas no lee nada de la base — sus archivos viajan con el sitio— así que no
-   * hay nada que cargar, que fallar ni que reintentar. Darle una máquina de
-   * estados como la del RCA sería inventarle problemas que no tiene.
+   * QUÉ ATLAS está en pantalla, o `null`. Era un booleano cuando solo existía el
+   * solar; ahora son dos —sol y temperatura— y guardar CUÁL en vez de SI evita el
+   * error clásico de dos banderas que pueden estar encendidas a la vez.
+   *
+   * No es una fase con datos: el atlas no lee nada de la base —sus archivos
+   * viajan con el sitio— así que no hay nada que cargar, que fallar ni que
+   * reintentar. Darle una máquina de estados como la del RCA sería inventarle
+   * problemas que no tiene.
    */
-  #atlasSolar = false;
+  #atlas: ClaveAtlas | null = null;
   #oyentes = new Set<Oyente>();
 
   leer = (): EstadoDatos => this.#estado;
@@ -103,10 +107,10 @@ class Almacen {
 
   #ponerRca(e: EstadoRca): void { this.#rca = e; this.#avisar(); }
 
-  leerAtlasSolar = (): boolean => this.#atlasSolar;
+  leerAtlas = (): ClaveAtlas | null => this.#atlas;
 
   /**
-   * Abre el atlas solar ENCIMA de la línea.
+   * Abre un atlas ENCIMA de la línea.
    *
    * ⚠️ CIERRA EL SEGMENTO RCA SI ESTABA ABIERTO, y es un arreglo. `App.tsx`
    * pinta el RCA ANTES que el atlas, así que sin esto pulsar «Atlas solar» con
@@ -115,25 +119,25 @@ class Almacen {
    * otro sitio del que se estaba mirando — en un proyecto que puso las
    * direcciones en el hash justamente para pegarlas en un correo.
    *
-   * El `#hashPrevio` NO se pisa si ya lo había puesto el RCA: los dos segmentos
-   * lo comparten, y volver tiene que devolver a la LÍNEA, no al análisis que se
-   * acaba de cerrar.
+   * El `#hashPrevio` NO se pisa si ya lo había puesto el RCA ni si ya había OTRO
+   * atlas abierto: los segmentos lo comparten, y volver tiene que devolver a la
+   * LÍNEA, no al atlas del que se acaba de saltar.
    */
-  abrirAtlasSolar(): void {
-    if (!this.#atlasSolar && this.#rca.fase === 'cerrado') {
+  abrirAtlas(cual: ClaveAtlas): void {
+    if (this.#atlas === null && this.#rca.fase === 'cerrado') {
       this.#hashPrevio = location.hash || null;
     }
     if (this.#rca.fase !== 'cerrado') this.#rca = { fase: 'cerrado' };
-    irA('#/sol');
-    this.#atlasSolar = true;
+    irA(HASH_ATLAS[cual]);
+    this.#atlas = cual;
     this.#avisar();
   }
 
   /** Vuelve a donde se estaba. Sin esto, recargar volvería a abrir el atlas. */
-  cerrarAtlasSolar(): void {
+  cerrarAtlas(): void {
     irA(this.#hashPrevio ?? '#/');
     this.#hashPrevio = null;
-    this.#atlasSolar = false;
+    this.#atlas = null;
     this.#avisar();
   }
 
@@ -320,11 +324,12 @@ class Almacen {
       return;
     }
 
-    // El atlas solar sigue la misma regla que el segmento: la dirección manda.
-    // Sin esto, pegar `#/sol` en el navegador no abriría nada y el botón Atrás
+    // Los atlas siguen la misma regla que el segmento: la dirección manda. Sin
+    // esto, pegar `#/sol` en el navegador no abriría nada y el botón Atrás
     // dejaría la dirección en `#/sol` con la línea debajo.
-    const abierto = leerRuta()?.tipo === 'sol';
-    if (abierto !== this.#atlasSolar) { this.#atlasSolar = abierto; this.#avisar(); }
+    const r2 = leerRuta();
+    const abierto: ClaveAtlas | null = r2?.tipo === 'atlas' ? r2.cual : null;
+    if (abierto !== this.#atlas) { this.#atlas = abierto; this.#avisar(); }
 
     // La dirección ya no habla del segmento: si estaba abierto, se cierra.
     if (r.fase !== 'cerrado') this.#ponerRca({ fase: 'cerrado' });
@@ -580,11 +585,11 @@ class Almacen {
         else await this.abrirRca();
       }
 
-      // El atlas solar, lo mismo — y hace falta decirlo AQUÍ: `abrir()` reescribe
-      // la dirección a la línea, así que sin esto pegar `#/sol` en el navegador
+      // Los atlas, lo mismo — y hace falta decirlo AQUÍ: `abrir()` reescribe la
+      // dirección a la línea, así que sin esto pegar `#/sol` en el navegador
       // cargaba la línea y se llevaba por delante la dirección. Medido en
       // producción: la barra pasaba de `#/sol` a `#/LN-627/resumen` sola.
-      if (ruta?.tipo === 'sol') this.abrirAtlasSolar();
+      if (ruta?.tipo === 'atlas') this.abrirAtlas(ruta.cual);
     } catch (e) {
       this.poner({ fase: 'error', mensaje: e instanceof Error ? e.message : 'error desconocido' });
     }
@@ -622,8 +627,8 @@ export function useRca(): EstadoRca {
 }
 
 /** Si el atlas solar está en pantalla. Misma suscripción, otro trozo del estado. */
-export function useAtlasSolar(): boolean {
-  return useSyncExternalStore(almacen.suscribir, almacen.leerAtlasSolar, almacen.leerAtlasSolar);
+export function useAtlas(): ClaveAtlas | null {
+  return useSyncExternalStore(almacen.suscribir, almacen.leerAtlas, almacen.leerAtlas);
 }
 
 /**

@@ -31,6 +31,7 @@ import { soloEstructuras, nombreVisible, resumenDelLevantamiento } from '../vist
 import { aGMS, nf } from '../vistas/formato';
 import { cableDeGuarda, type EstadoGuarda } from '../vistas/cableGuarda';
 import { almacen } from '../datos/enlace';
+import type { ClaveAtlas } from '../datos/ruta';
 
 // ⚠️ `conReintentos`, y no un `import()` pelado. `datos/cargar.ts` es «la ÚNICA
 // frontera de carga diferida del sistema» y lo es por un fallo que ya ocurrió en
@@ -39,6 +40,19 @@ import { almacen } from '../datos/enlace';
 // frontera sin reintentos habría reabierto exactamente ese agujero, y aquí duele
 // más: a esta pestaña se llega por enlace directo desde el teléfono, en campo.
 const Mapa = lazy(() => conReintentos(() => import('./Mapa')));
+
+/**
+ * LOS ATLAS DEL CARIBE, aquí dentro y PEREZOSOS.
+ *
+ * El Ingeniero pidió «que el atlas solar se aprecie desde Detalle GPS». La razón
+ * por la que no estaba —un segundo `.pmtiles` de 5 MiB en la pestaña a la que se
+ * llega desde el teléfono, en campo (`99 §ADR-045`)— sigue siendo cierta, así que
+ * no se monta solo: mientras no se despliega, este trozo NO se descarga y esta
+ * pestaña pesa exactamente lo que pesaba. Al abrirlo se trae el mapa regional, la
+ * ficha y el mes; se cierra y se queda en memoria para la segunda vez.
+ */
+const AtlasCaribe = lazy(() => conReintentos(() => import('./AtlasCaribe'))
+  .then((m) => ({ default: m.AtlasCaribe })));
 
 /** Un punto del levantamiento, con lo que el GPS dejó dicho de él. */
 interface FilaGps {
@@ -120,6 +134,8 @@ export function DetalleGps({ apoyos, investigaciones, alVerEvento, hipotesis, se
           <span className="li emp" /> empalme (no es apoyo)
         </p>
       </section>
+
+      <AtlasDelCaribe apoyos={apoyos} />
 
       {(sesion?.rol === 'admin' || sesion?.rol === 'editor') && (
         <DeclararCableGuarda apoyos={apoyos} />
@@ -273,6 +289,71 @@ function DeclararCableGuarda({ apoyos }: { apoyos: Apoyo[] }) {
           </tbody>
         </table>
       </div>
+    </section>
+  );
+}
+
+/**
+ * EL ATLAS DEL CARIBE, DESDE AQUÍ — con la línea marcada dentro.
+ *
+ * Qué añade sobre abrirlo desde la cabecera: el atlas por su cuenta enseña
+ * 6°x6° de Caribe y celdas de 111 km, y encontrar a ojo qué le toca a ESTA línea
+ * obliga a buscar el trozo de costa y confiar en el dedo. Aquí se le pasa el
+ * centro del recorrido, y el atlas pinta un punto con el nombre de la línea.
+ *
+ * ⚠️ EL CENTRO SE CALCULA EN TIEMPO DE EJECUCIÓN, con lo que vino de la base.
+ * Ni una coordenada real entra en el repositorio, que es público (`33 · L-23`).
+ *
+ * ⚠️ CERO BYTES HASTA QUE SE PULSA. Ni el mapa regional de 5 MiB ni las fichas
+ * ni los meses: mientras el desplegable esté cerrado, esta pestaña pesa lo mismo
+ * que antes. Es la condición que hacía falta para traerlo aquí sin castigar a
+ * quien la abre desde el teléfono, en campo.
+ */
+function AtlasDelCaribe({ apoyos }: { apoyos: Apoyo[] }) {
+  const [abierto, setAbierto] = useState<ClaveAtlas | null>(null);
+
+  // El centro del recorrido: la media de las coordenadas de las ESTRUCTURAS. No
+  // es el centroide exacto de la línea y no hace falta que lo sea — sobre celdas
+  // de 111 km, cualquier punto del recorrido cae en la misma celda o en la
+  // vecina, y el punto está para situar, no para medir.
+  const marca = useMemo(() => {
+    const puntos = soloEstructuras(apoyos).map((a) => a.coordenada).filter(Boolean);
+    if (!puntos.length) return null;
+    const lon = puntos.reduce((s, c) => s + c.lon, 0) / puntos.length;
+    const lat = puntos.reduce((s, c) => s + c.lat, 0) / puntos.length;
+    return { lon, lat, nombre: nombreVisible(apoyos[0]).split(' ')[0] || 'esta línea' };
+  }, [apoyos]);
+
+  return (
+    <section className="panel">
+      <h2>El clima de la región, sobre el mapa</h2>
+      <p className="saludo">
+        Los dos atlas del Caribe —<b>sol</b> y <b>temperatura del aire</b>— hora a hora, sobre los
+        siete departamentos. Son de la REGIÓN, no de esta línea: se abren aquí con{' '}
+        <b>el punto de la línea marcado</b> para poder leer qué le toca a ella.
+      </p>
+      <p className="fine">
+        No se descarga nada hasta que abra uno: el mapa regional pesa 5 MiB y esta pestaña se
+        abre también desde el teléfono, en campo.
+      </p>
+
+      <div className="acciones">
+        {(['sol', 'temperatura'] as ClaveAtlas[]).map((c) => (
+          <button key={c} type="button"
+            className={'boton chico' + (abierto === c ? ' activo' : '')}
+            aria-pressed={abierto === c}
+            onClick={() => setAbierto(abierto === c ? null : c)}>
+            {abierto === c ? 'Cerrar ' : 'Ver '}
+            {c === 'sol' ? 'atlas solar' : 'atlas de temperatura'}
+          </button>
+        ))}
+      </div>
+
+      {abierto && (
+        <Suspense fallback={<p className="fine">Bajando el atlas…</p>}>
+          <AtlasCaribe atlas={abierto} embebido marca={marca} />
+        </Suspense>
+      )}
     </section>
   );
 }

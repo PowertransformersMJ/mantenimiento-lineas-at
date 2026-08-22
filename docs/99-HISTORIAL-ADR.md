@@ -4949,3 +4949,91 @@ corrección es deuda con toda la familia*.
 Hallazgos nº 27 y nº 32 del triaje (`research-archive/2026-08-22-triaje-51-hallazgos-entorno.json`).
 Guardianes: `tests/umbral-tierra.test.js`, `tests/campos-del-molde.test.js`, las dos pruebas nuevas
 de `tests/gerencial.test.js` y el gate de versión del motor en `githooks/pre-commit`.
+
+---
+
+## ADR-053 · 2026-08-22 · Un atlas de temperatura, un solo motor para los dos, y los dos dentro de Detalle GPS
+
+**Estado:** ✅ Decidido · **NO revisada externamente** · ⏳ pendiente de verificar en vivo en producción.
+
+### Contexto
+
+Dos peticiones del Ingeniero en la misma frase: *«me gustaría que el atlas solar se aprecie desde
+detalle gps»* y *«necesito que construyas un atlas igual pero de temperatura en los mismos
+departamentos»*.
+
+La segunda tenía trampa: «un atlas igual» invita a copiar `sol-caribe.mjs` —304 renglones— y
+cambiarle el parámetro. Esa copia habría duplicado, entre otras cosas, **los dos fallos que ya se
+cazaron una vez ahí dentro**: el byte 0 que NO es un cero medido (de noche hay medida y vale cero) y
+el 200 con HTML que revienta al parsear con un mensaje que no menciona al servidor. Y en la pantalla,
+habría duplicado el fallo del **mes rancio** que costó una auditoría adversarial encontrar
+(`ADR-045`): colores de un mes con la etiqueta de otro.
+
+La primera choca de frente con una decisión escrita: `ADR-045` dejó el atlas FUERA de Detalle GPS con
+un motivo que sigue siendo cierto —*«le habría metido un segundo `.pmtiles` de 5 MiB a la pestaña a
+la que se llega desde el teléfono, en campo»*—.
+
+### Decisión
+
+- **UN MOTOR, DOS PRODUCTOS.** `herramientas/atlas-caribe.mjs` guarda lo que comparten —malla,
+  codificador PNG sin dependencias, red con reintentos, empaquetado del mes y ficha— y cada atlas es
+  un **perfil de veinte renglones**. `sol-caribe.mjs` **conserva su nombre y su ruta**: lo llama
+  `vigia-nasa.yml`, y renombrarlo habría dejado al vigía apuntando al vacío sin dar error.
+- **UNA PANTALLA, DOS ATLAS.** `SolCaribe.tsx` pasa a `AtlasCaribe.tsx` y recibe cuál abrir. Lo que
+  distingue a uno de otro **viaja en la ficha** (unidad, rampa, aviso, qué resume cada día), no en el
+  código: un `if (capa === 'sol')` en la pantalla habría sido el principio de dos pantallas.
+- **EL RESUMEN DEL DÍA CAMBIA DE NOMBRE**: `energiaDiaria` → `resumenDiario`. En un mapa de grados,
+  «energía diaria» es un nombre falso. Y en la temperatura ese resumen es el **máximo** del día, no la
+  media: la ampacidad la decide la hora más caliente, y un promedio de 28 °C con picos de 38 °C diría
+  que la hipótesis de 32 °C va sobrada cuando es al revés.
+- **SÍ ENTRA EN DETALLE GPS, PERO PEREZOSO.** Un desplegable con los dos atlas: **cero bytes hasta
+  que se pulsa**. La razón de `ADR-045` se respeta —quien abre la pestaña desde el teléfono descarga
+  exactamente lo que descargaba— y el Ingeniero obtiene lo que pidió. Además, ahí el atlas recibe
+  **dónde cae la línea** y pinta un punto con su nombre: sobre 6°×6° y celdas de 111 km, sin esa
+  marca hay que buscar el trozo de costa a ojo.
+- **LA RAMPA DE TEMPERATURA SE ELIGIÓ MIDIENDO PRIMERO.** Sus paradas son los **cuatro escenarios
+  adoptados** de la pestaña Térmica —24 · 32 · 38 · 40 °C—, así que mirar el color es la misma
+  pregunta que «¿los 32 °C de referencia aguantan?».
+- **EL VIGÍA VIGILA LOS DOS**, con una matriz y no un flujo por atlas. Guardián nuevo: que lo medido
+  no se salga de la rampa.
+
+### Alternativas descartadas
+
+- **Copiar el generador y la pantalla.** Dos sitios donde arreglar cada fallo, y el segundo es el que
+  se olvida (`30 · L-28`, `34 · L-65`).
+- **Meter el atlas en el selector de capas del mapa de la línea.** Sobre el corredor de LN-627
+  (0,29°×0,38°) el atlas es **una sola celda**: un rectángulo de color plano. Es exactamente la capa
+  que no se puede APRECIAR que cerró `ADR-046`.
+- **Montarlo abierto en Detalle GPS.** Habría cumplido la letra de la petición rompiendo lo que la
+  protege: 5 MiB de mapa regional a quien entra en campo.
+- **Publicar la media diaria como resumen** (más suave y más bonita): mentiría hacia el lado
+  peligroso, que es el que este sistema existe para no cometer.
+- **Renombrar `sol-caribe.mjs` a `atlas-caribe.mjs`.** El vigía dejaría de encontrarlo **sin dar
+  error** — se notaría meses después, cuando el atlas dejara de actualizarse solo.
+
+### Consecuencias
+
+- **El dato, medido y publicado**: 8 meses de temperatura horaria de 2026 (**131 KiB**), horas hasta
+  el **2026-08-19**. Y un hallazgo que el Ingeniero tiene que ver: **la región llegó a 42,0 °C**, dos
+  grados por encima del peor escenario adoptado (El Niño, 40 °C).
+- **Los dos atlas van a ritmos MUY distintos**, y eso ahora se ve: medido el 22-08, el horario del sol
+  iba **84 días** por detrás y el de temperatura **3**. El de temperatura es útil para el mes en curso;
+  el solar, no.
+- **12 pruebas nuevas** (1.759 en total) en `tests/atlas-ficha.test.js`, que recorre los **archivos
+  publicados**: que el PNG mida lo que la ficha promete, que la codificación no recorte lo medido, que
+  la rampa lo cubra, que todo mes publicado sea alcanzable y que los dos atlas sean gemelos en
+  recuadro y malla pero distintos en unidad y marca. **Ya cazó un defecto real**: la rampa empezaba en
+  12 °C y se midió 11,3 — el día más fresco del año habría salido del color del borde.
+- **El atlas solar se reconstruyó con el motor nuevo** para hablar el mismo idioma. Comprobado con los
+  guardianes del propio vigía: mismas horas (3.600), mismos meses, mismo recuadro, y **los ocho PNG
+  salieron byte a byte idénticos** — la prueba de que el refactor no cambió el dato. Ganó un día de
+  resumen (16-08 → 17-08).
+- **Queda dicho lo que NO cierra**: `TODO-71` sigue abierto. Son medias horarias sobre celdas de
+  111 km; un apoyo a pleno sol y sobre asfalto puede estar por encima. Acerca la conversación de los
+  32 °C con número; no la termina.
+
+### Crudo de respaldo
+
+Sin comité: la deliberación fue la medición previa contra NASA POWER (tres celdas, rango 15,3–38,5 °C
+en cinco meses) y la lectura del código existente. La fuente y sus fechas quedan en las dos fichas
+publicadas, que son el crudo de este ADR.

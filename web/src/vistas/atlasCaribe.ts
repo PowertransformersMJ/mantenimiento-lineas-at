@@ -1,18 +1,24 @@
 // ============================================================================
-// vistas/solCaribe.ts — el recurso solar del Caribe, cuadro a cuadro
+// vistas/atlasCaribe.ts — un atlas del Caribe, cuadro a cuadro
 // ----------------------------------------------------------------------------
-// QUÉ HACE: coge el mes empaquetado que trae `sol-caribe-AAAA-MM.png` —24 horas
-// de ancho, un día por fila— y saca de él el cuadro de 6x6 celdas de UNA hora de
-// UN día. Nada más. Puro: sin DOM y sin red.
+// QUÉ HACE: coge el mes empaquetado que trae `<atlas>-AAAA-MM.png` —24 horas de
+// ancho, un día por fila— y saca de él el cuadro de 6x6 celdas de UNA hora de UN
+// día. Nada más. Puro: sin DOM y sin red.
+//
+// SIRVE PARA LOS DOS ATLAS —el solar y el de temperatura— porque el empaquetado
+// es el mismo: lo construye un solo motor (`herramientas/atlas-caribe.mjs`). Lo
+// que cambia entre uno y otro viaja DENTRO de la ficha (unidad, rampa, aviso,
+// qué resume cada día), nunca en este código: un `if (capa === 'sol')` aquí sería
+// el principio de dos lectores, y con ellos dos formas de recortar un cuadro.
 //
 // POR QUÉ UN MÓDULO Y NO UN TROZO DE LA PANTALLA: el corte del cuadro es una
 // cuenta con cuatro índices y es exactamente donde se cuelan los fallos que no
 // dan error — enseñar el día de al lado, o la hora de al lado, con un mapa que
 // parece perfecto. Aquí tiene prueba.
 //
-// ⚠️ 2026 NO TIENE DOS PARTES, TIENE TRES, y las tres se declaran:
+// ⚠️ EL AÑO NO TIENE DOS PARTES, TIENE TRES, y las tres se declaran:
 //   · hasta `ultimoDiaConHoras`  → hay reparto por horas. El mapa se mueve.
-//   · hasta `ultimoDiaConTotal`  → SOLO energía del día. El mapa NO se pinta.
+//   · hasta `ultimoDiaConTotal`  → SOLO el resumen del día. El mapa NO se pinta.
 //   · después                    → no hay ni total.
 // Las fechas viven en la FICHA, jamás en este código: escritas aquí, la frontera
 // mentiría en silencio en la siguiente reconstrucción y los colores seguirían
@@ -20,7 +26,7 @@
 // ============================================================================
 import type { CodificacionRejilla } from './rejilla.ts';
 
-export interface MesSol {
+export interface MesAtlas {
   /** '01'..'12' */
   clave: string;
   archivo: string;
@@ -29,8 +35,9 @@ export interface MesSol {
   bytes: number;
 }
 
-export interface FichaSol {
-  capa: 'sol-caribe';
+export interface FichaAtlas {
+  /** `sol-caribe` | `temp-caribe`. Se usa para rotular, nunca para decidir. */
+  capa: string;
   titulo: string;
   departamentos: string[];
   bbox: [number, number, number, number];
@@ -47,13 +54,26 @@ export interface FichaSol {
   codificacion: CodificacionRejilla;
   cuadros: { horas: number; porFila: number; celdaAncho: number; celdaAlto: number };
   anio: number;
-  meses: MesSol[];
+  meses: MesAtlas[];
   ultimoDiaConHoras: string;
   ultimoDiaConTotal: string | null;
   construido: string;
-  energiaDiaria: { d: string; kwh: number }[];
+  /**
+   * EL RESUMEN DE CADA DÍA, con nombre genérico a propósito: en el atlas solar es
+   * la energía (kWh/m²) y en el de temperatura la máxima (°C). Cómo se llama y en
+   * qué unidad va lo dice la ficha, así que la pantalla lo imprime sin saber cuál
+   * de los dos atlas está abierto.
+   */
+  resumenDiario: { d: string; v: number }[];
+  resumenDiarioEtiqueta: string;
+  resumenDiarioUnidad: string;
+  resumenDiarioAviso: string;
   rampa: { c: number; rgb: number[] }[];
   hipotesisMarcadaEnRampa?: number;
+  /** Qué es esa marca, en palabras del proyecto. Sin esto la rampa tendría una raya sin dueño. */
+  etiquetaHipotesis?: string;
+  /** Los extremos REALES de lo publicado: la pantalla no promete escala que el dato no llena. */
+  medido?: { min: number; max: number };
   aviso: string;
   fuente: string;
   atribucion: string;
@@ -64,7 +84,7 @@ export interface FichaSol {
 /** En qué banda de 2026 cae un día. `sin_dato` es un estado legítimo, no un fallo. */
 export type BandaDelDia = 'horas' | 'solo_total' | 'sin_dato';
 
-export function bandaDelDia(ficha: FichaSol, iso: string): BandaDelDia {
+export function bandaDelDia(ficha: FichaAtlas, iso: string): BandaDelDia {
   if (iso <= ficha.ultimoDiaConHoras) return 'horas';
   if (ficha.ultimoDiaConTotal && iso <= ficha.ultimoDiaConTotal) return 'solo_total';
   return 'sin_dato';
@@ -86,7 +106,7 @@ export const isoDe = (anio: number, mes: string, dia: number): string =>
  * igual que una noche legítima.
  */
 export function cuadroDe(
-  px: Uint8Array, ficha: FichaSol, mes: MesSol, dia: number, hora: number,
+  px: Uint8Array, ficha: FichaAtlas, mes: MesAtlas, dia: number, hora: number,
 ): Uint8Array | null {
   const { ancho, alto } = ficha;
   const horas = ficha.cuadros?.horas ?? 24;
@@ -124,12 +144,14 @@ export function resumenDelCuadro(cuadro: Uint8Array, cod: CodificacionRejilla): 
 }
 
 /**
- * La hora del día con más sol EN ESE CUADRO DE DÍAS — para abrir la pantalla
- * donde se ve algo en vez de a medianoche, que es un mapa negro y se lee como
- * una avería. Es exactamente la piedra con la que ya tropezó la capa mensual.
+ * LA HORA PUNTA DE ESE DÍA: aquella cuya mediana es la más alta. Sirve para abrir
+ * la pantalla donde se ve algo en vez de a medianoche — que en el atlas solar es
+ * un mapa negro y se lee como una avería (la piedra con la que ya tropezó la capa
+ * mensual), y en el de temperatura es la hora más fresca, que es justo la que NO
+ * decide nada: la ampacidad la manda la hora más caliente.
  */
-export function horaMasSoleada(
-  px: Uint8Array, ficha: FichaSol, mes: MesSol, dia: number,
+export function horaPunta(
+  px: Uint8Array, ficha: FichaAtlas, mes: MesAtlas, dia: number,
 ): number {
   let mejor = 12, valor = -1;
   for (let h = 0; h < (ficha.cuadros?.horas ?? 24); h++) {
@@ -141,9 +163,9 @@ export function horaMasSoleada(
   return mejor;
 }
 
-/** La energía del día, si consta. `null` no es 0: es que no hay medida. */
-export function energiaDelDia(ficha: FichaSol, iso: string): number | null {
-  return ficha.energiaDiaria.find((e) => e.d === iso)?.kwh ?? null;
+/** El resumen del día, si consta. `null` no es 0: es que no hay medida. */
+export function resumenDelDia(ficha: FichaAtlas, iso: string): number | null {
+  return ficha.resumenDiario.find((e) => e.d === iso)?.v ?? null;
 }
 
 /** Un mes que la pantalla puede ofrecer, tenga o no reparto por horas. */
@@ -152,7 +174,7 @@ export interface MesOfrecido {
   /** Los días del mes. Siempre, aunque no haya PNG. */
   dias: number;
   /** El mes empaquetado, si existe. `null` = ese mes solo tiene total del día. */
-  png: MesSol | null;
+  png: MesAtlas | null;
 }
 
 /**
@@ -164,12 +186,12 @@ export interface MesOfrecido {
  * La pantalla presumía de tres bandas y solo dejaba ver dos, y la leyenda decía
  * «dato hasta el 16 de agosto por día» hablando de días que nadie podía abrir.
  *
- * Se unen las dos fuentes: los meses con PNG y los meses que aparecen en la
- * energía diaria. Lo detectó la revisión adversarial.
+ * Se unen las dos fuentes: los meses con PNG y los meses que aparecen en el
+ * resumen diario. Lo detectó la revisión adversarial.
  */
-export function mesesOfrecidos(ficha: FichaSol): MesOfrecido[] {
+export function mesesOfrecidos(ficha: FichaAtlas): MesOfrecido[] {
   const claves = new Set<string>(ficha.meses.map((m) => m.clave));
-  for (const e of ficha.energiaDiaria) claves.add(e.d.slice(5, 7));
+  for (const e of ficha.resumenDiario) claves.add(e.d.slice(5, 7));
 
   return [...claves].sort().map((clave) => {
     const png = ficha.meses.find((m) => m.clave === clave) ?? null;

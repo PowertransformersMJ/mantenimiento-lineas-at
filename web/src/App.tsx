@@ -7,7 +7,7 @@
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { VERSION_CONTRATO } from '@lineas/contratos';
 import { derivarLevantamiento } from '@lineas/exportar/levantamiento';
-import { useAtlasSolar, useDatos, useRca, almacen } from './datos/enlace';
+import { useAtlas, useDatos, useRca, almacen } from './datos/enlace';
 import { Rca } from './componentes/Rca';
 import { conReintentos } from './datos/cargar';
 // ⚠️ EN DIFERIDO, y no por elegancia: el atlas arrastra MapLibre (cerca de un
@@ -18,8 +18,8 @@ import { conReintentos } from './datos/cargar';
 // frontera de carga diferida del sistema, por un fallo que ya ocurrió en
 // producción (un trozo tardó, el navegador falló una vez, la página se quedó en
 // blanco para siempre).
-const SolCaribe = lazy(() => conReintentos(() => import('./componentes/SolCaribe'))
-  .then((m) => ({ default: m.SolCaribe })));
+const AtlasCaribe = lazy(() => conReintentos(() => import('./componentes/AtlasCaribe'))
+  .then((m) => ({ default: m.AtlasCaribe })));
 import { Contrasena } from './componentes/Contrasena';
 import { SinSesion, Cargando, Vacio, Error_ } from './componentes/Estado';
 import { VistaLinea } from './componentes/Linea';
@@ -125,10 +125,14 @@ function Cabecera() {
         <button type="button" className="boton chico ir-rca" onClick={() => void almacen.abrirRca()}>
           Análisis de causa raíz
         </button>
-        {/* El atlas NO es de esta línea: es del Caribe. Por eso vive en la
-            cabecera, al lado del segmento de causa raíz, y no como pestaña. */}
-        <button type="button" className="boton chico" onClick={() => almacen.abrirAtlasSolar()}>
+        {/* Los atlas NO son de esta línea: son del Caribe. Por eso viven en la
+            cabecera, al lado del segmento de causa raíz, y no como pestañas.
+            También se abren desde «Detalle GPS», con la línea marcada dentro. */}
+        <button type="button" className="boton chico" onClick={() => almacen.abrirAtlas('sol')}>
           Atlas solar
+        </button>
+        <button type="button" className="boton chico" onClick={() => almacen.abrirAtlas('temperatura')}>
+          Atlas de temperatura
         </button>
         <span className="fase">Fase 0 · fundación</span>
       </div>
@@ -149,7 +153,7 @@ function Pie() {
 function Contenido() {
   const d = useDatos();
   const rca = useRca();
-  const atlas = useAtlasSolar();
+  const atlas = useAtlas();
 
   /**
    * Acceso con correo y contraseña — la vía definitiva.
@@ -199,7 +203,7 @@ function Contenido() {
   // y esa es una decisión de producto que no toma un `if` colocado sin pensar.
   // El día que se quiera un atlas público, se decide y se documenta.
   if (atlas && d.fase !== 'sin_sesion' && d.fase !== 'cambiar_contrasena') {
-    return <Suspense fallback={<Cargando />}><SolCaribe /></Suspense>;
+    return <Suspense fallback={<Cargando />}><AtlasCaribe atlas={atlas} /></Suspense>;
   }
 
   switch (d.fase) {

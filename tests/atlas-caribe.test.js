@@ -27,9 +27,9 @@ import { fileURLToPath } from 'node:url';
 import { inflateSync } from 'node:zlib';
 
 import {
-  bandaDelDia, cuadroDe, diasDelMes, energiaDelDia, horaMasSoleada, isoDe,
+  bandaDelDia, cuadroDe, diasDelMes, resumenDelDia, horaPunta, isoDe,
   mesesOfrecidos, resumenDelCuadro,
-} from '../web/src/vistas/solCaribe.ts';
+} from '../web/src/vistas/atlasCaribe.ts';
 
 const url = (r) => fileURLToPath(new URL(r, import.meta.url));
 const MAPAS = url('../web/public/mapas/');
@@ -41,7 +41,7 @@ const FICHA = {
   anio: 2026,
   ultimoDiaConHoras: '2026-05-30',
   ultimoDiaConTotal: '2026-08-16',
-  energiaDiaria: [{ d: '2026-03-15', kwh: 5.4 }],
+  resumenDiario: [{ d: '2026-03-15', v: 5.4 }],
   meses: [], rampa: [], departamentos: [], bbox: [0, 0, 1, 1],
 };
 const MES = { clave: '03', archivo: 'x.png', dias: 3, horasConDato: 72, bytes: 0 };
@@ -122,8 +122,8 @@ describe('las tres bandas de 2026', () => {
   });
 
   test('la energía de un día que no consta es null, no 0', () => {
-    assert.equal(energiaDelDia(FICHA, '2026-03-15'), 5.4);
-    assert.equal(energiaDelDia(FICHA, '2026-09-01'), null, 'un día sin medida no vale cero');
+    assert.equal(resumenDelDia(FICHA, '2026-03-15'), 5.4);
+    assert.equal(resumenDelDia(FICHA, '2026-09-01'), null, 'un día sin medida no vale cero');
   });
 
   test('isoDe arma la fecha sin pasar por Date (sin husos horarios)', () => {
@@ -139,7 +139,7 @@ describe('no se abre a medianoche', () => {
     for (let fy = 0; fy < FICHA.alto; fy++)
       for (let fx = 0; fx < FICHA.ancho; fx++)
         px[fy * anchoPx + (11 * FICHA.ancho + fx)] = 200;
-    assert.equal(horaMasSoleada(px, FICHA, MES, 1), 11,
+    assert.equal(horaPunta(px, FICHA, MES, 1), 11,
       'abrir a medianoche pinta un mapa negro y se lee como una avería');
   });
 });
@@ -216,8 +216,8 @@ describe('los meses que se pueden elegir', () => {
     const f = {
       ...FICHA,
       meses: [{ clave: '05', archivo: 'x.png', dias: 31, horasConDato: 744, bytes: 0 }],
-      energiaDiaria: [
-        { d: '2026-05-31', kwh: 6.4 }, { d: '2026-06-15', kwh: 5.9 }, { d: '2026-08-16', kwh: 6.1 },
+      resumenDiario: [
+        { d: '2026-05-31', v: 6.4 }, { d: '2026-06-15', v: 5.9 }, { d: '2026-08-16', v: 6.1 },
       ],
     };
     const m = mesesOfrecidos(f);
