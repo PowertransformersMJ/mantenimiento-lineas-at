@@ -14,11 +14,12 @@
 // la vista cae al esquema SVG. Una capa opcional jamás veta a una esencial
 // (docs/31 · L-11).
 // ============================================================================
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { layers, namedFlavor } from '@protomaps/basemaps';
 import { prepararTeselas } from '../datos/teselas';
+import { conReintentos } from '../datos/cargar';
 import { FUNCIONES_ANCLA, type Apoyo, type Hipotesis, type Investigacion } from '@lineas/contratos';
 import { derivarLevantamiento } from '@lineas/exportar/levantamiento';
 import { COLORES_TRAMO_CSS, COLOR_SIN_GUARDA, COLOR_SIN_GUARDA_FUNDA } from '../vistas/tramoColores';
@@ -41,6 +42,16 @@ import {
   type PronosticoEnPantalla,
 } from '../vistas/pronostico';
 import { ATRIBUCION_PRONOSTICO, celdaDeConsulta, pedirPronostico, SinPronostico } from '../datos/pronostico';
+import type { CeldaDelAnio } from './ClimaDelAnio';
+
+/**
+ * PEREZOSO de verdad: mientras la capa esté apagada, este trozo no se descarga.
+ * Va por `conReintentos` como el resto de fronteras diferidas del sistema — un
+ * fallo de red puntual dejaría la casilla encendida y el panel en blanco para
+ * siempre (`datos/cargar.ts` es la única frontera, y esta la respeta).
+ */
+const ClimaDelAnio = lazy(() => conReintentos(() => import('./ClimaDelAnio'))
+  .then((m) => ({ default: m.ClimaDelAnio })));
 import { anotar, registrarMapa, retirarMapa } from './sondaMapa';
 
 // ── Las capas de imagen: qué son, de dónde salen y a quién se le debe ───────
@@ -253,6 +264,16 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
    * encima. Por eso va con su propio estado y no en `CAPAS_RASTER`.
    */
   const [pronostico, setPronostico] = useState(false);
+  /**
+   * El clima del AÑO (los cuatro atlas del Caribe), consultado desde este mapa.
+   *
+   * Es una capa PEREZOSA de verdad: mientras esté apagada no se descarga ni la
+   * ficha ni un solo PNG, y el trozo de código que la pinta tampoco. Encendida
+   * cuesta ~32 KB — NO trae el mapa base regional de 5 MiB, porque el mapa base
+   * aquí es el de la línea, que ya está (`99 §ADR-056`).
+   */
+  const [climaAnio, setClimaAnio] = useState(false);
+  const [celdaAnio, setCeldaAnio] = useState<CeldaDelAnio | null>(null);
   const [tiempo, setTiempo] = useState<PronosticoEnPantalla | null>(null);
   const [pidiendoTiempo, setPidiendoTiempo] = useState(false);
   const [falloTiempo, setFalloTiempo] = useState<string | null>(null);
@@ -687,6 +708,62 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
    * dice y el mapa se queda como estaba — una capa opcional jamás veta a una
    * esencial (`31 · L-11`).
    */
+  /**
+   * LA CELDA DEL ATLAS QUE LE TOCA A ESTA LÍNEA.
+   *
+   * Se dibuja el cuadrado de 1° con su color y su borde, y NADA MÁS. No es una
+   * rejilla: es UNA celda, la que contiene el corredor entero. Pintar las 36 del
+   * atlas sobre este encuadre sería pintar 35 que no se ven y una que lo tapa
+   * todo; y pintar un degradado dentro de ella fingiría que un extremo de la
+   * línea tuvo otro tiempo que el otro, que es justo lo que no se midió.
+   *
+   * Va DEBAJO de los tramos y de los apoyos: es contexto, no es la línea.
+   */
+  useEffect(() => {
+    const m = mapaVivo;
+    if (!m || !mapaCargado) return;
+    const ID = 'celda-anio';
+    const quitar = () => {
+      if (m.getLayer(`${ID}-borde`)) m.removeLayer(`${ID}-borde`);
+      if (m.getLayer(ID)) m.removeLayer(ID);
+      if (m.getSource(ID)) m.removeSource(ID);
+    };
+    if (!celdaAnio) { quitar(); return; }
+
+    const [o, s, e, n2] = celdaAnio.limites;
+    const datos = {
+      type: 'FeatureCollection' as const,
+      features: [{
+        type: 'Feature' as const, properties: {},
+        geometry: {
+          type: 'Polygon' as const,
+          coordinates: [[[o, s], [e, s], [e, n2], [o, n2], [o, s]]],
+        },
+      }],
+    };
+    const fuente = m.getSource(ID) as maplibregl.GeoJSONSource | undefined;
+    if (fuente) fuente.setData(datos);
+    else {
+      m.addSource(ID, { type: 'geojson', data: datos });
+      // Debajo de todo lo de la línea: la primera capa propia que exista sirve
+      // de ancla, y si no hay ninguna se añade encima del mapa base.
+      const debajoDe = m.getLayer('tramos') ? 'tramos' : undefined;
+      m.addLayer({
+        id: ID, type: 'fill', source: ID,
+        paint: { 'fill-color': celdaAnio.color ?? '#9a9384', 'fill-opacity': celdaAnio.color ? 0.35 : 0.12 },
+      }, debajoDe);
+      m.addLayer({
+        id: `${ID}-borde`, type: 'line', source: ID,
+        paint: { 'line-color': '#2c2a24', 'line-width': 1.2, 'line-dasharray': [3, 2], 'line-opacity': 0.55 },
+      }, debajoDe);
+    }
+    if (m.getLayer(ID)) {
+      m.setPaintProperty(ID, 'fill-color', celdaAnio.color ?? '#9a9384');
+      m.setPaintProperty(ID, 'fill-opacity', celdaAnio.color ? 0.35 : 0.12);
+    }
+    return () => { if (!celdaAnio) quitar(); };
+  }, [celdaAnio, mapaVivo, mapaCargado]);
+
   useEffect(() => {
     if (!pronostico || !geometria || yaPedido.current) return;
     // ⚠️ EL FRENO ES UNA REFERENCIA, NO EL ESTADO, y la lista de dependencias es
@@ -818,6 +895,21 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
             onChange={(e) => setPronostico(e.target.checked)} /> Pronóstico del tiempo
           {pidiendoTiempo && <span className="mapa-capas-f">consultando…</span>}
         </label>
+
+        {/* EL AÑO, al lado del pronóstico y no lejos de él: uno mira hacia
+            adelante unos días y el otro hacia atrás doce meses. Juntos son el
+            clima de esta línea; separados, dos pantallas que nadie cruza. */}
+        <label>
+          <input type="checkbox" checked={climaAnio}
+            onChange={(e) => { setClimaAnio(e.target.checked); if (!e.target.checked) setCeldaAnio(null); }} />
+          {' '}Clima del año (Caribe)
+        </label>
+        {climaAnio && geometria && (
+          <Suspense fallback={<p className="mapa-capas-n">Bajando el clima del año…</p>}>
+            <ClimaDelAnio lon={geometria.lon} lat={geometria.lat}
+              alDibujarCelda={setCeldaAnio} />
+          </Suspense>
+        )}
 
         {bajando && (
           <p className="mapa-capas-n" aria-live="polite">

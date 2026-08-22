@@ -5205,3 +5205,71 @@ medido**, que es exactamente lo que hacen los atlas del Caribe (`ADR-045/053`).
 
 Las cuatro fichas publicadas en `web/public/mapas/*.json`, que citan fuente, parámetro y fechas. La
 comprobación del factor de 24 se hizo contra la API diaria de NASA POWER el 2026-08-22.
+
+---
+
+## ADR-056 · 2026-08-22 · El clima del año entra al mapa de la línea, y se resuelve como un dato del sitio y no como un campo
+
+**Estado:** ✅ Decidido · **NO revisada externamente** · ⏳ pendiente de verificar en vivo.
+
+### Contexto
+
+Entregados los cuatro atlas del Caribe (`ADR-055`), el Ingeniero pidió **integrarlos**. Se le
+ofrecieron tres caminos con sus consecuencias escritas y **eligió que los atlas entren al mapa de la
+LÍNEA**, junto al pronóstico, con la advertencia delante: sobre este corredor el atlas es una sola
+celda.
+
+Esa advertencia es real y hay que tomarla en serio, no repetirla y seguir: el atlas mide en cuadros
+de 1° (unos 111 km) y el corredor de LN-627 ocupa 0,29° × 0,38°. **Una celda lo cubre entero.**
+Pintar la rejilla sobre este mapa daría un rectángulo de color plano de lado a lado — exactamente la
+capa que no se puede APRECIAR que cerró `ADR-046`—; y suavizarla en un degradado sugeriría que un
+extremo de la línea tuvo otro tiempo que el otro, que es lo que nadie midió.
+
+### Decisión
+
+- **Entra al mapa de la línea, como pidió, y se resuelve COMO YA LO RESOLVIÓ EL PRONÓSTICO en ese
+  mismo mapa** (`ADR-035`): *«se pinta como un dato del sitio (…) y no como un campo de colores que
+  fingiría un detalle inexistente»*. Se dibuja **la celda que le toca a la línea** —su cuadrado, con
+  su color y su borde punteado— y se publica **EL NÚMERO** de esa celda para el instante elegido. Un
+  número con su unidad y su fecha vale más que un color que no distingue nada.
+- **Con el eje de tiempo completo**: los cuatro atlas, mes, día y hora, dentro del panel de capas.
+  Es lo que el Ingeniero pidió dos mensajes antes —recorrer el año, filtrando— pero **donde mira la
+  línea**.
+- **Va al lado del pronóstico y no lejos**: uno mira hacia adelante unos días y el otro hacia atrás
+  doce meses. Juntos son el clima de esta línea; separados, dos pantallas que nadie cruza.
+- **El aviso va en la PANTALLA, no solo en este ADR**: *«una sola celda cubre toda la línea»*, con el
+  porqué. Sin él, el rectángulo de color se lee como si el atlas distinguiera un extremo del otro.
+- **La celda se dibuja DEBAJO de los tramos y los apoyos**: es contexto, no es la línea.
+- **El panel no toca el mapa: se lo describe** (`alDibujarCelda`). Así la pieza se prueba sin
+  MapLibre y el mapa sigue siendo el único dueño de lo que pinta.
+- **Perezoso de verdad y barato**: apagada no baja ni la ficha ni un PNG ni el código que la pinta.
+  Encendida cuesta **~32 KB** — y **NO** trae el mapa base regional de 5 MiB, porque aquí el mapa
+  base es el de la línea, que ya está. Es la diferencia con el atlas embebido en Detalle GPS.
+
+### Alternativas descartadas
+
+- **Pintar la rejilla completa sobre el mapa de la línea.** 35 celdas que no se ven y una que lo tapa
+  todo. Es lo que la advertencia decía, y por eso no se hizo aunque la opción elegida lo insinuara.
+- **Interpolar la celda para que «se vea mejor».** Dibujaría un degradado que nadie midió: el mismo
+  error que `ADR-045` prohibió al pintar el atlas a cuadros —«a cuadros es como está medido»—.
+- **Un eje de tiempo continuo pasado→futuro** (la opción que se recomendaba): el Ingeniero eligió
+  otra. Queda escrito que se ofreció y por qué se prefería, sin rehacerlo por detrás.
+- **Meterlo como una MEDIDA más** junto a radiación y temperatura del corredor: aquéllas son del
+  corredor y sí tienen detalle dentro del encuadre. Mezclarlas confundiría dos resoluciones que se
+  diferencian en un factor de 300.
+
+### Consecuencias
+
+- El mapa de la línea gana **«Clima del año (Caribe)»** en su panel de capas, con selector de atlas,
+  mes, día y hora, y el número de la celda para ese instante.
+- **1.778 pruebas en verde.** El guardián de la hoja de estilo volvió a cazar una clase sin declarar
+  (`.clima-anio`) antes de que llegara a producción: el navegador las descarta en silencio.
+- Queda dicho lo que **no** cambia: la capa sigue sin poder distinguir un extremo de la línea del
+  otro, y la pantalla lo dice. Para eso haría falta una fuente con resolución de kilómetros, que hoy
+  no existe libre y comercial para esta zona (`31 · L-60` y `ADR-040`).
+
+### Crudo de respaldo
+
+Sin comité: la decisión la tomó el Ingeniero eligiendo entre tres opciones con sus consecuencias
+escritas, y la resolución técnica se apoya en `ADR-035` (el pronóstico como dato del sitio) y
+`ADR-046` (la capa que no se puede apreciar).

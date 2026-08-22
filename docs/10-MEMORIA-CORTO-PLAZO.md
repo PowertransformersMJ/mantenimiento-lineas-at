@@ -55,8 +55,8 @@ Cada uno vive ENTERO en su ADR: esto es el índice, léelo antes de tocar ese su
 · **Documentación** `§ADR-021` — el verde de `brain:check` dice bien CONSTRUIDO, no verdad.
 · **El número que se firma** `§ADR-052` — un tope declarado manda en TODAS las piezas, y el molde
   tiene que admitirlo o la base lo tira en silencio.
-· **Atlas** `§ADR-045/053/055` — UN motor y UNA pantalla para los CUATRO (sol · temperatura · viento
-  · lluvia). El viento NO marca la hipótesis: un año de medias no valida un extremo de diseño.
+· **Atlas** `§ADR-045/053/055/056` — UN motor para los CUATRO. El viento NO marca la hipótesis; en
+  el mapa de la línea van como dato del SITIO, no como campo.
 
 ## 🧭 Cómo retomar
 

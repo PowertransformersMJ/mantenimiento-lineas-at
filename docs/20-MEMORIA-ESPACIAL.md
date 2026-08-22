@@ -94,7 +94,7 @@ mantenimiento-lineas-at/
 │                                PUNTO sigue vetado y con guardián (ADR-028/031)
 ├── evidencias/                  🚪 EL PORTERO (Worker, ADR-010 + **ADR-031**): verifica la FIRMA del
 │                                token. `GET` sirve, `PUT` acepta bajo diez cerrojos.
-│                                🚫 **NO borra y NO lista** — con prueba que lo bloquea
+│                                🚫 **NO borra y NO lista** — con prueba que lo impide
 ├── herramientas/atlas-caribe.mjs EL MOTOR de los CUATRO atlas (ADR-053/055), cada uno un PERFIL:
 │                                `sol-caribe` (⚠️ ese nombre lo llama el vigía) · `temp-caribe` ·
 │                                `viento-caribe` · `lluvia-caribe`. El perfil lleva `factor`: la
@@ -111,17 +111,17 @@ mantenimiento-lineas-at/
 │   │                            manda la última fechada y **NO da identidad**
 │   └── publicar-decisiones.mjs  lo genera con LISTA BLANCA de campos. Local, jamás en CI
 ├── firestore.rules              🔒 parte del CONTRATO, no configuración: RBAC por *claims* y un
-│   firebase.json                catch-all que niega lo no declarado. **Se despliega por SU canal**,
-│   firestore.indexes.json       no con el sitio (`31 · L-22`)
-├── disenos/                     5 maquetas HTML de la carcasa; ganó `5-horizonte` (ADR-018)
+│   firebase.json                catch-all que niega lo no declarado. **Por SU canal**, no con el
+│   firestore.indexes.json       sitio (`31 · L-22`)
+├── disenos/                     5 maquetas de la carcasa; ganó `5-horizonte` (ADR-018)
 ├── web/src/estilo.css           el tablero de color: ~61 tokens en `:root`, paleta CLARA. Ningún
 │                                color se escribe fuera de ahí; lo vigila una prueba
 ├── web/src/componentes/         React SOLO pinta (ADR-005): Linea (las pestañas ARIA —cuántas son,
 │                                en `05`— **y** la carcasa de 3 columnas), **RedDeSeguridad** (la red
 │                                que evita la página en blanco de TODA la aplicación, montada en
 │                                `web/src/main.tsx`), **AtlasCaribe** (LOS CUATRO atlas con selector,
-│                                ADR-045/053/055: pantalla propia, y embebido PEREZOSO en Detalle GPS
-│                                con la línea marcada), Horizonte (los apoyos en su orden real), Mapa (popup +
+│                                ADR-045/053/055) · **ClimaDelAnio** (ADR-056: esos atlas DENTRO del
+│                                mapa de la línea, como dato del SITIO —una celda y su número—), Horizonte (los apoyos en su orden real), Mapa (popup +
 │                                tramos + marcador de falla), Distribucion, Distancias, DetalleGps
 │                                (el mapa a pantalla: MISMO Mapa con `panelALado`, ADR-042), Fichas
 │                                (+FichaEditor · FichaLote, admin, ADR-038), FichaCriterios,
@@ -132,7 +132,7 @@ mantenimiento-lineas-at/
 │                                las dos cuyo efecto no se deshace · **Rca + RcaEditores: NO son
 │                                pestaña de línea, son segmento hermano del parque → `99 §ADR-020`**
 ├── web/src/contenido/           doctrina SIN datos de cliente (fundamentos.ts: 9 tarjetas + normas)
-├── web/src/exportar/            SOLO descargar.js (Blob/DOM); el resto, en el workspace
+├── web/src/exportar/            SOLO descargar.js (Blob/DOM); el resto en el workspace
 ├── web/src/vistas/              ⭐ DUEÑOS ÚNICOS — si un número sale de aquí, NO se recalcula en
 │   │                            ninguna pantalla (`99 §ADR-018`):
 │   ├── ejesLinea.ts             los DOS ejes de carga de una línea
@@ -150,11 +150,11 @@ mantenimiento-lineas-at/
 │   ├── temperatura.ts           el AIRE del corredor (ADR-039): media, no extremo.
 │   │                            ⚠️ NO es el atlas regional: otra fuente, otro recuadro
 │   ├── coberturaEjes.ts         qué se sabe de CADA apoyo, eje por eje: los 4 estados y los textos
-│   │                            del horizonte. Lo piden `estadoLinea` y `Horizonte`
-│   ├── estadoLinea.ts           el CIELO de la línea (amanecer/atardecer/tormenta/niebla). Pide el
-│   │                            cruce a `coberturaEjes.ts`, no lo reimplementa
+│   │                            del horizonte. Los piden `estadoLinea` y `Horizonte`
+│   ├── estadoLinea.ts           el CIELO de la línea (amanecer/tormenta/niebla). Pide el cruce a
+│   │                            `coberturaEjes.ts`, no lo reimplementa
 │   └── fotosNuevas.ts           (ADR-031) cifras y frases de Fotos, con el «106 entrarían nuevas»
-│                                que él lee ANTES de firmar.
+│                                que él lee ANTES de firmar
 │                                De dónde salió cada uno → `99 §ADR-018`.
 │                                El resto: formato (nf + textoNucleo: coma decimal en la prosa del
 │                                núcleo, L-26) + tramoColores + diagramas.ts (las 9 figuras de
@@ -177,9 +177,9 @@ mantenimiento-lineas-at/
 │                             Mecánica en `vistas/rejilla.ts`
 │                             ⚠️ DOS recortes que NO se mezclan: `cartagena*` el corredor y
 │                             `caribe*`+`sol|temp|viento|lluvia-caribe*` los 7 dptos, perezosos
-├── web/public/basemaps-assets/  fuentes y sprites del mapa
+├── web/public/basemaps-assets/  fuentes y sprites
 ├── githooks/pre-commit          BLOQUEA el commit: coordenadas reales y cerebro roto
-├── .claude/settings.json        hooks de sesión (SÍ se commitea; el resto de .claude/ no)
+├── .claude/settings.json        hooks de sesión (SÍ se commitea; el resto no)
 ├── .github/workflows/ci.yml     integridad del kernel + suite de pruebas
 └── …/vigia-nasa.yml             LOS DOS atlas al día cada 2 meses, en matriz. PROPONE. ⚠️ TODO-75
 ```

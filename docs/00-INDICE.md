@@ -128,6 +128,7 @@ Guarda `research-archive/` (crudos de deliberación: comités, consejos externos
 | `ADR-053` | 2026-08-22 | Un atlas de temperatura, un solo motor para los dos, y los dos dentro de Detalle GPS | *(`tests/atlas-ficha.test.js` · `tests/atlas-caribe.test.js`)* |
 | `ADR-054` | 2026-08-22 | El extremo de ORIGEN entra sin mover a nadie, y un pórtico que estaba a 4,6 km de donde se creía | *(`tests/carga-orden-biseccion.test.js` · `tests/sembrar-mapeo.test.js`)* |
 | `ADR-055` | 2026-08-22 | El tiempo del año entero: viento y lluvia entran como atlas, porque un pronóstico no llega hasta diciembre | *(`tests/atlas-ficha.test.js`)* |
+| `ADR-056` | 2026-08-22 | El clima del año entra al mapa de la línea, y se resuelve como un dato del sitio y no como un campo | *(`web/src/componentes/ClimaDelAnio.tsx`)* |
 
 > Toda decisión cara de revertir entra aquí con su ADR y su crudo enlazado. Si hubo comité o consejo
 > externo y el crudo no está archivado, la tarea **no está cerrada** (`CLAUDE.md §G.4`).
