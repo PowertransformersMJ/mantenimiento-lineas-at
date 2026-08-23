@@ -1,6 +1,6 @@
 # 📝 10 — MEMORIA DE CORTO PLAZO (pizarra viva)
 
-> Se **AUTO-CARGA**. Pizarra, no bitácora (§G.3). **RELEVO 2026-08-22 (tarde).** Este nodo ES el
+> Se **AUTO-CARGA**. Pizarra, no bitácora (§G.3). **RELEVO 2026-08-22 (cierre).** Este nodo ES el
 > relevo: léelo entero. Si contradice a `docs/.handoff-auto.md` (foto real de git), manda ese.
 
 ## 🎯 Dónde estamos
@@ -12,26 +12,26 @@
 > `§ADR-049/050`—. La fase viva es **la página**.
 
 ## 🛑 LO PRIMERO AL RETOMAR
-
 1. **EL CUELLO DE BOTELLA NO ES CÓDIGO: ES EL DATO** (`05`): 0 de 26 con veredicto; falta `TODO-57`.
-2. **EL PATRÓN QUE LO DOMINA TODO:** *«arreglado donde se veía, vivo en la pieza hermana»*
-   (`ADR-046/049/052`). Lo gobiernan **`34 · L-65`** (una corrección es deuda con toda la familia),
-   **`32 · L-67`** (vigila la función, no a quien la llama) y **`30 · L-68`** (el guardián recorre la
-   tubería; un fixture hecho a mano no cruza la frontera).
-3. **CERRADO 22-08: el clima de la línea, `§ADR-057` + `§ADR-058`.** ① El cielo mentía: rama inalcanzable + símbolo de la MADRUGADA (`32 · L-69/L-70`). ② Se elige **FECHA** (1-ene → +11 d) y cada día declara su régimen. **Gana el hecho sobre el modelo**; el hueco SE VE. ③ `§ADR-059/060`: los atlas dan el DÍA, el veredicto y el MES (12 de 19 días de agosto pasaron de 32 °C); lluvia y cielo en palabras (OMM) y **quinto atlas de NUBES**. **«Tormenta eléctrica» NO existe en esta fuente**, y hay prueba. ④ `§ADR-061`: la escala se PUBLICA con su procedencia (OMM). ⑤ `§ADR-062..070`: **el clima MIGRÓ al Atlas** (Detalle GPS = solo el recorrido); manda la celda que se PULSE; catálogo único; auditoría del cerebro. Vigía semanal, cuatro atlas.
-3. **LA FASE ABIERTA: la página.** Cerradas `§ADR-051` (banda, pestaña, tope, motor), `§ADR-052` ① el
-   número que se firma, `§ADR-053/055/056` (los CUATRO atlas y el clima del año en el mapa) y
-   `§ADR-054` (el extremo de origen). **Quedan DOS candidatas del triaje** —él elige—:
-   ② **se lee**: renglones de 200 caracteres, encabezados desalineados de sus cifras, rótulos del
-   Horizonte a 6 px, y el mapa que en 13" echa los indicadores fuera. ③ **no se cae**: una foto que
-   falle deja la galería en blanco; la cartografía promete caché eterna y las cabeceras dicen otra.
-   ⚠️ `31 · L-60` (ortos del IGAC) **puede estar MAL**: verificar ANTES de citarlo.
-4. **SON DE ÉL**: `TODO-57` el dato de la ficha · **contraseña** (bloquea retirar Google) ·
+2. **EL PATRÓN QUE LO DOMINA TODO:** *«arreglado donde se veía, vivo en la pieza hermana»* —
+   `34 · L-65`, `32 · L-67`, `30 · L-68`, `30 · M-01`. El 22-08 se cerraron TRES de esa familia.
+3. **LA OLA DEL CLIMA, CERRADA (22-08): `§ADR-057..073`, 17 ADRs y 28 commits.** El clima **VIVE EN LA PANTALLA DEL ATLAS**; Detalle GPS quedó solo con el recorrido. Un eje de FECHA (1-ene → +11 d) donde cada día declara su régimen —MEDIDO · SIN PUBLICAR · PRONÓSTICO— y **gana el hecho sobre el modelo**. Cinco atlas con el DÍA hora a hora, el veredicto contra su tope, el MES y las escalas en palabras (OMM) **publicadas con su procedencia**. El recorrido se COMPRUEBA punto a punto (26 coordenadas → 1 celda). **«Tormenta eléctrica» NO existe en esta fuente**, y hay prueba.
+4. **VIVO DEL CLIMA:** `TODO-85` dibujar el TRAZADO en el mapa del atlas (plan en `§ADR-073`) ·
+   `TODO-87` migrar «Radiación solar» y «Temperatura ambiente» (OTRO subsistema, ~400 líneas) ·
+   `TODO-86` retirar `ClimaDelAnio.tsx`, ya sin montar. ⏳ **ESPERA SU RESPUESTA:** dice que el satelital
+   tiene huecos; el archivo está al **100 % en z8-z16** → falta que diga **DÓNDE los ve**.
+5. **⚠️ LÍMITE QUE COSTÓ UNA SESIÓN (`§ADR-071`):** las pestañas de inspección van en SEGUNDO PLANO y
+   **MapLibre no dibuja ahí** — el lienzo sale gris aunque todo esté bien; el DOM sí se lee. Antes de
+   declarar un mapa roto: `document.visibilityState` + el banco (`SONDA_MAPA=1 npm run build` +
+   `npx vite preview` en `web/`). Relevo completo: `research-archive/2026-08-22-relevo-cierre.md`.
+6. **LA FASE ABIERTA sigue siendo la página**; no eligió entre ② **se lee** y ③ **no se cae**. ⚠️ `31 · L-60` puede estar MAL: verificar antes de citarlo.
+
+7. **SON DE ÉL**: `TODO-57` el dato de la ficha · **contraseña** (bloquea retirar Google) ·
    `TODO-71` viento y los 1.000 W/m² —los atlas lo acercan pero NO lo cierran: 42 °C medidos (2 sobre
    el peor escenario) y viento hasta 54 km/h, lejos de los 100 adoptados— · `TODO-33` 50 % o 25 % ·
    `TODO-76` retenida · `TODO-82` la fase 2 del pronóstico · `TODO-78` el nodo `33` al 99,9 % (`30 · L-68`) · `TODO-80` qué tope de tierra
    rige · **`TODO-81` NUEVO**: descargar el acta de la carga del 22-08.
-5. **Higiene** (`99 §ADR-047/048`). ⚠️ El techo es el **ARRANQUE**, y `20`, `30` y `33` van al 99 %.
+8. **Higiene** (`99 §ADR-047/048`). ⚠️ El techo es el **ARRANQUE**, y `20`, `30` y `33` van al 99 %.
 
 ## 🚫 INVARIANTES QUE NO SE PUEDEN ROMPER
 
