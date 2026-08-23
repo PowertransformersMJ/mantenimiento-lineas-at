@@ -5,7 +5,7 @@
 
 ## 🎯 Dónde estamos
 
-**Cifras vivas en `05`.** 14 pestañas + RCA + tres informes. Olas cerradas: ADR-018 · 020-024 · 032 ·
+**Cifras en `05`.** 14 pestañas + RCA + tres informes. Olas cerradas: ADR-018 · 020-024 · 032 ·
 034-042 · 043-045 · **046-056**. Todo EN PRODUCCIÓN y **verificado en vivo con su sesión**.
 
 > 🧭 **SE VA POR FASES, orden suya (22-08).** El **módulo RCA sigue APARCADO** —lo cerrado ahí es
@@ -18,7 +18,7 @@
    (`ADR-046/049/052`). Lo gobiernan **`34 · L-65`** (una corrección es deuda con toda la familia),
    **`32 · L-67`** (vigila la función, no a quien la llama) y **`30 · L-68`** (el guardián recorre la
    tubería; un fixture hecho a mano no cruza la frontera).
-3. **CERRADO 22-08: el clima de la línea, `§ADR-057` + `§ADR-058`.** ① El cielo mentía: rama inalcanzable + símbolo elegido por la MADRUGADA (`32 · L-69/L-70`). ② Las dos casillas del clima eran una pregunta partida en dos mandos: ahora se elige **FECHA** (1-ene → +11 d) y cada día declara su régimen. **Gana el hecho sobre el modelo**; el hueco SE VE. ③ `§ADR-059/060`: los atlas dan el DÍA, el veredicto contra su tope y el MES (12 de 19 días de agosto pasaron de 32 °C); lluvia y cielo en palabras (OMM) y **quinto atlas de NUBES** (ene-may: `CLOUD_AMT` va con la latencia del sol). **«Tormenta eléctrica» NO existe en esta fuente**, y hay prueba. ④ `§ADR-061`: la escala se PUBLICA en pantalla con su procedencia (OMM), no solo se aplica. Vigía semanal, cuatro atlas.
+3. **CERRADO 22-08: el clima de la línea, `§ADR-057` + `§ADR-058`.** ① El cielo mentía: rama inalcanzable + símbolo elegido por la MADRUGADA (`32 · L-69/L-70`). ② Las dos casillas del clima eran una pregunta partida en dos mandos: ahora se elige **FECHA** (1-ene → +11 d) y cada día declara su régimen. **Gana el hecho sobre el modelo**; el hueco SE VE. ③ `§ADR-059/060`: los atlas dan el DÍA, el veredicto contra su tope y el MES (12 de 19 días de agosto pasaron de 32 °C); lluvia y cielo en palabras (OMM) y **quinto atlas de NUBES** (ene-may: `CLOUD_AMT` va con la latencia del sol). **«Tormenta eléctrica» NO existe en esta fuente**, y hay prueba. ④ `§ADR-061`: la escala se PUBLICA con su procedencia (OMM). ⑤ `§ADR-062/063/064/065`: puente al día medido, horizonte fuera de GPS, **recorrido COMPROBADO punto a punto** y auditoría del cerebro. Vigía semanal, cuatro atlas.
 3. **LA FASE ABIERTA: la página.** Cerradas `§ADR-051` (banda, pestaña, tope, motor), `§ADR-052` ① el
    número que se firma, `§ADR-053/055/056` (los CUATRO atlas y el clima del año en el mapa) y
    `§ADR-054` (el extremo de origen). **Quedan DOS candidatas del triaje** —él elige—:
@@ -75,7 +75,7 @@ Cada uno vive ENTERO en su ADR: esto es el índice, léelo antes de tocar su sub
 | **CLAVE** | **Ponerse contraseña.** La llave admin ya NO está en Descargas: regenerarla (Consola Firebase → Cuentas de servicio) y guardarla fuera. Después: `usuarios.mjs contrasena … --definitiva`, o la cuenta queda provisional | Desbloquea retirar Google (2b) |
 | **TODO-57** | **La FICHA ESTRUCTURAL — se puede ESCRIBIR y está EN PRODUCCIÓN** (`99 §ADR-030`). Falta **el DATO**: ¿lo tiene la empresa en planos o actas, o hay que levantarlo? Los seis: carga de rotura · altura libre · altura del amarre · capacidad longitudinal · fases amarradas · tipo de apoyo | **EL CUELLO DE BOTELLA REAL.** Al meter el primero saldrán «REVISAR»: no son averías nuevas |
 | **TODO-81** | **Descargar el acta de la carga del 22-08** desde la pantalla Cargar. El molde no tiene dónde guardar POR QUÉ decidió cada cosa; el acta sí, y es el único sitio donde ese razonamiento queda escrito | Se pierde al recargar la pantalla |
-| **TODO-82** | **¿Se hace la FASE 2 del pronóstico?** (`99 §ADR-057`): franja mañana/tarde, sensación térmica y la HORA a la que empieza la lluvia —ya se calcula y no se pinta— | El 24-08 la sensación llegaba a **40 °C** con el aire a 32,5: el riesgo de la cuadrilla es invisible |
+| **TODO-82/83** | **Dos decisiones suyas sobre el clima.** ① ¿FASE 2 del pronóstico (`§ADR-057`): franja mañana/tarde, sensación térmica y la HORA de la lluvia —ya se calcula y no se pinta—? ② ¿Dato FINO por extremos (`§ADR-064`)? Las capas de 2 km tocan **3 celdas** del recorrido y hoy salen por PROMEDIO; son medias de largo plazo, NO día a día | Sensación de **40 °C** con el aire a 32,5 · amplitud fina real: 1,2 °C |
 | **TODO-80** | **¿Qué tope de puesta a tierra rige, y cuál es la corriente de operación?** Desde `ADR-052` los dos campos existen en el molde: declararlos basta para que umbrales, ficha e informe usen el MISMO número. Sin decisión suya siguen **10 Ω** | Con 18 Ω medidos, 10 Ω dice «revisar» y 25 Ω dice «cumple» |
 | **TODO-75** | **Dos ajustes de GitHub, o el vigía de los atlas no sirve** (`§ADR-045/053`). ① Actions → General → permitir que Actions **cree** propuestas. ② Proteger `main` exigiendo el CI | Sin los dos, no abre nada o abre algo sin revisar |
 | **TODO-72** | **¿Autorización del IGAC para sus ortoimágenes** (o la tiene AFINIA por convenio)? Cubren esto a **3 m** en Bolívar y **10 cm** en Turbaco, contra los 10 m de Sentinel-2 (`99 §ADR-040`, `31 · L-60`) | Única vía a más resolución real en el mapa |
@@ -86,7 +86,7 @@ Cada uno vive ENTERO en su ADR: esto es el índice, léelo antes de tocar su sub
 | **TODO-44/34** | Alerta de gasto en Cloudflare · **respaldo FUERA de esta Mac**: `brain-private` **no tiene remoto** (ADR-059) | R2 factura · un fallo de disco se lleva la bóveda |
 | **TODO-61/54/68** | ¿App Check? · ¿que el linter vigile la frescura semántica? · ¿que cace un ADR repetido? (`30 · L-47`). Las dos últimas tocan el KERNEL | Las TRES son TUYAS |
 | **TODO-76** | **¿Se guarda que un apoyo es autosoportado / retenido?** Hoy no cabe en el modelo: iría por APOYO (26 declaraciones) | Cierra media incógnita de la capacidad longitudinal |
-| **TODO-78** | **Los nodos `33` y `20` en su techo** (99,9 %): la siguiente lección o el siguiente archivo obligan a podar o partir | Perder texto, o pagar contexto cada sesión |
+| **TODO-78/84** | **Cerebro LLENO, topes descuadrados** (`§ADR-065`): 7 nodos ≥90 % y cuatro al 100 %. El `30` tiene 5.285 chars libres y 0 líneas; el `20` al revés **Shard o recalibrar** | Cada edición obliga a raspar|
 | **TODO-69** | ✅ **CERRADO 22-08.** El pórtico de ORIGEN y el empalme `EMP E01-E02` están CARGADOS y verificados en la base: 30 puntos, 26 estructuras, 3.032,8 m | — |
 | **TODO-03/25/36** | Cronometrar LN-627 · probar descargas y Salir con su sesión | — |
 

@@ -33,8 +33,8 @@
 // ============================================================================
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  comoEstuvoElCielo, comoLlovio, cuadroDe, diasDelMesSobre, enTramos, ESCALA_CIELO,
-  ESCALA_LLUVIA, horasSobre, isoDe, perfilEnCelda, resumenDelDia,
+  celdasDelRecorrido, comoEstuvoElCielo, comoLlovio, cuadroDe, diasDelMesSobre, enTramos,
+  ESCALA_CIELO, ESCALA_LLUVIA, horasSobre, isoDe, perfilEnCelda, resumenDelDia,
   type FichaAtlas, type PerfilDelDia,
 } from '../vistas/atlasCaribe';
 import {
@@ -115,7 +115,7 @@ const CINTA: Record<Regimen, { rotulo: string; clase: string }> = {
   fuera: { rotulo: 'SIN DATO', clase: 'r-hueco' },
 };
 
-export function ClimaDelAnio({ lon, lat, alDibujarCelda, hoy, dias = [] }: {
+export function ClimaDelAnio({ lon, lat, alDibujarCelda, puntos = [], hoy, dias = [] }: {
   /** Un punto de la línea. Con él se resuelve QUÉ celda del atlas le toca. */
   lon: number;
   lat: number;
@@ -126,6 +126,14 @@ export function ClimaDelAnio({ lon, lat, alDibujarCelda, hoy, dias = [] }: {
    * MapLibre y el mapa sigue siendo el único dueño de lo que pinta.
    */
   alDibujarCelda: (celda: CeldaDelAnio | null) => void;
+  /**
+   * TODAS las coordenadas de la línea, de punta a punta (`§ADR-064`).
+   *
+   * No es lo mismo que `lon`/`lat`: aquéllas son el punto por el que se
+   * PREGUNTA; éstas sirven para COMPROBAR que el recorrido entero cabe en la
+   * celda que se responde, en vez de darlo por hecho.
+   */
+  puntos?: readonly { lat: number; lon: number }[];
   /** El día de hoy en el reloj del activo. Llega de fuera: aquí no se lee el reloj. */
   hoy: string;
   /** Los días que el pronóstico trajo de verdad. Vacío si aún no ha llegado. */
@@ -248,6 +256,11 @@ export function ClimaDelAnio({ lon, lat, alDibujarCelda, hoy, dias = [] }: {
     const r = diasDelMesSobre(bytes.px, ficha, pngDelMes, celda.ix, celda.iy, tope.valor, tope.mide);
     return { ...r, tope };
   }, [ficha, pngDelMes, bytes, mesClave, cual, lon, lat]);
+
+  /** El recorrido completo contra la rejilla de este atlas (`§ADR-064`). */
+  const recorrido = useMemo(
+    () => (ficha && puntos.length ? celdasDelRecorrido(puntos, ficha, celdaDe) : null),
+    [ficha, puntos]);
 
   // ── Se lo describe al mapa ────────────────────────────────────────────────
   useEffect(() => {
@@ -418,10 +431,33 @@ export function ClimaDelAnio({ lon, lat, alDibujarCelda, hoy, dias = [] }: {
       {/* ⚠️ EL AVISO QUE NO PUEDE FALTAR. Sin él, el rectángulo de color se lee
           como si el atlas distinguiera un extremo de la línea del otro. */}
       {tramo.procedencia === 'medido' && (
+        recorrido && recorrido.celdas.length > 1 ? (
+          // ⚠️ EL CASO QUE ANTES NO SE VEÍA. Si el recorrido cruza un borde, el
+          // número de arriba es el de UNA celda y los extremos pueden tener otro.
+          // Callarlo sería exactamente el fallo que esta comprobación vino a
+          // cerrar: una afirmación cómoda dada por buena sin mirar.
+          <p className="mapa-capas-n aviso">
+            <b>⚠️ Esta línea NO cabe en una sola celda: cruza {recorrido.celdas.length}.</b> El número
+            de arriba es el de la celda del punto de referencia; los extremos de la línea caen en
+            celdas distintas y pueden tener otro valor. Comprobado sobre las {recorrido.puntos}{' '}
+            coordenadas del recorrido.
+          </p>
+        ) : (
+          <p className="mapa-capas-n aviso">
+            <b>Una sola celda cubre toda la línea</b>
+            {recorrido
+              ? <> — comprobado punto por punto: las <b>{recorrido.puntos}</b> coordenadas del
+                recorrido, de punta a punta, caen en la misma</>
+              : null}. El atlas mide en cuadros de 1° (unos 111 km): por eso se dibuja ESA celda y se
+            da SU número, en vez de pintar un degradado que fingiría que un extremo tuvo otro tiempo
+            que el otro.
+          </p>
+        )
+      )}
+      {recorrido && recorrido.fuera > 0 && (
         <p className="mapa-capas-n aviso">
-          <b>Una sola celda cubre toda la línea.</b> El atlas mide en cuadros de 1° (unos 111 km) y este
-          corredor entra entero en uno: por eso se dibuja ESA celda y se da SU número, en vez de pintar
-          un degradado que fingiría que un extremo tuvo otro tiempo que el otro.
+          <b>{recorrido.fuera} de las {recorrido.puntos} coordenadas caen FUERA del encuadre de este
+          atlas.</b> De esos tramos no consta nada aquí.
         </p>
       )}
       {/* El aviso del ATLAS explica qué es su número: fuera de un día medido

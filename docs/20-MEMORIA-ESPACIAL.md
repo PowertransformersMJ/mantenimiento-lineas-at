@@ -119,7 +119,7 @@ mantenimiento-lineas-at/
 ├── web/src/componentes/         React SOLO pinta (ADR-005): Linea (las pestañas ARIA —cuántas son,
 │                                en `05`— **y** la carcasa de 3 columnas), **RedDeSeguridad** (la red
 │                                que evita la página en blanco de TODA la aplicación, montada en
-│                                `web/src/main.tsx`), **AtlasCaribe** (LOS CUATRO atlas con selector,
+│                                `web/src/main.tsx`), **AtlasCaribe** (LOS CINCO atlas con selector,
 │                                ADR-045/053/055) · **ClimaDelAnio** (ADR-056/058: eje
 │                                de fecha ÚNICO; régimen en `lineaDeTiempo`),
 │                                Horizonte (los apoyos en su orden real), Mapa (popup +
@@ -145,7 +145,7 @@ mantenimiento-lineas-at/
 │   ├── fichaLote.ts             quién puede recibir un dato de catálogo (ADR-038)
 │   ├── cableGuarda.ts           los tramos SIN cable de guarda (ADR-044). El hueco significa NO
 │   │                            CONSTA, nunca «lo lleva»
-│   ├── atlasCaribe.ts           el cuadro de una hora de CUALQUIERA de los dos atlas (ADR-053)
+│   ├── atlasCaribe.ts           el cuadro de una hora de CUALQUIER atlas (ADR-053/060)
 │   ├── radiacion.ts             el recurso solar del corredor (ADR-037/046): rampa ajustada al
 │   │                            recorte y su aviso de escala
 │   ├── temperatura.ts           el AIRE del corredor (ADR-039): media, no extremo.
@@ -177,12 +177,12 @@ mantenimiento-lineas-at/
 │                             de MEDIDA no son imagen: un PNG de valores + su ficha (ADR-036/037).
 │                             Mecánica en `vistas/rejilla.ts`
 │                             ⚠️ DOS recortes que NO se mezclan: `cartagena*` el corredor y
-│                             `caribe*`+`sol|temp|viento|lluvia-caribe*` los 7 dptos, perezosos
+│                             `caribe*`+`sol|temp|viento|lluvia|nubes-caribe*` 7 dptos, perezosos
 ├── web/public/basemaps-assets/  fuentes y sprites
 ├── githooks/pre-commit          BLOQUEA el commit: coordenadas reales y cerebro roto
 ├── .claude/settings.json        hooks de sesión (SÍ se commitea; el resto no)
 ├── .github/workflows/ci.yml     integridad del kernel + suite de pruebas
-└── …/vigia-nasa.yml             LOS DOS atlas al día cada 2 meses, en matriz. PROPONE. ⚠️ TODO-75
+└── …/vigia-nasa.yml             LOS CINCO atlas al día, SEMANAL, en matriz. PROPONE. ⚠️ TODO-75
 ```
 
 ---

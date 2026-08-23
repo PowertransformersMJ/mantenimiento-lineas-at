@@ -4,9 +4,10 @@
 > (trigger 🧪 de `CLAUDE.md §G.2`). Cada lección es un gotcha que ya se pagó una vez.
 > Formato: `L-NN · título` → **Síntoma** / **Causa** / **Regla**.
 >
-> **Qué es este archivo:** el ÍNDICE de las 66 lecciones —**50 repartidas por tema en CINCO hijos
-> y 16 de MÉTODO aquí mismo, completas**: cómo se delibera, cómo se verifica y cuándo algo está de
-> verdad terminado—. Las de método se quedan porque no son de ninguna pieza: valen para las tres, y
+> **Qué es este archivo:** el ÍNDICE de TODAS las lecciones —repartidas por tema en **cinco hijos**, con
+> las de **MÉTODO aquí mismo y completas**: cómo se delibera, cómo se verifica y cuándo algo está de
+> verdad terminado—. ⚠️ **Aquí NO se escribe cuántas hay** (`M-01`): esa cifra se desincronizó dos veces
+> en cuatro días y la cuenta exacta la da `npm run brain:check`, que las recorre de verdad. Las de método se quedan porque no son de ninguna pieza: valen para las tres, y
 > son las que más se citan desde otras neuronas. Si el síntoma huele a un tercero, a lo que se ve o
 > se abre, o al número que se firma, el índice te manda directo al hijo: no hay que leerse los
 > cuatro archivos.
@@ -117,6 +118,12 @@
 - `L-69` · Una rama inalcanzable no da error: da una respuesta creíble y falsa *(`32`)*
 - `L-70` · Buscar «la hora tal» en UTC funciona hasta que la serie cambia de paso *(`32`)*
 - `L-71` · Un resumen de OTRO ámbito, puesto al lado del número, destruye la confianza en la capa entera *(`34`)*
+
+### M-01 · Una cifra escrita a mano que un guardián puede contar es una cifra que envejece sola
+
+- **Síntoma:** el nodo madre declaraba «66 lecciones — 50 en cinco hijos y 16 de método»; eran **70 · 53 · 17**. La auditoría del 21-08 ya cazó lo mismo (57 por 63) y lo corrigió: **volvió a romperse en cuatro días**, por quien añadió las lecciones siguientes.
+- **Por qué reincide:** es un dato DERIVADO escrito a mano. Cada vez que alguien hace lo correcto —añadir una lección— deja el cerebro mintiendo, y el linter no lo caza: valida que las refs RESUELVAN, no que el resumen sea cierto.
+- **Regla:** un número que un guardián puede contar **no se escribe en prosa** — o lo publica el guardián, o no se publica. Si debe estar escrito, necesita un gate que lo compare con la realidad; «acuérdate de actualizarlo» no es un gate, es una esperanza. Se cerró **quitando la cifra**, no corrigiéndola por tercera vez. Misma familia: «13 pestañas» en `20`, «24 apoyos» en `05`, la versión del molde espejada a mano. **Qué mirar la próxima vez:** todo renglón con un número que también viva en el código, en git o en otro nodo (`99 §ADR-065`).
 
 ---
 

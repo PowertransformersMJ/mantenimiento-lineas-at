@@ -24,7 +24,7 @@ import { fileURLToPath } from 'node:url';
 import {
   perfilEnCelda, horasSobre, enTramos,
   intensidadDeLluvia, comoLlovio, ESCALA_LLUVIA, diasDelMesSobre,
-  estadoDelCielo, comoEstuvoElCielo, ESCALA_CIELO,
+  estadoDelCielo, comoEstuvoElCielo, ESCALA_CIELO, celdasDelRecorrido,
 } from '../web/src/vistas/atlasCaribe.ts';
 
 // Codificación de la casa: byte 0 = SIN DATO, y el valor sale de `(b-1)*paso+offset`.
@@ -347,5 +347,70 @@ describe('lo construido tiene que poder ENCONTRARSE', () => {
       'el botón que salta al último día medido desapareció');
     assert.match(PANEL, /regimen !== 'medido_horas'/,
       'el puente tiene que ofrecerse justo cuando NO hay medida a la vista');
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// EL RECORRIDO ENTERO CONTRA LA REJILLA. La pantalla venía AFIRMANDO «una sola
+// celda cubre toda la línea» sin comprobarlo: resolvía con el promedio de las
+// coordenadas. En una línea que roce un borde, el promedio cae en una celda y
+// los extremos en otra, y la frase se vuelve mentira sin que nada avise.
+// ════════════════════════════════════════════════════════════════════════════
+describe('cada coordenada del recorrido, no el promedio', () => {
+
+  // Rejilla de juguete de 1° por celda, con las mismas fórmulas de `rejilla.ts`.
+  const F = { bbox: [-77, 7, -71, 13], ancho: 6, alto: 6 };
+  const rad = Math.PI / 180;
+  const my = (lat) => Math.log(Math.tan(Math.PI / 4 + lat * rad / 2));
+  const celdaDe = (lon, lat, f) => {
+    const [loMin, laMin, loMax, laMax] = f.bbox;
+    const y0 = my(laMin), y1 = my(laMax);
+    if (lon < loMin || lon > loMax || my(lat) < y0 || my(lat) > y1) return null;
+    return {
+      ix: Math.min(f.ancho - 1, Math.floor(((lon - loMin) / (loMax - loMin)) * f.ancho)),
+      iy: Math.min(f.alto - 1, Math.floor(((y1 - my(lat)) / (y1 - y0)) * f.alto)),
+    };
+  };
+
+  test('una línea corta dentro de una celda declara UNA celda', () => {
+    const pts = Array.from({ length: 31 }, (_, i) => ({ lat: 10.40 + i * 0.002, lon: -75.50 }));
+    const r = celdasDelRecorrido(pts, F, celdaDe);
+    assert.equal(r.celdas.length, 1);
+    assert.equal(r.puntos, 31);
+    assert.equal(r.fuera, 0);
+  });
+
+  test('EL CASO QUE EL PROMEDIO ESCONDE: extremos en celdas distintas', () => {
+    // Los dos extremos a un lado y otro de un borde. El PROMEDIO cae limpiamente
+    // en una de las dos y la pantalla diría «una sola celda» tan tranquila.
+    const pts = [{ lat: 10.9, lon: -75.5 }, { lat: 11.1, lon: -75.5 }];
+    const r = celdasDelRecorrido(pts, F, celdaDe);
+    assert.equal(r.celdas.length, 2, 'el cruce de borde pasó desapercibido');
+    // Y se comprueba que el promedio, efectivamente, lo habría escondido.
+    const medio = { lat: 11.0, lon: -75.5 };
+    assert.equal(celdasDelRecorrido([medio], F, celdaDe).celdas.length, 1);
+  });
+
+  test('un punto fuera del encuadre se cuenta aparte, no se descarta en silencio', () => {
+    const pts = [{ lat: 10.4, lon: -75.5 }, { lat: 4.6, lon: -74.1 }];
+    const r = celdasDelRecorrido(pts, F, celdaDe);
+    assert.equal(r.fuera, 1);
+    assert.equal(r.celdas.length, 1);
+    assert.equal(r.puntos, 2, 'el total tiene que seguir contando los dos');
+  });
+
+  test('sin coordenadas no se inventa nada', () => {
+    const r = celdasDelRecorrido([], F, celdaDe);
+    assert.deepEqual(r.celdas, []);
+    assert.equal(r.puntos, 0);
+  });
+
+  test('la pantalla recibe el recorrido ENTERO, no solo el promedio', () => {
+    const MAPA = readFileSync(
+      fileURLToPath(new URL('../web/src/componentes/Mapa.tsx', import.meta.url)), 'utf-8');
+    assert.match(MAPA, /puntos: E\.map\(/,
+      'el mapa dejó de pasar las coordenadas completas');
+    assert.match(MAPA, /puntos=\{geometria\.puntos\}/,
+      'el panel dejó de recibir el recorrido');
   });
 });

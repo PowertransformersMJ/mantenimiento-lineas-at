@@ -5758,3 +5758,141 @@ enseñar el recorrido a pantalla entera, y no le añadía nada que el mapa no di
 ### Crudo de respaldo
 
 Sin comité: orden directa del Ingeniero sobre un pantallazo, aplicada en el mismo turno.
+
+---
+
+## ADR-064 · 2026-08-22 · Cada coordenada del recorrido, no el promedio: la advertencia pasa a ser una comprobación
+
+**Estado:** ✅ Decidido · **NO revisada externamente** · ✅ **verificado en vivo** con la sesión del
+Ingeniero: la capa publica «Una sola celda cubre toda la línea — **comprobado punto por punto: las 26
+coordenadas del recorrido, de punta a punta, caen en la misma**».
+
+### Contexto
+
+El Ingeniero pidió *«ten en cuenta todo el recorrido de la línea… cada coordenada desde el principio
+hasta el fin y todos sus alrededores»* para los cinco parámetros.
+
+Al ir a comprobarlo salió algo que no se sabía: **la pantalla venía AFIRMANDO «una sola celda cubre
+toda la línea» sin haberlo comprobado nunca.** El panel resuelve la celda con UN punto —el promedio
+de las coordenadas— y la frase era una convicción de diseño heredada de `§ADR-056`. Para LN-627 es
+verdad; pero en una línea más larga, o en una que roce un borde de celda, **el promedio cae en una
+celda y los extremos en otra**, y la frase se vuelve mentira sin que nada avise.
+
+### Lo que se midió, con las 26 coordenadas reales
+
+| Rejilla | Celdas que toca el recorrido |
+|---|---|
+| Atlas del Caribe (111 km): sol, temperatura, viento, lluvia, nubes | **1 sola** |
+| Corredor de Cartagena (2 km): radiación y temperatura | **3 celdas** |
+
+La línea mide 6,8 km de punta a punta (0,014° × 0,060°). Y ahí está el hecho que ordena todo lo
+demás: **a 111 km no hay nada que distinguir, y a 2 km sí lo hay** — pero las capas de 2 km son
+medias climatológicas de largo plazo (Global Solar Atlas 2.0, periodo 1994-2025), no series por hora.
+Su amplitud espacial en todo el encuadre es de **1,2 °C** en temperatura y **0,48 kWh/m²·día** en
+radiación.
+
+### Decisión
+
+- **Las coordenadas viajan ENTERAS al panel**, no solo su promedio. El promedio sigue sirviendo para
+  PREGUNTAR por una celda; las 26 sirven para COMPROBAR que el recorrido cabe en la que se responde.
+- **La frase pasa a ser un hecho medido**: «comprobado punto por punto: las 26 coordenadas… caen en
+  la misma».
+- **Y aparece el caso que antes no existía**: si el recorrido cruza más de una celda, la pantalla lo
+  dice —«⚠️ esta línea NO cabe en una sola celda: cruza N»— y advierte de que el número de arriba es
+  el del punto de referencia. Callarlo sería repetir el fallo que esta comprobación vino a cerrar.
+- **Los puntos fuera del encuadre se cuentan aparte** y se publican, en vez de descartarse en
+  silencio.
+
+### Lo que NO se puede, dicho con el número delante
+
+- **Lluvia, viento y nubes a lo largo de la línea: imposible con lo que hay.** Solo existen a 111 km,
+  y las 26 coordenadas caen en la misma celda. No es una limitación del código: no hay nada que leer.
+- **Temperatura y sol a lo largo de la línea: sí, pero como MEDIA de largo plazo**, no día a día. Las
+  capas de 2 km distinguen 3 celdas sobre el recorrido; lo que no hacen es contar qué pasó un martes.
+- **Los cinco, día a día y hora a hora, a lo largo de la línea: no existe fuente libre.** Sería
+  necesario un dato horario con resolución de cientos de metros, y para el Caribe colombiano no lo
+  hay en condiciones de uso comercial y sin clave (`31 · L-60`, `§ADR-040`).
+
+### Alternativas descartadas
+
+- **Interpolar el atlas de 111 km para «tener un valor por apoyo».** Dibujaría 26 números distintos
+  salidos de UNA sola medida. Es la prohibición de `§ADR-045` y `§ADR-056`, y aquí sería peor: con
+  cifras, no con colores.
+- **Callar el caso de la línea que cruza dos celdas** por no complicar el panel. Es exactamente el
+  hueco por el que se coló la afirmación sin comprobar.
+
+### Consecuencias
+
+- **1.840 pruebas en verde** (5 nuevas), una de ellas con el caso que el promedio escondía: dos
+  extremos a un lado y otro de un borde, cuyo promedio cae limpiamente en una sola celda.
+- Queda ofrecido y **pendiente de decisión** (`TODO-83`): publicar, para las capas de 2 km, el valor
+  en cada extremo y el rango a lo largo del recorrido, en vez del promedio actual.
+
+### Crudo de respaldo
+
+Cálculo sobre `fixtures/LN-627-geometria*.json` de la bóveda. No se copian coordenadas al repo.
+
+---
+
+## ADR-065 · 2026-08-22 · Auditoría Nivel-2: el cerebro entrega, pero en parte por recencia — y la recencia se poda
+
+**Estado:** ✅ Cerrada · **NO revisada externamente** · **Deliberación:**
+`research-archive/2026-08-22-auditoria-cerebro-nivel2.json`
+
+### Contexto
+
+El gate #14 del linter **bloqueó un commit**: 18 ADRs nuevos desde la auditoría del 21-08 y periodo
+de gracia agotado. El bloqueo llegó con el código **ya desplegado en producción y sin commitear** —o
+sea, producción por delante del repo—, que es exactamente el momento en que un gate incordia y por eso
+mismo demuestra que sirve.
+
+### Cómo se hizo
+
+Sondas 0-7 del protocolo. La **3 —el retrieval-drill— con un subagente FRÍO** arrancando solo con
+`CLAUDE.md` + `05` + `10` y cinco preguntas sacadas de re-investigaciones reales. Todo lo que trajo
+se **re-verificó con `grep` antes de tocar nada** (`§3.2`: lo de un subagente es hipótesis).
+
+### Lo que encontró
+
+**El lazo funciona: 1 reincidente de 28 hallazgos previos (3,6 %).** Pero ese uno importa, porque es
+el mismo animal que otros cuatro del 21-08: **cifras derivadas escritas a mano**. El nodo madre
+declaraba «66 lecciones» y eran 70 — el 21-08 decía 57 y eran 63—, y **lo rompí yo en esta sesión**
+al añadir tres lecciones sin tocar la cabecera. Se cerró con **`M-01`** y, sobre todo, **quitando la
+cifra**: si no hay número, no puede estar mal, y `brain:check` la cuenta cuando se pida.
+
+**Dos contradicciones dentro del mismo archivo**, las dos causadas hoy: el nodo de signos vitales
+decía «CINCO atlas» en la línea 10 y «CUATRO» en la 24; el mapa del código se contradecía **cuatro
+veces** sobre los atlas y el vigía, bajo su propia regla de frescura.
+
+**La memoria del harness duplicaba el estado del cerebro** y llevaba 16 días desfasada: «11 pestañas,
+811 pruebas, 24 ADR» cuando son 14 · 1.840 · 64, y anunciaba como próximo trabajo un módulo que el
+Ingeniero había aparcado. Ahora **apunta** en vez de copiar.
+
+**Y el hallazgo de fondo, que no es un defecto sino un patrón:** el cerebro **entrega hoy en parte
+por RECENCIA**. Dos de las cinco preguntas se resolvieron porque la frase literal estaba en la
+pizarra, no porque el índice supiera enrutarlas — y una de ellas el índice la mandaba a un nodo
+**ciego** (`34` no contiene ni una vez las palabras «clima» o «atlas»). La pizarra es un nodo **con
+tope y que se poda**: el día que se pode la ola del clima, esas respuestas dejan de ser alcanzables
+por síntoma. Se cerró con **cuatro filas de ruteo nuevas** en el índice.
+
+### Decisión
+
+- **Un número que un guardián puede contar no se escribe en prosa** (`30 · M-01`). Es la regla que
+  sale de esta auditoría y aplica a todo el cerebro.
+- **La memoria del harness guarda lo que el repo NO puede** —quién es él, cómo trabajar con él— y
+  **apunta** al cerebro para el estado. Nunca lo copia.
+- **La duda sobre una lección vive EN la lección**, no en la pizarra (`31 · L-60`).
+- **El índice tiene que enrutar los síntomas que MÁS se repiten**, aunque la pizarra los conteste hoy
+  gratis. Lo que solo contesta la pizarra tiene fecha de caducidad.
+
+### Consecuencias
+
+- 8 hallazgos: **6 cerrados en el acto**, 2 abiertos (`TODO-84`).
+- **GC pareado cumplido**: el arranque pasa de 31.495 a **31.473 chars** (−22), como exige el
+  protocolo — la auditoría que engorda el boot está incompleta.
+- Queda dicho lo que esta pasada **no** verificó: que el índice de lecciones ampute el cuarto
+  hallazgo de `L-37`. Lo trajo el subagente y no lo comprobé; se declara abierto en vez de darlo por
+  bueno.
+- **Siete nodos ≥90 % y cuatro al 100 %**, con los topes desbalanceados —el `30` tiene 5.285 chars
+  libres y cero líneas—. El GC pareado ya no basta: cada edición obliga a raspar. Toca shard o
+  recalibrar los caps, y va a `TODO-84`.

@@ -42,6 +42,10 @@ Guarda `research-archive/` (crudos de deliberación: comités, consejos externos
 | «desplegué y la pantalla sigue igual», «ese número está mal escrito» | `32` |
 | «el mapa es un rectángulo gris», «enciendo la capa y no pasa nada», «no veo el gradiente» | `34` |
 | «este número del informe firmable no cuadra» | `33` |
+| «el CI está VERDE pero el cambio NO está en producción», «Actions en verde y la pantalla igual» | `32 · L-35/L-18` |
+| «voy a añadir una capa o un atlas nuevo: ¿qué toco y qué NO?» | `20` + `99 §ADR-055/060` |
+| «¿por qué esta capa se dibuja como UNA celda y su número, y no como campo de colores?» | `99 §ADR-035/046/056` |
+| «¿hubo tormenta eléctrica / rayos?», «¿por qué no consta una descarga atmosférica?» | `99 §ADR-060` + `35 · L-37` |
 | «declaré el dato y el sistema sigue con el valor por defecto» | `30 · L-68` + `99 §ADR-013/052` |
 | «¿qué es el vano ideal de regulación?», «¿de dónde sale esta fórmula?» | `40` |
 | «¿por qué se eligió este stack y no el otro?» | `99` |
@@ -136,6 +140,8 @@ Guarda `research-archive/` (crudos de deliberación: comités, consejos externos
 | `ADR-061` | 2026-08-22 | La escala se publica en la pantalla, no solo se aplica | *(`tests/perfil-del-dia.test.js`)* |
 | `ADR-062` | 2026-08-22 | Lo que no se encuentra no existe: el puente al día medido | *(`tests/perfil-del-dia.test.js`)* |
 | `ADR-063` | 2026-08-22 | El horizonte sale de «Detalle GPS», y solo de ahí | *(`tests/horizonte-cobertura.test.js`)* |
+| `ADR-064` | 2026-08-22 | Cada coordenada del recorrido, no el promedio: la advertencia pasa a ser comprobación | *(`tests/perfil-del-dia.test.js`)* |
+| `ADR-065` | 2026-08-22 | Auditoría Nivel-2: el cerebro entrega, pero en parte por recencia — y la recencia se poda | `research-archive/2026-08-22-auditoria-cerebro-nivel2.json` |
 
 > Toda decisión cara de revertir entra aquí con su ADR y su crudo enlazado. Si hubo comité o consejo
 > externo y el crudo no está archivado, la tarea **no está cerrada** (`CLAUDE.md §G.4`).

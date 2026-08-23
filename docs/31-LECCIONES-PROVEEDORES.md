@@ -13,6 +13,10 @@
 
 ### L-60 · Un organismo publica VARIAS licencias: la del dato que buscas no es la del dato que sale primero
 
+> ⚠️ **ESTA LECCIÓN PUEDE ESTAR MAL — verifícala ANTES de citarla.** La duda vivía solo en la
+> pizarra (`10`), así que quien llegaba aquí desde el índice la citaba como hecho comprobado. La
+> duda sobre una lección vive EN la lección (`CLAUDE.md §G.3`, SSoT).
+
 - **Síntoma:** buscando más resolución para la capa satelital apareció el IGAC, que sirve ortoimágenes
   de 3 m para todo Bolívar y de 10 cm para municipios vecinos — comprobado descargando muestras. La
   primera página de licencia que devuelve una búsqueda es la de **datos abiertos**, y dice **CC BY-SA

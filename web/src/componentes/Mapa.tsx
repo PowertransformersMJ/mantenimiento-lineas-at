@@ -344,7 +344,14 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
     const lat = E.reduce((s2, a) => s2 + a.coordenada.lat, 0) / E.length;
     const lon = E.reduce((s2, a) => s2 + a.coordenada.lon, 0) / E.length;
     const lev = derivarLevantamiento(apoyos);
-    return { lat, lon, eje: ejeDeLaLinea(lev.puntos.map((p) => p.azimut_deg)) };
+    // ⚠️ Las coordenadas viajan ENTERAS, no solo su promedio (`§ADR-064`). El
+    // promedio sirve para preguntar por una celda; para comprobar si el
+    // recorrido cabe en ESA celda hacen falta todas, de punta a punta.
+    return {
+      lat, lon,
+      eje: ejeDeLaLinea(lev.puntos.map((p) => p.azimut_deg)),
+      puntos: E.map((a) => ({ lat: a.coordenada.lat, lon: a.coordenada.lon })),
+    };
   }, [apoyos]);
 
   useEffect(() => {
@@ -911,7 +918,7 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
         {climaAnio && geometria && (
           <Suspense fallback={<p className="mapa-capas-n">Bajando el histórico…</p>}>
             <ClimaDelAnio lon={geometria.lon} lat={geometria.lat}
-              alDibujarCelda={setCeldaAnio}
+              alDibujarCelda={setCeldaAnio} puntos={geometria.puntos}
               hoy={diaDe(new Date())} dias={tiempo?.dias ?? []} />
           </Suspense>
         )}

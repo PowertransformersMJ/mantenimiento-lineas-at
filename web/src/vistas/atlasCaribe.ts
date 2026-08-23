@@ -498,3 +498,51 @@ export function comoEstuvoElCielo(
   return [...porClave.values()].sort(
     (a, b) => orden.indexOf(b.grado.clave) - orden.indexOf(a.grado.clave));
 }
+
+// ════════════════════════════════════════════════════════════════════════════
+// EL RECORRIDO ENTERO CONTRA LA REJILLA (§ADR-064)
+// ----------------------------------------------------------------------------
+// POR QUÉ. La pantalla venía afirmando «una sola celda cubre toda la línea» —y
+// era verdad para LN-627— pero **nadie lo había comprobado**: el panel resolvía
+// la celda con UN punto, el promedio de todas las coordenadas, y la frase era
+// una convicción de diseño, no un hecho medido. En una línea más larga, o en una
+// que pase cerca de un borde de celda, esa frase se convierte en mentira sin que
+// nada avise: el promedio caería en una celda y los extremos en otra.
+//
+// El Ingeniero lo pidió con todas las letras: «ten en cuenta cada coordenada a
+// lo largo de la línea desde el principio hasta el fin». Esto es eso — y de paso
+// convierte una afirmación en una comprobación, que es el trabajo de esta casa.
+// ════════════════════════════════════════════════════════════════════════════
+
+/** Qué encuentra el recorrido completo cuando se le pregunta a una rejilla. */
+export interface CeldasDelRecorrido {
+  /** Cuántas coordenadas se comprobaron. */
+  puntos: number;
+  /** Celdas distintas que toca el recorrido, en el orden en que aparecen. */
+  celdas: { ix: number; iy: number }[];
+  /** Puntos que caen FUERA del encuadre de esa rejilla. No se disimulan. */
+  fuera: number;
+}
+
+/**
+ * Contra qué celdas cae el recorrido completo de una línea.
+ *
+ * @param puntos  TODAS las coordenadas, de punta a punta. No el promedio.
+ * @param celdaDe la función que resuelve la celda, inyectada para que este
+ *                módulo siga sin depender de `rejilla.ts` en tiempo de ejecución.
+ */
+export function celdasDelRecorrido(
+  puntos: readonly { lat: number; lon: number }[],
+  ficha: FichaAtlas,
+  celdaDe: (lon: number, lat: number, f: FichaAtlas) => { ix: number; iy: number } | null,
+): CeldasDelRecorrido {
+  const vistas = new Map<string, { ix: number; iy: number }>();
+  let fuera = 0;
+  for (const p of puntos) {
+    const c = celdaDe(p.lon, p.lat, ficha);
+    if (!c) { fuera++; continue; }
+    const k = `${c.ix},${c.iy}`;
+    if (!vistas.has(k)) vistas.set(k, c);
+  }
+  return { puntos: puntos.length, celdas: [...vistas.values()], fuera };
+}
