@@ -223,3 +223,47 @@
 - **Corolario que casi cuesta otro error:** al sustituir una imagen, identificarla por el `r:embed`
   de SU forma, no por «el PNG más grande de la lámina». Con ese criterio cambié `image32.png`
   mientras el mapa era `image9.png`, y el resultado fue un archivo correcto con la figura vieja.
+
+### L-69 · Una rama inalcanzable no da error: da una respuesta creíble y falsa
+
+- **Síntoma:** la capa de pronóstico decía **«nublado»** casi todos los días. El Ingeniero lo vio
+  antes que cualquier prueba: *«no se aprecia información de valor, si lloverá, si será nublado o
+  cálido»*.
+- **Causa:** la traducción de símbolos buscaba por trozo de texto y preguntaba `cloudy` **antes** que
+  `partlycloudy` — y `partlycloudy` **contiene** `cloudy`. La rama de «parcialmente nublado» era
+  inalcanzable para todo código posible. Ese día la fuente entregó **50 tramos `partlycloudy` y 11
+  `cloudy`**, y la pantalla pintó los 61 iguales.
+- **Por qué sobrevivió tanto:** porque **no falla**. Una rama inalcanzable no lanza excepción, no
+  deja hueco y no pinta nada raro: devuelve una etiqueta perfectamente creíble. El guardián probaba
+  cuatro familias sueltas y ninguna era la que chocaba, así que el verde era sincero y estaba
+  equivocado.
+- **Regla:** en una cadena de `includes`/`startsWith`/`match`, **el orden ES la función**: de lo más
+  específico a lo más general, y la razón escrita al lado de cada línea que adelanta a otra. Y el
+  guardián no prueba ejemplos: **recorre el catálogo entero de entradas reales y comprueba que
+  NINGUNA rama queda sin alcanzar**. Una salida que ninguna entrada real puede producir es un fallo,
+  no código de más.
+- **Cómo se comprueba que el guardián sirve:** reintroduciendo el fallo a propósito y viendo que se
+  pone rojo. Si no se pone rojo, el guardián no es un guardián: es decoración (`30 · L-68`).
+- **Hermana de `L-44`** (un tercer estado que la pantalla aplana): la misma familia — dos cosas
+  distintas del núcleo saliendo por la misma puerta— con distinto mecanismo.
+
+### L-70 · Buscar «la hora tal» en UTC funciona hasta que la serie cambia de paso
+
+- **Síntoma:** el cielo de los días lejanos lo decidía **la 1 de la madrugada**, y con símbolo
+  nocturno. El del día en curso salía de las 21:00 del día anterior.
+- **Causa:** el símbolo del día se elegía con `getUTCHours() === 17` (mediodía de Colombia). Existe
+  mientras la fuente publica paso horario; **a partir del cuarto día solo publica bloques de 6 h
+  sellados a 00/06/12/18 UTC**, ese instante no existe, el `find` devuelve `undefined` y el respaldo
+  era «el primero del día»: las 06 UTC = 01:00 local. El comentario del propio archivo prometía
+  exactamente lo contrario de lo que hacía el código.
+- **Lo que lo hace traicionero:** funciona en las pruebas y en los primeros días de la pantalla —los
+  que uno mira al desarrollar— y se rompe solo en la parte del horizonte que nadie revisa.
+- **Regla:** una hora que significa algo para una persona (*la jornada*, *el amanecer*, *el cierre*)
+  se busca **en el reloj de esa persona**, nunca en el UTC de la fuente; y se busca **por cercanía**,
+  nunca por igualdad, porque el paso de una serie temporal no es un contrato: cambia a mitad del
+  horizonte. Un `find` por valor exacto sobre una serie de paso variable necesita un respaldo, y
+  «el primero de la lista» **no** es un respaldo: es un dato distinto disfrazado del que se pedía.
+- **Y una guía que salió gratis:** si hay que elegir una hora de referencia, elegir la que **coincide
+  con un sello real de la fuente** en los dos regímenes. Aquí, las 13:00 de Colombia son las 18 UTC,
+  que es un bloque real tanto con paso horario como con paso de 6 h. Las 12:00 no lo eran.
+- **Hermana de `L-69`** (el mismo día, el mismo módulo): las dos daban un resultado creíble.

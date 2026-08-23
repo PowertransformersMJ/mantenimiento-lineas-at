@@ -30,6 +30,7 @@ import { fileURLToPath } from 'node:url';
 import {
   aKmh, puntoDeConsulta, ejeDeLaLinea, vientoSobreLaLinea, contraLaHipotesis,
   leerPronostico, avisosDelPronostico, eltiempoEnCastellano, TOPES_AVISO,
+  simboloDelDia, HORA_DE_LA_JORNADA,
 } from '../web/src/vistas/pronostico.ts';
 
 const cerca = (real, esperado, tol, msg) =>
@@ -362,5 +363,162 @@ describe('la consulta al servicio del tiempo', () => {
   test('la atribución de la licencia viaja con el módulo', () => {
     assert.match(CODIGO, /ATRIBUCION_PRONOSTICO/);
     assert.match(FUENTE, /CC BY 4\.0/, 'la licencia de la fuente se declara donde se usa');
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// EL CIELO DE LA JORNADA. Dos fallos vistos EN PRODUCCIÓN el 2026-08-22, los dos
+// invisibles porque su resultado era plausible: una etiqueta creíble y un
+// símbolo creíble, los dos equivocados.
+// ════════════════════════════════════════════════════════════════════════════
+describe('el cielo, traducido sin que una rama tape a otra', () => {
+
+  /**
+   * El catálogo REAL de la fuente (sus `symbol_code` base, sin el sufijo de
+   * día/noche/crepúsculo). Se prueba entero a propósito: el fallo del 22-08 pasó
+   * el guardián porque el guardián probaba cuatro familias sueltas y ninguna era
+   * la que chocaba. Un test que recorre la tubería completa (`30 · L-68`).
+   */
+  const CATALOGO = [
+    ['clearsky', 'despejado'],
+    ['fair', 'poco nuboso'],
+    ['partlycloudy', 'parcialmente nublado'],
+    ['cloudy', 'nublado'],
+    ['fog', 'niebla'],
+    ['lightrain', 'llovizna'],
+    ['lightrainshowers', 'llovizna'],
+    ['rain', 'lluvia'],
+    ['rainshowers', 'lluvia'],
+    ['heavyrain', 'lluvia fuerte'],
+    ['heavyrainshowers', 'lluvia fuerte'],
+    ['lightsleet', 'aguanieve'],
+    ['sleet', 'aguanieve'],
+    ['heavysleet', 'aguanieve'],
+    ['sleetshowers', 'aguanieve'],
+    ['lightsnow', 'nieve'],
+    ['snow', 'nieve'],
+    ['heavysnow', 'nieve'],
+    ['snowshowers', 'nieve'],
+    // La tormenta manda sobre la familia de la que cuelga: lo que decide una
+    // jornada no es si además llueve fuerte, es que hay aparato eléctrico.
+    ['rainandthunder', 'tormenta eléctrica'],
+    ['heavyrainshowersandthunder', 'tormenta eléctrica'],
+    ['lightrainshowersandthunder', 'tormenta eléctrica'],
+    ['snowandthunder', 'tormenta eléctrica'],
+    ['sleetshowersandthunder', 'tormenta eléctrica'],
+  ];
+
+  test('cada familia de la fuente cae en SU rama, con y sin sufijo', () => {
+    for (const [codigo, esperado] of CATALOGO) {
+      for (const sufijo of ['', '_day', '_night', '_polartwilight']) {
+        assert.equal(eltiempoEnCastellano(codigo + sufijo), esperado,
+          `«${codigo}${sufijo}» se tradujo mal`);
+      }
+    }
+  });
+
+  test('NINGUNA rama es inalcanzable', () => {
+    // ESTE es el test que habría cazado el fallo del 22-08. `partlycloudy`
+    // contiene `cloudy`, así que con las preguntas en el orden equivocado la
+    // rama de «parcialmente nublado» no la alcanzaba ningún código del mundo —
+    // y nadie se enteraba, porque la respuesta que salía («nublado») era
+    // perfectamente creíble. Una rama que ninguna entrada real puede alcanzar es
+    // un fallo, no código de más.
+    const alcanzadas = new Set(CATALOGO.map(([c]) => eltiempoEnCastellano(c)));
+    const todasLasEtiquetas = [
+      'despejado', 'poco nuboso', 'parcialmente nublado', 'nublado', 'niebla',
+      'llovizna', 'lluvia', 'lluvia fuerte', 'aguanieve', 'nieve', 'tormenta eléctrica',
+    ];
+    for (const etiqueta of todasLasEtiquetas) {
+      assert.ok(alcanzadas.has(etiqueta),
+        `«${etiqueta}» es INALCANZABLE: ningún código real de la fuente llega a esa rama`);
+    }
+  });
+
+  test('el cielo intermedio no se disfraza de cielo cerrado', () => {
+    // El 22-08 la fuente entregaba 50 tramos «parcialmente nublado» y 11
+    // «nublado», y la pantalla pintaba los 61 iguales.
+    assert.equal(eltiempoEnCastellano('partlycloudy_day'), 'parcialmente nublado');
+    assert.notEqual(eltiempoEnCastellano('partlycloudy_day'), eltiempoEnCastellano('cloudy'));
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+describe('el símbolo que representa el día se busca en el reloj de la cuadrilla', () => {
+
+  const inst = (cuando, simbolo) => ({
+    cuando, simbolo, temperatura_C: null, viento_kmh: null,
+    vientoDesde_deg: null, humedad_pct: null, nubes_pct: null, lluvia_mm: null,
+  });
+
+  test('en un día lejano NO manda la madrugada', () => {
+    // EL FALLO REAL. Pasado el tercer día la fuente solo publica bloques de seis
+    // horas —00, 06, 12 y 18 UTC—, así que el instante de las 17 UTC que se
+    // buscaba NO EXISTE y el respaldo era «el primero del día»: las 06 UTC, o
+    // sea LA UNA DE LA MADRUGADA. El cielo de una jornada de trabajo lo decidía
+    // la madrugada, y con símbolo nocturno.
+    const dia = [
+      inst('2026-09-01T06:00:00Z', 'clearsky_night'),      // 01:00 local
+      inst('2026-09-01T12:00:00Z', 'partlycloudy_day'),    // 07:00 local
+      inst('2026-09-01T18:00:00Z', 'heavyrain'),           // 13:00 local ← la jornada
+      inst('2026-09-02T00:00:00Z', 'cloudy'),              // 19:00 local
+    ];
+    assert.equal(simboloDelDia(dia), 'heavyrain',
+      'se quedó con un instante que no representa la jornada');
+    assert.notEqual(simboloDelDia(dia), 'clearsky_night',
+      'volvió a mandar la madrugada: ese era exactamente el fallo');
+  });
+
+  test('las 18 UTC son la jornada de Colombia, y por eso el criterio no se rompe al cambiar el paso', () => {
+    // La razón de elegir las 13:00 y no las 12:00: el bloque de seis horas
+    // sellado a las 18 UTC ES las 13:00 de Colombia. El mismo criterio cae
+    // clavado en un bloque real tanto con detalle horario como sin él.
+    const enBogota = (iso) => new Date(iso)
+      .toLocaleString('en-US', { timeZone: 'America/Bogota', hour: 'numeric', hour12: false });
+    assert.equal(Number(enBogota('2026-09-01T18:00:00Z')), HORA_DE_LA_JORNADA);
+  });
+
+  test('con detalle horario elige la hora de la jornada, no la primera del día', () => {
+    const dia = [];
+    for (let h = 5; h < 24; h++) {                       // 00:00 → 19:00 local
+      dia.push(inst(`2026-09-01T${String(h).padStart(2, '0')}:00:00Z`,
+        h === 18 ? 'rainshowers_day' : 'clearsky_day'));
+    }
+    assert.equal(simboloDelDia(dia), 'rainshowers_day');
+  });
+
+  test('un instante sin símbolo no se elige aunque caiga en la hora', () => {
+    const dia = [
+      inst('2026-09-01T18:00:00Z', null),                 // 13:00 local, pero sin dato
+      inst('2026-09-01T12:00:00Z', 'partlycloudy_day'),   // 07:00 local
+    ];
+    assert.equal(simboloDelDia(dia), 'partlycloudy_day');
+  });
+
+  test('el día que ya va empezado se queda con lo que QUEDA, no se inventa un mediodía que pasó', () => {
+    const dia = [
+      inst('2026-09-02T02:00:00Z', 'partlycloudy_night'), // 21:00 local
+      inst('2026-09-02T03:00:00Z', 'fair_night'),         // 22:00 local
+    ];
+    assert.equal(simboloDelDia(dia), 'partlycloudy_night');
+  });
+
+  test('un día entero sin un solo símbolo es hueco, no invento', () => {
+    assert.equal(simboloDelDia([inst('2026-09-01T18:00:00Z', null)]), null);
+    assert.equal(simboloDelDia([]), null);
+  });
+
+  test('de punta a punta: el día lejano llega a la tabla con el cielo de su jornada', () => {
+    const p = leerPronostico({ properties: { timeseries: [
+      { time: '2026-09-01T06:00:00Z', data: { instant: { details: { air_temperature: 24 } },
+        next_6_hours: { summary: { symbol_code: 'clearsky_night' }, details: { precipitation_amount: 0 } } } },
+      { time: '2026-09-01T12:00:00Z', data: { instant: { details: { air_temperature: 28 } },
+        next_6_hours: { summary: { symbol_code: 'partlycloudy_day' }, details: { precipitation_amount: 0 } } } },
+      { time: '2026-09-01T18:00:00Z', data: { instant: { details: { air_temperature: 33 } },
+        next_6_hours: { summary: { symbol_code: 'rainshowers_day' }, details: { precipitation_amount: 6 } } } },
+    ] } });
+    const dia = p.dias.find((d) => d.dia === '2026-09-01');
+    assert.equal(dia.simbolo, 'rainshowers_day');
+    assert.equal(eltiempoEnCastellano(dia.simbolo), 'lluvia');
   });
 });

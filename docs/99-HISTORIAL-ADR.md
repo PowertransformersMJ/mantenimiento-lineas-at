@@ -5280,3 +5280,82 @@ extremo de la línea tuvo otro tiempo que el otro, que es lo que nadie midió.
 Sin comité: la decisión la tomó el Ingeniero eligiendo entre tres opciones con sus consecuencias
 escritas, y la resolución técnica se apoya en `ADR-035` (el pronóstico como dato del sitio) y
 `ADR-046` (la capa que no se puede apreciar).
+
+---
+
+## ADR-057 · 2026-08-22 · El cielo que no informaba: una rama inalcanzable y un día contado desde la madrugada
+
+**Estado:** ✅ Decidido · **NO revisada externamente** · **fase 1 de 2** — la fase 2 (franja
+mañana/tarde y sensación térmica) queda ofrecida y pendiente de decisión del Ingeniero.
+
+### Contexto
+
+El Ingeniero, mirando la capa en producción: *«noto que en el pronóstico del tiempo no se aprecia
+información de valor, si lloverá, si será nublado o cálido»*. No era una impresión: la columna
+«Cielo» decía **«nublado»** casi todos los días, y los que no, «lluvia».
+
+Verificado contra producción con su propia sesión y contra la API de la fuente, el mismo día y con
+la celda real de LN-627 (`10,3 / -75,5`): de los **91 tramos** que MET entregó, **50 eran
+`partlycloudy`** y solo **11 eran `cloudy`**. La pantalla pintaba los 61 iguales.
+
+Y algo peor por debajo: el símbolo que representaba cada día **lo estaba eligiendo la madrugada**.
+El del sábado salía del instante de las 21:00 del viernes; el del 26 de agosto en adelante, del
+bloque de la **1:00 de la mañana**, y con símbolo nocturno.
+
+### Decisión
+
+**Fase 1 — los dos fallos, y nada más** (lo que el Ingeniero eligió de tres alcances ofrecidos):
+
+- **El orden de las preguntas ES la función.** `eltiempoEnCastellano` busca por trozo de texto, así
+  que cada familia tiene que preguntarse antes que cualquier otra contenida en su nombre.
+  `partlycloudy` **contiene** `cloudy`: con `cloudy` delante, la rama de «parcialmente nublado» era
+  **inalcanzable para todo código del mundo**. Se reordena y el principio queda escrito en el propio
+  archivo, porque romperlo no da un error: da una respuesta plausible y equivocada.
+- **La hora del día se busca en el reloj de la cuadrilla, no en el UTC de la fuente.** Se retira el
+  `getUTCHours() === 17` y entra `simboloDelDia`, que elige el instante **con símbolo** más cercano a
+  la hora de la jornada. Y la hora de la jornada son las **13:00** —no las 12:00— por una razón que
+  no es estética: el bloque de 6 h sellado a las **18 UTC es exactamente las 13:00 de Colombia**, así
+  que el mismo criterio cae clavado en un bloque real tanto con detalle horario como sin él. El día
+  que ya va empezado se queda con lo que queda por delante: no se inventa un mediodía que ya pasó.
+- **Un guardián que recorre el catálogo entero** (`30 · L-68`), no cuatro familias sueltas. Y dentro
+  de él, el test que habría cazado esto: **ninguna rama puede ser inalcanzable**. Se comprobó que el
+  guardián sirve reintroduciendo el fallo a propósito — tres pruebas se ponen rojas — y quitándolo.
+
+**Lo que se decidió NO tocar, tras medirlo:** se sospechaba doble conteo en la suma de lluvia del día
+de transición (13,5 mm «cubriendo 25 h»). Comprobado contra la API: el último paso con `next_1_hours`
+es `2026-08-25T17:00Z` y el primero solo-`next_6_hours` es `18:00Z` — salto de 1 h, **sin hueco y sin
+solape**. Las 25 h son un bloque de 6 h que cruza la medianoche local y se atribuye al día de su
+sello, que es correcto. Se dijo que era un tercer fallo y no lo era: se retiró la afirmación.
+
+### Alternativas descartadas
+
+- **Responder «¿lloverá?» con un porcentaje, como el teléfono.** Verificado en la propia API:
+  `/complete` **no trae** `probability_of_precipitation`, ni `probability_of_thunder`, ni
+  `precipitation_amount_min/max`, ni **rachas** (`wind_speed_of_gust`) para esta zona. Esos campos
+  salen del modelo post-procesado nórdico; en el Caribe responde el modelo global. Derivar un % de
+  nubes y humedad sería relleno con uniforme de certeza, prohibido por el propio módulo.
+- **Cambiar de proveedor por uno con probabilidades.** Llave de API en un sitio estático **público**
+  = proxy anónimo pagado por el Ingeniero, y se pierde la fuente CC BY sin cuenta (misma familia de
+  razones que `ADR-001` y `31`).
+- **Hacer la fase 2 en la misma tanda.** Se ofreció y eligió los fallos primero: ver la pantalla ya
+  honesta antes de rediseñarla. Queda escrito que se ofreció.
+- **Distinguir «chubasco» de «lluvia»** (`rainshowers` sale hoy como «lluvia»). Es un cambio de
+  criterio, no un fallo: entra en la fase 2 si él quiere, no por detrás.
+
+### Consecuencias
+
+- La columna «Cielo» **vuelve a distinguir**: «parcialmente nublado» existe, y el cielo de cada día
+  lo decide su jornada y no su madrugada.
+- **1.788 pruebas en verde** (46 en `tests/pronostico.test.js`, 12 nuevas).
+- Queda dicho lo que **no** cambia y el Ingeniero verá igual: la humedad y el `nubes_pct` se leen y
+  siguen sin pintarse, no hay sensación térmica, se enseñan 5 días de los 11 disponibles y las
+  próximas horas se calculan (`proximasHoras`) y **nunca se dibujan** — o sea, la hora a la que
+  llueve existe en memoria y no llega a la pantalla. **Eso es la fase 2** (`TODO-82`).
+- El viento que se publica es **sostenido, no racha**, porque la fuente no da rachas aquí. Hoy la
+  pantalla no lo aclara: entra en la fase 2.
+
+### Crudo de respaldo
+
+`research-archive/2026-08-22-pronostico-diagnostico-y-estrategia.md` — evidencia de producción
+(tabla pantalla vs. fuente, conteo de los 91 tramos, claves reales de `/complete`) y la estrategia
+completa de Fable 5, con sus umbrales y sus cinco tentaciones rechazadas.

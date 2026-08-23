@@ -206,6 +206,68 @@ const diaLocal = (iso: string): string => {
 };
 
 /**
+ * La hora del reloj de la cuadrilla, 0–23.
+ *
+ * ⚠️ NO SE PUEDE USAR `getUTCHours()` PARA ESTO, y esa fue la trampa: la fuente
+ * publica en UTC y el que sale a trabajar mira su reloj. Peor todavía, la
+ * distancia entre los dos NO es un número fijo que se pueda restar: el paso de
+ * la serie cambia de una hora a seis a mitad de horizonte, así que buscar «la
+ * hora UTC tal» funciona los primeros días y deja de existir después.
+ */
+const horaLocal = (iso: string): number => {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return NaN;
+  const partes = new Intl.DateTimeFormat('en-US', { timeZone: ZONA, hour: 'numeric', hour12: false })
+    .formatToParts(d);
+  const h = Number(partes.find((p) => p.type === 'hour')?.value);
+  // Hay entornos que escriben la medianoche como «24». Es la hora 0 del día.
+  return h === 24 ? 0 : h;
+};
+
+/**
+ * La hora que REPRESENTA un día de trabajo, en el reloj de la cuadrilla.
+ *
+ * Las 13:00 y no las 12:00 por una razón que no es estética: la fuente entrega
+ * los días lejanos en bloques de seis horas sellados a las 00, 06, 12 y 18 UTC,
+ * y el de las 18 UTC **es exactamente las 13:00 de Colombia**. Eligiendo esa
+ * hora, el criterio cae clavado en un bloque real tanto en los días con detalle
+ * horario como en los que solo tienen cuatro bloques: la misma pregunta recibe
+ * la misma clase de respuesta a tres días que a nueve.
+ */
+export const HORA_DE_LA_JORNADA = 13;
+
+/**
+ * El símbolo que representa el día, elegido por CERCANÍA a la jornada.
+ *
+ * EL FALLO QUE ESTO CORRIGE (visto en producción el 2026-08-22): se buscaba el
+ * instante de las 17 UTC. En los días con detalle horario existe y todo iba
+ * bien; a partir del cuarto día la serie solo trae 00/06/12/18 UTC, ese instante
+ * NO EXISTE, y el respaldo era «el primero del día» — las 06 UTC, o sea **la una
+ * de la madrugada**. Durante días, el cielo de una jornada de trabajo lo decidió
+ * la madrugada, y encima con un símbolo nocturno: el propio comentario de este
+ * archivo prometía justo lo contrario de lo que hacía el código.
+ *
+ * Ahora se toma el instante CON SÍMBOLO más cercano a la hora de la jornada. En
+ * un día completo eso cae en la tarde; en el día que ya va empezado se queda con
+ * lo que quede por delante, que es lo honesto: no se inventa un mediodía que ya
+ * pasó.
+ */
+export function simboloDelDia(instantes: InstantePronostico[]): string | null {
+  let mejor: InstantePronostico | null = null;
+  let distanciaMejor = Infinity;
+  for (const x of instantes) {
+    if (x.simbolo === null) continue;
+    const h = horaLocal(x.cuando);
+    if (!Number.isFinite(h)) continue;
+    const d = Math.abs(h - HORA_DE_LA_JORNADA);
+    // Estrictamente menor: ante un empate manda el más temprano, que es el que
+    // la cuadrilla se encuentra primero.
+    if (d < distanciaMejor) { distanciaMejor = d; mejor = x; }
+  }
+  return mejor?.simbolo ?? null;
+}
+
+/**
  * Del JSON de la fuente a lo que la pantalla pinta.
  *
  * NO RELLENA NADA. Un campo que no venga se queda en `null` y se dibuja como
@@ -273,9 +335,10 @@ export function leerPronostico(bruto: unknown): PronosticoEnPantalla {
     tempMax_C: maximo(xs.map((x) => x.temperatura_C)),
     vientoMax_kmh: maximo(xs.map((x) => x.viento_kmh)),
     lluvia_mm: suma(xs.map((x) => x.lluvia_mm)),
-    // El símbolo del mediodía representa el día mejor que el de las tres de la
-    // madrugada, que sería «despejado» en cualquier tormenta de tarde.
-    simbolo: (xs.find((x) => new Date(x.cuando).getUTCHours() === 17) ?? xs[0])?.simbolo ?? null,
+    // El símbolo de la JORNADA representa el día mejor que el de la madrugada,
+    // que sería «despejado» en cualquier tormenta de tarde. Ver `simboloDelDia`:
+    // la hora se busca en el reloj de la cuadrilla, no en el UTC de la fuente.
+    simbolo: simboloDelDia(xs),
   })).sort((a, b) => a.dia.localeCompare(b.dia));
 
   return {
@@ -292,19 +355,33 @@ export function leerPronostico(bruto: unknown): PronosticoEnPantalla {
  * Se traduce por FAMILIA y no símbolo a símbolo: la fuente publica más de cien
  * variantes (día/noche/polar × intensidad) y una tabla de cien filas envejece
  * mal. Lo que no encaje sale con su código crudo, que es feo pero honesto.
+ *
+ * ⚠️ EL ORDEN DE ESTAS PREGUNTAS ES LA FUNCIÓN. Se busca por trozo de texto, así
+ * que **cada familia tiene que preguntarse antes que cualquier otra que esté
+ * contenida en su nombre**, de la más específica a la más general. Romper ese
+ * orden no da un error: da una respuesta plausible y equivocada, que es peor.
+ *
+ * ASÍ SE ROMPIÓ, Y ASÍ SE VIO (2026-08-22, en producción): `cloudy` estaba
+ * preguntado ANTES que `partlycloudy` — y `partlycloudy` contiene `cloudy`—, de
+ * modo que la rama de «parcialmente nublado» era inalcanzable y todo cielo
+ * intermedio salía «nublado». Ese día la fuente entregaba 50 tramos
+ * «parcialmente nublado» y 11 «nublado», y la pantalla los pintaba los 61
+ * iguales: la columna del cielo no informaba de nada. El guardián no lo cazó
+ * porque probaba cuatro familias y ninguna era la que chocaba — de ahí el test
+ * que ahora recorre el catálogo entero (`30 · L-68`).
  */
 export function eltiempoEnCastellano(simbolo: string | null): string {
   const s = String(simbolo ?? '').toLowerCase();
   if (!s) return 'sin dato';
-  if (s.includes('thunder')) return 'tormenta eléctrica';
+  if (s.includes('thunder')) return 'tormenta eléctrica';   // manda sobre todo lo demás
   if (s.includes('sleet')) return 'aguanieve';
   if (s.includes('snow')) return 'nieve';
-  if (s.includes('heavyrain')) return 'lluvia fuerte';
-  if (s.includes('lightrain')) return 'llovizna';
+  if (s.includes('heavyrain')) return 'lluvia fuerte';      // antes que `rain`
+  if (s.includes('lightrain')) return 'llovizna';           // antes que `rain`
   if (s.includes('rain')) return 'lluvia';
   if (s.includes('fog')) return 'niebla';
+  if (s.includes('partlycloudy')) return 'parcialmente nublado';   // antes que `cloudy`
   if (s.includes('cloudy')) return 'nublado';
-  if (s.includes('partlycloudy')) return 'parcialmente nublado';
   if (s.includes('fair')) return 'poco nuboso';
   if (s.includes('clearsky')) return 'despejado';
   return s;

@@ -114,6 +114,8 @@
 - `L-61` · La prudencia que borra la señal no es prudencia: separa el error ABSOLUTO del RELATIVO
 - `L-62` · Una pantalla nueva hereda la doctrina del sitio donde se monta, no solo su aspecto
 - `L-68` · Un guardián que compara contra un fixture NO cruza la frontera: tiene que recorrer la tubería
+- `L-69` · Una rama inalcanzable no da error: da una respuesta creíble y falsa *(`32`)*
+- `L-70` · Buscar «la hora tal» en UTC funciona hasta que la serie cambia de paso *(`32`)*
 
 ---
 
