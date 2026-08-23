@@ -18,6 +18,8 @@
 // ============================================================================
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 import {
   perfilEnCelda, horasSobre, enTramos,
@@ -297,5 +299,34 @@ describe('el estado del cielo, dicho en palabras', () => {
       assert.ok(!nombres.includes(prohibido),
         `«${prohibido}» no se puede deducir de la nubosidad`);
     }
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+describe('la escala se ENSEÑA, no solo se aplica', () => {
+
+  const PANEL = readFileSync(
+    fileURLToPath(new URL('../web/src/componentes/ClimaDelAnio.tsx', import.meta.url)), 'utf-8');
+
+  test('las dos escalas llegan a la pantalla, no se quedan en el módulo', () => {
+    // La regla de la casa: el veredicto sale del valor contra la norma, y la
+    // norma SE ENSEÑA. Aplicar un corte sin publicarlo deja al que lee sin poder
+    // comprobar nada — y el Ingeniero discute estos números con un cliente.
+    for (const escala of ['ESCALA_LLUVIA', 'ESCALA_CIELO']) {
+      assert.ok(PANEL.includes(escala), `${escala} dejó de llegar a la pantalla`);
+    }
+    assert.match(PANEL, /<LaEscala/, 'el bloque que publica la escala desapareció');
+  });
+
+  test('la escala dice de QUIÉN es el criterio', () => {
+    // Un umbral sin fuente presentado como escala es una opinión con uniforme.
+    assert.match(PANEL, /OMM/, 'la procedencia de los cortes dejó de publicarse');
+  });
+
+  test('se publican TODOS los grados, no solo los que pasaron ese día', () => {
+    // Enseñar solo los ocurridos dejaría la escala coja: haría creer que
+    // «torrencial» no existe porque ese día no llovió así.
+    assert.match(PANEL, /grados\.map\(/,
+      'la tabla de la escala tiene que recorrer la escala entera');
   });
 });

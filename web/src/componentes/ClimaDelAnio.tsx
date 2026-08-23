@@ -44,6 +44,7 @@ import { celdaDe, colorDeValor, valorDeByte } from '../vistas/rejilla';
 import { ATLAS, ATLAS_EN_ORDEN, type ClaveAtlas } from './AtlasCaribe';
 import { eltiempoEnCastellano, TOPES_AVISO, type DiaPronostico } from '../vistas/pronostico';
 import { ATRIBUCION_PRONOSTICO } from '../datos/pronostico';
+import { ESCALA_CIELO, ESCALA_LLUVIA } from '../vistas/atlasCaribe';
 import { nf } from '../vistas/formato';
 
 const MESES = ['', 'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
@@ -533,6 +534,16 @@ function ElDiaEntero({ perfil, ficha, cual, hora, delMes, mesNombre }: {
           </p>
         )
       )}
+      {cual === 'lluvia' && (
+        <LaEscala grados={ESCALA_LLUVIA} unidad="milímetros caídos en una hora (mm/h)"
+          ocurridos={new Set(grados.map((g) => g.grado.clave))}
+          procedencia="Cortes de intensidad de la OMM —los mismos que publica AEMET—, no un criterio de esta casa." />
+      )}
+      {cual === 'nubes' && (
+        <LaEscala grados={ESCALA_CIELO} unidad="porcentaje de cielo cubierto"
+          ocurridos={new Set(grados.map((g) => g.grado.clave))}
+          procedencia="Escala de OCTAS de la OMM: el cielo se parte en ocho octavos y 1 octa = 12,5 %." />
+      )}
       {cual === 'nubes' && (
         <p className="fine">
           <b>La nubosidad no dice si hubo tormenta.</b> El aparato eléctrico no se mide con nubes
@@ -576,5 +587,58 @@ function ElDiaEntero({ perfil, ficha, cual, hora, delMes, mesNombre }: {
         </p>
       )}
     </div>
+  );
+}
+
+/**
+ * LA ESCALA, ENTERA Y EN LA PANTALLA (`§ADR-061`).
+ *
+ * POR QUÉ NO BASTA CON APLICARLA. Hasta ahora la pantalla decía «lluvia
+ * moderada» y se quedaba tan ancha: quien lo lee tiene que creerse que alguien
+ * eligió bien el corte, y no puede comprobar nada. Un criterio que solo conoce
+ * quien lo programó no es un criterio — es una opinión con autoridad prestada.
+ * Es la misma regla que gobierna el resto del sistema: **el veredicto sale del
+ * valor contra la norma, y la norma se enseña** (`CLAUDE.md §4`).
+ *
+ * Y hay un motivo práctico además del de doctrina: el Ingeniero discute estos
+ * números con un cliente. Poder decir «moderada empieza en 2 mm/h y lo dice la
+ * OMM, no nosotros» vale más que la etiqueta.
+ *
+ * ⚠️ SE MARCA LO QUE PASÓ ESE DÍA, pero se enseñan TODOS los grados. Enseñar
+ * solo los que ocurrieron dejaría la escala coja y haría creer que «torrencial»
+ * no existe porque ese día no llovió así.
+ */
+function LaEscala({ grados, ocurridos, unidad, procedencia }: {
+  grados: readonly { clave: string; nombre: string; desde: number; paraLaLinea: string }[];
+  /** Las claves que se dieron ese día, para resaltarlas. */
+  ocurridos: Set<string>;
+  unidad: string;
+  procedencia: string;
+}) {
+  const rango = (i: number) => {
+    const desde = grados[i].desde;
+    const hasta = grados[i + 1]?.desde;
+    if (i === 0) return `menos de ${nf(grados[1].desde, 1)}`;
+    return hasta === undefined ? `${nf(desde, 1)} o más` : `${nf(desde, 1)} – ${nf(hasta, 1)}`;
+  };
+  return (
+    <details className="escala">
+      <summary>La escala completa, y de dónde sale</summary>
+      <table className="escala-tabla">
+        <tbody>
+          {grados.map((g, i) => (
+            <tr key={g.clave} className={(ocurridos.has(g.clave) ? 'hubo ' : '') + 'g-' + g.clave}>
+              <th scope="row">{g.nombre}</th>
+              <td className="escala-rango">{rango(i)}</td>
+              <td>{g.paraLaLinea}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="fine">
+        {procedencia} La unidad es {unidad}. <b>Los tramos en negrita son los que se dieron ese
+        día en esta celda.</b>
+      </p>
+    </details>
   );
 }

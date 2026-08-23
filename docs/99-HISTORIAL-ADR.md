@@ -5596,3 +5596,57 @@ Se le ofreció el quinto atlas con su limitación por delante y **eligió constr
 ### Crudo de respaldo
 
 `research-archive/2026-08-22-pronostico-diagnostico-y-estrategia.md` — mismo hilo del día.
+
+---
+
+## ADR-061 · 2026-08-22 · La escala se publica en la pantalla, no solo se aplica
+
+**Estado:** ✅ Decidido · **NO revisada externamente** · ✅ **verificado en vivo** con la sesión del
+Ingeniero: en el 1 de febrero, «La escala completa, y de dónde sale» despliega los seis grados con
+sus cortes, con **llovizna** y **lluvia moderada** en negrita —los que se dieron ese día— y el pie
+«Cortes de intensidad de la OMM —los mismos que publica AEMET—, no un criterio de esta casa».
+
+### Contexto
+
+Entregadas las dos escalas (`§ADR-059/060`), el Ingeniero pidió: *«esos criterios de lluvia que se
+puedan apreciar en la página»*.
+
+La pantalla decía «lluvia moderada» y se quedaba tan ancha. Quien lo lee tiene que **creerse** que
+alguien eligió bien el corte, y no puede comprobar nada. Eso choca de frente con la regla que
+gobierna el sistema entero —*el veredicto sale del valor contra la NORMA*—: aplicar un corte sin
+publicarlo lo convierte en una opinión con autoridad prestada.
+
+Y hay un motivo práctico además del de doctrina: **el Ingeniero discute estos números con un
+cliente**. Poder decir «moderada empieza en 2 mm/h y lo dice la OMM, no nosotros» vale más que la
+etiqueta.
+
+### Decisión
+
+- **La escala entera, en la misma pantalla donde se usa**, en un desplegable: nombre del grado, su
+  corte, y qué significa para una cuadrilla.
+- **Se publican TODOS los grados, no solo los que pasaron ese día.** Enseñar solo los ocurridos
+  dejaría la escala coja y haría creer que «torrencial» no existe porque ese día no llovió así.
+- **Los que sí se dieron van en negrita y con su color**, para poder mirar la escala y el día a la
+  vez sin cruzar la vista dos veces.
+- **Desplegable y no siempre abierta:** el panel mide 280 px y el dato del día tiene que seguir
+  siendo lo primero que se ve. Pero está a UN clic y en el mismo sitio, no en una ayuda aparte que
+  nadie abre nunca.
+- **Con la procedencia escrita**, que es el punto entero: «de la OMM, no un criterio de esta casa».
+  Donde el criterio SÍ es de la casa —los topes de trabajo y de acceso— ya se decía y se sigue
+  diciendo «criterio adoptado, sin norma citada».
+- **Guardián:** una prueba comprueba que las dos escalas siguen llegando a la pantalla, que se dice
+  de quién es el criterio y que se recorre la escala completa. Una escala que deja de publicarse
+  vuelve a ser una opinión, y eso no puede pasar en silencio.
+
+### Alternativas descartadas
+
+- **Un `title` al pasar el ratón.** No existe en un teléfono, y esta pantalla se abre en campo.
+- **Una pantalla de ayuda aparte.** El criterio tiene que estar donde se usa el número; una ayuda a
+  dos clics es una ayuda que no se lee.
+- **Enseñar solo el grado del día.** Es lo que ya hacía, y era justo el problema.
+
+### Consecuencias
+
+- **1.832 pruebas en verde** (3 nuevas, todas sobre que la escala se publique).
+- El patrón queda disponible para el resto del sistema: cualquier criterio que hoy se aplique sin
+  enseñarse es candidato a lo mismo.

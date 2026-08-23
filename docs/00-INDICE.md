@@ -133,6 +133,7 @@ Guarda `research-archive/` (crudos de deliberación: comités, consejos externos
 | `ADR-058` | 2026-08-22 | Un solo eje de tiempo para el clima de la línea, del histórico al pronóstico | *(`tests/linea-de-tiempo.test.js`)* |
 | `ADR-059` | 2026-08-22 | Los atlas dejan de dar un número suelto y pasan a dar el día, el mes y el veredicto | *(`tests/perfil-del-dia.test.js`)* |
 | `ADR-060` | 2026-08-22 | El quinto atlas: la nubosidad entra, y entra diciendo lo que NO puede decir | *(`herramientas/nubes-caribe.mjs`)* |
+| `ADR-061` | 2026-08-22 | La escala se publica en la pantalla, no solo se aplica | *(`tests/perfil-del-dia.test.js`)* |
 
 > Toda decisión cara de revertir entra aquí con su ADR y su crudo enlazado. Si hubo comité o consejo
 > externo y el crudo no está archivado, la tarea **no está cerrada** (`CLAUDE.md §G.4`).

@@ -1600,4 +1600,36 @@ p.fund-vivo + .sello-calculo { margin-top: 5px; }
 .dia-grados li.g-parcial     { border-left-color: var(--nub-parcial); }
 .dia-grados li.g-nuboso      { border-left-color: var(--nub-nuboso); }
 .dia-grados li.g-cubierto    { border-left-color: var(--nub-cubierto); font-weight: 600; }
+
+/* ── LA ESCALA, VISIBLE EN LA PANTALLA (§ADR-061) ────────────────────────────
+   Va en un desplegable y no siempre abierta: el panel mide 280 px y el dato del
+   día tiene que seguir siendo lo primero. Pero está SIEMPRE a un clic, en la
+   misma pantalla donde se usa — no en una ayuda aparte que nadie abre. */
+.escala { margin: 5px 0 3px; border-top: 1px dashed var(--bd); padding-top: 4px; }
+.escala > summary {
+  cursor: pointer; font-size: .72rem; color: var(--acc); font-weight: 600;
+  list-style-position: outside; padding: 2px 0;
+}
+.escala > summary:hover { text-decoration: underline; }
+.escala-tabla { width: 100%; border-collapse: collapse; font-size: .68rem; margin: 3px 0; }
+.escala-tabla th {
+  text-align: left; font-weight: 500; color: var(--mut); padding: 2px 4px 2px 0;
+  vertical-align: top; white-space: nowrap;
+}
+.escala-tabla td { padding: 2px 4px 2px 0; vertical-align: top; color: var(--mut); }
+.escala-tabla .escala-rango { white-space: nowrap; font-variant-numeric: tabular-nums; }
+/* El grado que SÍ se dio ese día: en negro y en negrita, para poder mirar la
+   escala y el día a la vez sin cruzar la vista dos veces. */
+.escala-tabla tr.hubo th, .escala-tabla tr.hubo td { color: var(--tx); font-weight: 600; }
+.escala-tabla tr { border-left: 3px solid transparent; }
+.escala-tabla tr.hubo.g-llovizna   { border-left-color: var(--b-azul); }
+.escala-tabla tr.hubo.g-moderada   { border-left-color: var(--az); }
+.escala-tabla tr.hubo.g-fuerte     { border-left-color: var(--acc); }
+.escala-tabla tr.hubo.g-muy_fuerte,
+.escala-tabla tr.hubo.g-torrencial { border-left-color: var(--rd); }
+.escala-tabla tr.hubo.g-despejado   { border-left-color: var(--nub-despejado); }
+.escala-tabla tr.hubo.g-poco_nuboso { border-left-color: var(--nub-poco); }
+.escala-tabla tr.hubo.g-parcial     { border-left-color: var(--nub-parcial); }
+.escala-tabla tr.hubo.g-nuboso      { border-left-color: var(--nub-nuboso); }
+.escala-tabla tr.hubo.g-cubierto    { border-left-color: var(--nub-cubierto); }
 .sol-rampa { height: 10px; border-radius: 3px; margin: 6px 0 2px; border: 1px solid var(--bd); }
