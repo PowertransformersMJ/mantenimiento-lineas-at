@@ -463,3 +463,34 @@ describe('el deslizador de la hora tiene que decir su número', () => {
       'una hora sin medida volvió a poder salir como un número');
   });
 });
+
+// ════════════════════════════════════════════════════════════════════════════
+describe('el nexo entre el recorrido de la línea y el atlas', () => {
+
+  const ATLAS = readFileSync(
+    fileURLToPath(new URL('../web/src/componentes/AtlasCaribe.tsx', import.meta.url)), 'utf-8');
+
+  test('al abrir, el sujeto es LA LÍNEA, no una celda que haya que buscar', () => {
+    // «Que los detalles se puedan apreciar al momento de seleccionar la línea y
+    // no escoger celdas» (2026-08-22). El foco arranca en la celda del recorrido
+    // —comprobada punto por punto— y solo lo desplaza un clic deliberado.
+    assert.match(ATLAS, /if \(clic\) return \{ celda: celdaDe\(clic\.lon, clic\.lat, ficha\)/,
+      'el clic dejó de poder desplazar el foco');
+    assert.match(ATLAS, /delRecorrido\?\.celdas\.length === 1/,
+      'el atlas dejó de tomar por defecto la celda del recorrido de la línea');
+  });
+
+  test('y se puede VOLVER a la línea sin recargar', () => {
+    assert.match(ATLAS, /Volver a \{recorrido\.codigo\}/,
+      'desapareció el camino de vuelta al recorrido tras mirar otra celda');
+    assert.match(ATLAS, /onClick=\{\(\) => setClic\(null\)\}/,
+      'el botón de volver dejó de soltar el clic');
+  });
+
+  test('el atlas conoce el recorrido ENTERO, no un punto', () => {
+    // El nexo no es «la línea está por aquí»: son sus coordenadas, y con ellas
+    // se comprueba en cuántas celdas cae (`§ADR-064`).
+    assert.match(ATLAS, /celdasDelRecorrido\(recorrido\.puntos, ficha, celdaDe\)/,
+      'el atlas dejó de cruzar el recorrido completo con la rejilla');
+  });
+});

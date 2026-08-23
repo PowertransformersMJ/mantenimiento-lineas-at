@@ -6142,3 +6142,43 @@ las teselas cargadas** con el mismo código. Y el Ingeniero confirmó que en su 
 **Queda como lección de método:** una pantalla que solo se mira desde una pestaña de fondo puede
 parecer rota sin estarlo. Antes de declarar una regresión, comprobar `document.visibilityState` y
 contrastar con el banco.
+
+---
+
+## ADR-073 · 2026-08-22 · El sujeto del atlas es LA LÍNEA, no una celda que haya que buscar
+
+**Estado:** ✅ Decidido · **NO revisada externamente** · en producción.
+
+### Contexto
+
+El Ingeniero: *«me gustaría que los detalles se puedan apreciar al momento de seleccionar la línea y
+no escoger celdas»* y *«necesito un nexo entre el recorrido GPS de la línea y cada atlas»*.
+
+Lo primero **ya ocurría** y no se veía: al abrir el atlas, si el recorrido cae en una sola celda
+—comprobado punto por punto (`§ADR-064`)— el panel toma esa celda y lo dice: «ESTA CELDA · la celda
+de LN-627». El clic solo servía para mirar OTRA. Pero una vez pulsada otra celda **no había camino de
+vuelta** salvo recargar, así que en la práctica el sujeto se perdía.
+
+### Decisión
+
+- **El foco arranca en la línea**, sin pedir nada. Se mantiene.
+- **Y hay camino de vuelta**: un botón «← Volver a LN-627» que aparece **solo** cuando hay un clic
+  desplazando el foco. Un botón que no hace nada estorba, así que no se pinta si el sujeto ya es la
+  línea.
+- **El nexo es el RECORRIDO, no un punto**: el atlas recibe las coordenadas enteras y las cruza con
+  la rejilla (`celdasDelRecorrido`), que es lo que permite decir «cabe en una celda, comprobado» o
+  «cruza N, pulse la que le interese».
+- **Tres guardianes**: que el foco por defecto siga siendo la celda del recorrido, que exista la
+  vuelta, y que el atlas siga cruzando el recorrido completo y no un promedio.
+
+### Lo que NO se hizo, y queda pendiente
+
+- **Dibujar el trazado sobre el mapa del atlas.** Es la otra mitad del nexo —verlo, no solo leerlo— y
+  el plan está escrito (`TODO-85`): tres capas, celdas del recorrido con borde y sin relleno, la
+  polilínea y el rótulo. No se hizo hoy porque **no puedo verificar el lienzo del mapa**: las pestañas
+  desde las que inspecciono van en segundo plano y MapLibre no dibuja ahí (`§ADR-071`). Publicar un
+  dibujo que no puedo mirar es publicar a ciegas.
+
+### Consecuencias
+
+- **1.854 pruebas en verde** (3 nuevas).

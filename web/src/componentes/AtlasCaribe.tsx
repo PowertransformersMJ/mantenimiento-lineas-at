@@ -638,6 +638,20 @@ export function AtlasCaribe({ atlas, embebido = false, marca, alCambiarAtlas, li
                   <p className="mapa-capas-n eje-cinta r-medido">
                     <b>ESTA CELDA</b> · {celdaEnFoco.porQue}.
                   </p>
+                  {/* ⚠️ EL NEXO CON LA LÍNEA (`§ADR-073`). El Ingeniero lo pidió
+                      así: «que los detalles se puedan apreciar al momento de
+                      seleccionar la línea y no escoger celdas». Al abrir, el foco
+                      YA es la línea; este botón solo hace falta para VOLVER a
+                      ella después de haber mirado otra celda — y aparece solo en
+                      ese caso, porque un botón que no hace nada estorba. */}
+                  {clic && recorrido && (
+                    <p className="mapa-capas-n">
+                      <button type="button" className="boton chico"
+                        onClick={() => setClic(null)}>
+                        ← Volver a {recorrido.codigo}
+                      </button>
+                    </p>
+                  )}
                   {/* ⚠️ EL VALOR DE **ESTA HORA**, y no es un adorno: es lo que
                       convierte el deslizador en un instrumento. Sin él se mueve
                       la hora, el mapa se repinta y el panel no dice cuánto marca
