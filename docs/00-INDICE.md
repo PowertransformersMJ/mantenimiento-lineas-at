@@ -142,6 +142,7 @@ Guarda `research-archive/` (crudos de deliberación: comités, consejos externos
 | `ADR-063` | 2026-08-22 | El horizonte sale de «Detalle GPS», y solo de ahí | *(`tests/horizonte-cobertura.test.js`)* |
 | `ADR-064` | 2026-08-22 | Cada coordenada del recorrido, no el promedio: la advertencia pasa a ser comprobación | *(`tests/perfil-del-dia.test.js`)* |
 | `ADR-065` | 2026-08-22 | Auditoría Nivel-2: el cerebro entrega, pero en parte por recencia — y la recencia se poda | `research-archive/2026-08-22-auditoria-cerebro-nivel2.json` |
+| `ADR-066` | 2026-08-22 | Tres huecos de la ola del clima, y el guardián que no podía verlos | *(`tests/estilo-clases.test.js`)* |
 
 > Toda decisión cara de revertir entra aquí con su ADR y su crudo enlazado. Si hubo comité o consejo
 > externo y el crudo no está archivado, la tarea **no está cerrada** (`CLAUDE.md §G.4`).

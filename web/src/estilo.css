@@ -1592,6 +1592,10 @@ p.fund-vivo + .sello-calculo { margin-top: 5px; }
 /* Cómo llovió, por grados de intensidad (escala OMM). */
 .dia-grados { list-style: none; margin: 4px 0; padding: 0; font-size: .72rem; }
 .dia-grados li { padding: 2px 0 2px 7px; border-left: 3px solid var(--b-azul); margin-bottom: 2px; }
+/* «sin lluvia» también es una fila de la escala y también necesita su borde:
+   sin él la primera fila se lee como si le faltara algo. */
+.dia-grados li.g-seca       { border-left-color: var(--bd); }
+.escala-tabla tr.hubo.g-seca { border-left-color: var(--bd); }
 .dia-grados li.g-llovizna   { border-left-color: var(--b-azul); }
 .dia-grados li.g-moderada   { border-left-color: var(--az); }
 .dia-grados li.g-fuerte     { border-left-color: var(--acc); }

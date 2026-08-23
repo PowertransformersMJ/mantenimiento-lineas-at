@@ -98,3 +98,42 @@ describe('estilo.css — toda clase que se pide existe', () => {
       'el marcador de hueco debe distinguirse de un estado real, no solo por el color');
   });
 });
+
+// ════════════════════════════════════════════════════════════════════════════
+// LAS CLASES QUE NO SE ESCRIBEN ENTERAS EN EL FUENTE (§ADR-066)
+// ----------------------------------------------------------------------------
+// El guardián de arriba lee `className="…"` y descarta a propósito lo que lleva
+// interpolación. Pero hay familias enteras cuya clase se CONSTRUYE —`'g-' +
+// grado.clave`— y para esas el guardián es CIEGO: el fuente no contiene nunca la
+// palabra `g-seca`, así que se quedó sin declarar y nadie se enteró. La primera
+// fila de la escala de lluvia se pintó sin su borde durante horas, en producción.
+//
+// Se caza como se cazó `L-69`: **recorriendo el catálogo entero**, no buscando
+// ejemplos. Si mañana alguien añade un grado a la escala y olvida su color, este
+// test se pone rojo antes de que llegue a la pantalla.
+// ════════════════════════════════════════════════════════════════════════════
+describe('las clases CONSTRUIDAS también tienen que existir', () => {
+
+  test('cada grado de las dos escalas tiene su color declarado', async () => {
+    const { ESCALA_LLUVIA, ESCALA_CIELO } = await import('../web/src/vistas/atlasCaribe.ts');
+    const faltan = [];
+    for (const g of [...ESCALA_LLUVIA, ...ESCALA_CIELO]) {
+      if (!DECLARADAS.has('g-' + g.clave)) faltan.push(`g-${g.clave} (${g.nombre})`);
+    }
+    assert.deepEqual(faltan, [],
+      'grados de la escala que la pantalla pinta y el estilo no conoce');
+  });
+
+  test('cada régimen del eje de tiempo tiene su cinta y su día declarados', () => {
+    // Los cinco regímenes de `vistas/lineaDeTiempo.ts`, que la cuadrícula pinta
+    // como `g-<regimen>` y la cinta como `r-<clase>`.
+    const faltan = [];
+    for (const r of ['medido_horas', 'medido_solo_total', 'sin_publicar', 'pronostico', 'fuera']) {
+      if (!DECLARADAS.has('g-' + r)) faltan.push('g-' + r);
+    }
+    for (const c of ['r-medido', 'r-modelo', 'r-hueco']) {
+      if (!DECLARADAS.has(c)) faltan.push(c);
+    }
+    assert.deepEqual(faltan, [], 'regímenes que la pantalla pinta sin color declarado');
+  });
+});

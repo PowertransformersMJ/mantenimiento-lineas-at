@@ -32,7 +32,7 @@ const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MAPAS = join(RAIZ, 'web/public/mapas');
 
 /** Los productos publicados. Añadir uno es una fila aquí. */
-const ATLAS = ['sol-caribe', 'temp-caribe', 'viento-caribe', 'lluvia-caribe'];
+const ATLAS = ['sol-caribe', 'temp-caribe', 'viento-caribe', 'lluvia-caribe', 'nubes-caribe'];
 
 const ficha = (prefijo) => JSON.parse(readFileSync(join(MAPAS, `${prefijo}.json`), 'utf-8'));
 

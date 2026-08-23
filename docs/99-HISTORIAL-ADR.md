@@ -5896,3 +5896,47 @@ por síntoma. Se cerró con **cuatro filas de ruteo nuevas** en el índice.
 - **Siete nodos ≥90 % y cuatro al 100 %**, con los topes desbalanceados —el `30` tiene 5.285 chars
   libres y cero líneas—. El GC pareado ya no basta: cada edición obliga a raspar. Toca shard o
   recalibrar los caps, y va a `TODO-84`.
+
+---
+
+## ADR-066 · 2026-08-22 · Tres huecos que dejó la ola del clima, y el guardián que no podía verlos
+
+**Estado:** ✅ Decidido · **NO revisada externamente** · **Deliberación:** análisis de cuatro agentes
+para llevar el panel del clima a la pantalla del atlas; el plan completo alimenta `TODO-85`.
+
+### Contexto
+
+Al analizar cómo llevar el panel rico del clima a la pantalla del Atlas del Caribe, el análisis cazó
+**tres huecos que había dejado la propia ola de hoy** (`§ADR-057..064`). Los tres se re-verificaron
+con `grep` antes de tocar nada, y los tres eran ciertos.
+
+### Los tres huecos
+
+1. **`.g-seca` nunca se declaró.** `LaEscala` la pinta en **cada** tabla de lluvia —es la fila «sin
+   lluvia»— y las otras diez clases de la familia sí estaban. Estuvo en producción sin su borde.
+2. **El quinto atlas entró sin su guardián de fichas.** `tests/atlas-ficha.test.js` valida tamaño del
+   PNG contra lo que declara la ficha, bytes contra `statSync`, la rampa y los gemelos… sobre una
+   lista escrita a mano de cuatro. `nubes-caribe` se publicó fuera de esa lista.
+3. **Y la causa del primero: el guardián de CSS era CIEGO a las clases construidas.** Lee
+   `className="…"` y descarta lo interpolado a propósito; pero `LaEscala` construye la clase
+   (`'g-' + grado.clave`), así que **la palabra `g-seca` no aparece nunca en el fuente**.
+
+### Decisión
+
+- **El guardián se arregla recorriendo el CATÁLOGO, no ampliando el regex.** Ampliarlo a
+  `className={expr}` no habría servido: `'g-' + clave` es un prefijo, y el propio guardián descarta
+  prefijos por diseño —con razón—. Lo que sí funciona es la forma de `32 · L-69`: **recorrer la
+  escala entera** y exigir que cada grado tenga su color. Si mañana se añade un grado y se olvida el
+  color, se pone rojo antes de llegar a la pantalla. Igual con los cinco regímenes del eje.
+- **La lista de atlas del guardián de fichas deja de estar escrita a mano** en lo que se pueda, y en
+  el acto se le añade el quinto. Es la familia de `30 · M-01`: un dato derivado escrito a mano.
+- **Comprobado que el guardián nuevo sirve**: se quitó `.g-seca` a propósito y se puso rojo.
+
+### Consecuencias
+
+- **1.847 pruebas en verde** (7 nuevas). El atlas de nubosidad pasa ya el mismo guardián que los otros
+  cuatro.
+- Deja escrito el patrón: **un guardián que busca literales en el fuente no ve lo que el código
+  compone.** Donde haya una familia con catálogo, el guardián recorre el catálogo.
+- El plan de fondo —extraer el panel a un componente del que dependan las dos pantallas, en vez de
+  copiarlo— queda en `TODO-85` con su análisis.
