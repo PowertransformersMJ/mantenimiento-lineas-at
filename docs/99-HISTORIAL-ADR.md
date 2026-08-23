@@ -5135,7 +5135,11 @@ fixture donde él autora, con la corrección fechada) y `fixtures/gpx/Waypoints_
 
 ## ADR-055 · 2026-08-22 · El tiempo del año entero: viento y lluvia entran como atlas, porque un pronóstico no llega hasta diciembre
 
-**Estado:** ✅ Decidido · **NO revisada externamente** · ⏳ pendiente de verificar en vivo.
+**Estado:** ✅ Decidido · **NO revisada externamente** · ✅ **verificado en vivo** con la sesión del
+Ingeniero: `#/viento` pinta agosto (0…55 km/h, mediana 9,6 en la hora abierta) con el aviso de que no
+valida la hipótesis, y el selector salta a `#/lluvia` sin salir (0…45 mm, mediana 0,3 mm en esa hora
+y 2,09 mm de total del día) — cifras de milímetros de UNA hora, que es la prueba de que el factor de
+24 se aplicó.
 
 ### Contexto
 
@@ -5210,7 +5214,10 @@ comprobación del factor de 24 se hizo contra la API diaria de NASA POWER el 202
 
 ## ADR-056 · 2026-08-22 · El clima del año entra al mapa de la línea, y se resuelve como un dato del sitio y no como un campo
 
-**Estado:** ✅ Decidido · **NO revisada externamente** · ⏳ pendiente de verificar en vivo.
+**Estado:** ✅ Decidido · **NO revisada externamente** · ✅ **verificado en vivo** con la sesión del
+Ingeniero: la casilla «Clima del año (Caribe)» aparece bajo el pronóstico, y con temperatura · agosto
+· día 1 · 12:00 publica **«En la celda de esta línea: 32,8 °C»** —por encima de los 32 °C del
+escenario de referencia de la pestaña Térmica— con el aviso de la celda única en pantalla.
 
 ### Contexto
 
