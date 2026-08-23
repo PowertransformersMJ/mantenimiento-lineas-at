@@ -445,3 +445,21 @@ describe('quién es «la línea»: un solo filtro, no uno por pantalla', () => {
     }
   });
 });
+
+// ════════════════════════════════════════════════════════════════════════════
+describe('el deslizador de la hora tiene que decir su número', () => {
+
+  test('la pantalla publica el valor de la celda EN esa hora', () => {
+    // Se perdió al migrar el clima al atlas (`§ADR-069`) y el Ingeniero lo echó
+    // en falta: «se podía apreciar por día el hora a hora del comportamiento de
+    // cada parámetro». Sin el número, mover la hora repinta el mapa pero el
+    // panel calla — y el deslizador deja de ser un instrumento.
+    const ATLAS = readFileSync(
+      fileURLToPath(new URL('../web/src/componentes/AtlasCaribe.tsx', import.meta.url)), 'utf-8');
+    assert.match(ATLAS, /delDia\.perfil\.horas\[hora\]/,
+      'el panel dejó de publicar el valor de la hora elegida');
+    // Y un hueco se dice, no se imprime como cero (el invariante que más muerde).
+    assert.match(ATLAS, /no se midió esta hora/,
+      'una hora sin medida volvió a poder salir como un número');
+  });
+});

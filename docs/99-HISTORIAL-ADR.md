@@ -6070,3 +6070,38 @@ MOVER, y hay que preguntar si el origen se queda sin ello.*
 - El panel del mapa de línea (`ClimaDelAnio.tsx`) queda vivo pero **ya no se monta en ninguna parte**.
   No se borra en este cambio: primero se comprueba que el destino funciona en producción. Su retirada
   va a `TODO-86`.
+
+---
+
+## ADR-070 · 2026-08-22 · El deslizador de la hora vuelve a decir su número
+
+**Estado:** ✅ Decidido · **NO revisada externamente** · ✅ **verificado en vivo** recorriendo el
+deslizador: 00:00 → 0,3 mm · 06:00 → 0,0 · 17:00 → 0,5 · 18:00 → 0,8 · 21:00 → 0,3.
+
+### Contexto
+
+El Ingeniero, tras la migración del clima al atlas (`§ADR-069`): *«noto que el detalle no está como
+antes, se podía apreciar por día el hora a hora del comportamiento de cada parámetro»*.
+
+Tenía razón y era una **pérdida de la migración**: el panel viejo publicaba, justo debajo del
+deslizador, *«En la celda de esta línea: 0,3 mm»* — el valor de ESA hora—. Al mover el bloque al
+atlas se llevaron el deslizador, el gráfico del día y el resumen, pero **no el número de la hora
+elegida**. Sin él, mover la hora repinta el mapa y el panel calla: el deslizador deja de ser un
+instrumento y pasa a ser un adorno.
+
+### Decisión
+
+- **El valor de la celda en la hora elegida se publica**, y sale del perfil que ya está calculado
+  (`perfil.horas[hora]`): ni una lectura más del archivo.
+- **Una hora sin medida se dice** —«no se midió esta hora»— y **nunca se imprime como cero**, que es
+  el invariante que más muerde en esta capa: el byte 0 es SIN DATO, no el valor 0.
+- **Guardián** que exige las dos cosas: que el número se publique y que el hueco no pueda salir como
+  cifra.
+
+### Consecuencias
+
+- **1.851 pruebas en verde.**
+- Deja una lección de método para las migraciones: **lo que se mueve se compara pieza por pieza con
+  el origen antes de dar el traslado por bueno.** Aquí se comprobó que el destino «funcionaba» —día
+  entero, escala, veredicto, mes, pronóstico— y aun así faltaba un renglón que era el que ataba el
+  deslizador al dato. El Ingeniero lo vio en cuanto lo usó.

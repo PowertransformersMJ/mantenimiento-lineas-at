@@ -618,6 +618,19 @@ export function AtlasCaribe({ atlas, embebido = false, marca, alCambiarAtlas, li
                   <p className="mapa-capas-n eje-cinta r-medido">
                     <b>ESTA CELDA</b> · {celdaEnFoco.porQue}.
                   </p>
+                  {/* ⚠️ EL VALOR DE **ESTA HORA**, y no es un adorno: es lo que
+                      convierte el deslizador en un instrumento. Sin él se mueve
+                      la hora, el mapa se repinta y el panel no dice cuánto marca
+                      la celda — que es justo lo que se estaba mirando. Se perdió
+                      al migrar (`§ADR-069`) y el Ingeniero lo echó en falta con
+                      estas palabras: «se podía apreciar por día el hora a hora
+                      del comportamiento de cada parámetro». */}
+                  <p className="mapa-capas-n">
+                    A las <b>{String(hora).padStart(2, '0')}:00</b>:{' '}
+                    {delDia.perfil.horas[hora] === null || delDia.perfil.horas[hora] === undefined
+                      ? <b>no se midió esta hora</b>
+                      : <b>{nf(delDia.perfil.horas[hora]!, 1)} {ficha.unidad}</b>}
+                  </p>
                   <ElDiaEntero perfil={delDia.perfil} ficha={ficha} cual={atlas} hora={hora}
                     delMes={delDia.delMes} mesNombre={MESES[+mes.clave]} />
                 </>
