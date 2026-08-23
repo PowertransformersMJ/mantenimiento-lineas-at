@@ -33,8 +33,9 @@
 // ============================================================================
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  comoEstuvoElCielo, comoLlovio, cuadroDe, diasDelMesSobre, enTramos, horasSobre, isoDe,
-  perfilEnCelda, resumenDelDia, type FichaAtlas, type PerfilDelDia,
+  comoEstuvoElCielo, comoLlovio, cuadroDe, diasDelMesSobre, enTramos, ESCALA_CIELO,
+  ESCALA_LLUVIA, horasSobre, isoDe, perfilEnCelda, resumenDelDia,
+  type FichaAtlas, type PerfilDelDia,
 } from '../vistas/atlasCaribe';
 import {
   diasDelMesConRegimen, extremos, sumarDias, tramoDe,
@@ -44,7 +45,6 @@ import { celdaDe, colorDeValor, valorDeByte } from '../vistas/rejilla';
 import { ATLAS, ATLAS_EN_ORDEN, type ClaveAtlas } from './AtlasCaribe';
 import { eltiempoEnCastellano, TOPES_AVISO, type DiaPronostico } from '../vistas/pronostico';
 import { ATRIBUCION_PRONOSTICO } from '../datos/pronostico';
-import { ESCALA_CIELO, ESCALA_LLUVIA } from '../vistas/atlasCaribe';
 import { nf } from '../vistas/formato';
 
 const MESES = ['', 'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
@@ -281,6 +281,10 @@ export function ClimaDelAnio({ lon, lat, alDibujarCelda, hoy, dias = [] }: {
     () => diasDelMesConRegimen(anio, mes, alcance, hoy, isosPronostico),
     [anio, mes, alcance, hoy, isosPronostico]);
 
+  /** «19 de agosto». Corto, para que quepa dentro de un botón del panel. */
+  const enPalabras = (iso: string) => new Date(`${iso}T12:00:00Z`)
+    .toLocaleDateString('es-CO', { day: 'numeric', month: 'long', timeZone: 'UTC' });
+
   const enLetra = useMemo(() => {
     // ⚠️ Se capitaliza AQUÍ y no con `text-transform: capitalize`: esa regla del
     // CSS toca todas las palabras y escribe «Sábado, 22 De Agosto», que en
@@ -329,6 +333,25 @@ export function ClimaDelAnio({ lon, lat, alDibujarCelda, hoy, dias = [] }: {
       <p className={'eje-cinta ' + cinta.clase}>
         <b>{cinta.rotulo}</b> · {tramo.porque}
       </p>
+
+      {/* ⚠️ EL PUENTE AL DATO MEDIDO (`§ADR-062`), y no es un adorno de
+          usabilidad: sin él, todo el desglose del día —las 24 horas, el
+          veredicto contra el tope, el mes y la escala— era INVISIBLE para quien
+          abriera la capa, porque la capa abre en HOY y hoy es pronóstico. El
+          Ingeniero lo dijo con todas las letras: «no me sale en producción». Lo
+          que no se encuentra no existe, por muy construido que esté. */}
+      {tramo.regimen !== 'medido_horas' && ficha.ultimoDiaConHoras && (
+        <p className="mapa-capas-n eje-puente">
+          <button type="button" className="boton chico"
+            onClick={() => setFecha(ficha.ultimoDiaConHoras)}>
+            Ver el último día MEDIDO ({enPalabras(ficha.ultimoDiaConHoras)}) →
+          </button>
+          <span className="fine">
+            {' '}El día hora a hora, el veredicto contra su tope, el mes y la escala completa solo
+            existen donde hubo medida.
+          </span>
+        </p>
+      )}
 
       <div className="sol-dias" aria-label={`Días de ${MESES[mes]}`}>
         {cuadricula.map((d) => (

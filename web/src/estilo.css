@@ -1556,6 +1556,9 @@ p.fund-vivo + .sello-calculo { margin-top: 5px; }
 .eje-cinta.r-medido { background: var(--t-ambar); border-left-color: var(--acc); color: var(--tx); }
 .eje-cinta.r-modelo { background: var(--t-azul); border-left-color: var(--az); color: var(--tx); }
 .eje-cinta.r-hueco  { background: transparent; border-left-style: dashed; }
+/* El puente al último día medido: lo que hace encontrable el desglose. */
+.eje-puente { margin: 4px 0 2px; }
+.eje-puente .boton.chico { display: block; width: 100%; margin-bottom: 3px; text-align: left; }
 /* Los días de la cuadrícula, con el mismo código de color que la cinta. */
 .sol-dia.g-medido_horas { background: var(--t-ambar); border-color: var(--acc); }
 .sol-dia.g-medido_solo_total {

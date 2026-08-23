@@ -5650,3 +5650,63 @@ etiqueta.
 - **1.832 pruebas en verde** (3 nuevas, todas sobre que la escala se publique).
 - El patrón queda disponible para el resto del sistema: cualquier criterio que hoy se aplique sin
   enseñarse es candidato a lo mismo.
+
+---
+
+## ADR-062 · 2026-08-22 · Lo que no se encuentra no existe: el puente al día medido
+
+**Estado:** ✅ Decidido · **NO revisada externamente** · ✅ **verificado en vivo** reproduciendo el
+camino del Ingeniero: al encender la capa aparece **«Ver el último día MEDIDO (19 de agosto) →»**, y
+un clic lleva al día con el desglose completo.
+
+### Contexto
+
+El Ingeniero, sobre lo entregado en `§ADR-059/060/061`: *«¿dónde puedo encontrar esta parte? no me
+sale en producción»*.
+
+**No era caché ni error suyo.** Reproducido su camino exacto en producción: al encender «El tiempo de
+esta línea», el estado por defecto es **atlas = Temperatura** y **fecha = hoy**. Y hoy es
+**PRONÓSTICO**. Todo el desglose —las 24 horas dibujadas, el veredicto contra el tope, el resumen del
+mes y la escala completa— vive **solo en los días medidos**. Así que quien encendía la capa no veía
+nada de eso, y no tenía forma de saber que existía: para llegar había que hacer dos cosas que nadie
+te dice —pulsar «Lluvia» y mover la fecha a un día pasado—.
+
+Se construyeron tres ADRs de contenido y **ninguno era alcanzable por el camino normal**. Eso no es
+un problema de usabilidad: es que **lo que no se encuentra no existe**, por muy construido y probado
+que esté.
+
+### Decisión
+
+- **Un puente explícito**, visible siempre que la fecha elegida NO sea un día medido: un botón «Ver
+  el último día MEDIDO (19 de agosto) →» que salta ahí, con la fecha real leída de la ficha —no
+  escrita a mano— y con una línea que dice qué se gana: *«el día hora a hora, el veredicto contra su
+  tope, el mes y la escala completa solo existen donde hubo medida»*.
+- **No se cambia la fecha de arranque a un día medido.** Abrir en HOY es lo que espera cualquiera que
+  mira el tiempo, y arrancar en el 19 de agosto sería contestar una pregunta que nadie hizo. El
+  puente ofrece, no decide.
+- **Guardián**: una prueba comprueba que el puente sigue ahí y que se ofrece justo cuando no hay
+  medida a la vista. Un camino de descubrimiento que desaparece deja el contenido huérfano otra vez,
+  y eso no puede pasar en silencio.
+- **De paso, tres textos que se quedaron atrás** con el quinto atlas: la entradilla de Detalle GPS
+  decía «los cuatro atlas» y dos comentarios lo mismo. Es la misma familia de `34 · L-65`: una
+  corrección es deuda con toda la familia.
+
+### Alternativas descartadas
+
+- **Arrancar en el último día medido.** Ver arriba: cambia la respuesta por defecto a una pregunta
+  que nadie hizo, y esconde el pronóstico, que es lo que más se mira.
+- **Abrir la escala por defecto.** El panel mide 280 px; el dato del día dejaría de ser lo primero.
+- **Explicarlo en un texto de ayuda.** Es lo que ya hacía el sistema —los avisos están— y no
+  funcionó: nadie lee un párrafo para descubrir que existe una función. Un botón que hace el salto
+  vale más que tres renglones que lo describen.
+
+### Consecuencias
+
+- **1.833 pruebas en verde** (1 nueva, la del puente).
+- Queda una regla para el resto del sistema: **cuando una función solo existe bajo una condición del
+  estado —un régimen, un filtro, una pestaña—, la pantalla tiene que ofrecer el salto a esa
+  condición**, no esperar a que el usuario la adivine.
+
+### Crudo de respaldo
+
+Sin comité: el fallo lo reportó el Ingeniero y se reprodujo en producción en el mismo turno.

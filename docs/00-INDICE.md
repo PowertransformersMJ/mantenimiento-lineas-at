@@ -134,6 +134,7 @@ Guarda `research-archive/` (crudos de deliberación: comités, consejos externos
 | `ADR-059` | 2026-08-22 | Los atlas dejan de dar un número suelto y pasan a dar el día, el mes y el veredicto | *(`tests/perfil-del-dia.test.js`)* |
 | `ADR-060` | 2026-08-22 | El quinto atlas: la nubosidad entra, y entra diciendo lo que NO puede decir | *(`herramientas/nubes-caribe.mjs`)* |
 | `ADR-061` | 2026-08-22 | La escala se publica en la pantalla, no solo se aplica | *(`tests/perfil-del-dia.test.js`)* |
+| `ADR-062` | 2026-08-22 | Lo que no se encuentra no existe: el puente al día medido | *(`tests/perfil-del-dia.test.js`)* |
 
 > Toda decisión cara de revertir entra aquí con su ADR y su crudo enlazado. Si hubo comité o consejo
 > externo y el crudo no está archivado, la tarea **no está cerrada** (`CLAUDE.md §G.4`).

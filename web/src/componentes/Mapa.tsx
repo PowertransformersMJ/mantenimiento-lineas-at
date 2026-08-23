@@ -266,7 +266,7 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
    */
   const [pronostico, setPronostico] = useState(false);
   /**
-   * El clima del AÑO (los cuatro atlas del Caribe), consultado desde este mapa.
+   * El clima del AÑO (los cinco atlas del Caribe), consultado desde este mapa.
    *
    * Es una capa PEREZOSA de verdad: mientras esté apagada no se descarga ni la
    * ficha ni un solo PNG, y el trozo de código que la pinta tampoco. Encendida

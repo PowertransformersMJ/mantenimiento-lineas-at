@@ -330,3 +330,22 @@ describe('la escala se ENSEÑA, no solo se aplica', () => {
       'la tabla de la escala tiene que recorrer la escala entera');
   });
 });
+
+// ════════════════════════════════════════════════════════════════════════════
+describe('lo construido tiene que poder ENCONTRARSE', () => {
+
+  const PANEL = readFileSync(
+    fileURLToPath(new URL('../web/src/componentes/ClimaDelAnio.tsx', import.meta.url)), 'utf-8');
+
+  test('desde un día sin medida hay un puente al último día medido', () => {
+    // EL FALLO REAL (2026-08-22): la capa abre en HOY, y hoy es pronóstico. Todo
+    // el desglose —24 horas, veredicto, mes, escala— vive solo en los días
+    // medidos, así que quien encendía la capa no veía NADA de eso y no tenía
+    // forma de saber que existía. «No me sale en producción», y tenía razón.
+    // Lo que no se encuentra no existe, por muy construido que esté.
+    assert.match(PANEL, /ultimoDiaConHoras\)\}/,
+      'el botón que salta al último día medido desapareció');
+    assert.match(PANEL, /regimen !== 'medido_horas'/,
+      'el puente tiene que ofrecerse justo cuando NO hay medida a la vista');
+  });
+});

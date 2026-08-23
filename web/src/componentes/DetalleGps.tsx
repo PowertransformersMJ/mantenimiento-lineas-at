@@ -328,10 +328,10 @@ function AtlasDelCaribe({ apoyos }: { apoyos: Apoyo[] }) {
     <section className="panel">
       <h2>El clima de la región, sobre el mapa</h2>
       <p className="saludo">
-        Los cuatro atlas del Caribe —<b>sol</b>, <b>temperatura del aire</b>, <b>viento</b> y{' '}
-        <b>lluvia</b>— hora a hora y día a día de todo el año, sobre los siete departamentos. Son de
-        la REGIÓN, no de esta línea: se abren aquí con <b>el punto de la línea marcado</b> para poder
-        leer qué le toca a ella. Dentro se cambia de uno a otro sin salir.
+        Los cinco atlas del Caribe —<b>sol</b>, <b>temperatura del aire</b>, <b>viento</b>,{' '}
+        <b>lluvia</b> y <b>nubosidad</b>— hora a hora y día a día de todo el año, sobre los siete
+        departamentos. Son de la REGIÓN, no de esta línea: se abren aquí con <b>el punto de la línea
+        marcado</b> para poder leer qué le toca a ella. Dentro se cambia de uno a otro sin salir.
       </p>
       <p className="fine">
         No se descarga nada hasta que abra uno: el mapa regional pesa 5 MiB y esta pestaña se

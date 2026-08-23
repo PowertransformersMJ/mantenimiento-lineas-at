@@ -163,7 +163,7 @@ export function AtlasCaribe({ atlas, embebido = false, marca, alCambiarAtlas }: 
    * Cambiar de atlas SIN salir de la pantalla. Si no se pasa, no se ofrece el
    * selector — que es lo correcto donde no hay a dónde ir.
    *
-   * Existe porque con cuatro atlas la cabecera se llenaba de botones y obligaba
+   * Existe porque con cinco atlas la cabecera se llenaba de botones y obligaba
    * a salir y volver a entrar para comparar el sol de un día con su viento. Lo
    * que se compara se pone al lado, no a dos clics.
    */
