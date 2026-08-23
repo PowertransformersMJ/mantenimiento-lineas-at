@@ -414,3 +414,22 @@ describe('cada coordenada del recorrido, no el promedio', () => {
       'el panel dejó de recibir el recorrido');
   });
 });
+
+// ════════════════════════════════════════════════════════════════════════════
+describe('quién es «la línea»: un solo filtro, no uno por pantalla', () => {
+
+  test('el mapa usa `soloEstructuras`, no un filtro escrito a mano', () => {
+    // `vistas/planta.ts` lo dice en su propio comentario: «se filtra AQUÍ, en un
+    // solo sitio, para que ninguna vista pueda olvidarlo». El mapa lo había
+    // olvidado: usaba `!== 'Empalme'`, que deja pasar los «Punto de referencia»
+    // —marcas del levantamiento que no sostienen conductor— y los contaba como
+    // apoyos. En LN-627 no hay ninguno todavía, así que el fallo era invisible:
+    // exactamente la clase que espera a una línea nueva para aparecer.
+    const MAPA = readFileSync(
+      fileURLToPath(new URL('../web/src/componentes/Mapa.tsx', import.meta.url)), 'utf-8');
+    assert.match(MAPA, /const E = soloEstructuras\(apoyos\)/,
+      'el mapa volvió a decidir por su cuenta qué puntos son la línea');
+    assert.ok(!/apoyos\.filter\(\(a\) => \(a\.tipoPunto \?\? 'Estructura'\) !== 'Empalme'\)/.test(MAPA),
+      'volvió el filtro a mano que cuenta los puntos de referencia como apoyos');
+  });
+});

@@ -5940,3 +5940,41 @@ con `grep` antes de tocar nada, y los tres eran ciertos.
   compone.** Donde haya una familia con catálogo, el guardián recorre el catálogo.
 - El plan de fondo —extraer el panel a un componente del que dependan las dos pantallas, en vez de
   copiarlo— queda en `TODO-85` con su análisis.
+
+---
+
+## ADR-067 · 2026-08-22 · Quién es «la línea»: un solo filtro, no uno por pantalla
+
+**Estado:** ✅ Decidido · **NO revisada externamente** · **Deliberación:** salió del análisis de
+cuatro agentes para `TODO-85`; re-verificado con `grep` antes de tocar nada.
+
+### Contexto
+
+`vistas/planta.ts:27` define `soloEstructuras` y su propio comentario dice para qué existe: *«se
+filtra AQUÍ, en un solo sitio, para que ninguna vista pueda olvidarlo»*. Filtra
+`tipoPunto === 'Estructura'`, dejando fuera empalmes **y puntos de referencia** —marcas del
+levantamiento que no sostienen conductor—, porque contarlos parte un vano real en dos falsos: en
+LN-627 escondía un vano de 247,8 m detrás de dos de 84 y 164.
+
+**El mapa lo había olvidado.** `Mapa.tsx:342` filtraba a mano `!== 'Empalme'`, que **deja pasar los
+«Punto de referencia»**. Y de ese filtro salen tres cosas: el punto por el que se pide el pronóstico,
+el eje de la línea, y —desde `§ADR-064`— **las coordenadas con las que se comprueba el recorrido**.
+
+### Por qué importaba aunque hoy no se notara
+
+En LN-627 no hay ni un punto de referencia, así que **las dos versiones dan exactamente lo mismo** y
+el fallo era invisible. Es la clase de defecto que espera a una línea nueva para aparecer — y el
+sistema está hecho para más líneas. El día que entrara uno, la pantalla diría «las N coordenadas del
+recorrido, de punta a punta» contando una marca de campo como si fuera un apoyo.
+
+### Decisión
+
+- **El mapa usa `soloEstructuras`.** Un solo dueño de la pregunta «qué puntos SON la línea».
+- **Un guardián** que exige que el mapa no vuelva a decidirlo por su cuenta, y que el filtro a mano
+  no reaparezca. Es la familia de `34 · L-65`: una corrección es deuda con toda la familia, y aquí la
+  familia tenía un miembro que nunca se enteró de la regla.
+
+### Consecuencias
+
+- **1.848 pruebas en verde.** Sin cambio visible hoy: mismos 26 puntos, mismo resultado. Lo que
+  cambia es que deja de depender de que LN-627 no tenga puntos de referencia.

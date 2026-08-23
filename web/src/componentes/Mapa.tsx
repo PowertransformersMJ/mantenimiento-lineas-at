@@ -43,6 +43,7 @@ import {
 } from '../vistas/pronostico';
 import { ATRIBUCION_PRONOSTICO, celdaDeConsulta, pedirPronostico, SinPronostico } from '../datos/pronostico';
 import { diaDe } from '../vistas/lineaDeTiempo';
+import { soloEstructuras } from '../vistas/planta';
 import type { CeldaDelAnio } from './ClimaDelAnio';
 
 /**
@@ -339,7 +340,14 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
   const guarda = useMemo(() => cableDeGuarda(apoyos), [apoyos]);
 
   const geometria = useMemo(() => {
-    const E = apoyos.filter((a) => (a.tipoPunto ?? 'Estructura') !== 'Empalme');
+    // ⚠️ `soloEstructuras` y NO un filtro a mano (`§ADR-067`). El que había aquí
+    // era `!== 'Empalme'`, que deja pasar los «Punto de referencia» —marcas del
+    // levantamiento que no sostienen nada— y los contaba como apoyos. Hoy en
+    // LN-627 no hay ninguno y por eso daba igual; el día que entre uno, esta
+    // pantalla diría «las N coordenadas de la línea» contando una marca. El
+    // propio `planta.ts` lo dice: «se filtra AQUÍ, en un solo sitio, para que
+    // ninguna vista pueda olvidarlo» — y esta lo había olvidado (`34 · L-65`).
+    const E = soloEstructuras(apoyos);
     if (!E.length) return null;
     const lat = E.reduce((s2, a) => s2 + a.coordenada.lat, 0) / E.length;
     const lon = E.reduce((s2, a) => s2 + a.coordenada.lon, 0) / E.length;
