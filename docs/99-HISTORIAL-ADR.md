@@ -6255,6 +6255,10 @@ coordenadas») · el mismo dibujo **acercado seis pasos**, donde la traza se ve 
 borde · y **tras cambiar de atlas en caliente**, para comprobar que el dibujo sobrevive a que el mapa
 se reconstruya entero.
 
+### Crudo de respaldo
+
+`research-archive/2026-08-23-trazado-en-atlas-fotos/` — las cuatro fotos y cómo repetirlas.
+
 ### Consecuencias
 
 - **1.880 pruebas en verde** (26 nuevas).
