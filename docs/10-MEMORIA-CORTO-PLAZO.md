@@ -26,7 +26,7 @@
    DOM sí se lee). **YA SE PUEDE MIRAR:** `SONDA_MAPA=1 npm run build` + `npx vite preview` en `web/`
    + `node herramientas/foto-del-banco.mjs "<url>" --salida f.png [--pulsar ".maplibregl-ctrl-zoom-in"
    --veces 6]`. ⚠️ **Nunca con `--virtual-time-budget`: pinta el ráster y NO las capas vectoriales.**
-6. **LA FASE ABIERTA sigue siendo la página**; no eligió entre ② **se lee** y ③ **no se cae**. ⚠️ `31 · L-60` puede estar MAL: verificar antes de citarlo.
+6. **FASE ABIERTA: la página.** No eligió entre ② **se lee** y ③ **no se cae**. ⚠️ `31 · L-60` puede estar MAL: verificar antes de citarlo.
 7. **SON DE ÉL** (detalle en la tabla de abajo, no aquí): `TODO-57` el dato de la ficha ·
    **contraseña** · `TODO-71` viento y los 1.000 W/m² —los atlas lo ACERCAN y no lo cierran— ·
    `TODO-33` · `TODO-76` · `TODO-80` · `TODO-81` · `TODO-82/83` · `TODO-88`.
@@ -58,7 +58,7 @@ Cada uno vive ENTERO en su ADR: esto es el índice, léelo antes de tocar su sub
 ## 🧭 Cómo retomar
 
 1. **Abrir Claude Code DENTRO del proyecto** (desde el paraguas: `session-handoff.mjs --boot-echo`).
-2. Producción **https://mantenimiento-lineas-at.pages.dev** · repo PÚBLICO → **cero bytes de
+2. Producción **mantenimiento-lineas-at.pages.dev** · repo PÚBLICO → **cero bytes de
    cliente** (`33 · L-23`). Desplegar: `npm run build && npm run deploy --workspace web`, en ese
    orden (`32 · L-35`); reglas de Firestore por SU canal y ANTES (`31 · L-22`).
 3. **Verificar contra PRODUCCIÓN con el Chrome del Ingeniero**, no contra `dist/` (`32 · L-18/35`).
