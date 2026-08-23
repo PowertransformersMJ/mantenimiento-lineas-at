@@ -1,4 +1,7 @@
-// ============================================================================
+
+import { HASH_ATLAS, type ClaveAtlas } from '../vistas/atlasCatalogo.ts';
+export { HASH_ATLAS };
+export type { ClaveAtlas };// ============================================================================
 // datos/ruta.ts — la gramática de direcciones, sola y sin dependencias
 // ----------------------------------------------------------------------------
 // Vive aparte de `enlace.ts` para poder PROBARSE. `enlace.ts` arrastra el SDK de
@@ -31,27 +34,15 @@
  *   #/<linea>/<pest> → una línea en una pestaña (ya existía y no se toca)
  */
 /** Los atlas regionales. La clave es la del componente, no un texto suelto. */
-export type ClaveAtlas = 'sol' | 'temperatura' | 'viento' | 'lluvia' | 'nubes';
-
 /**
- * QUÉ DIRECCIÓN ABRE CADA ATLAS. Una tabla y no un `if` por atlas: añadir el
- * tercero es una fila, y —lo que importa— la dirección y la vuelta atrás salen
- * del MISMO sitio. Con dos listas, un día `#/temperatura` abriría el solar.
+ * QUÉ ATLAS EXISTEN Y QUÉ DIRECCIÓN LOS ABRE — **no se define aquí** (`§ADR-068`).
+ *
+ * Vivía en este archivo una segunda copia del tipo y una segunda tabla de
+ * direcciones, con su propio aviso de que «con dos listas, un día
+ * `#/temperatura` abriría el solar». El aviso era correcto y por eso ya no hay
+ * dos listas: las dos salen de `vistas/atlasCatalogo.ts`.
  */
-export const HASH_ATLAS: Record<ClaveAtlas, string> = {
-  sol: '#/sol',
-  temperatura: '#/temperatura',
-  viento: '#/viento',
-  lluvia: '#/lluvia',
-  nubes: '#/nubes',
-};
 
-/**
- * La vuelta: de la dirección a la clave. Se DERIVA de la tabla de arriba en vez
- * de escribirse otra vez — con dos listas, el día que se añada el quinto atlas
- * una de las dos se olvidará y `#/loquesea` abriría el atlas de al lado sin dar
- * un solo error.
- */
 const POR_HASH: Record<string, ClaveAtlas> = Object.fromEntries(
   Object.entries(HASH_ATLAS).map(([clave, hash]) => [hash.replace('#/', ''), clave as ClaveAtlas]),
 );

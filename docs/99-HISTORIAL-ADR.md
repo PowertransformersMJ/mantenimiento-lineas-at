@@ -5978,3 +5978,45 @@ recorrido, de punta a punta» contando una marca de campo como si fuera un apoyo
 
 - **1.848 pruebas en verde.** Sin cambio visible hoy: mismos 26 puntos, mismo resultado. Lo que
   cambia es que deja de depender de que LN-627 no tenga puntos de referencia.
+
+---
+
+## ADR-068 · 2026-08-22 · Un solo catálogo de atlas: añadir el sexto es UNA entrada
+
+**Estado:** ✅ Decidido · **NO revisada externamente** · ✅ **verificado en vivo** con la sesión del
+Ingeniero: las cinco direcciones abren su atlas y solo el suyo — `#/sol` → «Atlas solar del Caribe»,
+`#/nubes` → «Atlas de nubosidad del Caribe», con su botón activo correcto.
+
+### Contexto
+
+Primer paso de lo que pidió el Ingeniero —que la pantalla del atlas adopte el panel del clima— y de
+lo que el análisis de cuatro agentes señaló como bloqueo: **la lista de atlas vivía DOS veces**.
+
+`ClaveAtlas` y el catálogo en `componentes/AtlasCaribe.tsx`; y **otro** `ClaveAtlas` con su tabla de
+direcciones en `datos/ruta.ts`, que llevaba su propio aviso escrito: *«con dos listas, el día que se
+añada el quinto atlas una de las dos se olvidará y `#/loquesea` abriría el atlas de al lado sin dar
+un solo error»*. Ese aviso era exacto: al añadir el quinto **hubo que tocar las dos**, y solo se
+descubrió porque los dos tipos se cruzaban en una prop y el compilador se quejó. **De milagro.**
+
+Y encima estaba invertido: el panel del mapa de línea importaba del **componente** de la pantalla del
+atlas — un trozo perezoso tirando de otro, a un `import` de vuelta de cerrar un ciclo.
+
+### Decisión
+
+- **`vistas/atlasCatalogo.ts` es el único dueño**: el tipo, el catálogo y la dirección de cada atlas.
+  Vive en `vistas/` porque es **dato, no pantalla**.
+- **La tabla de direcciones se DERIVA del catálogo**, no se escribe otra vez. El aviso de `ruta.ts`
+  deja de hacer falta porque ya no hay dos listas que sincronizar.
+- **Añadir el sexto atlas es UNA entrada** en esa tabla: pantalla, rutas y ficha salen de ella o
+  falla al compilar.
+- **Dos guardianes**: uno comprueba que nadie más defina `ClaveAtlas` ni la lista —si vuelve a haber
+  dos, rojo—; otro, que cada atlas del catálogo tenga su ficha publicada, que ninguna dirección se
+  repita y que la tabla de direcciones siga derivándose.
+
+### Consecuencias
+
+- **1.850 pruebas en verde** (2 nuevas).
+- El panel del mapa de línea ya **no depende del componente** del atlas: los dos dependen del dato.
+- Queda el camino libre para el paso siguiente de `TODO-82/83/85`: extraer el panel del clima a un
+  componente del que dependan las dos pantallas, con la celda del CLIC como sujeto en la regional
+  —decisión del Ingeniero, 2026-08-22—.

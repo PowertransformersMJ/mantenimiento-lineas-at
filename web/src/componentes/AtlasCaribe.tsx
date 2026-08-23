@@ -44,61 +44,20 @@ import {
 import { prepararTeselas } from '../datos/teselas';
 import { nf } from '../vistas/formato';
 import { almacen } from '../datos/enlace';
+import { ATLAS, ATLAS_EN_ORDEN, type ClaveAtlas } from '../vistas/atlasCatalogo';
 
 const DEPARTAMENTOS = '/mapas/caribe-departamentos.json';
 const BASE = 'caribe.pmtiles';
 
 /** Cuál de los atlas. Es lo ÚNICO que esta pantalla necesita saber. */
-export type ClaveAtlas = 'sol' | 'temperatura' | 'viento' | 'lluvia' | 'nubes';
-
 /**
- * LOS DOS PRODUCTOS. Aquí solo va lo que la ficha no puede traer: dónde está esa
- * ficha y cómo se llama la pantalla. Todo lo demás —unidad, rampa, avisos, qué
- * resume el día— lo dice el archivo, para que añadir un tercer atlas mañana sea
- * un perfil en el generador y una línea aquí, no una pantalla nueva.
+ * QUÉ ATLAS EXISTEN — **ya no se define aquí** (`§ADR-068`). Vive en
+ * `vistas/atlasCatalogo.ts`, que es dato y no pantalla: colgarlo de este
+ * componente obligaba al panel del mapa de línea a importar de aquí, y un trozo
+ * perezoso tirando de otro es un ciclo esperando a que alguien importe de vuelta.
  */
-export const ATLAS: Record<ClaveAtlas, {
-  ficha: string; idCapa: string; titulo: string; entradilla: string; rotulo: string;
-}> = {
-  sol: {
-    ficha: '/mapas/sol-caribe.json',
-    idCapa: 'capa-sol',
-    titulo: 'Atlas solar del Caribe',
-    entradilla: 'Irradiancia solar',
-    rotulo: 'Sol',
-  },
-  temperatura: {
-    ficha: '/mapas/temp-caribe.json',
-    idCapa: 'capa-temp',
-    titulo: 'Atlas de temperatura del Caribe',
-    entradilla: 'Temperatura del aire a 2 m',
-    rotulo: 'Temperatura',
-  },
-  viento: {
-    ficha: '/mapas/viento-caribe.json',
-    idCapa: 'capa-viento',
-    titulo: 'Atlas de viento del Caribe',
-    entradilla: 'Viento a 10 m',
-    rotulo: 'Viento',
-  },
-  lluvia: {
-    ficha: '/mapas/lluvia-caribe.json',
-    idCapa: 'capa-lluvia',
-    titulo: 'Atlas de lluvia del Caribe',
-    entradilla: 'Lluvia caída',
-    rotulo: 'Lluvia',
-  },
-  nubes: {
-    ficha: '/mapas/nubes-caribe.json',
-    idCapa: 'capa-nubes',
-    titulo: 'Atlas de nubosidad del Caribe',
-    entradilla: 'Cielo cubierto',
-    rotulo: 'Nubes',
-  },
-};
-
-/** El orden en que se ofrecen. No es alfabético: es el orden en que nacieron. */
-export const ATLAS_EN_ORDEN: ClaveAtlas[] = ['sol', 'temperatura', 'viento', 'lluvia', 'nubes'];
+export { ATLAS, ATLAS_EN_ORDEN } from '../vistas/atlasCatalogo';
+export type { ClaveAtlas } from '../vistas/atlasCatalogo';
 
 /**
  * EL VACÍO DE FUERA DEL RECORTE SE PINTA COMO PAPEL, NO COMO MAPA ROTO.

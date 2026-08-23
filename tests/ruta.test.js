@@ -20,6 +20,8 @@
 // ============================================================================
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { leerRuta, HASH_ATLAS } from '../web/src/datos/ruta.ts';
 
 describe('la gramática de direcciones', () => {
@@ -90,5 +92,50 @@ describe('la gramática de direcciones', () => {
       assert.deepEqual(leerRuta(hash), { tipo: 'atlas', cual },
         `${hash} tiene que abrir el atlas «${cual}»`);
     }
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// UN SOLO CATÁLOGO DE ATLAS (§ADR-068)
+// ----------------------------------------------------------------------------
+// `ClaveAtlas` y la lista de atlas vivían DOS veces: en el componente de la
+// pantalla y aquí, con sus direcciones. Añadir el quinto obligó a tocar las dos,
+// y tocar una sola habría dejado `#/nubes` abriendo otro atlas SIN dar un error
+// — lo cazó el compilador de milagro, porque los dos tipos se cruzaban en una
+// prop. Es la familia de `30 · M-01`: lo que hay que sincronizar a mano, se
+// desincroniza.
+// ════════════════════════════════════════════════════════════════════════════
+describe('el catálogo de atlas tiene un solo dueño', () => {
+
+  test('nadie más define ClaveAtlas ni la lista', async () => {
+    const RAIZ = fileURLToPath(new URL('../web/src', import.meta.url));
+    const { readdirSync, statSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    const fuentes = (d) => readdirSync(d).flatMap((f) => {
+      const p = join(d, f);
+      return statSync(p).isDirectory() ? fuentes(p) : (/\.tsx?$/.test(f) ? [p] : []);
+    });
+    const dueños = fuentes(RAIZ).filter((f) => {
+      const s = readFileSync(f, 'utf-8');
+      return /^export type ClaveAtlas =/m.test(s) || /^export const ATLAS_EN_ORDEN/m.test(s);
+    }).map((f) => f.replace(RAIZ + '/', ''));
+    assert.deepEqual(dueños, ['vistas/atlasCatalogo.ts'],
+      'volvió a haber más de una lista de atlas: se desincronizarán');
+  });
+
+  test('cada atlas del catálogo tiene su ficha publicada, y su dirección es única', async () => {
+    const { ATLAS, ATLAS_EN_ORDEN, HASH_ATLAS } = await import('../web/src/vistas/atlasCatalogo.ts');
+    const { existsSync } = await import('node:fs');
+    const publico = fileURLToPath(new URL('../web/public', import.meta.url));
+    const faltan = [], hashes = new Set();
+    for (const c of ATLAS_EN_ORDEN) {
+      if (!existsSync(publico + ATLAS[c].ficha)) faltan.push(ATLAS[c].ficha);
+      assert.ok(!hashes.has(ATLAS[c].hash), `dos atlas comparten la dirección ${ATLAS[c].hash}`);
+      hashes.add(ATLAS[c].hash);
+      assert.equal(HASH_ATLAS[c], ATLAS[c].hash, 'la tabla de direcciones dejó de derivarse');
+    }
+    assert.deepEqual(faltan, [], 'atlas del catálogo sin ficha publicada');
+    assert.equal(ATLAS_EN_ORDEN.length, Object.keys(ATLAS).length,
+      'el orden de la pantalla se olvidó de un atlas del catálogo');
   });
 });

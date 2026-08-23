@@ -42,7 +42,9 @@ import {
   type AlcanceDelAtlas, type Regimen,
 } from '../vistas/lineaDeTiempo';
 import { celdaDe, colorDeValor, valorDeByte } from '../vistas/rejilla';
-import { ATLAS, ATLAS_EN_ORDEN, type ClaveAtlas } from './AtlasCaribe';
+// ⚠️ Del CATÁLOGO, no del componente del atlas (`§ADR-068`): este panel es
+// perezoso y aquél también, y tirar de él arrastraba una pantalla entera.
+import { ATLAS, ATLAS_EN_ORDEN, type ClaveAtlas } from '../vistas/atlasCatalogo';
 import { eltiempoEnCastellano, TOPES_AVISO, type DiaPronostico } from '../vistas/pronostico';
 import { ATRIBUCION_PRONOSTICO } from '../datos/pronostico';
 import { nf } from '../vistas/formato';
