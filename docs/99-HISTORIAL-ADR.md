@@ -5442,3 +5442,92 @@ la información que faltaba solo aparece usando la pantalla.
 `research-archive/2026-08-22-pronostico-diagnostico-y-estrategia.md` §4 — de ahí sale la
 recomendación del eje continuo, y ahí está la comprobación de qué publica y qué no publica la fuente
 para esta zona.
+
+---
+
+## ADR-059 · 2026-08-22 · Los atlas dejan de dar un número suelto y pasan a dar el día, el mes y el veredicto
+
+**Estado:** ✅ Decidido · **NO revisada externamente** · ✅ **verificado en vivo** con la sesión del
+Ingeniero: el 15 de agosto la temperatura da máxima 32,0 °C a las 13:00 y **«12 de 19 días medidos
+de agosto cruzaron los 32 °C»**; el 1 de febrero la lluvia da **69,5 mm, POR ENCIMA de los 20 mm**,
+con «lluvia moderada de 01:00 a 23:59» y **3 días de 28 por encima del tope**.
+
+### Contexto
+
+El Ingeniero, mirando la capa: *«en el atlas no dice nada… necesito que los atlas transmitan
+información de valor, que cada uno refleje información precisa que me permita tomar decisiones en el
+mantenimiento de líneas AT»*.
+
+Tenía razón dos veces. La capa daba **un número suelto** —el de la hora que tocara el deslizador— y
+para saber cómo había sido el día había que moverlo veinticuatro veces y apuntar a mano. Eso no es
+información para decidir: es materia prima.
+
+Y al lado ponía un resumen del día que era **de la REGIÓN entera**, sin decirlo. El 19 de agosto la
+pantalla mostraba «En la celda de esta línea: 32,5 °C» y justo debajo «Máxima del día: 29,79 °C».
+**Una máxima menor que un valor del propio día.** Quien lee eso no se confunde: deja de fiarse de
+toda la capa, y hace bien.
+
+### Decisión
+
+- **El día entero, en LA celda de la línea**: máxima y mínima con su hora, total en lo que se
+  acumula, y las 24 horas dibujadas. **No se descarga nada nuevo** — las 24 horas ya venían dentro
+  del PNG del mes; solo no se leían.
+- **El veredicto contra el número con el que trabajamos.** Cada atlas dice si cruzó su tope y
+  **cuándo**: «pasó de 40 km/h de 11:00 a 15:59 — 5 h en total».
+- **Los topes NO se inventan aquí y tienen un solo dueño.** Sol y temperatura los traen de la propia
+  ficha del archivo (`hipotesisMarcadaEnRampa`); viento y lluvia usan los MISMOS `TOPES_AVISO` que ya
+  usa el pronóstico. Si mañana cambia el tope de viento, cambia en los dos sitios o en ninguno.
+- **Qué mide cada tope, y no es un detalle:** en el viento decide el PICO —lo que baja a un liniero
+  de la estructura es la racha— y en la lluvia el TOTAL del día, porque lo que impide llegar al apoyo
+  es el agua acumulada. Un día de 24 horas a 1 mm es «seco» por pico y 24 mm por total.
+- **EL MES, que es la escala en la que se planifica:** «en febrero, 3 de 28 días medidos cruzaron ese
+  tope (los días 1, 2, 3)». Sale del mismo PNG ya descargado.
+- **Cómo llovió, EN PALABRAS** (lo pidió aparte): llovizna · moderada · fuerte · muy fuerte ·
+  torrencial, con los cortes de la **OMM** (2 / 15 / 30 / 60 mm en una hora) — no un criterio
+  inventado en casa—, cada grado con sus horas y con qué significa para una cuadrilla.
+- **El resumen regional NO se borra: se rotula y se manda al final**, con «para comparar, en toda la
+  REGIÓN (mediana de las celdas, no la de esta línea)». Era información válida puesta donde
+  engañaba.
+- **La altura de las barras es la FORMA del día; el color, el valor.** La altura va del mínimo al
+  máximo de ese día y el color usa la rampa del mapa. Escalar la altura desde cero aplastaría contra
+  el suelo toda variación de temperatura, que es justo lo que se quiere ver — y por eso los dos
+  extremos van escritos con su número al lado.
+
+### Lo que NO se puede hacer con esta fuente, y se dice en el código y en la pantalla
+
+- **«Nublado» / «parcialmente nublado» / «despejado».** La nubosidad es otro parámetro
+  (`CLOUD_AMT`). **Verificado el 2026-08-22**: NASA lo publica por horas, pero con la misma latencia
+  larga que la radiación — hay dato hasta **finales de mayo** y de junio en adelante nada. Deducirla
+  de los milímetros sería inventarla: un día encapotado sin una gota mide exactamente lo mismo que
+  uno despejado. Queda ofrecido como quinto atlas, con esa limitación por delante.
+- **«Tormenta eléctrica».** No hay parámetro de rayos ni de convección en NASA POWER, y **ninguna
+  cantidad de lluvia implica aparato eléctrico**. El único sitio del sistema donde consta una
+  tormenta es el PRONÓSTICO, que sí trae el símbolo de la suya. Hay una prueba que impide que
+  cualquiera de esas dos palabras entre en la escala de lluvia.
+- **La resolución.** El dato es la media de la hora sobre una celda de 111 km: un aguacero de veinte
+  minutos sobre un apoyo se reparte y sale MÁS FLOJO de lo que fue. La escala clasifica lo que el
+  archivo mide, no lo que cayó sobre la torre.
+
+### Alternativas descartadas
+
+- **Deducir la nubosidad de la radiación** comparando cielo real contra cielo despejado. Es un
+  cálculo defendible en un paper y aquí sería un número inventado presentado como medida — y solo
+  funcionaría de día. Además `CLRSKY_SFC_SW_DWN` tiene la MISMA latencia, así que ni eso.
+- **Bajar la escala de la OMM a criterio propio** («fuerte» a partir de 5 mm/h, por ejemplo) para que
+  el Caribe diera más días marcados. Un umbral sin fuente presentado como escala es una opinión con
+  uniforme; el ajuste al dato de celda de 111 km se dice como advertencia, no falseando los cortes.
+- **Borrar el resumen regional.** Era información válida mal colocada. Se rotula, no se tira.
+
+### Consecuencias
+
+- **1.824 pruebas en verde** (19 nuevas en `tests/perfil-del-dia.test.js`), incluida la que impide
+  que «nublado» o «tormenta» se cuelen en la escala de lluvia.
+- Sale a la luz un dato que la capa antes escondía y que toca a `TODO-71`: **12 de los 19 días
+  medidos de agosto pasaron de los 32 °C** del escenario de referencia de la pestaña Térmica. No lo
+  desmiente —un año de medias horarias no valida un extremo de diseño— pero lo pone sobre la mesa
+  con número.
+
+### Crudo de respaldo
+
+`research-archive/2026-08-22-pronostico-diagnostico-y-estrategia.md` — mismo hilo; ahí está la
+comprobación de qué publica y qué no publica cada fuente para esta zona.

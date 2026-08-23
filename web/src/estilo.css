@@ -1559,4 +1559,31 @@ p.fund-vivo + .sello-calculo { margin-top: 5px; }
   background: transparent; color: var(--mut); border-style: dotted; border-color: var(--rd);
 }
 .sol-dia.g-fuera { background: transparent; color: var(--bd); border-style: dashed; }
+
+/* ── EL DÍA ENTERO EN LA CELDA (§ADR-059) ────────────────────────────────────
+   Las 24 horas de un vistazo. La ALTURA es la forma del día —del mínimo al
+   máximo de ese día— y el COLOR es el valor absoluto, con la misma rampa que el
+   mapa. Escalar la altura desde cero aplastaría contra el suelo toda variación
+   de temperatura, que es justo lo que se quiere ver. */
+.dia-entero { margin-top: 6px; padding-top: 5px; border-top: 1px dashed var(--bd); }
+.dia-barras {
+  display: flex; align-items: flex-end; gap: 1px; height: 42px; margin: 4px 0 1px;
+  padding: 2px; background: var(--pnl2); border-radius: 4px;
+}
+.dia-barra { flex: 1; min-width: 0; border-radius: 1px 1px 0 0; }
+.dia-barra.sin-dato {
+  height: 100%; background: repeating-linear-gradient(135deg, transparent 0 2px, var(--bd) 2px 3px);
+  opacity: .5;
+}
+/* La hora que toca el deslizador, para atar la barra al número de arriba. */
+.dia-barra.ahora { outline: 1.5px solid var(--tx); outline-offset: -1px; }
+.dia-eje { display: flex; justify-content: space-between; margin: 0 0 4px; }
+/* Cómo llovió, por grados de intensidad (escala OMM). */
+.dia-grados { list-style: none; margin: 4px 0; padding: 0; font-size: .72rem; }
+.dia-grados li { padding: 2px 0 2px 7px; border-left: 3px solid var(--b-azul); margin-bottom: 2px; }
+.dia-grados li.g-llovizna   { border-left-color: var(--b-azul); }
+.dia-grados li.g-moderada   { border-left-color: var(--az); }
+.dia-grados li.g-fuerte     { border-left-color: var(--acc); }
+.dia-grados li.g-muy_fuerte { border-left-color: var(--rd); }
+.dia-grados li.g-torrencial { border-left-color: var(--rd); font-weight: 600; }
 .sol-rampa { height: 10px; border-radius: 3px; margin: 6px 0 2px; border: 1px solid var(--bd); }

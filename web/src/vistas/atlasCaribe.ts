@@ -24,7 +24,7 @@
 // mentiría en silencio en la siguiente reconstrucción y los colores seguirían
 // saliendo bonitos (`31 · L-64`).
 // ============================================================================
-import type { CodificacionRejilla } from './rejilla.ts';
+import { valorDeByte, type CodificacionRejilla } from './rejilla.ts';
 
 export interface MesAtlas {
   /** '01'..'12' */
@@ -204,4 +204,222 @@ export function diasDelMes(anio: number, mes: number): number {
   const largos = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
   if (mes === 2 && ((anio % 4 === 0 && anio % 100 !== 0) || anio % 400 === 0)) return 29;
   return largos[mes - 1] ?? 30;
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// EL DÍA ENTERO EN LA CELDA DE LA LÍNEA (§ADR-059)
+// ----------------------------------------------------------------------------
+// POR QUÉ HACÍA FALTA. La pantalla daba UN número —el de la hora que tocara el
+// deslizador— y, al lado, un resumen del día que era de la REGIÓN entera. Los
+// dos juntos se leían como si hablaran de lo mismo, y no: el 19 de agosto la
+// celda marcaba 32,5 °C a mediodía y debajo ponía «máxima del día: 29,79 °C».
+// Una máxima menor que un valor del propio día parece un error de cálculo, y
+// quien lo lee deja de fiarse de toda la capa — con razón.
+//
+// Y para decidir un mantenimiento, un número suelto no sirve: hay que saber
+// **cuánto llegó a hacer y a qué hora**. Eso obligaba a mover el deslizador
+// veinticuatro veces y a apuntar a mano.
+//
+// ⚠️ NO SE DESCARGA NADA NUEVO. Las veinticuatro horas de cada día ya están
+// dentro del PNG del mes que la capa se baja igualmente: esto solo las LEE. Se
+// va directo al byte en vez de construir el cuadro entero hora por hora, que
+// sería veinticuatro copias de la rejilla para quedarse con un píxel de cada.
+// ════════════════════════════════════════════════════════════════════════════
+
+/** El día entero, hora a hora, en UNA celda. */
+export interface PerfilDelDia {
+  /** Las 24 horas locales, con `null` donde no se midió. */
+  horas: (number | null)[];
+  min: number | null;
+  max: number | null;
+  /** A qué hora se dio el máximo. `null` si no hubo ni una hora con dato. */
+  horaMax: number | null;
+  horaMin: number | null;
+  /** La suma del día. Solo significa algo en lo que se ACUMULA (lluvia, sol). */
+  total: number | null;
+  media: number | null;
+  /** Cuántas de las 24 horas no traen medida. Se dice, no se disimula. */
+  nSinDato: number;
+}
+
+/**
+ * El día entero en la celda que le toca a la línea.
+ *
+ * @returns `null` si el archivo no cuadra con su ficha — el mismo criterio de
+ *          `cuadroDe`: un PNG que no es el que la ficha declara desplazaría
+ *          TODAS las lecturas y seguiría dando números de aspecto correcto.
+ */
+export function perfilEnCelda(
+  px: Uint8Array, ficha: FichaAtlas, mes: MesAtlas, dia: number, ix: number, iy: number,
+): PerfilDelDia | null {
+  const { ancho, alto, codificacion } = ficha;
+  const horas = ficha.cuadros?.horas ?? 24;
+  if (!Number.isInteger(dia) || dia < 1 || dia > mes.dias) return null;
+  if (!Number.isInteger(ix) || ix < 0 || ix >= ancho) return null;
+  if (!Number.isInteger(iy) || iy < 0 || iy >= alto) return null;
+  const anchoPx = horas * ancho;
+  if (px.length < anchoPx * mes.dias * alto) return null;
+
+  const fila = ((dia - 1) * alto + iy) * anchoPx;
+  const vs: (number | null)[] = [];
+  for (let h = 0; h < horas; h++) vs.push(valorDeByte(px[fila + h * ancho + ix], codificacion));
+
+  const conDato = vs.filter((v): v is number => v !== null);
+  if (!conDato.length) {
+    return { horas: vs, min: null, max: null, horaMax: null, horaMin: null,
+      total: null, media: null, nSinDato: vs.length };
+  }
+  const max = Math.max(...conDato), min = Math.min(...conDato);
+  const total = conDato.reduce((a, b) => a + b, 0);
+  return {
+    horas: vs,
+    min, max,
+    // `indexOf` sobre el array COMPLETO, no sobre el filtrado: si se buscara en
+    // `conDato` la hora saldría corrida por cada hueco que hubiera antes.
+    horaMax: vs.indexOf(max),
+    horaMin: vs.indexOf(min),
+    total,
+    media: total / conDato.length,
+    nSinDato: vs.length - conDato.length,
+  };
+}
+
+/**
+ * Las horas del día en que se pasó de un tope.
+ *
+ * Sirve para lo único que importa al planificar: no «sopló mucho», sino
+ * «de 11 a 15 no se podía subir». Un hueco NO cuenta como superado ni como no
+ * superado: no se sabe, y por eso `nSinDato` viaja aparte en el perfil.
+ */
+export function horasSobre(perfil: PerfilDelDia, tope: number): number[] {
+  const out: number[] = [];
+  perfil.horas.forEach((v, h) => { if (v !== null && v > tope) out.push(h); });
+  return out;
+}
+
+/**
+ * Tramos seguidos de horas, dichos como los diría una persona: «de 11 a 15».
+ *
+ * Devolver «11, 12, 13, 14, 15» obliga a leer una lista y reconstruir el tramo
+ * mentalmente; eso en el campo no se hace.
+ */
+export function enTramos(horas: number[]): string {
+  if (!horas.length) return '';
+  const tramos: [number, number][] = [];
+  let ini = horas[0], prev = horas[0];
+  for (const h of horas.slice(1)) {
+    if (h === prev + 1) { prev = h; continue; }
+    tramos.push([ini, prev]); ini = h; prev = h;
+  }
+  tramos.push([ini, prev]);
+  const dosDig = (h: number) => String(h).padStart(2, '0');
+  return tramos
+    .map(([a, b]) => (a === b ? `a las ${dosDig(a)}:00` : `de ${dosDig(a)}:00 a ${dosDig(b)}:59`))
+    .join(' y ');
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// CÓMO LLOVIÓ, EN PALABRAS (§ADR-059)
+// ----------------------------------------------------------------------------
+// «0,4 mm» no le dice a nadie si se podía trabajar. «Llovizna de 08:00 a 11:59»
+// sí. La escala son los grados de intensidad horaria que usan los servicios
+// meteorológicos (OMM, y AEMET con estos mismos cortes): débil hasta 2 mm/h,
+// moderada hasta 15, fuerte hasta 30, muy fuerte hasta 60 y torrencial por
+// encima. NO es un criterio inventado en esta casa, y por eso se puede citar.
+//
+// ⚠️ LO QUE ESTA ESCALA **NO** PUEDE DECIR, y hay que decirlo en la pantalla:
+//
+//   · **Si estaba NUBLADO.** La nubosidad es otro parámetro (`CLOUD_AMT`) y no
+//     está en este archivo. Deducirla de los milímetros sería inventarla: un día
+//     encapotado sin una gota mide exactamente lo mismo que uno despejado.
+//   · **Si hubo TORMENTA ELÉCTRICA.** No hay parámetro de rayos ni de convección
+//     en esta fuente, y ninguna cantidad de lluvia implica aparato eléctrico. El
+//     único sitio del sistema donde consta una tormenta es el PRONÓSTICO, que sí
+//     trae el símbolo de la suya (`vistas/pronostico.ts`).
+//
+// ⚠️ Y UNA ADVERTENCIA QUE VIAJA CON CADA GRADO: el dato es la media de la hora
+// sobre una celda de 111 km. Un aguacero de veinte minutos sobre un apoyo se
+// reparte en esa hora y en esos 111 km, y sale MÁS FLOJO de lo que fue. La
+// escala clasifica lo que el archivo mide, no lo que cayó sobre la torre.
+// ════════════════════════════════════════════════════════════════════════════
+
+export interface GradoDeLluvia {
+  clave: 'seca' | 'llovizna' | 'moderada' | 'fuerte' | 'muy_fuerte' | 'torrencial';
+  nombre: string;
+  /** Desde (incluido) en mm en una hora. */
+  desde: number;
+  /** Qué significa para una cuadrilla. Criterio del proyecto, no de la OMM. */
+  paraLaLinea: string;
+}
+
+/** De más flojo a más fuerte. El orden ES la función: se busca el último que se cumple. */
+export const ESCALA_LLUVIA: readonly GradoDeLluvia[] = Object.freeze([
+  { clave: 'seca', nombre: 'sin lluvia', desde: 0,
+    paraLaLinea: 'nada que impida trabajar por agua.' },
+  { clave: 'llovizna', nombre: 'llovizna', desde: 0.1,
+    paraLaLinea: 'moja, pero rara vez decide la jornada.' },
+  { clave: 'moderada', nombre: 'lluvia moderada', desde: 2,
+    paraLaLinea: 'el terreno empieza a ser el problema, no el trabajo.' },
+  { clave: 'fuerte', nombre: 'lluvia fuerte', desde: 15,
+    paraLaLinea: 'acceso comprometido y visibilidad mala.' },
+  { clave: 'muy_fuerte', nombre: 'lluvia muy fuerte', desde: 30,
+    paraLaLinea: 'no es jornada de campo.' },
+  { clave: 'torrencial', nombre: 'lluvia torrencial', desde: 60,
+    paraLaLinea: 'no es jornada de campo, y el acceso puede estar cortado.' },
+]);
+
+/**
+ * En qué grado cae una hora. `null` si esa hora no se midió — que NO es «seca».
+ *
+ * Un hueco convertido en «sin lluvia» sería exactamente el error de `32 · L-44`:
+ * «no se sabe» pintado igual que «se miró y estaba bien».
+ */
+export function intensidadDeLluvia(mm_h: number | null): GradoDeLluvia | null {
+  if (mm_h === null || !Number.isFinite(mm_h)) return null;
+  let grado = ESCALA_LLUVIA[0];
+  for (const g of ESCALA_LLUVIA) if (mm_h >= g.desde) grado = g;
+  return grado;
+}
+
+/**
+ * Cómo llovió a lo largo del día, agrupado por grado y en orden de intensidad.
+ *
+ * Las horas SECAS no se devuelven: ocupan casi todo el día y enterrarían lo que
+ * importa. Las horas sin medir tampoco — van aparte, en `nSinDato` del perfil.
+ */
+export function comoLlovio(perfil: PerfilDelDia): { grado: GradoDeLluvia; horas: number[] }[] {
+  const porClave = new Map<string, { grado: GradoDeLluvia; horas: number[] }>();
+  perfil.horas.forEach((v, h) => {
+    const g = intensidadDeLluvia(v);
+    if (!g || g.clave === 'seca') return;
+    const y = porClave.get(g.clave) ?? { grado: g, horas: [] };
+    y.horas.push(h);
+    porClave.set(g.clave, y);
+  });
+  const orden = ESCALA_LLUVIA.map((g) => g.clave);
+  return [...porClave.values()].sort(
+    (a, b) => orden.indexOf(b.grado.clave) - orden.indexOf(a.grado.clave));
+}
+
+/**
+ * El MES entero en la celda, día a día — para planificar, no para un día suelto.
+ *
+ * Es lo que contesta «¿cuántos días de éstos se pierden?»: cuántos días del mes
+ * cruzaron un tope y cuáles. Sale del MISMO PNG que ya está en memoria: recorrer
+ * los 31 días no cuesta ni una descarga más.
+ */
+export function diasDelMesSobre(
+  px: Uint8Array, ficha: FichaAtlas, mes: MesAtlas, ix: number, iy: number,
+  tope: number, medir: 'max' | 'total' = 'max',
+): { dias: number[]; medidos: number; sinDato: number } {
+  const dias: number[] = [];
+  let medidos = 0, sinDato = 0;
+  for (let d = 1; d <= mes.dias; d++) {
+    const p = perfilEnCelda(px, ficha, mes, d, ix, iy);
+    const v = p ? (medir === 'total' ? p.total : p.max) : null;
+    if (v === null) { sinDato++; continue; }
+    medidos++;
+    if (v > tope) dias.push(d);
+  }
+  return { dias, medidos, sinDato };
 }

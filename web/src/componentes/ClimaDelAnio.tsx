@@ -33,7 +33,8 @@
 // ============================================================================
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  cuadroDe, isoDe, resumenDelDia, type FichaAtlas,
+  comoLlovio, cuadroDe, diasDelMesSobre, enTramos, horasSobre, isoDe, perfilEnCelda,
+  resumenDelDia, type FichaAtlas, type PerfilDelDia,
 } from '../vistas/atlasCaribe';
 import {
   diasDelMesConRegimen, extremos, sumarDias, tramoDe,
@@ -41,7 +42,7 @@ import {
 } from '../vistas/lineaDeTiempo';
 import { celdaDe, colorDeValor, valorDeByte } from '../vistas/rejilla';
 import { ATLAS, ATLAS_EN_ORDEN, type ClaveAtlas } from './AtlasCaribe';
-import { eltiempoEnCastellano, type DiaPronostico } from '../vistas/pronostico';
+import { eltiempoEnCastellano, TOPES_AVISO, type DiaPronostico } from '../vistas/pronostico';
 import { ATRIBUCION_PRONOSTICO } from '../datos/pronostico';
 import { nf } from '../vistas/formato';
 
@@ -73,6 +74,35 @@ export interface CeldaDelAnio {
   limites: [number, number, number, number];
   /** `rgb(r,g,b)` del valor de esa celda en el instante elegido, o `null` si no se midió. */
   color: string | null;
+}
+
+/**
+ * Qué número decide en cada atlas, de quién es y sobre qué se mide (`§ADR-059`).
+ *
+ * ⚠️ NINGUNO SE INVENTA AQUÍ. Los de sol y temperatura los trae la propia ficha
+ * del archivo (`hipotesisMarcadaEnRampa`); los de viento y lluvia son los MISMOS
+ * que ya usa el pronóstico (`TOPES_AVISO`). Si mañana el Ingeniero cambia el tope
+ * de viento, cambia en los dos sitios a la vez o en ninguno (`34 · L-65`).
+ *
+ * ⚠️ Y `mide` no es un detalle: en el viento decide el PICO —lo que baja a un
+ * liniero de la estructura es la racha, no la media del día— y en la lluvia
+ * decide el TOTAL, porque lo que impide llegar al apoyo es el agua acumulada.
+ * Confundirlos daría un día de 24 horas a 1 mm por «seco» teniendo 24 mm encima.
+ */
+function topeDe(cual: ClaveAtlas, ficha: FichaAtlas):
+  { valor: number; mide: 'max' | 'total'; de: string } | null {
+  if (cual === 'viento') {
+    return { valor: TOPES_AVISO.vientoTrabajo_kmh, mide: 'max',
+      de: 'Tope de trabajo en altura · criterio adoptado, sin norma citada. El mismo del pronóstico.' };
+  }
+  if (cual === 'lluvia') {
+    return { valor: TOPES_AVISO.lluviaDia_mm, mide: 'total',
+      de: 'Tope de acceso · criterio adoptado, sin norma citada. El mismo del pronóstico.' };
+  }
+  if (ficha.hipotesisMarcadaEnRampa === undefined) return null;
+  return { valor: ficha.hipotesisMarcadaEnRampa, mide: 'max',
+    de: `Contra ${ficha.etiquetaHipotesis ?? 'la hipótesis declarada'}. Un día medido NO valida `
+      + 'ni desmiente una hipótesis: la acerca.' };
 }
 
 /** Cómo se rotula cada régimen en la cinta. Corto, porque el panel tiene 240 px. */
@@ -189,6 +219,35 @@ export function ClimaDelAnio({ lon, lat, alDibujarCelda, hoy, dias = [] }: {
     return { valor: valorDeByte(byte, ficha.codificacion), celda };
   }, [tramo.regimen, ficha, pngDelMes, bytes, mesClave, dia, hora, lon, lat]);
 
+  /**
+   * EL DÍA ENTERO en la celda de la línea. Mismas guardas que la lectura de
+   * arriba: si los bytes en memoria no son los del mes que se está mirando, no
+   * se enseña un perfil del mes anterior con la fecha de éste.
+   */
+  const perfil = useMemo(() => {
+    if (tramo.regimen !== 'medido_horas') return null;
+    if (!ficha || !pngDelMes || !bytes || bytes.mes !== mesClave) return null;
+    const celda = celdaDe(lon, lat, ficha);
+    if (!celda) return null;
+    return perfilEnCelda(bytes.px, ficha, pngDelMes, dia, celda.ix, celda.iy);
+  }, [tramo.regimen, ficha, pngDelMes, bytes, mesClave, dia, lon, lat]);
+
+  /**
+   * EL MES ENTERO, para planificar: cuántos días cruzaron el tope y cuáles.
+   *
+   * Sale del MISMO PNG que ya está en memoria — recorrer los 31 días no cuesta
+   * ni una descarga más—, y contesta la pregunta que un día suelto no contesta:
+   * «¿cuántas jornadas de éstas se pierden en un mes como éste?».
+   */
+  const delMes = useMemo(() => {
+    if (!ficha || !pngDelMes || !bytes || bytes.mes !== mesClave) return null;
+    const celda = celdaDe(lon, lat, ficha);
+    const tope = topeDe(cual, ficha);
+    if (!celda || !tope) return null;
+    const r = diasDelMesSobre(bytes.px, ficha, pngDelMes, celda.ix, celda.iy, tope.valor, tope.mide);
+    return { ...r, tope };
+  }, [ficha, pngDelMes, bytes, mesClave, cual, lon, lat]);
+
   // ── Se lo describe al mapa ────────────────────────────────────────────────
   useEffect(() => {
     if (!ficha || !lectura) { alDibujarCelda(null); return; }
@@ -293,6 +352,8 @@ export function ClimaDelAnio({ lon, lat, alDibujarCelda, hoy, dias = [] }: {
               ? <b>no se midió</b>
               : <b>{nf(lectura.valor, 1)} {ficha.unidad}</b>}
           </p>
+          {perfil && <ElDiaEntero perfil={perfil} ficha={ficha} cual={cual} hora={hora}
+            delMes={delMes} mesNombre={MESES[mes]} />}
         </>
       )}
 
@@ -316,10 +377,17 @@ export function ClimaDelAnio({ lon, lat, alDibujarCelda, hoy, dias = [] }: {
 
       {/* Un día sin nada no se rellena: se dice. El `porque` ya va en la cinta. */}
 
+      {/* ⚠️ ESTE NÚMERO ES DE LA REGIÓN, NO DE LA CELDA, y hay que decirlo con
+          todas las letras. Puesto sin esa aclaración al lado del de la celda se
+          leía como si fueran lo mismo: el 19 de agosto la celda marcaba 32,5 °C
+          a mediodía y debajo ponía «Máxima del día: 29,79 °C» —una máxima menor
+          que un valor del propio día—, y eso no confunde: destruye la confianza
+          en toda la capa. Va al final, aparte, y rotulado (§ADR-059). */}
       {resumen !== null && tramo.procedencia === 'medido' && (
-        <p className="mapa-capas-n">
-          {ficha.resumenDiarioEtiqueta}: <b>{nf(resumen, 2)}</b>{' '}
-          <span className="fine">{ficha.resumenDiarioUnidad}</span>
+        <p className="mapa-capas-n fine">
+          Para comparar, en toda la REGIÓN (mediana de las celdas, no la de esta línea) —{' '}
+          {ficha.resumenDiarioEtiqueta.toLowerCase()}: <b>{nf(resumen, 2)}</b>{' '}
+          {ficha.resumenDiarioUnidad}
         </p>
       )}
 
@@ -347,6 +415,144 @@ export function ClimaDelAnio({ lon, lat, alDibujarCelda, hoy, dias = [] }: {
         Medido: {ficha.fuente} · hasta <b>{ficha.ultimoDiaConHoras}</b> por horas
         {ficha.ultimoDiaConTotal && <> y <b>{ficha.ultimoDiaConTotal}</b> por día</>}. {ficha.atribucion}
       </p>
+    </div>
+  );
+}
+
+/**
+ * EL DÍA ENTERO EN LA CELDA DE LA LÍNEA, y qué se hace con él (`§ADR-059`).
+ *
+ * POR QUÉ EXISTE. Antes esta capa daba UN número —el de la hora del deslizador—
+ * y para saber cómo había sido el día había que mover el deslizador veinticuatro
+ * veces y apuntar a mano. Eso no es información para decidir un mantenimiento:
+ * es materia prima. Lo que hace falta saber es **cuánto llegó a hacer, a qué
+ * hora, y si eso cruza el número con el que trabajamos**.
+ *
+ * ⚠️ LOS TOPES NO SE INVENTAN AQUÍ, y es lo que impide que esta pantalla se
+ * convierta en una opinión: la hipótesis de sol y temperatura la trae la propia
+ * ficha del atlas (`hipotesisMarcadaEnRampa`, con su etiqueta), y los topes de
+ * trabajo de viento y lluvia son los MISMOS que ya usa el pronóstico
+ * (`TOPES_AVISO`). Un solo dueño por criterio: si mañana el Ingeniero cambia el
+ * tope de viento, cambia en los dos sitios a la vez o en ninguno (`34 · L-65`).
+ *
+ * ⚠️ LA ALTURA DE LAS BARRAS ES LA FORMA DEL DÍA, NO EL VALOR ABSOLUTO. Va del
+ * mínimo al máximo de ESE día, así que un día plano y templado y un día plano y
+ * abrasador dibujan lo mismo. El valor absoluto lo da el COLOR, que usa la misma
+ * rampa que el mapa — y los dos extremos van escritos con su número al lado.
+ * Escalar desde cero aplastaría contra el suelo toda variación de temperatura,
+ * que es justo lo que se quiere ver.
+ */
+function ElDiaEntero({ perfil, ficha, cual, hora, delMes, mesNombre }: {
+  perfil: PerfilDelDia;
+  ficha: FichaAtlas;
+  cual: ClaveAtlas;
+  hora: number;
+  delMes: { dias: number[]; medidos: number; sinDato: number;
+    tope: { valor: number; mide: 'max' | 'total'; de: string } } | null;
+  mesNombre: string;
+}) {
+  if (perfil.max === null || perfil.min === null) {
+    return <p className="mapa-capas-n aviso">De este día no se midió ni una hora en esta celda.</p>;
+  }
+  const { min, max } = perfil;
+  const recorrido = max - min;
+  const hh = (h: number) => `${String(h).padStart(2, '0')}:00`;
+
+  // ── Qué tope rige, y de quién es ──────────────────────────────────────────
+  const acumulable = cual === 'lluvia' || cual === 'sol';
+  const tope = topeDe(cual, ficha);
+  const medido = tope?.mide === 'total' ? perfil.total : perfil.max;
+  const cruzado = tope !== null && medido !== null && medido > tope.valor;
+  const encima = tope && tope.mide === 'max' ? horasSobre(perfil, tope.valor) : [];
+  // Cómo llovió, en palabras: la escala de intensidad de la OMM.
+  const grados = cual === 'lluvia' ? comoLlovio(perfil) : [];
+
+  return (
+    <div className="dia-entero">
+      <p className="mapa-capas-t">El día entero, en esta celda</p>
+      <p className="mapa-capas-n">
+        {acumulable ? 'Pico de ' : 'Máxima '}
+        <b>{nf(max, 1)} {ficha.unidad}{acumulable ? '/h' : ''}</b> a las {hh(perfil.horaMax!)}
+        {!acumulable && recorrido > 0
+          && <> · mínima <b>{nf(min, 1)}</b> a las {hh(perfil.horaMin!)}</>}
+        {acumulable && perfil.total !== null && (
+          cual === 'sol'
+            ? <> · energía del día <b>{nf(perfil.total / 1000, 2)} kWh/m²</b></>
+            : <> · total <b>{nf(perfil.total, 1)} mm</b></>
+        )}
+      </p>
+
+      {/* Las 24 horas de un vistazo. `title` en cada barra: el número exacto
+          está a un puntero de distancia sin ocupar sitio en el panel. */}
+      <div className="dia-barras" role="img"
+        aria-label={`Las 24 horas del día en esta celda. Máxima ${nf(max, 1)} ${ficha.unidad} a las ${hh(perfil.horaMax!)}.`}>
+        {perfil.horas.map((v, h) => {
+          if (v === null) {
+            return <span key={h} className="dia-barra sin-dato" title={`${hh(h)} — sin medida`} />;
+          }
+          const alto = recorrido > 0 ? 12 + ((v - min) / recorrido) * 88 : 60;
+          const [r, g, b] = colorDeValor(v, ficha.rampa);
+          return (
+            <span key={h}
+              className={'dia-barra' + (h === hora ? ' ahora' : '')}
+              title={`${hh(h)} — ${nf(v, 1)} ${ficha.unidad}`}
+              style={{ height: `${alto}%`, background: `rgb(${r},${g},${b})` }} />
+          );
+        })}
+      </div>
+      <p className="dia-eje fine"><span>00</span><span>06</span><span>12</span><span>18</span><span>23</span></p>
+
+      {/* ── CÓMO LLOVIÓ, HORA A HORA Y EN PALABRAS ─────────────────────────
+          «0,4 mm» no dice si se podía trabajar; «llovizna de 08:00 a 11:59» sí.
+          Los cortes son los de la OMM, no de esta casa, y por eso se citan. */}
+      {cual === 'lluvia' && (
+        grados.length ? (
+          <ul className="dia-grados">
+            {grados.map((g) => (
+              <li key={g.grado.clave} className={'g-' + g.grado.clave}>
+                <b>{g.grado.nombre}</b> {enTramos(g.horas)} — {g.grado.paraLaLinea}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mapa-capas-n">Ni una hora con lluvia apreciable en esta celda.</p>
+        )
+      )}
+
+      {tope && medido !== null && (
+        <>
+          <p className={'mapa-capas-n' + (cruzado ? ' aviso' : '')}>
+            <b>
+              {tope.mide === 'total'
+                ? `${nf(medido, 1)} ${ficha.unidad} en el día, ${cruzado ? 'POR ENCIMA' : 'por debajo'} `
+                  + `de los ${nf(tope.valor, 0)} ${ficha.unidad} del tope.`
+                : encima.length
+                  ? `Pasó de ${nf(tope.valor, 0)} ${ficha.unidad} ${enTramos(encima)} — `
+                    + `${encima.length} h en total.`
+                  : `No superó los ${nf(tope.valor, 0)} ${ficha.unidad} en ninguna hora.`}
+            </b>
+          </p>
+          <p className="fine">{tope.de}</p>
+        </>
+      )}
+
+      {/* ── EL MES, que es la escala en la que se planifica ────────────────── */}
+      {delMes && delMes.medidos > 0 && (
+        <p className="mapa-capas-n">
+          En {mesNombre}: <b>{delMes.dias.length}</b> de {delMes.medidos} días medidos cruzaron ese
+          tope{delMes.dias.length ? <> (los días {delMes.dias.join(', ')})</> : null}.
+          {delMes.sinDato > 0 && (
+            <> Del resto del mes ({delMes.sinDato} {delMes.sinDato === 1 ? 'día' : 'días'})
+              todavía no hay medida.</>
+          )}
+        </p>
+      )}
+      {perfil.nSinDato > 0 && (
+        <p className="fine">
+          {perfil.nSinDato} de las 24 horas no traen medida: no cuentan ni como superadas ni como
+          no superadas.
+        </p>
+      )}
     </div>
   );
 }

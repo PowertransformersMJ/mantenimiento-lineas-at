@@ -125,3 +125,19 @@
   `visibilityState` y la latencia de `requestAnimationFrame` ANTES de diagnosticar el código.
 
 ---
+
+### L-71 · Un resumen de OTRO ámbito, puesto al lado del número, destruye la capa entera
+
+- **Síntoma:** «En la celda de esta línea: **32,5 °C**» y debajo «Máxima del día: **29,79 °C**». Una
+  máxima MENOR que un valor del mismo día.
+- **Causa:** el primero era de la celda de la línea; el segundo, la mediana de toda la REGIÓN. Cada
+  uno correcto por separado; juntos y sin rótulo, uno de los dos tenía que estar mal.
+- **Lo grave no es ese dato:** quien lo ve **deja de fiarse de la capa entera**, y hace bien — no
+  puede saber cuál de los dos falla, así que descarta los dos, incluido lo que sí era correcto.
+- **Regla:** el ÁMBITO es parte del número, igual que la unidad (`29,79` sin «de la región» está tan
+  incompleto como sin el `°C`). Dos magnitudes de ámbito distinto —esta celda / la región, este vano
+  / la línea— no van seguidas sin que cada una diga el suyo en su renglón; y la que no se pidió va
+  **después y rotulada como comparación**.
+- **Corolario:** ese resumen no se borra por estorbar. Era información válida MAL COLOCADA — se
+  rotula y se baja. Tirarla habría sido cambiar un error por otro.
+- **Hermana de `L-44`.** Detalle: `99 §ADR-059`.

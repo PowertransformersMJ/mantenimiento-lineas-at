@@ -116,6 +116,7 @@
 - `L-68` · Un guardián que compara contra un fixture NO cruza la frontera: tiene que recorrer la tubería
 - `L-69` · Una rama inalcanzable no da error: da una respuesta creíble y falsa *(`32`)*
 - `L-70` · Buscar «la hora tal» en UTC funciona hasta que la serie cambia de paso *(`32`)*
+- `L-71` · Un resumen de OTRO ámbito, puesto al lado del número, destruye la confianza en la capa entera *(`34`)*
 
 ---
 
