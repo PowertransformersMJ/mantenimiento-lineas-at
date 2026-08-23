@@ -145,6 +145,7 @@ Guarda `research-archive/` (crudos de deliberación: comités, consejos externos
 | `ADR-066` | 2026-08-22 | Tres huecos de la ola del clima, y el guardián que no podía verlos | *(`tests/estilo-clases.test.js`)* |
 | `ADR-067` | 2026-08-22 | Quién es «la línea»: un solo filtro, no uno por pantalla | *(`tests/perfil-del-dia.test.js`)* |
 | `ADR-068` | 2026-08-22 | Un solo catálogo de atlas: añadir el sexto es UNA entrada | *(`tests/ruta.test.js`)* |
+| `ADR-069` | 2026-08-22 | El clima MIGRA de Detalle GPS al Atlas — entero, no a medias | *(`tests/pronostico.test.js`)* |
 
 > Toda decisión cara de revertir entra aquí con su ADR y su crudo enlazado. Si hubo comité o consejo
 > externo y el crudo no está archivado, la tarea **no está cerrada** (`CLAUDE.md §G.4`).

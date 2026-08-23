@@ -14,12 +14,11 @@
 // la vista cae al esquema SVG. Una capa opcional jamás veta a una esencial
 // (docs/31 · L-11).
 // ============================================================================
-import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { layers, namedFlavor } from '@protomaps/basemaps';
 import { prepararTeselas } from '../datos/teselas';
-import { conReintentos } from '../datos/cargar';
 import { FUNCIONES_ANCLA, type Apoyo, type Hipotesis, type Investigacion } from '@lineas/contratos';
 import { derivarLevantamiento } from '@lineas/exportar/levantamiento';
 import { COLORES_TRAMO_CSS, COLOR_SIN_GUARDA, COLOR_SIN_GUARDA_FUNDA } from '../vistas/tramoColores';
@@ -36,15 +35,6 @@ import {
   capasOrdenadas as capasOrdenadasTemp, contraLaEds, oscilacionEstacional, NOTA_HIPOTESIS,
   type FichaTemperatura,
 } from '../vistas/temperatura';
-import {
-  avisosDelPronostico, contraLaHipotesis, ejeDeLaLinea, eltiempoEnCastellano,
-  vientoSobreLaLinea, ZONA,
-  type PronosticoEnPantalla,
-} from '../vistas/pronostico';
-import { ATRIBUCION_PRONOSTICO, celdaDeConsulta, pedirPronostico, SinPronostico } from '../datos/pronostico';
-import { diaDe } from '../vistas/lineaDeTiempo';
-import { soloEstructuras } from '../vistas/planta';
-import type { CeldaDelAnio } from './ClimaDelAnio';
 
 /**
  * PEREZOSO de verdad: mientras la capa esté apagada, este trozo no se descarga.
@@ -52,8 +42,6 @@ import type { CeldaDelAnio } from './ClimaDelAnio';
  * fallo de red puntual dejaría la casilla encendida y el panel en blanco para
  * siempre (`datos/cargar.ts` es la única frontera, y esta la respeta).
  */
-const ClimaDelAnio = lazy(() => conReintentos(() => import('./ClimaDelAnio'))
-  .then((m) => ({ default: m.ClimaDelAnio })));
 import { anotar, registrarMapa, retirarMapa } from './sondaMapa';
 
 // ── Las capas de imagen: qué son, de dónde salen y a quién se le debe ───────
@@ -265,7 +253,6 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
    * El pronóstico NO es una capa de imagen: es un dato del sitio que se pinta
    * encima. Por eso va con su propio estado y no en `CAPAS_RASTER`.
    */
-  const [pronostico, setPronostico] = useState(false);
   /**
    * El clima del AÑO (los cinco atlas del Caribe), consultado desde este mapa.
    *
@@ -274,14 +261,7 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
    * cuesta ~32 KB — NO trae el mapa base regional de 5 MiB, porque el mapa base
    * aquí es el de la línea, que ya está (`99 §ADR-056`).
    */
-  const [climaAnio, setClimaAnio] = useState(false);
-  const [celdaAnio, setCeldaAnio] = useState<CeldaDelAnio | null>(null);
-  const [tiempo, setTiempo] = useState<PronosticoEnPantalla | null>(null);
-  const [pidiendoTiempo, setPidiendoTiempo] = useState(false);
-  const [falloTiempo, setFalloTiempo] = useState<string | null>(null);
-  const flecha = useRef<maplibregl.Marker | null>(null);
   /** Si ya se pidió el pronóstico en esta pantalla. Referencia y no estado: ver el efecto. */
-  const yaPedido = useRef(false);
   /** Si el componente sigue montado. Lo único que decide si se puede pintar la respuesta. */
   const montado = useRef(true);
   /**
@@ -339,28 +319,9 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
    */
   const guarda = useMemo(() => cableDeGuarda(apoyos), [apoyos]);
 
-  const geometria = useMemo(() => {
-    // ⚠️ `soloEstructuras` y NO un filtro a mano (`§ADR-067`). El que había aquí
-    // era `!== 'Empalme'`, que deja pasar los «Punto de referencia» —marcas del
-    // levantamiento que no sostienen nada— y los contaba como apoyos. Hoy en
-    // LN-627 no hay ninguno y por eso daba igual; el día que entre uno, esta
-    // pantalla diría «las N coordenadas de la línea» contando una marca. El
-    // propio `planta.ts` lo dice: «se filtra AQUÍ, en un solo sitio, para que
-    // ninguna vista pueda olvidarlo» — y esta lo había olvidado (`34 · L-65`).
-    const E = soloEstructuras(apoyos);
-    if (!E.length) return null;
-    const lat = E.reduce((s2, a) => s2 + a.coordenada.lat, 0) / E.length;
-    const lon = E.reduce((s2, a) => s2 + a.coordenada.lon, 0) / E.length;
-    const lev = derivarLevantamiento(apoyos);
-    // ⚠️ Las coordenadas viajan ENTERAS, no solo su promedio (`§ADR-064`). El
-    // promedio sirve para preguntar por una celda; para comprobar si el
-    // recorrido cabe en ESA celda hacen falta todas, de punta a punta.
-    return {
-      lat, lon,
-      eje: ejeDeLaLinea(lev.puntos.map((p) => p.azimut_deg)),
-      puntos: E.map((a) => ({ lat: a.coordenada.lat, lon: a.coordenada.lon })),
-    };
-  }, [apoyos]);
+  // ⚠️ `geometria` (centroide + eje de la línea) se retiró con `§ADR-069`: solo
+  // servía al clima, y el clima vive ahora en la pantalla del atlas, que lo
+  // deriva por su cuenta del recorrido que recibe.
 
   useEffect(() => {
     if (!caja.current || mapa.current || apoyos.length < 2) return;
@@ -716,122 +677,14 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
     return () => { m.off('click', alPulsar); };
   }, [medida, fichaMedida, mapaVivo]);
 
-  /**
-   * El pronóstico: se pide cuando ÉL lo enciende, nunca al pintar.
-   *
-   * Misma regla que `datos/clima.ts`: una consulta a un tercero es un acto
-   * deliberado, no un efecto de que alguien mire una pantalla. Y si falla, se
-   * dice y el mapa se queda como estaba — una capa opcional jamás veta a una
-   * esencial (`31 · L-11`).
-   */
-  /**
-   * LA CELDA DEL ATLAS QUE LE TOCA A ESTA LÍNEA.
-   *
-   * Se dibuja el cuadrado de 1° con su color y su borde, y NADA MÁS. No es una
-   * rejilla: es UNA celda, la que contiene el corredor entero. Pintar las 36 del
-   * atlas sobre este encuadre sería pintar 35 que no se ven y una que lo tapa
-   * todo; y pintar un degradado dentro de ella fingiría que un extremo de la
-   * línea tuvo otro tiempo que el otro, que es justo lo que no se midió.
-   *
-   * Va DEBAJO de los tramos y de los apoyos: es contexto, no es la línea.
-   */
-  useEffect(() => {
-    const m = mapaVivo;
-    if (!m || !mapaCargado) return;
-    const ID = 'celda-anio';
-    const quitar = () => {
-      if (m.getLayer(`${ID}-borde`)) m.removeLayer(`${ID}-borde`);
-      if (m.getLayer(ID)) m.removeLayer(ID);
-      if (m.getSource(ID)) m.removeSource(ID);
-    };
-    if (!celdaAnio) { quitar(); return; }
+  // ⚠️ El efecto que pintaba la celda del clima sobre este mapa se retiró con
+  // `§ADR-069`: el clima vive en la pantalla del atlas, que pinta su propia
+  // rejilla. Aquí no queda rastro.
 
-    const [o, s, e, n2] = celdaAnio.limites;
-    const datos = {
-      type: 'FeatureCollection' as const,
-      features: [{
-        type: 'Feature' as const, properties: {},
-        geometry: {
-          type: 'Polygon' as const,
-          coordinates: [[[o, s], [e, s], [e, n2], [o, n2], [o, s]]],
-        },
-      }],
-    };
-    const fuente = m.getSource(ID) as maplibregl.GeoJSONSource | undefined;
-    if (fuente) fuente.setData(datos);
-    else {
-      m.addSource(ID, { type: 'geojson', data: datos });
-      // Debajo de todo lo de la línea: la primera capa propia que exista sirve
-      // de ancla, y si no hay ninguna se añade encima del mapa base.
-      const debajoDe = m.getLayer('tramos') ? 'tramos' : undefined;
-      m.addLayer({
-        id: ID, type: 'fill', source: ID,
-        paint: { 'fill-color': celdaAnio.color ?? '#9a9384', 'fill-opacity': celdaAnio.color ? 0.35 : 0.12 },
-      }, debajoDe);
-      m.addLayer({
-        id: `${ID}-borde`, type: 'line', source: ID,
-        paint: { 'line-color': '#2c2a24', 'line-width': 1.2, 'line-dasharray': [3, 2], 'line-opacity': 0.55 },
-      }, debajoDe);
-    }
-    if (m.getLayer(ID)) {
-      m.setPaintProperty(ID, 'fill-color', celdaAnio.color ?? '#9a9384');
-      m.setPaintProperty(ID, 'fill-opacity', celdaAnio.color ? 0.35 : 0.12);
-    }
-    return () => { if (!celdaAnio) quitar(); };
-  }, [celdaAnio, mapaVivo, mapaCargado]);
+  // ⚠️ Aquí se pedía el pronóstico. Se fue con el clima a la pantalla del
+  // atlas (`§ADR-069`): un mapa de línea no consulta a terceros.
 
-  useEffect(() => {
-    if (!pronostico || !geometria || yaPedido.current) return;
-    // ⚠️ EL FRENO ES UNA REFERENCIA, NO EL ESTADO, y la lista de dependencias es
-    // corta a propósito. Con `pidiendoTiempo` dentro de las dependencias, el
-    // propio `setPidiendoTiempo(true)` volvía a disparar el efecto, y la LIMPIEZA
-    // del pase anterior marcaba la petición como cancelada: la consulta salía,
-    // el servicio respondía 200… y la pantalla se quedaba en «consultando…» para
-    // siempre. Cazado en producción (`32 · L-57`).
-    yaPedido.current = true;
-    setPidiendoTiempo(true);
-    setFalloTiempo(null);
-    void pedirPronostico(geometria.lat, geometria.lon)
-      .then((p) => { if (montado.current) setTiempo(p); })
-      .catch((e) => {
-        // Un fallo NO deja el freno puesto: volver a encender la capa reintenta.
-        yaPedido.current = false;
-        if (!montado.current) return;
-        setFalloTiempo(e instanceof SinPronostico ? e.message
-          : 'No se pudo traer el pronóstico. El resto del mapa sigue igual.');
-        setPronostico(false);
-      })
-      .finally(() => { if (montado.current) setPidiendoTiempo(false); });
-  }, [pronostico, geometria]);
-
-  /**
-   * La flecha del viento sobre el mapa.
-   *
-   * Apunta HACIA DONDE VA el viento, que es lo que se espera al mirar un mapa; el
-   * rótulo dice de dónde viene, que es como lo nombra la meteorología. Las dos
-   * cosas a la vez, porque cada gremio lee una.
-   */
-  useEffect(() => {
-    const m = mapaVivo;
-    flecha.current?.remove();
-    flecha.current = null;
-    if (!m || !pronostico || !tiempo || !geometria) return;
-
-    const ahora = tiempo.instantes[0];
-    if (!ahora || ahora.vientoDesde_deg === null) return;
-    const hacia = (ahora.vientoDesde_deg + 180) % 360;
-
-    const el = document.createElement('div');
-    el.className = 'mapa-viento';
-    el.title = `Viento del ${Math.round(ahora.vientoDesde_deg)}°`
-      + (ahora.viento_kmh !== null ? ` a ${ahora.viento_kmh.toFixed(0)} km/h` : '');
-    el.innerHTML = `<span class="mapa-viento-f" style="transform: rotate(${hacia}deg)">↑</span>`
-      + `<span class="mapa-viento-v">${ahora.viento_kmh !== null ? `${ahora.viento_kmh.toFixed(0)} km/h` : '—'}</span>`;
-    flecha.current = new maplibregl.Marker({ element: el })
-      .setLngLat([geometria.lon, geometria.lat]).addTo(m);
-
-    return () => { flecha.current?.remove(); flecha.current = null; };
-  }, [pronostico, tiempo, geometria, mapaVivo]);
+  // ⚠️ La flecha del viento se fue con el clima al atlas (`§ADR-069`).
 
   /**
    * LLEVAR EL MAPA AL RECORTE ENTERO DE LA CAPA ENCENDIDA.
@@ -906,38 +759,19 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
           </label>
         ))}
 
-        {/* UNA SOLA CASILLA PARA EL TIEMPO, Y ES LA DECISIÓN DE `§ADR-058`.
-            Antes eran dos —«Pronóstico» y «Clima del año»— y obligaban a saber
-            de antemano cuál encender según se mirara hacia atrás o hacia
-            adelante. Eso es una pregunta de fontanería, no de mantenimiento:
-            ahora se enciende una vez y se elige la FECHA. Los dos motores siguen
-            separados por dentro, porque lo medido y lo pronosticado no se
-            mezclan; lo que se unificó es el mando. */}
-        <label>
-          <input type="checkbox" checked={pronostico}
-            onChange={(e) => {
-              const encendido = e.target.checked;
-              setPronostico(encendido);
-              setClimaAnio(encendido);
-              if (!encendido) setCeldaAnio(null);
-            }} /> El tiempo de esta línea
-          {pidiendoTiempo && <span className="mapa-capas-f">consultando…</span>}
-        </label>
-        {climaAnio && geometria && (
-          <Suspense fallback={<p className="mapa-capas-n">Bajando el histórico…</p>}>
-            <ClimaDelAnio lon={geometria.lon} lat={geometria.lat}
-              alDibujarCelda={setCeldaAnio} puntos={geometria.puntos}
-              hoy={diaDe(new Date())} dias={tiempo?.dias ?? []} />
-          </Suspense>
-        )}
-
+        {/* ⚠️ EL CLIMA YA NO VIVE AQUÍ (`§ADR-069`). Estaba «El tiempo de esta
+            línea» —el eje de fecha, el día entero, las escalas y el pronóstico—
+            y el Ingeniero pidió que dejara de aparecer en Detalle GPS y viviera
+            en la pantalla del ATLAS, que es la suya: ahí se ven los 7
+            departamentos y se puede pulsar la celda que se quiera. Esta pestaña
+            se queda con lo que es: EL RECORRIDO a pantalla entera.
+            No se borró nada: se movió, y llegó completo antes de quitarlo. */}
         {bajando && (
           <p className="mapa-capas-n" aria-live="polite">
             Descargando {CAPAS_RASTER[bajando].rotulo.toLowerCase()}… (una sola vez)
           </p>
         )}
         {falloCapa && <p className="mapa-capas-n alerta">{falloCapa}</p>}
-        {falloTiempo && <p className="mapa-capas-n alerta">{falloTiempo}</p>}
         {medida === 'radiacion' && fichaMedida?.capa === 'radiacion' && (
           <LeyendaRadiacion ficha={fichaMedida as FichaRadiacion} mes={mesRadiacion} alElegirMes={(c) => {
             setMesRadiacion(c); setValorClic(null);
@@ -985,12 +819,6 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
               )}
             </p>
           </>
-        )}
-
-        {pronostico && tiempo && (
-          <PanelPronostico p={tiempo} eje={geometria?.eje ?? null}
-            celda={geometria ? celdaDeConsulta(geometria.lat, geometria.lon) : null}
-            vientoHipotesis_kmh={hipotesis?.vientoMax_kmh} />
         )}
       </div>
     </div>
@@ -1229,89 +1057,6 @@ function LeyendaTemperatura({ ficha, mes, alElegirMes, valor, cargando, edsHipot
       <p className="mapa-capas-n">
         {ficha.magnitud ?? 'TEMP'} · {ficha.periodo ?? 'promedio de largo plazo'} ·{' '}
         {ATRIBUCION_RADIACION}
-      </p>
-    </div>
-  );
-}
-
-/**
- * El pronóstico, dicho para quien programa una cuadrilla.
- *
- * TRES COSAS QUE NO PUEDEN FALTAR, y ninguna es adorno:
- *
- *   1. **De qué parte del viento hablamos.** Lo que carga un apoyo es la
- *      componente de LADO, no la velocidad. Publicar solo la velocidad obliga a
- *      hacer la descomposición de cabeza.
- *   2. **Que esto no valida la hipótesis.** Poner los dos números juntos invita
- *      a leer «sopla menos de lo calculado, vamos sobrados», y eso es falso: la
- *      hipótesis es un extremo de diseño, no el tiempo de esta semana.
- *   3. **Dónde y cuándo se preguntó.** Un pronóstico sin hora de emisión ni
- *      punto de consulta es un número sin dueño; y la celda —redondeada a
- *      propósito— explica por qué no dice «en el apoyo E12».
- */
-function PanelPronostico({ p, eje, celda, vientoHipotesis_kmh }: {
-  p: PronosticoEnPantalla;
-  eje: number | null;
-  celda: { lat: number; lon: number } | null;
-  vientoHipotesis_kmh?: number | null;
-}) {
-  const ahora = p.instantes[0];
-  const lado = ahora ? vientoSobreLaLinea(ahora.viento_kmh, ahora.vientoDesde_deg, eje) : null;
-  const contra = contraLaHipotesis(lado?.transversal_kmh ?? null, vientoHipotesis_kmh);
-  const avisos = avisosDelPronostico(p, eje);
-  const n = (x: number | null | undefined, d = 0) =>
-    (typeof x === 'number' && Number.isFinite(x) ? x.toFixed(d) : '—');
-  const dia = (iso: string) => new Date(`${iso}T12:00:00Z`)
-    .toLocaleDateString('es-CO', { weekday: 'short', day: '2-digit', month: 'short', timeZone: ZONA });
-
-  return (
-    <div className="mapa-leyenda mapa-tiempo">
-      {ahora && (
-        <p className="mapa-tiempo-ahora">
-          <b>{n(ahora.temperatura_C, 0)} °C</b> · {eltiempoEnCastellano(ahora.simbolo)} ·{' '}
-          viento <b>{n(ahora.viento_kmh, 0)} km/h</b>
-          {ahora.vientoDesde_deg !== null && <> del {n(ahora.vientoDesde_deg, 0)}°</>}
-        </p>
-      )}
-      {lado && (
-        <p className="mapa-capas-n">
-          <b>De lado sobre la línea: {n(lado.transversal_kmh, 0)} km/h</b> (el viento entra a{' '}
-          {n(lado.angulo_deg, 0)}° del eje, que corre a {n(eje, 0)}°). Es la parte que carga los
-          apoyos; el resto sopla a lo largo y no los empuja de lado.
-        </p>
-      )}
-      {contra && <p className="mapa-capas-n">{contra.frase}</p>}
-
-      <table className="mapa-tiempo-dias">
-        <thead>
-          <tr><th>Día</th><th>°C</th><th>Viento máx.</th><th>Lluvia</th><th>Cielo</th></tr>
-        </thead>
-        <tbody>
-          {p.dias.slice(0, 5).map((d) => (
-            <tr key={d.dia}>
-              <td>{dia(d.dia)}</td>
-              <td>{n(d.tempMin_C, 0)}–{n(d.tempMax_C, 0)}</td>
-              <td>{n(d.vientoMax_kmh, 0)} km/h</td>
-              <td>{n(d.lluvia_mm, 1)} mm</td>
-              <td>{eltiempoEnCastellano(d.simbolo)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-
-      {avisos.map((a) => <p key={a} className="mapa-capas-n aviso">{a}</p>)}
-
-      <p className="mapa-capas-n">
-        <b>Esto no entra en ningún cálculo de la línea.</b> Sirve para decidir la semana —cuadrilla,
-        maniobra, acceso—, no para dictaminar: una flecha se calcula con una hipótesis declarada,
-        no con el tiempo que va a hacer.
-      </p>
-      <p className="mapa-capas-n">
-        {ATRIBUCION_PRONOSTICO}
-        {p.emitido && <> · corrida del modelo: {new Date(p.emitido).toLocaleString('es-CO',
-          { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: ZONA })}</>}
-        {celda && <> · se preguntó por la celda {celda.lat.toFixed(1)}, {celda.lon.toFixed(1)} —
-          redondeada a propósito: quien sirve el tiempo no tiene por qué saber dónde está la línea</>}
       </p>
     </div>
   );

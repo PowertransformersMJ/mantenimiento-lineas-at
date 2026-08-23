@@ -330,31 +330,41 @@ describe('la consulta al servicio del tiempo', () => {
     }
   });
 
-  test('no se consulta al pintar: solo cuando ÉL enciende la capa', () => {
-    // Misma regla que `datos/clima.ts`: una consulta a un tercero es un acto
-    // deliberado, no un efecto de que alguien mire una pantalla. Un `useEffect`
-    // sin ese freno dispararía una petición cada vez que se abre el resumen.
+  test('no se consulta al pintar: la pantalla del atlas es un acto deliberado', () => {
+    // MISMA REGLA, OTRA PANTALLA (`§ADR-069`). El pronóstico vivía detrás de una
+    // casilla del mapa de la línea; desde que el clima migró al ATLAS, la
+    // consulta va donde va la pantalla. El criterio de `32 · L-57` no se relaja:
+    // una consulta a un tercero no puede ser un efecto de que alguien mire algo.
+    // Aquí se cumple porque ABRIR el atlas ya es deliberado —hay que pulsarlo o
+    // escribir su dirección— y porque solo se pide UNA vez y solo si hay línea:
+    // sin línea no hay punto por el que preguntar, y no se pregunta.
+    const atlas = readFileSync(
+      fileURLToPath(new URL('../web/src/componentes/AtlasCaribe.tsx', import.meta.url)), 'utf-8');
+    const i = atlas.indexOf('pedirPronostico(');
+    assert.ok(i > 0, 'el atlas dejó de pedir el pronóstico');
+    const antes = atlas.slice(Math.max(0, i - 400), i);
+    assert.match(antes, /if \(!recorrido \|\| yaPedido\.current\) return;/,
+      'la consulta dejó de estar detrás de «hay línea, y solo una vez»');
+    // Y donde estaba antes no puede quedar rastro: dos consultas al mismo
+    // tercero desde dos pantallas es la duplicación que este día costó cara.
     const mapa = readFileSync(
       fileURLToPath(new URL('../web/src/componentes/Mapa.tsx', import.meta.url)), 'utf-8');
-    const i = mapa.indexOf('pedirPronostico(');
-    assert.ok(i > 0, 'el mapa dejó de pedir el pronóstico');
-    const antes = mapa.slice(Math.max(0, i - 700), i);
-    assert.match(antes, /if \(!pronostico[\s\S]*?return;/,
-      'la consulta tiene que estar detrás del interruptor que él enciende');
+    assert.ok(!mapa.includes('pedirPronostico('),
+      'el mapa de la línea volvió a consultar el pronóstico: el clima ya no vive ahí');
   });
 
   test('el efecto que consulta no se cancela a sí mismo', () => {
-    // El fallo real: con `pidiendoTiempo` en las dependencias, el propio
-    // `setPidiendoTiempo(true)` re-dispara el efecto y la limpieza del pase
-    // anterior marca la petición como cancelada. El servicio responde 200 y la
-    // pantalla se queda en «consultando…» para siempre (`32 · L-57`).
-    const mapa = readFileSync(
-      fileURLToPath(new URL('../web/src/componentes/Mapa.tsx', import.meta.url)), 'utf-8');
-    const i = mapa.indexOf('pedirPronostico(');
-    const despues = mapa.slice(i, i + 1200);
+    // El fallo real (`32 · L-57`): con el estado que el propio efecto escribe en
+    // sus dependencias, el `set` re-dispara el efecto y la limpieza del pase
+    // anterior marca la petición como cancelada. Respuesta 200 y pantalla
+    // colgada en «consultando…» para siempre.
+    const atlas = readFileSync(
+      fileURLToPath(new URL('../web/src/componentes/AtlasCaribe.tsx', import.meta.url)), 'utf-8');
+    const i = atlas.indexOf('pedirPronostico(');
+    const despues = atlas.slice(i, i + 900);
     const deps = despues.match(/\}, \[([^\]]*)\]\);/);
     assert.ok(deps, 'no se encontró la lista de dependencias del efecto que consulta');
-    for (const prohibida of ['pidiendoTiempo', 'tiempo,', 'falloTiempo']) {
+    for (const prohibida of ['tiempo', 'falloTiempo', 'yaPedido']) {
       assert.ok(!deps[1].includes(prohibida),
         `\`${prohibida}\` en las dependencias: el efecto se cancela a sí mismo`);
     }

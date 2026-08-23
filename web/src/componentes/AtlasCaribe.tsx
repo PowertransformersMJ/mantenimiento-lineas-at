@@ -45,6 +45,14 @@ import { prepararTeselas } from '../datos/teselas';
 import { nf } from '../vistas/formato';
 import { almacen } from '../datos/enlace';
 import { ATLAS, ATLAS_EN_ORDEN, type ClaveAtlas } from '../vistas/atlasCatalogo';
+import { soloEstructuras } from '../vistas/planta';
+import type { Apoyo } from '../../../contratos/src/activos';
+import { ElDiaEntero, topeDe } from './PanelDelClima';
+import { celdasDelRecorrido, diasDelMesSobre, perfilEnCelda } from '../vistas/atlasCaribe';
+import { celdaDe } from '../vistas/rejilla';
+import { PanelPronostico } from './PanelDelClima';
+import { celdaDeConsulta, pedirPronostico, SinPronostico } from '../datos/pronostico';
+import { ejeDeLaLinea, type PronosticoEnPantalla } from '../vistas/pronostico';
 
 const DEPARTAMENTOS = '/mapas/caribe-departamentos.json';
 const BASE = 'caribe.pmtiles';
@@ -100,7 +108,7 @@ async function leerPng(url: string): Promise<{ px: Uint8Array; ancho: number; al
   return { px, ancho: l.width, alto: l.height };
 }
 
-export function AtlasCaribe({ atlas, embebido = false, marca, alCambiarAtlas }: {
+export function AtlasCaribe({ atlas, embebido = false, marca, alCambiarAtlas, linea }: {
   atlas: ClaveAtlas;
   /**
    * Dentro de otra pestaña, no como pantalla completa. Cambia dos cosas y solo
@@ -127,8 +135,43 @@ export function AtlasCaribe({ atlas, embebido = false, marca, alCambiarAtlas }: 
    * que se compara se pone al lado, no a dos clics.
    */
   alCambiarAtlas?: (cual: ClaveAtlas) => void;
+  /**
+   * LA LÍNEA CARGADA, si la hay (`§ADR-069`).
+   *
+   * Desde que el clima vive AQUÍ y no en Detalle GPS, esta pantalla necesita el
+   * recorrido: para dibujarlo sobre la región, para comprobar cuántas celdas
+   * toca —punto por punto, `§ADR-064`— y para pedir el pronóstico de su punto.
+   *
+   * ⚠️ OPCIONAL A PROPÓSITO: el atlas se abre con `#/sol` sin línea cargada y
+   * tiene que seguir sirviendo como atlas de la región. Sin línea, el panel
+   * enseña lo mismo salvo lo que exige un sitio concreto.
+   */
+  linea?: { codigo: string; apoyos: Apoyo[] };
 }) {
   const def = ATLAS[atlas];
+  /**
+   * El recorrido, ya filtrado por el ÚNICO dueño de «qué puntos son la línea»
+   * (`§ADR-067`): fuera empalmes y puntos de referencia.
+   */
+  const recorrido = useMemo(() => {
+    if (!linea?.apoyos?.length) return null;
+    const E = soloEstructuras(linea.apoyos);
+    if (!E.length) return null;
+    const puntos = E.map((a) => ({ lat: a.coordenada.lat, lon: a.coordenada.lon }));
+    return {
+      codigo: linea.codigo,
+      puntos,
+      // El punto por el que se PREGUNTA (pronóstico, celda). Las coordenadas
+      // enteras van aparte, para comprobar y no suponer.
+      lat: puntos.reduce((t, p) => t + p.lat, 0) / puntos.length,
+      lon: puntos.reduce((t, p) => t + p.lon, 0) / puntos.length,
+      /** La dirección media de la línea: de ella sale el viento DE LADO. */
+      eje: ejeDeLaLinea(puntos.map((p, i, a) => (i === 0 ? null : (() => {
+        const d = Math.atan2(p.lon - a[i - 1].lon, p.lat - a[i - 1].lat) * 180 / Math.PI;
+        return (d + 360) % 360;
+      })()))),
+    };
+  }, [linea]);
   const caja = useRef<HTMLDivElement>(null);
   const mapa = useRef<maplibregl.Map | null>(null);
   const pincel = useRef<HTMLCanvasElement | null>(null);
@@ -161,6 +204,35 @@ export function AtlasCaribe({ atlas, embebido = false, marca, alCambiarAtlas }: 
 
   useEffect(() => () => { montado.current = false; }, []);
 
+  /**
+   * EL PRONÓSTICO DE LA LÍNEA (`§ADR-069`), migrado desde Detalle GPS.
+   *
+   * ⚠️ NO HAY «PRONÓSTICO DE 7 DEPARTAMENTOS»: se pide para el punto de consulta
+   * de la línea —redondeado a una celda, `datos/pronostico.ts`— y por eso solo
+   * existe cuando hay línea cargada. Fabricar un campo regional a partir de un
+   * punto sería justo lo que `§ADR-046` prohíbe.
+   *
+   * Se pide UNA vez, al llegar, y no al pintar: una consulta a un tercero es un
+   * acto deliberado (`32 · L-57`).
+   */
+  const [tiempo, setTiempo] = useState<PronosticoEnPantalla | null>(null);
+  const [falloTiempo, setFalloTiempo] = useState<string | null>(null);
+  const yaPedido = useRef(false);
+
+  useEffect(() => {
+    if (!recorrido || yaPedido.current) return;
+    yaPedido.current = true;
+    void pedirPronostico(recorrido.lat, recorrido.lon)
+      .then((t) => { if (montado.current) setTiempo(t); })
+      .catch((e) => {
+        if (!montado.current) return;
+        setFalloTiempo(e instanceof SinPronostico ? e.message
+          : 'No se pudo consultar el pronóstico. El atlas sigue funcionando sin él.');
+      });
+  }, [recorrido]);
+
+
+
   // ── La ficha ──────────────────────────────────────────────────────────────
   useEffect(() => {
     void (async () => {
@@ -184,6 +256,41 @@ export function AtlasCaribe({ atlas, embebido = false, marca, alCambiarAtlas }: 
   const ofrecidos = useMemo(() => (ficha ? mesesOfrecidos(ficha) : []), [ficha]);
   const mes: MesOfrecido | null = useMemo(
     () => ofrecidos.find((m) => m.clave === mesClave) ?? null, [ofrecidos, mesClave]);
+
+  /**
+   * DE QUÉ CELDA SE HABLA (`§ADR-069`, decisión del Ingeniero 2026-08-22).
+   *
+   * Manda **el clic**. Si no hubo clic y el recorrido de la línea cae en UNA
+   * sola celda —comprobado punto por punto, `§ADR-064`—, manda ésa. Si el
+   * recorrido cruza varias y no hubo clic, NO manda ninguna: elegir una sería
+   * reintroducir por la puerta de atrás el promedio que `§ADR-064` cerró.
+   */
+  const delRecorrido = useMemo(() => {
+    if (!ficha || !recorrido) return null;
+    return celdasDelRecorrido(recorrido.puntos, ficha, celdaDe);
+  }, [ficha, recorrido]);
+
+  const celdaEnFoco = useMemo(() => {
+    if (!ficha) return null;
+    if (clic) return { celda: celdaDe(clic.lon, clic.lat, ficha), porQue: 'la celda que pulsó' };
+    if (delRecorrido?.celdas.length === 1) {
+      return { celda: delRecorrido.celdas[0], porQue: `la celda de ${recorrido?.codigo ?? 'la línea'}` };
+    }
+    return null;
+  }, [ficha, clic, delRecorrido, recorrido]);
+
+  /** El día entero EN esa celda, y el mes. Sale del PNG que ya está en memoria. */
+  const delDia = useMemo(() => {
+    if (!ficha || !mes?.png || !bytes || bytes.mes !== mes.clave || !celdaEnFoco?.celda) return null;
+    const c = celdaEnFoco.celda;
+    const perfil = perfilEnCelda(bytes.px, ficha, mes.png, dia, c.ix, c.iy);
+    if (!perfil) return null;
+    const tope = topeDe(atlas, ficha);
+    const mesEntero = tope
+      ? { ...diasDelMesSobre(bytes.px, ficha, mes.png, c.ix, c.iy, tope.valor, tope.mide), tope }
+      : null;
+    return { perfil, delMes: mesEntero };
+  }, [ficha, mes, bytes, dia, celdaEnFoco, atlas]);
 
   // ── El mapa, una sola vez ─────────────────────────────────────────────────
   useEffect(() => {
@@ -499,6 +606,41 @@ export function AtlasCaribe({ atlas, embebido = false, marca, alCambiarAtlas }: 
               <p className="mapa-capas-n">
                 <b>{String(hora).padStart(2, '0')}:00</b> · hora de Colombia
               </p>
+
+              {/* ── EL DÍA ENTERO, LA ESCALA Y EL MES (`§ADR-069`) ───────────
+                  Migrado desde el mapa de la línea por orden del Ingeniero: el
+                  clima deja de vivir en Detalle GPS y vive aquí. Habla de UNA
+                  celda —la que se pulse, o la de la línea si su recorrido cabe
+                  en una sola— y NUNCA del resumen de las 36, que va al final y
+                  rotulado como REGIÓN (`§ADR-059`). */}
+              {delDia && celdaEnFoco && (
+                <>
+                  <p className="mapa-capas-n eje-cinta r-medido">
+                    <b>ESTA CELDA</b> · {celdaEnFoco.porQue}.
+                  </p>
+                  <ElDiaEntero perfil={delDia.perfil} ficha={ficha} cual={atlas} hora={hora}
+                    delMes={delDia.delMes} mesNombre={MESES[+mes.clave]} />
+                </>
+              )}
+              {tiempo && recorrido && (
+                <PanelPronostico p={tiempo} eje={recorrido.eje}
+                  celda={celdaDeConsulta(recorrido.lat, recorrido.lon)}
+                  vientoHipotesis_kmh={undefined} />
+              )}
+              {falloTiempo && <p className="mapa-capas-n alerta">{falloTiempo}</p>}
+              {!celdaEnFoco && banda === 'horas' && (
+                <p className="mapa-capas-n aviso">
+                  {delRecorrido && delRecorrido.celdas.length > 1 ? (
+                    <><b>El recorrido de {recorrido?.codigo} cruza {delRecorrido.celdas.length} celdas</b>
+                      {' '}—comprobado sobre sus {delRecorrido.puntos} coordenadas—, así que ninguna
+                      lo representa entero. <b>Pulse la celda que le interese</b> para ver su día
+                      hora a hora, su escala y su mes.</>
+                  ) : (
+                    <><b>Pulse una celda del mapa</b> para ver su día entero: las 24 horas, la escala
+                      en palabras y cuántos días del mes cruzaron el tope.</>
+                  )}
+                </p>
+              )}
 
               {banda === 'horas' && resumen && (
                 <>

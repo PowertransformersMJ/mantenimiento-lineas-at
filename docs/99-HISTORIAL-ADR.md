@@ -6020,3 +6020,53 @@ atlas — un trozo perezoso tirando de otro, a un `import` de vuelta de cerrar u
 - Queda el camino libre para el paso siguiente de `TODO-82/83/85`: extraer el panel del clima a un
   componente del que dependan las dos pantallas, con la celda del CLIC como sujeto en la regional
   —decisión del Ingeniero, 2026-08-22—.
+
+---
+
+## ADR-069 · 2026-08-22 · El clima MIGRA de Detalle GPS al Atlas — entero, no a medias
+
+**Estado:** ✅ Decidido · **NO revisada externamente** · ✅ **verificado en vivo** con la sesión del
+Ingeniero, **las dos caras**: en Detalle GPS ya no queda rastro del clima (solo Callejero/Satelital y
+las dos capas del corredor); en el Atlas están el día entero, la escala, el veredicto, el mes y el
+pronóstico, con «ESTA CELDA · la celda de LN-627» y, al pulsar, «la celda que pulsó».
+
+### Contexto
+
+**Yo lo entendí mal.** El Ingeniero pidió que el panel del clima «se apreciara en los atlas» y se
+interpretó como *«que el atlas TAMBIÉN lo tenga»*: se preparó una extracción para compartirlo entre
+las dos pantallas. Su corrección fue tajante: *«la idea era que ya en el detalle GPS no aparezca la
+información sino en el atlas… no ha migrado 100 %»*.
+
+Va en la misma dirección que `§ADR-063` —sacar el horizonte de esa pestaña—: **está limpiando Detalle
+GPS para que sea SOLO el recorrido a pantalla entera**, y quiere cada cosa en su pantalla. Queda
+guardado como criterio permanente en la memoria del harness: *«que aparezca en X» suele significar
+MOVER, y hay que preguntar si el origen se queda sin ello.*
+
+### Decisión
+
+- **El clima sale de Detalle GPS y entra en el Atlas.** Se van la casilla «El tiempo de esta línea»,
+  el eje de fecha, el día entero, las escalas, el pronóstico, la flecha del viento y la celda pintada.
+  Esa pestaña se queda con lo suyo: **el recorrido**.
+- **Se MIGRA, no se copia.** Las piezas comunes bajan a `componentes/PanelDelClima.tsx` —`topeDe`,
+  la cinta de régimen, `ElDiaEntero`, `LaEscala`, `PanelPronostico`—, que no descarga nada ni toca el
+  mapa: recibe la ficha y los bytes de quien sea su dueño y describe lo que hay que pintar.
+- **En la pantalla regional manda la celda del CLIC** (decisión del Ingeniero). Si no hubo clic y el
+  recorrido cae en UNA sola celda —comprobado punto por punto, `§ADR-064`—, manda ésa. Si cruza
+  varias y no hubo clic, **no manda ninguna**: se dice cuántas cruza y se pide un clic, porque elegir
+  una sería reintroducir el promedio que `§ADR-064` cerró.
+- **La línea viaja al Atlas** desde `App.tsx`, y **opcional**: `#/sol` se abre sin línea cargada y
+  tiene que seguir sirviendo como atlas de la región.
+- **El pronóstico se pide en el Atlas**, una vez y solo si hay línea. `32 · L-57` no se relaja: una
+  consulta a un tercero sigue siendo un acto deliberado, y **abrir el atlas lo es**.
+
+### Consecuencias
+
+- **1.850 pruebas en verde.** **Siete guardianes** se pusieron rojos con la migración porque leían el
+  código fuente del archivo antiguo — se **reapuntaron sin debilitar lo que vigilan**, y uno de ellos
+  vigila ahora las dos puntas: que el atlas pida el pronóstico y que el mapa **no** haya vuelto a
+  pedirlo.
+- Detalle GPS conserva **«Radiación solar» y «Temperatura ambiente»**: son las capas de 2 km del
+  corredor, otra cosa, y **no estaban en lo señalado**. En un borrado el defecto es conservador.
+- El panel del mapa de línea (`ClimaDelAnio.tsx`) queda vivo pero **ya no se monta en ninguna parte**.
+  No se borra en este cambio: primero se comprueba que el destino funciona en producción. Su retirada
+  va a `TODO-86`.

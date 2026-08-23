@@ -207,7 +207,16 @@ function Contenido() {
   if (atlas && d.fase !== 'sin_sesion' && d.fase !== 'cambiar_contrasena') {
     return (
       <Suspense fallback={<Cargando />}>
-        <AtlasCaribe atlas={atlas} alCambiarAtlas={(c) => almacen.abrirAtlas(c)} />
+        {/* ⚠️ LA LÍNEA VIAJA AL ATLAS (`§ADR-069`). Desde que el clima vive aquí
+            y no en Detalle GPS, esta pantalla necesita saber por dónde pasa el
+            recorrido: para dibujarlo, para comprobar cuántas celdas toca y para
+            pedir el pronóstico de su punto. Va OPCIONAL a propósito — el atlas
+            se abre con `#/sol` sin línea cargada y tiene que seguir sirviendo
+            como atlas de la región. */}
+        <AtlasCaribe atlas={atlas} alCambiarAtlas={(c) => almacen.abrirAtlas(c)}
+          linea={d.fase === 'listo'
+            ? { codigo: d.linea.codigo, apoyos: d.apoyos }
+            : undefined} />
       </Suspense>
     );
   }

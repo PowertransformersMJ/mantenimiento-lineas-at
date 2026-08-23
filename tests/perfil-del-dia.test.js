@@ -305,8 +305,10 @@ describe('el estado del cielo, dicho en palabras', () => {
 // ════════════════════════════════════════════════════════════════════════════
 describe('la escala se ENSEÑA, no solo se aplica', () => {
 
+  // Tras `§ADR-069` la escala vive en `PanelDelClima.tsx`, del que tiran las dos
+  // pantallas. Lo que se vigila NO cambia: que se publique con su procedencia.
   const PANEL = readFileSync(
-    fileURLToPath(new URL('../web/src/componentes/ClimaDelAnio.tsx', import.meta.url)), 'utf-8');
+    fileURLToPath(new URL('../web/src/componentes/PanelDelClima.tsx', import.meta.url)), 'utf-8');
 
   test('las dos escalas llegan a la pantalla, no se quedan en el módulo', () => {
     // La regla de la casa: el veredicto sale del valor contra la norma, y la
@@ -406,12 +408,18 @@ describe('cada coordenada del recorrido, no el promedio', () => {
   });
 
   test('la pantalla recibe el recorrido ENTERO, no solo el promedio', () => {
-    const MAPA = readFileSync(
-      fileURLToPath(new URL('../web/src/componentes/Mapa.tsx', import.meta.url)), 'utf-8');
-    assert.match(MAPA, /puntos: E\.map\(/,
-      'el mapa dejó de pasar las coordenadas completas');
-    assert.match(MAPA, /puntos=\{geometria\.puntos\}/,
-      'el panel dejó de recibir el recorrido');
+    // Tras `§ADR-069` el clima vive en el atlas: es App quien le pasa la línea y
+    // el atlas quien deriva el recorrido ENTERO con el filtro único.
+    const APP = readFileSync(
+      fileURLToPath(new URL('../web/src/App.tsx', import.meta.url)), 'utf-8');
+    const ATLAS = readFileSync(
+      fileURLToPath(new URL('../web/src/componentes/AtlasCaribe.tsx', import.meta.url)), 'utf-8');
+    assert.match(APP, /linea=\{d\.fase === 'listo'/,
+      'App dejó de pasar la línea al atlas');
+    assert.match(ATLAS, /const E = soloEstructuras\(linea\.apoyos\)/,
+      'el atlas dejó de derivar el recorrido con el filtro único');
+    assert.match(ATLAS, /celdasDelRecorrido\(recorrido\.puntos/,
+      'el atlas dejó de comprobar el recorrido punto por punto');
   });
 });
 
@@ -425,11 +433,15 @@ describe('quién es «la línea»: un solo filtro, no uno por pantalla', () => {
     // —marcas del levantamiento que no sostienen conductor— y los contaba como
     // apoyos. En LN-627 no hay ninguno todavía, así que el fallo era invisible:
     // exactamente la clase que espera a una línea nueva para aparecer.
-    const MAPA = readFileSync(
-      fileURLToPath(new URL('../web/src/componentes/Mapa.tsx', import.meta.url)), 'utf-8');
-    assert.match(MAPA, /const E = soloEstructuras\(apoyos\)/,
-      'el mapa volvió a decidir por su cuenta qué puntos son la línea');
-    assert.ok(!/apoyos\.filter\(\(a\) => \(a\.tipoPunto \?\? 'Estructura'\) !== 'Empalme'\)/.test(MAPA),
-      'volvió el filtro a mano que cuenta los puntos de referencia como apoyos');
+    // Tras `§ADR-069` quien necesita saber «qué puntos son la línea» es el
+    // atlas. La regla no cambia: la contesta `soloEstructuras`, nadie más.
+    const FUENTES = ['componentes/AtlasCaribe.tsx', 'componentes/Mapa.tsx'].map((f) =>
+      readFileSync(fileURLToPath(new URL('../web/src/' + f, import.meta.url)), 'utf-8'));
+    assert.match(FUENTES[0], /soloEstructuras\(/,
+      'el atlas volvió a decidir por su cuenta qué puntos son la línea');
+    for (const src of FUENTES) {
+      assert.ok(!/\.filter\(\(a\) => \(a\.tipoPunto \?\? 'Estructura'\) !== 'Empalme'\)/.test(src),
+        'volvió el filtro a mano que cuenta los puntos de referencia como apoyos');
+    }
   });
 });
