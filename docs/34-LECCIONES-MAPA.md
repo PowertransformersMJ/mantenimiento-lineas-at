@@ -113,6 +113,24 @@
   worker **empaquetando sus dependencias** (~468 kB, no 19). Verificación rápida de que quedó bien:
   el tamaño del asset emitido.
 
+### L-72 · «No puedo mirar el lienzo» tenía salida: sin cabeza SÍ pinta — y el tiempo virtual miente
+- **Síntoma:** desde `L-16`/`L-63`, todo dibujo de mapa quedaba sin verificar: la pestaña de
+  inspección va en segundo plano, MapLibre no pinta ahí y la regla («no se publica dibujo que no se
+  pueda mirar») dejaba una sola salida — que lo mirara el dueño. El trabajo de mapas se paraba.
+- **Causa:** se estaba confundiendo *la pestaña que tengo* con *un navegador*. Un **Chrome sin
+  cabeza** es una pestaña en primer plano para sí misma: `visibilityState` = «visible»,
+  `requestAnimationFrame` corre y WebGL pinta por software (SwiftShader).
+- **Y la trampa de dentro, medida el 23-08:** con `--virtual-time-budget` la foto sale **a medias**
+  —el ráster pintado y **cero capas vectoriales**, porque el trabajador de teselas se queda sin
+  turno— y **sin un solo error**. Confirmaría justo lo que no ha ocurrido.
+- **Regla:** para mirar un mapa, Chrome sin cabeza + **espera de reloj real** (`--headless=new`,
+  `--enable-unsafe-swiftshader`, puerto de depuración y `Page.captureScreenshot`), y el estado que se
+  quiere fotografiar **se lleva en la dirección**, porque nadie va a pulsar el botón.
+  Herramienta: `herramientas/foto-del-banco.mjs` (`99 §ADR-074`). Y antes de creerse la foto:
+  comprobar en ella `visibilityState` y la sonda, que la propia herramienta imprime.
+
+---
+
 ### L-16 · Chrome congela el reloj de animación en pestañas ocultas — y eso engaña dos veces
 - **Síntoma:** con el worker ya arreglado, el mapa seguía sin pintar **en la pestaña controlada por
   herramientas**: estilo cargado, teselas procesadas, glifos descargados… y cero fotogramas.

@@ -546,3 +546,101 @@ export function celdasDelRecorrido(
   }
   return { puntos: puntos.length, celdas: [...vistas.values()], fuera };
 }
+
+// ════════════════════════════════════════════════════════════════════════════
+// EL RECORRIDO, DIBUJADO SOBRE EL ATLAS (§ADR-074)
+// ----------------------------------------------------------------------------
+// La otra mitad del nexo. `§ADR-073` dejó el atlas DICIENDO de qué celda habla
+// —«la celda de LN-627»—, y eso se lee; lo que no se veía era DÓNDE. Sobre 6°x6°
+// de Caribe y celdas de 111 km, «por la costa de Bolívar» es un gesto con el
+// dedo: hay que buscar el trozo de mapa y confiar en él.
+//
+// TRES CAPAS, y cada una responde a una pregunta distinta:
+//   · las CELDAS del recorrido → «¿cuál de estos cuadros me toca?»
+//   · la TRAZA                 → «¿por dónde va la línea dentro de ese cuadro?»
+//   · el RÓTULO                → «¿cuál de las líneas es?», anclado al PRIMER
+//     punto (el extremo de origen), que es un sitio del recorrido y no un
+//     promedio: el centroide no está en la línea y ya se coló una vez.
+//
+// ⚠️ LAS CELDAS VAN CON BORDE Y SIN RELLENO, y es una regla, no una preferencia
+// de estilo: el relleno de esa celda YA lo pinta `pintarRejilla` con el valor
+// medido. Volver a rellenarla —aunque fuese translúcido— pondría DOS verdades
+// sobre el mismo cuadro y el color que se lee dejaría de ser el de la escala
+// publicada. El borde no toca el dato: solo lo rodea.
+//
+// ⚠️ Y LA TRAZA ES DIMINUTA A PROPÓSITO. LN-627 mide 3 km sobre un mapa de 670:
+// al encuadre de entrada son dos píxeles. No se agranda ni se le pinta un halo
+// que la haga parecer una línea de 50 km — se dibuja lo que mide y se rodea su
+// celda, que es lo que sí se ve. Inflarla sería enseñar una longitud falsa.
+// ════════════════════════════════════════════════════════════════════════════
+
+/** Lo mínimo de GeoJSON que necesita este módulo. Sin dependencia de tipos. */
+interface ColeccionGeo<G> {
+  type: 'FeatureCollection';
+  features: { type: 'Feature'; properties: { nombre: string }; geometry: G }[];
+}
+type PoligonoGeo = { type: 'Polygon'; coordinates: [number, number][][] };
+type LineaGeo = { type: 'LineString'; coordinates: [number, number][] };
+type PuntoGeo = { type: 'Point'; coordinates: [number, number] };
+
+/** Las tres capas, ya listas para el mapa. Cada una puede ir vacía. */
+export interface DibujoDelRecorrido {
+  celdas: ColeccionGeo<PoligonoGeo>;
+  traza: ColeccionGeo<LineaGeo>;
+  rotulo: ColeccionGeo<PuntoGeo>;
+}
+
+/**
+ * EL DIBUJO DEL RECORRIDO SOBRE EL ATLAS — puro, sin mapa y sin DOM.
+ *
+ * @param puntos  TODAS las coordenadas de la línea, en orden.
+ * @param celdas  las celdas que toca, ya resueltas por `celdasDelRecorrido`.
+ * @param bordeDe el recuadro de una celda, inyectado igual que `celdaDe`: este
+ *                módulo sigue sin depender de `rejilla.ts` en ejecución.
+ * @param nombre  qué línea es. Va al rótulo y a cada pieza, para que un clic o
+ *                una inspección puedan decir de quién es lo que se ve.
+ *
+ * Con MENOS DE DOS puntos no se emite traza: una `LineString` de un punto es
+ * GeoJSON inválido y MapLibre la descarta **sin decir nada** — quedaría un mapa
+ * con rótulo y sin línea, que se lee como un fallo de dibujo y no lo es.
+ */
+export function dibujoDelRecorrido(
+  puntos: readonly { lat: number; lon: number }[],
+  celdas: readonly { ix: number; iy: number }[],
+  ficha: FichaAtlas,
+  bordeDe: (ix: number, iy: number, f: FichaAtlas) => [number, number, number, number] | null,
+  nombre: string,
+): DibujoDelRecorrido {
+  const coords = puntos.map((p) => [p.lon, p.lat] as [number, number]);
+
+  const anillos: ColeccionGeo<PoligonoGeo>['features'] = [];
+  for (const c of celdas) {
+    const b = bordeDe(c.ix, c.iy, ficha);
+    if (!b) continue;                       // celda inexistente: no se inventa
+    const [loMin, laMin, loMax, laMax] = b;
+    anillos.push({
+      type: 'Feature', properties: { nombre },
+      geometry: {
+        type: 'Polygon',
+        // Anillo CERRADO: el primer punto se repite al final, como manda GeoJSON.
+        coordinates: [[[loMin, laMin], [loMax, laMin], [loMax, laMax], [loMin, laMax], [loMin, laMin]]],
+      },
+    });
+  }
+
+  return {
+    celdas: { type: 'FeatureCollection', features: anillos },
+    traza: {
+      type: 'FeatureCollection',
+      features: coords.length >= 2
+        ? [{ type: 'Feature', properties: { nombre }, geometry: { type: 'LineString', coordinates: coords } }]
+        : [],
+    },
+    rotulo: {
+      type: 'FeatureCollection',
+      features: coords.length
+        ? [{ type: 'Feature', properties: { nombre }, geometry: { type: 'Point', coordinates: coords[0] } }]
+        : [],
+    },
+  };
+}

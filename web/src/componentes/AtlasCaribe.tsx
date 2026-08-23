@@ -48,8 +48,10 @@ import { ATLAS, ATLAS_EN_ORDEN, type ClaveAtlas } from '../vistas/atlasCatalogo'
 import { soloEstructuras } from '../vistas/planta';
 import type { Apoyo } from '../../../contratos/src/activos';
 import { ElDiaEntero, topeDe } from './PanelDelClima';
-import { celdasDelRecorrido, diasDelMesSobre, perfilEnCelda } from '../vistas/atlasCaribe';
-import { celdaDe } from '../vistas/rejilla';
+import {
+  celdasDelRecorrido, diasDelMesSobre, dibujoDelRecorrido, perfilEnCelda,
+} from '../vistas/atlasCaribe';
+import { bordeDeCelda, celdaDe } from '../vistas/rejilla';
 import { PanelPronostico } from './PanelDelClima';
 import { celdaDeConsulta, pedirPronostico, SinPronostico } from '../datos/pronostico';
 import { ejeDeLaLinea, type PronosticoEnPantalla } from '../vistas/pronostico';
@@ -538,6 +540,93 @@ export function AtlasCaribe({ atlas, embebido = false, marca, alCambiarAtlas, li
     });
   }, [listoMapa, marca]);
 
+  // ── EL RECORRIDO, DIBUJADO (`§ADR-074`) ───────────────────────────────────
+  //
+  // La otra mitad del nexo que `§ADR-073` dejó a medias: el panel DECÍA «la celda
+  // de LN-627» y el mapa no lo enseñaba. Tres piezas —las celdas que toca, la
+  // traza y el rótulo—, cada una en `vistas/atlasCaribe.ts` y aquí solo colgadas
+  // del mapa. La geometría no se calcula en este archivo a propósito: es donde
+  // se cuelan los desfases que nadie ve (`§ADR-074` lo vigila de ida y vuelta).
+  //
+  // ⚠️ SIN RELLENO. El color de esa celda YA es el dato medido; repintarlo, aunque
+  // fuera translúcido, pondría dos verdades sobre el mismo cuadro.
+  //
+  // ⚠️ ENCIMA DE LA REJILLA. Sin `beforeId`, estas capas se añaden al final y por
+  // tanto sobre el ráster: debajo, el 0,72 de opacidad del cuadro se las comería.
+  useEffect(() => {
+    const m = mapa.current;
+    if (!m || !listoMapa || !ficha) return;
+
+    const PIEZAS = ['recorrido-celdas', 'recorrido-traza', 'recorrido-rotulo'] as const;
+    const CAPAS = ['recorrido-celdas-camisa', 'recorrido-celdas', 'recorrido-traza-camisa',
+      'recorrido-traza', 'recorrido-rotulo'] as const;
+
+    const dib = recorrido && delRecorrido
+      ? dibujoDelRecorrido(recorrido.puntos, delRecorrido.celdas, ficha, bordeDeCelda, recorrido.codigo)
+      : null;
+
+    // Sin línea cargada no hay nada que dibujar, y lo que hubiera se retira: el
+    // atlas de la región tiene que seguir siendo un atlas de la región.
+    if (!dib) {
+      for (const c of CAPAS) if (m.getLayer(c)) m.removeLayer(c);
+      for (const f of PIEZAS) if (m.getSource(f)) m.removeSource(f);
+      return;
+    }
+
+    const datos = { 'recorrido-celdas': dib.celdas, 'recorrido-traza': dib.traza,
+      'recorrido-rotulo': dib.rotulo } as const;
+    for (const f of PIEZAS) {
+      const fuente = m.getSource(f) as maplibregl.GeoJSONSource | undefined;
+      if (fuente) fuente.setData(datos[f] as unknown as GeoJSON.FeatureCollection);
+      else m.addSource(f, { type: 'geojson', data: datos[f] as unknown as GeoJSON.FeatureCollection });
+    }
+
+    if (!m.getLayer('recorrido-celdas')) {
+      // La CAMISA blanca no es adorno: la escala va del azul oscuro al rojo, y
+      // un trazo de tinta sobre el extremo frío de la rampa desaparece. Debajo
+      // del trazo, no encima, para que el borde siga siendo el borde.
+      m.addLayer({
+        id: 'recorrido-celdas-camisa', type: 'line', source: 'recorrido-celdas',
+        paint: { 'line-color': '#ffffff', 'line-width': 5, 'line-opacity': 0.7 },
+      });
+      m.addLayer({
+        id: 'recorrido-celdas', type: 'line', source: 'recorrido-celdas',
+        paint: {
+          'line-color': '#2c2a24', 'line-width': 2.2,
+          // A rayas, y no por gusto: los límites departamentales ya son líneas
+          // continuas del mismo color. Iguales, se leerían como una frontera más.
+          'line-dasharray': [2, 1.4],
+        },
+      });
+      m.addLayer({
+        id: 'recorrido-traza-camisa', type: 'line', source: 'recorrido-traza',
+        paint: { 'line-color': '#2c2a24', 'line-width': 5, 'line-opacity': 0.9 },
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+      });
+      m.addLayer({
+        id: 'recorrido-traza', type: 'line', source: 'recorrido-traza',
+        paint: { 'line-color': '#ffffff', 'line-width': 2.2 },
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+      });
+      m.addLayer({
+        id: 'recorrido-rotulo', type: 'symbol', source: 'recorrido-rotulo',
+        layout: {
+          'text-field': ['get', 'nombre'], 'text-font': ['Noto Sans Medium'],
+          'text-size': 12, 'text-offset': [0, 1.2], 'text-anchor': 'top',
+          // El rótulo NO se esconde si choca con otro: es el sujeto de la
+          // pantalla. Que lo tape un nombre de departamento sería perderlo.
+          'text-allow-overlap': true, 'text-ignore-placement': true,
+        },
+        paint: { 'text-color': '#2c2a24', 'text-halo-color': '#ffffff', 'text-halo-width': 2 },
+      });
+      if (nSonda.current !== null) {
+        anotar(nSonda.current, `trazado: ${dib.celdas.features.length} celda(s), `
+          + `${dib.traza.features.length} traza(s), ${recorrido?.codigo ?? '—'}`);
+      }
+    }
+    m.triggerRepaint();
+  }, [listoMapa, ficha, recorrido, delRecorrido]);
+
   const iso = ficha && mesClave ? isoDe(ficha.anio, mesClave, dia) : null;
   const banda = ficha && iso ? bandaDelDia(ficha, iso) : null;
   const resumen = cuadro && ficha ? resumenDelCuadro(cuadro, ficha.codificacion) : null;
@@ -588,6 +677,19 @@ export function AtlasCaribe({ atlas, embebido = false, marca, alCambiarAtlas, li
         Cada cuadro es una celda de <b>1°</b> (unos 111 km) medida por satélite: se pinta a cuadros
         porque <b>a cuadros es como está medida</b>.
         {marca && <> El punto marcado es <b>{marca.nombre}</b>: dónde cae esta línea dentro del atlas.</>}
+        {/* ⚠️ EL DIBUJO SE ANUNCIA Y SE ACOTA (`§ADR-074`). Un trazo de tres
+            píxeles sobre un mapa de siete departamentos se lee como un punto —y
+            quien no sepa que ES la línea lo tomará por una marca cualquiera. Se
+            dice qué es, cuántas coordenadas lo forman y por qué se ve pequeño:
+            el recorrido mide kilómetros y el mapa, cientos. */}
+        {recorrido && delRecorrido && (
+          <> El <b>trazado de {recorrido.codigo}</b> va dibujado encima, con sus{' '}
+            <b>{delRecorrido.puntos} coordenadas</b>, y{' '}
+            {delRecorrido.celdas.length === 1
+              ? <>la celda que le toca va <b>rodeada a rayas</b></>
+              : <>van rodeadas a rayas las <b>{delRecorrido.celdas.length} celdas</b> que cruza</>}.
+            A este encuadre se ve como un punto: la línea mide kilómetros y el mapa, cientos.</>
+        )}
       </p>
 
       <div className="mapa-real mapa-real--lado">

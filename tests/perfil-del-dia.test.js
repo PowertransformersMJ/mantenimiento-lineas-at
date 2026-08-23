@@ -336,19 +336,44 @@ describe('la escala se ENSEÑA, no solo se aplica', () => {
 // ════════════════════════════════════════════════════════════════════════════
 describe('lo construido tiene que poder ENCONTRARSE', () => {
 
-  const PANEL = readFileSync(
-    fileURLToPath(new URL('../web/src/componentes/ClimaDelAnio.tsx', import.meta.url)), 'utf-8');
+  // ⚠️ ESTE GUARDIÁN CAMBIÓ DE CASA CON `§ADR-074`, y no de intención.
+  //
+  // Vigilaba el «puente al último día MEDIDO» de `ClimaDelAnio.tsx` (`§ADR-062`),
+  // que nació de un fallo real: la capa abría en HOY —que es pronóstico— y todo
+  // el desglose vive en los días medidos, así que quien la encendía no veía nada
+  // y no tenía forma de saber que existía. «No me sale en producción».
+  //
+  // Ese componente se RETIRÓ al cerrar `TODO-86`: desde `§ADR-069` el clima vive
+  // en el atlas y aquel panel ya no se montaba en ninguna pantalla. El puente se
+  // fue con él, y no hace falta —el atlas **abre en el último mes CON HORAS**, o
+  // sea encima del dato, no en un día vacío—. Lo que sigue haciendo falta es que
+  // eso no se rompa nunca en silencio, que es lo que vigila este bloque.
+  const ATLAS = readFileSync(
+    fileURLToPath(new URL('../web/src/componentes/AtlasCaribe.tsx', import.meta.url)), 'utf-8');
 
-  test('desde un día sin medida hay un puente al último día medido', () => {
-    // EL FALLO REAL (2026-08-22): la capa abre en HOY, y hoy es pronóstico. Todo
-    // el desglose —24 horas, veredicto, mes, escala— vive solo en los días
-    // medidos, así que quien encendía la capa no veía NADA de eso y no tenía
-    // forma de saber que existía. «No me sale en producción», y tenía razón.
-    // Lo que no se encuentra no existe, por muy construido que esté.
-    assert.match(PANEL, /ultimoDiaConHoras\)\}/,
-      'el botón que salta al último día medido desapareció');
-    assert.match(PANEL, /regimen !== 'medido_horas'/,
-      'el puente tiene que ofrecerse justo cuando NO hay medida a la vista');
+  test('el atlas abre donde HAY dato, no en un día vacío', () => {
+    assert.match(ATLAS, /setMesClave\(f\.meses\[f\.meses\.length - 1\]\?\.clave \?\? null\)/,
+      'el atlas dejó de abrir en el último mes publicado');
+  });
+
+  test('y cada día del eje declara de qué régimen es', () => {
+    // La otra mitad de `§ADR-058`: un día medido y un día de modelo no se
+    // parecen y valen cosas distintas. En el atlas lo dice la banda del botón.
+    assert.match(ATLAS, /' b-' \+ b/,
+      'los días del atlas dejaron de declarar su procedencia');
+    assert.match(ATLAS, /con reparto por horas/,
+      'el día dejó de decir en palabras qué tiene');
+  });
+
+  test('el panel retirado no dejó a nadie tirando de él', () => {
+    // `TODO-86`: retirar un componente sin comprobar quién lo importaba es
+    // cómo se rompe una pantalla en la siguiente construcción.
+    const FUENTES = ['App.tsx', 'componentes/DetalleGps.tsx', 'componentes/Mapa.tsx',
+      'componentes/AtlasCaribe.tsx', 'componentes/PanelDelClima.tsx']
+      .map((f) => readFileSync(fileURLToPath(new URL('../web/src/' + f, import.meta.url)), 'utf-8'));
+    for (const src of FUENTES) {
+      assert.ok(!/ClimaDelAnio/.test(src), 'alguien volvió a importar el panel retirado');
+    }
   });
 });
 

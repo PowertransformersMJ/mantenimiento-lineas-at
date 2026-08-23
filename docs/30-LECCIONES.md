@@ -71,10 +71,9 @@
 ### `docs/34-LECCIONES-MAPA.md` — el mapa no pinta, o pinta algo que no se puede leer
 
 - `L-15` · El worker de MapLibre nace muerto en producción si no se le da su URL
-- `L-16` · Chrome congela el reloj de animación en pestañas ocultas — y eso engaña dos veces
+- `L-16` · `L-58` · La pestaña OCULTA congela el reloj: el mapa no pinta y engaña al que prueba y al usuario — antes de culpar al código, mira la pestaña (y la salida está en `L-72`)
 - `L-55` · Una capa raster añadida con el mapa quieto no carga NUNCA, y todos los indicadores dicen que sí
 - `L-57` · Un efecto de React que enciende su propio «cargando» se cancela a sí mismo
-- `L-58` · «No pasa nada» al pulsar: mira la PESTAÑA antes que el código (una pestaña de fondo congela el mapa)
 - `L-63` · Una sonda GLOBAL no puede medir dos instancias — y la primera víctima no es la sonda, es el diagnóstico
 - `L-65` · Un criterio corregido es una deuda con TODA la familia de módulos, no con el módulo donde se descubrió (y el guardián tiene que RECORRER a los hermanos)
 
@@ -118,6 +117,7 @@
 - `L-69` · Una rama inalcanzable no da error: da una respuesta creíble y falsa *(`32`)*
 - `L-70` · Buscar «la hora tal» en UTC funciona hasta que la serie cambia de paso *(`32`)*
 - `L-71` · Un resumen de OTRO ámbito, puesto al lado del número, destruye la confianza en la capa entera *(`34`)*
+- `L-72` · «No puedo mirar el lienzo» tenía salida: un Chrome sin cabeza SÍ pinta — y el tiempo virtual miente *(`34`)*
 
 ### M-01 · Una cifra escrita a mano que un guardián puede contar es una cifra que envejece sola
 

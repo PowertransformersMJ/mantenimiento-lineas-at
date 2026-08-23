@@ -99,6 +99,8 @@ mantenimiento-lineas-at/
 │                                `sol-caribe` (⚠️ ese nombre lo llama el vigía) · `temp-caribe` ·
 │                                `viento-caribe` · `lluvia-caribe` · `nubes-caribe`. El perfil trae
 │                                `factor`: la lluvia horaria de NASA es TASA mm/día, ÷24
+├── herramientas/foto-del-banco.mjs 📸 MIRAR el lienzo (ADR-074): Chrome sin cabeza + reloj REAL; con
+│                                tiempo virtual MIENTE (`34 · L-72`). Banco: `sonda-satelital.tsx`
 ├── herramientas/teselas/        construir-raster.py — rehace las capas del mapa desde datos
 │                             abiertos. ⚠️ ÚNICO Python del repo; no lo usan app ni pruebas
 ├── herramientas/                sembrar.mjs (línea + expediente) · subir-evidencias.mjs (fotos) ·
@@ -119,9 +121,9 @@ mantenimiento-lineas-at/
 ├── web/src/componentes/         React SOLO pinta (ADR-005): Linea (las pestañas ARIA —cuántas son,
 │                                en `05`— **y** la carcasa de 3 columnas), **RedDeSeguridad** (la red
 │                                que evita la página en blanco de TODA la aplicación, montada en
-│                                `web/src/main.tsx`), **AtlasCaribe** (LOS CINCO atlas con selector,
-│                                ADR-045/053/055) · **ClimaDelAnio** (ADR-056/058: eje
-│                                de fecha ÚNICO; régimen en `lineaDeTiempo`),
+│                                `web/src/main.tsx`), **AtlasCaribe** (LOS CINCO atlas, con selector y **el
+│                                trazado de la línea encima**, ADR-045/053/055/074; piezas comunes
+│                                del clima en **PanelDelClima**),
 │                                Horizonte (los apoyos en su orden real), Mapa (popup +
 │                                tramos + marcador de falla), Distribucion, Distancias, DetalleGps
 │                                (el mapa a pantalla: MISMO Mapa con `panelALado`, ADR-042), Fichas
@@ -156,7 +158,6 @@ mantenimiento-lineas-at/
 │   │                            `coberturaEjes.ts`, no lo reimplementa
 │   └── fotosNuevas.ts           (ADR-031) cifras y frases de Fotos, con el «106 entrarían nuevas»
 │                                que él lee ANTES de firmar
-│                                De dónde salió cada uno → `99 §ADR-018`.
 │                                El resto: formato (nf + textoNucleo: coma decimal en la prosa del
 │                                núcleo, L-26) + tramoColores + diagramas.ts (las 9 figuras de
 │                                Fundamentos) + termicaDatos / vientoDatos / criteriosApoyo (pide el

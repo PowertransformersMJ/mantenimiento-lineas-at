@@ -6182,3 +6182,86 @@ vuelta** salvo recargar, así que en la práctica el sujeto se perdía.
 ### Consecuencias
 
 - **1.854 pruebas en verde** (3 nuevas).
+
+---
+
+## ADR-074 · 2026-08-23 · El recorrido se DIBUJA sobre el atlas — y el lienzo, por fin, se puede mirar
+
+**Estado:** ✅ Decidido · **NO revisada externamente** · en producción.
+
+### Contexto
+
+`§ADR-073` cerró la mitad que se LEE del nexo: el atlas dice de qué celda habla —«la celda de
+LN-627»— y hay camino de vuelta. La otra mitad, **verlo**, quedó escrita y sin hacer, y el motivo
+no era el dibujo: era que **no había forma de mirarlo**. Las pestañas desde las que Claude
+inspecciona van en segundo plano, y ahí MapLibre no pinta (`§ADR-071`, `34 · L-16/L-63`). La regla
+que salió de aquella sesión —**no se publica dibujo de mapa que no se pueda mirar**— dejaba una
+sola salida: que lo mirara el Ingeniero. Es decir, el trabajo de mapas se paraba.
+
+### Decisión
+
+**1 · El dibujo, en tres piezas** (`vistas/atlasCaribe.ts` · `dibujoDelRecorrido`, puro y probado):
+
+- **las CELDAS que toca el recorrido**, rodeadas **a rayas y SIN RELLENO**. El color de esa celda ya
+  es la medida: rellenarla —aunque fuese translúcido— pondría **dos verdades sobre el mismo cuadro**
+  y el color que se lee dejaría de ser el de la escala publicada. A rayas, además, para no
+  confundirse con los límites departamentales, que son líneas continuas del mismo color.
+- **la TRAZA**: las coordenadas enteras, en orden. Se dibuja lo que mide —al encuadre de entrada,
+  3 km sobre 670 son dos píxeles— y **no se infla**: agrandarla sería enseñar una longitud falsa.
+  Por eso la pantalla lo dice en palabras: «a este encuadre se ve como un punto».
+- **el RÓTULO**, anclado al **primer punto** del recorrido. No al promedio: el promedio no está sobre
+  la línea, y ya se coló una vez como «el punto de la línea» (`§ADR-064`).
+
+**2 · La geometría inversa vive con la directa** (`vistas/rejilla.ts` · `bordeDeCelda`). Es el
+inverso EXACTO de `celdaDe` y va por el mismo camino: **mercator, no grados**. Deshecha en grados,
+la cuenta dibuja un recuadro **desplazado hasta 1,5 km** sobre este recorte —dentro del color del
+vecino— con aspecto perfecto. Lo vigila una prueba de **ida y vuelta sobre las 36 celdas**.
+
+**3 · El lienzo se puede MIRAR** (`herramientas/foto-del-banco.mjs`). Un Chrome **sin cabeza** es una
+pestaña que sí está en primer plano para sí misma: `visibilityState` vale «visible», el reloj de
+animación corre y WebGL pinta por software. Abre la dirección, espera **de reloj**, dispara la foto,
+y de paso publica lo que dice la sonda (`window.__mapas`) y las excepciones de la página.
+
+⚠️ **Con `--virtual-time-budget` la foto MIENTE, y está medido**: el ráster del atlas sale pintado y
+**las capas vectoriales no** —ni los límites departamentales ni el trazado—, porque quien las arma es
+el trabajador de teselas y el tiempo virtual lo deja sin turno. Confirmaría justo lo que no ocurrió.
+→ `34 · L-72`.
+
+**4 · El banco monta ahora también el ATLAS** (`sonda-satelital.tsx`), con **dos líneas falsas**: una
+que cabe en UNA celda y otra que cruza DOS —el segundo dibujo no se puede provocar con la línea
+real—. Y se abre ya puesto por la dirección (`?que=atlas-una&atlas=lluvia`), que es lo que lo hace
+fotografiable sin nadie delante. Sigue detrás de `SONDA_MAPA=1`: no viaja al sitio publicado.
+
+**5 · Se retira `ClimaDelAnio.tsx`** (`TODO-86`), que desde `§ADR-069` no se montaba en ninguna
+pantalla. Con él se va el «puente al último día MEDIDO» (`§ADR-062`), que ya no hace falta: el atlas
+**abre en el último mes con horas**, o sea encima del dato. Su guardián no se borra — **se muda** al
+atlas, que es donde vive ahora la conducta que vigilaba.
+
+### Alternativas descartadas
+
+- **Rellenar la celda del recorrido** (lo más vistoso): tapa el dato. Descartado arriba.
+- **Un círculo en el punto medio** en vez de la traza: es lo que ya hacía `marca` y es un promedio
+  disfrazado — la línea no pasa por ahí necesariamente.
+- **Fotografiar con tiempo virtual** (más rápido y sin esperas): enseña un mapa a medias.
+- **Comparar píxeles contra una imagen de referencia**: una prueba que se pone roja cada vez que
+  cambia una fuente del mapa base se acaba desactivando. Esto no es una prueba: es un par de ojos.
+
+### Verificación
+
+**Mirada, no supuesta.** Cuatro fotos del banco, en dos escalas y dos rampas: atlas de temperatura
+con la línea en UNA celda (recuadro a rayas, rótulo, traza como punto) · atlas de lluvia con la línea
+cruzando DOS (dos recuadros y el panel diciendo «cruza 2 celdas, comprobado sobre sus 8
+coordenadas») · el mismo dibujo **acercado seis pasos**, donde la traza se ve como línea y cruza el
+borde · y **tras cambiar de atlas en caliente**, para comprobar que el dibujo sobrevive a que el mapa
+se reconstruya entero.
+
+### Consecuencias
+
+- **1.880 pruebas en verde** (26 nuevas).
+- El trabajo de mapas deja de depender de que alguien abra su navegador. `34 · L-63` decía «hay banco
+  sin sesión»; ahora además **hay foto**.
+- Queda vivo `TODO-87` (migrar «Radiación solar» y «Temperatura ambiente»), que es otro subsistema.
+- **Hallazgo al retirar `ClimaDelAnio`** (`TODO-88`): con él se fue el **eje único de fecha** de
+  `§ADR-058` —1-ene → +11 días, medido y pronóstico en la MISMA tira—. El atlas declara el régimen de
+  cada día en su cuadrícula, pero **el pronóstico va aparte, en su tabla**: son dos ejes, no uno.
+  Nadie lo pidió así; es un resto de la migración. Decisión del Ingeniero.

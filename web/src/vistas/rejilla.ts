@@ -120,6 +120,12 @@ const mercatorX = (lon: number) => (E * lon) / 180;
 const mercatorY = (lat: number) =>
   (E * (Math.log(Math.tan(((90 + lat) * Math.PI) / 360)) / (Math.PI / 180))) / 180;
 
+/** Y de vuelta a grados. Los dos inversos viven pegados a su directo a propósito:
+ *  separados, el día que uno cambie el otro se queda mintiendo en silencio. */
+const lonDeMercator = (x: number) => (x * 180) / E;
+const latDeMercator = (y: number) =>
+  (Math.atan(Math.exp((y * Math.PI) / E)) * 360) / Math.PI - 90;
+
 /**
  * La celda de la rejilla que cae bajo una coordenada, o `null` si está fuera.
  *
@@ -158,6 +164,40 @@ export function valorEnPunto(
 export function esquinas(ficha: FichaRejilla): [number, number][] {
   const [lonMin, latMin, lonMax, latMax] = ficha.bbox;
   return [[lonMin, latMax], [lonMax, latMax], [lonMax, latMin], [lonMin, latMin]];
+}
+
+/**
+ * EL RECUADRO DE UNA CELDA, en grados — el INVERSO EXACTO de `celdaDe`.
+ *
+ * PARA QUÉ. Para poder DIBUJAR una celda, y no solo nombrarla: el atlas dice
+ * «esta celda es la de la línea» y hasta ahora eso era una frase en un panel;
+ * con esto se puede rodear en el mapa la celda de la que se está hablando.
+ *
+ * ⚠️ VA POR EL MISMO CAMINO QUE `celdaDe`, y esto no es adorno: las celdas son
+ * iguales en MERCATOR, no en grados, así que sus bordes NO están repartidos a
+ * intervalos regulares de latitud. Deshacer la cuenta en grados dibujaría un
+ * recuadro desplazado respecto a la celda que el clic devuelve —el borde caería
+ * dentro del color vecino— y sería un desfase creíble, del que nadie sospecha.
+ * La prueba que lo vigila es de IDA Y VUELTA: el centro de este recuadro tiene
+ * que devolver la misma celda por `celdaDe`, para las 36 del atlas.
+ *
+ * Devuelve `null` si la celda no existe en esa rejilla, en vez de un recuadro
+ * recortado: un rectángulo pintado donde no hay celda es una medida inventada.
+ */
+export function bordeDeCelda(
+  ix: number, iy: number, ficha: FichaRejilla,
+): [number, number, number, number] | null {
+  if (!Number.isInteger(ix) || !Number.isInteger(iy)) return null;
+  if (ix < 0 || ix >= ficha.ancho || iy < 0 || iy >= ficha.alto) return null;
+  const [lonMin, latMin, lonMax, latMax] = ficha.bbox;
+  const x0 = mercatorX(lonMin), x1 = mercatorX(lonMax);
+  const y0 = mercatorY(latMin), y1 = mercatorY(latMax);
+  // Los bordes de la columna `ix` y de la fila `iy`, en mercator.
+  const xIzq = x0 + ((x1 - x0) * ix) / ficha.ancho;
+  const xDer = x0 + ((x1 - x0) * (ix + 1)) / ficha.ancho;
+  const yArr = y1 - ((y1 - y0) * iy) / ficha.alto;          // `iy` crece hacia el SUR
+  const yAba = y1 - ((y1 - y0) * (iy + 1)) / ficha.alto;
+  return [lonDeMercator(xIzq), latDeMercator(yAba), lonDeMercator(xDer), latDeMercator(yArr)];
 }
 
 // ════════════════════════════════════════════════════════════════════════════

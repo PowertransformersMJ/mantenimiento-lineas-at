@@ -149,6 +149,7 @@ Guarda `research-archive/` (crudos de deliberación: comités, consejos externos
 | `ADR-070` | 2026-08-22 | El deslizador de la hora vuelve a decir su número | *(`tests/perfil-del-dia.test.js`)* |
 | `ADR-071` | 2026-08-22 | El mapa del atlas gana sonda y oído: un mapa mudo no se puede diagnosticar | *(`web/src/componentes/sondaMapa.ts`)* |
 | `ADR-073` | 2026-08-22 | El sujeto del atlas es LA LÍNEA, no una celda que haya que buscar | *(`tests/perfil-del-dia.test.js`)* |
+| `ADR-074` | 2026-08-23 | El recorrido se DIBUJA sobre el atlas — y el lienzo, por fin, se puede mirar | *(`herramientas/foto-del-banco.mjs`)* |
 
 > Toda decisión cara de revertir entra aquí con su ADR y su crudo enlazado. Si hubo comité o consejo
 > externo y el crudo no está archivado, la tarea **no está cerrada** (`CLAUDE.md §G.4`).
