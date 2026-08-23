@@ -53,6 +53,7 @@ import { celdaDe } from '../vistas/rejilla';
 import { PanelPronostico } from './PanelDelClima';
 import { celdaDeConsulta, pedirPronostico, SinPronostico } from '../datos/pronostico';
 import { ejeDeLaLinea, type PronosticoEnPantalla } from '../vistas/pronostico';
+import { anotar, registrarMapa, retirarMapa } from './sondaMapa';
 
 const DEPARTAMENTOS = '/mapas/caribe-departamentos.json';
 const BASE = 'caribe.pmtiles';
@@ -200,6 +201,7 @@ export function AtlasCaribe({ atlas, embebido = false, marca, alCambiarAtlas, li
   const [dia, setDia] = useState(1);
   const [hora, setHora] = useState(12);
   const [listoMapa, setListoMapa] = useState(false);
+  const nSonda = useRef<number | null>(null);
   const [clic, setClic] = useState<{ v: number | null; lon: number; lat: number } | null>(null);
 
   useEffect(() => () => { montado.current = false; }, []);
@@ -380,11 +382,29 @@ export function AtlasCaribe({ atlas, embebido = false, marca, alCambiarAtlas, li
           })();
         });
         m.once('load', () => { if (!cancelado) setListoMapa(true); });
+
+        // ⚠️ LA SONDA Y EL OÍDO DE ERRORES (`§ADR-071`). Este mapa se quedaba
+        // GRIS —cero fuentes, cero capas, `isStyleLoaded()` en falso— y **sin un
+        // solo error en consola**: exactamente el fallo mudo que el comentario
+        // de `datos/teselas.ts` dice haber cerrado una vez. Sin sonda no se
+        // puede saber si el mapa está vivo, muerto o a medio construir, que es
+        // la lección `32 · L-55/L-58` — y este mapa nunca la tuvo.
+        nSonda.current = registrarMapa('atlas-' + atlas, m, caja.current);
+        m.on('error', (ev) => {
+          const msg = (ev as { error?: Error }).error?.message ?? 'error sin mensaje';
+          if (nSonda.current !== null) anotar(nSonda.current, 'error: ' + msg);
+          // Un fallo del mapa base NO puede quedarse mudo: se dice en pantalla.
+          if (!cancelado) setFallo((f) => f ?? `El mapa base no pudo cargarse: ${msg}`);
+        });
       } catch (e) {
         if (!cancelado) setFallo((e as Error).message);
       }
     })();
-    return () => { cancelado = true; mapa.current?.remove(); mapa.current = null; setListoMapa(false); };
+    return () => {
+      cancelado = true;
+      if (nSonda.current !== null) { retirarMapa(nSonda.current); nSonda.current = null; }
+      mapa.current?.remove(); mapa.current = null; setListoMapa(false);
+    };
   }, [ficha]);
 
   // ── El mes: se baja entero y se queda en memoria ──────────────────────────

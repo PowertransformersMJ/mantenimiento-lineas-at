@@ -6105,3 +6105,40 @@ instrumento y pasa a ser un adorno.
   el origen antes de dar el traslado por bueno.** Aquí se comprobó que el destino «funcionaba» —día
   entero, escala, veredicto, mes, pronóstico— y aun así faltaba un renglón que era el que ataba el
   deslizador al dato. El Ingeniero lo vio en cuanto lo usó.
+
+---
+
+## ADR-071 · 2026-08-22 · El mapa del atlas gana sonda y oído: un mapa mudo no se puede diagnosticar
+
+**Estado:** ✅ Decidido · **NO revisada externamente** · en producción.
+
+### Contexto
+
+El Ingeniero: *«aun no veo el detalle de la lluvia ni nada»*. Al ir a mirarlo, el mapa del atlas
+aparecía **gris**: cero fuentes, cero capas, `isStyleLoaded()` en falso — **y sin un solo error**.
+Exactamente el fallo mudo que el comentario de `datos/teselas.ts` dice haber cerrado una vez.
+
+Y no había forma de saber más: **ese mapa nunca tuvo sonda**. La tiene el mapa de la línea desde
+`32 · L-55/L-58` —«una sonda que puede mentir es peor que no tener sonda: la ausencia de dato se
+nota, un dato falso no»— y el del atlas se quedó fuera.
+
+### Decisión
+
+- **El mapa del atlas se registra en la misma sonda** que el de la línea (`sondaMapa.ts`), con su
+  pantalla y su número, y se da de baja al desmontar.
+- **Y escucha sus propios errores**: `m.on('error')` los anota en la sonda **y los publica en
+  pantalla**. Un mapa base que no carga deja de poder quedarse callado.
+
+### Lo que la sonda permitió averiguar, y la corrección que obliga
+
+Con ella se vio que el mapa del atlas **y el de la línea** daban lo mismo desde la pestaña que se
+usa para inspeccionar. Se llegó a afirmar que había una **regresión global del mapa**. **No está
+demostrado, y probablemente era un fallo de observación**: esa pestaña está en segundo plano y
+MapLibre dibuja con el reloj de animación del navegador, que se suspende en pestañas ocultas.
+
+El banco de pruebas del proyecto (`SONDA_MAPA=1`), levantado en local, mostró el **estilo montado y
+las teselas cargadas** con el mismo código. Y el Ingeniero confirmó que en su pantalla se ve.
+
+**Queda como lección de método:** una pantalla que solo se mira desde una pestaña de fondo puede
+parecer rota sin estarlo. Antes de declarar una regresión, comprobar `document.visibilityState` y
+contrastar con el banco.
