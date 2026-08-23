@@ -1526,4 +1526,37 @@ p.fund-vivo + .sello-calculo { margin-top: 5px; }
 }
 /* Ni total: vacío y apagado. Un hueco tiene que verse como un hueco. */
 .sol-dia.b-sin_dato { background: transparent; color: var(--bd); border-style: dashed; }
+
+/* ── EL EJE DE TIEMPO (§ADR-058) ──────────────────────────────────────────────
+   Un solo mando para el clima de la línea: del histórico al pronóstico. El
+   COLOR es aquí una pieza de doctrina, no un adorno — lo MEDIDO va en el ámbar
+   de la casa (tierra, hecho consumado) y lo PRONOSTICADO en azul (cielo, lo que
+   aún no ha pasado). Alguien que mire el panel de reojo tiene que poder decir de
+   qué está hecho el número antes de leerlo. */
+.eje-fecha { display: flex; align-items: center; gap: 4px; margin: 3px 0 2px; }
+.eje-fecha input[type="date"] {
+  flex: 1; min-width: 0; font: inherit; font-size: .78rem; padding: 3px 5px;
+  border: 1px solid var(--bd); border-radius: 4px; background: var(--campo); color: var(--tx);
+}
+.eje-fecha .boton.chico { padding: 3px 8px; line-height: 1; }
+.eje-dia { margin: 0 0 4px; }   /* la mayúscula la pone el componente: `capitalize` escribiría «22 De Agosto» */
+.eje-cinta {
+  margin: 4px 0; padding: 4px 6px; border-radius: 4px; font-size: .72rem;
+  border-left: 3px solid var(--bd); background: var(--pnl2); color: var(--mut);
+}
+.eje-cinta b { letter-spacing: .04em; }
+.eje-cinta.r-medido { background: var(--t-ambar); border-left-color: var(--acc); color: var(--tx); }
+.eje-cinta.r-modelo { background: var(--t-azul); border-left-color: var(--az); color: var(--tx); }
+.eje-cinta.r-hueco  { background: transparent; border-left-style: dashed; }
+/* Los días de la cuadrícula, con el mismo código de color que la cinta. */
+.sol-dia.g-medido_horas { background: var(--t-ambar); border-color: var(--acc); }
+.sol-dia.g-medido_solo_total {
+  background: repeating-linear-gradient(135deg, var(--pnl2) 0 3px, var(--pnl) 3px 6px);
+  color: var(--mut);
+}
+.sol-dia.g-pronostico { background: var(--t-azul); border-color: var(--b-azul); color: var(--az); }
+.sol-dia.g-sin_publicar {
+  background: transparent; color: var(--mut); border-style: dotted; border-color: var(--rd);
+}
+.sol-dia.g-fuera { background: transparent; color: var(--bd); border-style: dashed; }
 .sol-rampa { height: 10px; border-radius: 3px; margin: 6px 0 2px; border: 1px solid var(--bd); }

@@ -120,8 +120,9 @@ mantenimiento-lineas-at/
 │                                en `05`— **y** la carcasa de 3 columnas), **RedDeSeguridad** (la red
 │                                que evita la página en blanco de TODA la aplicación, montada en
 │                                `web/src/main.tsx`), **AtlasCaribe** (LOS CUATRO atlas con selector,
-│                                ADR-045/053/055) · **ClimaDelAnio** (ADR-056: esos atlas DENTRO del
-│                                mapa de la línea, como dato del SITIO —una celda y su número—), Horizonte (los apoyos en su orden real), Mapa (popup +
+│                                ADR-045/053/055) · **ClimaDelAnio** (ADR-056/058: eje
+│                                de fecha ÚNICO; régimen en `lineaDeTiempo`),
+│                                Horizonte (los apoyos en su orden real), Mapa (popup +
 │                                tramos + marcador de falla), Distribucion, Distancias, DetalleGps
 │                                (el mapa a pantalla: MISMO Mapa con `panelALado`, ADR-042), Fichas
 │                                (+FichaEditor · FichaLote, admin, ADR-038), FichaCriterios,

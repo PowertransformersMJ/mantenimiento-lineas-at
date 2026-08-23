@@ -1,39 +1,48 @@
 // ============================================================================
-// componentes/ClimaDelAnio.tsx — el clima del AÑO, dentro del mapa de la línea
+// componentes/ClimaDelAnio.tsx — el tiempo de esta línea, en UN solo eje
 // ----------------------------------------------------------------------------
-// QUÉ ES: los cuatro atlas del Caribe —sol, temperatura, viento y lluvia—
-// consultables desde el mapa de la propia línea, mes a mes, día a día y hora a
-// hora. El Ingeniero lo pidió así: quería el clima del año donde mira la línea,
-// no en otra pantalla (`99 §ADR-056`).
+// QUÉ ES. Un único selector de fecha para el clima de la línea: desde el 1 de
+// enero hasta donde llegue el pronóstico. Se elige un día y la pantalla enseña
+// lo que hubo o lo que se espera, **diciendo siempre de dónde sale**.
 //
-// ⚠️ POR QUÉ ESTO NO PINTA UN CAMPO DE COLORES, Y ES LA DECISIÓN CENTRAL.
+// POR QUÉ CAMBIÓ (`99 §ADR-058`). Nació como «el clima del año» (`§ADR-056`),
+// una capa aparte de la del pronóstico. Funcionaba, pero obligaba al Ingeniero a
+// saber de antemano qué casilla encender según hacia dónde quisiera mirar — y
+// ésa es una pregunta de fontanería, no de mantenimiento. Él lo pidió otra vez
+// con otras palabras («poder escoger los días, desde inicio de año hasta la
+// fecha»), que es exactamente la señal de que el mando estaba partido.
 //
-// El atlas mide en celdas de 1° (unos 111 km). El corredor de LN-627 ocupa
-// 0,29° x 0,38°, así que **UNA sola celda lo cubre entero**: pintar la rejilla
-// sobre este mapa daría un rectángulo de color plano de lado a lado. Eso es
-// exactamente la capa que no se puede APRECIAR que cerró `§ADR-046`, y peor —
-// un degradado inventado sugeriría que un extremo de la línea tuvo otro tiempo
-// que el otro, y no hay medida que lo sostenga.
+// ⚠️ LO ÚNICO QUE ESTA PANTALLA NO PUEDE HACER: **borrar la diferencia entre lo
+// que se MIDIÓ y lo que un modelo CREE**. Bajo un mismo selector los dos números
+// se parecen y valen cosas distintas. Por eso la CINTA DE PROCEDENCIA no es
+// decoración ni se puede quitar «para ganar sitio»: es la pieza que sostiene la
+// doctrina de la casa —el veredicto sale del valor contra la norma, y un número
+// sin procedencia es una opinión con uniforme—. Quién decide qué es cada día lo
+// resuelve `vistas/lineaDeTiempo.ts`, que está probado aparte.
 //
-// Se resuelve como YA lo resolvió el pronóstico en este mismo mapa
-// (`§ADR-035`): **como un dato del SITIO, no como un campo**. Se dibuja la celda
-// que le toca a la línea —con su color y su borde, para que se vea de qué trozo
-// de mundo hablamos— y se publica EL NÚMERO de esa celda para el instante
-// elegido. Un número con su unidad y su fecha vale más que un color que no
-// distingue nada.
+// ⚠️ POR QUÉ ESTO NO PINTA UN CAMPO DE COLORES, Y SIGUE SIENDO LA DECISIÓN
+// CENTRAL. El atlas mide en celdas de 1° (unos 111 km) y el corredor de LN-627
+// entra entero en una: pintar la rejilla daría un rectángulo plano de lado a
+// lado —la capa que no se puede APRECIAR que cerró `§ADR-046`— y un degradado
+// sugeriría que un extremo de la línea tuvo otro tiempo que el otro, cosa que
+// nadie midió. Se dibuja LA celda y se publica SU número.
 //
-// ⚠️ PESA POCO, y por eso puede vivir aquí. NO trae el mapa base regional
-// (`caribe.pmtiles`, 5 MiB): el mapa base es el de la línea, que ya está. Solo
-// baja la ficha del atlas (~14 KB) y el PNG del mes que se mire (~18 KB), y solo
-// cuando se enciende la capa.
+// ⚠️ PESA POCO. No trae el mapa base regional (`caribe.pmtiles`, 5 MiB): el mapa
+// base es el de la línea, que ya está. Solo baja la ficha del atlas (~14 KB) y
+// el PNG del mes que se mire (~18 KB), y solo al encender la capa.
 // ============================================================================
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  bandaDelDia, cuadroDe, isoDe, mesesOfrecidos, resumenDelDia,
-  type FichaAtlas, type MesOfrecido,
+  cuadroDe, isoDe, resumenDelDia, type FichaAtlas,
 } from '../vistas/atlasCaribe';
+import {
+  diasDelMesConRegimen, extremos, sumarDias, tramoDe,
+  type AlcanceDelAtlas, type Regimen,
+} from '../vistas/lineaDeTiempo';
 import { celdaDe, colorDeValor, valorDeByte } from '../vistas/rejilla';
 import { ATLAS, ATLAS_EN_ORDEN, type ClaveAtlas } from './AtlasCaribe';
+import { eltiempoEnCastellano, type DiaPronostico } from '../vistas/pronostico';
+import { ATRIBUCION_PRONOSTICO } from '../datos/pronostico';
 import { nf } from '../vistas/formato';
 
 const MESES = ['', 'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
@@ -66,7 +75,16 @@ export interface CeldaDelAnio {
   color: string | null;
 }
 
-export function ClimaDelAnio({ lon, lat, alDibujarCelda }: {
+/** Cómo se rotula cada régimen en la cinta. Corto, porque el panel tiene 240 px. */
+const CINTA: Record<Regimen, { rotulo: string; clase: string }> = {
+  medido_horas: { rotulo: 'MEDIDO', clase: 'r-medido' },
+  medido_solo_total: { rotulo: 'MEDIDO · sin horas', clase: 'r-medido' },
+  sin_publicar: { rotulo: 'SIN PUBLICAR', clase: 'r-hueco' },
+  pronostico: { rotulo: 'PRONÓSTICO', clase: 'r-modelo' },
+  fuera: { rotulo: 'SIN DATO', clase: 'r-hueco' },
+};
+
+export function ClimaDelAnio({ lon, lat, alDibujarCelda, hoy, dias = [] }: {
   /** Un punto de la línea. Con él se resuelve QUÉ celda del atlas le toca. */
   lon: number;
   lat: number;
@@ -77,12 +95,15 @@ export function ClimaDelAnio({ lon, lat, alDibujarCelda }: {
    * MapLibre y el mapa sigue siendo el único dueño de lo que pinta.
    */
   alDibujarCelda: (celda: CeldaDelAnio | null) => void;
+  /** El día de hoy en el reloj del activo. Llega de fuera: aquí no se lee el reloj. */
+  hoy: string;
+  /** Los días que el pronóstico trajo de verdad. Vacío si aún no ha llegado. */
+  dias?: readonly DiaPronostico[];
 }) {
   const [cual, setCual] = useState<ClaveAtlas>('temperatura');
   const [ficha, setFicha] = useState<FichaAtlas | null>(null);
   const [bytes, setBytes] = useState<{ mes: string; px: Uint8Array } | null>(null);
-  const [mesClave, setMesClave] = useState<string | null>(null);
-  const [dia, setDia] = useState(1);
+  const [fecha, setFecha] = useState<string>(hoy);
   const [hora, setHora] = useState(12);
   const [fallo, setFallo] = useState<string | null>(null);
   const montado = useRef(true);
@@ -100,9 +121,6 @@ export function ClimaDelAnio({ lon, lat, alDibujarCelda }: {
         const f = await r.json() as FichaAtlas;
         if (cancelado || !montado.current) return;
         setFicha(f);
-        // Se abre en el último mes con horas: de un año en curso, lo que
-        // interesa es lo más reciente que existe.
-        setMesClave(f.meses[f.meses.length - 1]?.clave ?? null);
       } catch (e) {
         if (!cancelado && montado.current) setFallo((e as Error).message);
       }
@@ -110,41 +128,66 @@ export function ClimaDelAnio({ lon, lat, alDibujarCelda }: {
     return () => { cancelado = true; };
   }, [cual]);
 
-  const ofrecidos = useMemo(() => (ficha ? mesesOfrecidos(ficha) : []), [ficha]);
-  const mes: MesOfrecido | null = useMemo(
-    () => ofrecidos.find((m) => m.clave === mesClave) ?? null, [ofrecidos, mesClave]);
+  const alcance: AlcanceDelAtlas | null = useMemo(() => (ficha ? {
+    primerDia: isoDe(ficha.anio, '01', 1),
+    ultimoDiaConHoras: ficha.ultimoDiaConHoras,
+    ultimoDiaConTotal: ficha.ultimoDiaConTotal,
+  } : null), [ficha]);
+
+  const isosPronostico = useMemo(() => dias.map((d) => d.dia), [dias]);
+  const limites = useMemo(
+    () => extremos(alcance, hoy, isosPronostico), [alcance, hoy, isosPronostico]);
+  const tramo = useMemo(
+    () => tramoDe(fecha, alcance, hoy, isosPronostico), [fecha, alcance, hoy, isosPronostico]);
+
+  const [anio, mes, dia] = useMemo(() => fecha.split('-').map(Number), [fecha]);
+  const mesClave = useMemo(() => String(mes).padStart(2, '0'), [mes]);
+
+  /**
+   * El PNG del mes de la fecha elegida, si ese mes tiene reparto por horas.
+   *
+   * ⚠️ SE COMPRUEBA EL AÑO, y no es paranoia: los meses del archivo se llaman
+   * `01`…`12` sin año, así que una fecha de OTRO año encontraría el PNG del mes
+   * homónimo y enseñaría enero de este año creyendo leer enero del pasado. Hoy
+   * el eje no deja llegar ahí —`tramoDe` lo declara «fuera» y el selector tiene
+   * tope—, pero un archivo con dos años dentro convertiría ese detalle en un
+   * número falso y creíble, que es la peor clase (`32 · L-69`).
+   */
+  const pngDelMes = useMemo(
+    () => (ficha && anio === ficha.anio
+      ? ficha.meses.find((m) => m.clave === mesClave) ?? null
+      : null), [ficha, anio, mesClave]);
 
   // ── El mes elegido ────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!ficha || !mes?.png) { setBytes(null); return; }
+    if (!ficha || !pngDelMes) { setBytes(null); return; }
     let cancelado = false;
-    const png = mes.png;
     void (async () => {
       try {
-        const px = await leerPng(`/mapas/${png.archivo}`);
+        const px = await leerPng(`/mapas/${pngDelMes.archivo}`);
         if (cancelado || !montado.current) return;
         // Etiquetados con su mes: entre que se elige uno y llega su PNG, los
         // bytes en memoria son los del anterior. Es el fallo del «mes rancio»
         // que ya costó una auditoría adversarial en el atlas (`99 §ADR-045`).
-        setBytes({ mes: mes.clave, px });
-        setDia((d) => Math.min(d, mes.dias));
+        setBytes({ mes: pngDelMes.clave, px });
       } catch (e) {
         if (!cancelado && montado.current) setFallo((e as Error).message);
       }
     })();
     return () => { cancelado = true; };
-  }, [ficha, mes]);
+  }, [ficha, pngDelMes]);
 
   // ── El valor EN LA CELDA DE LA LÍNEA ──────────────────────────────────────
   const lectura = useMemo(() => {
-    if (!ficha || !mes?.png || !bytes || bytes.mes !== mes.clave) return null;
-    const cuadro = cuadroDe(bytes.px, ficha, mes.png, dia, hora);
+    if (tramo.regimen !== 'medido_horas') return null;
+    if (!ficha || !pngDelMes || !bytes || bytes.mes !== mesClave) return null;
+    const cuadro = cuadroDe(bytes.px, ficha, pngDelMes, dia, hora);
     if (!cuadro) return null;
     const celda = celdaDe(lon, lat, ficha);
     if (!celda) return null;
     const byte = cuadro[celda.iy * ficha.ancho + celda.ix];
     return { valor: valorDeByte(byte, ficha.codificacion), celda };
-  }, [ficha, mes, bytes, dia, hora, lon, lat]);
+  }, [tramo.regimen, ficha, pngDelMes, bytes, mesClave, dia, hora, lon, lat]);
 
   // ── Se lo describe al mapa ────────────────────────────────────────────────
   useEffect(() => {
@@ -163,15 +206,36 @@ export function ClimaDelAnio({ lon, lat, alDibujarCelda }: {
   // Al desmontar, la celda se borra: una capa apagada no deja rastro pintado.
   useEffect(() => () => alDibujarCelda(null), [alDibujarCelda]);
 
-  const iso = ficha && mesClave ? isoDe(ficha.anio, mesClave, dia) : null;
-  const banda = ficha && iso ? bandaDelDia(ficha, iso) : null;
-  const resumen = ficha && iso ? resumenDelDia(ficha, iso) : null;
-  const cambiarMes = useCallback((c: string) => setMesClave(c), []);
+  const resumen = ficha ? resumenDelDia(ficha, fecha) : null;
+  const delPronostico = useMemo(
+    () => dias.find((d) => d.dia === fecha) ?? null, [dias, fecha]);
+
+  /** Mueve la fecha sin salirse de los extremos que el eje puede ofrecer. */
+  const mover = useCallback((n: number) => setFecha((f) => {
+    const siguiente = sumarDias(f, n);
+    if (siguiente < limites.primera || siguiente > limites.ultima) return f;
+    return siguiente;
+  }), [limites]);
+
+  const cuadricula = useMemo(
+    () => diasDelMesConRegimen(anio, mes, alcance, hoy, isosPronostico),
+    [anio, mes, alcance, hoy, isosPronostico]);
+
+  const enLetra = useMemo(() => {
+    // ⚠️ Se capitaliza AQUÍ y no con `text-transform: capitalize`: esa regla del
+    // CSS toca todas las palabras y escribe «Sábado, 22 De Agosto», que en
+    // castellano está mal dos veces. Solo la primera letra de la frase.
+    const t = new Date(`${fecha}T12:00:00Z`).toLocaleDateString('es-CO',
+      { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
+    return t.charAt(0).toUpperCase() + t.slice(1);
+  }, [fecha]);
 
   if (fallo) {
-    return <p className="mapa-capas-n alerta">No se pudo abrir el clima del año: {fallo}. El mapa sigue igual.</p>;
+    return <p className="mapa-capas-n alerta">No se pudo abrir el histórico: {fallo}. El mapa sigue igual.</p>;
   }
-  if (!ficha || !mes) return <p className="mapa-capas-n">Bajando el clima del año…</p>;
+  if (!ficha) return <p className="mapa-capas-n">Bajando el histórico…</p>;
+
+  const cinta = CINTA[tramo.regimen];
 
   return (
     <div className="clima-anio">
@@ -187,55 +251,72 @@ export function ClimaDelAnio({ lon, lat, alDibujarCelda }: {
         ))}
       </div>
 
-      <p className="mapa-capas-t">Mes</p>
-      <select value={mesClave ?? ''} onChange={(e) => cambiarMes(e.target.value)}
-        aria-label={`Mes de ${ficha.anio}`}>
-        {ofrecidos.map((m) => (
-          <option key={m.clave} value={m.clave}>
-            {MESES[+m.clave]}{m.png ? '' : ' · solo resumen del día'}
-          </option>
-        ))}
-      </select>
+      {/* ── EL EJE: una sola fecha, del histórico al pronóstico ────────────── */}
+      <p className="mapa-capas-t">Fecha</p>
+      <div className="eje-fecha">
+        <button type="button" className="boton chico" aria-label="Día anterior"
+          disabled={fecha <= limites.primera} onClick={() => mover(-1)}>‹</button>
+        <input type="date" value={fecha} min={limites.primera} max={limites.ultima}
+          aria-label="Fecha que se mira"
+          onChange={(e) => { if (e.target.value) setFecha(e.target.value); }} />
+        <button type="button" className="boton chico" aria-label="Día siguiente"
+          disabled={fecha >= limites.ultima} onClick={() => mover(1)}>›</button>
+      </div>
+      <p className="mapa-capas-n eje-dia">{enLetra}</p>
 
-      <p className="mapa-capas-t">Día</p>
-      <div className="sol-dias">
-        {Array.from({ length: mes.dias }, (_, i) => i + 1).map((d) => {
-          const b = bandaDelDia(ficha, isoDe(ficha.anio, mes.clave, d));
-          return (
-            <button key={d} type="button"
-              className={'sol-dia' + (d === dia ? ' activo' : '') + ' b-' + b}
-              title={`${d} de ${MESES[+mes.clave]} — ${b === 'horas' ? 'con reparto por horas'
-                : b === 'solo_total' ? 'solo resumen del día' : 'sin dato'}`}
-              onClick={() => setDia(d)}>{d}</button>
-          );
-        })}
+      {/* ⚠️ LA CINTA DE PROCEDENCIA. No es decoración: es lo que impide que un
+          número medido y uno pronosticado se lean como la misma cosa. */}
+      <p className={'eje-cinta ' + cinta.clase}>
+        <b>{cinta.rotulo}</b> · {tramo.porque}
+      </p>
+
+      <div className="sol-dias" aria-label={`Días de ${MESES[mes]}`}>
+        {cuadricula.map((d) => (
+          <button key={d.dia} type="button"
+            className={'sol-dia' + (d.iso === fecha ? ' activo' : '') + ' g-' + d.regimen}
+            title={`${d.dia} de ${MESES[mes]} — ${CINTA[d.regimen].rotulo}`}
+            onClick={() => setFecha(d.iso)}>{d.dia}</button>
+        ))}
       </div>
 
-      <p className="mapa-capas-t">Hora</p>
-      <input type="range" min={0} max={23} value={hora} disabled={banda !== 'horas'}
-        aria-label="Hora del día"
-        onChange={(e) => setHora(+e.target.value)} />
-      <p className="mapa-capas-n"><b>{String(hora).padStart(2, '0')}:00</b> · hora de Colombia</p>
+      {/* ── LO MEDIDO ─────────────────────────────────────────────────────── */}
+      {tramo.regimen === 'medido_horas' && (
+        <>
+          <p className="mapa-capas-t">Hora</p>
+          <input type="range" min={0} max={23} value={hora}
+            aria-label="Hora del día"
+            onChange={(e) => setHora(+e.target.value)} />
+          <p className="mapa-capas-n"><b>{String(hora).padStart(2, '0')}:00</b> · hora de Colombia</p>
+          <p className="mapa-capas-n">
+            En la celda de esta línea:{' '}
+            {lectura?.valor == null
+              ? <b>no se midió</b>
+              : <b>{nf(lectura.valor, 1)} {ficha.unidad}</b>}
+          </p>
+        </>
+      )}
 
-      {/* EL NÚMERO, que es lo que de verdad sirve aquí. */}
-      {banda === 'horas' && (
-        <p className="mapa-capas-n">
-          En la celda de esta línea:{' '}
-          {lectura?.valor == null
-            ? <b>no se midió</b>
-            : <b>{nf(lectura.valor, 1)} {ficha.unidad}</b>}
-        </p>
+      {/* ── LO QUE EL MODELO ESPERA ───────────────────────────────────────── */}
+      {tramo.regimen === 'pronostico' && (
+        delPronostico ? (
+          <p className="mapa-capas-n">
+            {delPronostico.tempMin_C !== null && delPronostico.tempMax_C !== null && (
+              <><b>{nf(delPronostico.tempMin_C, 0)}–{nf(delPronostico.tempMax_C, 0)} °C</b> · </>
+            )}
+            {eltiempoEnCastellano(delPronostico.simbolo)}
+            {delPronostico.vientoMax_kmh !== null
+              && <> · viento máx. <b>{nf(delPronostico.vientoMax_kmh, 0)} km/h</b></>}
+            {delPronostico.lluvia_mm !== null
+              && <> · <b>{nf(delPronostico.lluvia_mm, 1)} mm</b> de lluvia</>}
+          </p>
+        ) : (
+          <p className="mapa-capas-n">El pronóstico de ese día aún no ha llegado.</p>
+        )
       )}
-      {banda === 'solo_total' && (
-        <p className="mapa-capas-n aviso">
-          <b>De este día no hay reparto por horas.</b> Al construir el archivo
-          ({ficha.construido.slice(0, 10)}) la fuente llegaba al <b>{ficha.ultimoDiaConHoras}</b>.
-        </p>
-      )}
-      {banda === 'sin_dato' && (
-        <p className="mapa-capas-n aviso"><b>De este día no consta nada todavía.</b></p>
-      )}
-      {resumen !== null && (
+
+      {/* Un día sin nada no se rellena: se dice. El `porque` ya va en la cinta. */}
+
+      {resumen !== null && tramo.procedencia === 'medido' && (
         <p className="mapa-capas-n">
           {ficha.resumenDiarioEtiqueta}: <b>{nf(resumen, 2)}</b>{' '}
           <span className="fine">{ficha.resumenDiarioUnidad}</span>
@@ -244,14 +325,26 @@ export function ClimaDelAnio({ lon, lat, alDibujarCelda }: {
 
       {/* ⚠️ EL AVISO QUE NO PUEDE FALTAR. Sin él, el rectángulo de color se lee
           como si el atlas distinguiera un extremo de la línea del otro. */}
-      <p className="mapa-capas-n aviso">
-        <b>Una sola celda cubre toda la línea.</b> El atlas mide en cuadros de 1° (unos 111 km) y este
-        corredor entra entero en uno: por eso se dibuja ESA celda y se da SU número, en vez de pintar
-        un degradado que fingiría que un extremo tuvo otro tiempo que el otro.
-      </p>
-      <p className="fine">{ficha.aviso}</p>
+      {tramo.procedencia === 'medido' && (
+        <p className="mapa-capas-n aviso">
+          <b>Una sola celda cubre toda la línea.</b> El atlas mide en cuadros de 1° (unos 111 km) y este
+          corredor entra entero en uno: por eso se dibuja ESA celda y se da SU número, en vez de pintar
+          un degradado que fingiría que un extremo tuvo otro tiempo que el otro.
+        </p>
+      )}
+      {/* El aviso del ATLAS explica qué es su número: fuera de un día medido
+          no describe nada de lo que hay en pantalla, y estorba. */}
+      {tramo.procedencia === 'medido' && <p className="fine">{ficha.aviso}</p>}
+      {tramo.regimen === 'pronostico' && (
+        <p className="fine">
+          {ATRIBUCION_PRONOSTICO}. <b>No es una medida</b>: es lo que el modelo espera, y no entra
+          en ningún cálculo de la línea.
+        </p>
+      )}
+      {/* La procedencia del histórico va SIEMPRE, incluso en un día sin
+          publicar: es justo lo que explica por qué ese día está vacío. */}
       <p className="fine">
-        {ficha.fuente} · dato hasta <b>{ficha.ultimoDiaConHoras}</b> por horas
+        Medido: {ficha.fuente} · hasta <b>{ficha.ultimoDiaConHoras}</b> por horas
         {ficha.ultimoDiaConTotal && <> y <b>{ficha.ultimoDiaConTotal}</b> por día</>}. {ficha.atribucion}
       </p>
     </div>

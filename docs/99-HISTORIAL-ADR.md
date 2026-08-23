@@ -5359,3 +5359,86 @@ sello, que es correcto. Se dijo que era un tercer fallo y no lo era: se retiró 
 `research-archive/2026-08-22-pronostico-diagnostico-y-estrategia.md` — evidencia de producción
 (tabla pantalla vs. fuente, conteo de los 91 tramos, claves reales de `/complete`) y la estrategia
 completa de Fable 5, con sus umbrales y sus cinco tentaciones rechazadas.
+
+---
+
+## ADR-058 · 2026-08-22 · Un solo eje de tiempo para el clima de la línea, del histórico al pronóstico
+
+**Estado:** ✅ Decidido · **NO revisada externamente** · ✅ **verificado en vivo** con la sesión del
+Ingeniero: una sola casilla «El tiempo de esta línea» abre el eje; el 14 de marzo da **30,3 °C
+medidos**, el 19 de agosto **32,5 °C medidos**, el 20 y el 21 salen marcados **SIN PUBLICAR** con su
+explicación, y hoy 22 da el **pronóstico** con su atribución aparte.
+
+### Contexto
+
+El Ingeniero pidió *«poder escoger los días, desde inicio de año hasta la fecha»*. Eso **ya existía**
+—es lo que hace el atlas del año de `§ADR-056`, con mes, día y hora— y aun así lo pidió como si no
+estuviera. Ésa es la señal que importa: cuando alguien vuelve a pedir algo que tiene delante, lo que
+falla no es la función, es **el mando**.
+
+Y el mando estaba partido en dos casillas: «Pronóstico del tiempo» y «Clima del año (Caribe)». Para
+usarlas había que saber de antemano hacia dónde se quería mirar y encender la correcta. Eso es una
+pregunta de fontanería —de cómo está hecho el sistema por dentro— y quien mantiene una línea no
+tiene por qué contestarla. Al construir `§ADR-056` se le ofreció un **eje continuo pasado → futuro**
+y eligió la otra opción; al usarla, pidió el eje. Queda escrito sin reproche: la elección fue suya y
+la información que faltaba solo aparece usando la pantalla.
+
+### Decisión
+
+- **Una sola casilla y un solo selector de FECHA**, del 1 de enero hasta donde llegue el pronóstico.
+  Se elige un día y la pantalla enseña lo que hubo o lo que se espera.
+- **Los dos motores siguen SEPARADOS por dentro. Lo que se unificó es el mando.** El pronóstico se
+  sigue sin guardar (`§ADR-035`) y el atlas se sigue leyendo como medida con su celda de 111 km
+  (`§ADR-045`). Esto es un mando común, no un almacén común.
+- **CINTA DE PROCEDENCIA obligatoria**, y es la pieza que sostiene todo lo demás: juntar bajo un
+  mismo selector lo que se MIDIÓ y lo que un modelo CREE es cómodo y por eso mismo peligroso — los
+  dos números se parecen en pantalla y valen cosas distintas. Cada día declara su régimen (MEDIDO ·
+  MEDIDO sin horas · SIN PUBLICAR · PRONÓSTICO · SIN DATO) y **por qué**.
+- **Entre un hecho y un modelo, gana el hecho.** Si un día lo cubren los dos —porque el pronóstico
+  arrastra en su serie días que el histórico ya publicó— manda la medida. Hay prueba.
+- **El hueco se ve y no se rellena.** Los días entre el último medido y hoy (NASA publica con unos
+  3 días de retraso) salen marcados en rojo punteado y explicados. Rellenarlos con el pronóstico
+  sería exactamente el error de `32 · L-44`.
+- **El color es doctrina, no adorno:** lo medido en el ámbar de la casa (tierra, hecho consumado) y
+  lo pronosticado en azul (cielo, lo que no ha pasado). De reojo ya se sabe de qué está hecho el
+  número.
+- **El extremo derecho del eje no se inventa:** sale de los días que el pronóstico trajo de verdad,
+  no de un «hoy + 9» supuesto. El horizonte de la fuente cambia de una corrida a otra.
+- **El vigía pasa a SEMANAL y cubre los CUATRO atlas** (antes: bimestral y solo dos). Semanal y no
+  diario porque NASA publica con 3 días de retraso: un vigía diario no acorta ese retraso, solo
+  multiplica por siete las propuestas que hay que aprobar, y un buzón con 365 propuestas al año es un
+  buzón que nadie abre.
+
+### Alternativas descartadas
+
+- **Dejarlo como estaba y solo renombrar la casilla.** Habría hecho encontrable la función sin
+  arreglar la causa: seguir obligándole a elegir motor antes de elegir día.
+- **Fundir también los datos** en una serie única «el tiempo de esta línea». Es la tentación que
+  borra la diferencia entre medir y creer, y el día que un número de ésos entre en una discusión con
+  el cliente no se podría decir de dónde salió.
+- **Rellenar los días sin publicar con el pronóstico** para que el eje no tenga huecos. Un hueco que
+  se ve es información; uno tapado es una pantalla que miente por omisión.
+- **Poner el vigía a diario.** Ver arriba: no acorta el retraso de la fuente.
+- **Regenerar los atlas para «ponerlos al día».** Se hizo y **no cambió ni un PNG**: ya estaban tan
+  al día como NASA permite. El retraso era de la fuente, no del proyecto. Se deja escrito para que no
+  se vuelva a intentar creyendo que es un olvido.
+
+### Consecuencias
+
+- El panel del mapa pierde una casilla y gana un eje. `docs/20` apunta la pieza nueva.
+- **1.805 pruebas en verde** (17 nuevas en `tests/linea-de-tiempo.test.js`, todas sobre la doctrina:
+  gana el hecho, ningún día mudo, el hueco se ve, el extremo no se inventa).
+- Cobertura real que el Ingeniero verá, y que es de la FUENTE y no del código: temperatura, viento y
+  lluvia llegan al **19 de agosto**; el **sol solo tiene horas hasta el 30 de mayo** —NASA publica la
+  radiación horaria con meses de retraso— y de ahí al 18 de agosto solo el total del día.
+- Sigue pendiente y es suyo: `TODO-75`, los dos ajustes de GitHub sin los cuales el vigía no puede
+  abrir sus propuestas. Ahora corre siete veces más a menudo, así que sin esos ajustes calla siete
+  veces más a menudo.
+- No cambia nada de la fase 2 del pronóstico (`TODO-82`): franja mañana/tarde, sensación térmica y
+  hora de la lluvia siguen sin hacerse.
+
+### Crudo de respaldo
+
+`research-archive/2026-08-22-pronostico-diagnostico-y-estrategia.md` §4 — de ahí sale la
+recomendación del eje continuo, y ahí está la comprobación de qué publica y qué no publica la fuente
+para esta zona.

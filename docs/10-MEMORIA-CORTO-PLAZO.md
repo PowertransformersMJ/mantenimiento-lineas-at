@@ -18,7 +18,7 @@
    (`ADR-046/049/052`). Lo gobiernan **`34 · L-65`** (una corrección es deuda con toda la familia),
    **`32 · L-67`** (vigila la función, no a quien la llama) y **`30 · L-68`** (el guardián recorre la
    tubería; un fixture hecho a mano no cruza la frontera).
-3. **CERRADO 22-08 (tarde): `§ADR-057` el cielo del pronóstico.** Una rama inalcanzable pintaba «nublado» 50 tramos que eran «parcialmente nublado», y el símbolo del día lo elegía la MADRUGADA. Arreglado y blindado con guardián de catálogo (`32 · L-69/L-70`). **La FASE 2 —franja mañana/tarde, sensación térmica, hora de la lluvia— está ofrecida y es suya: `TODO-82`.**
+3. **CERRADO 22-08: el clima de la línea, `§ADR-057` + `§ADR-058`.** ① Una rama inalcanzable pintaba «nublado» 50 tramos que eran «parcialmente nublado», y el símbolo del día lo elegía la MADRUGADA (`32 · L-69/L-70`). ② Las dos casillas del clima eran una pregunta partida en dos mandos: ahora se elige **FECHA** (1-ene → +11 d) y cada día declara su régimen —MEDIDO · SIN PUBLICAR · PRONÓSTICO—. **Entre un hecho y un modelo gana el hecho**, y el hueco de los 3 días que NASA tarda SE VE, no se rellena. Vigía semanal y con los cuatro atlas.
 3. **LA FASE ABIERTA: la página.** Cerradas `§ADR-051` (banda, pestaña, tope, motor), `§ADR-052` ① el
    número que se firma, `§ADR-053/055/056` (los CUATRO atlas y el clima del año en el mapa) y
    `§ADR-054` (el extremo de origen). **Quedan DOS candidatas del triaje** —él elige—:
@@ -29,7 +29,7 @@
 4. **SON DE ÉL**: `TODO-57` el dato de la ficha · **contraseña** (bloquea retirar Google) ·
    `TODO-71` viento y los 1.000 W/m² —los atlas lo acercan pero NO lo cierran: 42 °C medidos (2 sobre
    el peor escenario) y viento hasta 54 km/h, lejos de los 100 adoptados— · `TODO-33` 50 % o 25 % ·
-   `TODO-76` retenida · `TODO-78` el nodo `33` al 99,9 % (`30 · L-68`) · `TODO-80` qué tope de tierra
+   `TODO-76` retenida · `TODO-82` la fase 2 del pronóstico · `TODO-78` el nodo `33` al 99,9 % (`30 · L-68`) · `TODO-80` qué tope de tierra
    rige · **`TODO-81` NUEVO**: descargar el acta de la carga del 22-08.
 5. **Higiene** (`99 §ADR-047/048`). ⚠️ El techo es el **ARRANQUE**, y `20`, `30` y `33` van al 99 %.
 
@@ -86,7 +86,7 @@ Cada uno vive ENTERO en su ADR: esto es el índice, léelo antes de tocar su sub
 | **TODO-44/34** | Alerta de gasto en Cloudflare · **respaldo FUERA de esta Mac**: `brain-private` **no tiene remoto** (ADR-059) | R2 factura · un fallo de disco se lleva la bóveda |
 | **TODO-61/54/68** | ¿App Check? · ¿que el linter vigile la frescura semántica? · ¿que cace un ADR repetido? (`30 · L-47`). Las dos últimas tocan el KERNEL | Las TRES son TUYAS |
 | **TODO-76** | **¿Se guarda que un apoyo es autosoportado / retenido?** Hoy no cabe en el modelo: iría por APOYO (26 declaraciones) | Cierra media incógnita de la capacidad longitudinal |
-| **TODO-78** | **El nodo `33` al 99,9 %**: la siguiente lección obliga a podar o partirlo | Perder texto, o pagar contexto cada sesión |
+| **TODO-78** | **Los nodos `33` y `20` en su techo** (99,9 %): la siguiente lección o el siguiente archivo obligan a podar o partir | Perder texto, o pagar contexto cada sesión |
 | **TODO-69** | ✅ **CERRADO 22-08.** El pórtico de ORIGEN y el empalme `EMP E01-E02` están CARGADOS y verificados en la base: 30 puntos, 26 estructuras, 3.032,8 m | — |
 | **TODO-03/25/36** | Cronometrar LN-627 · probar descargas y Salir con su sesión | — |
 

@@ -42,6 +42,7 @@ import {
   type PronosticoEnPantalla,
 } from '../vistas/pronostico';
 import { ATRIBUCION_PRONOSTICO, celdaDeConsulta, pedirPronostico, SinPronostico } from '../datos/pronostico';
+import { diaDe } from '../vistas/lineaDeTiempo';
 import type { CeldaDelAnio } from './ClimaDelAnio';
 
 /**
@@ -890,24 +891,28 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
           </label>
         ))}
 
+        {/* UNA SOLA CASILLA PARA EL TIEMPO, Y ES LA DECISIÓN DE `§ADR-058`.
+            Antes eran dos —«Pronóstico» y «Clima del año»— y obligaban a saber
+            de antemano cuál encender según se mirara hacia atrás o hacia
+            adelante. Eso es una pregunta de fontanería, no de mantenimiento:
+            ahora se enciende una vez y se elige la FECHA. Los dos motores siguen
+            separados por dentro, porque lo medido y lo pronosticado no se
+            mezclan; lo que se unificó es el mando. */}
         <label>
           <input type="checkbox" checked={pronostico}
-            onChange={(e) => setPronostico(e.target.checked)} /> Pronóstico del tiempo
+            onChange={(e) => {
+              const encendido = e.target.checked;
+              setPronostico(encendido);
+              setClimaAnio(encendido);
+              if (!encendido) setCeldaAnio(null);
+            }} /> El tiempo de esta línea
           {pidiendoTiempo && <span className="mapa-capas-f">consultando…</span>}
         </label>
-
-        {/* EL AÑO, al lado del pronóstico y no lejos de él: uno mira hacia
-            adelante unos días y el otro hacia atrás doce meses. Juntos son el
-            clima de esta línea; separados, dos pantallas que nadie cruza. */}
-        <label>
-          <input type="checkbox" checked={climaAnio}
-            onChange={(e) => { setClimaAnio(e.target.checked); if (!e.target.checked) setCeldaAnio(null); }} />
-          {' '}Clima del año (Caribe)
-        </label>
         {climaAnio && geometria && (
-          <Suspense fallback={<p className="mapa-capas-n">Bajando el clima del año…</p>}>
+          <Suspense fallback={<p className="mapa-capas-n">Bajando el histórico…</p>}>
             <ClimaDelAnio lon={geometria.lon} lat={geometria.lat}
-              alDibujarCelda={setCeldaAnio} />
+              alDibujarCelda={setCeldaAnio}
+              hoy={diaDe(new Date())} dias={tiempo?.dias ?? []} />
           </Suspense>
         )}
 
