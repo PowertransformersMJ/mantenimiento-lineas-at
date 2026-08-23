@@ -306,6 +306,24 @@ const RAMPA_VIENTO = [
  * la hora sin lluvia es la mayoría de las horas del año, y pintarla de color
  * llenaría el mapa de agua que no cayó. El azul aparece cuando llueve.
  */
+/**
+ * NUBOSIDAD: del azul del cielo al gris del plomo.
+ *
+ * No es una rampa de «más es peor» como las otras: aquí los dos extremos son
+ * informativos y ninguno es una alarma. Un día despejado en el Caribe es sol a
+ * plomo sobre la cuadrilla y el conductor a su máxima temperatura; uno cubierto
+ * suele venir con agua. Por eso el color va del azul real del cielo al gris real
+ * de un cielo cerrado, y no de verde a rojo.
+ */
+const RAMPA_NUBES = [
+  { c: 0, rgb: [118, 170, 216] },
+  { c: 12.5, rgb: [163, 199, 228] },
+  { c: 37.5, rgb: [206, 216, 226] },
+  { c: 62.5, rgb: [190, 190, 192] },
+  { c: 87.5, rgb: [150, 150, 154] },
+  { c: 100, rgb: [108, 110, 118] },
+];
+
 const RAMPA_LLUVIA = [
   { c: 0, rgb: [245, 241, 232] },
   { c: 0.5, rgb: [205, 225, 230] },
@@ -436,6 +454,38 @@ export const PERFILES = Object.freeze({
       + 'para decidir la semana —si se sube o no se sube— y para leer la temporada; NO es una '
       + 'medición de pluviómetro ni sustituye al sondeo del IDEAM, que sí es un hecho fechado.',
     fuente: 'NASA POWER (MERRA-2), parámetro PRECTOTCORR, comunidad RE',
+  }),
+
+  nubes: Object.freeze({
+    capa: 'nubes-caribe',
+    prefijo: 'nubes-caribe',
+    param: 'CLOUD_AMT',
+    // La media del día, y aquí SÍ es lo correcto —al revés que en la temperatura,
+    // donde manda el máximo—: lo que describe un día es si estuvo cerrado o
+    // abierto, no el instante más nublado, que en el trópico lo alcanza casi
+    // cualquier día a alguna hora.
+    paramDiario: 'CLOUD_AMT',
+    titulo: 'Nubosidad del Caribe colombiano, hora a hora',
+    unidad: '%',
+    // offset 0 y paso 0,4 → de 0 a 101,6 %, que cubre el 0-100 de la fracción
+    // con resolución de medio punto y sin gastar escala fuera del rango real.
+    codificacion: { offset: 0, paso: 0.4, sin_dato: 0 },
+    rampa: RAMPA_NUBES,
+    // No hay hipótesis de nubosidad en el cálculo de una línea, y por eso no se
+    // marca ninguna raya: inventar una sería darle rango de criterio.
+    hipotesisMarcadaEnRampa: undefined,
+    etiquetaHipotesis: undefined,
+    resumenDiarioEtiqueta: 'Nubosidad media del día',
+    resumenDiarioUnidad: '% de cielo cubierto (mediana regional)',
+    resumenDiarioAviso: 'Es la media de cada celda, resumida por la mediana de las 36.',
+    aviso: 'Es la fracción de cielo cubierto, promediada sobre una celda de 111 km: dice cómo '
+      + 'estuvo la REGIÓN, no si sobre un apoyo concreto había una nube. Sirve para leer el día '
+      + '—un cielo abierto es sol a plomo sobre la cuadrilla y el conductor en su peor hora; uno '
+      + 'cerrado suele traer agua— y NO dice nada sobre tormenta eléctrica: el aparato eléctrico '
+      + 'no se mide con nubosidad y esta fuente no lo publica de ninguna forma. ⚠️ Este parámetro '
+      + 'va con la MISMA latencia larga que la radiación solar: llega meses por detrás de los '
+      + 'de temperatura, viento y lluvia.',
+    fuente: 'NASA POWER (CERES SYN1deg), parámetro CLOUD_AMT, comunidad RE',
   }),
 });
 

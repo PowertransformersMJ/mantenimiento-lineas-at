@@ -33,8 +33,8 @@
 // ============================================================================
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  comoLlovio, cuadroDe, diasDelMesSobre, enTramos, horasSobre, isoDe, perfilEnCelda,
-  resumenDelDia, type FichaAtlas, type PerfilDelDia,
+  comoEstuvoElCielo, comoLlovio, cuadroDe, diasDelMesSobre, enTramos, horasSobre, isoDe,
+  perfilEnCelda, resumenDelDia, type FichaAtlas, type PerfilDelDia,
 } from '../vistas/atlasCaribe';
 import {
   diasDelMesConRegimen, extremos, sumarDias, tramoDe,
@@ -464,17 +464,28 @@ function ElDiaEntero({ perfil, ficha, cual, hora, delMes, mesNombre }: {
   const medido = tope?.mide === 'total' ? perfil.total : perfil.max;
   const cruzado = tope !== null && medido !== null && medido > tope.valor;
   const encima = tope && tope.mide === 'max' ? horasSobre(perfil, tope.valor) : [];
-  // Cómo llovió, en palabras: la escala de intensidad de la OMM.
-  const grados = cual === 'lluvia' ? comoLlovio(perfil) : [];
+  // En palabras: intensidad de lluvia (OMM) o estado del cielo (octas, OMM).
+  const grados = cual === 'lluvia' ? comoLlovio(perfil)
+    : cual === 'nubes' ? comoEstuvoElCielo(perfil)
+      : [];
 
   return (
     <div className="dia-entero">
       <p className="mapa-capas-t">El día entero, en esta celda</p>
       <p className="mapa-capas-n">
-        {acumulable ? 'Pico de ' : 'Máxima '}
-        <b>{nf(max, 1)} {ficha.unidad}{acumulable ? '/h' : ''}</b> a las {hh(perfil.horaMax!)}
-        {!acumulable && recorrido > 0
-          && <> · mínima <b>{nf(min, 1)}</b> a las {hh(perfil.horaMin!)}</>}
+        {cual === 'nubes' && perfil.media !== null ? (
+          // En el cielo lo que describe el día es la MEDIA: el máximo lo alcanza
+          // casi cualquier día del trópico a alguna hora, y no distingue nada.
+          <>Cielo cubierto de media: <b>{nf(perfil.media, 0)} %</b> · máxima {nf(max, 0)} % a
+            las {hh(perfil.horaMax!)}</>
+        ) : (
+          <>
+            {acumulable ? 'Pico de ' : 'Máxima '}
+            <b>{nf(max, 1)} {ficha.unidad}{acumulable ? '/h' : ''}</b> a las {hh(perfil.horaMax!)}
+            {!acumulable && recorrido > 0
+              && <> · mínima <b>{nf(min, 1)}</b> a las {hh(perfil.horaMin!)}</>}
+          </>
+        )}
         {acumulable && perfil.total !== null && (
           cual === 'sol'
             ? <> · energía del día <b>{nf(perfil.total / 1000, 2)} kWh/m²</b></>
@@ -505,7 +516,7 @@ function ElDiaEntero({ perfil, ficha, cual, hora, delMes, mesNombre }: {
       {/* ── CÓMO LLOVIÓ, HORA A HORA Y EN PALABRAS ─────────────────────────
           «0,4 mm» no dice si se podía trabajar; «llovizna de 08:00 a 11:59» sí.
           Los cortes son los de la OMM, no de esta casa, y por eso se citan. */}
-      {cual === 'lluvia' && (
+      {(cual === 'lluvia' || cual === 'nubes') && (
         grados.length ? (
           <ul className="dia-grados">
             {grados.map((g) => (
@@ -515,8 +526,19 @@ function ElDiaEntero({ perfil, ficha, cual, hora, delMes, mesNombre }: {
             ))}
           </ul>
         ) : (
-          <p className="mapa-capas-n">Ni una hora con lluvia apreciable en esta celda.</p>
+          <p className="mapa-capas-n">
+            {cual === 'lluvia'
+              ? 'Ni una hora con lluvia apreciable en esta celda.'
+              : 'De este día no se midió el cielo en ninguna hora.'}
+          </p>
         )
+      )}
+      {cual === 'nubes' && (
+        <p className="fine">
+          <b>La nubosidad no dice si hubo tormenta.</b> El aparato eléctrico no se mide con nubes
+          y esta fuente no publica rayos de ninguna forma; el único sitio del sistema donde consta
+          una tormenta es el pronóstico.
+        </p>
       )}
 
       {tope && medido !== null && (

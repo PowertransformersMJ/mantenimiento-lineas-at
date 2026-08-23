@@ -5531,3 +5531,68 @@ toda la capa, y hace bien.
 
 `research-archive/2026-08-22-pronostico-diagnostico-y-estrategia.md` — mismo hilo; ahí está la
 comprobación de qué publica y qué no publica cada fuente para esta zona.
+
+---
+
+## ADR-060 · 2026-08-22 · El quinto atlas: la nubosidad entra, y entra diciendo lo que NO puede decir
+
+**Estado:** ✅ Decidido · **NO revisada externamente** · ✅ **verificado en vivo** con la sesión del
+Ingeniero: la fila de atlas pasa a cinco (Sol · Temperatura · Viento · Lluvia · **Nubes**) y el
+14 de marzo da «cielo cubierto de media: 38 % · máxima 61 % a las 01:00», con el desglose
+«parcialmente nublado de 01:00 a 03:59, … y de 18:00 a 23:59» y «poco nuboso …».
+
+### Contexto
+
+El Ingeniero pidió que la lluvia se dijera con criterios entendibles y nombró cuatro: *«nublado,
+parcialmente nublado, lluvioso, tormenta eléctrica»*. Dos de ellos —la intensidad de lluvia— salían
+del dato que ya había y se resolvieron en `§ADR-059`. Los otros dos no salen de la lluvia: **un día
+encapotado sin una gota mide exactamente lo mismo que uno despejado**.
+
+Se le ofreció el quinto atlas con su limitación por delante y **eligió construirlo**.
+
+### Decisión
+
+- **Quinto atlas: `nubes-caribe`**, con `CLOUD_AMT` de NASA POWER. Mismo motor, mismo molde, mismos
+  siete departamentos: un perfil en el generador y una línea en la pantalla, que era justo lo que
+  `§ADR-045` prometió que costaría añadir uno.
+- **La escala, en OCTAS de la OMM**, no inventada aquí: despejado · poco nuboso · parcialmente
+  nublado · nuboso · cubierto, con los cortes en 12,5 / 37,5 / 62,5 / 87,5 % (1 octa = 12,5 %).
+- **En el cielo manda la MEDIA del día, no el máximo** — al revés que en la temperatura. Lo que
+  describe un día es si estuvo abierto o cerrado; el máximo lo alcanza casi cualquier día del
+  trópico a alguna hora y no distingue nada.
+- **«Despejado» SÍ se enseña**, a diferencia de las horas secas en la lluvia: un cielo abierto en el
+  Caribe es sol a plomo sobre la cuadrilla y el conductor en su hora más caliente. Es información,
+  no ausencia de ella.
+- **Sin hipótesis marcada y sin veredicto de mes.** No existe una hipótesis de nubosidad en el
+  cálculo de una línea; inventar un tope le daría rango de criterio. La capa describe, no dictamina.
+- **La advertencia va EN LA PANTALLA, no solo aquí**: *«la nubosidad no dice si hubo tormenta»*.
+
+### Lo que NO se puede, y queda con prueba
+
+- **«Tormenta eléctrica» no existe en esta fuente.** No hay parámetro de rayos ni de convección, y
+  **ningún grado de nubosidad ni cantidad de lluvia implica aparato eléctrico**. Hay dos pruebas
+  —una por escala— que impiden que esa palabra entre por descuido. El único sitio del sistema donde
+  consta una tormenta es el pronóstico, que trae el símbolo de su propia fuente.
+- **La latencia.** `CLOUD_AMT` sale del mismo producto que la radiación (CERES SYN1deg): verificado
+  el 2026-08-22, hay horas hasta **finales de mayo** y de junio en adelante nada. Se construyó con
+  eso sabido y aceptado; de junio en adelante el eje lo marca **SIN PUBLICAR**, igual que cualquier
+  otro hueco. El vigía semanal lo irá completando solo.
+- **La resolución.** Es la media sobre una celda de 111 km: dice cómo estuvo la REGIÓN a esa hora,
+  no si sobre un apoyo concreto había una nube.
+
+### Consecuencias
+
+- **1.829 pruebas en verde** (5 nuevas). El vigía pasa a cubrir los CINCO atlas, en sus dos matrices.
+- **119 KiB** más de dato, y solo se bajan al abrir ese atlas.
+- El compilador cazó una pieza hermana que se habría quedado atrás: `ClaveAtlas` vivía **dos veces**
+  —en `componentes/AtlasCaribe` y en `datos/ruta`— y añadir el quinto a una sola habría dejado
+  `#/nubes` abriendo otro atlas sin dar un error. Es el patrón de `34 · L-65` cazado por tipos.
+- **Un fallo de método que conviene no repetir:** se desplegó una vez con una prueba en rojo (el
+  guardián de color: cinco tonos escritos a mano fuera del tablero de `:root`). El encadenado de
+  comandos ocultó el fallo. Se corrigió y se volvió a desplegar; **la versión con el test rojo estuvo
+  publicada unos minutos**. Se deja escrito porque la lección no es del código: es de no encadenar
+  `test && build && deploy` de forma que el rojo no frene la cadena.
+
+### Crudo de respaldo
+
+`research-archive/2026-08-22-pronostico-diagnostico-y-estrategia.md` — mismo hilo del día.

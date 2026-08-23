@@ -31,7 +31,7 @@
  *   #/<linea>/<pest> → una línea en una pestaña (ya existía y no se toca)
  */
 /** Los atlas regionales. La clave es la del componente, no un texto suelto. */
-export type ClaveAtlas = 'sol' | 'temperatura' | 'viento' | 'lluvia';
+export type ClaveAtlas = 'sol' | 'temperatura' | 'viento' | 'lluvia' | 'nubes';
 
 /**
  * QUÉ DIRECCIÓN ABRE CADA ATLAS. Una tabla y no un `if` por atlas: añadir el
@@ -43,6 +43,7 @@ export const HASH_ATLAS: Record<ClaveAtlas, string> = {
   temperatura: '#/temperatura',
   viento: '#/viento',
   lluvia: '#/lluvia',
+  nubes: '#/nubes',
 };
 
 /**

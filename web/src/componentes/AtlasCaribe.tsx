@@ -49,7 +49,7 @@ const DEPARTAMENTOS = '/mapas/caribe-departamentos.json';
 const BASE = 'caribe.pmtiles';
 
 /** Cuál de los atlas. Es lo ÚNICO que esta pantalla necesita saber. */
-export type ClaveAtlas = 'sol' | 'temperatura' | 'viento' | 'lluvia';
+export type ClaveAtlas = 'sol' | 'temperatura' | 'viento' | 'lluvia' | 'nubes';
 
 /**
  * LOS DOS PRODUCTOS. Aquí solo va lo que la ficha no puede traer: dónde está esa
@@ -88,10 +88,17 @@ export const ATLAS: Record<ClaveAtlas, {
     entradilla: 'Lluvia caída',
     rotulo: 'Lluvia',
   },
+  nubes: {
+    ficha: '/mapas/nubes-caribe.json',
+    idCapa: 'capa-nubes',
+    titulo: 'Atlas de nubosidad del Caribe',
+    entradilla: 'Cielo cubierto',
+    rotulo: 'Nubes',
+  },
 };
 
 /** El orden en que se ofrecen. No es alfabético: es el orden en que nacieron. */
-export const ATLAS_EN_ORDEN: ClaveAtlas[] = ['sol', 'temperatura', 'viento', 'lluvia'];
+export const ATLAS_EN_ORDEN: ClaveAtlas[] = ['sol', 'temperatura', 'viento', 'lluvia', 'nubes'];
 
 /**
  * EL VACÍO DE FUERA DEL RECORTE SE PINTA COMO PAPEL, NO COMO MAPA ROTO.

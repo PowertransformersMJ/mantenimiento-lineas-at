@@ -313,9 +313,12 @@ export function enTramos(horas: number[]): string {
   }
   tramos.push([ini, prev]);
   const dosDig = (h: number) => String(h).padStart(2, '0');
-  return tramos
-    .map(([a, b]) => (a === b ? `a las ${dosDig(a)}:00` : `de ${dosDig(a)}:00 a ${dosDig(b)}:59`))
-    .join(' y ');
+  const dichos = tramos
+    .map(([a, b]) => (a === b ? `a las ${dosDig(a)}:00` : `de ${dosDig(a)}:00 a ${dosDig(b)}:59`));
+  // Coma entre todos y «y» solo antes del último: con cuatro o cinco tramos
+  // —lo normal en un día de nubosidad— la cadena de «y» se vuelve ilegible.
+  if (dichos.length <= 2) return dichos.join(' y ');
+  return `${dichos.slice(0, -1).join(', ')} y ${dichos[dichos.length - 1]}`;
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -422,4 +425,76 @@ export function diasDelMesSobre(
     if (v > tope) dias.push(d);
   }
   return { dias, medidos, sinDato };
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// CÓMO ESTUVO EL CIELO, EN PALABRAS (§ADR-060)
+// ----------------------------------------------------------------------------
+// «47 %» no le dice a nadie cómo estuvo el día. «Parcialmente nublado» sí. Los
+// cortes son los de la escala de OCTAS de la OMM —el cielo se parte en ocho
+// octavos y cada tramo tiene su nombre desde hace más de un siglo—, traducidos a
+// porcentaje: 1 octa = 12,5 %. NO es un criterio inventado en esta casa.
+//
+// ⚠️ ESTO NO ES UN PRONÓSTICO NI UNA TORMENTA. Un cielo cubierto no implica que
+// lloviera —eso lo dice el atlas de lluvia— y **ningún grado de nubosidad
+// implica aparato eléctrico**: la tormenta no se mide con nubes, y esta fuente
+// no publica rayos de ninguna forma. Hay prueba que impide que esa palabra entre
+// aquí.
+//
+// ⚠️ Y ES LA MEDIA DE UNA CELDA DE 111 KM. Dice cómo estuvo la región a esa
+// hora, no si sobre un apoyo concreto había una nube.
+// ════════════════════════════════════════════════════════════════════════════
+
+export interface GradoDeCielo {
+  clave: 'despejado' | 'poco_nuboso' | 'parcial' | 'nuboso' | 'cubierto';
+  nombre: string;
+  /** Desde (incluido), en % de cielo cubierto. */
+  desde: number;
+  /** Qué significa para una cuadrilla. Criterio del proyecto, no de la OMM. */
+  paraLaLinea: string;
+}
+
+/** De cielo abierto a cielo cerrado. El orden ES la función. */
+export const ESCALA_CIELO: readonly GradoDeCielo[] = Object.freeze([
+  { clave: 'despejado', nombre: 'despejado', desde: 0,
+    paraLaLinea: 'sol a plomo: el conductor en su hora más caliente y la cuadrilla sin sombra.' },
+  { clave: 'poco_nuboso', nombre: 'poco nuboso', desde: 12.5,
+    paraLaLinea: 'prácticamente sol pleno.' },
+  { clave: 'parcial', nombre: 'parcialmente nublado', desde: 37.5,
+    paraLaLinea: 'claros y nubes: la radiación va a rachas.' },
+  { clave: 'nuboso', nombre: 'nuboso', desde: 62.5,
+    paraLaLinea: 'poca radiación directa; en temporada, suele venir con agua.' },
+  { clave: 'cubierto', nombre: 'cubierto', desde: 87.5,
+    paraLaLinea: 'cielo cerrado. Mírese la lluvia de la misma hora antes de programar.' },
+]);
+
+/** En qué grado cae una hora. `null` si no se midió — que NO es «despejado». */
+export function estadoDelCielo(pct: number | null): GradoDeCielo | null {
+  if (pct === null || !Number.isFinite(pct)) return null;
+  let grado = ESCALA_CIELO[0];
+  for (const g of ESCALA_CIELO) if (pct >= g.desde) grado = g;
+  return grado;
+}
+
+/**
+ * Cómo estuvo el cielo a lo largo del día, agrupado por grado.
+ *
+ * A diferencia de la lluvia, aquí NO se esconde ningún grado: «despejado» es
+ * información —sol a plomo sobre la cuadrilla—, no ausencia de información.
+ */
+export function comoEstuvoElCielo(
+  perfil: PerfilDelDia,
+): { grado: GradoDeCielo; horas: number[] }[] {
+  const porClave = new Map<string, { grado: GradoDeCielo; horas: number[] }>();
+  perfil.horas.forEach((v, h) => {
+    const g = estadoDelCielo(v);
+    if (!g) return;
+    const y = porClave.get(g.clave) ?? { grado: g, horas: [] };
+    y.horas.push(h);
+    porClave.set(g.clave, y);
+  });
+  // Del cielo más cerrado al más abierto: lo que cambia una jornada va primero.
+  const orden = ESCALA_CIELO.map((g) => g.clave);
+  return [...porClave.values()].sort(
+    (a, b) => orden.indexOf(b.grado.clave) - orden.indexOf(a.grado.clave));
 }

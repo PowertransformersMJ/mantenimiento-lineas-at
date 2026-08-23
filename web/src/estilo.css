@@ -39,6 +39,14 @@
   --t-verde: #eff6ea;
   --t-azul:  #eaf1f7;
   --b-azul:  #c3d5e4;
+  /* Nubosidad (§ADR-060): del azul del cielo abierto al gris del cielo cerrado.
+     Son los mismos tonos de la rampa del atlas, para que la lista de grados y el
+     mapa hablen el mismo idioma. */
+  --nub-despejado: #76aad8;
+  --nub-poco:      #a3c7e4;
+  --nub-parcial:   #ced8e2;
+  --nub-nuboso:    #bebec0;
+  --nub-cubierto:  #6c6e76;
 
 
   /* ── Los cuatro cielos (F5) ──────────────────────────────────────────────
@@ -1586,4 +1594,10 @@ p.fund-vivo + .sello-calculo { margin-top: 5px; }
 .dia-grados li.g-fuerte     { border-left-color: var(--acc); }
 .dia-grados li.g-muy_fuerte { border-left-color: var(--rd); }
 .dia-grados li.g-torrencial { border-left-color: var(--rd); font-weight: 600; }
+/* El cielo, con la misma pinta: del azul abierto al gris cerrado. */
+.dia-grados li.g-despejado   { border-left-color: var(--nub-despejado); }
+.dia-grados li.g-poco_nuboso { border-left-color: var(--nub-poco); }
+.dia-grados li.g-parcial     { border-left-color: var(--nub-parcial); }
+.dia-grados li.g-nuboso      { border-left-color: var(--nub-nuboso); }
+.dia-grados li.g-cubierto    { border-left-color: var(--nub-cubierto); font-weight: 600; }
 .sol-rampa { height: 10px; border-radius: 3px; margin: 6px 0 2px; border: 1px solid var(--bd); }

@@ -22,6 +22,7 @@ import assert from 'node:assert/strict';
 import {
   perfilEnCelda, horasSobre, enTramos,
   intensidadDeLluvia, comoLlovio, ESCALA_LLUVIA, diasDelMesSobre,
+  estadoDelCielo, comoEstuvoElCielo, ESCALA_CIELO,
 } from '../web/src/vistas/atlasCaribe.ts';
 
 // Codificación de la casa: byte 0 = SIN DATO, y el valor sale de `(b-1)*paso+offset`.
@@ -141,6 +142,11 @@ describe('las horas que pasaron del tope, dichas como las diría una persona', (
     assert.equal(enTramos([7]), 'a las 07:00');
     assert.equal(enTramos([6, 7, 18, 19, 20]), 'de 06:00 a 07:59 y de 18:00 a 20:59');
     assert.equal(enTramos([]), '');
+    // Con tres o más —lo normal en un día de nubosidad— coma entre todos y «y»
+    // solo antes del último: la cadena de «y» encadenados no se lee.
+    assert.equal(enTramos([1, 5, 9]), 'a las 01:00, a las 05:00 y a las 09:00');
+    assert.equal(enTramos([0, 1, 4, 5, 8]),
+      'de 00:00 a 01:59, de 04:00 a 05:59 y a las 08:00');
   });
 });
 
@@ -239,5 +245,57 @@ describe('el mes entero, para planificar', () => {
     const px = archivo(() => 2);
     assert.deepEqual(diasDelMesSobre(px, FICHA, MES, 0, 0, 20, 'max').dias, []);
     assert.deepEqual(diasDelMesSobre(px, FICHA, MES, 0, 0, 20, 'total').dias, [1, 2]);
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// CÓMO ESTUVO EL CIELO. Cortes de la escala de OCTAS de la OMM (1 octa =
+// 12,5 %). Y la misma garantía que en la lluvia: de las nubes tampoco sale una
+// tormenta.
+// ════════════════════════════════════════════════════════════════════════════
+describe('el estado del cielo, dicho en palabras', () => {
+
+  test('cada octa cae en su grado', () => {
+    assert.equal(estadoDelCielo(0).clave, 'despejado');
+    assert.equal(estadoDelCielo(12.4).clave, 'despejado');
+    assert.equal(estadoDelCielo(12.5).clave, 'poco_nuboso');
+    assert.equal(estadoDelCielo(37.4).clave, 'poco_nuboso');
+    assert.equal(estadoDelCielo(37.5).clave, 'parcial');
+    assert.equal(estadoDelCielo(62.5).clave, 'nuboso');
+    assert.equal(estadoDelCielo(87.5).clave, 'cubierto');
+    assert.equal(estadoDelCielo(100).clave, 'cubierto');
+  });
+
+  test('una hora sin medir no es un cielo despejado', () => {
+    assert.equal(estadoDelCielo(null), null);
+    assert.equal(estadoDelCielo(NaN), null);
+  });
+
+  test('«despejado» SÍ se enseña: es información, no ausencia de ella', () => {
+    // Al revés que en la lluvia, donde las horas secas se esconden. Un cielo
+    // abierto en el Caribe es sol a plomo sobre la cuadrilla.
+    const px = archivo(() => 1);          // 0 % de nubes las 24 horas
+    const p = perfilEnCelda(px, FICHA, MES, 1, 0, 0);
+    const r = comoEstuvoElCielo(p);
+    assert.equal(r.length, 1);
+    assert.equal(r[0].grado.clave, 'despejado');
+    assert.equal(r[0].horas.length, 24);
+  });
+
+  test('el día se ordena del cielo más cerrado al más abierto', () => {
+    // 00–11 despejado (0 %), 12–23 cubierto (90 %).
+    const px = archivo((d, h) => (h < 12 ? 1 : 91));
+    const p = perfilEnCelda(px, FICHA, MES, 1, 0, 0);
+    const r = comoEstuvoElCielo(p);
+    assert.equal(r[0].grado.clave, 'cubierto', 'lo que cambia la jornada va primero');
+    assert.equal(r[1].grado.clave, 'despejado');
+  });
+
+  test('la escala del cielo NO inventa tormenta ni lluvia', () => {
+    const nombres = ESCALA_CIELO.map((g) => g.nombre.toLowerCase()).join(' ');
+    for (const prohibido of ['tormenta', 'eléctric', 'lluvia', 'llov', 'rayo']) {
+      assert.ok(!nombres.includes(prohibido),
+        `«${prohibido}» no se puede deducir de la nubosidad`);
+    }
   });
 });

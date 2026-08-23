@@ -95,10 +95,10 @@ mantenimiento-lineas-at/
 ├── evidencias/                  🚪 EL PORTERO (Worker, ADR-010 + **ADR-031**): verifica la FIRMA del
 │                                token. `GET` sirve, `PUT` acepta bajo diez cerrojos.
 │                                🚫 **NO borra y NO lista** — con prueba que lo impide
-├── herramientas/atlas-caribe.mjs EL MOTOR de los CUATRO atlas (ADR-053/055), cada uno un PERFIL:
+├── herramientas/atlas-caribe.mjs EL MOTOR de los CINCO atlas (ADR-053/055/060), uno por PERFIL:
 │                                `sol-caribe` (⚠️ ese nombre lo llama el vigía) · `temp-caribe` ·
-│                                `viento-caribe` · `lluvia-caribe`. El perfil lleva `factor`: la
-│                                lluvia horaria de NASA es una TASA mm/día, va ÷24 (ADR-055)
+│                                `viento-caribe` · `lluvia-caribe` · `nubes-caribe`. El perfil trae
+│                                `factor`: la lluvia horaria de NASA es TASA mm/día, ÷24
 ├── herramientas/teselas/        construir-raster.py — rehace las capas del mapa desde datos
 │                             abiertos. ⚠️ ÚNICO Python del repo; no lo usan app ni pruebas
 ├── herramientas/                sembrar.mjs (línea + expediente) · subir-evidencias.mjs (fotos) ·

@@ -1,6 +1,6 @@
 name: Vigía · NASA POWER horario
 
-# Cada semana le pregunta a NASA si ya publicó más horas — de los CUATRO atlas,
+# Cada semana le pregunta a NASA si ya publicó más horas — de los CINCO atlas,
 # que van a ritmos muy distintos: medido el 2026-08-22, el horario del sol iba 84
 # días por detrás y los de temperatura, viento y lluvia 3. Si las hay, ABRE UNA
 # PROPUESTA por atlas. No publica: propone.
@@ -85,6 +85,10 @@ jobs:
             prefijo: lluvia-caribe
             param: PRECTOTCORR
             nombre: de lluvia
+          - clave: nubes
+            prefijo: nubes-caribe
+            param: CLOUD_AMT
+            nombre: de nubosidad
     outputs:
       hay: ${{ steps.comparar.outputs.hay }}
       publicado: ${{ steps.comparar.outputs.publicado }}
@@ -152,7 +156,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       # ⚠️ `fail-fast: false` y no el defecto: si el atlas solar falla, los otros
-      # tres tienen que llegar igual. Son cuatro productos, no cuatro pasos.
+      # cuatro tienen que llegar igual. Son cinco productos, no cinco pasos.
       fail-fast: false
       matrix:
         include:
@@ -176,6 +180,11 @@ jobs:
             herramienta: lluvia-caribe.mjs
             nombre: de lluvia
             avisoEsperado: 'celda de 111 km|cada hora'
+          - clave: nubes
+            prefijo: nubes-caribe
+            herramienta: nubes-caribe.mjs
+            nombre: de nubosidad
+            avisoEsperado: 'tormenta eléctrica|fracción de cielo'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
