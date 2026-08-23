@@ -5710,3 +5710,51 @@ que esté.
 ### Crudo de respaldo
 
 Sin comité: el fallo lo reportó el Ingeniero y se reprodujo en producción en el mismo turno.
+
+---
+
+## ADR-063 · 2026-08-22 · El horizonte sale de «Detalle GPS», y solo de ahí
+
+**Estado:** ✅ Decidido · **NO revisada externamente** · ✅ **verificado en vivo** con la sesión del
+Ingeniero: en Detalle GPS ya no se pinta y el mapa arranca 260 px más arriba; en **Resumen sigue
+intacto**, comprobado en la misma sesión pasando de una pestaña a la otra.
+
+### Contexto
+
+El Ingeniero, señalando el bloque: *«esto no es necesario que aparezca en detalle GPS»*.
+
+Tenía razón y hay un motivo de diseño detrás: **esa pestaña dibujaba los mismos 26 apoyos dos veces
+y con dos criterios distintos** — el horizonte los ordena por vano, el mapa los sitúa por
+coordenada—. El horizonte se llevaba el primer golpe de vista de una pantalla cuyo trabajo es
+enseñar el recorrido a pantalla entera, y no le añadía nada que el mapa no dijera mejor allí.
+
+### Decisión
+
+- **Se retira SOLO de la pestaña `gps`**, con `activa !== 'gps'`. En Resumen, Cargas, Térmica y el
+  resto **sigue exactamente igual**: ahí es lo primero que hay que ver.
+- **No se toca el componente ni su lógica.** `Horizonte.tsx` y `coberturaEjes.ts` quedan intactos:
+  esto es un cambio de dónde se monta, no de qué hace.
+- **Tampoco se toca la banda de estado** («Evento abierto en campo · 0/26 apoyos con veredicto»),
+  que va por encima y **no estaba en lo señalado**. En un borrado el defecto es conservador: se
+  retira el elemento, nunca su vecino ni su contenedor.
+- **Dos guardianes**, y el segundo importa tanto como el primero: uno comprueba que no vuelva a
+  pintarse en `gps`; el otro, que **siga en el resto de pestañas** — que el retiro no se convierta,
+  en una limpieza futura, en «quitarlo de todas».
+
+### Alternativas descartadas
+
+- **Borrar el componente.** Es lo que pediría una lectura literal de «no es necesario», y sería
+  retirar de más: no sobra el horizonte, sobra EN ESA PESTAÑA.
+- **Plegarlo tras un desplegable en `gps`.** Deja el hueco y el título ocupando sitio para algo que
+  él ya dijo que no quiere ahí.
+- **Moverlo debajo del mapa.** Seguiría dibujando los mismos apoyos por segunda vez; el problema no
+  era el orden, era la duplicación.
+
+### Consecuencias
+
+- **1.835 pruebas en verde** (2 nuevas).
+- Detalle GPS gana ~260 px de alto por encima del mapa, que es justo lo que esa pestaña necesitaba.
+
+### Crudo de respaldo
+
+Sin comité: orden directa del Ingeniero sobre un pantallazo, aplicada en el mismo turno.

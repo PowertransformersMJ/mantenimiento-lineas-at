@@ -16,6 +16,8 @@
 // ============================================================================
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import {
   cobertura, coberturaPorApoyo, lecturaDeCobertura,
   resumenAccesible, tituloDeApoyo, tituloDeCarril,
@@ -149,5 +151,32 @@ describe('amarre: un solo dueño del cruce en todo el producto', () => {
 
     assert.equal(cielo.dictaminados, cobertura(t, l).ambos);
     assert.equal(cielo.dictaminados, 1, 'solo E2 tiene los dos ejes');
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+describe('dónde se pinta el horizonte, y dónde NO', () => {
+
+  const LINEA = readFileSync(
+    fileURLToPath(new URL('../web/src/componentes/Linea.tsx', import.meta.url)), 'utf-8');
+
+  test('en «Detalle GPS» no se pinta — orden del Ingeniero (§ADR-063)', () => {
+    // Esa pestaña es el recorrido a pantalla entera: el horizonte le robaba el
+    // primer golpe de vista dibujando los mismos apoyos por segunda vez y con
+    // otro criterio (por orden de vano, no geográfico).
+    const i = LINEA.indexOf('<Horizonte');
+    assert.ok(i > 0, 'el horizonte desapareció de la pantalla por completo');
+    const antes = LINEA.slice(Math.max(0, i - 260), i);
+    assert.match(antes, /activa !== 'gps'/,
+      'el horizonte volvió a pintarse en Detalle GPS');
+  });
+
+  test('pero SIGUE en el resto de pestañas: se retiró de una, no del sistema', () => {
+    // El borrado fue el mínimo señalado: una pestaña. Quitarlo de todas habría
+    // sido retirar el contenedor y no el elemento.
+    assert.ok(!LINEA.includes("activa === 'resumen' && <Horizonte"),
+      'el horizonte quedó atado a una sola pestaña en vez de a todas menos gps');
+    assert.match(LINEA, /activa !== 'gps' && \(\s*<Horizonte/,
+      'la condición dejó de ser «todas menos gps»');
   });
 });

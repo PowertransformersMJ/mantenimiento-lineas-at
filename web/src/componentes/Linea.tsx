@@ -799,8 +799,17 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
           {/* `dictaminados` ya no se pasa: el dibujo lo pide al dueño del cruce
               (`coberturaEjes.ts`), el mismo que alimenta este contador de
               arriba. Pasárselo por separado era la puerta a que el rótulo y el
-              dibujo dijeran cifras distintas. */}
-          <Horizonte ejes={ejes} vanos={vanosLinea} total={estado.total} />
+              dibujo dijeran cifras distintas.
+
+              ⚠️ EN «DETALLE GPS» NO SE PINTA, por orden del Ingeniero
+              (`99 §ADR-063`). Esa pestaña es el recorrido a pantalla entera y el
+              horizonte le robaba el primer golpe de vista sin añadirle nada: los
+              mismos apoyos, dibujados dos veces y con dos criterios distintos
+              —uno geográfico y otro por orden de vano—. Sigue intacto en el
+              resto de pestañas, que es donde sí es lo primero que hay que ver. */}
+          {activa !== 'gps' && (
+            <Horizonte ejes={ejes} vanos={vanosLinea} total={estado.total} />
+          )}
 
       <div id="panel-linea" role="tabpanel" aria-labelledby={`pestana-${activa}`}>
         {activa === 'resumen' && (
