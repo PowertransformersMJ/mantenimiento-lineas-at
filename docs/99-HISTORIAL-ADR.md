@@ -6363,6 +6363,10 @@ Reconstruidos a mano los tres atlas que sí tenían dato nuevo (temperatura, vie
 desde mayo y reconstruirlos solo cambiaría el sello. La cinta se miró con foto del banco
 (`§ADR-074`) en los dos estados: al día y con la fuente atrasada.
 
+### Crudo de respaldo
+
+`research-archive/2026-08-24-cinta-de-frescura-fotos/` — los dos estados de la cinta, mirados.
+
 ### Consecuencias
 
 - **1.896 pruebas en verde** (16 nuevas).
