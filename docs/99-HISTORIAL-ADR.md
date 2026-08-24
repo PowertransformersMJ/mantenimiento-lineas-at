@@ -6373,3 +6373,87 @@ desde mayo y reconstruirlos solo cambiaría el sello. La cinta se miró con foto
 - La pantalla del atlas gana una cinta arriba del todo, con las dos fechas y la hora.
 - `TODO-75` deja de ser «el vigía calla más a menudo» y pasa a ser **el eslabón que bloquea**: con el
   vigía mirando seis veces al día, es lo único que separa a NASA de la propuesta.
+
+---
+
+## ADR-076 · 2026-08-24 · Los dos ajustes del repositorio, hechos — y la trampa del check que traían debajo
+
+**Estado:** ✅ Decidido · **NO revisada externamente** · en producción.
+
+### Contexto
+
+`TODO-75` llevaba desde el 21-08 esperando dos ajustes del repositorio sin los cuales el vigía de los
+atlas no servía de nada. El Ingeniero: *«procede con todo 75»*.
+
+**Y no era teoría.** La corrida programada de esta misma mañana (2026-08-24, 10:02 UTC) reconstruyó
+los cinco atlas, pasó los guardianes y la suite entera… y murió en el último paso, los cinco:
+
+```
+##[error]GitHub Actions is not permitted to create or approve pull requests.
+```
+
+Es decir: el vigía llevaba semanas haciendo el trabajo entero y tirándolo a la basura en la última
+línea. Con la cadencia nueva (`§ADR-075`) eso iba a pasar **seis veces al día**.
+
+### Decisión
+
+**1 · Encendido «Allow GitHub Actions to create and approve pull requests»**
+(`PUT /actions/permissions/workflow` · `can_approve_pull_request_reviews: true`). Los permisos por
+defecto del token siguen en **solo lectura**: lo que necesita escribir lo declara cada flujo.
+
+**2 · `main` PROTEGIDA**, exigiendo el check **«Integridad del kernel + suite de dominio»**, sin
+empuje forzado y sin borrado de rama. Sin revisiones obligatorias —aquí hay una sola persona y
+exigirle que apruebe lo que él mismo abre es una puerta cerrada con la llave dentro—.
+
+⚠️ **Los administradores NO quedan sujetos** (`enforce_admins: false`), y es deliberado: el trabajo
+diario empuja a `main` directo por decisión suya (`ADR-051`). Una protección que rompe el trabajo
+diario dura una tarde y se quita entera; ésta protege de lo que de verdad puede colarse —un robot, un
+empuje forzado, un borrado— y no estorba a quien manda.
+
+**3 · Y LA TRAMPA QUE TRAÍAN DEBAJO, que es lo que hacía falta resolver para que los dos ajustes
+sumaran en vez de restar:** un PR abierto con `GITHUB_TOKEN` **no dispara `ci.yml`** —GitHub lo
+impide para que un robot no se llame a sí mismo en bucle—. Con `main` exigiendo ese check, la
+propuesta del vigía habría nacido **imposible de fusionar**: protección puesta, vigía inutilizado y
+la única salida sería saltarse la protección a mano, o sea tenerla de adorno.
+
+Se resuelve donde nace: **el vigía firma el check de su propuesta**, al final y solo si llegó vivo
+hasta ahí. Lo que firma es lo que ese mismo trabajo acaba de ejecutar sobre ese mismo contenido —los
+guardianes de «no empeora», `npm test` y `contrato:verificar`—; si algo falla, el trabajo muere antes
+y **la propuesta ni se abre**, así que el sello no puede existir en otro color que el verde.
+
+**Se llama igual que el check del CI a propósito**, porque es la misma suite sobre el mismo contenido
+y la protección compara por nombre. Para que nadie lo confunda con una corrida del CI, el sello dice
+quién lo firmó (*«suite completa, ejecutada por el vigía antes de proponer»*) y su enlace lleva a la
+ejecución del vigía.
+
+### Alternativas descartadas
+
+- **Un token personal (PAT) en el vigía** para que su PR sí dispare el CI: es la vía «limpia» y
+  exige crear un secreto de larga vida con permiso de escritura sobre el repositorio, renovarlo cada
+  vez que caduque y confiar en que no se filtre. Un secreto más para ahorrar seis líneas de flujo.
+- **Un check con nombre propio** (`vigía · suite`) además del del CI: entonces la protección tendría
+  que exigir los dos, y **cada camino bloquearía al otro** —el PR humano no tiene el del vigía y el
+  del vigía no tiene el del CI—. Dos nombres para lo mismo es cómo se construye un punto muerto.
+- **`enforce_admins: true`**: rompería `ADR-051` y el trabajo de cada día.
+- **Exigir revisión aprobada**: con un solo humano, o se aprueba a sí mismo (no se puede) o no se
+  fusiona nunca.
+
+### Verificación — el canal entero, recorrido de punta a punta
+
+1. Se forzó una corrida (`forzar=true`): los cinco atlas reconstruidos, guardianes y suite en verde.
+2. **Cinco propuestas abiertas** —lo que esta mañana era imposible—, cada una con su check en verde.
+3. **Fusionada la de temperatura (#2)** contra la rama protegida: la protección la aceptó. Su
+   contenido, un solo renglón —el sello de construcción—, lo que confirma de paso que **el empaquetado
+   de los PNG es determinista**: forzar una reconstrucción sin dato nuevo no ensucia el repositorio
+   con binarios distintos.
+4. Las otras cuatro se cerraron explicando por qué (no traían dato nuevo).
+5. Este mismo ADR se empujó **directo a `main`**, que es la comprobación de que la protección no
+   rompe el trabajo diario.
+
+### Consecuencias
+
+- **`TODO-75` cerrado.** El vigía queda completo: mira cada 4 h, reconstruye, comprueba, propone y su
+  propuesta se puede fusionar.
+- Queda `TODO-89` —los dos secretos de Cloudflare— como último eslabón para que lo fusionado llegue
+  solo a producción. Hoy ese paso sigue siendo a mano, y por tanto **alguien mira el mapa antes**.
+- El repositorio ya no acepta empuje forzado ni borrado de `main` de nadie, administrador incluido.

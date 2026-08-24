@@ -22,9 +22,11 @@
    **VIVO:** `TODO-87` migrar «Radiación solar» y «Temperatura ambiente» (OTRO subsistema, ~400
    líneas; enfoque: un `<CapasDelCorredor mapa={...} />`). ⏳ **ESPERA SU RESPUESTA:** dice que el
    satelital tiene huecos; el archivo está al **100 % en z8-z16** → falta **DÓNDE los ve**.
-   ⚠️ **`TODO-75` YA NO ES UN ADORNO:** con el vigía mirando 6 veces al día, esos dos ajustes de
-   GitHub son lo ÚNICO que separa a NASA de la propuesta. Y para que además se publique solo hacen
-   falta los dos secretos de Cloudflare (`TODO-89`) — con la consecuencia de que nadie miraría el mapa.
+   ✅ **`TODO-75` CERRADO (`§ADR-076`)**: Actions ya puede abrir propuestas y **`main` está protegida**
+   exigiendo el check (sin sujetar a administradores: el empuje directo del día a día sigue igual).
+   ⚠️ Y con ello, la trampa que hay que conocer: **un PR abierto por el robot NO dispara el CI**, así
+   que el vigía **firma su propio check** tras correr la suite. Probado de punta a punta: 5 propuestas
+   abiertas, una fusionada. Falta solo `TODO-89` (secretos de Cloudflare) para que llegue solo al sitio.
 5. **⚠️ EL LIENZO NO SE VE EN SEGUNDO PLANO, PERO SE FOTOGRAFÍA** (`34 · L-16/L-58/L-72`):
    `SONDA_MAPA=1 npm run build` + `npx vite preview` en `web/` + `foto-del-banco.mjs "<url>"
    --salida f.png [--pulsar ".maplibregl-ctrl-zoom-in" --veces 6]`. **Nunca con tiempo virtual.**
@@ -77,7 +79,6 @@ Cada uno vive ENTERO en su ADR: esto es el índice, léelo antes de tocar su sub
 | **TODO-82/83** | **Dos decisiones suyas sobre el clima.** ① ¿FASE 2 del pronóstico (`§ADR-057`): franja mañana/tarde y sensación térmica? ② ¿Dato FINO por extremos (`§ADR-064`)? Las capas de 2 km tocan **3 celdas** y salen por PROMEDIO | Sensación de **40 °C** con aire a 32,5 · amplitud fina: 1,2 °C |
 | **TODO-88** | **¿Se junta otra vez el eje del tiempo?** Con `ClimaDelAnio` (`§ADR-074`) se fue el eje ÚNICO de `§ADR-058`: el atlas declara el régimen de cada día, pero **el pronóstico va aparte, en su tabla** — son DOS ejes. Es un resto de la migración | Medido y modelo en la misma tira hacía «ganar el hecho» de un vistazo |
 | **TODO-80** | **¿Qué tope de puesta a tierra rige, y cuál es la corriente de operación?** Desde `ADR-052` los dos campos existen en el molde: declararlos basta para que umbrales, ficha e informe usen el MISMO número. Sin decisión suya siguen **10 Ω** | Con 18 Ω medidos, 10 Ω dice «revisar» y 25 Ω dice «cumple» |
-| **TODO-75** ⬆️ | **Dos ajustes de GitHub, o el vigía no sirve de nada** (`§ADR-045/053/075`). ① Actions → General → permitir que Actions **cree** propuestas. ② Proteger `main` exigiendo el CI. **Sube de prioridad**: desde el 24-08 el vigía mira cada 4 h y ese es el único eslabón roto | Sin el ①, la propuesta muere al abrirse — y ahora falla 6 veces al día en vez de una a la semana |
 | **TODO-89 NUEVO** | **¿Que el sitio se publique SOLO?** `desplegar.yml` existe y se salta solo por falta de `CLOUDFLARE_API_TOKEN` y `CLOUDFLARE_ACCOUNT_ID`. Con ellos, `main` llegaría a producción sin mano — y **nadie miraría el mapa antes**, que es justo lo que el vigía evita | Es el tercer eslabón de «que se actualice cada 4 horas» de verdad |
 | **TODO-72** | **¿Autorización del IGAC para sus ortoimágenes** (o la tiene AFINIA por convenio)? Cubren esto a **3 m** en Bolívar y **10 cm** en Turbaco, contra los 10 m de Sentinel-2 (`99 §ADR-040`, `31 · L-60`) | Única vía a más resolución real en el mapa |
 | **TODO-71** | **¿Se cierran las hipótesis con dato real?** El **viento** (`ADR-035`) y los **1.000 W/m² adoptados**. Los cuatro atlas (`ADR-055`) los ACERCAN y NO los cierran: un año de medias horarias no valida un extremo de diseño | De ahí salen los tiros y la capacidad |
