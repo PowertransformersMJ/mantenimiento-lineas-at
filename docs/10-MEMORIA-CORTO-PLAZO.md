@@ -1,6 +1,6 @@
 # 📝 10 — MEMORIA DE CORTO PLAZO (pizarra viva)
 
-> Se **AUTO-CARGA**. Pizarra, no bitácora (§G.3). **RELEVO 2026-08-23.** Este nodo ES el relevo:
+> Se **AUTO-CARGA**. Pizarra, no bitácora (§G.3). **RELEVO 2026-08-24.** Este nodo ES el relevo:
 > léelo entero. Si contradice a `docs/.handoff-auto.md` (foto real de git), manda ese.
 
 ## 🎯 Dónde estamos
@@ -15,17 +15,19 @@
 1. **EL CUELLO DE BOTELLA NO ES CÓDIGO: ES EL DATO** (`05`): 0 de 26 con veredicto; falta `TODO-57`.
 2. **EL PATRÓN QUE LO DOMINA TODO:** *«arreglado donde se veía, vivo en la pieza hermana»* —
    `34 · L-65`, `32 · L-67`, `30 · L-68`, `30 · M-01`. El 22-08 se cerraron TRES de esa familia.
-3. **LA OLA DEL CLIMA, CERRADA (`§ADR-057..074`, 18 ADRs).** El clima **VIVE EN EL ATLAS**; Detalle GPS = solo el recorrido. Cinco atlas con el DÍA hora a hora, su veredicto, el MES y las escalas en palabras (OMM) con procedencia. Lo que no se puede romper: **gana el hecho sobre el modelo** · el recorrido se comprueba **punto a punto**, nunca por promedio · **«tormenta eléctrica» NO existe en esta fuente**, y hay prueba.
-4. **DEL CLIMA (23-08, `§ADR-074`): ✅ `TODO-85` el TRAZADO ya se dibuja** sobre el atlas —celdas a
-   rayas SIN relleno, traza y rótulo— y **✅ `TODO-86`** retirado `ClimaDelAnio.tsx`. **VIVO:**
-   `TODO-87` migrar «Radiación solar» y «Temperatura ambiente» (OTRO subsistema, ~400 líneas; el
-   enfoque recomendado sigue siendo un `<CapasDelCorredor mapa={...} />`). ⏳ **ESPERA SU RESPUESTA:**
-   dice que el satelital tiene huecos; el archivo está al **100 % en z8-z16** → falta **DÓNDE los ve**.
-5. **⚠️ EL LÍMITE DEL LIENZO, Y SU SALIDA (`§ADR-071` → `§ADR-074`, `34 · L-16/L-58/L-72`):** las
-   pestañas de inspección van en SEGUNDO PLANO y **MapLibre no dibuja ahí** (gris, sin un error; el
-   DOM sí se lee). **YA SE PUEDE MIRAR:** `SONDA_MAPA=1 npm run build` + `npx vite preview` en `web/`
-   + `node herramientas/foto-del-banco.mjs "<url>" --salida f.png [--pulsar ".maplibregl-ctrl-zoom-in"
-   --veces 6]`. ⚠️ **Nunca con `--virtual-time-budget`: pinta el ráster y NO las capas vectoriales.**
+3. **LA OLA DEL CLIMA, CERRADA (`§ADR-057..075`, 19 ADRs).** El clima VIVE EN EL ATLAS; Detalle GPS = solo el recorrido. Lo que no se puede romper: **gana el hecho sobre el modelo** · el recorrido se comprueba **punto a punto**, nunca por promedio · **«tormenta eléctrica» NO existe en esta fuente**, y hay prueba.
+4. **CERRADO 23/24-08:** ✅ `TODO-85` el TRAZADO se dibuja sobre el atlas (`§ADR-074`) · ✅ `TODO-86`
+   retirado `ClimaDelAnio.tsx` · ✅ **el vigía mira CADA 4 H y la pantalla dice DE CUÁNDO es el dato**
+   (`§ADR-075`: dos fechas —archivo y dato— con hora de Colombia, y de quién es el retraso).
+   **VIVO:** `TODO-87` migrar «Radiación solar» y «Temperatura ambiente» (OTRO subsistema, ~400
+   líneas; enfoque: un `<CapasDelCorredor mapa={...} />`). ⏳ **ESPERA SU RESPUESTA:** dice que el
+   satelital tiene huecos; el archivo está al **100 % en z8-z16** → falta **DÓNDE los ve**.
+   ⚠️ **`TODO-75` YA NO ES UN ADORNO:** con el vigía mirando 6 veces al día, esos dos ajustes de
+   GitHub son lo ÚNICO que separa a NASA de la propuesta. Y para que además se publique solo hacen
+   falta los dos secretos de Cloudflare (`TODO-89`) — con la consecuencia de que nadie miraría el mapa.
+5. **⚠️ EL LIENZO NO SE VE EN SEGUNDO PLANO, PERO SE FOTOGRAFÍA** (`34 · L-16/L-58/L-72`):
+   `SONDA_MAPA=1 npm run build` + `npx vite preview` en `web/` + `foto-del-banco.mjs "<url>"
+   --salida f.png [--pulsar ".maplibregl-ctrl-zoom-in" --veces 6]`. **Nunca con tiempo virtual.**
 6. **FASE ABIERTA: la página.** No eligió entre ② **se lee** y ③ **no se cae**. ⚠️ `31 · L-60` puede estar MAL: verificar antes de citarlo.
 7. **SON DE ÉL** (detalle en la tabla de abajo, no aquí): `TODO-57` el dato de la ficha ·
    **contraseña** · `TODO-71` viento y los 1.000 W/m² —los atlas lo ACERCAN y no lo cierran— ·
@@ -70,12 +72,13 @@ Cada uno vive ENTERO en su ADR: esto es el índice, léelo antes de tocar su sub
 | # | Qué | Por qué importa |
 |---|---|---|
 | **CLAVE** | **Ponerse contraseña.** La llave admin ya NO está en Descargas: regenerarla (Consola Firebase → Cuentas de servicio) y guardarla fuera. Después: `usuarios.mjs contrasena … --definitiva`, o la cuenta queda provisional | Desbloquea retirar Google (2b) |
-| **TODO-57** | **La FICHA ESTRUCTURAL — se puede ESCRIBIR y está EN PRODUCCIÓN** (`99 §ADR-030`). Falta **el DATO**: ¿lo tiene la empresa en planos o actas, o hay que levantarlo? Los seis: carga de rotura · altura libre · altura del amarre · capacidad longitudinal · fases amarradas · tipo de apoyo | **EL CUELLO DE BOTELLA REAL.** Al meter el primero saldrán «REVISAR»: no son averías nuevas |
+| **TODO-57** | **La FICHA ESTRUCTURAL se puede ESCRIBIR y está EN PRODUCCIÓN** (`99 §ADR-030`). Falta **el DATO**: ¿está en planos y actas, o hay que levantarlo? Los seis: carga de rotura · altura libre · altura del amarre · capacidad longitudinal · fases amarradas · tipo de apoyo | **EL CUELLO DE BOTELLA REAL.** Al meter el primero saldrán «REVISAR»: no son averías nuevas |
 | **TODO-81** | **Descargar el acta de la carga del 22-08** desde la pantalla Cargar. El molde no tiene dónde guardar POR QUÉ decidió cada cosa; el acta sí, y es el único sitio donde ese razonamiento queda escrito | Se pierde al recargar la pantalla |
-| **TODO-82/83** | **Dos decisiones suyas sobre el clima.** ① ¿FASE 2 del pronóstico (`§ADR-057`): franja mañana/tarde y sensación térmica? ② ¿Dato FINO por extremos (`§ADR-064`)? Las capas de 2 km tocan **3 celdas** y salen por PROMEDIO. (③ y ⑤ ✅ hechas: `§ADR-069/070` y el TRAZADO `§ADR-074`.) ④ **`TODO-87`: al Atlas «Radiación solar» y «Temperatura ambiente»**: capas FINAS del corredor, OTRO subsistema (~400 líneas); lo único que sigue en Detalle GPS | Sensación de **40 °C** con aire a 32,5 · amplitud fina: 1,2 °C |
-| **TODO-88 NUEVO** | **¿Se junta otra vez el eje del tiempo?** Al retirar `ClimaDelAnio` (`§ADR-074`) se fue con él el eje ÚNICO de `§ADR-058`: hoy el atlas declara el régimen de cada día en su cuadrícula, pero **el pronóstico va aparte, en su tabla** — son DOS ejes. Nadie lo pidió así: es un resto de la migración | Medido y modelo en la misma tira era lo que hacía «ganar el hecho» de un vistazo |
+| **TODO-82/83** | **Dos decisiones suyas sobre el clima.** ① ¿FASE 2 del pronóstico (`§ADR-057`): franja mañana/tarde y sensación térmica? ② ¿Dato FINO por extremos (`§ADR-064`)? Las capas de 2 km tocan **3 celdas** y salen por PROMEDIO | Sensación de **40 °C** con aire a 32,5 · amplitud fina: 1,2 °C |
+| **TODO-88** | **¿Se junta otra vez el eje del tiempo?** Con `ClimaDelAnio` (`§ADR-074`) se fue el eje ÚNICO de `§ADR-058`: el atlas declara el régimen de cada día, pero **el pronóstico va aparte, en su tabla** — son DOS ejes. Es un resto de la migración | Medido y modelo en la misma tira hacía «ganar el hecho» de un vistazo |
 | **TODO-80** | **¿Qué tope de puesta a tierra rige, y cuál es la corriente de operación?** Desde `ADR-052` los dos campos existen en el molde: declararlos basta para que umbrales, ficha e informe usen el MISMO número. Sin decisión suya siguen **10 Ω** | Con 18 Ω medidos, 10 Ω dice «revisar» y 25 Ω dice «cumple» |
-| **TODO-75** | **Dos ajustes de GitHub, o el vigía de los atlas no sirve** (`§ADR-045/053`). ① Actions → General → permitir que Actions **cree** propuestas. ② Proteger `main` exigiendo el CI | Sin los dos, no abre nada o abre algo sin revisar |
+| **TODO-75** ⬆️ | **Dos ajustes de GitHub, o el vigía no sirve de nada** (`§ADR-045/053/075`). ① Actions → General → permitir que Actions **cree** propuestas. ② Proteger `main` exigiendo el CI. **Sube de prioridad**: desde el 24-08 el vigía mira cada 4 h y ese es el único eslabón roto | Sin el ①, la propuesta muere al abrirse — y ahora falla 6 veces al día en vez de una a la semana |
+| **TODO-89 NUEVO** | **¿Que el sitio se publique SOLO?** `desplegar.yml` existe y se salta solo por falta de `CLOUDFLARE_API_TOKEN` y `CLOUDFLARE_ACCOUNT_ID`. Con ellos, `main` llegaría a producción sin mano — y **nadie miraría el mapa antes**, que es justo lo que el vigía evita | Es el tercer eslabón de «que se actualice cada 4 horas» de verdad |
 | **TODO-72** | **¿Autorización del IGAC para sus ortoimágenes** (o la tiene AFINIA por convenio)? Cubren esto a **3 m** en Bolívar y **10 cm** en Turbaco, contra los 10 m de Sentinel-2 (`99 §ADR-040`, `31 · L-60`) | Única vía a más resolución real en el mapa |
 | **TODO-71** | **¿Se cierran las hipótesis con dato real?** El **viento** (`ADR-035`) y los **1.000 W/m² adoptados**. Los cuatro atlas (`ADR-055`) los ACERCAN y NO los cierran: un año de medias horarias no valida un extremo de diseño | De ahí salen los tiros y la capacidad |
 | **TODO-59** | **Qué ficha se le pide a CADA tipología.** La línea mezcla 4 y el molde es de POSTE (`40 §8.3`) | Son 3 o 4 formularios |
@@ -84,7 +87,7 @@ Cada uno vive ENTERO en su ADR: esto es el índice, léelo antes de tocar su sub
 | **TODO-44/34** | Alerta de gasto en Cloudflare · **respaldo FUERA de esta Mac**: `brain-private` **no tiene remoto** (ADR-059) | R2 factura · un fallo de disco se lleva la bóveda |
 | **TODO-61/54/68** | ¿App Check? · ¿que el linter vigile la frescura semántica? · ¿que cace un ADR repetido? (`30 · L-47`). Las dos últimas tocan el KERNEL | Las TRES son TUYAS |
 | **TODO-76** | **¿Se guarda que un apoyo es autosoportado / retenido?** Hoy no cabe en el modelo: iría por APOYO (26 declaraciones) | Cierra media incógnita de la capacidad longitudinal |
-| **TODO-78/84** | **Cerebro LLENO, topes descuadrados** (`§ADR-065`): 5 nodos ≥90 % y **tres en leve exceso** (`20`, `00` y el `30` al ras). El `30` tiene 5.000 chars libres y 0 líneas; el `20` al revés. **Shard o recalibrar** | Cada edición obliga a raspar, y hoy ya obligó a fusionar dos filas del índice|
+| **TODO-78/84** ⬆️ | **Cerebro LLENO** (`§ADR-065`): 5 nodos ≥90 %, tres en leve exceso y el ARRANQUE al ras. **Shard o recalibrar** | Cada sesión gasta ya un rato en raspar texto bueno para que quepa el nuevo|
 | **TODO-03/25/36** | Cronometrar LN-627 · probar descargas y Salir con su sesión | — |
 
 ## 🔲 Pendientes de CLAUDE — en este orden
@@ -94,13 +97,12 @@ Cada uno vive ENTERO en su ADR: esto es el índice, léelo antes de tocar su sub
 | **TODO-70** | **Cerrar la ola de la ficha (ADR-030).** Hechas ①②④ (`ADR-032/033/038`). **Queda SOLO ③: el gesto «Confirmo este dato»**, que exige su propio molde porque `FichaEstructural` rechaza `confirmado_humano` por diseño | `99 §ADR-030/032/033/038` |
 | **TODO-66** | **Que una acción pruebe que FUNCIONÓ**, no solo que se hizo: bloque de verificación posterior y «pendiente de verificar eficacia» hasta esa fecha | `99 §ADR-026` |
 | **TODO-50** | **Blindaje**: ✅ F1 · ✅ F2a · ✅ F3 · ⬜ **2b retirar Google** — espera la contraseña | `99 §ADR-019/024` |
-| **TODO-79** | **Saldo del entorno: 34 vivos + 5 parciales** (`ADR-052` cerró 27 y 32), por gravedad (`99 §ADR-049` · crudo `2026-08-22-triaje-51-hallazgos-entorno.json`). Los dos restos más caros: el identificador crudo en el **informe firmable** (`exportar/informe.js:331`) y la red del **mapa**, que se traga el fallo y dice «no se pudo descargar» cuando falló dibujar | Varios son decisión suya |
+| **TODO-79** | **Saldo del entorno: 34 vivos + 5 parciales**, por gravedad (`99 §ADR-049`). Los dos restos más caros: el identificador crudo en el **informe firmable** (`exportar/informe.js:331`) y la red del **mapa**, que dice «no se pudo descargar» cuando lo que falló fue dibujar | Varios son decisión suya |
 | **TODO-52/49/48** | RCA: el lienzo del árbol · contador de PARQUE · deuda de ADR-017 | `99 §ADR-017/018/020` |
 | **TODO-30/11 · 13-23** | XSD de GPX/KML en CI · nota técnica de LN-627 · F3-F5 | crudo de **ADR-013** |
 
 ## ✅ Consolidado — el detalle vive en su dueño, no aquí
 
-La línea y sus hallazgos reales → `40 §10` y `99 §ADR-013/017` · las 205 fotos, cargadas y visibles
-con tres defectos que no bloquean → `99 §ADR-031` · IDEAM (~11 días de desfase, rayos sin dato) →
-`35 · L-37` · callejones probados → `30`, y el que más se repite es **«verde no prueba nada»**
-(`L-33` · `32 · L-35` · `33 · L-53` · `30 · L-56`).
+La línea y sus hallazgos → `40 §10`, `99 §ADR-013/017` · las 205 fotos → `99 §ADR-031` · IDEAM
+(~11 d de desfase, rayos sin dato) → `35 · L-37` · callejones → `30`, y el que más se repite es
+**«verde no prueba nada»** (`L-33` · `32 · L-35` · `33 · L-53` · `30 · L-56`).

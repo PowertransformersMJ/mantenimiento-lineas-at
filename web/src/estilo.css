@@ -1556,6 +1556,17 @@ p.fund-vivo + .sello-calculo { margin-top: 5px; }
 .eje-cinta.r-medido { background: var(--t-ambar); border-left-color: var(--acc); color: var(--tx); }
 .eje-cinta.r-modelo { background: var(--t-azul); border-left-color: var(--az); color: var(--tx); }
 .eje-cinta.r-hueco  { background: transparent; border-left-style: dashed; }
+/* DE CUÁNDO ES LO QUE SE MIRA (ADR-075). Misma familia visual que la cinta de
+   procedencia —es lo mismo: de dónde viene y de cuándo— pero a tamaño de leer,
+   porque esto se consulta de un vistazo y no se busca. */
+.atlas-frescura {
+  margin: 6px 0 2px; padding: 6px 9px; border-radius: 4px; font-size: .82rem;
+  border-left: 3px solid var(--bd); background: var(--pnl2); color: var(--tx);
+}
+.atlas-frescura.r-medido { background: var(--t-ambar); border-left-color: var(--acc); }
+.atlas-frescura.r-modelo { background: var(--t-azul); border-left-color: var(--az); }
+.atlas-frescura.r-hueco  { background: transparent; border-left-style: dashed; color: var(--mut); }
+
 /* El puente al último día medido: lo que hace encontrable el desglose. */
 .eje-puente { margin: 4px 0 2px; }
 .eje-puente .boton.chico { display: block; width: 100%; margin-bottom: 3px; text-align: left; }

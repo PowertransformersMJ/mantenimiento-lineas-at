@@ -1,16 +1,25 @@
 name: Vigía · NASA POWER horario
 
-# Cada semana le pregunta a NASA si ya publicó más horas — de los CINCO atlas,
-# que van a ritmos muy distintos: medido el 2026-08-22, el horario del sol iba 84
-# días por detrás y los de temperatura, viento y lluvia 3. Si las hay, ABRE UNA
-# PROPUESTA por atlas. No publica: propone.
+# CADA 4 HORAS le pregunta a NASA si ya publicó más horas — de los CINCO atlas,
+# que van a ritmos muy distintos: medido el 2026-08-24, el horario del sol y el
+# de nubes iban 87 días por detrás, y temperatura, viento y lluvia 3. Si las hay,
+# ABRE UNA PROPUESTA por atlas. No publica: propone.
 #
-# ⚠️ POR QUÉ SEMANAL Y NO DIARIO (§ADR-058). NASA publica con unos 3 días de
-# retraso, así que un vigía diario no acorta ese retraso: solo multiplica por
-# siete las propuestas que el Ingeniero tiene que aprobar, y un buzón con 365
-# propuestas al año es un buzón que nadie abre. Semanal deja el hueco en 10 días
-# como mucho — y desde que el eje de tiempo es uno solo, ese hueco SE VE en
-# pantalla marcado como «sin publicar», que es lo que lo mantiene honesto.
+# ⚠️ CADA 4 HORAS ES ORDEN DEL INGENIERO (2026-08-24, §ADR-075), y va con su
+# advertencia escrita para que nadie la «arregle» sin saberla: **la fuente no se
+# mueve seis veces al día**. NASA POWER publica el día D con 3-4 días de retraso
+# —y el sol y las nubes con ~87—, así que de las seis miradas diarias, cinco van
+# a encontrar exactamente lo mismo. No sobra: la mirada es barata (3 consultas
+# por atlas, segundos) y a cambio el hueco entre que la fuente publica y nosotros
+# nos enteramos baja de 7 días a 4 horas. Lo que NO baja es el retraso de la
+# fuente. Esa distinción se publica ahora en la pantalla del atlas (§ADR-075):
+# se ven las DOS fechas —cuándo se preguntó y hasta cuándo llega el dato— y de
+# quién es el atraso.
+#
+# ⚠️ Y NO MULTIPLICA LAS PROPUESTAS. `create-pull-request` reutiliza la rama
+# `vigia/nasa-power-<atlas>`: mientras la propuesta siga sin aprobar, las miradas
+# siguientes la ACTUALIZAN en vez de abrir otra. Cinco propuestas abiertas como
+# mucho, una por atlas, y eso ya pasaba en semanal.
 #
 # ⚠️ LOS DOS EN LA MISMA MATRIZ, y no un flujo por atlas: un segundo archivo casi
 # igual es un segundo sitio donde arreglar cada fallo, y el que se olvida siempre
@@ -35,14 +44,13 @@ name: Vigía · NASA POWER horario
 
 on:
   schedule:
-    # ⏰ Lunes, 09:17 UTC (04:17 en Colombia). Tres decisiones, ninguna estética:
-    #    · LUNES y no domingo ni día 1: el arranque de la hora en punta de los
-    #      crons de GitHub se evita con un minuto raro, y su documentación avisa
-    #      de que con carga alta «some queued jobs may be dropped». Un vigía que
-    #      pierde su cita no vigila nada; en semanal, perder una es barato.
-    #    · MINUTO 17 y no 0: la misma razón, dicha en el reloj.
+    # ⏰ CADA 4 HORAS, en el minuto 17: 00:17, 04:17, 08:17… UTC (19:17, 23:17,
+    #    03:17… en Colombia). Dos decisiones, ninguna estética:
+    #    · MINUTO 17 y no 0: GitHub avisa de que en la hora en punta, con carga
+    #      alta, «some queued jobs may be dropped». Un vigía que pierde su cita
+    #      no vigila nada, y en la punta se pierden más.
     #    · El cron solo corre en la rama por defecto.
-    - cron: '17 9 * * 1'
+    - cron: '17 */4 * * *'
   workflow_dispatch:
     inputs:
       forzar:

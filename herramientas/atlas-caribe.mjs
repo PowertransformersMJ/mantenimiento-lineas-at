@@ -288,6 +288,15 @@ const RAMPA_TEMP = [
  * todo el mapa del mismo color, porque una media horaria de un año no se acerca
  * a un extremo de diseño. La escala se ajusta a lo medido y el aviso explica por
  * qué ese extremo NO se marca aquí.
+ *
+ * ⚠️ Y «SE AJUSTA A LO MEDIDO» ES UNA REGLA VIVA, no una frase (`99 §ADR-075`).
+ * El 2026-08-24, con dos días nuevos de NASA, la máxima medida pasó de 54,4 a
+ * **55,66 km/h** — por encima del último punto de la rampa, que era 55. El
+ * guardián del vigía lo paró: por encima del último punto, TODO se pinta del
+ * mismo color, así que el pico más alto del año se habría publicado aplanado y
+ * indistinguible de un día de 55. Se añade el tramo de 60 en vez de estirar el
+ * de 55, que es lo conservador: ningún color de los que ya se publicaban se
+ * mueve, y el extremo nuevo gana el suyo.
  */
 const RAMPA_VIENTO = [
   { c: 0, rgb: [235, 238, 240] },
@@ -299,6 +308,7 @@ const RAMPA_VIENTO = [
   { c: 30, rgb: [235, 155, 60] },
   { c: 40, rgb: [215, 85, 50] },
   { c: 55, rgb: [140, 30, 45] },
+  { c: 60, rgb: [96, 18, 32] },
 ];
 
 /**

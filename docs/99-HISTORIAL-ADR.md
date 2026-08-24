@@ -6269,3 +6269,103 @@ se reconstruya entero.
   `§ADR-058` —1-ene → +11 días, medido y pronóstico en la MISMA tira—. El atlas declara el régimen de
   cada día en su cuadrícula, pero **el pronóstico va aparte, en su tabla**: son dos ejes, no uno.
   Nadie lo pidió así; es un resto de la migración. Decisión del Ingeniero.
+
+---
+
+## ADR-075 · 2026-08-24 · El vigía mira cada 4 horas, y la pantalla dice de cuándo es lo que enseña
+
+**Estado:** ✅ Decidido · **NO revisada externamente** · en producción.
+
+### Contexto
+
+El Ingeniero, con estas palabras: *«diariamente realiza actualización de todos los atlas,
+actualízalo cada 4 horas, me gustaría que se pueda apreciar la fecha de última actualización y
+hora»*.
+
+Dos cosas que conviene separar, porque la primera parte de la frase **no era cierta**:
+
+- **El vigía era SEMANAL**, no diario (lunes 09:17 UTC), y **PROPONE, no publica**.
+- **La pantalla no decía de cuándo era el dato que estaba enseñando.** La ficha traía el sello
+  (`construido`) desde el primer día y solo se usaba de pasada, en la letra pequeña de un aviso.
+
+Y un hecho medido el 2026-08-24, que es el que gobierna todo lo demás:
+
+| Atlas | Hasta dónde publica NASA POWER | Retraso |
+|---|---|---|
+| temperatura · viento · lluvia | 2026-08-21 | **3 días** |
+| sol · nubes | 2026-05-30 | **87 días** |
+
+### Decisión
+
+**1 · El vigía mira CADA 4 HORAS** (`17 */4 * * *`), y es orden suya. Va con su advertencia escrita
+en el propio flujo: **la fuente no se mueve seis veces al día**, así que cinco de cada seis miradas
+encontrarán lo mismo. No sobra —la mirada cuesta 3 consultas por atlas y el repositorio es público,
+donde los minutos de CI no se facturan— y a cambio **el hueco entre que NASA publica y nosotros nos
+enteramos baja de 7 días a 4 horas**. Lo que NO baja es el retraso de la fuente.
+
+**No multiplica las propuestas:** `create-pull-request` reutiliza la rama `vigia/nasa-power-<atlas>`,
+así que mientras una propuesta siga sin aprobar, las miradas siguientes la ACTUALIZAN. Cinco
+propuestas abiertas como mucho, una por atlas.
+
+**2 · La pantalla publica DOS fechas, no una** (`vistas/atlasCaribe.ts · frescuraDelAtlas`):
+
+- **cuándo se construyó el archivo** —día y hora, en el reloj de Colombia—, y
+- **hasta cuándo llega su dato medido**, con los días que han pasado.
+
+Enseñar solo la primera es lo cómodo y es lo que engaña: el atlas solar se reconstruye hoy y trae
+dato de mayo; en pantalla se leería «actualizado hoy» sobre un mapa de hace tres meses.
+
+**3 · Y dice DE QUIÉN es el retraso**, que es lo que convierte dos fechas en una decisión:
+`fuente-atrasada` (se preguntó hace nada y no había más: reconstruir no adelanta un día) ·
+`archivo-viejo` (hace más de 10 días que no se reconstruye: eso es nuestro) · `al-dia`.
+
+⚠️ **El orden de esas dos preguntas importa y está probado**: manda el hueco que el archivo YA tenía
+al construirse. Al revés, el atlas solar diría «hace 12 días que no se reconstruye» a los doce días
+de una fuente que no se mueve en tres meses — una acusación falsa que manda a reconstruir algo que
+no puede mejorar.
+
+**4 · La hora se publica en el reloj de la cuadrilla.** Las fichas se sellan en UTC: un archivo
+construido a las `03:00Z` se hizo a las **22:00 del día anterior** en Colombia. Imprimir el sello
+crudo adelanta un día entero la «última actualización» y nadie lo nota.
+
+### Lo que esto NO hace, y es lo que hay que decidir
+
+Cambiar la cadencia **no hace que el sitio se actualice solo**. Para eso hacen falta tres eslabones
+y hoy solo funciona el primero:
+
+| | Eslabón | Estado |
+|---|---|---|
+| 1 | El vigía detecta y reconstruye | ✅ cada 4 h |
+| 2 | El cambio entra a `main` | ⛔ `TODO-75`: faltan **dos ajustes de GitHub** (permitir que Actions cree propuestas · proteger `main` exigiendo el CI). Sin el primero, el paso de la propuesta muere |
+| 3 | `main` llega a producción | ⛔ `desplegar.yml` existe y **se salta solo**: faltan `CLOUDFLARE_API_TOKEN` y `CLOUDFLARE_ACCOUNT_ID` |
+
+Los tres eslabones cerrados darían actualización automática de verdad. El 2 y el 3 son suyos:
+ajustes y secretos del repositorio. Y cerrar el 3 tiene una consecuencia que se dice antes, no
+después: **el sitio se publicaría solo, sin que nadie mire el mapa** — que es justo lo que
+`vigia-nasa.yml` evitó desde el principio.
+
+### Alternativas descartadas
+
+- **Que el vigía commitee directo a `main`** en vez de proponer: quita el eslabón 2 de un plumazo,
+  pero es un robot publicando una capa de datos sin nadie mirando. Es una decisión del Ingeniero,
+  no un ajuste — se le presenta, no se toma por él.
+- **Publicar «última revisión» del vigía en la pantalla** (que dijera «revisado hace 2 horas» aunque
+  no hubiera nada nuevo): exige que el vigía escriba un archivo en cada pasada **y** que el sitio se
+  despliegue solo. Con el despliegue a mano, ese «revisado hace 2 horas» sería del último despliegue
+  y no de la última mirada: un dato fresco de mentira, que es peor que no tenerlo.
+- **Preguntar a NASA desde el navegador** al abrir el atlas: una consulta a un tercero en cada carga
+  para enterarse de algo que cambia cada tres días (`32 · L-57`).
+
+### Verificación
+
+Reconstruidos a mano los tres atlas que sí tenían dato nuevo (temperatura, viento y lluvia:
+`2026-08-19` → `2026-08-21`); sol y nubes se dejan como están, porque su fuente no ha publicado nada
+desde mayo y reconstruirlos solo cambiaría el sello. La cinta se miró con foto del banco
+(`§ADR-074`) en los dos estados: al día y con la fuente atrasada.
+
+### Consecuencias
+
+- **1.896 pruebas en verde** (16 nuevas).
+- La pantalla del atlas gana una cinta arriba del todo, con las dos fechas y la hora.
+- `TODO-75` deja de ser «el vigía calla más a menudo» y pasa a ser **el eslabón que bloquea**: con el
+  vigía mirando seis veces al día, es lo único que separa a NASA de la propuesta.

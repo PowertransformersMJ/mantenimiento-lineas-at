@@ -644,3 +644,103 @@ export function dibujoDelRecorrido(
     },
   };
 }
+
+// ════════════════════════════════════════════════════════════════════════════
+// ¿DE CUÁNDO ES LO QUE ESTOY MIRANDO? (§ADR-075)
+// ----------------------------------------------------------------------------
+// Lo pidió el Ingeniero: «me gustaría que se pueda apreciar la fecha de última
+// actualización y hora». Y detrás de esa frase hay DOS fechas que no son la
+// misma, y confundirlas es la trampa entera de esta pantalla:
+//
+//   · CUÁNDO SE CONSTRUYÓ EL ARCHIVO — cuándo se le preguntó a la fuente.
+//   · HASTA CUÁNDO LLEGA EL DATO      — el último día MEDIDO que trae dentro.
+//
+// Enseñar solo la primera es lo cómodo y es lo que engaña: un archivo
+// reconstruido hace diez minutos puede traer dato de hace tres meses —así está
+// hoy el atlas solar, que su fuente publica con 87 días de retraso— y en
+// pantalla se leería «actualizado hoy» sobre un mapa de mayo.
+//
+// Por eso esto devuelve las dos, la distancia de cada una y, sobre todo, DE
+// QUIÉN es el retraso: si el archivo es viejo, es nuestro y se arregla
+// reconstruyendo; si el archivo es nuevo y el dato es viejo, es de la fuente y
+// no hay nada que reconstruir. Un aviso que no dice de quién es la culpa manda
+// a buscar la avería al sitio equivocado.
+// ════════════════════════════════════════════════════════════════════════════
+
+/** Zona del activo. La misma que el pronóstico: sin ella «las 22:00» es de Oslo. */
+export const ZONA_ATLAS = 'America/Bogota';
+
+/** Cuántos días enteros hay entre dos días ISO. Sin husos: se restan julianos. */
+const diasEntreIso = (a: string, b: string): number => {
+  const j = (s: string) => Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10)) / 86400000;
+  return Math.round(j(b) - j(a));
+};
+
+export interface FrescuraDelAtlas {
+  /** El día del reloj de Colombia en que se construyó, `AAAA-MM-DD`. */
+  construidoDia: string;
+  /** Su hora, `HH:MM`, también en el reloj de Colombia. */
+  construidoHora: string;
+  /** Días desde que se construyó el archivo. */
+  diasDelArchivo: number;
+  /** El último día MEDIDO por horas que trae dentro. */
+  medidoHasta: string;
+  /** Días entre ese último día medido y hoy. */
+  diasDelDato: number;
+  /**
+   * DE QUIÉN es el retraso — lo único que convierte dos fechas en una decisión:
+   * · `al-dia`            — nada que hacer.
+   * · `archivo-viejo`     — hace mucho que no se le pregunta a la fuente. NUESTRO.
+   * · `fuente-atrasada`   — se preguntó hace nada y la fuente no tiene más. SUYO.
+   */
+  porQue: 'al-dia' | 'archivo-viejo' | 'fuente-atrasada';
+}
+
+/**
+ * @param ahora se INYECTA para que esto sea puro y se pueda probar. Con `new
+ *              Date()` por dentro, la prueba envejecería sola y un día se
+ *              pondría roja sin que nadie tocara nada.
+ */
+export function frescuraDelAtlas(
+  ficha: FichaAtlas, ahora: Date, zona = ZONA_ATLAS,
+): FrescuraDelAtlas | null {
+  const t = Date.parse(ficha.construido);
+  if (Number.isNaN(t)) return null;                 // ficha sin sello: no se inventa
+  const d = new Date(t);
+  // `en-CA` da `AAAA-MM-DD`, que ordena solo y no depende del idioma del equipo.
+  const construidoDia = d.toLocaleDateString('en-CA', { timeZone: zona });
+  const construidoHora = d.toLocaleTimeString('es-CO', {
+    timeZone: zona, hour: '2-digit', minute: '2-digit', hour12: false,
+  });
+  const hoy = ahora.toLocaleDateString('en-CA', { timeZone: zona });
+  const diasDelArchivo = Math.max(0, diasEntreIso(construidoDia, hoy));
+  const medidoHasta = ficha.ultimoDiaConHoras;
+  const diasDelDato = Math.max(0, diasEntreIso(medidoHasta, hoy));
+
+  // ⚠️ EL ORDEN DE ESTAS DOS PREGUNTAS ES EL FONDO DEL ASUNTO, y al revés acusa
+  // al inocente. Primero se mira el HUECO QUE YA TENÍA EL ARCHIVO CUANDO SE
+  // HIZO: si al construirlo la fuente ya iba muy por detrás, ese retraso es
+  // suyo y seguirá ahí por muchas veces que se reconstruya — es el caso del sol
+  // y las nubes, con ~87 días. Preguntando antes por la edad del archivo, el
+  // atlas solar diría «hace 12 días que no se reconstruye» a los doce días de
+  // una fuente que no se mueve en tres meses: una acusación falsa que manda a
+  // reconstruir algo que no puede mejorar.
+  const huecoAlConstruir = diasEntreIso(medidoHasta, construidoDia);
+  // El umbral del archivo es la CADENCIA del vigía con holgura: mira cada 4 h,
+  // así que a los 10 días sin reconstruir, o el vigía no corre o nadie aprueba
+  // lo que propone — las dos cosas son nuestras y se arreglan aquí.
+  const porQue = huecoAlConstruir > 15 ? 'fuente-atrasada'
+    : diasDelArchivo > 10 ? 'archivo-viejo'
+      : 'al-dia';
+  return { construidoDia, construidoHora, diasDelArchivo, medidoHasta, diasDelDato, porQue };
+}
+
+/** «19 de agosto de 2026», a partir de un día ISO. Sin `Date`: sin husos. */
+export function diaEnPalabras(iso: string, conAnio = true): string {
+  const M = ['', 'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+    'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  const mes = M[+iso.slice(5, 7)];
+  if (!mes) return iso;
+  const dia = +iso.slice(8, 10);
+  return `${dia} de ${mes}${conAnio ? ' de ' + iso.slice(0, 4) : ''}`;
+}

@@ -49,7 +49,8 @@ import { soloEstructuras } from '../vistas/planta';
 import type { Apoyo } from '../../../contratos/src/activos';
 import { ElDiaEntero, topeDe } from './PanelDelClima';
 import {
-  celdasDelRecorrido, diasDelMesSobre, dibujoDelRecorrido, perfilEnCelda,
+  celdasDelRecorrido, diaEnPalabras, diasDelMesSobre, dibujoDelRecorrido, frescuraDelAtlas,
+  perfilEnCelda,
 } from '../vistas/atlasCaribe';
 import { bordeDeCelda, celdaDe } from '../vistas/rejilla';
 import { PanelPronostico } from './PanelDelClima';
@@ -627,6 +628,16 @@ export function AtlasCaribe({ atlas, embebido = false, marca, alCambiarAtlas, li
     m.triggerRepaint();
   }, [listoMapa, ficha, recorrido, delRecorrido]);
 
+  /**
+   * DE CUÁNDO ES ESTO (`§ADR-075`). Se calcula con el reloj del que mira, y por
+   * eso se pide UNA vez al montar y no en cada pintada: recalcularlo dentro del
+   * render dispararía un repintado por cada tecla y, peor, haría que dos partes
+   * de la misma pantalla pudieran hablar de momentos distintos.
+   */
+  const ahora = useRef(new Date());
+  const frescura = useMemo(
+    () => (ficha ? frescuraDelAtlas(ficha, ahora.current) : null), [ficha]);
+
   const iso = ficha && mesClave ? isoDe(ficha.anio, mesClave, dia) : null;
   const banda = ficha && iso ? bandaDelDia(ficha, iso) : null;
   const resumen = cuadro && ficha ? resumenDelCuadro(cuadro, ficha.codificacion) : null;
@@ -671,6 +682,32 @@ export function AtlasCaribe({ atlas, embebido = false, marca, alCambiarAtlas, li
             </button>
           ))}
         </div>
+      )}
+      {/* ⚠️ DOS FECHAS, Y NO SON LA MISMA (`§ADR-075`). Lo pidió el Ingeniero:
+          «que se pueda apreciar la fecha de última actualización y hora». Se
+          publican las dos —cuándo se le preguntó a la fuente y hasta cuándo
+          llega su dato— porque enseñar solo la primera es lo que engaña: el
+          atlas solar se reconstruye hoy y trae dato de mayo. Y se dice DE QUIÉN
+          es el retraso, que es lo que convierte dos fechas en una decisión. */}
+      {frescura && (
+        <p className={'atlas-frescura r-' + (frescura.porQue === 'al-dia' ? 'medido'
+          : frescura.porQue === 'fuente-atrasada' ? 'modelo' : 'hueco')}>
+          🕘 <b>Actualizado</b> el {diaEnPalabras(frescura.construidoDia)} a las{' '}
+          <b>{frescura.construidoHora}</b> (hora de Colombia)
+          {frescura.diasDelArchivo > 0 && <> · hace {frescura.diasDelArchivo}{' '}
+            {frescura.diasDelArchivo === 1 ? 'día' : 'días'}</>}.
+          {' '}Trae <b>dato medido hasta el {diaEnPalabras(frescura.medidoHasta, false)}</b>
+          {' '}({frescura.diasDelDato} {frescura.diasDelDato === 1 ? 'día' : 'días'} atrás).
+          {frescura.porQue === 'fuente-atrasada' && (
+            <> ⚠️ <b>El retraso es de la FUENTE, no del archivo</b>: se le preguntó hace{' '}
+              {frescura.diasDelArchivo} {frescura.diasDelArchivo === 1 ? 'día' : 'días'} y no
+              tenía más. Reconstruirlo otra vez no adelantaría un solo día.</>
+          )}
+          {frescura.porQue === 'archivo-viejo' && (
+            <> ⚠️ <b>Hace {frescura.diasDelArchivo} días que no se reconstruye.</b> El vigía
+              mira cada 4 horas y PROPONE; si nadie aprueba, esto se queda quieto.</>
+          )}
+        </p>
       )}
       <p className="saludo">
         {def.entradilla} <b>hora a hora</b> sobre {ficha?.departamentos.join(', ')}.
