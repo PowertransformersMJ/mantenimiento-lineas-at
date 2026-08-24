@@ -140,6 +140,8 @@ describe('lo que la pantalla y el vigía tienen que seguir haciendo', () => {
     fileURLToPath(new URL('../web/src/componentes/AtlasCaribe.tsx', import.meta.url)), 'utf-8');
   const VIGIA = readFileSync(
     fileURLToPath(new URL('../.github/workflows/vigia-nasa.yml', import.meta.url)), 'utf-8');
+  const DESPLIEGUE = readFileSync(
+    fileURLToPath(new URL('../.github/workflows/desplegar.yml', import.meta.url)), 'utf-8');
 
   test('se publican LAS DOS fechas, no solo la del archivo', () => {
     assert.match(ATLAS, /<b>Actualizado<\/b>/, 'desapareció la fecha de actualización');
@@ -162,6 +164,22 @@ describe('lo que la pantalla y el vigía tienen que seguir haciendo', () => {
     // sea a propósito y no por un copiar y pegar.
     assert.match(VIGIA, /cron: '\d+ \*\/4 \* \* \*'/,
       'el vigía dejó de mirar cada 4 horas');
+  });
+
+  test('el despliegue COMPRUEBA que llegó, no se cree a sí mismo', () => {
+    // `32 · L-65`: verde en Actions no es cambio en producción. Un despliegue
+    // que solo mira su propia salida es el fallo que dejó un arreglo sin
+    // publicar durante días — y sin nadie mirando duele el doble.
+    assert.match(DESPLIEGUE, /Comprobar que producción sirve lo que se construyó/,
+      'el despliegue dejó de comprobar que la página sirve lo construido');
+    assert.match(DESPLIEGUE, /\?cb=/, 'la comprobación dejó de pedir la página con anti-caché');
+    assert.match(DESPLIEGUE, /exit 1/, 'la comprobación dejó de poder ponerse roja');
+  });
+
+  test('sin credenciales, el despliegue se salta y lo DICE — no falla en silencio', () => {
+    assert.match(DESPLIEGUE, /listo=no/);
+    assert.match(DESPLIEGUE, /gh secret set CLOUDFLARE_API_TOKEN/,
+      'el aviso dejó de decir qué hay que poner exactamente para encenderlo');
   });
 
   test('cada atlas decide POR SÍ MISMO, sin salidas compartidas de matriz', () => {

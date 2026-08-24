@@ -2,12 +2,31 @@ name: Desplegar · Cloudflare Pages
 
 # Publica el caparazón en cada empuje a main, después de que el CI pase.
 #
+# ⚠️ Y COMPRUEBA QUE LLEGÓ (`§ADR-077`). No basta con que `wrangler` diga
+# «Deployment complete»: la lección de esta casa es justo esa —**verde en
+# Actions no es cambio en producción** (`32 · L-65`), y ya pasó una vez que un
+# arreglo se dio por hecho durante días sin estar publicado—. Después de subir,
+# este flujo PIDE LA PÁGINA REAL con anti-caché y compara el paquete que sirve
+# con el que acaba de construir. Si no coinciden, **se pone rojo**.
+#
+# Es la condición que convierte el despliegue automático en algo en lo que se
+# puede confiar: sin esa comprobación, publicar sin nadie mirando es publicar a
+# ciegas dos veces —ni se mira el mapa, ni se mira si llegó—.
+#
 # ⚠️ Requiere dos secretos del repositorio. Mientras no existan, el trabajo se
 # SALTA solo y no rompe nada — el despliegue se sigue haciendo a mano con
 # `npm run deploy --workspace web`:
-#   CLOUDFLARE_API_TOKEN   — plantilla "Edit Cloudflare Workers", o una a medida
-#                            con permiso "Cloudflare Pages: Edit"
-#   CLOUDFLARE_ACCOUNT_ID  — visible en el panel de Cloudflare
+#   CLOUDFLARE_API_TOKEN   — se crea en el panel de Cloudflare (My Profile → API
+#                            Tokens → Create Token). Permiso mínimo:
+#                            «Account · Cloudflare Pages · Edit». La plantilla
+#                            "Edit Cloudflare Workers" también sirve, pero da
+#                            bastante más de lo necesario.
+#   CLAVE_CUENTA (`CLOUDFLARE_ACCOUNT_ID`) — el identificador de la cuenta; sale
+#                            en el panel y también con `npx wrangler whoami`.
+#
+# ⚠️ LOS SECRETOS LOS PONE EL INGENIERO, no Claude: una credencial que pasa por
+# un chat es una credencial que hay que rotar. `gh secret set NOMBRE` los pide
+# por teclado sin mostrarlos.
 on:
   workflow_run:
     workflows: ['CI · Cerebro + Tests']
@@ -39,7 +58,7 @@ jobs:
             echo "listo=si" >> "$GITHUB_OUTPUT"
           else
             echo "listo=no" >> "$GITHUB_OUTPUT"
-            echo "::notice::sin secretos de Cloudflare — despliegue omitido (se hace a mano)"
+            echo "::notice::Sin secretos de Cloudflare: el despliegue se omite y se sigue haciendo a mano con 'npm run deploy --workspace web'. Para encenderlo: gh secret set CLOUDFLARE_API_TOKEN (permiso Account · Cloudflare Pages · Edit) y gh secret set CLOUDFLARE_ACCOUNT_ID."
           fi
 
       - name: Setup Node.js
@@ -61,3 +80,39 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy web/dist --project-name=mantenimiento-lineas-at
+
+      # ── ¿LLEGÓ DE VERDAD? ─────────────────────────────────────────────────
+      #
+      # Se pide la página REAL y se compara el paquete que sirve con el que
+      # acaba de salir de `web/dist`. Es la traducción a máquina de `32 · L-65`:
+      # GitHub Pages estuvo en modo `legacy` ignorando el artefacto del flujo, el
+      # despliegue salía verde y en producción no había cambiado nada durante
+      # días. Aquí no hay Pages de GitHub, pero el modo de fallar es el mismo:
+      # el que publica dice que sí y el que sirve dice otra cosa.
+      #
+      # ⚠️ ANTI-CACHÉ EN LA PETICIÓN (`?cb=`) y reintentos: Cloudflare tarda unos
+      # segundos en propagar, así que un solo intento fallaría por rápido, no por
+      # roto. Diez intentos con quince segundos de espera son dos minutos y medio
+      # de margen; si en ese tiempo no llegó, es que no llegó.
+      - name: Comprobar que producción sirve lo que se construyó
+        if: steps.cred.outputs.listo == 'si'
+        run: |
+          set -euo pipefail
+          SITIO="https://mantenimiento-lineas-at.pages.dev"
+          CONSTRUIDO=$(grep -o 'index-[A-Za-z0-9_-]*\.js' web/dist/index.html | head -1)
+          if [ -z "$CONSTRUIDO" ]; then
+            echo "::error::no encuentro el paquete en web/dist/index.html — ¿cambió el nombre del artefacto?"
+            exit 1
+          fi
+          echo "· construido: $CONSTRUIDO"
+          for i in $(seq 1 10); do
+            SERVIDO=$(curl -sS --max-time 30 "$SITIO/?cb=$(date +%s)-$i" | grep -o 'index-[A-Za-z0-9_-]*\.js' | head -1 || true)
+            echo "  intento $i → ${SERVIDO:-(sin respuesta)}"
+            if [ "$SERVIDO" = "$CONSTRUIDO" ]; then
+              echo "::notice::Producción sirve $SERVIDO — es lo construido."
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "::error::Producción sigue sirviendo «${SERVIDO:-nada}» y se construyó «$CONSTRUIDO». El despliegue dijo que sí y la página dice que no (32 · L-65)."
+          exit 1

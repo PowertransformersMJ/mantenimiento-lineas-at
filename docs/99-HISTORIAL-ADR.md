@@ -6479,3 +6479,72 @@ check. Que la excepción no sea silenciosa es exactamente lo que se quería.
 - Queda `TODO-89` —los dos secretos de Cloudflare— como último eslabón para que lo fusionado llegue
   solo a producción. Hoy ese paso sigue siendo a mano, y por tanto **alguien mira el mapa antes**.
 - El repositorio ya no acepta empuje forzado ni borrado de `main` de nadie, administrador incluido.
+
+---
+
+## ADR-077 · 2026-08-24 · El despliegue automático, listo y con la comprobación puesta — la llave la pone él
+
+**Estado:** ✅ Decidido · **NO revisada externamente** · el flujo, en el repositorio; **dormido**
+hasta que existan los dos secretos.
+
+### Contexto
+
+Cerrado `TODO-75` (`§ADR-076`), el vigía ya detecta, reconstruye, comprueba y propone. Quedaba el
+tercer eslabón para que «actualizarse cada 4 horas» fuese verdad de punta a punta: **que lo fusionado
+llegue solo a producción**. El Ingeniero: *«procede por favor»*.
+
+Hoy el despliegue es a mano (`npm run deploy --workspace web`). El flujo `desplegar.yml` existe desde
+hace semanas y **se salta solo** porque le faltan dos secretos.
+
+### Decisión
+
+**1 · Los secretos los pone él, no Claude.** El identificador de la cuenta no es un secreto de
+verdad; **el token de la API sí**, y una credencial que pasa por un chat es una credencial que hay
+que rotar. Aquí no se manejan credenciales ajenas: se preparan el hueco y las instrucciones exactas.
+
+```bash
+gh secret set CLOUDFLARE_API_TOKEN     # la pide por teclado, sin mostrarla en pantalla
+gh secret set CLOUDFLARE_ACCOUNT_ID    # sale de `npx wrangler whoami`
+```
+
+El token se crea en Cloudflare → *My Profile → API Tokens → Create Token*, con el permiso **mínimo**:
+`Account · Cloudflare Pages · Edit`. La plantilla «Edit Cloudflare Workers» también funciona, pero
+concede bastante más de lo que este flujo necesita, y un token de CI vive años.
+
+**2 · Y con la comprobación puesta, que es lo que lo hace fiable.** Publicar sin nadie mirando es
+publicar a ciegas dos veces: ni se mira el mapa, ni se mira si el cambio llegó. Así que después de
+subir, el flujo **pide la página real con anti-caché y compara el paquete que sirve con el que acaba
+de construir**; si no coinciden en dos minutos y medio, se pone **rojo**.
+
+No es paranoia: es `32 · L-65` escrito en máquina. Ya pasó —con GitHub Pages en modo `legacy`— que el
+despliegue salía verde y producción no cambiaba en días. Un robot que publica sin comprobar repetiría
+ese fallo cada 4 horas y sin testigos.
+
+**3 · Mientras falten los secretos, el flujo se salta y lo dice** con la instrucción exacta en el
+registro. Un flujo dormido que no explica cómo despertarlo se queda dormido para siempre.
+
+### Lo que él acepta al encenderlo, dicho antes y no después
+
+**Nadie mirará el mapa antes de publicar.** El vigía propone, alguien fusiona, y a partir de ahí la
+página sale sola. Los guardianes cubren el dato —que no retroceda, que no pierda meses, que no se
+salga de la rampa, que la suite esté verde— y ahora también el hecho de que el despliegue llegó. Lo
+que ninguna máquina cubre es **cómo se ve**: eso lo dice `§ADR-021` y sigue siendo cierto.
+
+Si prefiere conservar esa mirada, la alternativa es no poner los secretos: el vigía sigue proponiendo
+y el despliegue se sigue haciendo a mano, que es como está hoy.
+
+### Alternativas descartadas
+
+- **Que Claude cree el token con la sesión de `wrangler`** de esta Mac: esa sesión es un token
+  OAuth de usuario, no una credencial de CI; sacarlo del equipo y pegarlo en el repositorio sería
+  exactamente lo que no se hace.
+- **La plantilla «Edit Cloudflare Workers»** como permiso: funciona y concede de más.
+- **Desplegar sin comprobar**: es el fallo de `L-65` puesto en automático.
+
+### Consecuencias
+
+- `desplegar.yml` queda **listo y probado en lo que se puede probar sin la llave**: su camino de
+  «sin credenciales» y la lógica de comprobación, ensayada contra la página real.
+- `TODO-89` queda reducido a **dos órdenes en la terminal**, suyas.
+- Cuando se enciendan, cada empuje a `main` que pase el CI publicará y **comprobará** — y si no
+  llegó, el aviso será rojo en vez de silencio.

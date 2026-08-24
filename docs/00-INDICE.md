@@ -152,6 +152,7 @@ Guarda `research-archive/` (crudos de deliberación: comités, consejos externos
 | `ADR-074` | 2026-08-23 | El recorrido se DIBUJA sobre el atlas — y el lienzo, por fin, se puede mirar | *(`herramientas/foto-del-banco.mjs`)* |
 | `ADR-075` | 2026-08-24 | El vigía mira cada 4 horas, y la pantalla dice de cuándo es lo que enseña | *(`tests/frescura-del-atlas.test.js`)* |
 | `ADR-076` | 2026-08-24 | Los dos ajustes del repositorio, hechos — y la trampa del check que traían debajo | *(`.github/workflows/vigia-nasa.yml`)* |
+| `ADR-077` | 2026-08-24 | El despliegue automático, listo y con la comprobación puesta — la llave la pone él | *(`.github/workflows/desplegar.yml`)* |
 
 > Toda decisión cara de revertir entra aquí con su ADR y su crudo enlazado. Si hubo comité o consejo
 > externo y el crudo no está archivado, la tarea **no está cerrada** (`CLAUDE.md §G.4`).
