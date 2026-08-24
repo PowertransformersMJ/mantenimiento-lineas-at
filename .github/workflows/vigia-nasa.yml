@@ -33,14 +33,21 @@ name: Vigía · NASA POWER horario
 # NASA POWER no pide clave (verificado el 2026-08-21: HTTP 200 sin una sola
 # cabecera de autorización), así que este flujo NO necesita ningún secreto.
 #
-# ⚠️ NECESITA DOS AJUSTES DEL REPOSITORIO, y sin ellos no sirve de nada:
-#    1. Settings → Actions → General → «Allow GitHub Actions to create and
-#       approve pull requests». Sin eso el paso del PR muere con
-#       «GitHub Actions is not permitted to create pull requests».
-#    2. Proteger `main` exigiendo el check del CI. Un PR abierto con
-#       GITHUB_TOKEN **no dispara** `ci.yml`, así que la propuesta llegaría sin
-#       un solo check — y aprobarla a ciegas es peor que no tener el vigía.
-#    Los dos están anotados en `docs/10` como pendientes del Ingeniero.
+# ✅ LOS DOS AJUSTES DEL REPOSITORIO YA ESTÁN HECHOS (2026-08-24, `§ADR-076`):
+#    1. Actions → General → «Allow GitHub Actions to create and approve pull
+#       requests» ENCENDIDO. Sin eso, el paso del PR moría con «GitHub Actions is
+#       not permitted to create pull requests» y el vigía no servía de nada.
+#    2. `main` PROTEGIDA exigiendo el check «Integridad del kernel + suite de
+#       dominio», sin empuje forzado y sin borrado. Los administradores NO quedan
+#       sujetos (`enforce_admins: false`): el trabajo diario empuja a `main`
+#       directo por decisión del Ingeniero (`ADR-051`), y una protección que
+#       rompe el trabajo diario es una protección que se acaba quitando entera.
+#
+# ⚠️ Y CON ELLO APARECE LA TRAMPA QUE HAY QUE CONOCER: un PR abierto con
+# `GITHUB_TOKEN` **no dispara** `ci.yml` —GitHub lo impide para que un robot no
+# se llame a sí mismo en bucle—, así que la propuesta llegaría SIN NINGÚN CHECK
+# y, con `main` protegida, nacería imposible de fusionar. Por eso este flujo
+# **firma el check él mismo** al final: ver el paso «el check de la propuesta».
 
 on:
   schedule:
@@ -58,10 +65,12 @@ on:
         type: boolean
         default: false
 
-# El mínimo para lo único que hace: empujar una rama y abrir el PR sobre ella.
+# El mínimo para lo único que hace: empujar una rama, abrir el PR sobre ella y
+# firmar en ese commit el resultado de la suite que ya corrió.
 permissions:
   contents: write
   pull-requests: write
+  statuses: write
 
 concurrency:
   # NO se auto-cancela: a mitad de las 36 consultas, cortar deja un archivo
@@ -244,6 +253,7 @@ jobs:
           npm run contrato:verificar
 
       - name: Abrir la propuesta
+        id: propuesta
         uses: peter-evans/create-pull-request@v6
         with:
           branch: vigia/nasa-power-${{ matrix.clave }}
@@ -270,3 +280,34 @@ jobs:
             «Detalle GPS»—. Verde en las pruebas no prueba que se vea
             (`docs/99 §ADR-021`).
           labels: dato, atlas-solar
+
+      # ── EL CHECK DE LA PROPUESTA (`§ADR-076`) ─────────────────────────────
+      #
+      # POR QUÉ EXISTE. `main` exige el check «Integridad del kernel + suite de
+      # dominio» para poder fusionar, y ese check lo produce `ci.yml`… que NO se
+      # dispara en un PR abierto con `GITHUB_TOKEN`. Sin este paso, cada propuesta
+      # del vigía nacería imposible de fusionar y el Ingeniero tendría que
+      # saltarse la protección a mano — es decir, tenerla para nada.
+      #
+      # QUÉ FIRMA, EXACTAMENTE: lo que este mismo trabajo acaba de ejecutar sobre
+      # ESTE contenido, unos pasos más arriba y en este orden — los guardianes de
+      # «no empeora», `npm test` y `contrato:verificar`. Si algo de eso falla, el
+      # trabajo muere antes y **la propuesta ni llega a abrirse**, así que este
+      # sello no puede existir en otro color que el verde.
+      #
+      # ⚠️ SE LLAMA IGUAL QUE EL CHECK DEL CI A PROPÓSITO, y no para disimular: es
+      # la MISMA suite sobre el MISMO contenido, y la protección de rama compara
+      # por NOMBRE. Para que nadie lo confunda con una corrida del CI, el sello
+      # dice quién lo firmó y su enlace lleva a ESTA ejecución del vigía.
+      - name: El check de la propuesta (la suite ya corrió arriba)
+        if: steps.propuesta.outputs.pull-request-number != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api -X POST "/repos/${{ github.repository }}/statuses/${{ steps.propuesta.outputs.pull-request-head-sha }}" \
+            -f state=success \
+            -f context='Integridad del kernel + suite de dominio' \
+            -f description='suite completa, ejecutada por el vigía antes de proponer' \
+            -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          echo "::notice::Check firmado sobre ${{ steps.propuesta.outputs.pull-request-head-sha }}"
