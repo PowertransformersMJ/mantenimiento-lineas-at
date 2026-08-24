@@ -164,6 +164,17 @@ describe('lo que la pantalla y el vigía tienen que seguir haciendo', () => {
       'el vigía dejó de mirar cada 4 horas');
   });
 
+  test('cada atlas decide POR SÍ MISMO, sin salidas compartidas de matriz', () => {
+    // EL FALLO REAL (`§ADR-076`): las salidas de un trabajo con matriz las
+    // machaca la última pata que termina, así que el «sí» de un atlas y el «no»
+    // de otro se pisaban — y quien mandaba era el azar del reloj. La corrida del
+    // 24-08 reconstruyó los CINCO cuando solo tres tenían dato nuevo.
+    assert.ok(!/needs\.[a-z]+\.outputs/.test(VIGIA),
+      'volvió una salida compartida entre patas de la matriz: el «sí» de un atlas decide por todos');
+    assert.match(VIGIA, /if: steps\.comparar\.outputs\.hay == 'si'/,
+      'los pasos caros dejaron de mirar la decisión de SU propio atlas');
+  });
+
   test('y sigue PROPONIENDO, no publicando', () => {
     // Un robot que commitea y despliega una capa de datos sin nadie mirando
     // puede publicar una capa mala un domingo a las 3 de la mañana.

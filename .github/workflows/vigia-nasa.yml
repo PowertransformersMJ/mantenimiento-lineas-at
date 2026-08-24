@@ -79,10 +79,24 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  mirar:
+  # ⚠️ UN SOLO TRABAJO POR ATLAS —mirar Y proponer—, y esto es un ARREGLO
+  # (`§ADR-076`). Antes eran dos trabajos, `mirar` y `proponer`, y el segundo se
+  # activaba con la salida `hay` del primero. **Las salidas de un trabajo con matriz
+  # las machaca la última pata que termina**: con cinco atlas a ritmos distintos,
+  # el «sí» del de temperatura y el «no» del solar se pisaban, y quien mandaba era
+  # el azar del reloj. Lo vimos: la corrida del 24-08 reconstruyó los CINCO cuando
+  # solo tres tenían dato nuevo. Con la mirada cada 4 horas, eso serían propuestas
+  # que solo cambian el sello, seis veces al día — y un buzón así se deja de leer.
+  #
+  # Juntos, **cada atlas decide por sí mismo** y no hay salida que compartir. La
+  # mirada sigue siendo lo barato de arriba: si no hay horas nuevas, la pata
+  # termina en segundos sin reconstruir nada.
+  vigilar:
     name: ¿Publicó NASA más horas?
     runs-on: ubuntu-latest
     strategy:
+      # ⚠️ `fail-fast: false` y no el defecto: si el atlas solar falla, los otros
+      # cuatro tienen que llegar igual. Son cinco productos, no cinco pasos.
       fail-fast: false
       matrix:
         include:
@@ -90,29 +104,39 @@ jobs:
             prefijo: sol-caribe
             param: ALLSKY_SFC_SW_DWN
             nombre: solar
+            herramienta: sol-caribe.mjs
+            avisoEsperado: 'MEDIA|media'
           - clave: temperatura
             prefijo: temp-caribe
             param: T2M
             nombre: de temperatura
+            herramienta: temp-caribe.mjs
+            avisoEsperado: '2 m|IEEE 738'
           - clave: viento
             prefijo: viento-caribe
             param: WS10M
             nombre: de viento
+            herramienta: viento-caribe.mjs
+            avisoEsperado: 'NO VALIDA|EXTREMO DE DISEÑO'
           - clave: lluvia
             prefijo: lluvia-caribe
             param: PRECTOTCORR
             nombre: de lluvia
+            herramienta: lluvia-caribe.mjs
+            avisoEsperado: 'celda de 111 km|cada hora'
           - clave: nubes
             prefijo: nubes-caribe
             param: CLOUD_AMT
             nombre: de nubosidad
-    outputs:
-      hay: ${{ steps.comparar.outputs.hay }}
-      publicado: ${{ steps.comparar.outputs.publicado }}
-      nuestro: ${{ steps.comparar.outputs.nuestro }}
+            herramienta: nubes-caribe.mjs
+            avisoEsperado: 'tormenta eléctrica|fracción de cielo'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
 
       # Es la pieza más barata del diseño: TRES consultas para saber si hay que
       # hacer las treinta y seis. El bimestre en que NASA no publicó nada cuesta
@@ -166,57 +190,16 @@ jobs:
             echo "hay=no" >> "$GITHUB_OUTPUT"
           fi
 
-  proponer:
-    name: Reconstruir y abrir la propuesta
-    needs: mirar
-    if: needs.mirar.outputs.hay == 'si'
-    runs-on: ubuntu-latest
-    strategy:
-      # ⚠️ `fail-fast: false` y no el defecto: si el atlas solar falla, los otros
-      # cuatro tienen que llegar igual. Son cinco productos, no cinco pasos.
-      fail-fast: false
-      matrix:
-        include:
-          - clave: sol
-            prefijo: sol-caribe
-            herramienta: sol-caribe.mjs
-            nombre: solar
-            avisoEsperado: 'MEDIA|media'
-          - clave: temperatura
-            prefijo: temp-caribe
-            herramienta: temp-caribe.mjs
-            nombre: de temperatura
-            avisoEsperado: '2 m|IEEE 738'
-          - clave: viento
-            prefijo: viento-caribe
-            herramienta: viento-caribe.mjs
-            nombre: de viento
-            avisoEsperado: 'NO VALIDA|EXTREMO DE DISEÑO'
-          - clave: lluvia
-            prefijo: lluvia-caribe
-            herramienta: lluvia-caribe.mjs
-            nombre: de lluvia
-            avisoEsperado: 'celda de 111 km|cada hora'
-          - clave: nubes
-            prefijo: nubes-caribe
-            herramienta: nubes-caribe.mjs
-            nombre: de nubosidad
-            avisoEsperado: 'tormenta eléctrica|fracción de cielo'
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
+      # ── DE AQUÍ ABAJO, SOLO SI ESTE ATLAS TIENE HORAS NUEVAS ──────────────
       - name: Reconstruir el atlas
+        if: steps.comparar.outputs.hay == 'si'
         run: node herramientas/${{ matrix.herramienta }}
 
       # ⚠️ LOS GUARDIANES VAN ANTES DE PROPONER NADA, y bloquean. Sin esto, la
       # forma de romper esto no es un error rojo: es una capa que se vacía sola,
       # un PR que parece normal y un mapa en blanco que nadie relaciona con esto.
       - name: Que la reconstrucción no haya EMPEORADO el archivo
+        if: steps.comparar.outputs.hay == 'si'
         run: |
           set -euo pipefail
           node -e "
@@ -247,28 +230,30 @@ jobs:
           "
 
       - name: Suite completa
+        if: steps.comparar.outputs.hay == 'si'
         run: |
           npm ci --no-audit --no-fund || npm install --no-audit --no-fund
           npm test
           npm run contrato:verificar
 
       - name: Abrir la propuesta
+        if: steps.comparar.outputs.hay == 'si'
         id: propuesta
         uses: peter-evans/create-pull-request@v6
         with:
           branch: vigia/nasa-power-${{ matrix.clave }}
-          title: 'Atlas ${{ matrix.nombre }}: NASA publicó hasta ${{ needs.mirar.outputs.publicado }}'
+          title: 'Atlas ${{ matrix.nombre }}: NASA publicó hasta ${{ steps.comparar.outputs.publicado }}'
           commit-message: |
-            Atlas ${{ matrix.nombre }} al día: horas hasta ${{ needs.mirar.outputs.publicado }}
+            Atlas ${{ matrix.nombre }} al día: horas hasta ${{ steps.comparar.outputs.publicado }}
 
-            Reconstruido por el vigía. Antes llegaba al ${{ needs.mirar.outputs.nuestro }}.
+            Reconstruido por el vigía. Antes llegaba al ${{ steps.comparar.outputs.nuestro }}.
           body: |
             El vigía preguntó a NASA POWER y hay horas nuevas.
 
             | | |
             |---|---|
-            | Lo que había publicado | `${{ needs.mirar.outputs.nuestro }}` |
-            | Lo que NASA tiene ahora | `${{ needs.mirar.outputs.publicado }}` |
+            | Lo que había publicado | `${{ steps.comparar.outputs.nuestro }}` |
+            | Lo que NASA tiene ahora | `${{ steps.comparar.outputs.publicado }}` |
 
             Se reconstruyó el atlas y **pasó los guardianes**: ni retrocede la
             última hora, ni pierde meses, ni cambia el recuadro o la malla, ni se
@@ -300,7 +285,7 @@ jobs:
       # por NOMBRE. Para que nadie lo confunda con una corrida del CI, el sello
       # dice quién lo firmó y su enlace lleva a ESTA ejecución del vigía.
       - name: El check de la propuesta (la suite ya corrió arriba)
-        if: steps.propuesta.outputs.pull-request-number != ''
+        if: steps.comparar.outputs.hay == 'si' && steps.propuesta.outputs.pull-request-number != ''
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
