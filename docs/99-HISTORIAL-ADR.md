@@ -6541,6 +6541,14 @@ y el despliegue se sigue haciendo a mano, que es como está hoy.
 - **La plantilla «Edit Cloudflare Workers»** como permiso: funciona y concede de más.
 - **Desplegar sin comprobar**: es el fallo de `L-65` puesto en automático.
 
+### Verificación
+
+- Lanzado a mano el flujo: **verde**, y en el registro el aviso exacto —«Sin secretos de Cloudflare:
+  el despliegue se omite… Para encenderlo: `gh secret set …`»—. El camino sin llave no falla ni
+  calla: explica cómo despertarlo.
+- La lógica de comprobación, ensayada contra la página real: construido `index-CZSbGNiG.js` ==
+  servido. Diría verde cuando llega, y rojo cuando no.
+
 ### Consecuencias
 
 - `desplegar.yml` queda **listo y probado en lo que se puede probar sin la llave**: su camino de
