@@ -6465,6 +6465,13 @@ sin reconstruir nada. Lo vigila una prueba que prohíbe volver a leer `needs.<tr
    encuentra horas nuevas —todo está sincronizado— y **no se abre ni una propuesta**, que es
    exactamente lo que tiene que pasar cinco de cada seis veces al día.
 
+### Un efecto visible, y conviene conocerlo
+
+Cada empuje directo a `main` imprime ahora en la terminal —y GitHub lo registra— un aviso como
+`Bypassed rule violations for refs/heads/main: Required status check … is expected`. **No es un
+error: es el rastro de la exención.** El empuje entra igual, y queda escrito que entró saltándose el
+check. Que la excepción no sea silenciosa es exactamente lo que se quería.
+
 ### Consecuencias
 
 - **`TODO-75` cerrado.** El vigía queda completo: mira cada 4 h, reconstruye, comprueba, propone y su
