@@ -254,7 +254,17 @@ export function AtlasCaribe({ atlas, embebido = false, marca, alCambiarAtlas, li
         setFicha(f);
         // Se abre en el ÚLTIMO mes con horas, no en enero: lo que interesa de un
         // atlas del año en curso es lo más reciente que existe.
-        setMesClave(f.meses[f.meses.length - 1]?.clave ?? null);
+        const ultimoMes = f.meses[f.meses.length - 1]?.clave ?? null;
+        setMesClave(ultimoMes);
+        // ⚠️ Y EN EL ÚLTIMO DÍA MEDIDO, no en el 1 (`§ADR-079`). Con los cinco
+        // atlas de medias daba igual —el día 1 del último mes siempre tiene
+        // dato—, pero el de RAYOS se ACUMULA y empieza por el día de hoy: abrir
+        // en el 1 enseñaba un mapa vacío y un «de este día no consta nada» sobre
+        // una capa que sí tiene dato dos días después. Es el mismo invariante de
+        // `§ADR-078`: el atlas abre donde HAY dato.
+        if (ultimoMes && f.ultimoDiaConHoras?.slice(5, 7) === ultimoMes) {
+          setDia(+f.ultimoDiaConHoras.slice(8, 10));
+        }
       } catch (e) {
         if (montado.current) setFallo((e as Error).message);
       }
@@ -444,6 +454,29 @@ export function AtlasCaribe({ atlas, embebido = false, marca, alCambiarAtlas, li
     // `dia` fuera a propósito: cambiar de día no vuelve a bajar el mes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ficha, mes]);
+
+  /**
+   * SI LA HORA ELEGIDA NO SE MIDIÓ ESE DÍA, SE VA A LA HORA PUNTA (`§ADR-079`).
+   *
+   * Con las cinco capas de medias esto no hacía falta: todas las horas de un día
+   * publicado tienen dato, así que mantener la hora al cambiar de día es una
+   * ventaja —permite comparar el mediodía de un día con el del siguiente— y se
+   * conserva. Pero el atlas de RAYOS se acumula hora a hora: la mayoría de las
+   * horas de un día recién empezado no existen todavía, y al pulsar otro día el
+   * mapa se quedaba EN BLANCO con el deslizador en una hora sin medida. Se lee
+   * como una avería y no lo es.
+   *
+   * La regla es la mínima que arregla eso sin tocar lo otro: **solo** se mueve
+   * la hora cuando la elegida no trae nada ese día.
+   */
+  useEffect(() => {
+    if (!ficha || !mes?.png || !bytes || bytes.mes !== mes.clave) return;
+    const c = cuadroDe(bytes.px, ficha, mes.png, dia, hora);
+    const vacio = !c || c.every((b) => b === ficha.codificacion.sin_dato);
+    if (vacio) setHora(horaPunta(bytes.px, ficha, mes.png, dia));
+    // `hora` fuera a propósito: esto reacciona al DÍA, no a que él mueva la hora.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dia, ficha, mes, bytes]);
 
   // ── Pintar el cuadro ──────────────────────────────────────────────────────
   const cuadro = useMemo(() => {
@@ -828,7 +861,8 @@ export function AtlasCaribe({ atlas, embebido = false, marca, alCambiarAtlas, li
                     A las <b>{String(hora).padStart(2, '0')}:00</b>:{' '}
                     {delDia.perfil.horas[hora] === null || delDia.perfil.horas[hora] === undefined
                       ? <b>no se midió esta hora</b>
-                      : <b>{nf(delDia.perfil.horas[hora]!, 1)} {ficha.unidad}</b>}
+                      // Un conteo no lleva decimales: «1.042,0 rayos» no existe.
+                      : <b>{nf(delDia.perfil.horas[hora]!, atlas === 'rayos' ? 0 : 1)} {ficha.unidad}</b>}
                   </p>
                   <ElDiaEntero perfil={delDia.perfil} ficha={ficha} cual={atlas} hora={hora}
                     delMes={delDia.delMes} mesNombre={MESES[+mes.clave]} />

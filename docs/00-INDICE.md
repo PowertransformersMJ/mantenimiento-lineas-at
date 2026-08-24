@@ -154,6 +154,7 @@ Guarda `research-archive/` (crudos de deliberación: comités, consejos externos
 | `ADR-076` | 2026-08-24 | Los dos ajustes del repositorio, hechos — y la trampa del check que traían debajo | *(`.github/workflows/vigia-nasa.yml`)* |
 | `ADR-077` | 2026-08-24 | El despliegue automático, listo y con la comprobación puesta — la llave la pone él | *(`.github/workflows/desplegar.yml`)* |
 | `ADR-078` | 2026-08-24 | El hora a hora tiene que verse donde se busca | *(`tests/perfil-del-dia.test.js`)* |
+| `ADR-079` | 2026-08-24 | El sexto atlas: descargas atmosféricas, contadas por satélite | *(`herramientas/rayos-caribe.mjs`)* |
 
 > Toda decisión cara de revertir entra aquí con su ADR y su crudo enlazado. Si hubo comité o consejo
 > externo y el crudo no está archivado, la tarea **no está cerrada** (`CLAUDE.md §G.4`).

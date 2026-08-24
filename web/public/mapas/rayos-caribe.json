@@ -1,0 +1,149 @@
+{
+ "capa": "rayos-caribe",
+ "titulo": "Descargas atmosféricas del Caribe colombiano, hora a hora",
+ "departamentos": [
+  "Bolívar",
+  "Córdoba",
+  "Sucre",
+  "Cesar",
+  "Magdalena",
+  "Atlántico",
+  "La Guajira"
+ ],
+ "bbox": [
+  -77,
+  7,
+  -71,
+  13
+ ],
+ "ancho": 6,
+ "alto": 6,
+ "resolucion_m": 111000,
+ "resolucion_nativa_m": 111000,
+ "remuestreo_pantalla": "nearest",
+ "remuestreo": "ninguno: cada píxel es una celda de 1° medida. Se pinta a cuadros porque a cuadros es como está medido; suavizarlo dibujaría un degradado que nadie midió.",
+ "unidad": "rayos",
+ "codificacion": {
+  "offset": 0,
+  "paso": 1,
+  "sin_dato": 0,
+  "curva": "exacta-y-log",
+  "exactoHasta": 50,
+  "razon": 1.0263
+ },
+ "valorMaximoRepresentable": 9975,
+ "medido": {
+  "min": 0,
+  "max": 3336
+ },
+ "cuadros": {
+  "horas": 24,
+  "porFila": 24,
+  "celdaAncho": 6,
+  "celdaAlto": 6
+ },
+ "anio": 2026,
+ "meses": [
+  {
+   "clave": "08",
+   "archivo": "rayos-caribe-2026-08.png",
+   "dias": 31,
+   "horasConDato": 26,
+   "bytes": 390
+  }
+ ],
+ "ultimoDiaConHoras": "2026-08-24",
+ "ultimoDiaConTotal": "2026-08-24",
+ "construido": "2026-08-24T23:56:34.124Z",
+ "resumenDiario": [
+  {
+   "d": "2026-08-23",
+   "v": 38433
+  },
+  {
+   "d": "2026-08-24",
+   "v": 4071
+  }
+ ],
+ "resumenDiarioEtiqueta": "Rayos contados en la región",
+ "resumenDiarioUnidad": "descargas en las 36 celdas",
+ "resumenDiarioAviso": "Es la SUMA de las 36 celdas en el día, no el máximo de una: una tormenta grande sobre una sola celda y una tarde movida en toda la región pueden dar el mismo número.",
+ "rampa": [
+  {
+   "c": 0,
+   "rgb": [
+    245,
+    241,
+    232
+   ]
+  },
+  {
+   "c": 1,
+   "rgb": [
+    232,
+    226,
+    170
+   ]
+  },
+  {
+   "c": 5,
+   "rgb": [
+    240,
+    205,
+    110
+   ]
+  },
+  {
+   "c": 20,
+   "rgb": [
+    240,
+    160,
+    70
+   ]
+  },
+  {
+   "c": 50,
+   "rgb": [
+    225,
+    110,
+    55
+   ]
+  },
+  {
+   "c": 150,
+   "rgb": [
+    200,
+    55,
+    55
+   ]
+  },
+  {
+   "c": 500,
+   "rgb": [
+    150,
+    30,
+    70
+   ]
+  },
+  {
+   "c": 1500,
+   "rgb": [
+    95,
+    25,
+    95
+   ]
+  },
+  {
+   "c": 3000,
+   "rgb": [
+    45,
+    20,
+    75
+   ]
+  }
+ ],
+ "aviso": "ESTO NO ES LA DENSIDAD DE DESCARGAS A TIERRA (DDT) QUE PIDEN RETIE E IEEE 1243 para calcular salidas por descarga: el GLM es un sensor ÓPTICO que cuenta el destello de TODOS los rayos —nube-nube y nube-tierra— sin distinguirlos, y la DDT solo cuenta los que llegan al suelo, por km² y por año. Este mapa sirve para saber CUÁNDO y DÓNDE hubo tormenta sobre el corredor —correlacionar una falla, decidir una maniobra, programar una cuadrilla—, no para dimensionar apantallamiento ni puestas a tierra. Además, una celda de 1° son unos 12.300 km²: un rayo en la celda NO es un rayo en la línea.",
+ "fuente": "GOES-19 GLM (Geostationary Lightning Mapper), producto L2 LCFA de NOAA.",
+ "atribucion": "GOES-19 GLM L2 LCFA · NOAA/NESDIS, datos abiertos en AWS Open Data",
+ "licencia": "Dominio público (NOAA). Se cita la fuente por cortesía, no por obligación."
+}

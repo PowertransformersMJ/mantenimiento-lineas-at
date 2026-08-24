@@ -67,11 +67,25 @@ const TOPE = 255;
 // natural, pero un offset mal puesto convertiría un 25 °C en un hueco.
 const aByte = (v, cod) => {
   if (v === null || !Number.isFinite(v) || v <= -900) return cod.sin_dato;
+  // ⚠️ LA CURVA `exacta-y-log` es el INVERSO EXACTO del decodificador de
+  // `web/src/vistas/rejilla.ts` — los dos tienen que moverse a la vez o el
+  // archivo diría una cosa y la pantalla leería otra, sin dar un solo error.
+  // Existe por el atlas de rayos: un conteo con tres órdenes de magnitud no
+  // cabe en 254 escalones lineales sin esconder el rayo suelto o recortar la
+  // tormenta (`99 §ADR-079`).
+  if (cod.curva === 'exacta-y-log') {
+    const exacto = cod.exactoHasta, razon = cod.razon;
+    const n = v <= exacto ? Math.round(v)
+      : exacto + Math.round(Math.log(v / exacto) / Math.log(razon));
+    return Math.min(TOPE, Math.max(1, n + 1));
+  }
   const b = Math.round((v - cod.offset) / cod.paso) + 1;
   return Math.min(TOPE, Math.max(1, b));
 };
 
-const maxRepresentable = (cod) => (TOPE - 1) * cod.paso + cod.offset;
+const maxRepresentable = (cod) => (cod.curva === 'exacta-y-log'
+  ? Math.round(cod.exactoHasta * cod.razon ** (TOPE - 1 - cod.exactoHasta))
+  : (TOPE - 1) * cod.paso + cod.offset);
 
 // ── PNG en gris, escrito a mano ─────────────────────────────────────────────
 // Sin dependencias: el proyecto no tiene librería de imagen en Node y esta
@@ -514,6 +528,25 @@ export async function construirAtlas(perfil, { salida = 'web/public/mapas', anio
   console.log('');
   console.log(`· resumen del día (${perfil.paramDiario}): 1 llamada regional`);
   const diario = await bajarDiario(perfil.paramDiario, desde, hasta, perfil.factorDiario ?? 1);
+  return publicarAtlas(perfil, celdas, diario, { salida, anio });
+}
+
+/**
+ * DE LAS SERIES AL ARCHIVO PUBLICADO — el trozo que NO sabe de dónde vino el dato.
+ *
+ * Se separó de `construirAtlas` el 2026-08-24 (`99 §ADR-079`) para que el atlas
+ * de RAYOS, que no viene de NASA POWER sino del satélite GOES, escriba su ficha
+ * y sus PNG con **este mismo código** y no con una copia. Un segundo escritor de
+ * fichas es un segundo sitio donde arreglar cada fallo, y el que se olvida
+ * siempre es el segundo (`34 · L-65`).
+ *
+ * @param celdas Map `"fx,fy"` → `{ "AAAAMMDDHH": valor }`. De dónde salga es
+ *               problema de quien llame.
+ * @param diario `[{ d: 'AAAA-MM-DD', v }]`, el resumen de cada día.
+ */
+export function publicarAtlas(perfil, celdas, diario, { salida = 'web/public/mapas', anio = 2026 } = {}) {
+  if (!existsSync(salida)) mkdirSync(salida, { recursive: true });
+  const cod = perfil.codificacion;
 
   // Hasta dónde llega CADA cosa. Se mide, no se supone.
   let ultimaHora = null;
@@ -591,8 +624,11 @@ export async function construirAtlas(perfil, { salida = 'web/public/mapas', anio
     etiquetaHipotesis: perfil.etiquetaHipotesis,
     aviso: perfil.aviso,
     fuente: perfil.fuente,
-    atribucion: 'These data were obtained from the NASA Langley Research Center POWER Project',
-    licencia: 'Datos libres; NASA solicita citar el proyecto POWER',
+    // La atribución la trae el PERFIL: desde que hay un atlas que no viene de
+    // POWER, clavarla aquí sería atribuir a NASA un dato de otro (`§ADR-079`).
+    atribucion: perfil.atribucion
+      ?? 'These data were obtained from the NASA Langley Research Center POWER Project',
+    licencia: perfil.licencia ?? 'Datos libres; NASA solicita citar el proyecto POWER',
   };
   writeFileSync(join(salida, `${perfil.prefijo}.json`), JSON.stringify(ficha, null, 1));
 

@@ -110,7 +110,10 @@ export function ElDiaEntero({ perfil, ficha, cual, hora, delMes, mesNombre }: {
   const hh = (h: number) => `${String(h).padStart(2, '0')}:00`;
 
   // ── Qué tope rige, y de quién es ──────────────────────────────────────────
-  const acumulable = cual === 'lluvia' || cual === 'sol';
+  // Magnitudes que se SUMAN a lo largo del día —milímetros, energía, rayos— y
+  // por eso su máximo se lee «pico por hora» y su día tiene un total. Las que
+  // no (temperatura, viento, nubes) se leen por máxima y mínima.
+  const acumulable = cual === 'lluvia' || cual === 'sol' || cual === 'rayos';
   const tope = topeDe(cual, ficha);
   const medido = tope?.mide === 'total' ? perfil.total : perfil.max;
   const cruzado = tope !== null && medido !== null && medido > tope.valor;
@@ -132,7 +135,9 @@ export function ElDiaEntero({ perfil, ficha, cual, hora, delMes, mesNombre }: {
         ) : (
           <>
             {acumulable ? 'Pico de ' : 'Máxima '}
-            <b>{nf(max, 1)} {ficha.unidad}{acumulable ? '/h' : ''}</b> a las {hh(perfil.horaMax!)}
+            {/* Un CONTEO no lleva decimales: «2,0 rayos» no existe (`§ADR-079`). */}
+            <b>{nf(max, cual === 'rayos' ? 0 : 1)} {ficha.unidad}{acumulable ? '/h' : ''}</b>
+            {' '}a las {hh(perfil.horaMax!)}
             {!acumulable && recorrido > 0
               && <> · mínima <b>{nf(min, 1)}</b> a las {hh(perfil.horaMin!)}</>}
           </>
@@ -140,7 +145,9 @@ export function ElDiaEntero({ perfil, ficha, cual, hora, delMes, mesNombre }: {
         {acumulable && perfil.total !== null && (
           cual === 'sol'
             ? <> · energía del día <b>{nf(perfil.total / 1000, 2)} kWh/m²</b></>
-            : <> · total <b>{nf(perfil.total, 1)} mm</b></>
+            : cual === 'rayos'
+              ? <> · <b>{nf(perfil.total, 0)}</b> en el día, en esta celda</>
+              : <> · total <b>{nf(perfil.total, 1)} mm</b></>
         )}
       </p>
 

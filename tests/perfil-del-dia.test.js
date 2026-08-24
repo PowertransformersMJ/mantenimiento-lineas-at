@@ -352,8 +352,13 @@ describe('lo construido tiene que poder ENCONTRARSE', () => {
     fileURLToPath(new URL('../web/src/componentes/AtlasCaribe.tsx', import.meta.url)), 'utf-8');
 
   test('el atlas abre donde HAY dato, no en un día vacío', () => {
-    assert.match(ATLAS, /setMesClave\(f\.meses\[f\.meses\.length - 1\]\?\.clave \?\? null\)/,
+    assert.match(ATLAS, /const ultimoMes = f\.meses\[f\.meses\.length - 1\]\?\.clave \?\? null;/,
       'el atlas dejó de abrir en el último mes publicado');
+    // Y en el último DÍA medido: con una capa que se acumula —los rayos— el día 1
+    // del último mes está vacío, y abrir ahí enseña un mapa en blanco que se lee
+    // como una avería (`§ADR-079`).
+    assert.match(ATLAS, /setDia\(\+f\.ultimoDiaConHoras\.slice\(8, 10\)\)/,
+      'el atlas volvió a abrir en el día 1, que en una capa que se acumula está vacío');
   });
 
   test('y cada día del eje declara de qué régimen es', () => {

@@ -20,7 +20,7 @@
 // ============================================================================
 
 /** Los atlas que existen. Añadir uno empieza aquí y el compilador hace el resto. */
-export type ClaveAtlas = 'sol' | 'temperatura' | 'viento' | 'lluvia' | 'nubes';
+export type ClaveAtlas = 'sol' | 'temperatura' | 'viento' | 'lluvia' | 'nubes' | 'rayos';
 
 export interface FichaDeAtlas {
   /** De dónde se baja su ficha JSON. */
@@ -82,10 +82,25 @@ export const ATLAS: Record<ClaveAtlas, FichaDeAtlas> = {
     rotulo: 'Nubes',
     hash: '#/nubes',
   },
+  /**
+   * ⚠️ EL SEXTO NO VIENE DE NASA POWER (`99 §ADR-079`). Los cinco de arriba son
+   * medias horarias de POWER; éste es un CONTEO de rayos del satélite GOES, y se
+   * ACUMULA en vez de reconstruirse. Para la pantalla eso da igual —lee la ficha
+   * y no sabe de dónde salió— y ésa es justo la prueba de que el motor está bien
+   * partido: añadir un atlas de otra fuente sigue siendo UNA entrada aquí.
+   */
+  rayos: {
+    ficha: '/mapas/rayos-caribe.json',
+    idCapa: 'capa-rayos',
+    titulo: 'Atlas de descargas atmosféricas del Caribe',
+    entradilla: 'Rayos contados por satélite',
+    rotulo: 'Rayos',
+    hash: '#/rayos',
+  },
 };
 
 /** El orden en que se ofrecen. No es alfabético: es el orden en que nacieron. */
-export const ATLAS_EN_ORDEN: ClaveAtlas[] = ['sol', 'temperatura', 'viento', 'lluvia', 'nubes'];
+export const ATLAS_EN_ORDEN: ClaveAtlas[] = ['sol', 'temperatura', 'viento', 'lluvia', 'nubes', 'rayos'];
 
 /**
  * La dirección de cada atlas, DERIVADA del catálogo.

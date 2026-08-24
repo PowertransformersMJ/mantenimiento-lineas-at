@@ -28,6 +28,26 @@ export interface CodificacionRejilla {
   paso: number;
   /** El byte reservado para «aquí no se midió». */
   sin_dato: number;
+  /**
+   * CÓMO SE REPARTEN LOS 254 ESCALONES. Ausente = `lineal`, que es como están
+   * las cinco capas de medias (sol, temperatura, viento, lluvia, nubes) y como
+   * seguirá estando todo lo que mida una magnitud continua en un rango estrecho.
+   *
+   * ⚠️ `exacta-y-log` existe por el atlas de RAYOS (`99 §ADR-079`), y no es un
+   * capricho: un CONTEO no es una media. Medido el 2026-08-24 sobre una hora de
+   * tormenta real, una celda tuvo **2.656 rayos** y otras tuvieron **1**. Con un
+   * byte lineal solo caben 254 escalones, así que había que elegir entre:
+   *   · paso 1  → el rayo suelto se ve, pero la tormenta se recorta en 254; o
+   *   · paso 12 → cabe la tormenta, y **1 rayo se publica como 0**.
+   * Las dos mienten, y la segunda miente justo donde una línea se cae: un solo
+   * rayo basta para sacarla. Por eso los primeros escalones son EXACTOS —el
+   * byte ES el conteo— y a partir de ahí suben en proporción.
+   */
+  curva?: 'lineal' | 'exacta-y-log';
+  /** Hasta qué valor el byte es el conteo exacto (solo en `exacta-y-log`). */
+  exactoHasta?: number;
+  /** Cuánto multiplica cada escalón por encima de ahí (solo en `exacta-y-log`). */
+  razon?: number;
 }
 
 export interface FichaRejilla {
@@ -59,6 +79,11 @@ export interface FichaRejilla {
  */
 export function valorDeByte(v: number, cod: CodificacionRejilla): number | null {
   if (!Number.isFinite(v) || v === cod.sin_dato) return null;
+  if (cod.curva === 'exacta-y-log') {
+    const exacto = cod.exactoHasta ?? 0, razon = cod.razon ?? 1;
+    const n = v - 1;                       // escalón: 0 es el primer valor útil
+    return n <= exacto ? n : Math.round(exacto * razon ** (n - exacto));
+  }
   return (v - 1) * cod.paso + cod.offset;
 }
 

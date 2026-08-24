@@ -95,10 +95,16 @@ mantenimiento-lineas-at/
 ├── evidencias/                  🚪 EL PORTERO (Worker, ADR-010 + **ADR-031**): verifica la FIRMA del
 │                                token. `GET` sirve, `PUT` acepta bajo diez cerrojos.
 │                                🚫 **NO borra y NO lista** — con prueba que lo impide
-├── herramientas/atlas-caribe.mjs EL MOTOR de los CINCO atlas (ADR-053/055/060), uno por PERFIL:
-│                                `sol-caribe` (⚠️ ese nombre lo llama el vigía) · `temp-caribe` ·
-│                                `viento-caribe` · `lluvia-caribe` · `nubes-caribe`. El perfil trae
-│                                `factor`: la lluvia horaria de NASA es TASA mm/día, ÷24
+├── herramientas/atlas-caribe.mjs EL MOTOR de los atlas (ADR-053/055/060/079). `construirAtlas`
+│                                baja de POWER; **`publicarAtlas` empaqueta y escribe la ficha, y lo
+│                                usan los SEIS**. Perfiles de POWER: `sol-caribe` (⚠️ ese nombre lo
+│                                llama el vigía) · `temp-caribe` · `viento-caribe` · `lluvia-caribe` ·
+│                                `nubes-caribe`; el perfil trae `factor` (la lluvia de NASA es TASA
+│                                mm/día, ÷24)
+├── herramientas/rayos-caribe.mjs ⚡ EL SEXTO ATLAS (ADR-079): rayos del GLM del GOES-19 (NOAA, sin
+│                                llave) y **se ACUMULA** — su año son 0,47 TB
+│   ├── rayos-libro.mjs          lo PURO: perfil, libro y derivaciones; se prueba sin bajar un byte
+│   └── rayos-conteo.json        📕 hora (reloj de COLOMBIA) → celda → conteo. Solo crece
 ├── herramientas/foto-del-banco.mjs 📸 MIRAR el lienzo (ADR-074): Chrome sin cabeza + reloj REAL; con
 │                                tiempo virtual MIENTE (`34 · L-72`). Banco: `sonda-satelital.tsx`
 ├── herramientas/teselas/        construir-raster.py — rehace las capas del mapa desde datos

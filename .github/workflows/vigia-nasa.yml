@@ -1,5 +1,11 @@
-name: Vigía · NASA POWER horario
+name: Vigía · atlas del Caribe
 
+# ⚠️ EL ARCHIVO SE SIGUE LLAMANDO `vigia-nasa.yml` aunque el vigía ya no sea solo
+# de NASA: desde el 2026-08-24 vigila también los RAYOS, que son de NOAA
+# (`§ADR-079`). Renombrar el archivo cambiaría la dirección de las corridas
+# antiguas y rompería los enlaces del historial; el nombre que se lee es el de
+# arriba y ése sí dice la verdad.
+#
 # CADA 4 HORAS le pregunta a NASA si ya publicó más horas — de los CINCO atlas,
 # que van a ritmos muy distintos: medido el 2026-08-24, el horario del sol y el
 # de nubes iban 87 días por detrás, y temperatura, viento y lluvia 3. Si las hay,
@@ -296,3 +302,101 @@ jobs:
             -f description='suite completa, ejecutada por el vigía antes de proponer' \
             -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           echo "::notice::Check firmado sobre ${{ steps.propuesta.outputs.pull-request-head-sha }}"
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # LOS RAYOS — otro trabajo, porque es OTRA FUENTE y otra forma de crecer
+  # ══════════════════════════════════════════════════════════════════════════
+  #
+  # No cabe en la matriz de arriba y meterlo a la fuerza habría sido peor que
+  # tenerlo aparte: los cinco atlas de POWER se RECONSTRUYEN enteros en cada
+  # pasada —su fuente entrega un año en 36 llamadas—, y éste se **ACUMULA**,
+  # porque su año son 1,6 millones de archivos y medio terabyte (`99 §ADR-079`).
+  # Comparten lo que de verdad se comparte: el motor que empaqueta y escribe la
+  # ficha, los guardianes, la suite y la forma de proponer.
+  #
+  # ⚠️ CON TOPE POR PASADA (`--maximo`). Si la propuesta se queda sin aprobar una
+  # semana, la corrida siguiente tendría 168 horas pendientes: 9 GB y más de dos
+  # horas. Con tope se pone al día solo, un trozo cada vez, y ninguna pasada se
+  # sale de madre.
+  rayos:
+    name: ¿Cayeron rayos nuevos?
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Instalar (el lector de los archivos del satélite)
+        run: npm ci --no-audit --no-fund || npm install --no-audit --no-fund
+
+      # Ventana de 24 h y como mucho 12 horas nuevas por pasada. Con el vigía
+      # mirando cada 4 h, 12 sobran para no dejar hueco jamás.
+      - name: Bajar los rayos que falten
+        run: node herramientas/rayos-caribe.mjs --horas 24 --maximo 12
+
+      # ⚠️ EL LIBRO SOLO CRECE. Es el mismo criterio que «no empeora» de los
+      # otros cinco, adaptado a una capa que acumula: una pasada no puede
+      # devolver el atlas a menos horas de las que ya tenía, ni retroceder el
+      # último día. Si eso pasa, algo se rompió al leer el satélite y lo que hay
+      # publicado es mejor que lo nuevo.
+      - name: Que el libro no haya ENCOGIDO
+        id: crecio
+        run: |
+          set -euo pipefail
+          node -e "
+            const { execSync } = require('node:child_process');
+            const nuevo = require('./herramientas/rayos-conteo.json');
+            let viejo = { horas: {} };
+            try { viejo = JSON.parse(execSync('git show HEAD:herramientas/rayos-conteo.json').toString()); } catch {}
+            const n = Object.keys(nuevo.horas).length, v = Object.keys(viejo.horas).length;
+            if (n < v) { console.error('::error::el libro perdió horas: ' + v + ' → ' + n); process.exit(1); }
+            for (const k of Object.keys(viejo.horas)) {
+              if (!nuevo.horas[k]) { console.error('::error::desapareció la hora ' + k); process.exit(1); }
+            }
+            console.log('horas=' + n + ' nuevas=' + (n - v));
+            require('node:fs').appendFileSync(process.env.GITHUB_OUTPUT, 'nuevas=' + (n - v) + '\n');
+          "
+
+      - name: Suite completa
+        if: steps.crecio.outputs.nuevas != '0'
+        run: |
+          npm test
+          npm run contrato:verificar
+
+      - name: Abrir la propuesta
+        id: propuesta
+        if: steps.crecio.outputs.nuevas != '0'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: vigia/rayos-caribe
+          title: 'Atlas de rayos: ${{ steps.crecio.outputs.nuevas }} hora(s) nuevas del satélite'
+          commit-message: |
+            Atlas de rayos: ${{ steps.crecio.outputs.nuevas }} hora(s) nuevas
+
+            Contadas por el GLM del GOES-19 y sumadas al libro. Este atlas se
+            acumula: no se reconstruye.
+          body: |
+            El vigía bajó **${{ steps.crecio.outputs.nuevas }} hora(s)** de rayos del satélite y las
+            sumó al libro (`herramientas/rayos-conteo.json`), de donde salen los PNG.
+
+            Pasó el guardián de que **el libro solo crece** —ni pierde horas ni retrocede— y la
+            suite completa está en verde.
+
+            **Antes de aprobar, mira el mapa**: fusiona, espera al despliegue y abre el atlas de
+            rayos. Verde en las pruebas no prueba que se vea (`docs/99 §ADR-021`).
+          labels: dato, atlas-solar
+
+      - name: El check de la propuesta (la suite ya corrió arriba)
+        if: steps.propuesta.outputs.pull-request-number != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api -X POST "/repos/${{ github.repository }}/statuses/${{ steps.propuesta.outputs.pull-request-head-sha }}" \
+            -f state=success \
+            -f context='Integridad del kernel + suite de dominio' \
+            -f description='suite completa, ejecutada por el vigía antes de proponer' \
+            -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"

@@ -6626,3 +6626,100 @@ en cuenta lo que yo te indique o lo que detectes sin suponer»*.
   que algo se había roto.
 - Cuatro guardianes nuevos: que el embebido siga recibiendo la línea, que la pestaña siga bajando el
   código, que el aviso siga por delante del pronóstico y que el embebido no vuelva a pedirlo.
+
+---
+
+## ADR-079 · 2026-08-24 · El sexto atlas: descargas atmosféricas, contadas por satélite
+
+**Estado:** ✅ Decidido · **NO revisada externamente** · en producción.
+
+### Contexto
+
+El Ingeniero: *«necesito también en el atlas una capa de descargas atmosféricas con el mismo criterio
+(los 7 departamentos con el mismo detalle)»*.
+
+Antes de construir nada se fue a mirar de dónde salen los rayos. Lo medido el 2026-08-24:
+
+| Fuente | Qué se comprobó |
+|---|---|
+| **NASA POWER**, la de los cinco atlas | **No publica rayos.** 105 parámetros horarios y ninguno cuenta descargas; lo más cercano es la temperatura del tope de la nube, que es un indicio de tormenta y no un rayo |
+| **GOES-19 GLM** (detector óptico de rayos del satélite geoestacionario) | **Público y sin llave** en AWS. Pero son archivos de 20 s de ~300 KB: **1,3 GB al día, 0,47 TB al año**, y **no hay producto agregado** |
+| Climatología LIS/OTD de NASA (la que da rayos/km²/año) | Existe y es pequeña, pero vive detrás de una **cuenta Earthdata** |
+| IDEAM | Sin rayos (ya estaba medido: `35 · L-37`) |
+
+O sea: **el año hacia atrás con el mismo detalle son 1,6 millones de archivos y medio terabyte.**
+Hacia adelante, en cambio, son 53 MB por hora — nada. Se le presentaron las opciones con esos
+números y **eligió las dos**: la horaria acumulándose desde hoy, y la de norma cuando cree la cuenta.
+
+### Decisión
+
+**1 · La capa horaria SE ACUMULA, no se reconstruye.** Cada pasada baja solo las horas que faltan y
+las suma al **libro** (`herramientas/rayos-conteo.json`); de ese libro salen los PNG. Es la
+diferencia de fondo con los otros cinco, que se rehacen enteros. El atlas empieza vacío y se llena
+solo: en un mes hay un mes.
+
+**2 · La hora se pasa al reloj de Colombia AL GUARDARLA.** El satélite nombra en UTC y la pantalla
+rotula «hora de Colombia»: las 23:00 UTC son las 18:00 de aquí, y las 03:00 UTC son las 22:00 del día
+ANTERIOR. Guardarlo crudo corre la tormenta cinco horas — y una tormenta corrida cinco horas no
+cuadra con ninguna falla (`32 · L-70`, otra vez, con otra fuente).
+
+**3 · Un CONTEO no cabe en la escala lineal de un byte, y por eso se añade una curva.** Medido sobre
+una hora de tormenta real: **2.656 rayos en una celda**… y a la hora siguiente **3.336**, mientras
+otras celdas tenían **1**. Con 254 escalones lineales solo había dos salidas y las dos mienten:
+
+- paso 1 → el rayo suelto se ve, pero la tormenta se recorta en 254;
+- paso 12 → cabe la tormenta y **1 rayo se publica como 0**.
+
+La segunda miente justo donde una línea se cae: **un solo rayo basta para sacarla**. Así que la
+codificación de ESTA capa —y solo de ésta— es `exacta-y-log`: los primeros 50 escalones son el
+conteo exacto y por encima cada escalón sube un 2,6 %, hasta 9.975 rayos/h. Las cinco capas de
+siempre no declaran curva y se leen como toda la vida.
+
+⚠️ **El techo salió de medir y a la primera se quedó corto**: se diseñó con 2.656 y la hora siguiente
+trajo 3.336. Se puso en ~10.000, tres veces la mayor medida.
+
+**4 · Un solo escritor de fichas.** El motor se partió en dos: `construirAtlas` (que baja de POWER) y
+**`publicarAtlas`** (que empaqueta, comprueba y escribe la ficha). Los rayos usan el segundo tal
+cual. Un segundo escritor de fichas es un segundo sitio donde arreglar cada fallo (`34 · L-65`).
+
+**5 · Y el sexto atlas sigue siendo UNA entrada en el catálogo** (`§ADR-068`). La pantalla no
+distingue de dónde vino el dato: lee la ficha. Que añadir una capa de OTRA fuente no obligue a tocar
+la pantalla es la prueba de que el motor estaba bien partido.
+
+### Lo que esta capa NO es — y va escrito en su propia ficha
+
+**No es la densidad de descargas a tierra (DDT) que piden RETIE e IEEE 1243.** El GLM es un sensor
+óptico que cuenta el destello de **todos** los rayos —nube-nube incluidos— sin distinguirlos; la DDT
+solo cuenta los que llegan al suelo, por km² y por año. Sirve para saber **cuándo y dónde** hubo
+tormenta sobre el corredor —correlacionar una falla, decidir una maniobra, programar una cuadrilla—,
+**no** para dimensionar apantallamiento ni puestas a tierra. Y una celda de 1° son unos 12.300 km²:
+un rayo en la celda no es un rayo en la línea. Esa es exactamente la segunda capa que él pidió, y
+llega cuando exista la cuenta de Earthdata.
+
+**Tampoco se marca ninguna hipótesis en su escala.** No hay tope declarado por él para rayos;
+inventar uno sería publicar un criterio que nadie firmó (`§ADR-055`, el caso del viento).
+
+### Alternativas descartadas
+
+- **Bajar el año entero de GLM**: 0,47 TB y 1,6 M de archivos. Se le dijo con el número delante.
+- **Usar la temperatura del tope de nube de POWER como sustituto**: es un indicio de tormenta, no un
+  rayo. Publicar un proxy con nombre de medida es la clase de mentira que este proyecto no comete.
+- **Guardar los archivos del satélite**: 1,3 GB/día para conservar lo que cabe en un libro de kilos.
+- **Meter el perfil de rayos en los `PERFILES` de POWER**: `--capa rayos` le pediría rayos a POWER,
+  que no los tiene. Su perfil vive con su bajador, y hay prueba que lo vigila.
+
+### Verificación
+
+- El canal entero, con dato real: se sembraron las últimas horas y el libro trae una tormenta de
+  verdad — **11.139 rayos en la región** a las 17:00 del 23-08, decayendo hasta 86 a las 22:00.
+- La codificación, de ida y vuelta: 1, 2, 3… 50 rayos se leen exactos; 3.336 se lee como 3.353
+  (0,5 % de error) y el tope representable pasa de 9.900.
+- **1.923 pruebas en verde** (20 nuevas).
+
+### Consecuencias
+
+- Sexto botón en el atlas, sin tocar la pantalla.
+- El vigía gana un trabajo propio para los rayos —otra fuente, otra forma de crecer— con **tope de
+  horas por pasada**, para que una semana sin aprobar no convierta la corrida siguiente en 9 GB.
+- Una dependencia nueva y declarada: `h5wasm`, para leer los archivos del satélite. Es WebAssembly:
+  no compila nada en la máquina ni en CI.
