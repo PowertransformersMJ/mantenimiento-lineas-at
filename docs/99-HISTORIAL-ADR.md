@@ -6426,6 +6426,18 @@ y la protección compara por nombre. Para que nadie lo confunda con una corrida 
 quién lo firmó (*«suite completa, ejecutada por el vigía antes de proponer»*) y su enlace lleva a la
 ejecución del vigía.
 
+**4 · Y un tercer hallazgo, que salió al mirar la corrida de esta mañana: el vigía reconstruía los
+CINCO atlas cuando solo tres tenían dato nuevo.** La causa no estaba a la vista: `mirar` y `proponer`
+eran dos trabajos, el segundo se activaba con la salida `hay` del primero, y **las salidas de un
+trabajo con MATRIZ las machaca la última pata que termina**. Con cinco atlas a ritmos distintos, el
+«sí» del de temperatura y el «no» del solar se pisaban y decidía el azar del reloj — para todos.
+
+Con la mirada cada 4 horas eso deja de ser un desperdicio y pasa a ser ruido: propuestas que solo
+cambian el sello de construcción, seis veces al día, y un buzón así se deja de leer. **Ahora mirar y
+proponer viven en el MISMO trabajo por atlas**: cada uno decide por sí mismo y no hay salida que
+compartir. La mirada sigue siendo lo barato de arriba — sin horas nuevas, la pata termina en segundos
+sin reconstruir nada. Lo vigila una prueba que prohíbe volver a leer `needs.<trabajo>.outputs`.
+
 ### Alternativas descartadas
 
 - **Un token personal (PAT) en el vigía** para que su PR sí dispare el CI: es la vía «limpia» y
@@ -6449,6 +6461,9 @@ ejecución del vigía.
 4. Las otras cuatro se cerraron explicando por qué (no traían dato nuevo).
 5. Este mismo ADR se empujó **directo a `main`**, que es la comprobación de que la protección no
    rompe el trabajo diario.
+6. Y tras separar la decisión por atlas, una corrida NORMAL (sin forzar): los cinco miran, ninguno
+   encuentra horas nuevas —todo está sincronizado— y **no se abre ni una propuesta**, que es
+   exactamente lo que tiene que pasar cinco de cada seis veces al día.
 
 ### Consecuencias
 
