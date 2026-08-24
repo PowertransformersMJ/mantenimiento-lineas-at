@@ -225,7 +225,12 @@ export function AtlasCaribe({ atlas, embebido = false, marca, alCambiarAtlas, li
   const yaPedido = useRef(false);
 
   useEffect(() => {
-    if (!recorrido || yaPedido.current) return;
+    // ⚠️ EMBEBIDO NO PIDE PRONÓSTICO (`§ADR-078`). Cuando este atlas se abre
+    // DENTRO de Detalle GPS, el pronóstico se queda fuera: es una de las piezas
+    // que el Ingeniero mandó sacar de esa pestaña por su nombre (`§ADR-069`).
+    // Y no se pide y luego se esconde: una consulta a un tercero es un acto
+    // deliberado (`32 · L-57`), no algo que se dispara para no enseñarlo.
+    if (!recorrido || embebido || yaPedido.current) return;
     yaPedido.current = true;
     void pedirPronostico(recorrido.lat, recorrido.lon)
       .then((t) => { if (montado.current) setTiempo(t); })
@@ -234,7 +239,7 @@ export function AtlasCaribe({ atlas, embebido = false, marca, alCambiarAtlas, li
         setFalloTiempo(e instanceof SinPronostico ? e.message
           : 'No se pudo consultar el pronóstico. El atlas sigue funcionando sin él.');
       });
-  }, [recorrido]);
+  }, [recorrido, embebido]);
 
 
 
@@ -772,6 +777,27 @@ export function AtlasCaribe({ atlas, embebido = false, marca, alCambiarAtlas, li
                   celda —la que se pulse, o la de la línea si su recorrido cabe
                   en una sola— y NUNCA del resumen de las 36, que va al final y
                   rotulado como REGIÓN (`§ADR-059`). */}
+              {/* ⚠️ EL «POR QUÉ NO HAY HORAS» VA AQUÍ, pegado al deslizador, y no
+                  al final (`§ADR-078`). Estaba después del pronóstico y de la
+                  escala —más de mil caracteres más abajo—, así que al elegir un
+                  día sin reparto horario el hora a hora DESAPARECÍA y la razón
+                  no se veía: se lee como una avería. La explicación tiene que
+                  estar donde se nota la falta, no donde cabe. */}
+              {banda === 'solo_total' && (
+                <p className="advertencia">
+                  <b>De este día no hay reparto por horas.</b> Al construir este archivo
+                  ({ficha.construido.slice(0, 10)}) la fuente llegaba al{' '}
+                  <b>{ficha.ultimoDiaConHoras}</b> — unos <b>{diasEntre(ficha.ultimoDiaConHoras, ficha.construido.slice(0, 10))} días</b> de retraso. Solo consta el resumen del día, y ese resumen{' '}
+                  <b>no se reparte</b> entre horas: sería inventar una curva que nadie midió.
+                  {' '}<b>Para verlo hora a hora, elija un día hasta el {ficha.ultimoDiaConHoras}.</b>
+                </p>
+              )}
+              {banda === 'sin_dato' && (
+                <p className="advertencia">
+                  <b>De este día no consta nada todavía</b>, ni siquiera el total.
+                  {' '}<b>El último día medido hora a hora es el {ficha.ultimoDiaConHoras}.</b>
+                </p>
+              )}
               {delDia && celdaEnFoco && (
                 <>
                   <p className="mapa-capas-n eje-cinta r-medido">
@@ -862,20 +888,6 @@ export function AtlasCaribe({ atlas, embebido = false, marca, alCambiarAtlas, li
                     )}
                   </p>
                 </>
-              )}
-
-              {banda === 'solo_total' && (
-                <p className="advertencia">
-                  <b>De este día no hay reparto por horas.</b> Al construir este archivo
-                  ({ficha.construido.slice(0, 10)}) la fuente llegaba al{' '}
-                  <b>{ficha.ultimoDiaConHoras}</b> — unos <b>{diasEntre(ficha.ultimoDiaConHoras, ficha.construido.slice(0, 10))} días</b> de retraso. Solo consta el resumen del día, y ese resumen{' '}
-                  <b>no se reparte</b> entre horas: sería inventar una curva que nadie midió.
-                </p>
-              )}
-              {banda === 'sin_dato' && (
-                <p className="advertencia">
-                  <b>De este día no consta nada todavía</b>, ni siquiera el total.
-                </p>
               )}
 
               {resumenDia !== null && (

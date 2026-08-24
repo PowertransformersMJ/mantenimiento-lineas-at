@@ -14,19 +14,19 @@
 ## 🛑 LO PRIMERO AL RETOMAR
 1. **EL CUELLO DE BOTELLA NO ES CÓDIGO: ES EL DATO** (`05`): 0 de 26 con veredicto; falta `TODO-57`.
 2. **EL PATRÓN QUE LO DOMINA TODO:** *«arreglado donde se veía, vivo en la pieza hermana»* —
-   `34 · L-65`, `32 · L-67`, `30 · L-68`, `30 · M-01`. El 22-08 se cerraron TRES de esa familia.
+   `34 · L-65`, `32 · L-67`, `30 · L-68`, `30 · M-01`. Volvió a morder el 24-08 (`§ADR-078`): el
+   hora a hora funcionaba a pantalla completa y **no** en el atlas abierto desde Detalle GPS.
+   ⚠️ **ORDEN SUYA (24-08):** cambiar sin dañar lo que ya está bien, y actuar solo sobre lo que él
+   indica o lo que se DETECTA midiendo — **nunca sobre una suposición**.
 3. **LA OLA DEL CLIMA, CERRADA (`§ADR-057..075`, 19 ADRs).** El clima VIVE EN EL ATLAS; Detalle GPS = solo el recorrido. Lo que no se puede romper: **gana el hecho sobre el modelo** · el recorrido se comprueba **punto a punto**, nunca por promedio · **«tormenta eléctrica» NO existe en esta fuente**, y hay prueba.
-4. **CERRADO 23/24-08:** ✅ `TODO-85` el TRAZADO se dibuja sobre el atlas (`§ADR-074`) · ✅ `TODO-86`
-   retirado `ClimaDelAnio.tsx` · ✅ **el vigía mira CADA 4 H y la pantalla dice DE CUÁNDO es el dato**
-   (`§ADR-075`: dos fechas —archivo y dato— con hora de Colombia, y de quién es el retraso).
-   **VIVO:** `TODO-87` migrar «Radiación solar» y «Temperatura ambiente» (OTRO subsistema, ~400
-   líneas; enfoque: un `<CapasDelCorredor mapa={...} />`). ⏳ **ESPERA SU RESPUESTA:** dice que el
-   satelital tiene huecos; el archivo está al **100 % en z8-z16** → falta **DÓNDE los ve**.
-   ✅ **`TODO-75` CERRADO (`§ADR-076`)**: Actions ya puede abrir propuestas y **`main` está protegida**
-   exigiendo el check (sin sujetar a administradores: el empuje directo del día a día sigue igual).
-   ⚠️ Y con ello, la trampa que hay que conocer: **un PR abierto por el robot NO dispara el CI**, así
-   que el vigía **firma su propio check** tras correr la suite. Probado de punta a punta: 5 propuestas
-   abiertas, una fusionada. Falta solo `TODO-89` (secretos de Cloudflare) para que llegue solo al sitio.
+4. **CERRADO 23/24-08:** ✅ `TODO-85` trazado sobre el atlas (`§ADR-074`) · ✅ `TODO-86` retirado
+   `ClimaDelAnio` · ✅ vigía **cada 4 h** + la pantalla dice **de cuándo es el dato** (`§ADR-075`) ·
+   ✅ `TODO-75` los dos ajustes de GitHub, probados de punta a punta (`§ADR-076`) · ✅ hora a hora
+   también en el atlas de Detalle GPS (`§ADR-078`). ⚠️ El robot NO dispara el CI: **el vigía firma su
+   propio check** tras correr la suite. **VIVO:** `TODO-87` (Radiación y Temperatura al atlas, otro
+   subsistema, ~400 líneas) · `TODO-89` (dos secretos de Cloudflare, suyos).
+   ⏳ **ESPERA SU RESPUESTA:** dice que el satelital tiene huecos; el archivo está al **100 % en
+   z8-z16** → falta **DÓNDE los ve**.
 5. **⚠️ EL LIENZO NO SE VE EN SEGUNDO PLANO, PERO SE FOTOGRAFÍA** (`34 · L-16/L-58/L-72`):
    `SONDA_MAPA=1 npm run build` + `npx vite preview` en `web/` + `foto-del-banco.mjs "<url>"
    --salida f.png [--pulsar ".maplibregl-ctrl-zoom-in" --veces 6]`. **Nunca con tiempo virtual.**

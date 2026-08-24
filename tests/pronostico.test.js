@@ -342,9 +342,13 @@ describe('la consulta al servicio del tiempo', () => {
       fileURLToPath(new URL('../web/src/componentes/AtlasCaribe.tsx', import.meta.url)), 'utf-8');
     const i = atlas.indexOf('pedirPronostico(');
     assert.ok(i > 0, 'el atlas dejó de pedir el pronóstico');
-    const antes = atlas.slice(Math.max(0, i - 400), i);
-    assert.match(antes, /if \(!recorrido \|\| yaPedido\.current\) return;/,
-      'la consulta dejó de estar detrás de «hay línea, y solo una vez»');
+    const antes = atlas.slice(Math.max(0, i - 900), i);
+    // ⚠️ LA GUARDA SE ENDURECIÓ, no se relajó (`§ADR-078`): desde que el atlas
+    // se abre DENTRO de Detalle GPS con la línea, se añade `embebido` — ahí el
+    // pronóstico no se enseña (fue una de las piezas que él mandó sacar de esa
+    // pestaña), y lo que no se enseña **no se pregunta**.
+    assert.match(antes, /if \(!recorrido \|\| embebido \|\| yaPedido\.current\) return;/,
+      'la consulta dejó de estar detrás de «hay línea, no es embebido, y solo una vez»');
     // Y donde estaba antes no puede quedar rastro: dos consultas al mismo
     // tercero desde dos pantallas es la duplicación que este día costó cara.
     const mapa = readFileSync(

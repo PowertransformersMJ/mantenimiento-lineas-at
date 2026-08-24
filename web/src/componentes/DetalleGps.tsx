@@ -67,11 +67,20 @@ interface FilaGps {
   sistema: string;
 }
 
-export function DetalleGps({ apoyos, investigaciones, alVerEvento, hipotesis, sesion }: {
+export function DetalleGps({
+  apoyos, investigaciones, alVerEvento, hipotesis, sesion, codigoLinea,
+}: {
   apoyos: Apoyo[];
   investigaciones?: Investigacion[];
   alVerEvento?: (id: string) => void;
   hipotesis?: Hipotesis;
+  /**
+   * QUÉ LÍNEA ES, para que el atlas que se abre aquí dentro sepa de quién habla
+   * (`§ADR-078`). Sin esto el atlas embebido no puede poner el foco en la celda
+   * del recorrido y el hora a hora solo aparecía tras pulsar una celda a ciegas.
+   * OPCIONAL a propósito: sin código, esta pestaña sigue funcionando igual.
+   */
+  codigoLinea?: string;
   /**
    * Con qué permiso se entró. Solo decide si se ENSEÑA el declarador del cable
    * de guarda: la frontera de verdad son las reglas de la base, que rechazan la
@@ -135,7 +144,7 @@ export function DetalleGps({ apoyos, investigaciones, alVerEvento, hipotesis, se
         </p>
       </section>
 
-      <AtlasDelCaribe apoyos={apoyos} />
+      <AtlasDelCaribe apoyos={apoyos} codigo={codigoLinea} />
 
       {(sesion?.rol === 'admin' || sesion?.rol === 'editor') && (
         <DeclararCableGuarda apoyos={apoyos} />
@@ -309,7 +318,7 @@ function DeclararCableGuarda({ apoyos }: { apoyos: Apoyo[] }) {
  * que antes. Es la condición que hacía falta para traerlo aquí sin castigar a
  * quien la abre desde el teléfono, en campo.
  */
-function AtlasDelCaribe({ apoyos }: { apoyos: Apoyo[] }) {
+function AtlasDelCaribe({ apoyos, codigo }: { apoyos: Apoyo[]; codigo?: string }) {
   const [abierto, setAbierto] = useState<ClaveAtlas | null>(null);
 
   // El centro del recorrido: la media de las coordenadas de las ESTRUCTURAS. No
@@ -351,8 +360,19 @@ function AtlasDelCaribe({ apoyos }: { apoyos: Apoyo[] }) {
 
       {abierto && (
         <Suspense fallback={<p className="fine">Bajando el atlas…</p>}>
-          <AtlasCaribe atlas={abierto} embebido marca={marca}
-            alCambiarAtlas={(c: ClaveAtlas) => setAbierto(c)} />
+          {/* ⚠️ LA LÍNEA ENTERA SI SE SABE CUÁL ES, y el punto suelto solo como
+              respaldo (`§ADR-078`). Con el recorrido, el atlas hace aquí lo
+              mismo que a pantalla completa: pone el foco en la celda de la
+              línea y publica su día HORA A HORA sin pedir un clic a ciegas.
+              Las dos cosas a la vez sobran: el trazado ya dice dónde cae. */}
+          {codigo
+            ? (
+              <AtlasCaribe atlas={abierto} embebido linea={{ codigo, apoyos }}
+                alCambiarAtlas={(c: ClaveAtlas) => setAbierto(c)} />
+            ) : (
+              <AtlasCaribe atlas={abierto} embebido marca={marca}
+                alCambiarAtlas={(c: ClaveAtlas) => setAbierto(c)} />
+            )}
         </Suspense>
       )}
     </section>

@@ -6556,3 +6556,73 @@ y el despliegue se sigue haciendo a mano, que es como está hoy.
 - `TODO-89` queda reducido a **dos órdenes en la terminal**, suyas.
 - Cuando se enciendan, cada empuje a `main` que pase el CI publicará y **comprobará** — y si no
   llegó, el aviso será rojo en vez de silencio.
+
+---
+
+## ADR-078 · 2026-08-24 · El hora a hora tiene que verse donde se busca
+
+**Estado:** ✅ Decidido · **NO revisada externamente** · en producción, verificado con su sesión.
+
+### Contexto
+
+El Ingeniero: *«ya no veo el comportamiento hora a hora en cada uno de los atlas»* — y con la orden
+de **validar antes de tocar**, sin suponer.
+
+Medido en producción, uno por uno, eran **dos huecos distintos** y ninguno daba error:
+
+| Dónde miró | Qué pasaba |
+|---|---|
+| Atlas a pantalla completa (`#/sol`, `#/temperatura`…) | ✅ El hora a hora estaba, en los cinco |
+| **Atlas abierto desde «Detalle GPS»** | ❌ En los cinco: *«Pulse una celda del mapa…»* y nada más |
+| **Un día sin reparto horario** (agosto en el solar) | ❌ El hora a hora desaparece y la razón sale **1.200 caracteres más abajo**, tras el pronóstico |
+
+**Hueco 1 · el atlas embebido no sabía qué línea era.** Desde que existe (`§ADR-053`) recibe un
+PUNTO (`marca`), no el recorrido, así que no puede poner el foco en la celda de la línea. Mientras el
+clima vivió en el mapa de la línea eso daba igual; cuando `§ADR-069` lo migró al atlas, esa pestaña
+—la que se abre para mirar ESTA línea— se quedó sin el hora a hora salvo pulsando una celda a ciegas.
+Verificado que no es de esta semana: el último commit sobre `DetalleGps.tsx` es de `§ADR-062`.
+
+**Hueco 2 · la explicación estaba lejos de la falta.** El aviso «de este día no hay reparto por
+horas» existía desde el principio, pero se pintaba al final del panel, después del pronóstico y de la
+escala. Al elegir agosto en el atlas solar —el mes que uno elige, porque es el actual— el bloque
+horario desaparecía sin decir por qué: se lee como una avería.
+
+### Decisión
+
+**1 · El atlas embebido recibe la LÍNEA, no un punto.** `Linea.tsx` baja `codigoLinea` a Detalle GPS
+y éste monta el atlas con `linea={{ codigo, apoyos }}`. Con eso hace exactamente lo mismo que a
+pantalla completa: foco en la celda del recorrido —comprobado punto a punto (`§ADR-064`)—, el día
+entero hora a hora, y el trazado dibujado encima (`§ADR-074`). El punto suelto queda de respaldo por
+si algún día no hay código: dibujar las dos cosas a la vez sobra.
+
+**2 · Pero el PRONÓSTICO se queda fuera del embebido**, y no se pide siquiera. Fue una de las piezas
+que él mandó sacar de esa pestaña **por su nombre** (`§ADR-069`), y una consulta a un tercero es un
+acto deliberado, no algo que se dispara para luego esconderlo (`32 · L-57`). El guardián de esa regla
+se **endureció**: ahora exige `!recorrido || embebido || yaPedido`.
+
+**3 · El porqué se pinta donde se nota la falta**: los dos avisos —«no hay reparto por horas» y «no
+consta nada todavía»— suben junto al deslizador, y además dicen **a dónde ir**: «para verlo hora a
+hora, elija un día hasta el AAAA-MM-DD».
+
+### Lo que NO se tocó, a propósito
+
+El atlas a pantalla completa funcionaba y **no se le cambió nada** salvo el orden de esos dos avisos.
+Ni la celda en foco, ni el motor, ni las escalas, ni el pronóstico, ni el trazado. Regla del
+Ingeniero, escrita hoy: *«los cambios debes hacerlos sin dañar lo que ya está bien; solo debes tener
+en cuenta lo que yo te indique o lo que detectes sin suponer»*.
+
+### Verificación — en producción, con su sesión
+
+- **Detalle GPS → «Ver los atlas del Caribe»**: `ESTA CELDA · la celda de LN-627` · `A las 11:00:
+  976,5 W/m²` · `EL DÍA ENTERO, EN ESTA CELDA` con sus 24 barras · y **sin pronóstico** (comprobado
+  que no aparece la tabla de la semana).
+- **`#/sol` + agosto**: el aviso sale en la posición 253 del panel y el pronóstico en la 1.251 — la
+  razón va delante, no detrás.
+- **1.903 pruebas en verde** (4 nuevas, más el guardián del pronóstico endurecido).
+
+### Consecuencias
+
+- Los dos caminos al atlas enseñan lo mismo. La diferencia entre ellos era justo lo que hacía pensar
+  que algo se había roto.
+- Cuatro guardianes nuevos: que el embebido siga recibiendo la línea, que la pestaña siga bajando el
+  código, que el aviso siga por delante del pronóstico y que el embebido no vuelva a pedirlo.

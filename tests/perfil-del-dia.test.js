@@ -490,6 +490,62 @@ describe('el deslizador de la hora tiene que decir su número', () => {
 });
 
 // ════════════════════════════════════════════════════════════════════════════
+// EL HORA A HORA TIENE QUE VERSE DONDE SE BUSCA (`§ADR-078`)
+// ----------------------------------------------------------------------------
+// El Ingeniero, 2026-08-24: «ya no veo el comportamiento hora a hora en cada uno
+// de los atlas». Medido en producción, eran DOS huecos distintos y ninguno daba
+// error:
+//
+//   1. EL ATLAS ABIERTO DESDE DETALLE GPS NO SABÍA QUÉ LÍNEA ERA. Recibía un
+//      punto (`marca`) y no el recorrido, así que no podía poner el foco en su
+//      celda: el día entero solo aparecía si se pulsaba una celda a ciegas. En
+//      los cinco atlas. A pantalla completa sí funcionaba, y esa diferencia es
+//      justo la que hace pensar que algo se rompió.
+//   2. LA RAZÓN DE QUE NO HAYA HORAS SE PUBLICABA MIL CARACTERES MÁS ABAJO, tras
+//      el pronóstico y la escala. Al elegir un día sin reparto horario —agosto en
+//      el atlas solar, por ejemplo— el hora a hora desaparecía y el porqué no se
+//      veía.
+// ════════════════════════════════════════════════════════════════════════════
+describe('el hora a hora se ve donde se busca', () => {
+
+  const ATLAS = readFileSync(
+    fileURLToPath(new URL('../web/src/componentes/AtlasCaribe.tsx', import.meta.url)), 'utf-8');
+  const GPS = readFileSync(
+    fileURLToPath(new URL('../web/src/componentes/DetalleGps.tsx', import.meta.url)), 'utf-8');
+  const LINEA = readFileSync(
+    fileURLToPath(new URL('../web/src/componentes/Linea.tsx', import.meta.url)), 'utf-8');
+
+  test('el atlas abierto desde Detalle GPS sabe QUÉ LÍNEA es', () => {
+    assert.match(GPS, /<AtlasCaribe atlas=\{abierto\} embebido linea=\{\{ codigo, apoyos \}\}/,
+      'el atlas embebido volvió a montarse sin la línea: sin ella no hay hora a hora sin clic');
+    assert.match(LINEA, /codigoLinea=\{linea\.codigo\}/,
+      'la pestaña dejó de recibir el código de la línea');
+  });
+
+  test('el porqué de que no haya horas va JUNTO al deslizador, no al final', () => {
+    const aviso = ATLAS.indexOf('De este día no hay reparto por horas');
+    const pronostico = ATLAS.indexOf('<PanelPronostico');
+    const escala = ATLAS.indexOf('sol-rampa');
+    assert.ok(aviso > 0 && pronostico > 0 && escala > 0, 'faltan piezas del panel');
+    assert.ok(aviso < pronostico,
+      'el aviso volvió a quedar después del pronóstico: la falta se nota arriba y la razón queda abajo');
+    assert.ok(aviso < escala, 'el aviso volvió a quedar después de la escala');
+  });
+
+  test('y dice a dónde ir para SÍ verlo', () => {
+    assert.match(ATLAS, /Para verlo hora a hora, elija un día hasta el/,
+      'el aviso dejó de decir hasta qué día hay reparto horario');
+  });
+
+  test('el pronóstico NO entra en Detalle GPS, ni se pregunta', () => {
+    // Fue una de las piezas que él mandó sacar de esa pestaña, por su nombre
+    // (`§ADR-069`). Traer el hora a hora no puede colar el pronóstico detrás.
+    assert.match(ATLAS, /if \(!recorrido \|\| embebido \|\| yaPedido\.current\) return;/,
+      'el atlas embebido volvió a pedir el pronóstico');
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
 describe('el nexo entre el recorrido de la línea y el atlas', () => {
 
   const ATLAS = readFileSync(
