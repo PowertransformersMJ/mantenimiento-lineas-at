@@ -6716,6 +6716,10 @@ inventar uno sería publicar un criterio que nadie firmó (`§ADR-055`, el caso 
   (0,5 % de error) y el tope representable pasa de 9.900.
 - **1.923 pruebas en verde** (20 nuevas).
 
+### Crudo de respaldo
+
+`research-archive/2026-08-24-atlas-de-rayos-fotos/` — las fotos y los números medidos.
+
 ### Consecuencias
 
 - Sexto botón en el atlas, sin tocar la pantalla.
