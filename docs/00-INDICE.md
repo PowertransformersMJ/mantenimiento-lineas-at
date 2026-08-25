@@ -159,6 +159,7 @@ Guarda `research-archive/` (crudos de deliberación: comités, consejos externos
 | `ADR-081` | 2026-08-24 | Sol y nubes, de 87 días a quince minutos — sin tapar lo que ya había | *(`herramientas/abi-caribe.mjs`)* |
 | `ADR-082` | 2026-08-24 | Los atlas, agrupados por quien publica el dato | *(`web/src/vistas/atlasCatalogo.ts`)* |
 | `ADR-083` | 2026-08-24 | Auditoría Nivel-2 del cerebro: lo que envejeció solo en dieciséis ADRs | *(`research-archive/2026-08-24-auditoria-cerebro-nivel2.json`)* |
+| `ADR-084` | 2026-08-25 | Cada fuente con su marca, y los ocho atlas en la frontera de su fuente | *(`web/src/componentes/EmblemaFuente.tsx`)* |
 
 > Toda decisión cara de revertir entra aquí con su ADR y su crudo enlazado. Si hubo comité o consejo
 > externo y el crudo no está archivado, la tarea **no está cerrada** (`CLAUDE.md §G.4`).

@@ -219,15 +219,32 @@ jobs:
 
           echo "nuestro=$NUESTRO" >> "$GITHUB_OUTPUT"
           echo "publicado=$ULTIMO" >> "$GITHUB_OUTPUT"
+          echo "nuestroDia=$NUESTRO_DIA" >> "$GITHUB_OUTPUT"
+          echo "publicadoDia=$ULTIMO_DIA" >> "$GITHUB_OUTPUT"
+
+          # ⚠️ Y EL TÍTULO DICE POR QUÉ NACE ESTA PROPUESTA (`§ADR-084`). Se
+          # escribe AQUÍ, donde se sabe el motivo, y no en la plantilla de abajo:
+          # el 25-08 se abrió una propuesta titulada «NASA publicó hasta
+          # 2026-05-30» con una tabla que decía 2026-05-30 ANTES y 2026-05-30
+          # AHORA. Era cierta y era ilegible — el disparo había sido el total del
+          # día, que el título no nombraba. Un buzón cuyas propuestas no explican
+          # qué cambió es un buzón que se deja de leer, y un atlas que nadie
+          # fusiona se queda viejo aunque el vigía funcione perfecto.
           if [ "${{ inputs.forzar }}" = "true" ]; then
             echo "::notice::Reconstrucción FORZADA a mano."
             echo "hay=si" >> "$GITHUB_OUTPUT"
+            echo "porque=forzado" >> "$GITHUB_OUTPUT"
+            echo "titulo=Atlas ${{ matrix.nombre }}: reconstrucción forzada a mano" >> "$GITHUB_OUTPUT"
           elif [ "$ULTIMO" \> "$NUESTRO" ]; then
             echo "::notice::NASA llega al $ULTIMO y nosotros al $NUESTRO — hay horas nuevas."
             echo "hay=si" >> "$GITHUB_OUTPUT"
+            echo "porque=horas" >> "$GITHUB_OUTPUT"
+            echo "titulo=Atlas ${{ matrix.nombre }}: horas nuevas, hasta el $ULTIMO (antes $NUESTRO)" >> "$GITHUB_OUTPUT"
           elif [ -n "$ULTIMO_DIA" ] && [ "$ULTIMO_DIA" \> "$NUESTRO_DIA" ]; then
             echo "::notice::Sin horas nuevas, pero el TOTAL DEL DÍA avanzó: $NUESTRO_DIA → $ULTIMO_DIA."
             echo "hay=si" >> "$GITHUB_OUTPUT"
+            echo "porque=dia" >> "$GITHUB_OUTPUT"
+            echo "titulo=Atlas ${{ matrix.nombre }}: el total del día llega al $ULTIMO_DIA (antes $NUESTRO_DIA)" >> "$GITHUB_OUTPUT"
           else
             echo "::notice::NASA sigue en $ULTIMO, igual que nosotros. Nada que hacer."
             echo "hay=no" >> "$GITHUB_OUTPUT"
@@ -285,18 +302,22 @@ jobs:
         uses: peter-evans/create-pull-request@v6
         with:
           branch: vigia/nasa-power-${{ matrix.clave }}
-          title: 'Atlas ${{ matrix.nombre }}: NASA publicó hasta ${{ steps.comparar.outputs.publicado }}'
+          title: '${{ steps.comparar.outputs.titulo }}'
           commit-message: |
-            Atlas ${{ matrix.nombre }} al día: horas hasta ${{ steps.comparar.outputs.publicado }}
+            ${{ steps.comparar.outputs.titulo }}
 
-            Reconstruido por el vigía. Antes llegaba al ${{ steps.comparar.outputs.nuestro }}.
+            Reconstruido por el vigía. Motivo: ${{ steps.comparar.outputs.porque }}.
           body: |
-            El vigía preguntó a NASA POWER y hay horas nuevas.
+            El vigía preguntó a NASA POWER y **algo se movió**. Las DOS fronteras,
+            para que se vea cuál: el atlas se pinta hora a hora, pero el resumen
+            del día tiene su propia frontera y a veces avanza sola.
 
-            | | |
-            |---|---|
-            | Lo que había publicado | `${{ steps.comparar.outputs.nuestro }}` |
-            | Lo que NASA tiene ahora | `${{ steps.comparar.outputs.publicado }}` |
+            | Frontera | Lo que teníamos | Lo que NASA tiene ahora |
+            |---|---|---|
+            | Por horas | `${{ steps.comparar.outputs.nuestro }}` | `${{ steps.comparar.outputs.publicado }}` |
+            | Total del día | `${{ steps.comparar.outputs.nuestroDia }}` | `${{ steps.comparar.outputs.publicadoDia }}` |
+
+            **Lo que disparó esta propuesta: `${{ steps.comparar.outputs.porque }}`.**
 
             Se reconstruyó el atlas y **pasó los guardianes**: ni retrocede la
             última hora, ni pierde meses, ni cambia el recuadro o la malla, ni se

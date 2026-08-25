@@ -118,6 +118,7 @@
 - `L-70` · Buscar «la hora tal» en UTC funciona hasta que la serie cambia de paso *(`32`)*
 - `L-71` · Un resumen de OTRO ámbito, puesto al lado del número, destruye la confianza en la capa entera *(`34`)*
 - `L-72` · «No puedo mirar el lienzo» tenía salida: un Chrome sin cabeza SÍ pinta — y el tiempo virtual miente *(`34`)*
+- `L-73` · Un icono se juzga a su TAMAÑO REAL: a 3× todo se ve bien, y a 18 px el trazo fino ya no existe *(`32`)*
 
 ### M-01 · Una cifra escrita a mano que un guardián puede contar es una cifra que envejece sola
 

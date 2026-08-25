@@ -188,3 +188,68 @@ describe('la familia que dice el catálogo es la que declara la ficha', () => {
     assert.match(PANTALLA, /ATLAS\[c\]\.familia === f/);
   });
 });
+
+// ════════════════════════════════════════════════════════════════════════════
+// CADA FUENTE, CON SU MARCA (`§ADR-084`)
+// ----------------------------------------------------------------------------
+// Lo pidió el Ingeniero: «me gustaría que cada fuente en la página tenga su
+// logo». Tres cosas hay que vigilar aquí, y ninguna daría un error rojo sola:
+//
+//  1. Que ninguna familia se quede SIN marca. Añadir una tercera fuente y
+//     olvidar su emblema no rompe nada: sale el hueco y ya.
+//  2. Que la marca esté en LOS DOS sitios donde se nombra la fuente —el
+//     selector y la cinta—. Es el patrón que más veces ha mordido en este
+//     proyecto: «arreglado donde se veía, vivo en la pieza hermana» (`30 ·
+//     L-68`, `34 · L-65`). El 24-08 volvió a pasar con el hora a hora
+//     (`§ADR-078`).
+//  3. Que el emblema se DIBUJE y no se BAJE. Un logo traído por URL rompe dos
+//     cosas de golpe: el sitio deja de servirse entero desde sí mismo, y lo que
+//     entraría por ahí sería justo el escudo oficial que no se puede usar.
+// ════════════════════════════════════════════════════════════════════════════
+describe('cada fuente lleva su marca, y la lleva en los dos sitios', () => {
+  const EMBLEMA = readFileSync(
+    fileURLToPath(new URL('../web/src/componentes/EmblemaFuente.tsx', import.meta.url)), 'utf-8');
+  const PANTALLA = readFileSync(
+    fileURLToPath(new URL('../web/src/componentes/AtlasCaribe.tsx', import.meta.url)), 'utf-8');
+
+  test('ninguna familia se queda sin marca', () => {
+    // Se busca la ENTRADA de la tabla (`power: Marca…`) y no el texto «power»
+    // suelto: el nombre de la familia aparece también en los comentarios, y un
+    // guardián que se conforma con eso pasa en verde con la marca borrada.
+    const sinComentarios = EMBLEMA.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+    for (const f of Object.keys(FAMILIAS)) {
+      assert.match(sinComentarios, new RegExp(`^\\s*${f}:\\s*\\w+,`, 'm'),
+        `la familia «${f}» no tiene marca en la tabla: saldría su nombre a secas`);
+    }
+  });
+
+  test('la tabla obliga por TIPO, no por costumbre', () => {
+    // Es lo que convierte «acordarse» en «no compila» (`30 · M-01`). Si esto se
+    // volviera un `si … si no`, una tercera fuente heredaría en silencio la
+    // marca de otra: dos proveedores con el mismo emblema y ni un error.
+    assert.match(EMBLEMA, /Record<FamiliaAtlas,/,
+      'el emblema volvió a elegirse con un condicional: una familia nueva heredaría marca ajena');
+  });
+
+  test('la marca acompaña al nombre en el selector Y en la cinta', () => {
+    const veces = [...PANTALLA.matchAll(/<EmblemaFuente\s/g)].length;
+    assert.equal(veces, 2,
+      'el emblema tiene que salir en el grupo de botones y en la cinta de la fuente; '
+      + `se encontró ${veces} vez(ces)`);
+    assert.match(PANTALLA, /<EmblemaFuente familia=\{f\}/, 'falta en el selector, que agrupa');
+    assert.match(PANTALLA, /<EmblemaFuente familia=\{def\.familia\}/, 'falta en la cinta del atlas abierto');
+  });
+
+  test('el emblema se dibuja aquí, no se baja de fuera', () => {
+    assert.ok(!/https?:\/\//.test(EMBLEMA.replace(/^\/\/.*$/gm, '')),
+      'un logo traído por URL: el sitio dejaría de servirse entero desde sí mismo');
+    assert.ok(!/<img\b/.test(EMBLEMA), 'el emblema tiene que ser SVG dibujado, no una imagen');
+  });
+
+  test('y el nombre de la fuente NO desaparece detrás de la marca', () => {
+    // La atribución es el texto. El emblema acompaña; si algún día sustituyera
+    // al nombre, la página dejaría de decir de dónde viene el dato.
+    assert.match(PANTALLA, /FAMILIAS\[f\]\.rotulo/, 'el selector dejó de escribir el nombre de la fuente');
+    assert.match(PANTALLA, /ficha\.fuente\.split\(','\)\[0\]/, 'la cinta dejó de escribir la fuente exacta');
+  });
+});

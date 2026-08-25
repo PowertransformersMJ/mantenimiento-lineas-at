@@ -133,9 +133,10 @@ mantenimiento-lineas-at/
 ├── web/src/componentes/         React SOLO pinta (ADR-005): Linea (las pestañas ARIA —cuántas son,
 │                                en `05`— **y** la carcasa de 3 columnas), **RedDeSeguridad** (la red
 │                                que evita la página en blanco de TODA la aplicación, montada en
-│                                `web/src/main.tsx`), **AtlasCaribe** (LOS CINCO atlas, con selector y **el
+│                                `web/src/main.tsx`), **AtlasCaribe** (LOS OCHO atlas, con selector y **el
 │                                trazado de la línea encima**, ADR-045/053/055/074; piezas comunes
-│                                del clima en **PanelDelClima**),
+│                                del clima en **PanelDelClima**; la marca de cada fuente en
+│                                **EmblemaFuente**, dibujo propio y no el escudo de la agencia, ADR-084),
 │                                Horizonte (los apoyos en su orden real), Mapa (popup +
 │                                tramos + marcador de falla), Distribucion, Distancias, DetalleGps
 │                                (el mapa a pantalla: MISMO Mapa con `panelALado`, ADR-042), Fichas

@@ -1566,6 +1566,22 @@ p.fund-vivo + .sello-calculo { margin-top: 5px; }
 .atlas-familia-t b { color: var(--tx); }
 .atlas-familia .acciones { margin-top: 0; }
 
+/* LA MARCA DE QUIEN PUBLICA (ADR-084). Dibujo NUESTRO y no el escudo de la
+   agencia: los de NASA y NOAA están restringidos, y junto a un dictamen
+   sugerirían un respaldo que nadie ha dado. Hereda el color del texto —por eso
+   el SVG pinta con `currentColor`— para no traer una paleta que se desincronice
+   del tema. Sube 2 px porque un cuadro de 18 px al lado de una minúscula queda
+   ópticamente bajo aunque la línea base diga que no. */
+.emblema {
+  display: inline-block; vertical-align: -3px; margin-right: 5px;
+  color: var(--acc); flex: none;
+}
+/* Lo único que NO es del color del texto: la Tierra es azul en todo el sitio. */
+.emblema-tierra { stroke: var(--az); }
+/* En la cinta el texto es más oscuro que el rótulo del grupo: el emblema va con
+   él y no a su aire. */
+.atlas-frescura .emblema { vertical-align: -4px; }
+
 /* DE CUÁNDO ES LO QUE SE MIRA (ADR-075). Misma familia visual que la cinta de
    procedencia —es lo mismo: de dónde viene y de cuándo— pero a tamaño de leer,
    porque esto se consulta de un vistazo y no se busca. */

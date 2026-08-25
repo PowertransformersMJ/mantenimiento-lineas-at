@@ -6983,3 +6983,97 @@ tiempo. El resto de `TODO-84` —los nodos que sí engordan por prosa— sigue a
 - **GC pareado**: el arranque queda por debajo de donde empezó la auditoría.
 - `deepAudit` del manifiesto al día: sin eso, el nudge del linter seguiría encendido y el disparador
   dejaría de ser auto-vigilado.
+
+---
+
+## ADR-084 · 2026-08-25 · Cada fuente con su marca, y los ocho atlas en la frontera de su fuente
+
+**Estado:** ✅ Decidido · **NO revisada externamente** · en producción.
+
+### Contexto
+
+Dos órdenes del Ingeniero en el mismo turno: *«mantén todos los atlas actualizados según la ventana
+que permita cada fuente»* y *«me gustaría que cada fuente en la página tenga su logo»*.
+
+Lo primero **se midió antes de tocar nada**, contra NASA POWER y contra la web publicada:
+
+| Atlas | La fuente permite | Producción tenía | |
+|---|---|---|---|
+| sol | día `2026-08-20` · horas `2026-05-30` | día `2026-08-18` | ❌ dos días atrás |
+| temperatura · viento · lluvia | `2026-08-21` | `2026-08-21` | ✅ al ras |
+| nubes | `2026-05-30` (ni horas ni día dan más) | `2026-05-30` | ✅ al ras |
+| rayos · sol ahora · nubes ahora | al minuto | 01:05–01:16 UTC | ❌ 8 horas atrás |
+
+Es decir: **el vigía funcionaba**. Ya había abierto las dos propuestas que cerraban esos huecos
+(`#6` y `#7`) y las había firmado con su propio check. Lo que faltaba era **fusionarlas y
+desplegar** — y ahí apareció el problema de verdad.
+
+**La propuesta `#6` se titulaba «Atlas solar: NASA publicó hasta 2026-05-30» y su tabla decía
+`2026-05-30` antes y `2026-05-30` ahora.** Cierta y completamente ilegible: el disparo no había sido
+la frontera horaria sino el **total del día**, que el título no nombraba (`§ADR-080` añadió esa
+segunda comparación y no tocó el texto). Un buzón cuyas propuestas no explican qué cambió es un
+buzón que se deja de leer, y **un atlas que nadie fusiona se queda viejo aunque el vigía funcione
+perfecto**. El último eslabón de «mantener actualizado» no es la máquina: es que la propuesta se
+entienda en tres segundos.
+
+Lo segundo —el logo— tropieza con un hecho que no se puede rodear: **el escudo de NASA, su logotipo
+y su sello están EXPRESAMENTE excluidos de su política de uso libre**, y el emblema de NOAA está
+igual de restringido. Todo lo demás de esas agencias —los datos, las fotos— se usa sin pedir
+permiso; sus marcas, no. Y por debajo de lo formal hay algo peor: **un escudo de agencia junto a un
+dictamen de ingeniería sugiere que la agencia respalda el dictamen**, y aquí quien certifica es el
+ingeniero que firma. Lo que la página publica es de dónde viene el DATO, no quién avala la
+conclusión.
+
+### Decisión
+
+**1 · Los ocho atlas quedan en la frontera de su fuente, y verificado en producción.** Fusionadas
+`#6` y `#7`, construido y desplegado, y comprobadas las ocho fichas contra la URL con anti-caché.
+
+**2 · La propuesta del vigía dice POR QUÉ nace.** El motivo se escribe en el paso que lo conoce
+—`horas`, `dia` o `forzado`— y el título sale de ahí. El cuerpo publica **las dos fronteras** en una
+tabla de tres columnas, no una sola, y nombra cuál disparó.
+
+**3 · Cada familia de fuentes lleva su marca, DIBUJADA POR NOSOTROS**, en los dos sitios donde se
+nombra la fuente: el selector que agrupa (`§ADR-082`) y la cinta del atlas abierto (`§ADR-080`).
+
+- **NASA POWER** → la retícula del atlas, del más frío al más caliente. Es literalmente cómo llega
+  su dato: a celdas de 1°, el año entero (`§ADR-046`, «a cuadros es como está medida»).
+- **GOES-19 · NOAA** → el satélite con sus paneles, el cono de lo que mira y el limbo de la Tierra.
+  Lo que lo separa del otro: mira desde arriba, ahora.
+
+El **nombre** de la fuente sigue escrito al lado con todas sus letras y la ficha sigue publicando la
+cadena exacta del producto: el emblema acompaña, no sustituye. Si algún día hay permiso escrito de
+NASA o de NOAA, cambiar al logo oficial es tocar **un solo archivo**.
+
+**4 · La marca se elige por TABLA, no por condicional.** `Record<FamiliaAtlas, …>` obliga al
+compilador a exigir el emblema de cada familia. Con el ternario que se escribió primero, una tercera
+fuente heredaría en silencio la marca del satélite: dos proveedores con el mismo emblema y ni un
+error. Es `30 · M-01` otra vez, resuelto por tipo en vez de por memoria.
+
+### Alternativas descartadas
+
+- **Poner los logos oficiales de NASA y NOAA.** Restringidos por sus dueños, y sugerirían un
+  respaldo que nadie ha dado. Queda como decisión suya: si consigue el permiso por escrito, se
+  cambia en un archivo.
+- **Bajar los logos por URL desde los sitios de las agencias.** Rompería dos cosas a la vez: el
+  sitio dejaría de servirse entero desde sí mismo, y lo que entraría por ahí sería justo la marca
+  que no se puede usar. Hay un guardián que lo impide.
+- **Solo el nombre en texto, sin marca.** Es lo que ya había, y es lo que él pidió cambiar: dos
+  rótulos con la misma tipografía se leen como una lista, no como dos proveedores.
+- **Fusionar automáticamente las propuestas del vigía.** Cerraría el lazo entero sin nadie, pero
+  quita el único momento en que alguien mira el mapa antes de publicar — el mismo aviso de
+  `§ADR-077`. **Es decisión suya** (`TODO-93`).
+
+### Consecuencias
+
+- **1.946 pruebas en verde** (5 nuevas: ninguna familia sin marca · la tabla obliga por tipo · la
+  marca está en los DOS sitios · el emblema se dibuja y no se baja · el nombre no desaparece
+  detrás de la marca).
+- El dibujo del satélite **se rehízo tras mirarlo a tamaño real**: la primera versión, con la bajada
+  del dato como línea a trazos y los paneles pegados al cuerpo, a 18 px era un bulto sobre una
+  sonrisa azul. Se compararon tres variantes en el banco (`34 · L-72`). → `32 · L-73`.
+- El vigía vuelve a ser legible: la próxima propuesta dirá si la movió la hora o el día.
+
+### Crudo de respaldo
+
+`../brain-private/mantenimiento-lineas-at/research-archive/2026-08-25-emblemas-y-ventana-de-fuentes/`

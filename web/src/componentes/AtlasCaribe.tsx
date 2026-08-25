@@ -47,6 +47,7 @@ import { almacen } from '../datos/enlace';
 import {
   ATLAS, ATLAS_EN_ORDEN, FAMILIAS, FAMILIAS_EN_ORDEN, type ClaveAtlas,
 } from '../vistas/atlasCatalogo';
+import { EmblemaFuente } from './EmblemaFuente';
 import { soloEstructuras } from '../vistas/planta';
 import type { Apoyo } from '../../../contratos/src/activos';
 import { ElDiaEntero, topeDe } from './PanelDelClima';
@@ -721,7 +722,15 @@ export function AtlasCaribe({ atlas, embebido = false, marca, alCambiarAtlas, li
         if (!suyos.length) return null;
         return (
           <div key={f} className="atlas-familia">
+            {/* ⚠️ EL EMBLEMA VA CON EL NOMBRE, NO EN VEZ DEL NOMBRE
+                (`§ADR-084`). Lo pidió el Ingeniero: «que cada fuente en la
+                página tenga su logo». Dos grupos con la misma tipografía se
+                leen como una lista; con marca al lado se ven como dos
+                proveedores distintos de un vistazo. La marca es DIBUJO NUESTRO
+                y no el escudo de la agencia: ese está restringido, y ponerlo
+                junto a un dictamen sugeriría un respaldo que nadie ha dado. */}
             <p className="atlas-familia-t">
+              <EmblemaFuente familia={f} />
               <b>{FAMILIAS[f].rotulo}</b> <span className="fine">· {FAMILIAS[f].nota}</span>
             </p>
             <div className="acciones" role="group" aria-label={`Atlas de ${FAMILIAS[f].rotulo}`}>
@@ -754,7 +763,13 @@ export function AtlasCaribe({ atlas, embebido = false, marca, alCambiarAtlas, li
               pregunta: de cuándo es esto y de quién viene. El nombre corto sale
               de la PROPIA ficha (lo de antes de la coma), no de una tabla
               paralela que el día que cambie la fuente se quedaría mintiendo. */}
-          {ficha && <><b>{ficha.fuente.split(',')[0].replace(/\.$/, '')}</b> · </>}
+          {/* Y la misma marca aquí (`§ADR-084`), que es donde se lee cuando el
+              atlas ya está abierto: el selector queda arriba y esta cinta es lo
+              que acompaña al mapa. El emblema sale de la FAMILIA del catálogo y
+              el nombre de la PROPIA ficha; si algún día no coincidieran, hay un
+              guardián que se pone rojo antes de que llegue a la pantalla. */}
+          {ficha && <><EmblemaFuente familia={def.familia} />
+            <b>{ficha.fuente.split(',')[0].replace(/\.$/, '')}</b> · </>}
           🕘 <b>Actualizado</b> el {diaEnPalabras(frescura.construidoDia)} a las{' '}
           <b>{frescura.construidoHora}</b> (hora de Colombia)
           {frescura.diasDelArchivo > 0 && <> · hace {frescura.diasDelArchivo}{' '}
