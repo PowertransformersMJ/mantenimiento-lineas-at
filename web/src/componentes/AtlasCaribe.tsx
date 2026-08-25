@@ -730,6 +730,15 @@ export function AtlasCaribe({ atlas, embebido = false, marca, alCambiarAtlas, li
       {frescura && (
         <p className={'atlas-frescura r-' + (frescura.porQue === 'al-dia' ? 'medido'
           : frescura.porQue === 'fuente-atrasada' ? 'modelo' : 'hueco')}>
+          {/* ⚠️ LA FUENTE, ARRIBA Y NO EN LA LETRA PEQUEÑA (`§ADR-080`). Lo pidió
+              el Ingeniero: «me gustaría que se pueda apreciar la fuente de cada
+              atlas». Estaba publicada desde el principio, pero al final del
+              panel y mezclada con la atribución de los límites departamentales —
+              donde no se lee. Va con la fecha porque contestan la misma
+              pregunta: de cuándo es esto y de quién viene. El nombre corto sale
+              de la PROPIA ficha (lo de antes de la coma), no de una tabla
+              paralela que el día que cambie la fuente se quedaría mintiendo. */}
+          {ficha && <><b>{ficha.fuente.split(',')[0].replace(/\.$/, '')}</b> · </>}
           🕘 <b>Actualizado</b> el {diaEnPalabras(frescura.construidoDia)} a las{' '}
           <b>{frescura.construidoHora}</b> (hora de Colombia)
           {frescura.diasDelArchivo > 0 && <> · hace {frescura.diasDelArchivo}{' '}

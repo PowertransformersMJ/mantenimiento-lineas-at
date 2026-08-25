@@ -149,6 +149,17 @@ describe('lo que la pantalla y el vigía tienen que seguir haciendo', () => {
       'se quedó solo la fecha del archivo: «actualizado hoy» sobre dato de mayo');
   });
 
+  test('la FUENTE se ve arriba, no en la letra pequeña', () => {
+    // Lo pidió el Ingeniero (2026-08-24): «que se pueda apreciar la fuente de
+    // cada atlas». Estaba publicada, pero al final del panel y mezclada con la
+    // atribución de los límites departamentales — donde nadie la lee.
+    assert.match(ATLAS, /ficha\.fuente\.split\(','\)\[0\]/,
+      'la fuente dejó de publicarse en la cinta de arriba');
+    // Y sigue entera abajo: el nombre corto no sustituye a la procedencia completa.
+    assert.match(ATLAS, /\{ficha\.fuente\} · dato hasta/,
+      'desapareció la procedencia completa de la letra pequeña');
+  });
+
   test('y con la HORA, que es lo que se pidió', () => {
     assert.match(ATLAS, /frescura\.construidoHora/, 'se perdió la hora');
     assert.match(ATLAS, /hora de Colombia/, 'la hora dejó de decir de qué reloj es');
@@ -159,11 +170,21 @@ describe('lo que la pantalla y el vigía tienen que seguir haciendo', () => {
     assert.match(ATLAS, /no se reconstruye/);
   });
 
-  test('el vigía mira CADA 4 HORAS', () => {
-    // Orden del Ingeniero (2026-08-24). Si alguien lo devuelve a semanal, que
-    // sea a propósito y no por un copiar y pegar.
-    assert.match(VIGIA, /cron: '\d+ \*\/4 \* \* \*'/,
-      'el vigía dejó de mirar cada 4 horas');
+  test('el vigía mira CADA 4 HORAS, y los RAYOS cada hora', () => {
+    // Orden del Ingeniero (2026-08-24). Y desde el 25-08, dos relojes: POWER va
+    // con 4 días de retraso y mirar más seguido no adelanta nada; el satélite de
+    // rayos publica al minuto, así que ahí el límite lo poníamos nosotros.
+    assert.match(VIGIA, /cron: '\d+ \*\/4 \* \* \*'/, 'el vigía dejó de mirar cada 4 horas');
+    assert.match(VIGIA, /cron: '\d+ \* \* \* \*'/, 'los rayos dejaron de mirarse cada hora');
+    assert.match(VIGIA, /if: github\.event\.schedule != '\d+ \* \* \* \*'/,
+      'el reloj horario dejó de saltarse los cinco atlas de POWER');
+  });
+
+  test('y también reacciona si avanza el TOTAL DEL DÍA', () => {
+    // El hueco medido el 25-08: en el atlas solar la frontera horaria lleva meses
+    // clavada, así que mirar solo esa dejaba el resumen diario envejeciendo solo.
+    assert.match(VIGIA, /el TOTAL DEL DÍA avanzó/,
+      'el vigía volvió a mirar solo la frontera horaria');
   });
 
   test('el despliegue COMPRUEBA que llegó, no se cree a sí mismo', () => {

@@ -57,13 +57,26 @@ name: Vigía · atlas del Caribe
 
 on:
   schedule:
-    # ⏰ CADA 4 HORAS, en el minuto 17: 00:17, 04:17, 08:17… UTC (19:17, 23:17,
-    #    03:17… en Colombia). Dos decisiones, ninguna estética:
-    #    · MINUTO 17 y no 0: GitHub avisa de que en la hora en punta, con carga
-    #      alta, «some queued jobs may be dropped». Un vigía que pierde su cita
-    #      no vigila nada, y en la punta se pierden más.
-    #    · El cron solo corre en la rama por defecto.
+    # ⏰ DOS RELOJES, porque las fuentes no van al mismo paso (`§ADR-080`):
+    #
+    #    · CADA 4 HORAS para los cinco de POWER. Medido el 2026-08-25: su dato va
+    #      con 4 días de retraso (temperatura, viento, lluvia) o con 87 (sol,
+    #      nubes). Mirar más seguido no adelantaría un solo dato.
+    #    · CADA HORA para los RAYOS. El satélite publica al minuto —comprobado:
+    #      archivos de hace 3 minutos—, así que aquí el límite lo poníamos
+    #      nosotros y no la fuente. Con esto, el atlas de rayos va como mucho una
+    #      hora por detrás del cielo.
+    #
+    #    MINUTO 17 y no 0: GitHub avisa de que en la hora en punta, con carga
+    #    alta, «some queued jobs may be dropped». Un vigía que pierde su cita no
+    #    vigila nada, y en la punta se pierden más. El cron solo corre en la rama
+    #    por defecto.
+    #
+    #    ⚠️ En las horas múltiplo de 4 disparan LOS DOS relojes: son dos
+    #    corridas, y la del reloj horario encuentra el libro ya al día y termina
+    #    en segundos. Es más barato que inventar una condición para evitarlo.
     - cron: '17 */4 * * *'
+    - cron: '17 * * * *'
   workflow_dispatch:
     inputs:
       forzar:
@@ -99,6 +112,8 @@ jobs:
   # termina en segundos sin reconstruir nada.
   vigilar:
     name: ¿Publicó NASA más horas?
+    # El reloj horario es SOLO para los rayos: POWER no se mueve en una hora.
+    if: github.event.schedule != '17 * * * *'
     runs-on: ubuntu-latest
     strategy:
       # ⚠️ `fail-fast: false` y no el defecto: si el atlas solar falla, los otros
@@ -183,6 +198,25 @@ jobs:
             fi
           done
 
+          # ⚠️ Y EL TOTAL DEL DÍA TAMBIÉN CUENTA (`§ADR-080`). Hasta el 2026-08-25
+          # esta comparación miraba SOLO la frontera horaria, y en el atlas solar
+          # esa frontera lleva clavada en mayo desde hace meses: aunque el resumen
+          # diario avanzara cada día, no disparaba nada. Resultado medido: la
+          # energía del día publicada iba un día por detrás de la fuente, y nadie
+          # se enteraba porque no hay error que dar. Un dato que envejece solo es
+          # peor que uno que falta: el que falta se ve.
+          NUESTRO_DIA=$(node -p "require('$FICHA').ultimoDiaConTotal ?? ''")
+          ULTIMO_DIA=$(curl -sS --retry 3 --retry-delay 5 --max-time 90 \
+            "https://power.larc.nasa.gov/api/temporal/daily/point?parameters=${{ matrix.param }}&community=RE&longitude=-75.5&latitude=10.5&start=${ANIO}0101&end=${HOY}&format=JSON" \
+            | node -e "
+              let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{
+                const p=JSON.parse(s)?.properties?.parameter?.['${{ matrix.param }}']??{};
+                const v=Object.entries(p).filter(([,x])=>x>-900);
+                const k=v.length?v[v.length-1][0]:'';
+                process.stdout.write(k?k.slice(0,4)+'-'+k.slice(4,6)+'-'+k.slice(6,8):'');
+              });" || echo "")
+          echo "· el total del día: nuestro $NUESTRO_DIA · NASA $ULTIMO_DIA"
+
           echo "nuestro=$NUESTRO" >> "$GITHUB_OUTPUT"
           echo "publicado=$ULTIMO" >> "$GITHUB_OUTPUT"
           if [ "${{ inputs.forzar }}" = "true" ]; then
@@ -190,6 +224,9 @@ jobs:
             echo "hay=si" >> "$GITHUB_OUTPUT"
           elif [ "$ULTIMO" \> "$NUESTRO" ]; then
             echo "::notice::NASA llega al $ULTIMO y nosotros al $NUESTRO — hay horas nuevas."
+            echo "hay=si" >> "$GITHUB_OUTPUT"
+          elif [ -n "$ULTIMO_DIA" ] && [ "$ULTIMO_DIA" \> "$NUESTRO_DIA" ]; then
+            echo "::notice::Sin horas nuevas, pero el TOTAL DEL DÍA avanzó: $NUESTRO_DIA → $ULTIMO_DIA."
             echo "hay=si" >> "$GITHUB_OUTPUT"
           else
             echo "::notice::NASA sigue en $ULTIMO, igual que nosotros. Nada que hacer."

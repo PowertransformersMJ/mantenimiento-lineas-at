@@ -6727,3 +6727,72 @@ inventar uno sería publicar un criterio que nadie firmó (`§ADR-055`, el caso 
   horas por pasada**, para que una semana sin aprobar no convierta la corrida siguiente en 9 GB.
 - Una dependencia nueva y declarada: `h5wasm`, para leer los archivos del satélite. Es WebAssembly:
   no compila nada en la máquina ni en CI.
+
+---
+
+## ADR-080 · 2026-08-25 · De dónde viene cada atlas, y dos relojes en vez de uno
+
+**Estado:** ✅ Decidido · **NO revisada externamente** · en producción.
+
+### Contexto
+
+El Ingeniero, tras ver la tabla de frescura: *«¿no podemos tener la información más reciente? me
+gustaría que se pueda apreciar la fuente de cada atlas»*.
+
+Lo medido esa noche, fuente por fuente y contra lo publicado:
+
+| Atlas | Lo más reciente que tiene la fuente | Lo que publicábamos |
+|---|---|---|
+| Rayos (GOES-19 GLM) | **el minuto en curso** — había archivos de hace 3 minutos | la última hora completa |
+| Temperatura · viento · lluvia (POWER · MERRA-2) | 21 de agosto · **4 días** | 21 de agosto ✅ |
+| Sol · nubes (POWER · CERES SYN1deg) | 30 de mayo · **87 días** | 30 de mayo ✅ · pero el TOTAL del día, un día por detrás |
+
+Dos hallazgos que no se veían sin medir:
+
+1. **Los 87 días y los 4 días no son la misma fuente.** Lo dice la propia ficha: sol y nubes salen de
+   **CERES SYN1deg** y temperatura, viento y lluvia de **MERRA-2**. Dos cadenas distintas dentro de
+   POWER, con retrasos que se diferencian en dos órdenes de magnitud.
+2. **En los rayos el límite lo poníamos NOSOTROS.** El satélite publica al minuto; lo que separaba un
+   rayo de la pantalla era la cadencia del vigía.
+
+### Decisión
+
+**1 · La fuente se publica ARRIBA, en la cinta**, junto a la fecha — porque contestan la misma
+pregunta: de cuándo es esto y de quién viene. Estaba publicada desde el principio, pero al final del
+panel y mezclada con la atribución de los límites departamentales, donde no se lee. El nombre corto
+sale de la PROPIA ficha (lo de antes de la coma), no de una tabla paralela que el día que cambie la
+fuente se quedaría mintiendo. La procedencia completa sigue abajo, entera.
+
+**2 · Dos relojes, porque las fuentes no van al mismo paso.** El vigía mantiene **cada 4 horas** para
+los cinco de POWER —mirar más seguido no adelantaría un solo dato— y añade **cada hora para los
+rayos**, que es donde la espera era nuestra y no de la fuente. En las horas múltiplo de 4 disparan
+los dos: la corrida horaria encuentra el libro al día y termina en segundos, que sale más barato que
+inventar una condición para evitarlo.
+
+**3 · Y el vigía mira también el TOTAL DEL DÍA.** Hasta hoy comparaba solo la frontera horaria, y en
+el atlas solar esa frontera lleva meses clavada en mayo: aunque el resumen diario avanzara cada día,
+no disparaba nada. Medido: la energía del día publicada iba **un día por detrás** de la fuente, sin
+error que lo delatara. Un dato que envejece solo es peor que uno que falta — el que falta se ve.
+
+### Lo que NO se hizo, y es una decisión suya
+
+**Sol y nubes pueden ir de 87 días a 15 minutos, pero cambiando de fuente.** El mismo satélite que ya
+nos da los rayos publica **radiación solar en superficie** (`ABI-L2-DSRF`) y **máscara de nubes**
+(`ABI-L2-ACMF`) con latencia medida de **~15 minutos** — comprobado esa misma noche en el mismo cubo
+público de NOAA, sin llave. Pero no es un parche a la capa existente, es **otra capa**:
+
+- lo de POWER es una **media horaria**; lo del satélite es una **instantánea** cada 10 minutos;
+- la nubosidad de POWER es **% de cielo cubierto**; la del satélite es una **máscara** por píxel, que
+  hay que agregar a la celda;
+- son 11,7 MB por archivo, así que la media horaria de verdad cuesta 70 MB/hora.
+
+Mezclarlas en la misma capa pondría dos procedencias bajo un mismo color sin decirlo, que es
+exactamente lo que este proyecto no hace. Queda propuesto y con su número (`TODO-91`).
+
+### Consecuencias
+
+- **1.925 pruebas en verde** (2 nuevas).
+- El atlas de rayos pasa a ir, como mucho, **una hora por detrás del cielo** (más lo que tarde la
+  aprobación y el despliegue).
+- Los cinco de POWER siguen exactamente en la frontera de su fuente, y ahora también en la del
+  resumen diario.
