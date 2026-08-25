@@ -1,7 +1,8 @@
 # 📝 10 — MEMORIA DE CORTO PLAZO (pizarra viva)
 
-> Se **AUTO-CARGA**. Pizarra, no bitácora (§G.3). **RELEVO 2026-08-24.** Este nodo ES el relevo:
-> léelo entero. Si contradice a `docs/.handoff-auto.md` (foto real de git), manda ese.
+> Se **AUTO-CARGA**. Pizarra, no bitácora (§G.3). **RELEVO 2026-08-24 (cierre).** Este nodo ES el
+> relevo: léelo entero. Detalle largo → `research-archive/2026-08-24-relevo-cierre.md`. Si algo
+> contradice a `docs/.handoff-auto.md` (foto real de git), manda ese.
 
 ## 🎯 Dónde estamos
 
