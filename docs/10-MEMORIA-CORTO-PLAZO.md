@@ -18,10 +18,10 @@
    hora a hora funcionaba a pantalla completa y **no** en el atlas abierto desde Detalle GPS.
    ⚠️ **ORDEN SUYA (24-08):** cambiar sin dañar lo que ya está bien, y actuar solo sobre lo que él
    indica o lo que se DETECTA midiendo — **nunca sobre una suposición**.
-3. **EL ATLAS TIENE SEIS CAPAS (`§ADR-079/080`): sol · temperatura · viento · lluvia · nubes · RAYOS.**
-   ⏱️ **La frescura la manda la FUENTE, y son dos:** POWER/MERRA-2 (temp·viento·lluvia) va **4 días**
-   atrás y POWER/CERES (sol·nubes) **87**; los rayos, **al minuto**. Por eso el vigía tiene dos
-   relojes: 4 h para POWER y **1 h para rayos**. La fuente de cada capa se ve arriba, en la cinta.
+3. **EL ATLAS TIENE OCHO CAPAS (`§ADR-079/080/081`).** Cinco del año (POWER) + tres de SATÉLITE que
+   se acumulan: **rayos**, **Sol ahora** y **Nubes ahora**. ⏱️ La frescura la manda la FUENTE:
+   POWER/MERRA-2 (temp·viento·lluvia) **4 días**, POWER/CERES (sol·nubes) **87**, satélite **~15 min**.
+   Dos relojes en el vigía: 4 h para POWER, **1 h para las de satélite**. La fuente se ve en la cinta.
    Los rayos son de OTRA fuente (GOES de NOAA) y **se ACUMULAN** en `herramientas/rayos-conteo.json`.
    ⚠️ **No son la DDT de RETIE/IEEE** — esa es la 2.ª capa y espera su cuenta Earthdata (`TODO-90`).
 4. **LO QUE NO SE PUEDE ROMPER DEL CLIMA (`§ADR-057..079`):** gana el hecho sobre el modelo · el recorrido se comprueba **punto a punto**, nunca por promedio · el clima vive en el ATLAS y Detalle GPS = solo el recorrido · **«tormenta eléctrica» NO existe en la fuente de nubes**, y hay prueba.
@@ -73,7 +73,6 @@
 | **TODO-82/83** | **Dos decisiones suyas sobre el clima.** ① ¿FASE 2 del pronóstico (`§ADR-057`): franja mañana/tarde y sensación térmica? ② ¿Dato FINO por extremos (`§ADR-064`)? Las capas de 2 km tocan **3 celdas** y salen por PROMEDIO | Sensación de **40 °C** con aire a 32,5 · amplitud fina: 1,2 °C |
 | **TODO-88** | **¿Se junta otra vez el eje del tiempo?** Con `ClimaDelAnio` (`§ADR-074`) se fue el eje ÚNICO de `§ADR-058`: el atlas declara el régimen de cada día, pero **el pronóstico va aparte, en su tabla** — son DOS ejes. Es un resto de la migración | Medido y modelo en la misma tira hacía «ganar el hecho» de un vistazo |
 | **TODO-80** | **¿Qué tope de puesta a tierra rige y cuál es la corriente de operación?** Los campos ya existen (`ADR-052`); declararlos basta. Sin decisión suya siguen **10 Ω** | Con 18 Ω medidos, 10 Ω dice «revisar» y 25 Ω «cumple» |
-| **TODO-91 NUEVO** | **¿Sol y nubes de 87 días a 15 MINUTOS?** El satélite de los rayos publica radiación (`ABI-L2-DSRF`) y máscara de nubes (`ABI-L2-ACMF`) casi en vivo, gratis y sin llave (`§ADR-080`). No es un parche: OTRA capa —instantánea cada 10 min, no media; máscara, no % de cielo—, 11,7 MB/archivo | Es el salto más grande que le queda al atlas |
 | **TODO-90** | **La capa de rayos que piden las NORMAS** (rayos/km²/año, RETIE e IEEE 1243), que él pidió junto con la horaria (`§ADR-079`). La climatología de NASA está detrás de una **cuenta Earthdata gratuita**: en cuanto exista, se baja y se publica con más detalle espacial que los atlas actuales | La horaria dice CUÁNDO hubo tormenta; ésta es la que entra en el cálculo de salidas por descarga |
 | **TODO-89** ⬅️ **DOS ÓRDENES SUYAS** | **Encender el despliegue automático** (`§ADR-077`, ya preparado y con comprobación de que llegó). Falta la llave, y las llaves no pasan por el chat: `gh secret set CLOUDFLARE_API_TOKEN` (crear en Cloudflare → My Profile → API Tokens, permiso **Account · Cloudflare Pages · Edit**) y `gh secret set CLOUDFLARE_ACCOUNT_ID` = `ecc6a431…` (`npx wrangler whoami`). ⚠️ Al encenderlo, **nadie mirará el mapa antes de publicar** | Tercer y último eslabón de «que se actualice cada 4 horas» de verdad |
 | **TODO-72** | **¿Autorización del IGAC para sus ortoimágenes?** Cubren esto a **3 m** y **10 cm** en Turbaco, contra los 10 m de Sentinel-2 (`99 §ADR-040`) | Única vía a más resolución real |

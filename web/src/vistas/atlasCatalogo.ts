@@ -20,7 +20,8 @@
 // ============================================================================
 
 /** Los atlas que existen. Añadir uno empieza aquí y el compilador hace el resto. */
-export type ClaveAtlas = 'sol' | 'temperatura' | 'viento' | 'lluvia' | 'nubes' | 'rayos';
+export type ClaveAtlas = 'sol' | 'temperatura' | 'viento' | 'lluvia' | 'nubes' | 'rayos'
+  | 'solVivo' | 'nubesVivo';
 
 export interface FichaDeAtlas {
   /** De dónde se baja su ficha JSON. */
@@ -97,10 +98,38 @@ export const ATLAS: Record<ClaveAtlas, FichaDeAtlas> = {
     rotulo: 'Rayos',
     hash: '#/rayos',
   },
+  /**
+   * ⚠️ LAS DOS «AHORA» SON CAPAS HERMANAS DE `sol` Y `nubes`, NO SUS SUSTITUTAS
+   * (`99 §ADR-081`). Miden lo mismo desde otro sitio: las de arriba vienen de
+   * NASA POWER y traen el año entero con **87 días** de retraso; éstas vienen
+   * del sensor del GOES-19 y van a **quince minutos**, pero empiezan el día que
+   * se encienden. Comparten escala de color a propósito, para poder mirarlas
+   * seguidas; lo que las separa lo dice la cinta de la fuente y su aviso.
+   */
+  solVivo: {
+    ficha: '/mapas/sol-vivo-caribe.json',
+    idCapa: 'capa-sol-vivo',
+    titulo: 'Radiación solar del Caribe · casi en vivo',
+    entradilla: 'Radiación solar medida por el sensor del GOES',
+    rotulo: 'Sol ahora',
+    hash: '#/sol-ahora',
+  },
+  nubesVivo: {
+    ficha: '/mapas/nubes-vivo-caribe.json',
+    idCapa: 'capa-nubes-vivo',
+    titulo: 'Nubosidad del Caribe · casi en vivo',
+    entradilla: 'Cielo cubierto visto por el sensor del GOES',
+    rotulo: 'Nubes ahora',
+    hash: '#/nubes-ahora',
+  },
 };
 
 /** El orden en que se ofrecen. No es alfabético: es el orden en que nacieron. */
-export const ATLAS_EN_ORDEN: ClaveAtlas[] = ['sol', 'temperatura', 'viento', 'lluvia', 'nubes', 'rayos'];
+export const ATLAS_EN_ORDEN: ClaveAtlas[] = [
+  // Primero los cinco del año (POWER), luego los que van casi en vivo. El orden
+  // no es alfabético ni caprichoso: es el de «lo que ya pasó» → «lo que pasa».
+  'sol', 'temperatura', 'viento', 'lluvia', 'nubes', 'rayos', 'solVivo', 'nubesVivo',
+];
 
 /**
  * La dirección de cada atlas, DERIVADA del catálogo.

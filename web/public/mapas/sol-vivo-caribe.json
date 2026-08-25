@@ -1,0 +1,144 @@
+{
+ "capa": "sol-vivo-caribe",
+ "titulo": "Radiación solar del Caribe, casi en vivo",
+ "departamentos": [
+  "Bolívar",
+  "Córdoba",
+  "Sucre",
+  "Cesar",
+  "Magdalena",
+  "Atlántico",
+  "La Guajira"
+ ],
+ "bbox": [
+  -77,
+  7,
+  -71,
+  13
+ ],
+ "ancho": 6,
+ "alto": 6,
+ "resolucion_m": 111000,
+ "resolucion_nativa_m": 111000,
+ "remuestreo_pantalla": "nearest",
+ "remuestreo": "ninguno: cada píxel es una celda de 1° medida. Se pinta a cuadros porque a cuadros es como está medido; suavizarlo dibujaría un degradado que nadie midió.",
+ "unidad": "W/m²",
+ "codificacion": {
+  "offset": 0,
+  "paso": 4.5,
+  "sin_dato": 0
+ },
+ "valorMaximoRepresentable": 1143,
+ "medido": {
+  "min": 536.7,
+  "max": 985.1
+ },
+ "cuadros": {
+  "horas": 24,
+  "porFila": 24,
+  "celdaAncho": 6,
+  "celdaAlto": 6
+ },
+ "anio": 2026,
+ "meses": [
+  {
+   "clave": "08",
+   "archivo": "sol-vivo-caribe-2026-08.png",
+   "dias": 31,
+   "horasConDato": 3,
+   "bytes": 247
+  }
+ ],
+ "ultimoDiaConHoras": "2026-08-24",
+ "ultimoDiaConTotal": "2026-08-24",
+ "construido": "2026-08-25T01:16:34.979Z",
+ "resumenDiario": [
+  {
+   "d": "2026-08-24",
+   "v": 985.1
+  }
+ ],
+ "resumenDiarioEtiqueta": "Máxima del día",
+ "resumenDiarioUnidad": "W/m² (la mayor de las 36 celdas)",
+ "resumenDiarioAviso": "Es el PICO de la región en el día, no la energía acumulada: el atlas solar de POWER es el que publica kWh/m².",
+ "rampa": [
+  {
+   "c": 0,
+   "rgb": [
+    40,
+    45,
+    70
+   ]
+  },
+  {
+   "c": 150,
+   "rgb": [
+    70,
+    90,
+    130
+   ]
+  },
+  {
+   "c": 300,
+   "rgb": [
+    110,
+    145,
+    165
+   ]
+  },
+  {
+   "c": 450,
+   "rgb": [
+    170,
+    195,
+    175
+   ]
+  },
+  {
+   "c": 600,
+   "rgb": [
+    225,
+    220,
+    150
+   ]
+  },
+  {
+   "c": 750,
+   "rgb": [
+    245,
+    190,
+    100
+   ]
+  },
+  {
+   "c": 875,
+   "rgb": [
+    240,
+    145,
+    70
+   ]
+  },
+  {
+   "c": 1000,
+   "rgb": [
+    220,
+    90,
+    60
+   ]
+  },
+  {
+   "c": 1150,
+   "rgb": [
+    160,
+    40,
+    50
+   ]
+  }
+ ],
+ "hipotesisMarcadaEnRampa": 1000,
+ "etiquetaHipotesis": "la hipótesis adoptada de la ampacidad (1.000 W/m² de irradiancia)",
+ "aviso": "ES LO QUE EL SENSOR VIO EN ESA HORA, NO LA MEDIA HORARIA DE UN MODELO. Sale del producto DSR del GOES-19 —radiación de onda corta que llega al suelo— promediando las tomas de la hora, sobre píxeles de 2 km agregados a la celda de 1°. El atlas solar de NASA POWER mide lo mismo con otra cadena y va 87 días por detrás: sirven para cosas distintas y no se sustituyen. Ninguno de los dos valida la hipótesis de 1.000 W/m² de la ampacidad: la acercan.",
+ "fuente": "GOES-19 ABI L2 DSR (radiación de onda corta que llega al suelo), NOAA.",
+ "atribucion": "GOES-19 ABI L2 · NOAA/NESDIS, datos abiertos en AWS Open Data",
+ "licencia": "Dominio público (NOAA)."
+}

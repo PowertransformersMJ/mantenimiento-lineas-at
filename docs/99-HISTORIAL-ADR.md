@@ -6796,3 +6796,73 @@ exactamente lo que este proyecto no hace. Queda propuesto y con su número (`TOD
   aprobación y el despliegue).
 - Los cinco de POWER siguen exactamente en la frontera de su fuente, y ahora también en la del
   resumen diario.
+
+---
+
+## ADR-081 · 2026-08-25 · Sol y nubes, de 87 días a quince minutos — sin tapar lo que ya había
+
+**Estado:** ✅ Decidido · **NO revisada externamente** · en producción.
+
+### Contexto
+
+`§ADR-080` dejó medido que sol y nubes van **87 días** por detrás porque su cadena dentro de NASA
+POWER (CERES SYN1deg) publica así, y que el mismo satélite que ya nos cuenta los rayos publica
+**radiación en superficie** y **máscara de nubes** con quince minutos. El Ingeniero: *«procede»*.
+
+Comprobado sobre los archivos reales antes de escribir una línea de bajador:
+
+| | |
+|---|---|
+| `ABI-L2-DSRF` · radiación | 5424×5424 píxeles de 2 km, W/m² · **9,9 MB** por toma · **una toma cada 10 min** |
+| `ABI-L2-ACMF` · nubes | misma rejilla · máscara binaria + probabilidad · **26,6 MB** por toma · cada 10 min |
+| Retraso real | la última toma disponible era de hace **~15 minutos** |
+
+### Decisión
+
+**1 · Son CAPAS HERMANAS, no sustitutas.** Los atlas de POWER se quedan como están: tienen el año
+entero desde enero y son medias horarias de una cadena distinta. Las nuevas —**«Sol ahora»** y
+**«Nubes ahora»**— empiezan el día que se encienden y se acumulan, como los rayos. Ocho capas.
+
+Comparten **la misma escala de color y la misma codificación** que sus hermanas a propósito: así el
+mismo color significa lo mismo en las dos y se pueden mirar seguidas. Lo que las separa —la fuente y
+lo que miden exactamente— lo dice la cinta de arriba y su aviso.
+
+**2 · La geometría se lee del archivo, jamás se escribe en el código** (`abi-geo.mjs`). El GOES no
+entrega latitud y longitud: entrega **ángulos de barrido** desde un satélite parado sobre el ecuador
+a 35.786 km. Cada `.nc` declara su altura, su elipsoide y la longitud de su subpunto; clavarlos aquí
+sería una bomba de relojería —el día que muevan el satélite, el mapa saldría igual de bonito y
+desplazado—. Comprobado de tres formas: el subpunto cae en (0,0) exacto, la ida y vuelta cierra a
+cinco decimales, y un punto del otro lado del planeta devuelve `null` en vez de un número creíble.
+
+**3 · Se lee una VENTANA, no el disco entero.** El recuadro del atlas son **335×328 píxeles** de los
+5.424×5.424 del archivo. Y el mapa píxel→celda se calcula **una vez por corrida**: la rejilla del
+satélite no se mueve, y recalcularlo por toma serían cien mil trigonometrías seis veces por hora.
+
+**4 · Seis tomas para el sol y DOS para las nubes, y la diferencia salió de medir.** Sobre una hora
+real, la fracción nublada de la región fue 45,7 · 45,8 · 45,8 · 45,6 · 45,4 · 44,9 %: la media de las
+seis y la de dos (:00 y :30) difieren en **0,12 puntos**, y el archivo de nubes pesa casi el triple.
+La radiación, en cambio, cambia en minutos cuando pasa una nube: ahí van las seis.
+
+**5 · Una celda que el sensor NO midió es un HUECO, no un cero.** En los rayos, «no cayó ninguno» es
+un dato y vale 0; aquí, «el sensor no la midió» no es «cero vatios» ni «cielo despejado». El libro
+común (`libro-acumulado.mjs`) lo declara por capa con `relleno: 0` o `relleno: null`.
+
+**6 · Y la mecánica del libro deja de estar copiada.** Con dos familias que se acumulan —rayos y
+ABI—, leer, escribir y derivar el libro pasa a `herramientas/libro-acumulado.mjs`. Un segundo sitio
+donde arreglar cada fallo es exactamente `34 · L-65`.
+
+### Alternativas descartadas
+
+- **Sustituir los atlas de POWER**: se perdería el año entero desde enero, que es lo que permite
+  contrastar la hipótesis de ampacidad contra meses de medidas.
+- **Mezclar las dos fuentes en una capa** (POWER para lo viejo, GOES para lo reciente): dos verdades
+  bajo el mismo color. Es justo lo que este proyecto no hace.
+- **Bajar el disco entero y recortar después**: 29 millones de píxeles para usar cien mil.
+- **Clavar la geometría del satélite en el código**: desplazamiento silencioso el día que cambie.
+
+### Consecuencias
+
+- El atlas pasa a **ocho capas**: cinco del año, los rayos y las dos «ahora».
+- El vigía las acumula con el reloj horario, junto a los rayos.
+- Sol y nubes pasan de **87 días** a **una hora** de retraso — el mayor salto de frescura que le
+  quedaba al atlas.

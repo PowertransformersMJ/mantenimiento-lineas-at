@@ -11,32 +11,22 @@
 // escribir) y las dos derivaciones que alimentan al motor (`celdasDelLibro`,
 // `diarioDelLibro`). El bajador vive en `rayos-caribe.mjs`.
 // ============================================================================
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ANCHO, ALTO } from './atlas-caribe.mjs';
+import {
+  celdasDelLibro as celdasGenerico, diarioDelLibro as diarioGenerico,
+  escribirLibro as escribirGenerico, leerLibro as leerGenerico,
+} from './libro-acumulado.mjs';
+
+// ⚠️ LA MECÁNICA DEL LIBRO VIVE EN `libro-acumulado.mjs` desde que hay DOS capas
+// que se acumulan (`§ADR-081`). Aquí queda lo que es DE LOS RAYOS: su perfil, su
+// ruta y qué significa «el día» para un conteo.
+export { claveColombia, HORAS_UTC_A_COLOMBIA } from './libro-acumulado.mjs';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
 /** EL LIBRO DE RAYOS: lo único que se acumula. Los PNG salen de aquí, siempre. */
 export const RUTA_LIBRO = join(AQUI, 'rayos-conteo.json');
-
-/** Colombia no cambia la hora: −5 fijo. Por eso basta restar, sin husos ni tablas. */
-export const HORAS_UTC_A_COLOMBIA = -5;
-
-/**
- * La clave `AAAAMMDDHH` en el reloj de Colombia de un instante UTC.
- *
- * ⚠️ AQUÍ ESTÁ LA TRAMPA DE ESTE ATLAS. Los archivos del satélite van en UTC y
- * la pantalla rotula «hora de Colombia»: las 23:00 UTC son las **18:00** del
- * mismo día aquí, y las 03:00 UTC son las **22:00 del día ANTERIOR**. Guardar el
- * conteo con la hora UTC y rotularlo como local corre la tormenta cinco horas —
- * y una tormenta corrida cinco horas no cuadra con ninguna falla (`32 · L-70`).
- */
-export function claveColombia(instanteUtc) {
-  const d = new Date(instanteUtc.getTime() + HORAS_UTC_A_COLOMBIA * 3600000);
-  const p = (n) => String(n).padStart(2, '0');
-  return `${d.getUTCFullYear()}${p(d.getUTCMonth() + 1)}${p(d.getUTCDate())}${p(d.getUTCHours())}`;
-}
 
 // ════════════════════════════════════════════════════════════════════════════
 // EL PERFIL — lo que este atlas ES, y sobre todo lo que NO es
@@ -110,21 +100,8 @@ export const PERFIL_RAYOS = Object.freeze({
 // EL LIBRO
 // ════════════════════════════════════════════════════════════════════════════
 
-export function leerLibro() {
-  if (!existsSync(RUTA_LIBRO)) return { horas: {} };
-  return JSON.parse(readFileSync(RUTA_LIBRO, 'utf-8'));
-}
-
-/**
- * ⚠️ SE ESCRIBE ORDENADO Y CON UNA HORA POR LÍNEA. No es estética: este archivo
- * crece en cada pasada y va al repositorio; con las claves desordenadas, cada
- * commit tocaría el archivo entero y el historial dejaría de decir qué cambió.
- */
-export function escribirLibro(libro) {
-  const claves = Object.keys(libro.horas).sort();
-  const cuerpo = claves.map((k) => `  "${k}": ${JSON.stringify(libro.horas[k])}`).join(',\n');
-  writeFileSync(RUTA_LIBRO, `{\n "sobre": ${JSON.stringify(libro.sobre ?? SOBRE)},\n "horas": {\n${cuerpo}\n }\n}\n`);
-}
+export const leerLibro = () => leerGenerico(RUTA_LIBRO);
+export const escribirLibro = (libro) => escribirGenerico(RUTA_LIBRO, libro, SOBRE);
 
 export const SOBRE = 'Rayos contados por el GLM del GOES-19 dentro de cada celda de 1° del atlas del '
   + 'Caribe, hora a hora EN EL RELOJ DE COLOMBIA. Clave: AAAAMMDDHH. Solo se guardan las celdas '
@@ -135,36 +112,13 @@ export const SOBRE = 'Rayos contados por el GLM del GOES-19 dentro de cada celda
 // ════════════════════════════════════════════════════════════════════════════
 
 /**
- * El libro, con la forma que pide el motor: `Map("fx,fy" → {clave: valor})`.
+ * El libro con la forma que pide el motor, y el resumen de cada día.
  *
- * ⚠️ LAS CELDAS SIN RAYOS DE UNA HORA MEDIDA VALEN **0**, NO «SIN DATO», y esa
- * diferencia es todo el sentido de esta capa: «esa hora se miró y no cayó ni
- * uno» no es lo mismo que «esa hora no se ha bajado». Por eso el libro guarda
- * qué horas se midieron —aunque salieran a cero— y aquí se rellenan las 36.
+ * La mecánica es la común (`libro-acumulado.mjs`); lo que es DE LOS RAYOS es
+ * qué significa cada hueco y qué significa «el día»:
+ *   · una celda sin rayos en una hora medida vale **0**, no «sin dato»: que no
+ *     cayera ninguno es un dato, y de los importantes;
+ *   · el día es la **SUMA** de la región, porque son un conteo.
  */
-export function celdasDelLibro(libro) {
-  const celdas = new Map();
-  for (let fy = 0; fy < ALTO; fy++) {
-    for (let fx = 0; fx < ANCHO; fx++) celdas.set(`${fx},${fy}`, {});
-  }
-  for (const [clave, conteo] of Object.entries(libro.horas)) {
-    for (let fy = 0; fy < ALTO; fy++) {
-      for (let fx = 0; fx < ANCHO; fx++) {
-        celdas.get(`${fx},${fy}`)[clave] = conteo[`${fx},${fy}`] ?? 0;
-      }
-    }
-  }
-  return celdas;
-}
-
-/** El resumen de cada día: cuántos rayos se contaron en la región entera. */
-export function diarioDelLibro(libro) {
-  const porDia = new Map();
-  for (const [clave, conteo] of Object.entries(libro.horas)) {
-    const d = `${clave.slice(0, 4)}-${clave.slice(4, 6)}-${clave.slice(6, 8)}`;
-    const suma = Object.values(conteo).reduce((s, v) => s + v, 0);
-    porDia.set(d, (porDia.get(d) ?? 0) + suma);
-  }
-  return [...porDia.entries()].sort().map(([d, v]) => ({ d, v }));
-}
-
+export const celdasDelLibro = (libro) => celdasGenerico(libro, { ancho: ANCHO, alto: ALTO, relleno: 0 });
+export const diarioDelLibro = (libro) => diarioGenerico(libro, 'suma');

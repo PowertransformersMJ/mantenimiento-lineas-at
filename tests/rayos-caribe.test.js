@@ -172,8 +172,11 @@ describe('el sexto atlas es UNA entrada en el catálogo', () => {
 
   test('añadirlo no obligó a tocar la pantalla', () => {
     assert.match(CAT, /rayos: \{/);
-    assert.match(CAT, /'sol' \| 'temperatura' \| 'viento' \| 'lluvia' \| 'nubes' \| 'rayos'/);
-    assert.match(CAT, /ATLAS_EN_ORDEN[^\n]*'rayos'/);
+    assert.match(CAT, /ClaveAtlas =[\s\S]{0,200}'rayos'/, 'rayos salió del tipo de claves');
+    // Sin `[^\n]*`: el orden se escribió en varias líneas cuando entraron las
+    // capas «ahora» (`§ADR-081`), y una prueba atada al formato es una prueba
+    // que se rompe por un salto de línea.
+    assert.match(CAT, /ATLAS_EN_ORDEN[\s\S]{0,300}'rayos'/, 'rayos salió del orden de la pantalla');
   });
 
   test('el bajador NO vive en los PERFILES de POWER', () => {

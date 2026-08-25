@@ -358,6 +358,12 @@ jobs:
   rayos:
     name: ¿Cayeron rayos nuevos?
     runs-on: ubuntu-latest
+    # ⚠️ ESTE TRABAJO LLEVA LAS TRES CAPAS DE SATÉLITE —rayos, «Sol ahora» y
+    # «Nubes ahora»—, y no una por trabajo (`§ADR-081`). Las tres bajan del mismo
+    # cubo, se acumulan en un libro y proponen igual: repartirlas en tres
+    # trabajos casi idénticos sería tener tres sitios donde arreglar el mismo
+    # fallo, y el que se olvida siempre es el tercero (`34 · L-65`). Van en el
+    # mismo commit porque son la misma pasada del mismo satélite.
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -374,27 +380,42 @@ jobs:
       - name: Bajar los rayos que falten
         run: node herramientas/rayos-caribe.mjs --horas 24 --maximo 12
 
+      # ⚠️ EL SOL Y LAS NUBES «AHORA» VAN CON TOPE MÁS CORTO, y por peso: una
+      # hora de nubes son 54 MB y una de sol, 243 — contra los 71 de una hora de
+      # rayos. Con 3 horas por pasada y el reloj horario, se ponen al día solas
+      # sin que ninguna corrida se acerque a los límites del runner.
+      - name: Bajar el sol y las nubes que falten
+        run: |
+          node herramientas/abi-caribe.mjs --capa nubes-vivo --horas 12 --maximo 3
+          node herramientas/abi-caribe.mjs --capa sol-vivo --horas 12 --maximo 3
+
       # ⚠️ EL LIBRO SOLO CRECE. Es el mismo criterio que «no empeora» de los
       # otros cinco, adaptado a una capa que acumula: una pasada no puede
       # devolver el atlas a menos horas de las que ya tenía, ni retroceder el
       # último día. Si eso pasa, algo se rompió al leer el satélite y lo que hay
       # publicado es mejor que lo nuevo.
-      - name: Que el libro no haya ENCOGIDO
+      - name: Que NINGÚN libro haya ENCOGIDO
         id: crecio
         run: |
           set -euo pipefail
           node -e "
             const { execSync } = require('node:child_process');
-            const nuevo = require('./herramientas/rayos-conteo.json');
-            let viejo = { horas: {} };
-            try { viejo = JSON.parse(execSync('git show HEAD:herramientas/rayos-conteo.json').toString()); } catch {}
-            const n = Object.keys(nuevo.horas).length, v = Object.keys(viejo.horas).length;
-            if (n < v) { console.error('::error::el libro perdió horas: ' + v + ' → ' + n); process.exit(1); }
-            for (const k of Object.keys(viejo.horas)) {
-              if (!nuevo.horas[k]) { console.error('::error::desapareció la hora ' + k); process.exit(1); }
+            const LIBROS = ['rayos-conteo', 'sol-vivo-caribe-libro', 'nubes-vivo-caribe-libro'];
+            let nuevas = 0;
+            for (const nombre of LIBROS) {
+              const ruta = './herramientas/' + nombre + '.json';
+              let nuevo = { horas: {} }, viejo = { horas: {} };
+              try { nuevo = require(ruta); } catch { continue; }
+              try { viejo = JSON.parse(execSync('git show HEAD:herramientas/' + nombre + '.json').toString()); } catch {}
+              const n = Object.keys(nuevo.horas).length, v = Object.keys(viejo.horas).length;
+              if (n < v) { console.error('::error::' + nombre + ' perdió horas: ' + v + ' → ' + n); process.exit(1); }
+              for (const k of Object.keys(viejo.horas)) {
+                if (!nuevo.horas[k]) { console.error('::error::' + nombre + ': desapareció la hora ' + k); process.exit(1); }
+              }
+              console.log(nombre + ': ' + n + ' horas (+' + (n - v) + ')');
+              nuevas += n - v;
             }
-            console.log('horas=' + n + ' nuevas=' + (n - v));
-            require('node:fs').appendFileSync(process.env.GITHUB_OUTPUT, 'nuevas=' + (n - v) + '\n');
+            require('node:fs').appendFileSync(process.env.GITHUB_OUTPUT, 'nuevas=' + nuevas + '\n');
           "
 
       - name: Suite completa
@@ -408,22 +429,22 @@ jobs:
         if: steps.crecio.outputs.nuevas != '0'
         uses: peter-evans/create-pull-request@v6
         with:
-          branch: vigia/rayos-caribe
-          title: 'Atlas de rayos: ${{ steps.crecio.outputs.nuevas }} hora(s) nuevas del satélite'
+          branch: vigia/satelite-caribe
+          title: 'Atlas de satélite: ${{ steps.crecio.outputs.nuevas }} hora(s) nuevas'
           commit-message: |
-            Atlas de rayos: ${{ steps.crecio.outputs.nuevas }} hora(s) nuevas
+            Atlas de satélite: ${{ steps.crecio.outputs.nuevas }} hora(s) nuevas
 
-            Contadas por el GLM del GOES-19 y sumadas al libro. Este atlas se
-            acumula: no se reconstruye.
+            Rayos, sol y nubes contados por el GOES-19 y sumados a sus libros.
+            Estas capas se acumulan: no se reconstruyen.
           body: |
-            El vigía bajó **${{ steps.crecio.outputs.nuevas }} hora(s)** de rayos del satélite y las
-            sumó al libro (`herramientas/rayos-conteo.json`), de donde salen los PNG.
+            El vigía bajó **${{ steps.crecio.outputs.nuevas }} hora(s)** del satélite —rayos, sol
+            y nubes— y las sumó a sus libros, de donde salen los PNG.
 
-            Pasó el guardián de que **el libro solo crece** —ni pierde horas ni retrocede— y la
+            Pasó el guardián de que **ningún libro encoge** —ni pierde horas ni retrocede— y la
             suite completa está en verde.
 
-            **Antes de aprobar, mira el mapa**: fusiona, espera al despliegue y abre el atlas de
-            rayos. Verde en las pruebas no prueba que se vea (`docs/99 §ADR-021`).
+            **Antes de aprobar, mira el mapa**: fusiona, espera al despliegue y abre las capas.
+            Verde en las pruebas no prueba que se vea (`docs/99 §ADR-021`).
           labels: dato, atlas-solar
 
       - name: El check de la propuesta (la suite ya corrió arriba)

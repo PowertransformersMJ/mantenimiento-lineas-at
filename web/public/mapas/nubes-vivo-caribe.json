@@ -1,0 +1,118 @@
+{
+ "capa": "nubes-vivo-caribe",
+ "titulo": "Nubosidad del Caribe, casi en vivo",
+ "departamentos": [
+  "Bolívar",
+  "Córdoba",
+  "Sucre",
+  "Cesar",
+  "Magdalena",
+  "Atlántico",
+  "La Guajira"
+ ],
+ "bbox": [
+  -77,
+  7,
+  -71,
+  13
+ ],
+ "ancho": 6,
+ "alto": 6,
+ "resolucion_m": 111000,
+ "resolucion_nativa_m": 111000,
+ "remuestreo_pantalla": "nearest",
+ "remuestreo": "ninguno: cada píxel es una celda de 1° medida. Se pinta a cuadros porque a cuadros es como está medido; suavizarlo dibujaría un degradado que nadie midió.",
+ "unidad": "%",
+ "codificacion": {
+  "offset": 0,
+  "paso": 0.4,
+  "sin_dato": 0
+ },
+ "valorMaximoRepresentable": 101.60000000000001,
+ "medido": {
+  "min": 0.37,
+  "max": 99.51
+ },
+ "cuadros": {
+  "horas": 24,
+  "porFila": 24,
+  "celdaAncho": 6,
+  "celdaAlto": 6
+ },
+ "anio": 2026,
+ "meses": [
+  {
+   "clave": "08",
+   "archivo": "nubes-vivo-caribe-2026-08.png",
+   "dias": 31,
+   "horasConDato": 2,
+   "bytes": 237
+  }
+ ],
+ "ultimoDiaConHoras": "2026-08-24",
+ "ultimoDiaConTotal": "2026-08-24",
+ "construido": "2026-08-25T01:08:50.046Z",
+ "resumenDiario": [
+  {
+   "d": "2026-08-24",
+   "v": 44.09
+  }
+ ],
+ "resumenDiarioEtiqueta": "Cielo cubierto, media del día",
+ "resumenDiarioUnidad": "% (media de las 36 celdas y de sus horas)",
+ "resumenDiarioAviso": "Es la media del día en la región: una mañana despejada y una tarde cerrada dan lo mismo que un día gris entero.",
+ "rampa": [
+  {
+   "c": 0,
+   "rgb": [
+    118,
+    170,
+    216
+   ]
+  },
+  {
+   "c": 12.5,
+   "rgb": [
+    163,
+    199,
+    228
+   ]
+  },
+  {
+   "c": 37.5,
+   "rgb": [
+    206,
+    216,
+    226
+   ]
+  },
+  {
+   "c": 62.5,
+   "rgb": [
+    190,
+    190,
+    192
+   ]
+  },
+  {
+   "c": 87.5,
+   "rgb": [
+    150,
+    150,
+    154
+   ]
+  },
+  {
+   "c": 100,
+   "rgb": [
+    108,
+    110,
+    118
+   ]
+  }
+ ],
+ "aviso": "ES LA FRACCIÓN DE PÍXELES QUE EL SENSOR MARCÓ COMO NUBLADOS, no el «% de cielo cubierto» de un modelo. Cada celda de 1° son unos 3.000 píxeles de 2 km, y se cuenta cuántos vieron nube. **No dice si está lloviendo ni si hay tormenta eléctrica**: para eso están las capas de lluvia y de rayos. El atlas de nubes de NASA POWER mide una cosa parecida con otra cadena y va 87 días por detrás.",
+ "fuente": "GOES-19 ABI L2 ACM (Clear Sky Mask), NOAA.",
+ "atribucion": "GOES-19 ABI L2 · NOAA/NESDIS, datos abiertos en AWS Open Data",
+ "licencia": "Dominio público (NOAA)."
+}

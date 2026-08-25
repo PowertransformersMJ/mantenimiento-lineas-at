@@ -101,10 +101,16 @@ mantenimiento-lineas-at/
 │                                llama el vigía) · `temp-caribe` · `viento-caribe` · `lluvia-caribe` ·
 │                                `nubes-caribe`; el perfil trae `factor` (la lluvia de NASA es TASA
 │                                mm/día, ÷24)
-├── herramientas/rayos-caribe.mjs ⚡ EL SEXTO ATLAS (ADR-079): rayos del GLM del GOES-19 (NOAA, sin
-│                                llave) y **se ACUMULA** — su año son 0,47 TB
-│   ├── rayos-libro.mjs          lo PURO: perfil, libro y derivaciones; se prueba sin bajar un byte
-│   └── rayos-conteo.json        📕 hora (reloj de COLOMBIA) → celda → conteo. Solo crece
+├── herramientas/rayos-caribe.mjs ⚡ RAYOS (ADR-079): del GLM del GOES-19 (NOAA, sin llave)
+├── herramientas/abi-caribe.mjs  ☀️☁️ «Sol ahora» y «Nubes ahora» (ADR-081): del sensor ABI del
+│                                mismo satélite, a ~15 min. Hermanas de `sol` y `nubes`, NO sus
+│                                sustitutas: comparten escala, cambia la fuente
+│   ├── abi-geo.mjs              la geometría del satélite → celdas. Las constantes se LEEN del
+│   │                            archivo; clavarlas desplaza el mapa en silencio
+│   ├── libro-acumulado.mjs      la mecánica común de las capas que se ACUMULAN (las tres de
+│   │                            satélite): leer, escribir, y el hueco que NO es cero
+│   ├── rayos-libro.mjs          lo propio de los rayos: su perfil y su ruta
+│   └── *-libro.json / rayos-conteo.json  📕 hora (reloj de COLOMBIA) → celda → valor. Solo crecen
 ├── herramientas/foto-del-banco.mjs 📸 MIRAR el lienzo (ADR-074): Chrome sin cabeza + reloj REAL; con
 │                                tiempo virtual MIENTE (`34 · L-72`). Banco: `sonda-satelital.tsx`
 ├── herramientas/teselas/        construir-raster.py — rehace las capas del mapa desde datos
