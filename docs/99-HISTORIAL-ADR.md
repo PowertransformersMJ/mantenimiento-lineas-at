@@ -6860,6 +6860,10 @@ donde arreglar cada fallo es exactamente `34 · L-65`.
 - **Bajar el disco entero y recortar después**: 29 millones de píxeles para usar cien mil.
 - **Clavar la geometría del satélite en el código**: desplazamiento silencioso el día que cambie.
 
+### Crudo de respaldo
+
+`research-archive/2026-08-25-sol-y-nubes-en-vivo/` — las fotos y los números que decidieron el diseño.
+
 ### Consecuencias
 
 - El atlas pasa a **ocho capas**: cinco del año, los rayos y las dos «ahora».
