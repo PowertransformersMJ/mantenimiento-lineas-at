@@ -204,6 +204,16 @@
   puede comprobar, se hace fallar (`assert viejo in s` antes de sustituir).
 - **Hermana de `L-35`** y del mismo tronco que `30 · L-33`: miré la salida equivocada y la di por
   buena.
+- **REINCIDIÓ el 2026-08-25 (`99 §ADR-085`), y el precio fue arreglar lo que no estaba roto.**
+  `foto-del-banco.mjs` abría la tubería de `stderr` de Chrome y **no la leía nunca**. Un atlas de
+  seis no arrancó Chrome en el servidor y al registro llegó «no publicó su puerto en 10 s». Sin la
+  queja se culpó a la **caja de arena** —plausible y falsa— y se escribió el `--no-sandbox`. Lo
+  desmintió el propio registro: los otros CINCO habían abierto Chrome en esa misma corrida. Era
+  arranque en frío con la máquina cargada.
+  **Abrir una tubería y no leerla es peor que cerrarla:** con `'ignore'` el mensaje sale por la
+  consola; con `'pipe'` sin lector se pierde y encima parece capturado. **Y antes de creerse una
+  causa, mírese si el resto de casos la desmiente:** cinco verdes al lado de un rojo dicen más que
+  el rojo solo.
 
 ### L-49 · Volver a guardar un `.pptx` clonado con python-pptx lo deja inservible
 
@@ -260,25 +270,15 @@
 
 ### L-73 · Un icono se juzga a su TAMAÑO REAL — a 3× todo se ve bien
 
-**Qué pasó (2026-08-25, `99 §ADR-084`).** Se dibujó el emblema del satélite GOES en un lienzo de 24
-unidades: cuerpo, dos paneles, la bajada del dato a trazos y el limbo de la Tierra. Cinco piezas,
-todas correctas, y en el editor se leía perfecto. **En pantalla mide 18 píxeles.** Fotografiado y
-ampliado, lo que había era un bulto naranja sobre una sonrisa azul: el trazo a rayas —1,2 px reales—
-había desaparecido, los tres rectángulos se habían fundido en uno y el arco de poco radio no leía
-como horizonte sino como boca.
-
-**Por qué engaña.** Un SVG se diseña en coordenadas y se juzga ampliado, que es como no se va a ver
-nunca. La unidad del lienzo no es la unidad de la pantalla: un trazo de 1,7 en un lienzo de 24
-mostrado a 18 px son **1,3 px reales**, por debajo de lo que el antialiasing conserva. Y no hay
-error: el navegador dibuja obedientemente algo ilegible.
-
-**La regla.** Un dibujo pequeño **se mira al tamaño al que se va a publicar**, y se decide ahí. Si
-hace falta ampliarlo para juzgarlo, se amplía **la foto del tamaño real**, no el dibujo. Con
-`herramientas/foto-del-banco.mjs` y un recorte ampliado, la comprobación cuesta un minuto.
-
-**Y el criterio de diseño que salió de ahí:** a ese tamaño sobreviven las SUPERFICIES, no los
-trazos, y las formas necesitan **hueco visible entre ellas** o se funden. El cono de visión sustituyó
-a la línea a trazos por eso. Comparar tres variantes en una página suelta y elegir mirando es más
-barato que discutirlo.
-
-Hermana de `34 · L-72` —el lienzo se MIRA, no se supone— aplicada a lo pequeño.
+- **Síntoma (2026-08-25, `99 §ADR-084`):** el emblema del satélite se dibujó en un lienzo de 24
+  unidades y en el editor se leía perfecto. **En pantalla mide 18 px**: un bulto naranja sobre una
+  sonrisa azul.
+- **Causa:** la unidad del lienzo no es la de la pantalla. Un trazo de 1,7 en un lienzo de 24 a 18 px
+  son **1,3 px reales**, por debajo de lo que el antialiasing conserva. Sin error: el navegador
+  dibuja obedientemente algo ilegible.
+- **Regla:** un dibujo pequeño **se juzga al tamaño al que se publica**. Si hace falta ampliar, se
+  amplía **la foto del tamaño real**, nunca el dibujo. Foto + recorte ampliado = un minuto.
+- **Criterio que salió:** a ese tamaño sobreviven las SUPERFICIES, no los trazos, y las formas
+  necesitan **hueco visible** o se funden. Comparar variantes en una página suelta es más barato
+  que discutirlo.
+- Hermana de `34 · L-72` —el lienzo se MIRA— aplicada a lo pequeño.

@@ -7147,6 +7147,31 @@ sobre todo cuando fallan: es lo único que convierte «el portero dijo que no» 
 **5 · `foto-del-banco.mjs` gana modo portero (`--exigir`).** Nació como un par de ojos que imprimía
 y salía con 0 pasara lo que pasara, porque al otro lado había un humano leyendo. Ahora puede decir
 que no. Y busca Chrome en varias rutas: en el servidor se llama `google-chrome` y vive en `/usr/bin`.
+Si la variable `CHROME` viene puesta, **es la única candidata**: buscar otra cuando alguien ha dicho
+cuál quiere es desobedecer en silencio.
+
+### La primera corrida real, y lo que enseñó
+
+Se disparó a mano nada más encenderlo. **Cinco de seis atlas pasaron el portero y se fusionaron
+solos** —viento (224 colores), lluvia (108), rayos (85), Sol ahora (173), Nubes ahora (136)— y el
+sexto, temperatura, **suspendió**: «Chrome no publicó su puerto de depuración en 10 s».
+
+El fallo fue **seguro**: no se abrió propuesta, el atlas se quedó como estaba y la corrida salió
+roja. Exactamente el modo de degradación que se había diseñado. Pero era un **falso negativo**, y un
+portero que suspende por su propio entorno se acaba desactivando.
+
+**Y el diagnóstico fue MALO la primera vez, que es lo que de verdad hay que llevarse.** Se culpó a la
+caja de arena de Chrome —causa plausible, típica en CI— y se escribió el `--no-sandbox`
+correspondiente. Lo desmintió el propio registro de esa misma corrida: **los otros cinco atlas
+habían abierto Chrome sin problema**. La causa real era arranque en frío con seis trabajos
+compartiendo máquina; el arreglo, **esperar 40 s en vez de 10** (se sale en cuanto aparece el
+puerto, así que no cuesta nada cuando va bien). El `--no-sandbox` se retiró: no hacía falta y
+relajaba una defensa real por una causa inventada.
+
+Por qué se pudo diagnosticar mal: la tubería de `stderr` de Chrome estaba abierta y **nadie la
+leía**, así que su queja se tiraba. Ya se lee, y lo leído entra en el mensaje del error. →
+`32 · L-48`, que reincidió aquí con vuelta de tuerca: **un error que no se lee no solo se pierde,
+manda a arreglar lo que no está roto**.
 
 ### Alternativas descartadas
 

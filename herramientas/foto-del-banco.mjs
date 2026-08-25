@@ -60,14 +60,17 @@ import { join } from 'node:path';
  * hecho que el portero fallara SIEMPRE en el servidor — y un portero que siempre
  * dice que no acaba desactivado, que es peor que no tenerlo.
  */
-const CANDIDATOS = [
-  process.env.CHROME,
+// ⚠️ Si `CHROME` viene puesta, es la ÚNICA candidata. Buscar alternativas
+// cuando alguien ha dicho explícitamente cuál quiere sería desobedecer en
+// silencio: se pediría un Chrome y se usaría otro, y la foto saldría de un
+// navegador que no es el que se quería probar. Puesta y mala → error claro.
+const CANDIDATOS = process.env.CHROME ? [process.env.CHROME] : [
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
   '/usr/bin/google-chrome',
   '/usr/bin/google-chrome-stable',
   '/usr/bin/chromium-browser',
   '/usr/bin/chromium',
-].filter(Boolean);
+];
 const CHROME = CANDIDATOS.find((c) => existsSync(c)) ?? CANDIDATOS[0];
 
 /** Lo que se espera de reloj antes de disparar, en segundos. */
@@ -120,19 +123,43 @@ const dormir = (ms) => new Promise((r) => setTimeout(r, ms));
  * Chrome de la primera, fotografiando la pantalla equivocada. Chrome escribe el
  * puerto real en `DevToolsActivePort` de su perfil.
  */
+/**
+ * ⏱️ CUÁNTO SE LE DA A CHROME PARA ARRANCAR. Eran 10 s y **no llegaban**.
+ *
+ * Medido el 2026-08-25 en el servidor de GitHub (`99 §ADR-085`): con seis
+ * trabajos del vigía compartiendo la máquina, cinco atlas abrieron Chrome sin
+ * problema y el sexto —temperatura— se quedó sin puerto a los 10 s. No era el
+ * sandbox ni la ruta: era **arranque en frío con la máquina cargada**.
+ *
+ * 40 s no ralentiza nada cuando va bien —se sale en cuanto aparece el puerto— y
+ * evita el peor de los fallos posibles aquí: que el portero suspenda un atlas
+ * BUENO por su propia lentitud. Un portero así se acaba desactivando, y entonces
+ * no hay portero.
+ */
+const ESPERA_DE_ARRANQUE = Number(process.env.ESPERA_ARRANQUE_CHROME ?? 40) * 1000;
+
 async function puertoDe(perfil) {
   const archivo = join(perfil, 'DevToolsActivePort');
-  for (let i = 0; i < 100; i++) {
+  for (let i = 0; i < ESPERA_DE_ARRANQUE / 100; i++) {
     if (existsSync(archivo)) {
       const l = readFileSync(archivo, 'utf-8').split('\n');
       if (l[0]?.trim()) return Number(l[0].trim());
     }
     await dormir(100);
   }
-  throw new Error('Chrome no publicó su puerto de depuración en 10 s');
+  // ⚠️ Y SE CUENTA LO QUE DIJO CHROME (`99 §ADR-085`). Antes este error decía
+  // solo «no publicó su puerto» y la queja de Chrome se tiraba: la tubería de
+  // `stderr` estaba abierta y **nadie la leía**. Sin ese dato, el primer fallo
+  // en el servidor se diagnosticó MAL —se culpó a la caja de arena— y se llegó a
+  // escribir un arreglo para una causa que no era. Un error que no se lee no
+  // solo se pierde: manda a arreglar lo que no está roto.
+  throw new Error(`Chrome no publicó su puerto de depuración en ${ESPERA_DE_ARRANQUE / 1000} s.`
+    + (queLlora.trim() ? `\n   Chrome dijo: ${queLlora.trim().split('\n').slice(-4).join('\n   ')}`
+      : `\n   Y no dijo nada. ¿Existe «${CHROME}»? ¿O iba la máquina muy cargada?`));
 }
 
 const perfil = mkdtempSync(join(tmpdir(), 'foto-banco-'));
+
 const chrome = spawn(CHROME, [
   '--headless=new',
   '--remote-debugging-port=0',
@@ -145,6 +172,10 @@ const chrome = spawn(CHROME, [
   '--no-first-run', '--no-default-browser-check', '--disable-extensions',
   'about:blank',
 ], { stdio: ['ignore', 'ignore', 'pipe'] });
+
+/** Lo que Chrome se queja por `stderr`. Se GUARDA: ver `puertoDe`. */
+let queLlora = '';
+chrome.stderr.on('data', (d) => { queLlora += d.toString(); });
 
 let salio = null;
 chrome.on('exit', (c) => { salio = c; });

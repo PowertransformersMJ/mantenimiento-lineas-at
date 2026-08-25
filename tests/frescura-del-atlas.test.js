@@ -315,6 +315,28 @@ describe('el portero mira el mapa, y la propuesta se fusiona sola', () => {
     }
   });
 
+  test('y cuando el propio portero falla, DICE POR QUÉ', () => {
+    // `32 · L-48` reincidió aquí: la tubería de `stderr` de Chrome estaba
+    // abierta y nadie la leía. Sin ese dato el primer fallo en el servidor se
+    // diagnosticó MAL —se culpó a la caja de arena— y se llegó a escribir el
+    // arreglo de una causa que no era. Un error que no se lee no solo se pierde:
+    // manda a arreglar lo que no está roto.
+    assert.match(FOTO, /chrome\.stderr\.on\('data'/,
+      'se volvió a abrir la tubería de stderr sin leerla: la queja de Chrome se perdería');
+    assert.match(FOTO, /Chrome dijo:/,
+      'el error del portero dejó de contar lo que Chrome dijo');
+  });
+
+  test('y no suspende a un atlas bueno por su propia lentitud', () => {
+    // La causa REAL del 25-08: arranque en frío con seis trabajos compartiendo
+    // máquina. Cinco atlas abrieron Chrome y el sexto se quedó sin puerto a los
+    // 10 s. Un portero que suspende por ir lento se acaba desactivando.
+    const m = FOTO.match(/ESPERA_ARRANQUE_CHROME \?\? (\d+)/);
+    assert.ok(m, 'desapareció la espera de arranque configurable');
+    assert.ok(Number(m[1]) >= 30,
+      `la espera de arranque bajó a ${m[1]} s: volverían los suspensos por máquina cargada`);
+  });
+
   test('si no deja fusionar, la propuesta queda ABIERTA y nada se fuerza', () => {
     assert.ok(!/gh pr merge[^\n]*(--admin|--force)/.test(VIGIA),
       'el vigía se saltaría la protección de rama para poder fusionar');
