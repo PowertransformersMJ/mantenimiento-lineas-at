@@ -22,14 +22,19 @@
 // salía «bien» y faltaba justo lo que se iba a comprobar: la peor clase de
 // verificación, la que confirma lo que no ha ocurrido.
 //
-// NO ES UNA PRUEBA AUTOMÁTICA y no pretende serlo: no compara píxeles ni falla
-// sola. Es un par de ojos. Lo que decide si el dibujo está bien sigue siendo
-// mirarlo — y ahora se puede.
+// NACIÓ COMO UN PAR DE OJOS Y NO COMO UNA PRUEBA: miraba, imprimía y salía con
+// 0 pasara lo que pasara, porque al otro lado había un humano leyendo. Desde
+// `99 §ADR-085` tiene además **modo portero** (`--exigir`): las mismas cuatro
+// cosas que miraba una persona, pero pudiendo DECIR QUE NO. Hizo falta el día
+// que se encendió la fusión automática de las propuestas del vigía: sin humano
+// mirando, un lienzo en blanco llegaría a producción sin que nada chistara.
+// Sigue sin opinar de estética — dice si hay algo dibujado, no si es bonito.
 //
 // USO:
 //   node herramientas/foto-del-banco.mjs "<dirección>" [--salida f.png]
 //                                        [--espera 8] [--ancho 1400] [--alto 950]
 //                                        [--pulsar "<selector>"] [--veces 6]
+//                                        [--exigir] [--exigir-capa capa-temp]
 //
 // `--pulsar` pulsa un elemento antes de disparar —el `+` del mapa, un día, un
 // atlas— porque hay dibujos que solo existen en un estado: el trazado de una
@@ -46,9 +51,24 @@ import { mkdtempSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-/** Dónde está Chrome. Se puede apuntar a otro con la variable `CHROME`. */
-const CHROME = process.env.CHROME
-  ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+/**
+ * Dónde está Chrome. Se puede apuntar a otro con la variable `CHROME`.
+ *
+ * Se busca en varios sitios y no solo en el de la Mac del Ingeniero desde que
+ * esto corre también en el servidor de GitHub (`99 §ADR-085`): allí el ejecutable
+ * se llama `google-chrome` y vive en `/usr/bin`. Clavar una sola ruta habría
+ * hecho que el portero fallara SIEMPRE en el servidor — y un portero que siempre
+ * dice que no acaba desactivado, que es peor que no tenerlo.
+ */
+const CANDIDATOS = [
+  process.env.CHROME,
+  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  '/usr/bin/google-chrome',
+  '/usr/bin/google-chrome-stable',
+  '/usr/bin/chromium-browser',
+  '/usr/bin/chromium',
+].filter(Boolean);
+const CHROME = CANDIDATOS.find((c) => existsSync(c)) ?? CANDIDATOS[0];
 
 /** Lo que se espera de reloj antes de disparar, en segundos. */
 const ESPERA_POR_DEFECTO = 8;
@@ -65,6 +85,20 @@ const ancho = Number(opcion('ancho', 1400));
 const alto = Number(opcion('alto', 950));
 const pulsar = opcion('pulsar', null);
 const veces = Number(opcion('veces', 1));
+/**
+ * ⚖️ MODO PORTERO (`99 §ADR-085`). Sin esto, esta herramienta MIRA y siempre
+ * dice que sí: imprime lo que ve y sale con 0 aunque el lienzo esté en blanco.
+ * Servía porque al otro lado había un humano leyendo. Con la fusión automática
+ * encendida ya no lo hay, así que hace falta que el mismo par de ojos pueda
+ * **decir que no** y parar la publicación.
+ *
+ * `--exigir` comprueba cuatro cosas, y las cuatro son las que un humano miraba:
+ * que haya un mapa VIVO y cargado · que la página no se haya quejado · que la
+ * capa que se acaba de reconstruir esté PUESTA · y que el lienzo tenga DIBUJO,
+ * no un color liso. Cualquiera que falle → salida 1 y nadie publica.
+ */
+const exigir = args.includes('--exigir');
+const exigirCapa = opcion('exigir-capa', null);
 
 if (!direccion) {
   console.error('⛔ falta la dirección. Ej.: node herramientas/foto-del-banco.mjs '
@@ -191,7 +225,99 @@ try {
   writeFileSync(salida, Buffer.from(foto.data, 'base64'));
   console.log(`📸 ${salida}`);
   if (quejas.length) console.log('⚠️  la página se quejó:', quejas.slice(0, 5));
-  ws.close();
+
+  // ── ⚖️ EL PORTERO ────────────────────────────────────────────────────────
+  if (exigir) {
+    const faltas = [];
+
+    // 1 · ¿Hay un mapa vivo, en el DOM y cargado? Es lo primero que un humano
+    //     comprueba sin darse cuenta: que haya mapa.
+    let lista = [];
+    try { lista = JSON.parse(sonda.result?.value ?? '[]'); } catch { /* sin sonda */ }
+    if (!Array.isArray(lista) || !lista.length) {
+      faltas.push('la página no tiene sonda o no nació ningún mapa '
+        + '(¿construiste con SONDA_MAPA=1 y abriste `sonda-satelital.html`?)');
+    } else if (!lista.some((m) => m.vivo && m.enElDom && m.cargado === true)) {
+      faltas.push(`ningún mapa VIVO y cargado: ${JSON.stringify(lista)}`);
+    }
+
+    // 2 · ¿Se quejó la página? Un mapa que muere callado es justo lo que este
+    //     banco existe para cazar, y con fusión automática nadie lee la consola.
+    if (quejas.length) faltas.push(`la página lanzó ${quejas.length} excepción(es): ${quejas[0]}`);
+
+    // 3 · ¿Está PUESTA la capa que se acaba de reconstruir? Que el mapa pinte no
+    //     prueba que pinte LO NUEVO: la base de Protomaps se ve preciosa con el
+    //     atlas ausente, y ésa es exactamente la foto que engaña.
+    if (exigirCapa) {
+      const r = await pedir('Runtime.evaluate', {
+        expression: `(() => { const v = window.__mapas?.ver?.();
+          const t = Array.isArray(v) ? v : [v];
+          for (const i of t) {
+            const c = i?.capas;
+            if (Array.isArray(c) && c.some((x) => x.id === ${JSON.stringify(exigirCapa)})) return 'PUESTA';
+          }
+          return 'NO ESTÁ'; })()`,
+        returnByValue: true,
+      });
+      if (r.result?.value !== 'PUESTA') faltas.push(`la capa «${exigirCapa}» NO está en el mapa`);
+      else console.log(`🧩 capa «${exigirCapa}»: puesta`);
+    }
+
+    // 4 · ¿El lienzo tiene DIBUJO o es un color liso? Se le devuelve la foto a la
+    //     página, se pinta en un lienzo 2D y se cuentan los colores DEL RECUADRO
+    //     DEL MAPA —no de la pantalla entera, que siempre trae texto y botones—.
+    //     Se usa el decodificador de PNG del propio navegador: cero dependencias.
+    const pintura = await pedir('Runtime.evaluate', {
+      awaitPromise: true, returnByValue: true,
+      expression: `(async () => {
+        const caja = document.querySelector('.maplibregl-map')?.getBoundingClientRect();
+        if (!caja || caja.width < 40 || caja.height < 40) return { error: 'no encuentro el recuadro del mapa' };
+        const img = new Image();
+        img.src = 'data:image/png;base64,${foto.data}';
+        await img.decode();
+        const l = document.createElement('canvas');
+        l.width = Math.round(caja.width); l.height = Math.round(caja.height);
+        l.getContext('2d').drawImage(img, Math.round(caja.x), Math.round(caja.y),
+          l.width, l.height, 0, 0, l.width, l.height);
+        const d = l.getContext('2d').getImageData(0, 0, l.width, l.height).data;
+        // Se cuantiza a 4 bits por canal: dos verdes casi iguales no son dos
+        // colores para un ojo, y sin cuantizar el ruido del antialiasing
+        // inflaría la cuenta hasta hacer pasar un lienzo casi liso.
+        const cuenta = new Map();
+        for (let i = 0; i < d.length; i += 4 * 7) {
+          const k = ((d[i] >> 4) << 8) | ((d[i + 1] >> 4) << 4) | (d[i + 2] >> 4);
+          cuenta.set(k, (cuenta.get(k) ?? 0) + 1);
+        }
+        const total = [...cuenta.values()].reduce((a, b) => a + b, 0);
+        return { distintos: cuenta.size, dominante: Math.max(...cuenta.values()) / total };
+      })()`,
+    });
+    const p = pintura.result?.value ?? {};
+    if (p.error) {
+      faltas.push(p.error);
+    } else {
+      const plano = p.distintos < 24 || p.dominante > 0.9;
+      console.log(`🎨 lienzo: ${p.distintos} colores · el más repetido ocupa `
+        + `${Math.round(p.dominante * 100)} %${plano ? '  ← PLANO' : ''}`);
+      if (plano) {
+        faltas.push(`el recuadro del mapa está PLANO (${p.distintos} colores, `
+          + `${Math.round(p.dominante * 100)} % del mismo): no se pintó nada que mirar`);
+      }
+    }
+
+    if (faltas.length) {
+      console.error('\n⛔ EL BANCO DICE QUE NO. Esto no se publica:');
+      for (const f of faltas) console.error(`   · ${f}`);
+      console.error(`\n   La foto queda en ${salida} para que se pueda mirar.`);
+      ws.close();
+      process.exitCode = 1;
+    } else {
+      console.log('✅ el banco dice que sí: mapa vivo, capa puesta, lienzo con dibujo.');
+      ws.close();
+    }
+  } else {
+    ws.close();
+  }
 } finally {
   if (salio === null) chrome.kill();
 }

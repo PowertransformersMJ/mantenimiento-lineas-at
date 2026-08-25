@@ -112,7 +112,10 @@ mantenimiento-lineas-at/
 │   ├── rayos-libro.mjs          lo propio de los rayos: su perfil y su ruta
 │   └── *-libro.json / rayos-conteo.json  📕 hora (reloj de COLOMBIA) → celda → valor. Solo crecen
 ├── herramientas/foto-del-banco.mjs 📸 MIRAR el lienzo (ADR-074): Chrome sin cabeza + reloj REAL; con
-│                                tiempo virtual MIENTE (`34 · L-72`). Banco: `sonda-satelital.tsx`
+│                                tiempo virtual MIENTE (`34 · L-72`). Banco: `sonda-satelital.tsx`.
+│                                Con `--exigir` además SUSPENDE (ADR-085)
+├── herramientas/mirar-los-atlas.mjs ⚖️ EL PORTERO (ADR-085): construye el banco, abre cada atlas y
+│                                decide. Es quien mira el mapa desde que el vigía fusiona solo
 ├── herramientas/teselas/        construir-raster.py — rehace las capas del mapa desde datos
 │                             abiertos. ⚠️ ÚNICO Python del repo; no lo usan app ni pruebas
 ├── herramientas/                sembrar.mjs (línea + expediente) · subir-evidencias.mjs (fotos) ·

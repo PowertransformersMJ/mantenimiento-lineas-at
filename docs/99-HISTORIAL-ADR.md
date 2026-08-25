@@ -7077,3 +7077,104 @@ error. Es `30 · M-01` otra vez, resuelto por tipo en vez de por memoria.
 ### Crudo de respaldo
 
 `../brain-private/mantenimiento-lineas-at/research-archive/2026-08-25-emblemas-y-ventana-de-fuentes/`
+
+---
+
+## ADR-085 · 2026-08-25 · La fusión automática se enciende, y el que mira el mapa pasa a ser la máquina
+
+**Estado:** ✅ Decidido · **NO revisada externamente** · en producción.
+
+### Contexto
+
+Orden del Ingeniero: *«enciéndela por favor»*, sobre `TODO-93` — que las propuestas del vigía se
+fusionen solas.
+
+La cadena de «mantener los atlas al día» tiene cuatro eslabones y solo dos eran automáticos:
+
+```
+mirar → reconstruir → FUSIONAR → PUBLICAR
+  ✅        ✅          ✋ a mano    ✋ falta la llave (TODO-89)
+```
+
+El tercero se le atragantaba: el 25-08 había **dos propuestas esperando desde la madrugada**, ya
+firmadas y mergeables, y los atlas viejos en producción mientras tanto. La máquina funcionaba y el
+resultado era el de una máquina averiada.
+
+**Pero el aviso que acompañaba a esa decisión era real, y no se puede tapar repitiéndolo:** al
+encender la fusión automática, **nadie mira el mapa antes de publicar**. Y eso importa aquí más que
+en otros proyectos, porque este proyecto ya se quemó con ello: `§ADR-021` y `30 · L-33/56` dicen que
+**el verde de las pruebas no prueba que se vea**, y `§ADR-071` costó una sesión entera a cuenta de
+un lienzo que salía gris sin dar un solo error. Una capa de datos mala puede pasar la suite completa
+y publicarse un domingo a las 3 de la mañana.
+
+**Lo que cambió desde que se escribió ese aviso:** el 23-08 (`§ADR-074`, `34 · L-72`) apareció
+`foto-del-banco.mjs` — un Chrome sin cabeza que SÍ pinta el lienzo. Es decir: **desde hace dos días,
+mirar el mapa ya no exige un humano.** El aviso seguía siendo cierto por inercia, no por necesidad.
+
+### Decisión
+
+**1 · La propuesta del vigía se fusiona sola**, en los dos trabajos, con reintento: el check que el
+vigía acaba de firmarse tarda unos segundos en contar para la protección de rama, y sin espera el
+primer intento se encuentra la rama bloqueada. Si tras un minuto no deja, **la propuesta queda
+ABIERTA y la corrida roja**. Nunca se fuerza: ni `--admin` ni empujón directo a `main`.
+
+**2 · Antes de proponer nada, un PORTERO mira el mapa** — `herramientas/mirar-los-atlas.mjs`.
+Construye el banco con sonda, lo levanta, abre cada atlas reconstruido en Chrome sin cabeza y
+comprueba **las cuatro cosas que miraba una persona**:
+
+| | Qué comprueba | Qué fallo caza |
+|---|---|---|
+| 1 | hay un mapa **vivo, en el DOM y cargado** | la pantalla no llegó a montar el mapa |
+| 2 | la página **no lanzó excepciones** | el mapa murió callado (`§ADR-071`) |
+| 3 | la **capa nueva está puesta** | la base se ve preciosa y el atlas no está — la foto que engaña |
+| 4 | el recuadro del mapa **tiene dibujo**, no un color liso | el lienzo en blanco |
+
+El cuarto se mide devolviéndole la foto a la propia página, pintándola en un lienzo 2D y contando
+colores **del recuadro del mapa** —no de la pantalla entera, que siempre trae texto y botones—,
+cuantizados a 4 bits por canal. Umbral: menos de 24 colores, o uno solo ocupando más del 90 %, es
+plano. Medido: un atlas real da **218 colores con el más repetido al 19 %**; el de rayos, 90 al 23 %.
+
+**3 · El portero va ANTES de abrir la propuesta, y el sitio no es negociable.**
+`create-pull-request` devuelve el árbol al estado de la rama base: puesto después, fotografiaría el
+atlas **viejo** y daría verde siempre. Un portero que no puede suspender a nadie es peor que
+ninguno, porque además tranquiliza.
+
+**4 · Si el portero dice que no, no hay propuesta y la corrida sale roja.** El atlas se queda como
+estaba — que es exactamente lo que pasaba antes cuando nadie fusionaba. **La degradación es al
+comportamiento anterior, nunca a publicar a ciegas.** Las fotos se suben como artefactos siempre, y
+sobre todo cuando fallan: es lo único que convierte «el portero dijo que no» en algo mirable.
+
+**5 · `foto-del-banco.mjs` gana modo portero (`--exigir`).** Nació como un par de ojos que imprimía
+y salía con 0 pasara lo que pasara, porque al otro lado había un humano leyendo. Ahora puede decir
+que no. Y busca Chrome en varias rutas: en el servidor se llama `google-chrome` y vive en `/usr/bin`.
+
+### Alternativas descartadas
+
+- **Encender la fusión y ya.** Es lo que se pidió, literalmente, y habría sido obedecer mal: el
+  aviso que yo mismo di se convertía en un agujero real el minuto siguiente.
+- **Auto-merge nativo de GitHub.** Fusiona cuando pasan los checks, pero el portero no es un check
+  del CI —el CI no dispara sobre un PR del robot (`§ADR-076`)—, así que fusionaría sin él.
+- **Comparar la foto con la de ayer (píxel a píxel).** Cualquier cambio real de dato la haría fallar:
+  un portero que suspende siempre se acaba desactivando, y entonces no hay portero.
+- **Que el portero opine de estética.** No sabe. Dice si hay algo dibujado, no si está bien dibujado.
+  Cierra el fallo caro y verificable y no pretende cerrar el del criterio.
+- **Un umbral de tamaño del PNG** como medida de «hay dibujo»: barato y mentiroso, un PNG grande
+  puede ser ruido y uno pequeño un mapa correcto muy uniforme.
+
+### Consecuencias
+
+- **1.952 pruebas en verde** (6 nuevas). Entre ellas la que más vale a futuro: **ningún atlas del
+  catálogo puede publicarse sin que el portero lo mire** — si entra un noveno y nadie lo añade a la
+  lista, la suite se pone roja. `30 · M-01` otra vez, cerrado por guardián y no por memoria.
+- La prueba «sigue PROPONIENDO, no publicando» **cambió de motivo, no se borró**: lo que sigue
+  importando es que el cambio pase por una propuesta —rastro, fotos, reversión de una pieza— y no
+  por un empujón directo a `main`.
+- **Queda UN eslabón manual**: publicar. Sigue esperando los dos secretos de Cloudflare (`TODO-89`).
+  Hasta entonces, `main` se pone al día sola y producción sigue necesitando una mano.
+- Coste: ~2 min por corrida con dato nuevo (construir el banco + una foto por atlas). El repo es
+  público, así que los minutos de Actions no se facturan.
+
+### Crudo de respaldo
+
+`../brain-private/mantenimiento-lineas-at/research-archive/2026-08-25-emblemas-y-ventana-de-fuentes/`
+(sección «El portero»).

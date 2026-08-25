@@ -24,8 +24,11 @@
    POWER/MERRA-2 (temp·viento·lluvia) **4 días**, POWER/CERES (sol·nubes) **87**, satélite **~15 min**.
    Dos relojes: 4 h para POWER, **1 h para satélite**. El selector las **agrupa por fuente**, cada una
    **con su marca dibujada por nosotros** (`§ADR-082/084`; los escudos de NASA y NOAA están
-   restringidos). ✅ **Las OCHO en la frontera de su fuente, verificado en producción el 25-08**: el
-   último eslabón NO es la máquina, es que alguien FUSIONE la propuesta (`TODO-93`).
+   restringidos). ✅ **Las OCHO en la frontera de su fuente, verificado en producción el 25-08.**
+   ⚙️ **El vigía ya FUSIONA SOLO** (`§ADR-085`, orden suya): mira → reconstruye → **un PORTERO abre
+   el mapa en Chrome sin cabeza y lo mira** → propone → firma → fusiona. Queda UN eslabón a mano:
+   **publicar** (`TODO-89`, sus dos secretos). Si el portero dice que no, NO hay propuesta y la
+   corrida sale roja — nunca se publica a ciegas.
    Los rayos son de OTRA fuente (GOES de NOAA) y **se ACUMULAN** en `herramientas/rayos-conteo.json`.
    ⚠️ **No son la DDT de RETIE/IEEE** — esa es la 2.ª capa y espera su cuenta Earthdata (`TODO-90`).
 4. **LO QUE NO SE PUEDE ROMPER DEL CLIMA (`§ADR-057..079`):** gana el hecho sobre el modelo · el recorrido se comprueba **punto a punto**, nunca por promedio · el clima vive en el ATLAS y Detalle GPS = solo el recorrido · **«tormenta eléctrica» NO existe en la fuente de nubes**, y hay prueba.
@@ -82,7 +85,6 @@
 | **TODO-44/34** | Alerta de gasto en Cloudflare · **respaldo FUERA de esta Mac**: la bóveda **no tiene remoto** | Un fallo de disco se la lleva |
 | **TODO-61/54/68** | ¿App Check? · ¿linter de frescura semántica? · ¿cazar un ADR repetido? Las dos últimas tocan el KERNEL | Las TRES son TUYAS |
 | **TODO-76** | **¿Se guarda que un apoyo es autosoportado / retenido?** Hoy no cabe en el modelo: iría por APOYO (26 declaraciones) | Cierra media incógnita de la capacidad longitudinal |
-| **TODO-93 NUEVO** | **¿Se fusionan SOLAS las propuestas del vigía?** Hoy las abre, las firma y espera: si nadie las fusiona, el atlas se queda viejo aunque la máquina funcione (pasó: dos propuestas al día siguiente). Fusionarlas solas cierra el lazo y **quita el único momento en que alguien mira el mapa antes de publicar** — mismo aviso que `§ADR-077` | Es lo que separa «se actualiza» de «se actualizaría» |
 | **TODO-92 NUEVO** | **Las dos sondas que faltan de la auditoría del cerebro** (`§ADR-083`): el *retrieval-drill* con un agente FRÍO y la voz adversarial. Miden si el cerebro ENTREGA, no si está bien escrito, y exigen subagentes — que aquí están vetados salvo orden suya | Sin ellas, la auditoría dice que el almacén está ordenado, no que la memoria funcione |
 | **TODO-78/84** ⬆️⬆️ | **Cerebro LLENO** (`§ADR-065`): el ARRANQUE va al ras y cada sesión gasta un rato raspando texto bueno para que quepa el nuevo. **Shard o recalibrar** | Ya es el freno más caro del día a día|
 

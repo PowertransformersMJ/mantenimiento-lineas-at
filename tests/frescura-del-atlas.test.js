@@ -27,6 +27,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import { frescuraDelAtlas, diaEnPalabras } from '../web/src/vistas/atlasCaribe.ts';
+import { ATLAS_EN_ORDEN } from '../web/src/vistas/atlasCatalogo.ts';
 
 /** Una ficha de juguete: solo lo que mira esta pieza. */
 const ficha = (construido, ultimoDiaConHoras) => ({
@@ -214,10 +215,110 @@ describe('lo que la pantalla y el vigía tienen que seguir haciendo', () => {
       'los pasos caros dejaron de mirar la decisión de SU propio atlas');
   });
 
-  test('y sigue PROPONIENDO, no publicando', () => {
-    // Un robot que commitea y despliega una capa de datos sin nadie mirando
-    // puede publicar una capa mala un domingo a las 3 de la mañana.
+  test('y sigue pasando por una PROPUESTA, aunque ya la fusione él mismo', () => {
+    // ⚠️ ESTA PRUEBA CAMBIÓ DE MOTIVO EL 25-08 (`§ADR-085`), y conviene saber por
+    // qué. Nació diciendo «sigue PROPONIENDO, no publicando»: un robot que
+    // commitea y despliega una capa sin nadie mirando puede publicar una capa
+    // mala un domingo a las 3 de la mañana. El Ingeniero encendió la fusión
+    // automática, así que ESE motivo ya no rige — y no se borra la prueba, se le
+    // pone el que sí rige.
+    //
+    // Lo que sigue importando es que el cambio pase por una PROPUESTA y no por
+    // un empujón directo a `main`: la propuesta es lo que deja rastro de qué
+    // cambió, guarda las fotos del portero como artefactos y se puede revertir
+    // de una pieza. Publicar sin propuesta no ahorra nada y borra el rastro.
     assert.match(VIGIA, /peter-evans\/create-pull-request/,
-      'el vigía pasó a publicar solo: eso es una decisión del Ingeniero, no un ajuste');
+      'el vigía pasó a empujar directo a main: se pierde el rastro y las fotos del portero');
+    assert.ok(!/git push .*origin (main|HEAD)/.test(VIGIA),
+      'apareció un empujón directo a main saltándose la propuesta');
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// EL PORTERO Y LA FUSIÓN AUTOMÁTICA (`99 §ADR-085`)
+// ----------------------------------------------------------------------------
+// El Ingeniero encendió la fusión automática de las propuestas del vigía. Lo que
+// antes hacía una persona entre «se reconstruyó» y «llegó a producción» —abrir
+// el mapa y mirarlo— ahora lo hace `mirar-los-atlas.mjs`. Estas pruebas vigilan
+// las cinco formas de romperlo SIN que nada dé un error:
+//
+//  1. Que alguien quite el portero y deje la fusión. Sería publicar a ciegas, y
+//     con más confianza que antes, porque ya nadie mira.
+//  2. Que el portero acabe DESPUÉS de abrir la propuesta. Parece igual y no lo
+//     es: `create-pull-request` devuelve el árbol a la rama base, así que
+//     fotografiaría el atlas VIEJO y daría verde siempre.
+//  3. Que entre un atlas nuevo y nadie lo añada a la lista del portero. Se
+//     publicaría sin que nadie —ni persona ni máquina— lo hubiera visto. Es
+//     `30 · M-01`: lo que se sincroniza a mano, se desincroniza.
+//  4. Que el portero pierda la capacidad de decir que no.
+//  5. Que para fusionar se acabe forzando la protección de rama.
+// ════════════════════════════════════════════════════════════════════════════
+describe('el portero mira el mapa, y la propuesta se fusiona sola', () => {
+
+  const VIGIA = readFileSync(
+    fileURLToPath(new URL('../.github/workflows/vigia-nasa.yml', import.meta.url)), 'utf-8');
+  const FOTO = readFileSync(
+    fileURLToPath(new URL('../herramientas/foto-del-banco.mjs', import.meta.url)), 'utf-8');
+  const PORTERO = readFileSync(
+    fileURLToPath(new URL('../herramientas/mirar-los-atlas.mjs', import.meta.url)), 'utf-8');
+
+  test('no hay fusión automática sin portero delante', () => {
+    const fusiona = /gh pr merge/.test(VIGIA);
+    const mira = /mirar-los-atlas\.mjs/.test(VIGIA);
+    assert.ok(!fusiona || mira,
+      'el vigía fusiona solo y ya NADIE mira el mapa: eso es publicar a ciegas');
+  });
+
+  test('el portero va ANTES de abrir la propuesta, en los DOS trabajos', () => {
+    const trabajos = VIGIA.split(/^  [a-z][\w-]*:$/m).filter((t) => /mirar-los-atlas/.test(t));
+    assert.equal(trabajos.length, 2, 'esperaba portero en los DOS trabajos del vigía');
+    for (const t of trabajos) {
+      // Se compara contra el USO de la acción (`uses:`) y no contra el texto
+      // «create-pull-request», que también sale en los comentarios que explican
+      // por qué el portero va antes. Un guardián que lee prosa se cree cualquier
+      // cosa: éste falló la primera vez por su propia explicación.
+      assert.ok(t.indexOf('mirar-los-atlas.mjs') < t.indexOf('uses: peter-evans/create-pull-request'),
+        'el portero quedó DESPUÉS de abrir la propuesta: fotografiaría el atlas viejo');
+    }
+  });
+
+  test('NINGÚN atlas se publica sin que alguien lo haya mirado', () => {
+    // Los de POWER van por matriz (`${{ matrix.clave }}`); los del satélite,
+    // escritos a mano. La unión de los dos tiene que ser TODO el catálogo.
+    const deLaMatriz = [...VIGIA.matchAll(/^\s*- clave:\s*(\w+)/gm)].map((m) => m[1]);
+    const aMano = [...VIGIA.matchAll(/mirar-los-atlas\.mjs([^\n]*)/g)]
+      .flatMap((m) => m[1].trim().split(/\s+/))
+      .filter((x) => x && !x.includes('{{'));
+    const porMatriz = /mirar-los-atlas\.mjs \$\{\{ matrix\.clave \}\}/.test(VIGIA) ? deLaMatriz : [];
+    const vigilados = new Set([...porMatriz, ...aMano]);
+    const sinMirar = ATLAS_EN_ORDEN.filter((c) => !vigilados.has(c));
+    assert.deepEqual(sinMirar, [],
+      `atlas que se publicarían sin que nadie los mire: ${sinMirar.join(', ')}`);
+  });
+
+  test('el portero puede DECIR QUE NO', () => {
+    assert.match(FOTO, /--exigir/, 'la foto perdió el modo portero');
+    assert.match(FOTO, /process\.exitCode = 1/,
+      'la foto volvió a salir con 0 pase lo que pase: no puede suspender a nadie');
+    assert.match(PORTERO, /process\.exit\(1\)/,
+      'el portero no propaga el fallo: la corrida saldría verde con el mapa roto');
+  });
+
+  test('y mira las cuatro cosas que miraba una persona', () => {
+    for (const [que, patron] of [
+      ['que haya un mapa vivo', /vivo && m\.enElDom && m\.cargado === true/],
+      ['que la página no se queje', /quejas\.length\) faltas\.push/],
+      ['que la capa nueva esté puesta', /exigirCapa/],
+      ['que el lienzo tenga dibujo', /distintos < 24 \|\| p\.dominante > 0\.9/],
+    ]) {
+      assert.match(FOTO, patron, `el portero dejó de comprobar: ${que}`);
+    }
+  });
+
+  test('si no deja fusionar, la propuesta queda ABIERTA y nada se fuerza', () => {
+    assert.ok(!/gh pr merge[^\n]*(--admin|--force)/.test(VIGIA),
+      'el vigía se saltaría la protección de rama para poder fusionar');
+    assert.match(VIGIA, /Queda ABIERTA/,
+      'sin ese camino, una propuesta buena que no se deja fusionar se pierde en silencio');
   });
 });

@@ -296,6 +296,30 @@ jobs:
           npm test
           npm run contrato:verificar
 
+      # ⚖️ EL PORTERO: SE MIRA EL MAPA ANTES DE PROPONER NADA (`§ADR-085`)
+      # ------------------------------------------------------------------
+      # Va AQUÍ, y el sitio no es negociable: `create-pull-request` devuelve el
+      # árbol al estado de la rama base, así que después de él ya no queda nada
+      # reconstruido que fotografiar. Se mira mientras está en el árbol.
+      #
+      # Si el portero dice que no, este paso falla y **no se abre propuesta**: el
+      # atlas se queda como estaba y la corrida sale roja. Es exactamente lo que
+      # pasaba antes cuando nadie fusionaba — nunca se publica a ciegas.
+      - name: Mirar el mapa (portero)
+        if: steps.comparar.outputs.hay == 'si'
+        run: node herramientas/mirar-los-atlas.mjs ${{ matrix.clave }}
+
+      # La foto se sube SIEMPRE, y sobre todo cuando falla: es lo único que
+      # convierte «el portero dijo que no» en algo que se puede mirar.
+      - name: Guardar la foto
+        if: always() && steps.comparar.outputs.hay == 'si'
+        uses: actions/upload-artifact@v4
+        with:
+          name: portero-${{ matrix.clave }}
+          path: fotos-del-portero/
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Abrir la propuesta
         if: steps.comparar.outputs.hay == 'si'
         id: propuesta
@@ -324,10 +348,15 @@ jobs:
             queda sin atribución, ni sin su aviso de lo que el dato NO es, ni se
             le sale lo medido de la rampa. La suite completa está en verde.
 
-            **Antes de aprobar, mira el mapa**: fusiona, espera al despliegue y
-            abre el atlas ${{ matrix.nombre }} —desde la cabecera o desde
-            «Detalle GPS»—. Verde en las pruebas no prueba que se vea
-            (`docs/99 §ADR-021`).
+            Y **se miró el mapa** (`§ADR-085`): se abrió el atlas
+            ${{ matrix.nombre }} en un Chrome sin cabeza y se comprobó que hay
+            mapa vivo, que la capa está puesta y que el lienzo tiene dibujo. La
+            foto está en los artefactos de esta corrida, en `portero-${{ matrix.clave }}`.
+            Verde en las pruebas no prueba que se vea (`docs/99 §ADR-021`) — por
+            eso además de las pruebas hay una foto.
+
+            ⚠️ **Esta propuesta se FUSIONA SOLA** en cuanto queda firmada. Si algo
+            no cuadra, se revierte el commit en `main`.
           labels: dato, atlas-solar
 
       # ── EL CHECK DE LA PROPUESTA (`§ADR-076`) ─────────────────────────────
@@ -360,6 +389,33 @@ jobs:
             -f description='suite completa, ejecutada por el vigía antes de proponer' \
             -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           echo "::notice::Check firmado sobre ${{ steps.propuesta.outputs.pull-request-head-sha }}"
+
+      # 🤝 Y SE FUSIONA SOLA (`§ADR-085`, orden del Ingeniero del 25-08).
+      #
+      # Se REINTENTA, y no por manía: el check que se acaba de firmar tarda unos
+      # segundos en contar para la protección de rama. Sin espera, el primer
+      # intento se encuentra la rama bloqueada y se abandonaría una propuesta
+      # buena — que es como se aprende a desconfiar de la automatización.
+      #
+      # Si tras un minuto sigue sin dejar, la propuesta queda ABIERTA y la
+      # corrida roja: nada se pierde y se ve. Nunca se fuerza la fusión.
+      - name: Fusionar la propuesta
+        if: steps.comparar.outputs.hay == 'si' && steps.propuesta.outputs.pull-request-number != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          N=${{ steps.propuesta.outputs.pull-request-number }}
+          for i in 1 2 3 4 5 6; do
+            if gh pr merge "$N" --squash --delete-branch; then
+              echo "::notice::Propuesta #$N fusionada por el vigía."
+              exit 0
+            fi
+            echo "· intento $i: aún no deja fusionar; espero 10 s"
+            sleep 10
+          done
+          echo "::error::La #$N pasó guardianes y portero pero no se dejó fusionar. Queda ABIERTA."
+          exit 1
 
   # ══════════════════════════════════════════════════════════════════════════
   # LOS RAYOS — otro trabajo, porque es OTRA FUENTE y otra forma de crecer
@@ -445,6 +501,24 @@ jobs:
           npm test
           npm run contrato:verificar
 
+      # ⚖️ EL PORTERO, y aquí son LAS TRES capas (`§ADR-085`). Las tres se
+      # reconstruyen en la misma pasada, así que las tres se miran: mirar solo
+      # los rayos dejaría a «Sol ahora» y «Nubes ahora» publicándose sin que
+      # nadie —ni persona ni máquina— las haya visto. Es el patrón que más veces
+      # ha mordido aquí: arreglado donde se veía, vivo en la pieza hermana.
+      - name: Mirar los tres mapas (portero)
+        if: steps.crecio.outputs.nuevas != '0'
+        run: node herramientas/mirar-los-atlas.mjs rayos solVivo nubesVivo
+
+      - name: Guardar las fotos
+        if: always() && steps.crecio.outputs.nuevas != '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: portero-satelite
+          path: fotos-del-portero/
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Abrir la propuesta
         id: propuesta
         if: steps.crecio.outputs.nuevas != '0'
@@ -464,8 +538,13 @@ jobs:
             Pasó el guardián de que **ningún libro encoge** —ni pierde horas ni retrocede— y la
             suite completa está en verde.
 
-            **Antes de aprobar, mira el mapa**: fusiona, espera al despliegue y abre las capas.
-            Verde en las pruebas no prueba que se vea (`docs/99 §ADR-021`).
+            Y **se miraron los TRES mapas** (`§ADR-085`) en un Chrome sin cabeza: mapa vivo, capa
+            puesta y lienzo con dibujo en rayos, «Sol ahora» y «Nubes ahora». Las tres fotos están
+            en los artefactos de esta corrida, en `portero-satelite`. Verde en las pruebas no
+            prueba que se vea (`docs/99 §ADR-021`) — por eso además de las pruebas hay fotos.
+
+            ⚠️ **Esta propuesta se FUSIONA SOLA** en cuanto queda firmada. Si algo no cuadra, se
+            revierte el commit en `main`.
           labels: dato, atlas-solar
 
       - name: El check de la propuesta (la suite ya corrió arriba)
@@ -479,3 +558,23 @@ jobs:
             -f context='Integridad del kernel + suite de dominio' \
             -f description='suite completa, ejecutada por el vigía antes de proponer' \
             -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+      # 🤝 Y SE FUSIONA SOLA (`§ADR-085`). Mismo reintento que en el otro trabajo
+      # y por lo mismo: el check recién firmado tarda unos segundos en contar.
+      - name: Fusionar la propuesta
+        if: steps.propuesta.outputs.pull-request-number != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          N=${{ steps.propuesta.outputs.pull-request-number }}
+          for i in 1 2 3 4 5 6; do
+            if gh pr merge "$N" --squash --delete-branch; then
+              echo "::notice::Propuesta #$N fusionada por el vigía."
+              exit 0
+            fi
+            echo "· intento $i: aún no deja fusionar; espero 10 s"
+            sleep 10
+          done
+          echo "::error::La #$N pasó guardianes y portero pero no se dejó fusionar. Queda ABIERTA."
+          exit 1
