@@ -44,7 +44,9 @@ import {
 import { prepararTeselas } from '../datos/teselas';
 import { nf } from '../vistas/formato';
 import { almacen } from '../datos/enlace';
-import { ATLAS, ATLAS_EN_ORDEN, type ClaveAtlas } from '../vistas/atlasCatalogo';
+import {
+  ATLAS, ATLAS_EN_ORDEN, FAMILIAS, FAMILIAS_EN_ORDEN, type ClaveAtlas,
+} from '../vistas/atlasCatalogo';
 import { soloEstructuras } from '../vistas/planta';
 import type { Apoyo } from '../../../contratos/src/activos';
 import { ElDiaEntero, topeDe } from './PanelDelClima';
@@ -709,18 +711,32 @@ export function AtlasCaribe({ atlas, embebido = false, marca, alCambiarAtlas, li
           controles: cambiar de atlas no es filtrar un mes, es cambiar de qué
           habla la pantalla entera. Mezclarlo con el mes y el día invitaría a
           leerlo como un filtro más y a perder de vista qué se está mirando. */}
-      {alCambiarAtlas && (
-        <div className="acciones" role="group" aria-label="Qué atlas se mira">
-          {ATLAS_EN_ORDEN.map((c) => (
-            <button key={c} type="button"
-              className={'boton chico' + (c === atlas ? ' activo' : '')}
-              aria-pressed={c === atlas}
-              onClick={() => c !== atlas && alCambiarAtlas(c)}>
-              {ATLAS[c].rotulo}
-            </button>
-          ))}
-        </div>
-      )}
+      {/* ⚠️ LOS ATLAS VAN AGRUPADOS POR QUIÉN LOS PUBLICA (`§ADR-082`). Lo pidió
+          el Ingeniero: «que cada fuente asocie los atlas para que cualquier
+          visitante pueda apreciar con facilidad de dónde vienen los datos».
+          Antes eran ocho botones seguidos y la fuente solo se sabía DESPUÉS de
+          abrir cada uno; ahora se ve antes de pulsar, que es cuando sirve. */}
+      {alCambiarAtlas && FAMILIAS_EN_ORDEN.map((f) => {
+        const suyos = ATLAS_EN_ORDEN.filter((c) => ATLAS[c].familia === f);
+        if (!suyos.length) return null;
+        return (
+          <div key={f} className="atlas-familia">
+            <p className="atlas-familia-t">
+              <b>{FAMILIAS[f].rotulo}</b> <span className="fine">· {FAMILIAS[f].nota}</span>
+            </p>
+            <div className="acciones" role="group" aria-label={`Atlas de ${FAMILIAS[f].rotulo}`}>
+              {suyos.map((c) => (
+                <button key={c} type="button"
+                  className={'boton chico' + (c === atlas ? ' activo' : '')}
+                  aria-pressed={c === atlas}
+                  onClick={() => c !== atlas && alCambiarAtlas(c)}>
+                  {ATLAS[c].rotulo}
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      })}
       {/* ⚠️ DOS FECHAS, Y NO SON LA MISMA (`§ADR-075`). Lo pidió el Ingeniero:
           «que se pueda apreciar la fecha de última actualización y hora». Se
           publican las dos —cuándo se le preguntó a la fuente y hasta cuándo

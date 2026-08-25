@@ -25,6 +25,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import { anguloDe, geometriaDe, puntoDe, ventanaDe } from '../herramientas/abi-geo.mjs';
+import { ATLAS, ATLAS_EN_ORDEN, FAMILIAS } from '../web/src/vistas/atlasCatalogo.ts';
 import { celdasDelLibro, claveColombia, diarioDelLibro } from '../herramientas/libro-acumulado.mjs';
 import { PERFILES } from '../herramientas/abi-caribe.mjs';
 
@@ -146,5 +147,44 @@ describe('lo que estas capas NO son, dicho en su ficha', () => {
     assert.ok(!/35786023|-75\.2|75\.2/.test(GEO),
       'se clavó una constante del satélite que el archivo ya declara');
     assert.match(GEO, /export function geometriaDe\(proyeccion\)/);
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// DE QUIÉN VIENE CADA ATLAS, SIN ABRIRLO (`§ADR-082`)
+// ----------------------------------------------------------------------------
+// El selector agrupa las ocho capas por quien publica el dato. Eso obliga a que
+// el catálogo declare la familia de cada una… y una familia escrita a mano es
+// justo lo que se desincroniza en silencio (`30 · M-01`): el día que una capa
+// cambie de fuente, los botones seguirían agrupándola con la anterior y nadie
+// vería un error. Este guardián abre las fichas PUBLICADAS y las confronta.
+// ════════════════════════════════════════════════════════════════════════════
+describe('la familia que dice el catálogo es la que declara la ficha', () => {
+
+  test('las ocho capas cuadran con su fuente publicada', () => {
+    const fallan = [];
+    for (const clave of ATLAS_EN_ORDEN) {
+      const a = ATLAS[clave];
+      const ruta = fileURLToPath(new URL('../web/public' + a.ficha, import.meta.url));
+      const ficha = JSON.parse(readFileSync(ruta, 'utf-8'));
+      if (!FAMILIAS[a.familia].marca.test(ficha.fuente)) {
+        fallan.push(`${clave}: familia «${a.familia}» pero la ficha dice «${ficha.fuente.slice(0, 40)}…»`);
+      }
+    }
+    assert.deepEqual(fallan, [], 'capas agrupadas bajo una fuente que no es la suya');
+  });
+
+  test('ninguna capa se queda sin familia', () => {
+    for (const clave of ATLAS_EN_ORDEN) {
+      assert.ok(FAMILIAS[ATLAS[clave].familia], `${clave} no declara una familia conocida`);
+    }
+  });
+
+  test('y el selector las agrupa en vez de ponerlas en fila', () => {
+    const PANTALLA = readFileSync(
+      fileURLToPath(new URL('../web/src/componentes/AtlasCaribe.tsx', import.meta.url)), 'utf-8');
+    assert.match(PANTALLA, /FAMILIAS_EN_ORDEN\.map/,
+      'el selector volvió a ser una fila plana: la fuente solo se vería al abrir');
+    assert.match(PANTALLA, /ATLAS\[c\]\.familia === f/);
   });
 });

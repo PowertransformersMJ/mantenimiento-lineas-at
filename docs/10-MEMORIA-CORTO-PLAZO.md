@@ -21,15 +21,13 @@
 3. **EL ATLAS TIENE OCHO CAPAS (`§ADR-079/080/081`).** Cinco del año (POWER) + tres de SATÉLITE que
    se acumulan: **rayos**, **Sol ahora** y **Nubes ahora**. ⏱️ La frescura la manda la FUENTE:
    POWER/MERRA-2 (temp·viento·lluvia) **4 días**, POWER/CERES (sol·nubes) **87**, satélite **~15 min**.
-   Dos relojes en el vigía: 4 h para POWER, **1 h para las de satélite**. La fuente se ve en la cinta.
+   Dos relojes: 4 h para POWER, **1 h para satélite**. El selector las **agrupa por fuente** (`§ADR-082`).
    Los rayos son de OTRA fuente (GOES de NOAA) y **se ACUMULAN** en `herramientas/rayos-conteo.json`.
    ⚠️ **No son la DDT de RETIE/IEEE** — esa es la 2.ª capa y espera su cuenta Earthdata (`TODO-90`).
 4. **LO QUE NO SE PUEDE ROMPER DEL CLIMA (`§ADR-057..079`):** gana el hecho sobre el modelo · el recorrido se comprueba **punto a punto**, nunca por promedio · el clima vive en el ATLAS y Detalle GPS = solo el recorrido · **«tormenta eléctrica» NO existe en la fuente de nubes**, y hay prueba.
-5. **CERRADO 23/24-08 (detalle en `99`):** trazado sobre el atlas · `ClimaDelAnio` retirado · vigía
-   **cada 4 h** + la pantalla dice **de cuándo es el dato** · los dos ajustes de GitHub · hora a hora
-   también en el atlas de Detalle GPS · **sexta capa: RAYOS** (`§ADR-074..079`).
-   ⚠️ El robot NO dispara el CI: **el vigía firma su propio check** tras correr la suite.
-   **VIVO:** `TODO-87` (Radiación y Temperatura al atlas, ~400 líneas) · `TODO-89` y `TODO-90`, suyos.
+5. **CERRADO 23/24-08 (`§ADR-074..083`, detalle en `99`).** ⚠️ Lo único que hay que llevarse de ahí:
+   **el robot NO dispara el CI**, así que el vigía firma su propio check tras correr la suite.
+   **VIVO:** `TODO-87` (Radiación y Temperatura del corredor al atlas) · `TODO-89/90/92`, suyos.
    ⏳ **ESPERA SU RESPUESTA:** dice que el satelital tiene huecos; está al **100 % en z8-z16** →
    falta **DÓNDE los ve**.
 6. **⚠️ EL LIENZO NO SE VE EN SEGUNDO PLANO, PERO SE FOTOGRAFÍA** (`34 · L-16/L-58/L-72`):
@@ -38,17 +36,17 @@
 7. **FASE ABIERTA: la página.** No eligió entre ② **se lee** y ③ **no se cae**. ⚠️ `31 · L-60` puede estar MAL: verificar antes de citarlo.
 8. **SON DE ÉL** (detalle abajo): `TODO-57` el dato de la ficha · **contraseña** · `TODO-71` viento
    y los 1.000 W/m² · `TODO-33` · `TODO-76` · `TODO-80/81/82/83/88/89/90`.
-9. **Higiene** (`99 §ADR-047/048`). ⚠️ El techo es el **ARRANQUE**; `20` y `00` pasan su tope.
+9. **Higiene** (`99 §ADR-047/048/083`). ⚠️ El techo es el **ARRANQUE**; el `20` pasa su tope.
 
 ## 🚫 INVARIANTES — índice; cada uno vive ENTERO en su ADR
 
 · **Carcasa** `§ADR-018` — `amanecer` inalcanzable si falta un apoyo; el veredicto sale de `utilizacion_pct`, nunca de `cargaRotura_kgf`; dueños únicos en `vistas/`.
 · **Puntos nuevos** `§ADR-027/054` — identidad por NOMBRE, anotada ANTES; se biseca y el origen entra con `mínimo − 1`: nunca se renumera.
 · **RCA** `§ADR-020/026` — prohibido rankear hipótesis, causa raíz por IA y % de confianza; las causas las lee `causasDeclaradas()`.
-· **Acceso** `§ADR-024` — la contraseña es HIGIENE, la frontera son las reglas. · **Fotos** `§ADR-031` — el portero NO borra y NO lista; cuelga por nombre canónico.
+· **Acceso** `§ADR-024` — la contraseña es HIGIENE, la frontera son las reglas. · **Fotos** `§ADR-031` — el portero NO borra ni lista.
 · **Capas del mapa** `§ADR-034/037/046/079` — viajan CON el sitio; se guardan como MEDIDA (byte 0 = SIN DATO); el pronóstico no se guarda; toda capa trae encuadre Y escala, las dos o ninguna.
-· **Ficha y lote** `§ADR-030/038` — el lote rellena huecos, y solo los 3 del MODELO. · **Recordar ≠ proponer** `§ADR-029` — sin decisión suya el campo queda VACÍO.
-· **Verosimilitud** `§ADR-050` — la escala son TRES y se LEE del molde; una rival se cierra diciendo qué se hizo y cómo quedó, no con etiqueta.
+· **Ficha y lote** `§ADR-030/038` — el lote rellena huecos, solo los 3 del MODELO. · **Recordar ≠ proponer** `§ADR-029` — sin decisión suya, campo VACÍO.
+· **Verosimilitud** `§ADR-050` — la escala son TRES y se LEE del molde; una rival se cierra diciendo qué se hizo, no con etiqueta.
 · **Señales de la página** `§ADR-051` — banda, pestaña y tope de tiro salen del DATO, con un solo dueño; la versión del motor la ata un gate de `pre-commit`.
 · **El número que se firma** `§ADR-052` — un tope declarado manda en TODAS las piezas, y el molde tiene que admitirlo o la base lo tira en silencio.
 · **Atlas** `§ADR-045/053/055/056/079` — UN motor y UN escritor de fichas para los SEIS. El viento y los rayos NO marcan hipótesis; en el mapa de la línea van como dato del SITIO.
@@ -57,8 +55,8 @@
 ## 🧭 Cómo retomar
 
 1. **Abrir Claude Code DENTRO del proyecto** (desde el paraguas: `session-handoff.mjs --boot-echo`).
-2. Desplegar: `npm run build && npm run deploy --workspace web`, en ese orden (`32 · L-35`); reglas
-   de Firestore por SU canal y ANTES (`31 · L-22`). Repo PÚBLICO → **cero bytes de cliente**.
+2. Desplegar: `npm run build && npm run deploy --workspace web`, en ese orden (`32 · L-35`). Repo
+   PÚBLICO → **cero bytes de cliente**. Reglas de Firestore por SU canal y ANTES (`31 · L-22`).
 3. **Verificar contra PRODUCCIÓN con su Chrome**, no contra `dist/` (`32 · L-18/35`). Para el MAPA,
    banco sin sesión Y **foto**: `herramientas/foto-del-banco.mjs` (`34 · L-72`).
 4. Antes de CADA push: `npm test` + `contrato:verificar` + `brain:check`.
@@ -83,6 +81,7 @@
 | **TODO-44/34** | Alerta de gasto en Cloudflare · **respaldo FUERA de esta Mac**: la bóveda **no tiene remoto** | Un fallo de disco se la lleva |
 | **TODO-61/54/68** | ¿App Check? · ¿linter de frescura semántica? · ¿cazar un ADR repetido? Las dos últimas tocan el KERNEL | Las TRES son TUYAS |
 | **TODO-76** | **¿Se guarda que un apoyo es autosoportado / retenido?** Hoy no cabe en el modelo: iría por APOYO (26 declaraciones) | Cierra media incógnita de la capacidad longitudinal |
+| **TODO-92 NUEVO** | **Las dos sondas que faltan de la auditoría del cerebro** (`§ADR-083`): el *retrieval-drill* con un agente FRÍO y la voz adversarial. Miden si el cerebro ENTREGA, no si está bien escrito, y exigen subagentes — que aquí están vetados salvo orden suya | Sin ellas, la auditoría dice que el almacén está ordenado, no que la memoria funcione |
 | **TODO-78/84** ⬆️⬆️ | **Cerebro LLENO** (`§ADR-065`): el ARRANQUE va al ras y cada sesión gasta un rato raspando texto bueno para que quepa el nuevo. **Shard o recalibrar** | Ya es el freno más caro del día a día|
 
 ## 🔲 Pendientes de CLAUDE — en este orden

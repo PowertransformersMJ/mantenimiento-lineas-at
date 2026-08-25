@@ -6730,7 +6730,7 @@ inventar uno sería publicar un criterio que nadie firmó (`§ADR-055`, el caso 
 
 ---
 
-## ADR-080 · 2026-08-25 · De dónde viene cada atlas, y dos relojes en vez de uno
+## ADR-080 · 2026-08-24 · De dónde viene cada atlas, y dos relojes en vez de uno
 
 **Estado:** ✅ Decidido · **NO revisada externamente** · en producción.
 
@@ -6799,7 +6799,7 @@ exactamente lo que este proyecto no hace. Queda propuesto y con su número (`TOD
 
 ---
 
-## ADR-081 · 2026-08-25 · Sol y nubes, de 87 días a quince minutos — sin tapar lo que ya había
+## ADR-081 · 2026-08-24 · Sol y nubes, de 87 días a quince minutos — sin tapar lo que ya había
 
 **Estado:** ✅ Decidido · **NO revisada externamente** · en producción.
 
@@ -6862,7 +6862,7 @@ donde arreglar cada fallo es exactamente `34 · L-65`.
 
 ### Crudo de respaldo
 
-`research-archive/2026-08-25-sol-y-nubes-en-vivo/` — las fotos y los números que decidieron el diseño.
+`research-archive/2026-08-24-sol-y-nubes-en-vivo/` — las fotos y los números que decidieron el diseño.
 
 ### Consecuencias
 
@@ -6870,3 +6870,116 @@ donde arreglar cada fallo es exactamente `34 · L-65`.
 - El vigía las acumula con el reloj horario, junto a los rayos.
 - Sol y nubes pasan de **87 días** a **una hora** de retraso — el mayor salto de frescura que le
   quedaba al atlas.
+
+---
+
+## ADR-082 · 2026-08-24 · Los atlas, agrupados por quien publica el dato
+
+**Estado:** ✅ Decidido · **NO revisada externamente** · en producción.
+
+### Contexto
+
+El Ingeniero: *«me gustaría que cada fuente asocie los atlas para que cualquier visitante de la
+página pueda apreciar con facilidad de dónde vienen los datos de cada atlas»*.
+
+`§ADR-080` puso la fuente arriba, en la cinta — pero **solo la del atlas abierto**, porque la fuente
+vive en la ficha y la ficha solo se baja al abrirlo. Con ocho botones seguidos, saber de quién es
+cada uno costaba abrirlos de uno en uno. La fuente se veía DESPUÉS de pulsar; hace falta ANTES.
+
+### Decisión
+
+**1 · El selector se agrupa por FAMILIA**, con el nombre de quien publica encima de sus botones:
+
+- **NASA POWER** · *el año entero, con días de retraso* → sol · temperatura · viento · lluvia · nubes
+- **Satélite GOES-19 · NOAA** · *casi en vivo; empieza el día que se enciende y se llena solo* →
+  rayos · Sol ahora · Nubes ahora
+
+Sin caja ni borde: el grupo se lee por el rótulo y el espacio. Y la cinta sigue publicando la cadena
+EXACTA del que está abierto (`NASA POWER (MERRA-2)`, `GOES-19 ABI L2 DSR…`), que es el detalle que
+la familia no puede dar.
+
+**2 · La familia se declara en el catálogo, que es lo mínimo que el selector necesita saber sin
+abrir nada.** Es un dato duplicado —la ficha ya declara su fuente— y por eso **no puede quedarse sin
+vigilar**: un guardián abre las ocho fichas publicadas y comprueba que lo que cada una declara encaja
+con la familia que dice la tabla. Un dato que hay que mantener sincronizado a mano es un dato que se
+desincroniza (`30 · M-01`); con el guardián, el día que una capa cambie de fuente y nadie mueva el
+catálogo, la suite se pone roja antes de que llegue a la pantalla.
+
+### Alternativas descartadas
+
+- **Bajar las ocho fichas al abrir la pantalla** para agrupar sin duplicar nada: ocho peticiones —y
+  unos 100 KB— para pintar dos rótulos que casi nunca cambian. La ficha se baja cuando se abre el
+  atlas, y así sigue.
+- **Poner la fuente en cada botón** («Sol · NASA», «Rayos · NOAA»): ocho botones con el nombre
+  repetido, y el rótulo deja de caber en el panel.
+- **Un desplegable por fuente**: esconde detrás de un clic justo lo que se quería enseñar.
+
+### Consecuencias
+
+- **1.941 pruebas en verde** (3 nuevas, una de ellas el guardián anti-desincronización).
+- Quien entra ve, sin pulsar nada, que cinco capas son de NASA y tres del satélite — y en qué se
+  diferencian: historia contra tiempo real.
+
+---
+
+## ADR-083 · 2026-08-24 · Auditoría Nivel-2 del cerebro: lo que envejeció solo en dieciséis ADRs
+
+**Estado:** ✅ Cerrada · **NO revisada externamente** · auditoría PARCIAL y declarada como tal.
+
+**Deliberación:** `research-archive/2026-08-24-auditoria-cerebro-nivel2.json`
+
+### Contexto
+
+El gate #14 del linter bloqueó un commit: **16 ADRs nuevos desde la última auditoría** (2026-08-22),
+por encima de los 12 que el propio manifiesto declara como tope. Es el disparador auto-vigilado
+funcionando — y funcionó sobre una sesión larga, que es cuando más falta hace.
+
+### Qué se hizo, y qué NO
+
+Sondas **0, 1, 2, 4, 5 y 6** por verificación directa. Las sondas **3 (retrieval-drill con un agente
+frío)** y **7 (voz adversarial)** quedaron **sin correr**: este entorno tiene vetado lanzar
+subagentes salvo orden expresa del Ingeniero, y la propia skill contempla la auditoría parcial
+honesta antes que la completa fingida. Son justo las dos que miden si el cerebro **entrega**, no si
+está bien escrito → `TODO-92`.
+
+### Hallazgos
+
+| # | Qué se encontró | Estado |
+|---|---|---|
+| **B-01** | El nodo de signos vitales decía **1.937 pruebas** y eran **1.941**; y su fila Build decía «verificado-vivo 23-08» mientras la de Producción, en el mismo archivo, decía 24-08 | **Cerrado** aquí |
+| **B-02** | El índice del paraguas decía **77 ADRs** y **1.899 pruebas**; eran **81** y **1.941** | **Cerrado** aquí |
+| **B-03** | `docs/00-INDICE.md` **rebasó su tope** (17.650 / 16.000) y el linter escaló de aviso suave a «SHARD/poda» | **Cerrado**: cap RECALIBRADO, no silenciado (ver abajo) |
+| **B-04** | Tres ADRs y un crudo quedaron fechados **25-08** por escribirse pasada la medianoche UTC; en el reloj de Colombia era **24** | **Cerrado** aquí |
+| **B-05** | La síntesis del último trabajo **sí** permite retomar la decisión: trae los números medidos y las alternativas descartadas | Pasa |
+| **B-06** | La memoria del harness sigue **apuntando** al cerebro en vez de copiarlo | Pasa |
+| **B-07** | El **arranque** pasó la sesión pegado al techo: cada bloque nuevo obligó a raspar texto bueno de otro sitio, seis veces | **Abierto** → `TODO-84` |
+| **B-08** | Las sondas 3 y 7 no se corrieron | **Pendiente** → `TODO-92` |
+
+### Lo que enseña el lazo
+
+**La familia `M-01` —«un número que un guardián puede contar no se escribe en prosa»— reincidió DOS
+veces en dieciséis ADRs** (B-01 y B-02), y una de ellas **fuera del repositorio**, donde ningún gate
+mira. La lección existía, estaba escrita y aun así volvió: eso no es olvido, es que **no hay
+guardián**. La diferencia entre una regla y un gate es exactamente esta tabla.
+
+Y `B-04` es `32 · L-70` con otra piel: **la hora que se publica es la del sitio, no la del servidor**.
+Se aplicó al dato del atlas y no a la fecha de los documentos.
+
+### El cap del índice se RECALIBRÓ, y la diferencia importa
+
+`B-03` no se cerró podando: **el `00` es un índice que crece una fila por ADR**, así que un tope de
+caracteres fijo lo rompe por diseño —reventó a los 80 ADRs— y «podarlo» habría significado borrar
+historia para que un número cuadrara. Lo que acota de verdad su crecimiento es el tope de **líneas**
+(450, y va por 165). Se sube el de caracteres a 40.000 **con el porqué escrito en el propio
+manifiesto**: es la mitad «recalibrar» de `TODO-84`, no un gate apagado para poder commitear.
+
+Queda dicho para la próxima: un tope sobre un archivo que solo puede crecer no mide salud, mide
+tiempo. El resto de `TODO-84` —los nodos que sí engordan por prosa— sigue abierto.
+
+### Consecuencias
+
+- Cinco hallazgos cerrados en la propia auditoría; uno abierto con dueño (`TODO-84`) y uno nuevo
+  (`TODO-92`).
+- **GC pareado**: el arranque queda por debajo de donde empezó la auditoría.
+- `deepAudit` del manifiesto al día: sin eso, el nudge del linter seguiría encendido y el disparador
+  dejaría de ser auto-vigilado.

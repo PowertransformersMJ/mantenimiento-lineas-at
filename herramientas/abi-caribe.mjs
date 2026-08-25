@@ -17,7 +17,7 @@
 // cuadro. Se publican como capas hermanas, con la misma escala de color, para
 // que se puedan comparar a ojo sin confundirlas.
 //
-// ⚠️ POR QUÉ DOS TOMAS PARA LAS NUBES Y SEIS PARA EL SOL. Medido el 2026-08-25
+// ⚠️ POR QUÉ DOS TOMAS PARA LAS NUBES Y SEIS PARA EL SOL. Medido el 2026-08-24
 // sobre una hora real: la fracción nublada de la región fue 45,7 · 45,8 · 45,8 ·
 // 45,6 · 45,4 · 44,9 % — la media de las seis y la de dos (:00 y :30) difieren
 // en **0,12 puntos**, y el archivo de nubes pesa 27 MB frente a los 10 del sol.

@@ -155,8 +155,10 @@ Guarda `research-archive/` (crudos de deliberación: comités, consejos externos
 | `ADR-077` | 2026-08-24 | El despliegue automático, listo y con la comprobación puesta — la llave la pone él | *(`.github/workflows/desplegar.yml`)* |
 | `ADR-078` | 2026-08-24 | El hora a hora tiene que verse donde se busca | *(`tests/perfil-del-dia.test.js`)* |
 | `ADR-079` | 2026-08-24 | El sexto atlas: descargas atmosféricas, contadas por satélite | *(`herramientas/rayos-caribe.mjs`)* |
-| `ADR-080` | 2026-08-25 | De dónde viene cada atlas, y dos relojes en vez de uno | *(`.github/workflows/vigia-nasa.yml`)* |
-| `ADR-081` | 2026-08-25 | Sol y nubes, de 87 días a quince minutos — sin tapar lo que ya había | *(`herramientas/abi-caribe.mjs`)* |
+| `ADR-080` | 2026-08-24 | De dónde viene cada atlas, y dos relojes en vez de uno | *(`.github/workflows/vigia-nasa.yml`)* |
+| `ADR-081` | 2026-08-24 | Sol y nubes, de 87 días a quince minutos — sin tapar lo que ya había | *(`herramientas/abi-caribe.mjs`)* |
+| `ADR-082` | 2026-08-24 | Los atlas, agrupados por quien publica el dato | *(`web/src/vistas/atlasCatalogo.ts`)* |
+| `ADR-083` | 2026-08-24 | Auditoría Nivel-2 del cerebro: lo que envejeció solo en dieciséis ADRs | *(`research-archive/2026-08-24-auditoria-cerebro-nivel2.json`)* |
 
 > Toda decisión cara de revertir entra aquí con su ADR y su crudo enlazado. Si hubo comité o consejo
 > externo y el crudo no está archivado, la tarea **no está cerrada** (`CLAUDE.md §G.4`).

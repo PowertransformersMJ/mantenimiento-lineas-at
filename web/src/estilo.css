@@ -1556,6 +1556,16 @@ p.fund-vivo + .sello-calculo { margin-top: 5px; }
 .eje-cinta.r-medido { background: var(--t-ambar); border-left-color: var(--acc); color: var(--tx); }
 .eje-cinta.r-modelo { background: var(--t-azul); border-left-color: var(--az); color: var(--tx); }
 .eje-cinta.r-hueco  { background: transparent; border-left-style: dashed; }
+/* DE QUIÉN VIENE CADA ATLAS (ADR-082). Los botones se agrupan por quien publica
+   el dato, con su nombre encima: la fuente se ve ANTES de pulsar, no después de
+   abrir. Sin caja ni borde — el grupo se lee por el rótulo y el espacio. */
+.atlas-familia { margin: 6px 0 2px; }
+.atlas-familia-t {
+  margin: 0 0 2px; font-size: .74rem; color: var(--mut); letter-spacing: .02em;
+}
+.atlas-familia-t b { color: var(--tx); }
+.atlas-familia .acciones { margin-top: 0; }
+
 /* DE CUÁNDO ES LO QUE SE MIRA (ADR-075). Misma familia visual que la cinta de
    procedencia —es lo mismo: de dónde viene y de cuándo— pero a tamaño de leer,
    porque esto se consulta de un vistazo y no se busca. */
