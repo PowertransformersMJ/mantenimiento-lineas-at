@@ -155,3 +155,25 @@ Verificado el 2026-08-04 contra `datos.gov.co` (IDEAM), integrando el clima del 
 - **Por qué lo último es la mitad de la lección:** sin esa frase, el siguiente que lea el código verá
   una defensa a medias, la leerá como descuido y la «arreglará» encendiendo Blaze. Un compromiso sin
   documentar no se distingue de un error, y el que viene detrás lo revierte.
+
+---
+
+### L-75 · «Success! · Production» de Cloudflare Pages NO quiere decir que la web haya cambiado
+
+- **Síntoma (2026-08-26, `§ADR-087`):** `wrangler pages deploy` dijo `✨ Success!`, el listado de
+  despliegues puso **`Production · main · 2f0b9e9`**, la URL propia del despliegue servía el paquete
+  nuevo… y **`mantenimiento-lineas-at.pages.dev` siguió sirviendo el anterior durante más de media
+  hora**, con dos despliegues encima y uno repetido con `--branch=main` explícito.
+- **Medido, no supuesto:** los dos HTML se diferencian en **una línea** —el `src` del paquete—; el
+  alias servía el de `58a67f01` (una hora antes) y el despliegue nuevo, el suyo. Sin `cf-cache-status`
+  y con `cache-control: no-cache`, así que **no es caché de borde: es el ALIAS, que no se movió**.
+- **La trampa fina:** comprobar que el archivo nuevo (`/assets/index-XXXX.js`) responde 200 en el
+  alias **no prueba nada** — Pages sirve los recursos de todos los despliegues del proyecto, así que
+  el paquete viejo también responde 200 en el despliegue nuevo. Lo único que distingue es **qué
+  paquete NOMBRA el HTML** que devuelve el alias.
+- **Regla:** el despliegue no se da por hecho con la salida de `wrangler`. Se compara el `src` del
+  HTML **del alias** contra el de `dist/index.html`, con anti-caché, y **hasta que coincidan la web
+  NO ha cambiado** — se diga lo que se diga en la consola. Si no coinciden y no se mueve, es cosa del
+  panel de Cloudflare (promover el despliegue a producción), y eso es **mano del Ingeniero**.
+- **Hermana de `32 · L-18/L-35`** (verificar contra producción, no contra `dist/`) y de la razón por
+  la que existe `TODO-89`: mientras publicar sea a mano, este eslabón se comprueba a mano.
