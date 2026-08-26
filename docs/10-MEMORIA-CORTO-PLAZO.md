@@ -1,7 +1,7 @@
 # 📝 10 — MEMORIA DE CORTO PLAZO (pizarra viva)
 
-> Se **AUTO-CARGA**. Pizarra, no bitácora (§G.3). **RELEVO 2026-08-25.** Este nodo ES el
-> relevo: léelo entero. Detalle largo → `research-archive/2026-08-24-relevo-cierre.md`. Si algo
+> Se **AUTO-CARGA**. Pizarra, no bitácora (§G.3). **RELEVO 2026-08-26.** Este nodo ES el
+> relevo: léelo entero. Detalle largo → `research-archive/2026-08-26-relevo-cierre.md`. Si algo
 > contradice a `docs/.handoff-auto.md` (foto real de git), manda ese.
 
 ## 🎯 Dónde estamos
@@ -32,12 +32,12 @@
    el mapa en Chrome sin cabeza y lo mira** → propone → firma → fusiona. Queda UN eslabón a mano:
    **publicar** (`TODO-89`, sus dos secretos). Si el portero dice que no, NO hay propuesta y la
    corrida sale roja — nunca se publica a ciegas.
-   ⚠️ **No son la DDT de RETIE/IEEE** — esa es la 2.ª capa y espera su cuenta Earthdata (`TODO-90`).
 4. **LO QUE NO SE PUEDE ROMPER DEL CLIMA (`§ADR-057..086`):** gana el HECHO sobre el modelo · el recorrido se comprueba **punto a punto**, nunca por promedio · el clima vive en el ATLAS y Detalle GPS = solo el recorrido · **«tormenta eléctrica» NO existe en la fuente de nubes**.
-5. **CERRADO 23-26/08 (`§ADR-074..086`, detalle en `99`).** ⚠️ Lo único que llevarse: **el robot
-   NO dispara el CI**, y por eso el vigía firma su propio check. **VIVO:** `TODO-87` (Radiación y
-   Temperatura del corredor al atlas). ⏳ **ESPERA SU RESPUESTA:** el satelital «tiene huecos»;
-   está al **100 % en z8-z16** → falta **DÓNDE los ve**.
+5. **CERRADO 23-26/08 (`§ADR-074..086`).** ⚠️ Llevarse dos: **el robot NO dispara el CI** (por eso
+   el vigía firma su propio check) y **la palabra «medida» no se le aplica a un modelo**. Medido al
+   cerrar: **28 corridas del vigía en 24 h, 28 verdes, 25 propuestas fusionadas SOLAS, 0 abiertas.**
+   **VIVO:** `TODO-87`. ⏳ **ESPERA SU RESPUESTA:** el satelital «tiene huecos»; está al **100 % en
+   z8-z16** → falta **DÓNDE los ve**.
 6. **⚠️ EL LIENZO NO SE VE EN SEGUNDO PLANO, PERO SE FOTOGRAFÍA** (`34 · L-16/L-58/L-72`):
    `node herramientas/mirar-los-atlas.mjs <atlas>` lo hace todo y además SUSPENDE si no hay dibujo
    (`§ADR-085`). **Nunca con tiempo virtual.**
@@ -63,8 +63,7 @@
 1. **Abrir Claude Code DENTRO del proyecto** (desde el paraguas: `session-handoff.mjs --boot-echo`).
 2. Desplegar: `npm run build && npm run deploy --workspace web`, en ese orden (`32 · L-35`). Repo
    PÚBLICO → **cero bytes de cliente**. Reglas de Firestore por SU canal y ANTES (`31 · L-22`).
-3. **Verificar contra PRODUCCIÓN con su Chrome**, no contra `dist/` (`32 · L-18/35`). Para el MAPA,
-   banco sin sesión Y **foto**: `herramientas/foto-del-banco.mjs` (`34 · L-72`).
+3. **Verificar contra PRODUCCIÓN con su Chrome**, no contra `dist/` (`32 · L-18/35`); el MAPA, con el portero del punto 6.
 4. Antes de CADA push: `npm test` + `contrato:verificar` + `brain:check` (bloquea si el boot se pasa).
 
 ## 🔲 Pendientes del INGENIERO
@@ -75,7 +74,7 @@
 | **TODO-57** | **La FICHA se puede ESCRIBIR y está EN PRODUCCIÓN** (`99 §ADR-030`). Falta **el DATO**: ¿está en planos y actas, o hay que levantarlo? Los seis: rotura · altura libre · altura del amarre · capacidad longitudinal · fases amarradas · tipo de apoyo | **EL CUELLO DE BOTELLA REAL.** Al meter el primero saldrán «REVISAR»: no son averías nuevas |
 | **TODO-81** | **Descargar el acta de la carga del 22-08** desde Cargar: es el único sitio donde queda escrito POR QUÉ se decidió cada cosa | Se pierde al recargar |
 | **TODO-82/83** | **Dos decisiones suyas sobre el clima.** ① ¿FASE 2 del pronóstico (`§ADR-057`): franja mañana/tarde y sensación térmica? ② ¿Dato FINO por extremos (`§ADR-064`)? Las capas de 2 km tocan **3 celdas** y salen por PROMEDIO | Sensación de **40 °C** con aire a 32,5 · amplitud fina: 1,2 °C |
-| **TODO-88** | **¿Se junta otra vez el eje del tiempo?** Con `ClimaDelAnio` (`§ADR-074`) se fue el eje ÚNICO de `§ADR-058`: el atlas declara el régimen de cada día, pero **el pronóstico va aparte, en su tabla** — son DOS ejes. Es un resto de la migración | Medido y modelo en la misma tira hacía «ganar el hecho» de un vistazo |
+| **TODO-88** ⚠️ **CAMBIÓ DE FORMA (26-08)** | **¿Se junta otra vez el eje del tiempo?** El pronóstico YA está en la pantalla del atlas con su mes, día y hora (`§ADR-086`), pero en su propia FAMILIA. Lo que sigue abierto es si lo quiere junto a lo medido en **una sola tira** | Medido y modelo en la misma tira hacía «ganar el hecho» de un vistazo |
 | **TODO-80** | **¿Qué tope de puesta a tierra rige y cuál es la corriente de operación?** Los campos ya existen (`ADR-052`); declararlos basta. Sin decisión suya siguen **10 Ω** | Con 18 Ω medidos, 10 Ω dice «revisar» y 25 Ω «cumple» |
 | **TODO-90** | **La capa de rayos que piden las NORMAS** (rayos/km²/año, RETIE e IEEE 1243). Espera una **cuenta Earthdata gratuita**; el cómo, en `99 §ADR-079` | La horaria dice CUÁNDO hubo tormenta; ésta es la que entra en el cálculo de salidas por descarga |
 | **TODO-89** ⬅️ **DOS ÓRDENES SUYAS** | **Encender el despliegue automático.** Ya está hecho y comprobado; faltan los dos secretos de Cloudflare, y las llaves no pasan por el chat. **Los comandos exactos y el permiso que hace falta, en `99 §ADR-077`.** ⚠️ Al encenderlo, **nadie mirará el mapa antes de publicar** | Tercer y último eslabón de «que se actualice cada 4 horas» de verdad |
@@ -88,7 +87,7 @@
 | **TODO-61/54/68** | ¿App Check? · ¿linter de frescura semántica? · ¿cazar un ADR repetido? Las dos últimas tocan el KERNEL | Las TRES son TUYAS |
 | **TODO-76** | **¿Se guarda que un apoyo es autosoportado / retenido?** Hoy no cabe en el modelo: iría por APOYO (26 declaraciones) | Cierra media incógnita de la capacidad longitudinal |
 | **TODO-92 NUEVO** | **Las dos sondas que faltan de la auditoría del cerebro** (`§ADR-083`): el *retrieval-drill* con un agente FRÍO y la voz adversarial. Miden si el cerebro ENTREGA, no si está bien escrito, y exigen subagentes — que aquí están vetados salvo orden suya | Sin ellas, la auditoría dice que el almacén está ordenado, no que la memoria funcione |
-| **TODO-78/84** ⬆️⬆️ | **Cerebro LLENO** (`§ADR-065`): el ARRANQUE va al ras y cada sesión gasta un rato raspando texto bueno para que quepa el nuevo. **Shard o recalibrar** | Ya es el freno más caro del día a día|
+| **TODO-78/84** ⬆️⬆️ | **Cerebro LLENO** (`§ADR-065`): el ARRANQUE cerró con **3 caracteres de margen** (31.497/31.500) y `20` y `32` pasan su tope. Cada sesión gasta un rato podando texto bueno. **Shard o recalibrar** | El freno más caro del día a día |
 
 ## 🔲 Pendientes de CLAUDE — en este orden
 
