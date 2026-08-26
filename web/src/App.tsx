@@ -213,7 +213,12 @@ function Contenido() {
             pedir el pronóstico de su punto. Va OPCIONAL a propósito — el atlas
             se abre con `#/sol` sin línea cargada y tiene que seguir sirviendo
             como atlas de la región. */}
+        {/* ⚠️ Y LA HIPÓTESIS TAMBIÉN (`§ADR-087`): la leyenda de la temperatura
+            del corredor compara la media del sitio con la EDS adoptada, y esa
+            comparación es la razón de mirar esa capa. Sin línea cargada no hay
+            hipótesis y simplemente no se compara — que es lo honesto. */}
         <AtlasCaribe atlas={atlas} alCambiarAtlas={(c) => almacen.abrirAtlas(c)}
+          hipotesis={d.fase === 'listo' ? d.hipotesis : null}
           linea={d.fase === 'listo'
             ? { codigo: d.linea.codigo, apoyos: d.apoyos }
             : undefined} />

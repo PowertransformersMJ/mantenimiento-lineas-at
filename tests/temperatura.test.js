@@ -205,29 +205,45 @@ describe('comparar con la hipótesis NO es dictaminar', () => {
 // ════════════════════════════════════════════════════════════════════════════
 
 describe('solo una capa de medida encendida', () => {
+  // ⚠️ LAS DOS CAPAS SE MUDARON AL ATLAS (`99 §ADR-087`). Ninguno de estos
+  // guardianes se borró: lo que vigilan —dos rampas que se tapan, una marca que
+  // no distingue capas, una ficha reusada de la otra— puede volver a pasar
+  // exactamente igual en la casa nueva. Lo único que cambia es dónde mirar.
+  const CAPAS = leer('web/src/componentes/CapasDelCorredor.tsx');
+  const CATALOGO = leer('web/src/vistas/corredor.ts');
   const MAPA = leer('web/src/componentes/Mapa.tsx');
 
   test('hay UNA sola capa de MapLibre para las medidas', () => {
-    assert.match(MAPA, /const ID_MEDIDA = 'capa-medida'/,
+    assert.match(CATALOGO, /export const ID_CAPA_CORREDOR = 'capa-corredor'/,
       'dos capas de rampa superpuestas no se leen: el color de arriba tapa al de abajo');
-    assert.ok(!/'capa-radiacion'/.test(MAPA),
+    assert.ok(!/'capa-radiacion'/.test(CAPAS),
       'quedó viva la capa vieja: dos ids para lo mismo dejan una encendida para siempre');
+  });
+
+  test('el mapa de la LÍNEA se quedó sin ellas, no con una copia', () => {
+    // Es el guardián de la mudanza (`§ADR-087`). «Que aparezca en X» significa
+    // MIGRAR: si el interruptor sobreviviera aquí, habría dos dueños del mismo
+    // dibujo y el día que uno cambie el otro se queda mintiendo (`30 · M-01`).
+    for (const rastro of ['MEDIDAS', 'ID_MEDIDA', 'LeyendaRadiacion', 'LeyendaTemperatura']) {
+      assert.ok(!new RegExp(`\\b${rastro}\\b`).test(MAPA),
+        `«${rastro}» sigue vivo en el mapa de la línea: se copió en vez de mudarse`);
+    }
   });
 
   test('la marca de lo pintado incluye QUÉ medida, no solo el mes', () => {
     // Con solo el mes, pasar de radiación a temperatura en el mismo mes se
     // saltaría el repintado —la clave no cambia— y quedaría la capa anterior
     // debajo de la leyenda nueva.
-    assert.match(MAPA, /const marca = `\$\{medida\}:\$\{capa\.clave\}`/);
-    assert.match(MAPA, /rejillaLista !== marca/);
+    assert.match(CAPAS, /const marca = `\$\{puesta\}:\$\{capa\.clave\}`/);
+    assert.match(CAPAS, /rejillaLista !== marca/);
   });
 
   test('cambiar de medida vuelve a pedir SU ficha', () => {
-    assert.match(MAPA, /fichaMedida\?\.capa === medida \? fichaMedida : null/,
+    assert.match(CAPAS, /ficha\?\.capa === puesta \? ficha : null/,
       'reusar la ficha de la otra capa pintaría la rampa del sol sobre los grados del aire');
   });
 
   test('el catálogo declara las dos, y la temperatura apunta a su ficha', () => {
-    assert.match(MAPA, /temperatura: \{[\s\S]{0,300}cartagena-temperatura\.json/);
+    assert.match(CATALOGO, /temperatura: \{[\s\S]{0,300}cartagena-temperatura\.json/);
   });
 });

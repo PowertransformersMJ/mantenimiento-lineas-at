@@ -102,7 +102,10 @@ describe('la leyenda no redondea a otra magnitud', () => {
   });
 
   test('la pantalla le pasa la capa que está pintando', () => {
-    assert.match(MAPA, /avisoDeEscala\(ficha, actual\)/);
+    // La leyenda térmica se mudó al atlas (`99 §ADR-087`), y con ella este
+    // guardián: la escala tiene que hablar de la capa PINTADA, no de la ficha
+    // entera. Se sigue vigilando, solo que donde vive ahora.
+    assert.match(leer('web/src/componentes/CapasDelCorredor.tsx'), /avisoDeEscala\(ficha, actual\)/);
   });
 
   test('ninguna cifra de UNA línea concreta vive en el componente del mapa', () => {

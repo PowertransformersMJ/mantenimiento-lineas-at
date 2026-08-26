@@ -159,3 +159,31 @@
 - **Corolario:** ese resumen no se borra por estorbar. Era información válida MAL COLOCADA — se
   rotula y se baja. Tirarla habría sido cambiar un error por otro.
 - **Hermana de `L-44`.** Detalle: `99 §ADR-059`.
+
+---
+
+### L-74 · Al MUDAR una capa de pantalla, la que miente no es la capa: son las frases de al lado
+
+- **Síntoma:** las dos capas finas del corredor se mudaron al atlas (`99 §ADR-087`), pintaron
+  perfecto, el portero dijo que sí y **1.990 pruebas quedaron en verde**. En la foto, encima del
+  mapa, se leía: «**NASA POWER (MERRA-2)** · trae **dato medido hasta el 23 de agosto**» — sobre un
+  promedio de **1994-2025** del Global Solar Atlas. Fuente, naturaleza y fecha equivocadas, las tres
+  afirmadas con seguridad y sin un error en consola.
+- **Y no era una:** eran **tres**. La entradilla seguía diciendo «cada cuadro es una celda de **1°**
+  (unos 111 km) … se pinta a cuadros porque a cuadros es como está medida» con celdas de 2 km
+  interpoladas en pantalla; y el pie decía «a este encuadre la línea se ve como un punto» justo
+  cuando la capa acababa de llevar el mapa al corredor y la línea era lo más grande de la pantalla.
+- **Causa:** una frase no es del componente que la escribe, es **del encuadre y del dato que
+  acompaña**. Al mudar la capa, el texto que la explicaba se quedó atrás — y el que había en la casa
+  nueva se quedó hablando de otra cosa. Cada una era VERDAD donde nació.
+- **Por qué no lo caza una prueba:** todas las piezas siguen haciendo lo suyo. La cinta imprime bien
+  la ficha del atlas; la entradilla describe bien la celda del atlas. Lo que falla es que **describen
+  algo que ya no está en pantalla**, y eso solo se ve mirando la pantalla entera a la vez.
+- **Regla:** al mudar una capa a otra pantalla, se hace inventario de **todo lo que afirma** esa
+  pantalla —cinta, entradilla, pie, rótulos— y de cada frase se pregunta *«¿sigue siendo verdad con
+  esto puesto?»*. Las que no, se bifurcan o se callan. Y **se hace la foto y se LEE entera**, no solo
+  se comprueba que el mapa tenga dibujo: el portero dice si hay algo dibujado, no si lo que está
+  escrito al lado es cierto.
+- **Hermana de `30 · L-68`** («arreglado donde se veía, vivo en la pieza hermana»): aquí es lo
+  contrario y la misma familia — la pieza no se tocó, y por eso quedó mintiendo. Detalle:
+  `99 §ADR-087`.

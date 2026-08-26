@@ -22,6 +22,7 @@
 // USO:
 //   node herramientas/mirar-los-atlas.mjs temperatura
 //   node herramientas/mirar-los-atlas.mjs rayos solVivo nubesVivo
+//   node herramientas/mirar-los-atlas.mjs corredor:radiacion corredor:temperatura
 //
 // Construye el banco él mismo (`SONDA_MAPA=1`), levanta el servidor, mira cada
 // atlas y lo apaga todo. Sale 1 si alguno no pasa. Las fotos quedan en
@@ -43,9 +44,46 @@ if (!claves.length) {
 }
 
 const { ATLAS } = await import('../web/src/vistas/atlasCatalogo.ts');
+const { CORREDOR, ID_CAPA_CORREDOR } = await import('../web/src/vistas/corredor.ts');
+
+/**
+ * QUÉ HAY QUE ABRIR Y QUÉ CAPA TIENE QUE APARECER, para cada clave.
+ *
+ * ⚠️ LAS DOS CAPAS FINAS DEL CORREDOR TAMBIÉN PASAN POR AQUÍ (`99 §ADR-087`).
+ * Se mudaron al atlas, y `§ADR-071` no distingue: **no se publica dibujo de mapa
+ * que no se pueda mirar**. Dejarlas fuera del portero habría sido volver al
+ * estado en que verificar un dibujo dependía de que alguien abriera su
+ * navegador — que es exactamente lo que costó una sesión entera.
+ *
+ * Se piden con el prefijo `corredor:` porque no son atlas: no tienen calendario
+ * ni fecha, y meterlas en la misma lista invitaría a tratarlas como si la
+ * tuvieran.
+ */
+function loQueSeMira(clave) {
+  if (clave.startsWith('corredor:')) {
+    const cual = clave.slice('corredor:'.length);
+    if (!CORREDOR[cual]) return null;
+    // Se abre un atlas cualquiera de la región Y ADEMÁS la capa fina encima: es
+    // el estado real que ve el Ingeniero, no un montaje aparte.
+    return {
+      idCapa: ID_CAPA_CORREDOR,
+      direccion: `que=atlas-una&atlas=temperatura&corredor=${cual}`,
+      rotulo: `corredor · ${CORREDOR[cual].rotulo}`,
+    };
+  }
+  if (!ATLAS[clave]) return null;
+  return {
+    idCapa: ATLAS[clave].idCapa,
+    direccion: `que=atlas-una&atlas=${clave}`,
+    rotulo: clave,
+  };
+}
+
 for (const c of claves) {
-  if (!ATLAS[c]) {
-    console.error(`⛔ «${c}» no es un atlas. Los que hay: ${Object.keys(ATLAS).join(', ')}`);
+  if (!loQueSeMira(c)) {
+    console.error(`⛔ «${c}» no es un atlas ni una capa del corredor. Los que hay: `
+      + `${Object.keys(ATLAS).join(', ')}`
+      + `, ${Object.keys(CORREDOR).map((k) => `corredor:${k}`).join(', ')}`);
     process.exit(2);
   }
 }
@@ -89,8 +127,8 @@ try {
   mkdirSync(SALIDAS, { recursive: true });
 
   for (const clave of claves) {
-    const { idCapa } = ATLAS[clave];
-    console.log(`\n👁️  mirando «${clave}» (capa ${idCapa})…`);
+    const { idCapa, direccion, rotulo } = loQueSeMira(clave);
+    console.log(`\n👁️  mirando «${rotulo}» (capa ${idCapa})…`);
     // Uno detrás de otro y no a la vez: cada foto levanta su propio Chrome con
     // WebGL por software, y tres a la vez en un servidor de dos núcleos se
     // estorban hasta que alguno no llega a pintar a tiempo. Un portero lento es
@@ -98,8 +136,8 @@ try {
     // desactivarlo.
     const r = spawnSync(process.execPath, [
       join(RAIZ, 'herramientas/foto-del-banco.mjs'),
-      `http://localhost:${PUERTO}/sonda-satelital.html?que=atlas-una&atlas=${clave}`,
-      '--salida', join(SALIDAS, `${clave}.png`),
+      `http://localhost:${PUERTO}/sonda-satelital.html?${direccion}`,
+      '--salida', join(SALIDAS, `${clave.replace(':', '-')}.png`),
       '--espera', String(process.env.ESPERA_BANCO ?? 14),
       '--exigir', '--exigir-capa', idCapa,
     ], { stdio: 'inherit' });
@@ -116,4 +154,4 @@ if (fallaron.length) {
   console.error('   Esto NO se publica: el atlas se queda como estaba.');
   process.exit(1);
 }
-console.log(`✅ el portero dice que sí en los ${claves.length} atlas: ${claves.join(', ')}.`);
+console.log(`✅ el portero dice que sí en las ${claves.length} capas: ${claves.join(', ')}.`);

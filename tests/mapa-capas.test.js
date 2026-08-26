@@ -131,10 +131,33 @@ describe('el mapa no le pide teselas a nadie', () => {
       // El efecto que CREA el mapa queda fuera: es el que publica el mapa nuevo.
       !/crearMapa\(/.test(cuerpo)
       && /const m = mapaVivo|m\.(addSource|addLayer|setLayoutProperty)/.test(cuerpo));
-    assert.ok(tocanElMapa.length >= 3, `esperaba al menos 3 efectos sobre el mapa, hallé ${tocanElMapa.length}`);
+    // ⚠️ AQUÍ DECÍA «al menos 3», y ése era el fallo del guardián, no del código
+    // (`§ADR-087`). Al mudarse las dos capas del corredor al atlas quedó UN
+    // efecto y la prueba se puso roja sin que nada se hubiera roto: un número
+    // escrito a mano no es el invariante. El invariante es **que ninguno lea el
+    // mapa de la referencia**, y ése se comprueba abajo, uno por uno.
+    assert.ok(tocanElMapa.length >= 1,
+      'no queda ni un efecto que toque el mapa: o se rompió el detector o el mapa ya no pinta nada');
     for (const [, , deps] of tocanElMapa) {
       assert.ok(deps.includes('mapaVivo') || deps.trim() === '',
         `un efecto que toca el mapa no escucha al mapa nuevo: [${deps}]`);
+    }
+  });
+
+  test('y las capas que se mudaron al atlas obedecen la MISMA regla', () => {
+    // `§ADR-087` sacó las dos capas del corredor de este archivo. La regla que
+    // las protegía —un efecto que toca el mapa tiene que enterarse de que el
+    // lienzo es otro— no se muda sola: se comprueba también en su casa nueva,
+    // donde el mapa llega como prop y por tanto TIENE que estar en las
+    // dependencias. Sin esto, la mudanza habría dejado el guardián atrás.
+    const CORREDOR = readFileSync(url('../web/src/componentes/CapasDelCorredor.tsx'), 'utf-8');
+    const efectos = [...CORREDOR.matchAll(/useEffect\(\(\) => \{([\s\S]*?)\}, \[([^\]]*)\]\);/g)];
+    const tocan = efectos.filter(([, cuerpo]) =>
+      /m\.(addSource|addLayer|setLayoutProperty|setMaxZoom|fitBounds)|irAlRecorte\(|irALaRegion\(/.test(cuerpo));
+    assert.ok(tocan.length >= 1, 'ningún efecto toca el mapa: el detector se quedó ciego');
+    for (const [, , deps] of tocan) {
+      assert.ok(/\bmapa\b/.test(deps),
+        `un efecto que toca el mapa del atlas no lo escucha: [${deps}]`);
     }
   });
 
@@ -263,10 +286,18 @@ describe('cada imagen dice cuándo se tomó y a quién se le debe', () => {
     // 1.000 W/m² con los que se calcula la ampacidad. Son magnitudes distintas.
     const f = ficha('cartagena-radiacion.json');
     assert.equal(f.no_es_irradiancia_instantanea, true);
-    assert.match(FUENTE, /NOTA_AMPACIDAD/,
-      'la leyenda dejó de advertir para qué NO sirve esta capa');
+    // La leyenda se mudó al atlas (`§ADR-087`); la advertencia se mudó con ella
+    // y aquí se sigue exigiendo, solo que en su archivo.
+    assert.match(readFileSync(url('../web/src/componentes/CapasDelCorredor.tsx'), 'utf-8'),
+      /NOTA_AMPACIDAD/, 'la leyenda dejó de advertir para qué NO sirve esta capa');
     assert.match(String(f.periodo ?? ''), /largo plazo/,
       'sin decir que es un promedio de largo plazo, se lee como el sol de hoy');
+    // ⚠️ Y AHORA, ADEMÁS, LO DECLARA EN UNA PALABRA (`§ADR-086/087`). Desde que
+    // esta capa se enseña en la misma pantalla que ocho mediciones fechadas y
+    // tres pronósticos fechados, «periodo» en prosa no basta: la pantalla se
+    // niega a pintar lo que no diga qué es, y no hay valor por defecto.
+    assert.equal(f.naturaleza, 'promedio',
+      'sin declarar su naturaleza, un promedio de treinta años se lee como la medición de ayer');
   });
 
   test('la rampa de color va en orden y con su escala', () => {
@@ -342,14 +373,21 @@ describe('la foto va debajo de los nombres, no encima', () => {
   test('el ancla se calcula del estilo vivo, no se escribe a mano', () => {
     assert.match(CODIGO, /function primerRotulo\(m: maplibregl\.Map\)/,
       'el mapa base son 71 capas de una librería que versiona: la lista no se copia');
-    assert.match(CODIGO, /const debajoDe = m\.getLayer\(ID_MEDIDA\) \? ID_MEDIDA\s*\n\s*: \(primerRotulo\(m\)/,
+    // (Antes este cálculo tenía un escalón más: se anclaba bajo la capa de
+    // MEDIDA si la había. Esa capa se fue al atlas con `§ADR-087` y el escalón
+    // con ella — no se dejó el `if` muerto apuntando a una capa que ya no existe.)
+    assert.match(CODIGO, /const debajoDe = primerRotulo\(m\) \?\? \(m\.getLayer\('tramos'\)/,
       'la imagen satelital tiene que anclarse bajo el primer rótulo');
   });
 
-  test('la capa de MEDIDA se ancla igual, o el orden dependería de los clics', () => {
+  test('la capa del CORREDOR se ancla igual, o el orden dependería de los clics', () => {
     // Encender la temperatura después de la foto la ponía encima de los nombres
     // otra vez: el resultado dependía de en qué orden se pulsaran las casillas.
-    assert.match(CODIGO, /\}, primerRotulo\(m\) \?\? \(m\.getLayer\('tramos'\)/);
+    // La capa se mudó al atlas y allí el ancla es la frontera departamental, que
+    // es lo que en ese mapa tiene que quedar ENCIMA junto con el trazado.
+    assert.match(readFileSync(url('../web/src/componentes/CapasDelCorredor.tsx'), 'utf-8'),
+      /\}, m\.getLayer\('dep-borde'\) \? 'dep-borde' : undefined\);/,
+      'la capa fina tiene que anclarse por CÁLCULO, no por el orden en que se pulse');
   });
 
   test('el callejero NO se apaga bajo la foto', () => {

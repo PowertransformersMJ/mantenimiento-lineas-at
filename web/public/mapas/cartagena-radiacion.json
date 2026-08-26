@@ -1,6 +1,7 @@
 {
   "capa": "radiacion",
   "titulo": "Radiación solar (Global Solar Atlas)",
+  "naturaleza": "promedio",
   "magnitud": "GHI — irradiación global horizontal",
   "unidad": "kWh/m² al día",
   "bbox": [

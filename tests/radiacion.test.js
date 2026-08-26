@@ -211,7 +211,11 @@ describe('la ficha publicada trae la escala de ESTE recorte', () => {
 
 // ════════════════════════════════════════════════════════════════════════════
 describe('las dos capas de medida se miran con las mismas herramientas', () => {
-  const MAPA = leer('web/src/componentes/Mapa.tsx');
+  // ⚠️ MIRA `CapasDelCorredor`, NO `Mapa` (`99 §ADR-087`): las dos capas se
+  // mudaron a la pantalla del atlas. El guardián NO se borró al mudarse el
+  // código — el hueco que vigila (una leyenda con botón y la otra sin él) puede
+  // reabrirse igual de bien en su casa nueva.
+  const MAPA = leer('web/src/componentes/CapasDelCorredor.tsx');
 
   test('las DOS leyendas reciben el encuadre, no solo la de temperatura', () => {
     // Éste es el guardián del hueco: `alEncuadrar` nació en la leyenda de
@@ -230,7 +234,9 @@ describe('las dos capas de medida se miran con las mismas herramientas', () => {
   test('el encuadre al recorte tiene UN dueño, no una copia por leyenda', () => {
     // Ojo: el OTRO `fitBounds` del archivo es el encuadre inicial a la línea, que
     // es otra cosa. Lo que no puede haber es una copia dentro de cada leyenda.
-    assert.equal((MAPA.match(/const encuadrarRecorte =/g) ?? []).length, 1);
+    assert.equal((MAPA.match(/function irAlRecorte\(/g) ?? []).length, 1,
+      'el encuadre al recorte tiene que ser UNA función, no una copia por sitio que lo pide: '
+      + 'lo piden dos —el efecto al encenderla y el botón— y escrito dos veces un día discrepan');
     const alRecorte = (MAPA.match(/fitBounds\(\[\[x0, y0\], \[x1, y1\]\]/g) ?? []).length;
     assert.equal(alRecorte, 1,
       'dos copias del encuadre al recorte son dos comportamientos que un día discrepan: '

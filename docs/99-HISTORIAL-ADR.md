@@ -7343,3 +7343,91 @@ trabajos» y se puso rojo al entrar el tercero. El número no era el invariante;
 ### Crudo de respaldo
 
 `../brain-private/mantenimiento-lineas-at/research-archive/2026-08-26-atlas-del-pronostico/`
+
+---
+
+## ADR-087 · 2026-08-26 · Las dos capas finas del corredor se mudan al atlas, y aprenden a decir que son un PROMEDIO
+
+### Contexto
+
+El 22 de agosto el Ingeniero mandó que **el clima dejara de vivir en Detalle GPS y viviera en la
+pantalla del ATLAS**; esa pestaña se queda con **el recorrido** (`§ADR-069`). La mudanza se hizo casi
+entera —el eje del día, el día hora a hora, las escalas, el pronóstico—, pero quedaron dos piezas
+pegadas al mapa de la línea: **«Radiación solar» y «Temperatura ambiente» del corredor**, celdas de
+**2 km** del Global Solar Atlas sobre un recorte de unos 32 × 42 km. Eran `TODO-87`, y llevaban
+cuatro días vivas porque **no son un atlas más**: son otro subsistema con su interruptor, sus dos
+leyendas, seis estados y dos efectos atados al mapa.
+
+Al medir antes de tocar aparecieron **tres impedimentos que el plan no decía**, y los tres cambian
+el diseño:
+
+1. **El techo de zoom.** El atlas lo tiene en **9,5** porque su celda mide 111 km (`§ADR-055`). El
+   corredor mide 2 km: a 9,5 su recorte entero son cuatro píxeles. Encender la capa y que no pase
+   nada visible es indistinguible de que esté rota — y la conclusión sería razonable (`§ADR-042`).
+2. **La naturaleza.** `§ADR-086` dejó dicho que **cada capa declara qué es** y que quien no lo diga
+   se lee como `medida`. Estas dos no son `medida` ni `pronostico`: son **el promedio de muchos
+   años** (1994-2025 la térmica). No tienen «cuándo» que citar, y la pantalla del atlas está
+   construida entera alrededor de «de cuándo es este dato» (`§ADR-075`).
+3. **El mapa base se queda corto antes que el dato.** `caribe.pmtiles` publica hasta **z10**; el
+   recorte de la línea, hasta z15. Medido en la cabecera de los propios archivos.
+
+### Decisión
+
+**Se mudan, no se copian**, a `componentes/CapasDelCorredor.tsx`, colgadas del mapa que ya existe.
+En el mapa de la línea no queda interruptor, ni leyenda, ni efecto, ni el lector de rejillas.
+
+**No entran en el catálogo de atlas** (`vistas/atlasCatalogo.ts`) y sí en uno propio
+(`vistas/corredor.ts`): van por MES y no por día y hora, miden 2 km y no 111 km, y no llevan fecha.
+Meterlas allí habría obligado al motor a admitir una capa sin calendario y a la cinta de frescura a
+decir «actualizado el …» de algo que no describe ningún día.
+
+**Nace la TERCERA naturaleza: `promedio`.** Se declara en las dos fichas publicadas **y en el
+generador** (`construir-raster.py`), para que la próxima reconstrucción escriba lo mismo. La pantalla
+**se niega a pintar** una capa que no lo declare, y **sin valor por defecto**: un `?? 'medida'`
+convertiría olvidarlo en mentir. Es el mismo candado de `§ADR-086`, aplicado al que lee.
+
+**El techo de zoom se DERIVA, no se escribe.** `techoDelCorredor(resolucion_m, zMaxDelMapaBase)`
+toma el menor de dos topes reales — lo que aguanta el dato (el techo del atlas más lo fino que sea
+esta capa) y lo que aguanta el fondo (lo que publique el `.pmtiles`, más 2,5 niveles) — y **nunca
+devuelve menos que el techo del atlas**: encender una capa fina no puede ALEJAR el mapa. Medido hoy:
+dato 15,3 · fondo 12,5 → manda **12,5**, y a 12,5 el recorte llena la pantalla.
+
+**Mientras una capa fina está puesta, el atlas de la región se aparta:** su capa se apaga, su clic se
+calla y su calendario queda en pausa, dicho en pantalla. Dos rampas de color sobre el mismo
+territorio no se leen, y un clic contestaría dos veces en dos unidades distintas. ⚠️ La comprobación
+vive **dentro del efecto que pinta la capa del atlas**, no en el interruptor: ese efecto vuelve a
+ponerla visible en cada repintado, así que apagarla desde fuera habría durado hasta el siguiente
+cambio de mes y las dos rampas habrían reaparecido solas, sin un solo error.
+
+**Y son fotografiables.** El banco las abre por la dirección (`?corredor=radiacion`) y el portero las
+mira con `corredor:<capa>`. `§ADR-071` no distingue: **no se publica dibujo de mapa que no se pueda
+mirar**, y dejarlas fuera habría devuelto su verificación a depender de que alguien abriera su
+navegador.
+
+### Alternativas descartadas
+
+- **Dejarlas donde estaban y añadirlas también al atlas.** Es duplicar: dos dueños del mismo dibujo,
+  y el día que uno cambie el otro se queda mintiendo (`30 · M-01`). Además contradice la orden.
+- **Convertirlas en dos atlas más del catálogo.** Habría hecho de la pantalla del atlas una que
+  admite capas sin fecha; el precio lo habrían pagado los once atlas fechados.
+- **Reusarles la naturaleza `medida`.** Es cierto que alguien lo midió, pero no ESE día: la palabra
+  «medida», en esta pantalla, significa «se midió y consta cuándo». Es `30 · L-68` otra vez.
+- **Escribir el techo de zoom a mano (15,3, o 12,5).** Un número que hay que mantener sincronizado
+  con otro que vive en otro archivo es un número que se desincroniza.
+
+### Consecuencias
+
+- **1.990 pruebas en verde** (22 nuevas). Cuatro guardianes viejos **repuntados** a la casa nueva,
+  ninguno borrado: lo que vigilaban puede volver a pasar exactamente igual donde el código vive ahora.
+- **La hipótesis de cálculo viaja con la capa** hasta el atlas —por los tres caminos que lo abren—:
+  sin ella, la leyenda térmica pierde la única línea por la que vale la pena mirarla (la media del
+  sitio al lado de la EDS adoptada). Migrar el dibujo dejando atrás su razón es la regresión de fondo.
+- **Un guardián estaba mal, y no el código:** `mapa-capas` exigía «al menos 3 efectos que tocan el
+  mapa» y al quedar uno se puso rojo sin que nada se hubiera roto. El invariante no era el número:
+  era **que ninguno lea el mapa de la referencia**. `30 · M-01`, dentro de un guardián, por segunda
+  vez en dos sesiones.
+- **Cero dato nuevo, cero red, cero gasto.** Los PNG y las fichas son los mismos que ya viajaban.
+
+### Crudo de respaldo
+
+`../brain-private/mantenimiento-lineas-at/research-archive/2026-08-26-corredor-al-atlas/`

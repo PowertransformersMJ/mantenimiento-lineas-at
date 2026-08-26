@@ -1,6 +1,7 @@
 {
   "capa": "temperatura",
   "titulo": "Temperatura ambiente (Global Solar Atlas)",
+  "naturaleza": "promedio",
   "magnitud": "TEMP — temperatura ambiente (aire a 2 m)",
   "unidad": "°C",
   "bbox": [

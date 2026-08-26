@@ -909,6 +909,14 @@ def _publicar_radiacion(rejillas, ancho, alto, n_puntos, fallos):
     escribir_ficha('radiacion', {
         'capa': 'radiacion',
         'titulo': 'Radiación solar (Global Solar Atlas)',
+        # ⚠️ QUÉ ES ESTO, DECLARADO (`99 §ADR-086/087`). El atlas del Caribe
+        # obliga a cada capa a decir si es `medida` o `pronostico`, y quien no lo
+        # dice se lee como medida. Ésta no es ninguna de las dos: es el PROMEDIO
+        # de muchos años, y no tiene fecha que citar. Sin esta palabra, un
+        # promedio de treinta años se enseña al lado de un «medido hasta el 23 de
+        # agosto» con la misma cara — que es `30 · L-68` otra vez.
+        'naturaleza': 'promedio',
+
         'magnitud': 'GHI — irradiación global horizontal',
         'unidad': 'kWh/m² al día',
         'bbox': list(BBOX),
@@ -1109,6 +1117,14 @@ def _publicar_temperatura(rejillas, ancho, alto, n_puntos, fallos):
     escribir_ficha('temperatura', {
         'capa': 'temperatura',
         'titulo': 'Temperatura ambiente (Global Solar Atlas)',
+        # ⚠️ QUÉ ES ESTO, DECLARADO (`99 §ADR-086/087`). El atlas del Caribe
+        # obliga a cada capa a decir si es `medida` o `pronostico`, y quien no lo
+        # dice se lee como medida. Ésta no es ninguna de las dos: es el PROMEDIO
+        # de muchos años, y no tiene fecha que citar. Sin esta palabra, un
+        # promedio de treinta años se enseña al lado de un «medido hasta el 23 de
+        # agosto» con la misma cara — que es `30 · L-68` otra vez.
+        'naturaleza': 'promedio',
+
         'magnitud': 'TEMP — temperatura ambiente (aire a 2 m)',
         'unidad': '°C',
         'bbox': list(BBOX),

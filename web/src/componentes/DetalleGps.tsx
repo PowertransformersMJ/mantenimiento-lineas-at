@@ -131,7 +131,7 @@ export function DetalleGps({
         <RespaldoMapa apoyos={apoyos}>
           <Suspense fallback={<PlantaSvg apoyos={apoyos} nota="Descargando el mapa…" />}>
             <Mapa apoyos={apoyos} eventos={investigaciones} alVerEvento={alVerEvento}
-              hipotesis={hipotesis} panelALado pantalla="detalle-gps"
+              panelALado pantalla="detalle-gps"
               respaldo={<PlantaSvg apoyos={apoyos} nota="El mapa no se pudo descargar; se muestra el esquema geométrico (funciona sin conexión). Las coordenadas de abajo siguen completas." />} />
           </Suspense>
         </RespaldoMapa>
@@ -144,7 +144,7 @@ export function DetalleGps({
         </p>
       </section>
 
-      <AtlasDelCaribe apoyos={apoyos} codigo={codigoLinea} />
+      <AtlasDelCaribe apoyos={apoyos} codigo={codigoLinea} hipotesis={hipotesis} />
 
       {(sesion?.rol === 'admin' || sesion?.rol === 'editor') && (
         <DeclararCableGuarda apoyos={apoyos} />
@@ -318,7 +318,17 @@ function DeclararCableGuarda({ apoyos }: { apoyos: Apoyo[] }) {
  * que antes. Es la condición que hacía falta para traerlo aquí sin castigar a
  * quien la abre desde el teléfono, en campo.
  */
-function AtlasDelCaribe({ apoyos, codigo }: { apoyos: Apoyo[]; codigo?: string }) {
+function AtlasDelCaribe({ apoyos, codigo, hipotesis }: {
+  apoyos: Apoyo[]; codigo?: string;
+  /**
+   * ⚠️ LA HIPÓTESIS VIAJA HASTA AQUÍ (`§ADR-087`). No la usa el atlas: la usa la
+   * leyenda de la temperatura del corredor, que se mudó a esta pantalla con su
+   * capa. Sin ella se pierde la única línea por la que esa capa vale —la media
+   * del sitio al lado de la EDS adoptada—, y migrar el dibujo dejando atrás su
+   * razón es exactamente la regresión que `30 · L-68` describe.
+   */
+  hipotesis?: Hipotesis;
+}) {
   const [abierto, setAbierto] = useState<ClaveAtlas | null>(null);
 
   // El centro del recorrido: la media de las coordenadas de las ESTRUCTURAS. No
@@ -368,9 +378,11 @@ function AtlasDelCaribe({ apoyos, codigo }: { apoyos: Apoyo[]; codigo?: string }
           {codigo
             ? (
               <AtlasCaribe atlas={abierto} embebido linea={{ codigo, apoyos }}
+                hipotesis={hipotesis}
                 alCambiarAtlas={(c: ClaveAtlas) => setAbierto(c)} />
             ) : (
               <AtlasCaribe atlas={abierto} embebido marca={marca}
+                hipotesis={hipotesis}
                 alCambiarAtlas={(c: ClaveAtlas) => setAbierto(c)} />
             )}
         </Suspense>

@@ -27,6 +27,7 @@ import type { Apoyo } from '@lineas/contratos';
 import Mapa from './componentes/Mapa';
 import { AtlasCaribe } from './componentes/AtlasCaribe';
 import { ATLAS, ATLAS_EN_ORDEN, type ClaveAtlas } from './vistas/atlasCatalogo';
+import { CORREDOR, CORREDOR_EN_ORDEN, type ClaveCorredor } from './vistas/corredor';
 import { bordeDeCelda, celdaDe } from './vistas/rejilla';
 import type { FichaAtlas } from './vistas/atlasCaribe';
 import { prepararTeselas } from './datos/teselas';
@@ -127,6 +128,15 @@ function Banco() {
   const [atlas, setAtlas] = useState<ClaveAtlas>(
     () => delDirectorio<ClaveAtlas>('atlas', ATLAS_EN_ORDEN, 'temperatura'));
   const [ficha, setFicha] = useState<FichaAtlas | null>(null);
+  /**
+   * ⚠️ LA CAPA FINA DEL CORREDOR, TAMBIÉN POR LA DIRECCIÓN (`§ADR-087`).
+   * `?corredor=radiacion` abre el atlas con esa capa ya puesta. Sin esto, las
+   * dos capas que acaban de mudarse aquí serían dibujo de mapa que NADIE puede
+   * mirar sin abrir un navegador a mano — justo lo que `§ADR-071` prohíbe
+   * publicar. El portero abre esta dirección y comprueba que hay dibujo.
+   */
+  const corredor = delDirectorio<ClaveCorredor | 'no'>(
+    'corredor', ['no', ...CORREDOR_EN_ORDEN], 'no');
 
   useEffect(() => {
     void prepararTeselas()
@@ -156,10 +166,16 @@ function Banco() {
         <button type="button" className={'boton chico' + (que === 'atlas-dos' ? ' activo' : '')}
           onClick={() => setQue('atlas-dos')}>Atlas · línea que cruza DOS</button>
       </div>
+      {corredor !== 'no' && (
+        <p className="fine">
+          Banco con la capa fina del corredor puesta: <b>{CORREDOR[corredor].rotulo}</b>.
+        </p>
+      )}
       {que === 'mapa'
         ? <Mapa apoyos={apoyos} pantalla="banco-componente-real" />
         : (
           <AtlasCaribe atlas={atlas} alCambiarAtlas={setAtlas}
+            corredorInicial={corredor === 'no' ? null : corredor}
             linea={{ codigo: 'LN-FALSA', apoyos: falsa }} />
         )}
     </>

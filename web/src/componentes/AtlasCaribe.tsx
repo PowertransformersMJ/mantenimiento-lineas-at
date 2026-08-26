@@ -60,6 +60,8 @@ import { PanelPronostico } from './PanelDelClima';
 import { celdaDeConsulta, pedirPronostico, SinPronostico } from '../datos/pronostico';
 import { ejeDeLaLinea, type PronosticoEnPantalla } from '../vistas/pronostico';
 import { anotar, registrarMapa, retirarMapa } from './sondaMapa';
+import { CapasDelCorredor } from './CapasDelCorredor';
+import { AVISO_PROMEDIO, CORREDOR, TECHO_DEL_ATLAS, type ClaveCorredor } from '../vistas/corredor';
 
 const DEPARTAMENTOS = '/mapas/caribe-departamentos.json';
 const BASE = 'caribe.pmtiles';
@@ -115,7 +117,9 @@ async function leerPng(url: string): Promise<{ px: Uint8Array; ancho: number; al
   return { px, ancho: l.width, alto: l.height };
 }
 
-export function AtlasCaribe({ atlas, embebido = false, marca, alCambiarAtlas, linea }: {
+export function AtlasCaribe({
+  atlas, embebido = false, marca, alCambiarAtlas, linea, hipotesis, corredorInicial = null,
+}: {
   atlas: ClaveAtlas;
   /**
    * Dentro de otra pestaña, no como pantalla completa. Cambia dos cosas y solo
@@ -154,6 +158,23 @@ export function AtlasCaribe({ atlas, embebido = false, marca, alCambiarAtlas, li
    * enseña lo mismo salvo lo que exige un sitio concreto.
    */
   linea?: { codigo: string; apoyos: Apoyo[] };
+  /**
+   * LA HIPÓTESIS DE CÁLCULO, si la hay (`§ADR-087`).
+   *
+   * ⚠️ VIAJÓ CON LAS CAPAS DEL CORREDOR, y no es un extra: la leyenda de
+   * temperatura vale sobre todo por UNA línea —la media del sitio al lado de la
+   * temperatura que el cálculo da por buena—, y esa comparación necesita la EDS
+   * adoptada. Migrar la capa sin ella habría sido mudar el dibujo y dejar atrás
+   * la razón de mirarlo. Opcional: el atlas de la región se abre sin línea, y
+   * entonces simplemente no hay nada que comparar.
+   */
+  hipotesis?: { tempEds_C?: number | null } | null;
+  /**
+   * Abrir con una capa del corredor ya puesta. SOLO lo usa el banco de pruebas:
+   * un Chrome sin cabeza abre una dirección pero no sabe pulsar una casilla, y
+   * `§ADR-071` exige que todo dibujo de mapa se pueda MIRAR antes de publicarlo.
+   */
+  corredorInicial?: ClaveCorredor | null;
 }) {
   const def = ATLAS[atlas];
   /**
@@ -209,6 +230,26 @@ export function AtlasCaribe({ atlas, embebido = false, marca, alCambiarAtlas, li
   const [listoMapa, setListoMapa] = useState(false);
   const nSonda = useRef<number | null>(null);
   const [clic, setClic] = useState<{ v: number | null; lon: number; lat: number } | null>(null);
+
+  /**
+   * QUÉ CAPA FINA DEL CORREDOR ESTÁ PUESTA (`§ADR-087`), y por qué el estado
+   * vive AQUÍ y no dentro de `CapasDelCorredor`.
+   *
+   * Porque esta pantalla tiene que hacer DOS cosas con esa respuesta, y ninguna
+   * es del componente hijo:
+   *   · **apagar su propia capa** — dos rampas de color sobre el mismo
+   *     territorio no se leen; el dueño de la capa de la región es este archivo.
+   *   · **callar su propio clic** — con las dos escuchando, un clic contestaba
+   *     dos veces y en dos unidades distintas.
+   * Un estado con dos copias es un estado que se desincroniza (`30 · M-01`).
+   */
+  const [corredor, setCorredor] = useState<ClaveCorredor | null>(null);
+  /**
+   * Hasta dónde publica teselas el mapa base. Sale de la cabecera del `.pmtiles`
+   * y no de una constante: es uno de los dos topes que deciden cuánto se puede
+   * acercar con una capa fina puesta (`vistas/corredor.ts`).
+   */
+  const [zMaxFondo, setZMaxFondo] = useState<number | null>(null);
 
   useEffect(() => () => { montado.current = false; }, []);
 
@@ -323,6 +364,9 @@ export function AtlasCaribe({ atlas, embebido = false, marca, alCambiarAtlas, li
       try {
         const meta = await prepararTeselas(BASE);
         if (cancelado || !caja.current) return;
+        // El techo REAL del fondo, leído del archivo. Lo necesita la capa fina
+        // del corredor para no estirar el callejero hasta convertirlo en croquis.
+        setZMaxFondo(meta.zMax);
 
         // El fondo del mapa base, repintado (ver `FUERA_DEL_RECORTE`). Se toca la
         // capa por su TIPO y no solo por su nombre: si un día el mapa base deja de
@@ -354,7 +398,11 @@ export function AtlasCaribe({ atlas, embebido = false, marca, alCambiarAtlas, li
           fitBoundsOptions: { padding: 12 },
           // El techo lo pone EL DATO, no el mapa: con celdas de 111 km, pasar de
           // aquí es enseñar un detalle que la medida no tiene.
-          maxZoom: 9.5,
+          //
+          // ⚠️ Y por eso SUBE mientras hay una capa del corredor puesta
+          // (`§ADR-087`): esas celdas miden 2 km. El número no se escribe dos
+          // veces — sale de `TECHO_DEL_ATLAS`, que es de quien es.
+          maxZoom: TECHO_DEL_ATLAS,
         });
         mapa.current = m;
         m.on('error', (e) => console.warn(`[atlas ${atlas}]`, (e as { error?: Error }).error?.message ?? e));
@@ -493,6 +541,18 @@ export function AtlasCaribe({ atlas, embebido = false, marca, alCambiarAtlas, li
   useEffect(() => {
     const m = mapa.current;
     if (!m || !listoMapa || !ficha) return;
+    /**
+     * ⚠️ CON UNA CAPA DEL CORREDOR PUESTA, ÉSTA SE APAGA (`§ADR-087`) — y la
+     * comprobación va AQUÍ, la primera, no en el interruptor. Este efecto vuelve
+     * a poner `visibility: visible` cada vez que cambia el cuadro (mes, día,
+     * hora); apagarla desde fuera habría durado hasta el siguiente repintado y
+     * las dos rampas habrían reaparecido solas, sin un error. El dueño de si
+     * esta capa se ve es este efecto, y solo él.
+     */
+    if (corredor) {
+      if (m.getLayer(def.idCapa)) m.setLayoutProperty(def.idCapa, 'visibility', 'none');
+      return;
+    }
     if (!cuadro) {
       if (m.getLayer(def.idCapa)) m.setLayoutProperty(def.idCapa, 'visibility', 'none');
       return;
@@ -525,12 +585,17 @@ export function AtlasCaribe({ atlas, embebido = false, marca, alCambiarAtlas, li
       }, m.getLayer('dep-borde') ? 'dep-borde' : undefined);
     }
     m.triggerRepaint();
-  }, [cuadro, listoMapa, ficha]);
+  }, [cuadro, listoMapa, ficha, corredor]);
 
   // ── El clic: cuánto hay AHÍ ───────────────────────────────────────────────
+  //
+  // ⚠️ CON UNA CAPA DEL CORREDOR PUESTA, ESTE CLIC NO CONTESTA (`§ADR-087`): lo
+  // hace ella, que es la que está pintada. Con los dos escuchando, un solo clic
+  // devolvía DOS respuestas en DOS unidades —kWh/m² al día y grados, o rayos y
+  // grados— y las dos se veían a la vez en el mismo panel.
   useEffect(() => {
     const m = mapa.current;
-    if (!m || !listoMapa || !ficha) return;
+    if (!m || !listoMapa || !ficha || corredor) return;
     const alPulsar = (ev: maplibregl.MapMouseEvent) => {
       const c = bytes && mes?.png && bytes.mes === mes.clave
         ? cuadroDe(bytes.px, ficha, mes.png, dia, hora) : null;
@@ -539,7 +604,7 @@ export function AtlasCaribe({ atlas, embebido = false, marca, alCambiarAtlas, li
     };
     m.on('click', alPulsar);
     return () => { m.off('click', alPulsar); };
-  }, [listoMapa, ficha, mes, dia, hora, bytes]);
+  }, [listoMapa, ficha, mes, dia, hora, bytes, corredor]);
 
   // ── DÓNDE CAE LA LÍNEA ────────────────────────────────────────────────────
   //
@@ -752,7 +817,22 @@ export function AtlasCaribe({ atlas, embebido = false, marca, alCambiarAtlas, li
           llega su dato— porque enseñar solo la primera es lo que engaña: el
           atlas solar se reconstruye hoy y trae dato de mayo. Y se dice DE QUIÉN
           es el retraso, que es lo que convierte dos fechas en una decisión. */}
-      {frescura && (
+      {/* ⚠️ LA CINTA CALLA MIENTRAS LA CAPA FINA ESTÁ PUESTA (`§ADR-087`), y
+          esto lo cazó la FOTO, no una prueba. Con la capa del corredor pintada,
+          la cinta seguía diciendo «NASA POWER · trae dato medido hasta el 23 de
+          agosto» justo encima de un promedio de 1994-2025 del Global Solar
+          Atlas: fuente equivocada, naturaleza equivocada y fecha equivocada, las
+          tres afirmadas con seguridad y sin un solo error en consola. Es el
+          fallo exacto que `§ADR-086` existe para impedir, reaparecido por la
+          puerta de al lado. */}
+      {corredor && (
+        <p className="atlas-frescura r-modelo">
+          🔍 <b>El mapa enseña ahora la capa fina del corredor</b>:{' '}
+          <b>{CORREDOR[corredor].rotulo}</b>, celdas de 2 km.{' '}{AVISO_PROMEDIO}
+          {' '}Su fuente, su período y su atribución van con ella, en el panel.
+        </p>
+      )}
+      {frescura && !corredor && (
         <p className={'atlas-frescura r-' + (frescura.porQue === 'pronostico-caducado' ? 'caducado'
           : frescura.porQue === 'pronostico' ? 'modelo'
             : frescura.porQue === 'al-dia' ? 'medido'
@@ -814,9 +894,19 @@ export function AtlasCaribe({ atlas, embebido = false, marca, alCambiarAtlas, li
         </p>
       )}
       <p className="saludo">
-        {def.entradilla} <b>hora a hora</b> sobre {ficha?.departamentos.join(', ')}.
-        Cada cuadro es una celda de <b>1°</b> (unos 111 km) medida por satélite: se pinta a cuadros
-        porque <b>a cuadros es como está medida</b>.
+        {/* ⚠️ Y ESTA FRASE TAMBIÉN (`§ADR-087`). Describía «una celda de 1°
+            (unos 111 km) … se pinta a cuadros porque a cuadros es como está
+            medida» mientras en pantalla había celdas de 2 km interpoladas.
+            Verdadera en su sitio, falsa en el de al lado — `30 · L-68`. */}
+        {corredor ? (
+          <>Debajo sigue el <b>{def.titulo.toLowerCase()}</b>, en pausa mientras mira el corredor.
+            Lo pintado ahora son celdas de <b>2 km</b>, suavizadas al acercarse: la celda sigue
+            midiendo 2 km, solo deja de verse a cuadros.</>
+        ) : (
+          <>{def.entradilla} <b>hora a hora</b> sobre {ficha?.departamentos.join(', ')}.
+            Cada cuadro es una celda de <b>1°</b> (unos 111 km) medida por satélite: se pinta a
+            cuadros porque <b>a cuadros es como está medida</b>.</>
+        )}
         {marca && <> El punto marcado es <b>{marca.nombre}</b>: dónde cae esta línea dentro del atlas.</>}
         {/* ⚠️ EL DIBUJO SE ANUNCIA Y SE ACOTA (`§ADR-074`). Un trazo de tres
             píxeles sobre un mapa de siete departamentos se lee como un punto —y
@@ -829,13 +919,52 @@ export function AtlasCaribe({ atlas, embebido = false, marca, alCambiarAtlas, li
             {delRecorrido.celdas.length === 1
               ? <>la celda que le toca va <b>rodeada a rayas</b></>
               : <>van rodeadas a rayas las <b>{delRecorrido.celdas.length} celdas</b> que cruza</>}.
-            A este encuadre se ve como un punto: la línea mide kilómetros y el mapa, cientos.</>
+            {/* ⚠️ Y ESTA CLÁUSULA TAMBIÉN DEPENDE DEL ENCUADRE (`§ADR-087`).
+                «Se ve como un punto» es verdad sobre siete departamentos y
+                mentira cuando la capa fina ha llevado el mapa al corredor: ahí
+                la línea es lo más grande de la pantalla. Tercera frase que la
+                mudanza dejaba mintiendo, y las tres las cazó la foto. */}
+            {corredor
+              ? <> A este encuadre —el del corredor— se ve entera; el recuadro a rayas de su
+                celda queda fuera, porque mide 111 km.</>
+              : <> A este encuadre se ve como un punto: la línea mide kilómetros y el mapa,
+                cientos.</>}</>
         )}
       </p>
 
       <div className="mapa-real mapa-real--lado">
         <div ref={caja} className="mapa-lienzo" />
         <div className="mapa-capas" role="group" aria-label={`Controles del ${def.titulo}`}>
+          {/* ── LAS DOS CAPAS FINAS DEL CORREDOR (`§ADR-087`) ───────────────
+              Van ARRIBA y no al final, por lo mismo que el selector de atlas:
+              no filtran un mes, cambian de qué habla el mapa entero. Vivían
+              pegadas al mapa de la línea y el Ingeniero mandó que el clima
+              viviera aquí; se MUDARON, no se copiaron.
+              ⚠️ `mapa.current` se pasa solo cuando el mapa ya está listo: antes
+              de eso no se le pueden colgar capas y el componente no debe
+              intentarlo. `listoMapa` es lo que provoca el repintado que lo
+              entrega — una referencia sola no repinta nada. */}
+          <CapasDelCorredor
+            mapa={listoMapa ? mapa.current : null}
+            listo={listoMapa}
+            zMaxDelFondo={zMaxFondo}
+            volverA={ficha?.bbox ?? null}
+            puesta={corredor}
+            alPoner={(c) => { setCorredor(c); setClic(null); }}
+            edsHipotesis_C={hipotesis?.tempEds_C}
+            inicial={corredorInicial}
+          />
+          {/* ⚠️ SE DICE QUE EL ATLAS ESTÁ EN PAUSA, no se esconden sus mandos.
+              Escondiéndolos, volver atrás sería adivinar dónde estaban; y unos
+              mandos que siguen ahí sin decir nada mientras el mapa no responde
+              se leen como una avería. */}
+          {corredor && (
+            <p className="mapa-capas-n aviso">
+              <b>El atlas de la región está en pausa.</b> Son dos rampas de color sobre el mismo
+              territorio: superpuestas no se lee ninguna de las dos. Apague la capa fina y
+              {' '}{def.rotulo.toLowerCase()} vuelve tal como estaba.
+            </p>
+          )}
           {ficha && mes && (
             <>
               <p className="mapa-capas-t">Mes</p>

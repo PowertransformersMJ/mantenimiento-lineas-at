@@ -19,22 +19,11 @@ import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { layers, namedFlavor } from '@protomaps/basemaps';
 import { prepararTeselas } from '../datos/teselas';
-import { FUNCIONES_ANCLA, type Apoyo, type Hipotesis, type Investigacion } from '@lineas/contratos';
+import { FUNCIONES_ANCLA, type Apoyo, type Investigacion } from '@lineas/contratos';
 import { derivarLevantamiento } from '@lineas/exportar/levantamiento';
 import { COLORES_TRAMO_CSS, COLOR_SIN_GUARDA, COLOR_SIN_GUARDA_FUNDA } from '../vistas/tramoColores';
 import { cableDeGuarda } from '../vistas/cableGuarda';
 import { nf } from '../vistas/formato';
-import { esquinas, pintarRejilla, valorEnPunto } from '../vistas/rejilla';
-import {
-  avisoDeEscala as avisoDeEscalaSol, avisoDeMuestreo, capaElegida, capasOrdenadas,
-  oscilacionAnual, NOTA_AMPACIDAD, NOTA_ENCUADRE,
-  type CapaRadiacion, type FichaRadiacion,
-} from '../vistas/radiacion';
-import {
-  avisoDeEscala, avisoDeMuestreo as avisoDeMuestreoTemp, capaElegida as capaElegidaTemp,
-  capasOrdenadas as capasOrdenadasTemp, contraLaEds, oscilacionEstacional, NOTA_HIPOTESIS,
-  type FichaTemperatura,
-} from '../vistas/temperatura';
 
 /**
  * PEREZOSO de verdad: mientras la capa esté apagada, este trozo no se descarga.
@@ -65,44 +54,19 @@ export const CAPAS_RASTER = {
 } as const;
 
 /**
- * LAS CAPAS DE MEDIDA no viajan como teselas pintadas: viajan como REJILLA DE
- * VALORES y el color lo pone el navegador (`vistas/rejilla.ts`). Por eso no están
- * en la lista de arriba — no se sirven por el protocolo de teselas: se leen, se
- * pintan y se colocan por sus cuatro esquinas.
+ * ⚠️ LAS DOS CAPAS FINAS DEL CORREDOR YA NO VIVEN AQUÍ (`99 §ADR-087`).
  *
- * ⚠️ SOLO UNA ENCENDIDA A LA VEZ, y no es una limitación técnica: son dos rampas
- * de color sobre el mismo territorio. Superpuestas, el color de arriba tapa al de
- * abajo y lo que se lee no es ninguna de las dos — un degradado que no mide nada.
- * El clic tampoco podría decir a cuál de las dos contesta.
+ * «Radiación solar» y «Temperatura ambiente» —celdas de 2 km del Global Solar
+ * Atlas— se MUDARON a la pantalla del ATLAS, con su interruptor, sus dos
+ * leyendas, su clic y su techo de zoom: `componentes/CapasDelCorredor.tsx`.
+ * Es la última pieza de clima que quedaba en Detalle GPS, y la orden del
+ * Ingeniero (22-08) era que el clima viviera en el atlas y esta pestaña se
+ * quedara con EL RECORRIDO.
+ *
+ * No se borró nada: se movió, y llegó completo antes de quitarlo de aquí —
+ * incluida la hipótesis de cálculo, sin la cual la leyenda térmica pierde la
+ * única línea por la que vale la pena mirarla.
  */
-export const MEDIDAS = {
-  radiacion: {
-    rotulo: 'Radiación solar',
-    ficha: '/mapas/cartagena-radiacion.json',
-    opacidad: 0.68,
-    bajando: 'Bajando el recurso de ese mes…',
-    fallo: 'No se pudo cargar el recurso solar. El mapa sigue igual.',
-  },
-  temperatura: {
-    rotulo: 'Temperatura ambiente',
-    ficha: '/mapas/cartagena-temperatura.json',
-    // Algo más translúcida que el sol: la temperatura se mira SOBRE el terreno
-    // —dónde está el mar, dónde la ciudad— y a 0,68 el fondo desaparecía.
-    opacidad: 0.6,
-    bajando: 'Bajando la temperatura de ese mes…',
-    fallo: 'No se pudo cargar la temperatura ambiente. El mapa sigue igual.',
-  },
-} as const;
-
-export type NombreMedida = keyof typeof MEDIDAS;
-
-export const FICHA_RADIACION = MEDIDAS.radiacion.ficha;
-export const ATRIBUCION_RADIACION =
-  'Global Solar Atlas 2.0 — Solargis para el Banco Mundial / ESMAP (CC BY 4.0)';
-export const OPACIDAD_RADIACION = MEDIDAS.radiacion.opacidad;
-
-/** El id de la capa en MapLibre. Uno solo: solo hay una medida encendida. */
-const ID_MEDIDA = 'capa-medida';
 
 export type NombreCapa = keyof typeof CAPAS_RASTER;
 
@@ -120,9 +84,6 @@ function primerRotulo(m: maplibregl.Map): string | undefined {
   }
   return undefined;
 }
-
-/** La ficha de la medida que esté encendida. Las dos comparten la mecánica. */
-export type FichaMedida = FichaRadiacion | FichaTemperatura;
 
 /** Lo que la ficha de una capa trae. Todo opcional: si falta, no se pinta. */
 export interface FichaCapa {
@@ -193,18 +154,19 @@ function fichaPopup(p: ReturnType<typeof derivarLevantamiento>['puntos'][number]
   return `<div class="pop-ficha">${filas.join('<br>')}</div>`;
 }
 
-export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis, panelALado, pantalla = 'sin-declarar' }:
+export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, panelALado, pantalla = 'sin-declarar' }:
   { apoyos: Apoyo[]; respaldo?: ReactNode;
     /** Expedientes de falla a señalar sobre el mapa. Vacío = línea sin eventos. */
     eventos?: Investigacion[];
     /** Qué hacer al pulsar el marcador (abrir la pestaña Falla). */
     alVerEvento?: (id: string) => void;
     /**
-     * La hipótesis de cálculo, SOLO para poder decir qué parte de su viento
-     * representa el que se pronostica. No entra en ningún cálculo: el pronóstico
-     * no valida una hipótesis (ver `vistas/pronostico.ts`).
+     * ⚠️ AQUÍ IBA `hipotesis`, y se fue con las capas del corredor
+     * (`99 §ADR-087`). Era lo que permitía comparar la media térmica del sitio
+     * con la EDS adoptada; esa leyenda vive ahora en el atlas, así que la
+     * hipótesis viaja allí. Un mapa de recorrido no necesita saber con qué
+     * temperatura se calcula el tiro.
      */
-    hipotesis?: Hipotesis;
     /**
      * El panel de capas AL LADO del mapa en vez de flotando encima.
      *
@@ -232,22 +194,8 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
   const [estado, setEstado] = useState<'cargando' | 'listo' | 'fallo'>('cargando');
   /** Qué mapa de fondo se ve. El térmico NO es fondo: va ENCIMA, y por eso es aparte. */
   const [base, setBase] = useState<'callejero' | 'satelital'>('callejero');
-  /** Qué capa de MEDIDA está encendida. Una o ninguna: dos rampas se tapan. */
-  const [medida, setMedida] = useState<NombreMedida | null>(null);
-  /** La ficha de la medida encendida: recorte, codificación, rampa y sus meses. */
-  const [fichaMedida, setFichaMedida] = useState<FichaMedida | null>(null);
-  /** Qué mes se está mirando. Vacío = la media del año. */
-  const [mesRadiacion, setMesRadiacion] = useState<string | null>(null);
-  /** La rejilla del día elegido, en bytes. De aquí salen los grados de un clic. */
-  const rejilla = useRef<Uint8Array | null>(null);
-  /** El lienzo donde se pinta la rejilla. Es el MISMO siempre: la fuente lo lee en vivo. */
-  const pincel = useRef<HTMLCanvasElement | null>(null);
-  const [rejillaLista, setRejillaLista] = useState<string | null>(null);
-  const [valorClic, setValorClic] = useState<{ c: number | null; lon: number; lat: number } | null>(null);
   const [fichas, setFichas] = useState<Partial<Record<NombreCapa, FichaCapa>>>({});
   const [bajando, setBajando] = useState<NombreCapa | null>(null);
-  /** Si se está bajando la rejilla de un mes. Es otra cosa que bajar teselas. */
-  const [bajandoRadiacion, setBajandoRadiacion] = useState(false);
   const [falloCapa, setFalloCapa] = useState<string | null>(null);
   /**
    * El pronóstico NO es una capa de imagen: es un dato del sitio que se pinta
@@ -484,11 +432,11 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
           // arriba— y hacía lo contrario: una foto aérea sin un solo nombre, en
           // la que no se sabe dónde está uno. Se calcula del estilo REAL, no de
           // una lista escrita a mano, porque el mapa base puede cambiar de capas.
-          // Orden que queda, de abajo arriba: callejero · foto · medida · rótulos
-          // · trazado y apoyos. El térmico encima de la foto porque es una
-          // LECTURA sobre el terreno; el trazado encima de todo porque es el asunto.
-          const debajoDe = m.getLayer(ID_MEDIDA) ? ID_MEDIDA
-            : (primerRotulo(m) ?? (m.getLayer('tramos') ? 'tramos' : undefined));
+          // Orden que queda, de abajo arriba: callejero · foto · rótulos ·
+          // trazado y apoyos. El trazado encima de todo porque es el asunto.
+          // (Antes se colaba la capa de medida entre la foto y los rótulos; se
+          // fue al atlas con `§ADR-087` y con ella el escalón de este cálculo.)
+          const debajoDe = primerRotulo(m) ?? (m.getLayer('tramos') ? 'tramos' : undefined);
           m.addLayer({
             id: idCapa,
             type: 'raster',
@@ -515,7 +463,7 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
           console.warn('[mapa] capa', nombre, e);
           anotar(sonda.current, `FALLO al poner «${nombre}»: ${(e as Error)?.message ?? String(e)}`);
           setFalloCapa(`No se pudo descargar la capa «${capa.rotulo}». El mapa sigue igual.`);
-          if (nombre === 'satelital') setBase('callejero'); else setMedida(null);
+          if (nombre === 'satelital') setBase('callejero');
         } finally {
           if (!cancelado) setBajando(null);
         }
@@ -543,139 +491,10 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
 
     void aplicar();
     return () => { cancelado = true; };
-  }, [base, medida, mapaVivo, mapaCargado]);
+  }, [base, mapaVivo, mapaCargado]);
 
-  /**
-   * La capa térmica: ficha, rejilla del día y pintura.
-   *
-   * Tres pasos que no se pueden saltar y por eso van juntos: se lee la ficha
-   * (una vez), se baja la rejilla del día elegido, y se pinta con la rampa de la
-   * PROPIA ficha. El resultado se coloca por sus cuatro esquinas: la rejilla se
-   * construyó en Web Mercator justo para que encaje sin reproyectar nada.
-   *
-   * ⚠️ Se pinta a un lienzo y se entrega como imagen. La alternativa —teselas de
-   * color— es lo que había antes, y era lo que impedía elegir el día, preguntar
-   * los grados de un punto y ver la imagen suavizada al acercarse.
-   */
-  useEffect(() => {
-    const m = mapaVivo;
-    if (!m || !mapaCargado) return;
-    if (!medida) {
-      if (m.getLayer(ID_MEDIDA)) m.setLayoutProperty(ID_MEDIDA, 'visibility', 'none');
-      return;
-    }
-    const cfg = MEDIDAS[medida];
-    let cancelado = false;
-
-    const pintar = async () => {
-      try {
-        // La ficha es de UNA medida: si se cambió de capa, la que hay en memoria
-        // es la de la otra y hay que volver a pedirla. Reusarla pintaría la rampa
-        // del sol sobre los grados del aire, sin un solo error.
-        let ficha = fichaMedida?.capa === medida ? fichaMedida : null;
-        if (!ficha) {
-          const r = await fetch(cfg.ficha);
-          if (!r.ok) throw new Error('HTTP ' + r.status);
-          ficha = await r.json() as FichaMedida;
-          if (cancelado) return;
-          setFichaMedida(ficha);
-        }
-        const capa = capaElegida(ficha as FichaRadiacion, mesRadiacion);
-        if (!capa) throw new Error('la ficha no trae ni una capa');
-        if (!mesRadiacion) setMesRadiacion(capa.clave);
-
-        // ⚠️ La marca lleva QUÉ MEDIDA además del mes. Con solo el mes, pasar de
-        // radiación a temperatura en el mismo mes se saltaría el repintado —la
-        // clave no habría cambiado— y se quedaría en pantalla la capa anterior
-        // con la leyenda de la nueva.
-        const marca = `${medida}:${capa.clave}`;
-        if (rejillaLista !== marca) {
-          setBajandoRadiacion(true);
-          const bytes = await leerRejilla(`/mapas/${capa.archivo}`, ficha);
-          if (cancelado) return;
-          rejilla.current = bytes;
-          // ⚠️ EL LIENZO SE ENTREGA TAL CUAL, no como PNG. Codificar un millón y
-          // medio de píxeles a PNG y pasarlo en base64 tardaba SEGUNDOS en los que
-          // no pasaba nada visible — y un botón que tarda cinco segundos sin decir
-          // nada se lee como un botón roto. MapLibre lee el lienzo directamente.
-          const lienzo = pincel.current ?? document.createElement('canvas');
-          pincel.current = lienzo;
-          lienzo.width = ficha.ancho;
-          lienzo.height = ficha.alto;
-          const ctx = lienzo.getContext('2d')!;
-          const lienzoDatos = ctx.createImageData(ficha.ancho, ficha.alto);
-          lienzoDatos.data.set(pintarRejilla(bytes, ficha));
-          ctx.putImageData(lienzoDatos, 0, 0);
-          if (cancelado) return;
-
-          const coords = esquinas(ficha) as [[number, number], [number, number], [number, number], [number, number]];
-          const fuente = m.getSource(ID_MEDIDA) as maplibregl.CanvasSource | undefined;
-          if (fuente) {
-            // El lienzo es el MISMO objeto: basta con avisar de que cambió.
-            fuente.setCoordinates(coords);
-            (fuente as unknown as { play?: () => void; pause?: () => void }).play?.();
-            (fuente as unknown as { play?: () => void; pause?: () => void }).pause?.();
-            m.setPaintProperty(ID_MEDIDA, 'raster-opacity', cfg.opacidad);
-          } else {
-            // ⚠️ Una fuente de lienzo NO admite atribución en MapLibre, así que
-            // el deber de la licencia lo cumple la leyenda, que la imprime al pie
-            // y solo mientras la capa está puesta.
-            m.addSource(ID_MEDIDA, {
-              type: 'canvas', canvas: lienzo, coordinates: coords, animate: false,
-            });
-            m.addLayer({
-              id: ID_MEDIDA, type: 'raster', source: ID_MEDIDA,
-              // `linear` explícito: al acercarse la medida se INTERPOLA en vez de
-              // romperse en cuadros. No inventa detalle —la celda sigue siendo de
-              // 2 km— pero deja de parecer un fallo de la imagen.
-              paint: { 'raster-opacity': cfg.opacidad, 'raster-resampling': 'linear' },
-              // Debajo de los rótulos igual que la foto: si se anclara en
-              // `tramos`, el resultado dependería del ORDEN de los clics —
-              // encender la medida después de la foto la ponía encima de los
-              // nombres otra vez.
-            }, primerRotulo(m) ?? (m.getLayer('tramos') ? 'tramos' : undefined));
-          }
-          setRejillaLista(marca);
-          setBajandoRadiacion(false);
-        }
-        m.setLayoutProperty(ID_MEDIDA, 'visibility', 'visible');
-        m.triggerRepaint();
-      } catch (e) {
-        if (cancelado) return;
-        console.warn('[mapa] medida', medida, e);
-        setFalloCapa(cfg.fallo);
-        setMedida(null);
-        setBajandoRadiacion(false);
-      }
-    };
-
-    void pintar();
-    return () => { cancelado = true; };
-  }, [medida, mesRadiacion, fichaMedida, rejillaLista, mapaVivo, mapaCargado]);
-
-  /**
-   * El clic que dice cuántos grados hace AHÍ.
-   *
-   * Solo cuando la capa está encendida, y solo si el clic no cayó sobre un apoyo
-   * o un tramo: ésos ya tienen su ficha y quitársela sería cambiar un gesto que
-   * él ya usa.
-   */
-  useEffect(() => {
-    const m = mapaVivo;
-    if (!m || !medida || !fichaMedida) return;
-    const alPulsar = (ev: maplibregl.MapMouseEvent) => {
-      const encima = m.queryRenderedFeatures(ev.point, { layers: ['apoyos', 'tramos'] });
-      if (encima.length) return;
-      const bytes = rejilla.current;
-      if (!bytes) return;
-      setValorClic({
-        c: valorEnPunto(bytes, fichaMedida, ev.lngLat.lng, ev.lngLat.lat),
-        lon: ev.lngLat.lng, lat: ev.lngLat.lat,
-      });
-    };
-    m.on('click', alPulsar);
-    return () => { m.off('click', alPulsar); };
-  }, [medida, fichaMedida, mapaVivo]);
+  // ⚠️ AQUÍ VIVÍAN el efecto que pintaba la rejilla del corredor y el clic que
+  // leía su valor. Se fueron con la capa a `CapasDelCorredor` (`99 §ADR-087`).
 
   // ⚠️ El efecto que pintaba la celda del clima sobre este mapa se retiró con
   // `§ADR-069`: el clima vive en la pantalla del atlas, que pinta su propia
@@ -686,25 +505,9 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
 
   // ⚠️ La flecha del viento se fue con el clima al atlas (`§ADR-069`).
 
-  /**
-   * LLEVAR EL MAPA AL RECORTE ENTERO DE LA CAPA ENCENDIDA.
-   *
-   * ⚠️ NO ES UN ATAJO DE COMODIDAD: es la diferencia entre ver la capa y creer
-   * que no funciona (`99 §ADR-042`). El mapa arranca encuadrado en la LÍNEA, y a
-   * lo largo de unos pocos kilómetros ni la temperatura del aire ni el recurso
-   * solar cambian nada — a esa escala la capa se ve de un color aunque esté
-   * perfecta. El gradiente vive a escala del RECORTE.
-   *
-   * Vive AQUÍ y una sola vez: nació dentro de la leyenda de temperatura y a la
-   * del sol nunca se le pasó, que es justo el hueco que el Ingeniero encontró.
-   * Una acción con dos dueños es una acción que un día hace dos cosas distintas.
-   */
-  const encuadrarRecorte = mapaVivo && fichaMedida?.bbox
-    ? () => {
-      const [x0, y0, x1, y1] = fichaMedida.bbox;
-      mapaVivo.fitBounds([[x0, y0], [x1, y1]], { padding: 24, duration: 700 });
-    }
-    : undefined;
+  // ⚠️ «Ver todo el recorte» se fue con las capas del corredor (`§ADR-087`).
+  // Allí ya no basta: el atlas abre sobre siete departamentos, así que ahora son
+  // DOS encuadres —el recorte y la región— y viven en `CapasDelCorredor`.
 
   if (estado === 'fallo' && respaldo) return <>{respaldo}</>;
 
@@ -742,22 +545,10 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
           </p>
         )}
 
-        <p className="mapa-capas-t">Encima</p>
-        {/* Las dos medidas son EXCLUYENTES: encender una apaga la otra. No es un
-            capricho de interfaz —son dos rampas de color sobre el mismo
-            territorio, y superpuestas no se lee ninguna—. Se usan casillas y no
-            un desplegable para que se vea de un vistazo qué hay disponible. */}
-        {(Object.keys(MEDIDAS) as NombreMedida[]).map((k) => (
-          <label key={k}>
-            <input type="checkbox" checked={medida === k}
-              onChange={(e) => {
-                setMedida(e.target.checked ? k : null);
-                setValorClic(null);
-                setMesRadiacion(null);
-              }} /> {MEDIDAS[k].rotulo}
-            {medida === k && bajandoRadiacion && <span className="mapa-capas-f">midiendo…</span>}
-          </label>
-        ))}
+        {/* ⚠️ AQUÍ ESTABAN «Radiación solar» y «Temperatura ambiente»
+            (`§ADR-087`). Se fueron enteras a la pantalla del ATLAS: capa,
+            leyendas, clic y encuadre. Esta pestaña se queda con EL RECORRIDO,
+            que es la orden. No se borró nada: llegó completo antes de quitarlo. */}
 
         {/* ⚠️ EL CLIMA YA NO VIVE AQUÍ (`§ADR-069`). Estaba «El tiempo de esta
             línea» —el eje de fecha, el día entero, las escalas y el pronóstico—
@@ -772,18 +563,6 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, hipotesis
           </p>
         )}
         {falloCapa && <p className="mapa-capas-n alerta">{falloCapa}</p>}
-        {medida === 'radiacion' && fichaMedida?.capa === 'radiacion' && (
-          <LeyendaRadiacion ficha={fichaMedida as FichaRadiacion} mes={mesRadiacion} alElegirMes={(c) => {
-            setMesRadiacion(c); setValorClic(null);
-          }} valor={valorClic} cargando={bajandoRadiacion} alEncuadrar={encuadrarRecorte} />
-        )}
-        {medida === 'temperatura' && fichaMedida?.capa === 'temperatura' && (
-          <LeyendaTemperatura ficha={fichaMedida as FichaTemperatura} mes={mesRadiacion} alElegirMes={(c) => {
-            setMesRadiacion(c); setValorClic(null);
-          }} valor={valorClic} cargando={bajandoRadiacion}
-            edsHipotesis_C={hipotesis?.tempEds_C}
-            alEncuadrar={encuadrarRecorte} />
-        )}
         {/* ⚠️ SOLO SI HAY DATO. Sin declaraciones no se pinta ni se dice nada:
             «nadie lo ha comprobado» no es «la línea lleva guarda», y una leyenda
             vacía que dijera «0 m sin guarda» sería exactamente esa mentira. */}
@@ -853,246 +632,10 @@ function fechaCorta(iso: string): string {
   });
 }
 
-/**
- * La leyenda del recurso solar: la escala, el MES que se mira, lo que se leyó al
- * pulsar el mapa y —lo más importante— para qué NO sirve.
- *
- * La frase de la ampacidad no es un descargo genérico: nombra la magnitud que sí
- * entra en el cálculo de esta aplicación (1.000 W/m² adoptados) y dice por qué
- * este mapa no la sustituye. Sin ella, poner una cifra de sol al lado de una
- * línea invita exactamente a la conversión que no se puede hacer.
- */
-function LeyendaRadiacion({ ficha, mes, alElegirMes, valor, cargando, alEncuadrar }: {
-  ficha: FichaRadiacion;
-  mes: string | null;
-  alElegirMes: (clave: string) => void;
-  valor: { c: number | null; lon: number; lat: number } | null;
-  cargando: boolean;
-  /** Lleva el mapa al recorte entero. Sin esto la capa se ve de un color. */
-  alEncuadrar?: () => void;
-}) {
-  const capas = capasOrdenadas(ficha);
-  const actual: CapaRadiacion | null = capaElegida(ficha, mes);
-  const rampa = ficha.rampa ?? [];
-  if (!rampa.length || !actual) return null;
-  const min = rampa[0].c;
-  const max = rampa[rampa.length - 1].c;
-  const gradiente = rampa
-    .map((p) => `rgb(${p.rgb.join(',')}) ${(((p.c - min) / (max - min)) * 100).toFixed(1)}%`)
-    .join(', ');
-  const osc = oscilacionAnual(ficha);
-  const muestreo = avisoDeMuestreo(ficha);
-  const escala = avisoDeEscalaSol(ficha, actual);
-  const u = ficha.unidad ?? 'kWh/m² al día';
-
-  return (
-    <div className="mapa-leyenda">
-      <label className="mapa-tiempo-dia">
-        <span>Mes</span>
-        <select value={actual.clave} onChange={(e) => alElegirMes(e.target.value)}>
-          {capas.map((c) => (
-            <option key={c.clave} value={c.clave}>
-              {c.rotulo} · mediana {c.resumen.p50.toFixed(2)}
-            </option>
-          ))}
-        </select>
-      </label>
-      {cargando && <p className="mapa-capas-n">Bajando el recurso de ese mes…</p>}
-
-      {/* ⚠️ La razón entera está en `vistas/radiacion.ts` y en `99 §ADR-042`: sin
-          una forma de abarcar el recorte de un clic, lo que se concluye es que la
-          capa está rota — y con motivo, porque ceñida a la línea se ve de un color. */}
-      {alEncuadrar && (
-        <button type="button" className="boton chico" onClick={alEncuadrar}>
-          Ver todo el recorte
-        </button>
-      )}
-      <p className="mapa-capas-n">{NOTA_ENCUADRE}</p>
-
-      <div className="mapa-leyenda-barra" style={{ background: `linear-gradient(90deg, ${gradiente})` }} />
-      <div className="mapa-leyenda-esc">
-        <span>{min} {u}</span><span>{max}</span>
-      </div>
-      {escala && <p className="mapa-capas-n">{escala}</p>}
-
-      <p className="mapa-capas-n">
-        {actual.rotulo}: mediana <b>{actual.resumen.p50.toFixed(2)} {u}</b> · de{' '}
-        {actual.resumen.min.toFixed(2)} a {actual.resumen.max.toFixed(2)} dentro del recorte.
-      </p>
-
-      {/* Lo que devuelve el clic. Es la razón de guardar la MEDIDA y no una imagen. */}
-      <p className="mapa-capas-n mapa-tiempo-clic">
-        {valor === null
-          ? 'Pulse el mapa para leer el recurso de un punto.'
-          : valor.c === null
-            ? 'Ahí no hay muestra: fuera del recorte.'
-            : <><b>{valor.c.toFixed(2)} {u}</b> en el punto que pulsó.</>}
-      </p>
-
-      {osc && (
-        <p className="mapa-capas-n">
-          Entre el mes más soleado (<b>{osc.alto.rotulo.toLowerCase()}</b>) y el más flojo
-          (<b>{osc.bajo.rotulo.toLowerCase()}</b>) hay un <b>{osc.pct.toFixed(0)} %</b> de
-          diferencia: una media anual sola se lleva por delante esa variación.
-        </p>
-      )}
-
-      <p className="mapa-capas-n aviso">{NOTA_AMPACIDAD}</p>
-      {muestreo && <p className="mapa-capas-n">{muestreo}</p>}
-      <p className="mapa-capas-n">
-        {ficha.magnitud ?? 'GHI'} · {ficha.periodo ?? 'promedio de largo plazo'} ·{' '}
-        {ATRIBUCION_RADIACION}
-      </p>
-    </div>
-  );
-}
-
-/**
- * La temperatura del AIRE, dicha para quien va a firmar un cálculo.
- *
- * TRES COSAS QUE NO PUEDEN FALTAR, y ninguna es adorno:
- *
- *   1. **Que es una MEDIA, no un extremo.** Es el mal uso probable: leer los
- *      27 °C como «la mínima del sitio» dejaría corto el tiro en frío y un apoyo
- *      terminal parecería sano sin serlo. La frase va en aviso, no en gris.
- *   2. **Por qué el mapa se ve casi de un color.** Un mapa liso sin explicación
- *      se lee como avería, y el reflejo siguiente es estirar la rampa hasta que
- *      «se vea algo» — que es como se fabrica un gradiente que no existe.
- *   3. **La comparación con la temperatura que el cálculo da por buena.** Es el
- *      único motivo por el que esta capa vale más que una curiosidad: pone una
- *      cifra del sitio al lado de una suposición que nadie había contrastado.
- */
-function LeyendaTemperatura({ ficha, mes, alElegirMes, valor, cargando, edsHipotesis_C, alEncuadrar }: {
-  ficha: FichaTemperatura;
-  mes: string | null;
-  alElegirMes: (clave: string) => void;
-  valor: { c: number | null; lon: number; lat: number } | null;
-  cargando: boolean;
-  edsHipotesis_C?: number | null;
-  /** Lleva el mapa al recorte entero de la capa. Ver más abajo por qué existe. */
-  alEncuadrar?: () => void;
-}) {
-  const capas = capasOrdenadasTemp(ficha);
-  const actual = capaElegidaTemp(ficha, mes);
-  const rampa = ficha.rampa ?? [];
-  if (!rampa.length || !actual) return null;
-  const min = rampa[0].c;
-  const max = rampa[rampa.length - 1].c;
-  const gradiente = rampa
-    .map((p) => `rgb(${p.rgb.join(',')}) ${(((p.c - min) / (max - min)) * 100).toFixed(1)}%`)
-    .join(', ');
-  const osc = oscilacionEstacional(ficha);
-  const muestreo = avisoDeMuestreoTemp(ficha);
-  const escala = avisoDeEscala(ficha, actual);
-  const anual = capas.find((c) => c.clave === 'anual') ?? null;
-  const contra = contraLaEds(anual?.resumen.p50 ?? null, edsHipotesis_C);
-  const u = ficha.unidad ?? '°C';
-
-  return (
-    <div className="mapa-leyenda">
-      <label className="mapa-tiempo-dia">
-        <span>Mes</span>
-        <select value={actual.clave} onChange={(e) => alElegirMes(e.target.value)}>
-          {capas.map((c) => (
-            <option key={c.clave} value={c.clave}>
-              {c.rotulo} · mediana {c.resumen.p50.toFixed(1)} {u}
-            </option>
-          ))}
-        </select>
-      </label>
-      {cargando && <p className="mapa-capas-n">Bajando la temperatura de ese mes…</p>}
-
-      {/* ⚠️ ESTE BOTÓN NO ES UN ATAJO DE COMODIDAD: es la diferencia entre ver la
-          capa y creer que no funciona. El mapa arranca encuadrado en la LÍNEA, y
-          a lo largo de unos pocos kilómetros la temperatura del aire cambia una
-          décima de grado: a esa escala la capa se ve de un color aunque esté
-          perfecta —y ninguna línea de este sistema es tan larga como para que
-          eso cambie—. El gradiente
-          vive a escala del RECORTE, entre el mar y el interior. Sin una forma de
-          llegar ahí de un clic, lo que el usuario concluye es que la capa está
-          rota — y tendría motivos. */}
-      {alEncuadrar && (
-        <button type="button" className="boton chico" onClick={alEncuadrar}>
-          Ver todo el recorte
-        </button>
-      )}
-      <p className="mapa-capas-n">
-        {/* Sin cifras de una línea concreta: este componente sirve a cualquiera,
-            y «3 km» era el largo de LN-627 quemado en el código. */}
-        Encuadrado en la línea el color es casi uniforme y no es un fallo: a lo largo de unos pocos
-        kilómetros el aire no cambia. El gradiente se ve al abarcar el recorte entero.
-      </p>
-
-      <div className="mapa-leyenda-barra" style={{ background: `linear-gradient(90deg, ${gradiente})` }} />
-      <div className="mapa-leyenda-esc">
-        <span>{min} {u}</span><span>{max}</span>
-      </div>
-
-      <p className="mapa-capas-n">
-        {actual.rotulo}: mediana <b>{actual.resumen.p50.toFixed(1)} {u}</b> · de{' '}
-        {actual.resumen.min.toFixed(1)} a {actual.resumen.max.toFixed(1)} dentro del recorte.
-      </p>
-
-      {/* Lo que devuelve el clic. Es la razón de guardar la MEDIDA y no una imagen. */}
-      <p className="mapa-capas-n mapa-tiempo-clic">
-        {valor === null
-          ? 'Pulse el mapa para leer la temperatura de un punto.'
-          : valor.c === null
-            ? 'Ahí no hay muestra: fuera del recorte.'
-            : <><b>{valor.c.toFixed(1)} {u}</b> en el punto que pulsó.</>}
-      </p>
-
-      {osc && (
-        <p className="mapa-capas-n">
-          Entre el mes más cálido (<b>{osc.alto.rotulo.toLowerCase()}</b>) y el más fresco
-          (<b>{osc.bajo.rotulo.toLowerCase()}</b>) hay <b>{osc.grados.toFixed(1)} °C</b>.
-        </p>
-      )}
-
-      {escala && <p className="mapa-capas-n">{escala}</p>}
-      {contra && <p className="mapa-capas-n">{contra.frase}</p>}
-
-      <p className="mapa-capas-n aviso">{NOTA_HIPOTESIS}</p>
-      {muestreo && <p className="mapa-capas-n">{muestreo}</p>}
-      <p className="mapa-capas-n">
-        {ficha.magnitud ?? 'TEMP'} · {ficha.periodo ?? 'promedio de largo plazo'} ·{' '}
-        {ATRIBUCION_RADIACION}
-      </p>
-    </div>
-  );
-}
-
-/**
- * La rejilla de un día, leída del PNG a bytes crudos.
- *
- * El archivo es una imagen en gris donde cada píxel ES el valor codificado, no
- * un color: se dibuja en un lienzo y se recoge un solo canal. Se comprueba que
- * el tamaño sea el que declara la ficha — un PNG que no cuadra con la ficha
- * desplazaría todas las lecturas y nadie lo notaría, porque los colores seguirían
- * saliendo bonitos.
- */
-async function leerRejilla(url: string, ficha: FichaRadiacion): Promise<Uint8Array> {
-  const img = new Image();
-  img.decoding = 'async';
-  await new Promise<void>((listo, falla) => {
-    img.onload = () => listo();
-    img.onerror = () => falla(new Error(`no se pudo leer la rejilla ${url}`));
-    img.src = url;
-  });
-  if (img.naturalWidth !== ficha.ancho || img.naturalHeight !== ficha.alto) {
-    throw new Error(`la rejilla mide ${img.naturalWidth}×${img.naturalHeight} y la ficha dice `
-      + `${ficha.ancho}×${ficha.alto}: las lecturas saldrían desplazadas`);
-  }
-  const lienzo = document.createElement('canvas');
-  lienzo.width = ficha.ancho;
-  lienzo.height = ficha.alto;
-  const ctx = lienzo.getContext('2d', { willReadFrequently: true })!;
-  ctx.drawImage(img, 0, 0);
-  const rgba = ctx.getImageData(0, 0, ficha.ancho, ficha.alto).data;
-  const bytes = new Uint8Array(ficha.ancho * ficha.alto);
-  for (let i = 0; i < bytes.length; i++) bytes[i] = rgba[i * 4];   // gris: R = G = B = valor
-  return bytes;
-}
+// ⚠️ LAS DOS LEYENDAS Y EL LECTOR DE REJILLAS SE MUDARON (`99 §ADR-087`) a
+// `componentes/CapasDelCorredor.tsx`, junto con la capa que explicaban. Una
+// leyenda sin su capa no es código muerto simpático: es una pieza que el día que
+// alguien la reutilice pintará la escala de un mapa que no está puesto.
 
 function crearMapa(
   contenedor: HTMLDivElement,
