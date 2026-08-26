@@ -95,12 +95,11 @@ mantenimiento-lineas-at/
 ├── evidencias/                  🚪 EL PORTERO (Worker, ADR-010 + **ADR-031**): verifica la FIRMA del
 │                                token. `GET` sirve, `PUT` acepta bajo diez cerrojos.
 │                                🚫 **NO borra y NO lista** — con prueba que lo impide
-├── herramientas/atlas-caribe.mjs EL MOTOR de los atlas (ADR-053/055/060/079). `construirAtlas`
-│                                baja de POWER; **`publicarAtlas` empaqueta y escribe la ficha, y lo
-│                                usan los SEIS**. Perfiles de POWER: `sol-caribe` (⚠️ ese nombre lo
-│                                llama el vigía) · `temp-caribe` · `viento-caribe` · `lluvia-caribe` ·
-│                                `nubes-caribe`; el perfil trae `factor` (la lluvia de NASA es TASA
-│                                mm/día, ÷24)
+├── herramientas/atlas-caribe.mjs EL MOTOR (ADR-053/055/079/086). `construirAtlas` baja de POWER;
+│                                **`publicarAtlas` escribe la ficha de los ONCE y EXIGE `naturaleza`**.
+│                                Perfiles POWER: `sol-caribe` (⚠️ ese nombre lo llama el vigía) ·
+│                                `temp` · `viento` · `lluvia` · `nubes`; el perfil trae `factor` (la
+│                                lluvia de NASA es TASA mm/día, ÷24)
 ├── herramientas/rayos-caribe.mjs ⚡ RAYOS (ADR-079): del GLM del GOES-19 (NOAA, sin llave)
 ├── herramientas/abi-caribe.mjs  ☀️☁️ «Sol ahora» y «Nubes ahora» (ADR-081): del sensor ABI del
 │                                mismo satélite, a ~15 min. Hermanas de `sol` y `nubes`, NO sus
@@ -112,10 +111,11 @@ mantenimiento-lineas-at/
 │   ├── rayos-libro.mjs          lo propio de los rayos: su perfil y su ruta
 │   └── *-libro.json / rayos-conteo.json  📕 hora (reloj de COLOMBIA) → celda → valor. Solo crecen
 ├── herramientas/foto-del-banco.mjs 📸 MIRAR el lienzo (ADR-074): Chrome sin cabeza + reloj REAL; con
-│                                tiempo virtual MIENTE (`34 · L-72`). Banco: `sonda-satelital.tsx`.
-│                                Con `--exigir` además SUSPENDE (ADR-085)
-├── herramientas/mirar-los-atlas.mjs ⚖️ EL PORTERO (ADR-085): construye el banco, abre cada atlas y
-│                                decide. Es quien mira el mapa desde que el vigía fusiona solo
+│                                tiempo virtual MIENTE (`34 · L-72`). `--exigir` = suspende (ADR-085)
+├── herramientas/mirar-los-atlas.mjs ⚖️ EL PORTERO (ADR-085): mira cada atlas y SUSPENDE — es quien
+│                                mira el mapa desde que el vigía fusiona solo
+├── herramientas/pronostico-caribe.mjs 🌦️ 36 celdas a MET Norway → `pron-*` (ADR-086). SE GUARDA,
+│                                declarando `naturaleza` y con caducidad. Nunca entra en un cálculo
 ├── herramientas/teselas/        construir-raster.py — rehace las capas del mapa desde datos
 │                             abiertos. ⚠️ ÚNICO Python del repo; no lo usan app ni pruebas
 ├── herramientas/                sembrar.mjs (línea + expediente) · subir-evidencias.mjs (fotos) ·
@@ -139,7 +139,7 @@ mantenimiento-lineas-at/
 │                                `web/src/main.tsx`), **AtlasCaribe** (LOS OCHO atlas, con selector y **el
 │                                trazado de la línea encima**, ADR-045/053/055/074; piezas comunes
 │                                del clima en **PanelDelClima**; la marca de cada fuente en
-│                                **EmblemaFuente**, dibujo propio y no el escudo de la agencia, ADR-084),
+│                                **EmblemaFuente**, dibujo propio, ADR-084),
 │                                Horizonte (los apoyos en su orden real), Mapa (popup +
 │                                tramos + marcador de falla), Distribucion, Distancias, DetalleGps
 │                                (el mapa a pantalla: MISMO Mapa con `panelALado`, ADR-042), Fichas

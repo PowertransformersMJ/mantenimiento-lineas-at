@@ -39,6 +39,19 @@ export interface FichaAtlas {
   /** `sol-caribe` | `temp-caribe`. Se usa para rotular, nunca para decidir. */
   capa: string;
   titulo: string;
+  /**
+   * ¿ALGUIEN LO MIDIÓ, O UN MODELO LO CREE? (`99 §ADR-086`).
+   *
+   * Opcional en el tipo por una razón concreta y temporal: las fichas que ya
+   * están publicadas se escribieron antes de que este campo existiera, y una
+   * pantalla que exija lo que el archivo no trae deja el mapa en blanco hasta
+   * que el vigía reconstruya los ocho. Quien lo lee usa `?? 'medida'`; quien lo
+   * ESCRIBE no tiene esa salida — el motor se niega a publicar sin él.
+   */
+  naturaleza?: 'medida' | 'pronostico';
+  /** Solo en pronóstico: ISO desde el cual este archivo ya no es «el de ahora». */
+  caduca?: string;
+  caducaEn_h?: number;
   departamentos: string[];
   bbox: [number, number, number, number];
   /** Celdas del cuadro: 6 x 6. NO son los píxeles del archivo. */
@@ -692,8 +705,30 @@ export interface FrescuraDelAtlas {
    * · `al-dia`            — nada que hacer.
    * · `archivo-viejo`     — hace mucho que no se le pregunta a la fuente. NUESTRO.
    * · `fuente-atrasada`   — se preguntó hace nada y la fuente no tiene más. SUYO.
+   * · `pronostico`        — no es una medición: mira hacia DELANTE, no hacia atrás.
+   * · `pronostico-caducado` — es un pronóstico y ya pasó su hora. NO se puede usar.
    */
-  porQue: 'al-dia' | 'archivo-viejo' | 'fuente-atrasada';
+  porQue: 'al-dia' | 'archivo-viejo' | 'fuente-atrasada' | 'pronostico' | 'pronostico-caducado';
+  /**
+   * QUÉ ES ESTA CAPA, leído de la ficha y nunca supuesto (`99 §ADR-086`).
+   * Un pronóstico invierte el sentido de las dos fechas de arriba: su dato no
+   * lleva días de retraso, lleva días de ADELANTO.
+   */
+  naturaleza: 'medida' | 'pronostico';
+  /**
+   * Solo en pronóstico: hasta cuántos días POR DELANTE llega el detalle horario.
+   *
+   * ⚠️ Sin esto, `diasDelDato` diría «0 días atrás» de un dato del 4 de
+   * septiembre, porque está topado en 0 para no dar negativos. Cierto por
+   * casualidad y engañoso: el archivo no va al día, va diez días adelantado.
+   */
+  diasPorDelante?: number;
+  /**
+   * Solo en pronóstico: ya pasó la hora a partir de la cual este archivo deja de
+   * ser «el pronóstico de ahora». Es la salvaguarda de haberlo guardado: una
+   * medición de mayo sigue siendo verdad en agosto, un pronóstico de anteayer no.
+   */
+  caducado?: boolean;
 }
 
 /**
@@ -717,6 +752,27 @@ export function frescuraDelAtlas(
   const medidoHasta = ficha.ultimoDiaConHoras;
   const diasDelDato = Math.max(0, diasEntreIso(medidoHasta, hoy));
 
+  // ⚠️ UN PRONÓSTICO SE MIDE AL REVÉS (`99 §ADR-086`). Todo lo de arriba está
+  // escrito para una medición: cuánto RETRASO lleva. Un pronóstico no lleva
+  // retraso, lleva ADELANTO — y las mismas cuentas, aplicadas tal cual, dirían
+  // «dato medido hasta el 4 de septiembre (0 días atrás)»: la fecha correcta, la
+  // palabra falsa y el número engañoso, los tres a la vez y sin dar un error.
+  //
+  // Y lleva algo que una medición no necesita: CADUCIDAD. Se guarda —fue
+  // decisión del Ingeniero— y por eso hay que poder decir «esto ya no es el
+  // pronóstico de ahora». Una medición de mayo sigue siendo verdad en agosto.
+  const naturaleza = ficha.naturaleza ?? 'medida';
+  if (naturaleza === 'pronostico') {
+    const caducado = Boolean(ficha.caduca) && Date.parse(ficha.caduca as string) < ahora.getTime();
+    return {
+      construidoDia, construidoHora, diasDelArchivo, medidoHasta,
+      diasDelDato,
+      diasPorDelante: Math.max(0, diasEntreIso(hoy, medidoHasta)),
+      naturaleza, caducado,
+      porQue: caducado ? 'pronostico-caducado' : 'pronostico',
+    };
+  }
+
   // ⚠️ EL ORDEN DE ESTAS DOS PREGUNTAS ES EL FONDO DEL ASUNTO, y al revés acusa
   // al inocente. Primero se mira el HUECO QUE YA TENÍA EL ARCHIVO CUANDO SE
   // HIZO: si al construirlo la fuente ya iba muy por detrás, ese retraso es
@@ -732,7 +788,10 @@ export function frescuraDelAtlas(
   const porQue = huecoAlConstruir > 15 ? 'fuente-atrasada'
     : diasDelArchivo > 10 ? 'archivo-viejo'
       : 'al-dia';
-  return { construidoDia, construidoHora, diasDelArchivo, medidoHasta, diasDelDato, porQue };
+  return {
+    construidoDia, construidoHora, diasDelArchivo, medidoHasta, diasDelDato,
+    naturaleza, porQue,
+  };
 }
 
 /** «19 de agosto de 2026», a partir de un día ISO. Sin `Date`: sin husos. */

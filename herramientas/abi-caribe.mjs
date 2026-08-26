@@ -59,6 +59,7 @@ export const PERFILES = Object.freeze({
   'sol-vivo': Object.freeze({
     capa: 'sol-vivo-caribe',
     prefijo: 'sol-vivo-caribe',
+    naturaleza: 'medida',
     producto: 'ABI-L2-DSRF',
     variable: 'DSR',
     /** Todas las tomas de la hora: bajo una nube la radiación cambia en minutos. */
@@ -93,6 +94,7 @@ export const PERFILES = Object.freeze({
   'nubes-vivo': Object.freeze({
     capa: 'nubes-vivo-caribe',
     prefijo: 'nubes-vivo-caribe',
+    naturaleza: 'medida',
     producto: 'ABI-L2-ACMF',
     variable: 'BCM',
     /** Dos tomas: medido, la tercera decimal no cambia la fracción de la hora. */

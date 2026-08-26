@@ -1592,6 +1592,10 @@ p.fund-vivo + .sello-calculo { margin-top: 5px; }
 .atlas-frescura.r-medido { background: var(--t-ambar); border-left-color: var(--acc); }
 .atlas-frescura.r-modelo { background: var(--t-azul); border-left-color: var(--az); }
 .atlas-frescura.r-hueco  { background: transparent; border-left-style: dashed; color: var(--mut); }
+/* UN PRONÓSTICO QUE YA CADUCÓ (ADR-086). Es el único estado de esta cinta que
+   pide dejar de mirar el mapa: los demás matizan lo que se ve, éste dice que lo
+   que se ve ya no vale. Por eso rojo y no el azul del modelo. */
+.atlas-frescura.r-caducado { background: var(--t-rojo); border-left-color: var(--rd); color: var(--tx); }
 
 /* El puente al último día medido: lo que hace encontrable el desglose. */
 .eje-puente { margin: 4px 0 2px; }

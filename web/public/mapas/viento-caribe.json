@@ -1,6 +1,7 @@
 {
  "capa": "viento-caribe",
  "titulo": "Viento del Caribe colombiano, hora a hora",
+ "naturaleza": "medida",
  "departamentos": [
   "Bolívar",
   "Córdoba",

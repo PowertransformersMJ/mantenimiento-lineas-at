@@ -578,3 +578,146 @@ jobs:
           done
           echo "::error::La #$N pasó guardianes y portero pero no se dejó fusionar. Queda ABIERTA."
           exit 1
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # EL PRONÓSTICO — el tercer trabajo, y el único que mira HACIA DELANTE
+  # ══════════════════════════════════════════════════════════════════════════
+  #
+  # Lo pidió el Ingeniero (`99 §ADR-086`) y va aparte de los otros dos por tres
+  # razones que no se pueden mezclar:
+  #
+  #   · OTRA FUENTE: MET Norway, no NASA ni NOAA. Otra licencia y otros límites.
+  #   · OTRA NATURALEZA: no es una medición. Sus fichas lo declaran y hay un
+  #     guardián que lo exige; aquí abajo se vuelve a comprobar antes de proponer.
+  #   · OTRA REGLA DE «HAY DATO NUEVO»: los otros preguntan a la fuente si publicó
+  #     más y casi siempre la respuesta es no. Un pronóstico **cambia siempre**,
+  #     así que no hay nada que preguntar: se rehace y punto. Lo que sí hay que
+  #     comprobar es que lo que llegó no sea peor que lo que había.
+  #
+  # ⏱️ CADA 4 HORAS y no cada hora, aunque MET publique más seguido. Un pronóstico
+  # a diez días no cambia de forma útil en sesenta minutos, sus términos piden
+  # expresamente no generar tráfico innecesario, y cada pasada deja ~7 KB en el
+  # historial para siempre. Con 4 h son unos 15 MB al año; con 1 h, sesenta.
+  # La caducidad de las fichas son 8 h: tolera perder UNA corrida, no dos.
+  pronostico:
+    name: ¿Cómo viene el tiempo?
+    # El reloj horario es solo para el satélite: MET no se mueve tan rápido.
+    if: github.event.schedule != '17 * * * *'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Instalar
+        run: npm ci --no-audit --no-fund || npm install --no-audit --no-fund
+
+      - name: Pedirle a MET el tiempo que viene
+        run: node herramientas/pronostico-caribe.mjs
+
+      # ⚠️ GUARDIÁN ANTES DE PROPONER, como en los otros dos trabajos. Aquí el
+      # fallo que hay que cazar no es «se quedó viejo» sino «llegó a medias»: si
+      # unas cuantas celdas fallaran, el archivo saldría igual de bonito y con
+      # medio mapa en hueco. Y el que más importa: que las tres sigan diciendo
+      # que son un PRONÓSTICO — el día que una diga «medida», se publicaría un
+      # modelo disfrazado de medición, que es justo lo que no puede pasar.
+      - name: Que el pronóstico esté ENTERO y siga diciendo lo que es
+        run: |
+          node -e "
+            const fs = require('node:fs');
+            const hoy = new Date().toISOString().slice(0, 10);
+            const fallos = [];
+            for (const p of ['pron-temp-caribe', 'pron-viento-caribe', 'pron-lluvia-caribe']) {
+              const f = JSON.parse(fs.readFileSync('web/public/mapas/' + p + '.json', 'utf-8'));
+              if (f.naturaleza !== 'pronostico') fallos.push(p + ': dejó de declararse como pronóstico');
+              if (!f.caduca || Date.parse(f.caduca) <= Date.now()) fallos.push(p + ': nace caducado');
+              const dias = (Date.parse(f.ultimoDiaConTotal) - Date.parse(hoy)) / 86400000;
+              if (!(dias >= 4)) fallos.push(p + ': solo llega a ' + f.ultimoDiaConTotal + ' (' + dias + ' días)');
+              if (!f.resumenDiario?.length) fallos.push(p + ': sin resumen de ningún día');
+              if (!/MET Norway/.test(f.fuente || '')) fallos.push(p + ': perdió su atribución a MET');
+            }
+            if (fallos.length) {
+              for (const x of fallos) console.error('::error::' + x);
+              console.error('No se propone nada. El pronóstico anterior sigue publicado.');
+              process.exit(1);
+            }
+            console.log('✅ los tres llegaron enteros y siguen diciendo que son un pronóstico');
+          "
+
+      - name: Suite completa
+        run: |
+          npm test
+          npm run contrato:verificar
+
+      # ⚖️ EL PORTERO, los TRES. Mismo motivo que en el satélite: se reconstruyen
+      # juntos, así que se miran los tres o queda uno publicándose a ciegas.
+      - name: Mirar los tres mapas (portero)
+        run: node herramientas/mirar-los-atlas.mjs pronTemperatura pronViento pronLluvia
+
+      - name: Guardar las fotos
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: portero-pronostico
+          path: fotos-del-portero/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Abrir la propuesta
+        id: propuesta
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: vigia/pronostico-caribe
+          title: 'Pronóstico: el tiempo que viene, rehecho'
+          commit-message: |
+            Pronóstico del Caribe rehecho (temperatura, viento y lluvia)
+
+            Modelo de MET Norway. NO es una medición y las tres fichas lo declaran.
+          body: |
+            El vigía le pidió a **MET Norway** el tiempo que viene sobre las 36 celdas
+            del atlas y rehízo los tres mapas: temperatura, viento y lluvia.
+
+            ⚠️ **Esto es un PRONÓSTICO, no una medición.** Las tres fichas lo declaran
+            (`naturaleza: pronostico`), llevan hora de caducidad, y ningún número de
+            aquí entra en un cálculo de la línea ni valida una hipótesis de diseño.
+
+            Pasó el guardián de que llegara ENTERO —las tres capas, con al menos
+            cuatro días por delante y sin perder la atribución—, la suite completa, y
+            **el portero abrió los tres mapas** y comprobó que hay dibujo. Las fotos
+            están en los artefactos de esta corrida, en `portero-pronostico`.
+
+            ⚠️ **Se fusiona sola** en cuanto queda firmada.
+          labels: dato, atlas-solar
+
+      - name: El check de la propuesta (la suite ya corrió arriba)
+        if: steps.propuesta.outputs.pull-request-number != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api -X POST "/repos/${{ github.repository }}/statuses/${{ steps.propuesta.outputs.pull-request-head-sha }}" \
+            -f state=success \
+            -f context='Integridad del kernel + suite de dominio' \
+            -f description='suite completa, ejecutada por el vigía antes de proponer' \
+            -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+      - name: Fusionar la propuesta
+        if: steps.propuesta.outputs.pull-request-number != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          N=${{ steps.propuesta.outputs.pull-request-number }}
+          for i in 1 2 3 4 5 6; do
+            if gh pr merge "$N" --squash --delete-branch; then
+              echo "::notice::Propuesta #$N fusionada por el vigía."
+              exit 0
+            fi
+            echo "· intento $i: aún no deja fusionar; espero 10 s"
+            sleep 10
+          done
+          echo "::error::La #$N pasó guardianes y portero pero no se dejó fusionar. Queda ABIERTA."
+          exit 1

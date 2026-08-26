@@ -19,29 +19,31 @@
    hora a hora funcionaba a pantalla completa y **no** en el atlas abierto desde Detalle GPS.
    ⚠️ **ORDEN SUYA (24-08):** cambiar sin dañar lo que ya está bien, y actuar solo sobre lo que él
    indica o lo que se DETECTA midiendo — **nunca sobre una suposición**.
-3. **EL ATLAS TIENE OCHO CAPAS (`§ADR-079/080/081`).** Cinco del año (POWER) + tres de SATÉLITE que
-   se acumulan: **rayos**, **Sol ahora** y **Nubes ahora**. ⏱️ La frescura la manda la FUENTE:
-   POWER/MERRA-2 (temp·viento·lluvia) **4 días**, POWER/CERES (sol·nubes) **87**, satélite **~15 min**.
-   Dos relojes: 4 h para POWER, **1 h para satélite**. El selector las **agrupa por fuente**, cada una
-   **con su marca dibujada por nosotros** (`§ADR-082/084`; los escudos de NASA y NOAA están
-   restringidos). ✅ **Las OCHO en la frontera de su fuente, verificado en producción el 25-08.**
+3. **EL ATLAS TIENE ONCE CAPAS EN TRES FAMILIAS (`§ADR-079/081/086`).** 5 del año (POWER) · 3 del
+   SATÉLITE que se acumulan (rayos · Sol ahora · Nubes ahora) · **3 de PRONÓSTICO** (temperatura,
+   viento y lluvia de MET Norway). ⏱️ La frescura la manda la FUENTE: MERRA-2 **4 días**, CERES
+   **87**, satélite **~15 min**, pronóstico **10 días por DELANTE**. Tres relojes: 4 h POWER y
+   pronóstico, **1 h satélite**. El selector las agrupa por fuente con **su marca dibujada por
+   nosotros** (`§ADR-082/084`; los escudos de NASA y NOAA están restringidos).
+   ⚠️ **EL PRONÓSTICO SE GUARDA —orden suya del 26-08— y por eso lleva cuatro candados**
+   (`§ADR-086`): la ficha dice `naturaleza`, los archivos se llaman `pron-*`, **caducan a las 8 h**
+   y NINGÚN número entra en un cálculo. El motor se niega a publicar una capa que no diga qué es.
    ⚙️ **El vigía ya FUSIONA SOLO** (`§ADR-085`, orden suya): mira → reconstruye → **un PORTERO abre
    el mapa en Chrome sin cabeza y lo mira** → propone → firma → fusiona. Queda UN eslabón a mano:
    **publicar** (`TODO-89`, sus dos secretos). Si el portero dice que no, NO hay propuesta y la
    corrida sale roja — nunca se publica a ciegas.
-   Los rayos son de OTRA fuente (GOES de NOAA) y **se ACUMULAN** en `herramientas/rayos-conteo.json`.
    ⚠️ **No son la DDT de RETIE/IEEE** — esa es la 2.ª capa y espera su cuenta Earthdata (`TODO-90`).
-4. **LO QUE NO SE PUEDE ROMPER DEL CLIMA (`§ADR-057..079`):** gana el hecho sobre el modelo · el recorrido se comprueba **punto a punto**, nunca por promedio · el clima vive en el ATLAS y Detalle GPS = solo el recorrido · **«tormenta eléctrica» NO existe en la fuente de nubes**, y hay prueba.
-5. **CERRADO 23/24 y 25-08 (`§ADR-074..084`, detalle en `99`).** ⚠️ Lo único que llevarse: **el
-   robot NO dispara el CI**, así que el vigía firma su propio check. **VIVO:** `TODO-87` (Radiación
-   y Temperatura del corredor al atlas). ⏳ **ESPERA SU RESPUESTA:** el satelital «tiene huecos»;
+4. **LO QUE NO SE PUEDE ROMPER DEL CLIMA (`§ADR-057..086`):** gana el HECHO sobre el modelo · el recorrido se comprueba **punto a punto**, nunca por promedio · el clima vive en el ATLAS y Detalle GPS = solo el recorrido · **«tormenta eléctrica» NO existe en la fuente de nubes**.
+5. **CERRADO 23-26/08 (`§ADR-074..086`, detalle en `99`).** ⚠️ Lo único que llevarse: **el robot
+   NO dispara el CI**, y por eso el vigía firma su propio check. **VIVO:** `TODO-87` (Radiación y
+   Temperatura del corredor al atlas). ⏳ **ESPERA SU RESPUESTA:** el satelital «tiene huecos»;
    está al **100 % en z8-z16** → falta **DÓNDE los ve**.
 6. **⚠️ EL LIENZO NO SE VE EN SEGUNDO PLANO, PERO SE FOTOGRAFÍA** (`34 · L-16/L-58/L-72`):
-   `SONDA_MAPA=1 npm run build` + `npx vite preview` en `web/` + `foto-del-banco.mjs "<url>"
-   --salida f.png [--pulsar ".maplibregl-ctrl-zoom-in" --veces 6]`. **Nunca con tiempo virtual.**
-7. **FASE ABIERTA: la página.** No eligió entre ② **se lee** y ③ **no se cae**. ⚠️ `31 · L-60` puede estar MAL: verificar antes de citarlo.
+   `node herramientas/mirar-los-atlas.mjs <atlas>` lo hace todo y además SUSPENDE si no hay dibujo
+   (`§ADR-085`). **Nunca con tiempo virtual.**
+7. **FASE ABIERTA: la página.** No eligió entre ② **se lee** y ③ **no se cae**. ⚠️ `31 · L-60` puede estar MAL.
 8. **SON DE ÉL:** el cuello de botella es `TODO-57`; los demás, en la tabla de abajo.
-9. **Higiene** (`99 §ADR-047/048/083`). ⚠️ El techo es el **ARRANQUE**; `20` y `32` pasan su tope.
+9. **Higiene** (`99 §ADR-047/048/083`): el techo es el ARRANQUE; `20` y `32` pasan su tope.
 
 ## 🚫 INVARIANTES — índice; cada uno vive ENTERO en su ADR
 
@@ -49,12 +51,12 @@
 · **Puntos nuevos** `§ADR-027/054` — identidad por NOMBRE, anotada ANTES; se biseca y el origen entra con `mínimo − 1`: nunca se renumera.
 · **RCA** `§ADR-020/026` — prohibido rankear hipótesis, causa raíz por IA y % de confianza; las causas las lee `causasDeclaradas()`.
 · **Acceso** `§ADR-024` — la contraseña es HIGIENE, la frontera son las reglas. · **Fotos** `§ADR-031` — el portero NO borra ni lista.
-· **Capas del mapa** `§ADR-034/037/046/079` — viajan CON el sitio; se guardan como MEDIDA (byte 0 = SIN DATO); el pronóstico no se guarda; toda capa trae encuadre Y escala, las dos o ninguna.
+· **Capas del mapa** `§ADR-034/046/086` — viajan CON el sitio; byte 0 = SIN DATO; **cada capa DECLARA si es medida o pronóstico** y el motor no publica sin eso (el pronóstico SÍ se guarda desde el 26-08, con caducidad); toda capa trae encuadre Y escala, las dos o ninguna.
 · **Ficha y lote** `§ADR-030/038` — el lote rellena huecos, solo los 3 del MODELO. · **Recordar ≠ proponer** `§ADR-029` — sin decisión suya, campo VACÍO.
 · **Verosimilitud** `§ADR-050` — la escala son TRES y se LEE del molde; una rival se cierra diciendo qué se hizo, no con etiqueta.
 · **Señales de la página** `§ADR-051` — banda, pestaña y tope de tiro salen del DATO, con un solo dueño; la versión del motor la ata un gate de `pre-commit`.
 · **El número que se firma** `§ADR-052` — un tope declarado manda en TODAS las piezas, y el molde tiene que admitirlo o la base lo tira en silencio.
-· **Atlas** `§ADR-045/053/055/056/079` — UN motor y UN escritor de fichas para los SEIS. El viento y los rayos NO marcan hipótesis; en el mapa de la línea van como dato del SITIO.
+· **Atlas** `§ADR-045/055/079/086` — UN motor y UN escritor de fichas para los ONCE. Viento, rayos y **ningún pronóstico** marcan hipótesis; en el mapa de la línea van como dato del SITIO.
 
 ## 🧭 Cómo retomar
 

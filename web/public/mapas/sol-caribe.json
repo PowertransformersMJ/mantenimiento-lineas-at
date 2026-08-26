@@ -1,6 +1,7 @@
 {
  "capa": "sol-caribe",
  "titulo": "Recurso solar del Caribe colombiano, hora a hora",
+ "naturaleza": "medida",
  "departamentos": [
   "Bolívar",
   "Córdoba",

@@ -73,6 +73,7 @@ export function EmblemaFuente({ familia }: { familia: FamiliaAtlas }) {
 const MARCAS: Record<FamiliaAtlas, () => ReactElement> = {
   power: MarcaPower,
   goes: MarcaGoes,
+  pronostico: MarcaPronostico,
 };
 
 /**
@@ -119,6 +120,40 @@ function MarcaPower() {
  * horizonte. El limbo lleva su propia clase porque es lo único que NO es del
  * color del texto: la Tierra es azul en todo el sitio.
  */
+/**
+ * Pronóstico · MET Norway — la flecha del tiempo, hacia delante.
+ *
+ * Las otras dos marcas dicen QUIÉN publica; ésta tiene que decir algo distinto y
+ * más importante: que esto **no lo ha medido nadie todavía**. Por eso no dibuja
+ * un instrumento —ni retícula ni satélite— sino el paso del tiempo: tres barras
+ * que van perdiendo tinta hacia la derecha, como pierde certeza un pronóstico
+ * cuanto más lejos mira, y la punta que señala adelante.
+ *
+ * A la izquierda, a plena tinta, está el ahora; a la derecha, en un cuarto de
+ * tinta, el día diez. Es la única de las tres marcas que se lee como una
+ * dirección en vez de como un objeto, y esa diferencia es justo la que hay que
+ * ver sin leer nada.
+ */
+function MarcaPronostico() {
+  // De más tinta a menos: lo cercano se sabe mejor que lo lejano.
+  const BARRAS = [
+    { x: 1.6, alto: 13, o: 1 },
+    { x: 7.2, alto: 10, o: 0.62 },
+    { x: 12.8, alto: 7, o: 0.34 },
+  ];
+  return (
+    <g fill="currentColor">
+      {BARRAS.map((b) => (
+        <rect key={b.x} x={b.x} y={17.4 - b.alto} width="4.2" height={b.alto} rx="1.1" opacity={b.o} />
+      ))}
+      {/* La punta: hacia DELANTE. Lo que separa esta familia de las otras dos. */}
+      <path d="M17.6 6.4 L23 11.8 L17.6 17.2 Z" opacity="0.34" />
+      {/* La línea del tiempo, que las apoya a todas. */}
+      <rect x="1.2" y="19.4" width="21.6" height="2.2" rx="1.1" opacity="0.75" />
+    </g>
+  );
+}
+
 function MarcaGoes() {
   return (
     <g>

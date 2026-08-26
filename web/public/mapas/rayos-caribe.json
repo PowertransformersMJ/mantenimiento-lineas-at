@@ -1,6 +1,7 @@
 {
  "capa": "rayos-caribe",
  "titulo": "Descargas atmosféricas del Caribe colombiano, hora a hora",
+ "naturaleza": "medida",
  "departamentos": [
   "Bolívar",
   "Córdoba",

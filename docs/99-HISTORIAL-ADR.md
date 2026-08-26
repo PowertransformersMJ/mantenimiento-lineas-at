@@ -7203,3 +7203,143 @@ manda a arreglar lo que no está roto**.
 
 `../brain-private/mantenimiento-lineas-at/research-archive/2026-08-25-emblemas-y-ventana-de-fuentes/`
 (sección «El portero»).
+
+---
+
+## ADR-086 · 2026-08-26 · El atlas del tiempo que VIENE, y cómo se guarda un pronóstico sin que se confunda con una medición
+
+**Estado:** ✅ Decidido · **NO revisada externamente** · en producción.
+
+### Contexto
+
+El Ingeniero: *«me gustaría tener un atlas que se puedan apreciar los pronósticos, no sé si lo puedes
+incluir en los que ya están o prefieres hacer uno aparte, evalúalo sin dañar nada ni suponer»*.
+
+La petición chocaba con **dos reglas que el proyecto ya tenía escritas**, las dos en
+`vistas/pronostico.ts` y `datos/pronostico.ts`:
+
+> **«Esto no se guarda jamás.** Un pronóstico no es un hecho fechado: es un modelo diciendo qué cree.
+> Se pide, se mira y se olvida.»
+>
+> **«NO es un mapa.** El modelo trae celdas de kilómetros: sobre 3 km de línea el valor es UNO. Por
+> eso se pinta como un dato del sitio y no como un campo de colores que fingiría un detalle
+> inexistente.»
+
+**La segunda no aplicaba, y se comprobó midiendo.** Ese argumento se escribió para la LÍNEA, que mide
+3 km. El atlas mide 670. Consultadas nueve celdas repartidas del encuadre (`-77..-71`, `7..13`) el
+2026-08-26:
+
+| | Mínimo | Máximo | Diferencia |
+|---|---|---|---|
+| Temperatura | 22,9 °C | 31,7 °C | **8,8 °C** |
+| Viento | 1,8 km/h | 52,6 km/h | **50,8 km/h** |
+| Nubes | 39 % | 100 % | 61 puntos |
+
+El norte —Guajira y mar— iba a 47-53 km/h mientras el sur interior no pasaba de 8. A esta escala un
+mapa **no finge un detalle inexistente: lo enseña**, y enseña justo lo que decide si se sube o no se
+sube a una estructura.
+
+**La primera —guardarlo— se le ofreció como decisión suya, con su precio escrito**: en vivo sin
+guardar nada (respeta la regla, pero cada apertura consulta y depende de internet) o guardado como
+los demás (abre al instante y funciona sin red, pero deja un pronóstico archivado que dentro de
+meses alguien puede leer como si fuera una medición). **Eligió guardado.** Así que el trabajo dejó
+de ser «bajar el dato» y pasó a ser **hacer imposible esa confusión**.
+
+### Decisión
+
+**1 · Va DENTRO de la pantalla que ya existe, como TERCERA FAMILIA del selector.** Aparte habría
+duplicado el motor de los atlas —que es UNO, y es invariante— y habría escondido el pronóstico en
+una pantalla donde nadie lo busca. `§ADR-082` ya agrupaba por quien publica; esa maquinaria sirve
+tal cual, y el rótulo dice lo que hay que saber antes de pulsar:
+
+- **NASA POWER** · el año entero, con días de retraso
+- **Satélite GOES-19 · NOAA** · casi en vivo
+- **Pronóstico · MET Norway** · *lo que VIENE — un modelo, no una medición; no entra en ningún cálculo*
+
+Tres capas: **temperatura, viento y lluvia** — las tres que deciden una jornada y las tres que ya
+tienen rampa medida con la que compararse.
+
+**2 · Cuatro cosas hacen imposible confundirlo con una medición:**
+
+| | Qué | Por qué esa y no otra |
+|---|---|---|
+| 1 | La ficha declara `naturaleza: 'pronostico'` | Y el motor **se niega a publicar** una capa que no lo declare. Sin valor por defecto: si el defecto fuera `medida`, olvidarlo se convertiría en mentir |
+| 2 | Los archivos se llaman `pron-*` | En una carpeta, en un registro de git o en una URL se distinguen sin abrirlos |
+| 3 | La ficha lleva `caduca` (8 h) | Es la salvaguarda de haberlo guardado: una medición de mayo sigue siendo verdad en agosto, un pronóstico de anteayer no. La pantalla lo dice en rojo |
+| 4 | Ni un número entra en un cálculo | Igual que el pronóstico de la línea. Un extremo de diseño no se valida con el tiempo de la semana que viene |
+
+Y un guardián recorre **las once capas** comprobando que cada una declara qué es y que lo que dice
+la ficha cuadra con la familia del catálogo.
+
+**3 · Comparte la escala EXACTA de su gemelo medido** —misma codificación, misma rampa, misma
+unidad—, y hay una prueba que lo vigila. Es lo que hace útil poner «lo que viene» al lado de «lo que
+pasó»: si cada uno tuviera su escala, un rojo aquí y un rojo allá serían números distintos y los dos
+mapas seguirían saliendo bonitos. **Lo único que NO hereda es la hipótesis marcada en la rampa**: la
+temperatura medida marca sus 32 °C y el pronóstico no marca nada, porque marcar un criterio de
+diseño sobre un modelo invita justo a la lectura prohibida —«el jueves no llega a 32, luego la
+hipótesis va sobrada»—.
+
+**4 · Publica lo que el modelo da y ni una hora más.** MET da hora a hora los primeros ~2,7 días y
+después bloques de 6 h. Las horas que el modelo no da **se quedan en hueco** (byte 0 = SIN DATO) en
+vez de rellenarse repartiendo el bloque, que multiplicaría la lluvia por seis. El resumen de cada
+día sí cubre los diez, porque ahí los bloques valen enteros. **Es la misma forma que ya tenía el
+atlas solar**, donde las horas llegan a mayo y el total del día a agosto: no hubo que inventar nada.
+
+**5 · Su propio trabajo en el vigía, cada 4 horas**, con guardián de integridad, portero y fusión
+automática como los otros dos. No pregunta «¿hay dato nuevo?» —un pronóstico cambia siempre— sino
+que comprueba que lo que llegó no sea peor: las tres capas enteras, al menos cuatro días por
+delante, sin perder la atribución y **sin dejar de declararse como pronóstico**.
+
+### Alternativas descartadas
+
+- **Un atlas aparte, en su propia pantalla.** Duplicaba el motor y escondía lo que se pidió enseñar.
+- **En vivo, sin guardar** (36 consultas al abrir la capa). Respetaba la regla escrita al pie de la
+  letra; se ofreció con su precio y **el Ingeniero eligió guardarlo**. Queda anotado que la regla
+  cambió por decisión suya y no por descuido, y que lo que la sustituye son las cuatro salvaguardas.
+- **Cada hora, como el satélite.** MET publica más seguido, pero un pronóstico a diez días no cambia
+  de forma útil en sesenta minutos, sus términos piden expresamente no generar tráfico innecesario,
+  y cada pasada deja ~7 KB en el historial para siempre: 15 MB al año con 4 h, 60 con 1 h.
+- **Rellenar los bloques de 6 h repartiéndolos entre sus horas.** Fabricaría un detalle que el modelo
+  no da — y en la lluvia multiplicaría el agua por seis, que es el mismo fallo del factor `1/24` que
+  ya mordió con NASA.
+- **Escala propia para el pronóstico.** Bonito y sin sentido: dejaría de poder compararse con lo
+  medido, que es para lo que sirve.
+
+### Lo que enseñó, y no fue el código
+
+**Dos fallos reales, y los dos los cazó MIRAR la foto del portero, no una prueba:**
+
+1. **La cinta enseñaba `MET Norway · locationforecast 2.0 (modelo`** — un paréntesis abierto y la
+   palabra «medición» cortada, justo la que más importaba. La cinta publica el nombre corto cortando
+   por la primera coma (`§ADR-080`) y la fuente llevaba una coma dentro del paréntesis. Ahora hay
+   una prueba que recorre las once y comprueba que ningún nombre corto queda con un paréntesis sin
+   cerrar.
+2. **El panel del día decía «20 de las 24 horas no traen MEDIDA» y «días MEDIDOS»** sobre un modelo.
+   La cinta de arriba ya bifurcaba bien y la pieza hermana de al lado seguía con la palabra fija:
+   literalmente `30 · L-68` —arreglado donde se veía, vivo en la pieza hermana—. Las dos piezas
+   pintan los once atlas, así que ahora las dos preguntan qué es antes de hablar, y hay guardián.
+
+**Y un tercero, en la propia prueba que vigila:** el guardián del portero llevaba escrito «los DOS
+trabajos» y se puso rojo al entrar el tercero. El número no era el invariante; el invariante es que
+**nadie proponga sin que alguien haya mirado el mapa**. Reescrito así, la prueba ya sabe contar sola.
+`30 · M-01`, esta vez dentro de un guardián.
+
+### Consecuencias
+
+- **1.968 pruebas en verde** (14 nuevas). **Once atlas**, en tres familias.
+- Las ocho fichas ya publicadas se **sellaron** con su `naturaleza` leyéndola de la familia que
+  declara el catálogo —no adivinándola—, porque el sol y las nubes no se reconstruyen hasta dentro
+  de ~87 días y habrían quedado sin declarar todo ese tiempo. La próxima reconstrucción escribe el
+  mismo valor.
+- **NO cierra `TODO-82/83`** (fase 2 del pronóstico de la línea: franja mañana/tarde y sensación
+  térmica): eso es la tabla de la LÍNEA, en un punto y hora a hora. Esto es regional: **dónde**.
+- **Toca `TODO-88`** —el eje único de tiempo que se perdió—: ahora el pronóstico SÍ está en la
+  pantalla del atlas, con su mes, su día y su hora, aunque en su propia familia. Si quiere lo medido
+  y lo que viene en una sola tira, eso sigue siendo otra decisión.
+- Coste: cero infraestructura y cero gasto. MET Norway es CC BY 4.0, sin cuenta ni clave;
+  verificados sus términos el 2026-08-26: identificarse, máximo 20 consultas/segundo por aplicación,
+  coordenadas a 4 decimales y no disparar todo de golpe — por eso las 36 celdas van de una en una.
+
+### Crudo de respaldo
+
+`../brain-private/mantenimiento-lineas-at/research-archive/2026-08-26-atlas-del-pronostico/`

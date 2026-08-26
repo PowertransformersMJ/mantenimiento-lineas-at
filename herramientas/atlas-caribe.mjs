@@ -363,6 +363,7 @@ export const PERFILES = Object.freeze({
   sol: Object.freeze({
     capa: 'sol-caribe',
     prefijo: 'sol-caribe',
+    naturaleza: 'medida',
     param: 'ALLSKY_SFC_SW_DWN',
     paramDiario: 'ALLSKY_SFC_SW_DWN',
     titulo: 'Recurso solar del Caribe colombiano, hora a hora',
@@ -385,6 +386,7 @@ export const PERFILES = Object.freeze({
   temperatura: Object.freeze({
     capa: 'temp-caribe',
     prefijo: 'temp-caribe',
+    naturaleza: 'medida',
     param: 'T2M',
     // ⚠️ EL RESUMEN DEL DÍA ES EL MÁXIMO, no la media, y esa elección es de
     // ingeniería: la ampacidad la decide la HORA MÁS CALUROSA del día, no el
@@ -416,6 +418,7 @@ export const PERFILES = Object.freeze({
   viento: Object.freeze({
     capa: 'viento-caribe',
     prefijo: 'viento-caribe',
+    naturaleza: 'medida',
     param: 'WS10M',
     // A 10 m y no a 2 m: 10 m es la altura meteorológica estándar y la más
     // cercana a la del conductor. A 2 m el suelo frena el aire y el número sale
@@ -452,6 +455,7 @@ export const PERFILES = Object.freeze({
   lluvia: Object.freeze({
     capa: 'lluvia-caribe',
     prefijo: 'lluvia-caribe',
+    naturaleza: 'medida',
     param: 'PRECTOTCORR',
     paramDiario: 'PRECTOTCORR',
     // ⚠️ EL FACTOR QUE NO SE VE. En el paso horario NASA publica esto como una
@@ -483,6 +487,7 @@ export const PERFILES = Object.freeze({
   nubes: Object.freeze({
     capa: 'nubes-caribe',
     prefijo: 'nubes-caribe',
+    naturaleza: 'medida',
     param: 'CLOUD_AMT',
     // La media del día, y aquí SÍ es lo correcto —al revés que en la temperatura,
     // donde manda el máximo—: lo que describe un día es si estuvo cerrado o
@@ -588,9 +593,28 @@ export function publicarAtlas(perfil, celdas, diario, { salida = 'web/public/map
   }
   if (!meses.length) throw new Error('no se pudo publicar ni un mes');
 
+  // ⚠️ QUÉ ES ESTA CAPA: MEDIDA O PRONÓSTICO (`99 §ADR-086`). Sin valor por
+  // defecto A PROPÓSITO. Desde que se publica un atlas de pronóstico, la
+  // pregunta «¿esto lo midió alguien?» tiene dos respuestas posibles, y la
+  // peligrosa es la silenciosa: si el defecto fuera `'medida'`, una capa nueva
+  // que olvidara declararlo se publicaría diciendo que alguien midió lo que
+  // nadie midió. Se exige, y quien añada una capa tropieza aquí antes de llegar
+  // a la pantalla. Es `30 · M-01`: lo que se sincroniza a mano, se desincroniza.
+  if (perfil.naturaleza !== 'medida' && perfil.naturaleza !== 'pronostico') {
+    throw new Error(`el perfil «${perfil.capa}» no declara su naturaleza. `
+      + 'Tiene que decir `medida` (alguien lo midió) o `pronostico` (un modelo lo cree).');
+  }
+
   const ficha = {
     capa: perfil.capa,
     titulo: perfil.titulo,
+    naturaleza: perfil.naturaleza,
+    // Solo los pronósticos caducan: una medición de mayo sigue siendo verdad en
+    // agosto, y un pronóstico de hace dos días ya no es el pronóstico de ahora.
+    ...(perfil.caducaEn_h
+      ? { caducaEn_h: perfil.caducaEn_h,
+        caduca: new Date(Date.now() + perfil.caducaEn_h * 3600_000).toISOString() }
+      : {}),
     departamentos: DEPARTAMENTOS,
     bbox: [OESTE, SUR, ESTE, NORTE],
     ancho: ANCHO, alto: ALTO,

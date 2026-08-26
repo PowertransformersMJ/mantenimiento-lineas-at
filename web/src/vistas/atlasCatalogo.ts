@@ -21,7 +21,8 @@
 
 /** Los atlas que existen. Añadir uno empieza aquí y el compilador hace el resto. */
 export type ClaveAtlas = 'sol' | 'temperatura' | 'viento' | 'lluvia' | 'nubes' | 'rayos'
-  | 'solVivo' | 'nubesVivo';
+  | 'solVivo' | 'nubesVivo'
+  | 'pronTemperatura' | 'pronViento' | 'pronLluvia';
 
 /**
  * DE QUIÉN VIENE CADA ATLAS — para que se vea sin abrirlo (`99 §ADR-082`).
@@ -38,7 +39,7 @@ export type ClaveAtlas = 'sol' | 'temperatura' | 'viento' | 'lluvia' | 'nubes' |
  * familia que dice esta tabla. Un dato que hay que mantener sincronizado a mano
  * es un dato que se desincroniza (`30 · M-01`).
  */
-export type FamiliaAtlas = 'power' | 'goes';
+export type FamiliaAtlas = 'power' | 'goes' | 'pronostico';
 
 export const FAMILIAS: Record<FamiliaAtlas, { rotulo: string; nota: string; marca: RegExp }> = {
   power: {
@@ -51,10 +52,23 @@ export const FAMILIAS: Record<FamiliaAtlas, { rotulo: string; nota: string; marc
     nota: 'casi en vivo; empieza el día que se enciende y se llena solo',
     marca: /GOES-19/,
   },
+  /**
+   * ⚠️ LA TERCERA FAMILIA NO ES OTRO PROVEEDOR: ES OTRA NATURALEZA
+   * (`99 §ADR-086`). Las dos de arriba son mediciones —alguien las midió, con un
+   * satélite o con un modelo de reanálisis alimentado por observaciones—. Ésta
+   * es lo que un modelo CREE que va a pasar, y por eso va separada y lo dice en
+   * su propio rótulo. Mezclarla entre las otras sería el fallo caro: un mapa de
+   * colores idéntico al de al lado, que no midió nadie.
+   */
+  pronostico: {
+    rotulo: 'Pronóstico · MET Norway',
+    nota: 'lo que VIENE — un modelo, no una medición; no entra en ningún cálculo',
+    marca: /MET Norway/,
+  },
 };
 
 /** El orden en que se presentan: primero lo que tiene historia, luego lo que pasa ahora. */
-export const FAMILIAS_EN_ORDEN: FamiliaAtlas[] = ['power', 'goes'];
+export const FAMILIAS_EN_ORDEN: FamiliaAtlas[] = ['power', 'goes', 'pronostico'];
 
 export interface FichaDeAtlas {
   /** De dónde se baja su ficha JSON. */
@@ -165,13 +179,52 @@ export const ATLAS: Record<ClaveAtlas, FichaDeAtlas> = {
     rotulo: 'Nubes ahora',
     hash: '#/nubes-ahora',
   },
+  /**
+   * ⚠️ LOS TRES DEL PRONÓSTICO SON LA MISMA MAGNITUD QUE SUS GEMELOS MEDIDOS, Y
+   * SE PINTAN CON SU MISMA ESCALA (`99 §ADR-086`). Eso es deliberado y es lo que
+   * los hace útiles: poner «lo que viene» al lado de «lo que pasó» solo sirve si
+   * un color significa lo mismo en los dos. Lo que NO comparten es lo único que
+   * de verdad los separa —quién lo dice y si alguien lo midió—, y eso va en la
+   * FAMILIA, en el rótulo y en la cinta, no escondido en la escala.
+   *
+   * Se llaman `pron-*` en el archivo a propósito: en una carpeta, en un registro
+   * de git o en una URL se distinguen de una medición sin abrirlos.
+   */
+  pronTemperatura: {
+    familia: 'pronostico',
+    ficha: '/mapas/pron-temp-caribe.json',
+    idCapa: 'capa-pron-temp',
+    titulo: 'Temperatura que se espera en el Caribe',
+    entradilla: 'Temperatura del aire pronosticada',
+    rotulo: 'Temperatura',
+    hash: '#/pronostico-temperatura',
+  },
+  pronViento: {
+    familia: 'pronostico',
+    ficha: '/mapas/pron-viento-caribe.json',
+    idCapa: 'capa-pron-viento',
+    titulo: 'Viento que se espera en el Caribe',
+    entradilla: 'Viento pronosticado',
+    rotulo: 'Viento',
+    hash: '#/pronostico-viento',
+  },
+  pronLluvia: {
+    familia: 'pronostico',
+    ficha: '/mapas/pron-lluvia-caribe.json',
+    idCapa: 'capa-pron-lluvia',
+    titulo: 'Lluvia que se espera en el Caribe',
+    entradilla: 'Lluvia pronosticada',
+    rotulo: 'Lluvia',
+    hash: '#/pronostico-lluvia',
+  },
 };
 
 /** El orden en que se ofrecen. No es alfabético: es el orden en que nacieron. */
 export const ATLAS_EN_ORDEN: ClaveAtlas[] = [
-  // Primero los cinco del año (POWER), luego los que van casi en vivo. El orden
-  // no es alfabético ni caprichoso: es el de «lo que ya pasó» → «lo que pasa».
+  // El orden no es alfabético ni caprichoso: es el del TIEMPO.
+  // «lo que ya pasó» (POWER) → «lo que pasa» (satélite) → «lo que viene» (pronóstico).
   'sol', 'temperatura', 'viento', 'lluvia', 'nubes', 'rayos', 'solVivo', 'nubesVivo',
+  'pronTemperatura', 'pronViento', 'pronLluvia',
 ];
 
 /**

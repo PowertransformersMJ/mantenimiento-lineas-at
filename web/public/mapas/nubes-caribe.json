@@ -1,6 +1,7 @@
 {
  "capa": "nubes-caribe",
  "titulo": "Nubosidad del Caribe colombiano, hora a hora",
+ "naturaleza": "medida",
  "departamentos": [
   "Bolívar",
   "Córdoba",

@@ -753,8 +753,10 @@ export function AtlasCaribe({ atlas, embebido = false, marca, alCambiarAtlas, li
           atlas solar se reconstruye hoy y trae dato de mayo. Y se dice DE QUIÉN
           es el retraso, que es lo que convierte dos fechas en una decisión. */}
       {frescura && (
-        <p className={'atlas-frescura r-' + (frescura.porQue === 'al-dia' ? 'medido'
-          : frescura.porQue === 'fuente-atrasada' ? 'modelo' : 'hueco')}>
+        <p className={'atlas-frescura r-' + (frescura.porQue === 'pronostico-caducado' ? 'caducado'
+          : frescura.porQue === 'pronostico' ? 'modelo'
+            : frescura.porQue === 'al-dia' ? 'medido'
+              : frescura.porQue === 'fuente-atrasada' ? 'modelo' : 'hueco')}>
           {/* ⚠️ LA FUENTE, ARRIBA Y NO EN LA LETRA PEQUEÑA (`§ADR-080`). Lo pidió
               el Ingeniero: «me gustaría que se pueda apreciar la fuente de cada
               atlas». Estaba publicada desde el principio, pero al final del
@@ -774,8 +776,32 @@ export function AtlasCaribe({ atlas, embebido = false, marca, alCambiarAtlas, li
           <b>{frescura.construidoHora}</b> (hora de Colombia)
           {frescura.diasDelArchivo > 0 && <> · hace {frescura.diasDelArchivo}{' '}
             {frescura.diasDelArchivo === 1 ? 'día' : 'días'}</>}.
-          {' '}Trae <b>dato medido hasta el {diaEnPalabras(frescura.medidoHasta, false)}</b>
-          {' '}({frescura.diasDelDato} {frescura.diasDelDato === 1 ? 'día' : 'días'} atrás).
+          {/* ⚠️ AQUÍ SE BIFURCA, Y NO ES COSMÉTICA (`§ADR-086`). La frase de
+              abajo —«trae dato MEDIDO hasta el X, N días ATRÁS»— es verdad de
+              una medición y mentira doble de un pronóstico: nadie lo midió y no
+              va atrás, va adelante. Con el texto de las mediciones, el atlas del
+              pronóstico habría dicho «dato medido hasta el 4 de septiembre
+              (0 días atrás)»: fecha correcta, palabra falsa y número engañoso, y
+              ni un error en consola. */}
+          {frescura.naturaleza === 'pronostico' ? (
+            <>
+              {' '}Mira <b>hasta el {diaEnPalabras(frescura.medidoHasta, false)}</b>
+              {' '}({frescura.diasPorDelante}{' '}
+              {frescura.diasPorDelante === 1 ? 'día' : 'días'} <b>por delante</b>).
+              {' '}⚠️ <b>Es un PRONÓSTICO, no una medición</b>: no entra en ningún cálculo
+              y no valida ninguna hipótesis de diseño.
+              {frescura.caducado && (
+                <> 🛑 <b>Y ya caducó</b>: este archivo se hizo hace {frescura.diasDelArchivo === 0
+                  ? 'horas' : `${frescura.diasDelArchivo} día(s)`} y ya no es el pronóstico de
+                  ahora. Vuelve cuando el vigía lo rehaga.</>
+              )}
+            </>
+          ) : (
+            <>
+              {' '}Trae <b>dato medido hasta el {diaEnPalabras(frescura.medidoHasta, false)}</b>
+              {' '}({frescura.diasDelDato} {frescura.diasDelDato === 1 ? 'día' : 'días'} atrás).
+            </>
+          )}
           {frescura.porQue === 'fuente-atrasada' && (
             <> ⚠️ <b>El retraso es de la FUENTE, no del archivo</b>: se le preguntó hace{' '}
               {frescura.diasDelArchivo} {frescura.diasDelArchivo === 1 ? 'día' : 'días'} y no

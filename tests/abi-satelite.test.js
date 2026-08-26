@@ -253,3 +253,113 @@ describe('cada fuente lleva su marca, y la lleva en los dos sitios', () => {
     assert.match(PANTALLA, /ficha\.fuente\.split\(','\)\[0\]/, 'la cinta dejó de escribir la fuente exacta');
   });
 });
+
+// ════════════════════════════════════════════════════════════════════════════
+// ¿ALGUIEN LO MIDIÓ, O UN MODELO LO CREE? (`99 §ADR-086`)
+// ----------------------------------------------------------------------------
+// Desde que hay atlas de pronóstico, «esto lo midió alguien» dejó de ser cierto
+// por defecto. El Ingeniero decidió GUARDAR el pronóstico sabiendo el precio: un
+// archivo guardado se puede leer dentro de meses como si fuera una medición.
+// Esto es lo que hace imposible esa confusión, y por eso se vigila.
+// ════════════════════════════════════════════════════════════════════════════
+describe('cada capa dice si alguien la midió o un modelo la cree', () => {
+
+  test('las once capas publicadas lo declaran, y ninguna se lo salta', () => {
+    const fallan = [];
+    for (const clave of ATLAS_EN_ORDEN) {
+      const ruta = fileURLToPath(new URL('../web/public' + ATLAS[clave].ficha, import.meta.url));
+      const ficha = JSON.parse(readFileSync(ruta, 'utf-8'));
+      if (ficha.naturaleza !== 'medida' && ficha.naturaleza !== 'pronostico') {
+        fallan.push(`${clave}: naturaleza «${ficha.naturaleza}»`);
+      }
+    }
+    assert.deepEqual(fallan, [], 'capas que no dicen si son medición o pronóstico');
+  });
+
+  test('y lo que declara la ficha cuadra con su familia', () => {
+    // Las dos tablas tienen que decir lo mismo: la familia `pronostico` del
+    // catálogo y el `naturaleza` de la ficha. Si se desincronizan, el selector
+    // agruparía un modelo entre las mediciones — o al revés (`30 · M-01`).
+    for (const clave of ATLAS_EN_ORDEN) {
+      const ruta = fileURLToPath(new URL('../web/public' + ATLAS[clave].ficha, import.meta.url));
+      const ficha = JSON.parse(readFileSync(ruta, 'utf-8'));
+      const esperada = ATLAS[clave].familia === 'pronostico' ? 'pronostico' : 'medida';
+      assert.equal(ficha.naturaleza, esperada,
+        `${clave}: la familia dice «${ATLAS[clave].familia}» y la ficha «${ficha.naturaleza}»`);
+    }
+  });
+
+  test('solo los pronósticos caducan, y todos caducan', () => {
+    for (const clave of ATLAS_EN_ORDEN) {
+      const ruta = fileURLToPath(new URL('../web/public' + ATLAS[clave].ficha, import.meta.url));
+      const ficha = JSON.parse(readFileSync(ruta, 'utf-8'));
+      if (ficha.naturaleza === 'pronostico') {
+        assert.ok(ficha.caduca, `${clave}: un pronóstico guardado SIN caducidad no se puede retirar`);
+      } else {
+        assert.equal(ficha.caduca, undefined,
+          `${clave}: una medición no caduca — mayo sigue siendo mayo en agosto`);
+      }
+    }
+  });
+
+  test('el motor se NIEGA a publicar una capa que no diga qué es', () => {
+    const MOTOR = readFileSync(
+      fileURLToPath(new URL('../herramientas/atlas-caribe.mjs', import.meta.url)), 'utf-8');
+    assert.match(MOTOR, /no declara su naturaleza/,
+      'volvió el valor por defecto: una capa nueva se publicaría diciendo que alguien la midió');
+    assert.ok(!/naturaleza:\s*perfil\.naturaleza\s*\?\?/.test(MOTOR),
+      'un `?? medida` haría que olvidarlo se convirtiera en mentir');
+  });
+
+  test('el pronóstico usa la MISMA escala que su gemelo medido', () => {
+    // Es lo que lo hace útil: poner «lo que viene» al lado de «lo que pasó» solo
+    // sirve si un color significa lo mismo en los dos. Si alguien le pusiera
+    // escala propia, los dos mapas seguirían saliendo bonitos y ya no se podrían
+    // comparar — y nadie vería un error.
+    const leer = (f) => JSON.parse(readFileSync(
+      fileURLToPath(new URL(`../web/public/mapas/${f}.json`, import.meta.url)), 'utf-8'));
+    for (const [pron, medido] of [
+      ['pron-temp-caribe', 'temp-caribe'],
+      ['pron-viento-caribe', 'viento-caribe'],
+      ['pron-lluvia-caribe', 'lluvia-caribe'],
+    ]) {
+      const p = leer(pron), m = leer(medido);
+      assert.deepEqual(p.codificacion, m.codificacion, `${pron}: se le cambió la codificación`);
+      assert.deepEqual(p.rampa, m.rampa, `${pron}: se le cambió la rampa de color`);
+      assert.equal(p.unidad, m.unidad, `${pron}: se le cambió la unidad`);
+    }
+  });
+
+  test('y NINGÚN pronóstico marca una hipótesis de diseño en su escala', () => {
+    // La temperatura medida SÍ marca sus 32 °C. Marcarlos sobre un modelo
+    // invitaría a la lectura prohibida: «el jueves no llega, luego la hipótesis
+    // va sobrada». Un extremo de diseño no se valida con el tiempo de la semana.
+    for (const clave of ATLAS_EN_ORDEN) {
+      if (ATLAS[clave].familia !== 'pronostico') continue;
+      const ruta = fileURLToPath(new URL('../web/public' + ATLAS[clave].ficha, import.meta.url));
+      const ficha = JSON.parse(readFileSync(ruta, 'utf-8'));
+      assert.equal(ficha.hipotesisMarcadaEnRampa, undefined,
+        `${clave}: marca un criterio de diseño sobre un pronóstico`);
+    }
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+describe('el nombre corto de la fuente no se rompe al cortarlo', () => {
+  test('ninguna fuente queda con un paréntesis abierto en la cinta', () => {
+    // La cinta publica `fuente.split(',')[0]` (`§ADR-080`). Con una coma DENTRO
+    // de un paréntesis, lo que se enseña es medio nombre y un paréntesis sin
+    // cerrar — pasó con el pronóstico: «(modelo» y la palabra «medición»
+    // cortada, justo la que más importaba. No lo cazó una prueba: lo cazó la
+    // foto del portero. Ahora sí lo caza una prueba.
+    for (const clave of ATLAS_EN_ORDEN) {
+      const ruta = fileURLToPath(new URL('../web/public' + ATLAS[clave].ficha, import.meta.url));
+      const { fuente } = JSON.parse(readFileSync(ruta, 'utf-8'));
+      const corto = fuente.split(',')[0];
+      const abre = (corto.match(/\(/g) ?? []).length;
+      const cierra = (corto.match(/\)/g) ?? []).length;
+      assert.equal(abre, cierra,
+        `${clave}: el nombre corto queda como «${corto}» — paréntesis sin cerrar`);
+    }
+  });
+});

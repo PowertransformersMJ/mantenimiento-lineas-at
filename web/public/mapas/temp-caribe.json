@@ -1,6 +1,7 @@
 {
  "capa": "temp-caribe",
  "titulo": "Temperatura del aire del Caribe colombiano, hora a hora",
+ "naturaleza": "medida",
  "departamentos": [
   "Bolívar",
   "Córdoba",

@@ -1,0 +1,196 @@
+{
+ "capa": "pron-viento-caribe",
+ "titulo": "Viento que se espera en el Caribe",
+ "naturaleza": "pronostico",
+ "caducaEn_h": 8,
+ "caduca": "2026-08-26T22:23:18.026Z",
+ "departamentos": [
+  "Bolívar",
+  "Córdoba",
+  "Sucre",
+  "Cesar",
+  "Magdalena",
+  "Atlántico",
+  "La Guajira"
+ ],
+ "bbox": [
+  -77,
+  7,
+  -71,
+  13
+ ],
+ "ancho": 6,
+ "alto": 6,
+ "resolucion_m": 111000,
+ "resolucion_nativa_m": 111000,
+ "remuestreo_pantalla": "nearest",
+ "remuestreo": "ninguno: cada píxel es una celda de 1° medida. Se pinta a cuadros porque a cuadros es como está medido; suavizarlo dibujaría un degradado que nadie midió.",
+ "unidad": "km/h",
+ "codificacion": {
+  "offset": 0,
+  "paso": 0.4,
+  "sin_dato": 0
+ },
+ "valorMaximoRepresentable": 101.60000000000001,
+ "medido": {
+  "min": 0.36,
+  "max": 57.24
+ },
+ "cuadros": {
+  "horas": 24,
+  "porFila": 24,
+  "celdaAncho": 6,
+  "celdaAlto": 6
+ },
+ "anio": 2026,
+ "meses": [
+  {
+   "clave": "08",
+   "archivo": "pron-viento-caribe-2026-08.png",
+   "dias": 31,
+   "horasConDato": 76.25,
+   "bytes": 2695
+  },
+  {
+   "clave": "09",
+   "archivo": "pron-viento-caribe-2026-09.png",
+   "dias": 30,
+   "horasConDato": 16,
+   "bytes": 788
+  }
+ ],
+ "ultimoDiaConHoras": "2026-09-04",
+ "ultimoDiaConTotal": "2026-09-04",
+ "construido": "2026-08-26T14:23:18.026Z",
+ "resumenDiario": [
+  {
+   "d": "2026-08-26",
+   "v": 21.42
+  },
+  {
+   "d": "2026-08-27",
+   "v": 24.66
+  },
+  {
+   "d": "2026-08-28",
+   "v": 25.02
+  },
+  {
+   "d": "2026-08-29",
+   "v": 13.86
+  },
+  {
+   "d": "2026-08-30",
+   "v": 15.12
+  },
+  {
+   "d": "2026-08-31",
+   "v": 11.52
+  },
+  {
+   "d": "2026-09-01",
+   "v": 10.08
+  },
+  {
+   "d": "2026-09-02",
+   "v": 10.8
+  },
+  {
+   "d": "2026-09-03",
+   "v": 10.08
+  },
+  {
+   "d": "2026-09-04",
+   "v": 10.26
+  }
+ ],
+ "resumenDiarioEtiqueta": "Máximo que se espera",
+ "resumenDiarioUnidad": "km/h (mediana regional del máximo del día)",
+ "resumenDiarioAviso": "Es el máximo pronosticado en cada celda, resumido por la mediana de las 36: la celda más ventosa de ese día tendrá más.",
+ "rampa": [
+  {
+   "c": 0,
+   "rgb": [
+    235,
+    238,
+    240
+   ]
+  },
+  {
+   "c": 5,
+   "rgb": [
+    200,
+    220,
+    230
+   ]
+  },
+  {
+   "c": 10,
+   "rgb": [
+    150,
+    195,
+    205
+   ]
+  },
+  {
+   "c": 15,
+   "rgb": [
+    110,
+    170,
+    165
+   ]
+  },
+  {
+   "c": 20,
+   "rgb": [
+    130,
+    175,
+    110
+   ]
+  },
+  {
+   "c": 25,
+   "rgb": [
+    200,
+    190,
+    90
+   ]
+  },
+  {
+   "c": 30,
+   "rgb": [
+    235,
+    155,
+    60
+   ]
+  },
+  {
+   "c": 40,
+   "rgb": [
+    215,
+    85,
+    50
+   ]
+  },
+  {
+   "c": 55,
+   "rgb": [
+    140,
+    30,
+    45
+   ]
+  },
+  {
+   "c": 60,
+   "rgb": [
+    96,
+    18,
+    32
+   ]
+  }
+ ],
+ "aviso": "ESTO ES UN PRONÓSTICO: un modelo diciendo qué cree que va a pasar, no una medición. NO entra en ningún cálculo de la línea y NO valida ninguna hipótesis de diseño — un extremo con periodo de retorno de decenas de años no se comprueba con el tiempo de la semana que viene, y creerlo sería el error caro. Sirve para DECIDIR LA SEMANA: dónde va a soplar, dónde va a llover y dónde va a apretar el calor. Hora a hora los primeros días y después cada 6 h, que es lo que publica el modelo: las horas que faltan se quedan en hueco en vez de rellenarse. El viento es carga sobre la estructura y es seguridad de la cuadrilla: de los tres, es el que más decide si se sube o no se sube.",
+ "fuente": "MET Norway · locationforecast 2.0 (modelo — no es una medición)",
+ "atribucion": "Pronóstico: MET Norway (CC BY 4.0)",
+ "licencia": "CC BY 4.0 — uso comercial permitido con atribución"
+}

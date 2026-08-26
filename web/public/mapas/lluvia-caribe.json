@@ -1,6 +1,7 @@
 {
  "capa": "lluvia-caribe",
  "titulo": "Lluvia del Caribe colombiano, hora a hora",
+ "naturaleza": "medida",
  "departamentos": [
   "Bolívar",
   "Córdoba",

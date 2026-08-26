@@ -102,8 +102,19 @@ export function ElDiaEntero({ perfil, ficha, cual, hora, delMes, mesNombre }: {
     tope: { valor: number; mide: 'max' | 'total'; de: string } } | null;
   mesNombre: string;
 }) {
+  // ⚠️ ¿MEDICIÓN O PRONÓSTICO? (`§ADR-086`). Este panel lo comparten los once
+  // atlas, y las palabras que da por buenas —«medido», «no hay medida»— son
+  // falsas en tres de ellos. Sale de la FICHA, nunca de la clave de la capa:
+  // una capa nueva se añade en el catálogo y aquí no se toca nada.
+  const esPronostico = ficha.naturaleza === 'pronostico';
   if (perfil.max === null || perfil.min === null) {
-    return <p className="mapa-capas-n aviso">De este día no se midió ni una hora en esta celda.</p>;
+    return (
+      <p className="mapa-capas-n aviso">
+        {esPronostico
+          ? 'De este día el modelo no da ni una hora en esta celda.'
+          : 'De este día no se midió ni una hora en esta celda.'}
+      </p>
+    );
   }
   const { min, max } = perfil;
   const recorrido = max - min;
@@ -227,19 +238,29 @@ export function ElDiaEntero({ perfil, ficha, cual, hora, delMes, mesNombre }: {
       )}
 
       {/* ── EL MES, que es la escala en la que se planifica ────────────────── */}
+      {/* ⚠️ AQUÍ SE DECÍA «MEDIDA» TRES VECES (`§ADR-086`). Este panel lo comparten
+          los atlas medidos y los de pronóstico, y con la palabra fija decía «días
+          MEDIDOS» y «no traen MEDIDA» sobre un modelo que no ha medido nadie.
+          Es el patrón que más veces ha mordido en este proyecto: se arregló en la
+          cinta de arriba y seguía vivo en la pieza hermana de abajo (`30 · L-68`).
+          Lo cazó mirar la foto del panel, no una prueba. */}
       {delMes && delMes.medidos > 0 && (
         <p className="mapa-capas-n">
-          En {mesNombre}: <b>{delMes.dias.length}</b> de {delMes.medidos} días medidos cruzaron ese
+          En {mesNombre}: <b>{delMes.dias.length}</b> de {delMes.medidos}{' '}
+          {esPronostico ? 'días pronosticados' : 'días medidos'} cruzaron ese
           tope{delMes.dias.length ? <> (los días {delMes.dias.join(', ')})</> : null}.
           {delMes.sinDato > 0 && (
             <> Del resto del mes ({delMes.sinDato} {delMes.sinDato === 1 ? 'día' : 'días'})
-              todavía no hay medida.</>
+              {esPronostico ? ' el modelo no llega tan lejos.' : ' todavía no hay medida.'}</>
           )}
         </p>
       )}
       {perfil.nSinDato > 0 && (
         <p className="fine">
-          {perfil.nSinDato} de las 24 horas no traen medida: no cuentan ni como superadas ni como
+          {perfil.nSinDato} de las 24 horas{' '}
+          {esPronostico
+            ? 'no las da el modelo: hora a hora solo llega a unos días, y después va por bloques de 6 h'
+            : 'no traen medida'}: no cuentan ni como superadas ni como
           no superadas.
         </p>
       )}

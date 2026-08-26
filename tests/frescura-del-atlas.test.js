@@ -269,10 +269,21 @@ describe('el portero mira el mapa, y la propuesta se fusiona sola', () => {
       'el vigía fusiona solo y ya NADIE mira el mapa: eso es publicar a ciegas');
   });
 
-  test('el portero va ANTES de abrir la propuesta, en los DOS trabajos', () => {
-    const trabajos = VIGIA.split(/^  [a-z][\w-]*:$/m).filter((t) => /mirar-los-atlas/.test(t));
-    assert.equal(trabajos.length, 2, 'esperaba portero en los DOS trabajos del vigía');
-    for (const t of trabajos) {
+  test('TODO trabajo que propone tiene su portero, y ANTES', () => {
+    // ⚠️ ESTE GUARDIÁN LLEVABA UN NÚMERO ESCRITO A MANO —«los DOS trabajos»— y
+    // se puso rojo el día que entró el tercero (el pronóstico, `§ADR-086`). El
+    // número no era el invariante: el invariante es que **nadie proponga sin que
+    // alguien haya mirado el mapa**. Escrito como número, cada trabajo nuevo
+    // obliga a tocar la prueba; escrito así, la prueba ya sabe contar. Es
+    // `30 · M-01` otra vez, y esta vez en la propia prueba que lo vigila.
+    const trabajos = VIGIA.split(/^  [a-z][\w-]*:$/m);
+    const proponen = trabajos.filter((t) => /uses: peter-evans\/create-pull-request/.test(t));
+    assert.ok(proponen.length >= 2, 'esperaba al menos dos trabajos que propongan');
+    for (const t of proponen) {
+      assert.match(t, /mirar-los-atlas\.mjs/,
+        'un trabajo abre propuesta sin que el portero haya mirado nada: publicaría a ciegas');
+    }
+    for (const t of proponen) {
       // Se compara contra el USO de la acción (`uses:`) y no contra el texto
       // «create-pull-request», que también sale en los comentarios que explican
       // por qué el portero va antes. Un guardián que lee prosa se cree cualquier
@@ -342,5 +353,107 @@ describe('el portero mira el mapa, y la propuesta se fusiona sola', () => {
       'el vigía se saltaría la protección de rama para poder fusionar');
     assert.match(VIGIA, /Queda ABIERTA/,
       'sin ese camino, una propuesta buena que no se deja fusionar se pierde en silencio');
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// UN PRONÓSTICO NO SE MIDE COMO UNA MEDICIÓN (`99 §ADR-086`)
+// ----------------------------------------------------------------------------
+// El Ingeniero decidió GUARDAR el pronóstico, sabiendo lo que costaba: un
+// pronóstico archivado se puede leer dentro de meses como si alguien hubiera
+// medido algo. Estas pruebas vigilan las cuatro formas de que eso pase, y
+// ninguna daría un error:
+//
+//  1. Que la cinta le aplique el texto de las mediciones. Con las cuentas de
+//     arriba tal cual, el atlas del pronóstico diría «dato medido hasta el 4 de
+//     septiembre (0 días atrás)»: fecha correcta, palabra falsa y número
+//     engañoso, los tres a la vez.
+//  2. Que se pierda la caducidad. Es la única salvaguarda de haberlo guardado.
+//  3. Que la pantalla deje de decir que es un modelo.
+//  4. Que alguien le ponga escala propia y deje de poder compararse con su
+//     gemelo medido, que es para lo que sirve.
+// ════════════════════════════════════════════════════════════════════════════
+describe('el pronóstico se lee al revés que una medición', () => {
+  const AHORA = new Date('2026-08-26T14:00:00Z');
+  const basePron = {
+    construido: '2026-08-26T13:00:00Z',
+    naturaleza: 'pronostico',
+    ultimoDiaConHoras: '2026-09-04',
+    caduca: '2026-08-26T21:00:00Z',
+  };
+
+  test('dice los días POR DELANTE, no «0 días atrás»', () => {
+    const f = frescuraDelAtlas(basePron, AHORA);
+    assert.equal(f.naturaleza, 'pronostico');
+    assert.equal(f.porQue, 'pronostico');
+    assert.equal(f.diasPorDelante, 9, 'un pronóstico al 4 de septiembre mirado el 26 de agosto');
+    assert.equal(f.caducado, false);
+  });
+
+  test('y cuando pasa su hora, lo dice', () => {
+    const f = frescuraDelAtlas(basePron, new Date('2026-08-27T02:00:00Z'));
+    assert.equal(f.caducado, true);
+    assert.equal(f.porQue, 'pronostico-caducado',
+      'sin esto, un pronóstico de anteayer se presentaría como el de ahora');
+  });
+
+  test('una MEDICIÓN sigue leyéndose igual que siempre', () => {
+    // La bifurcación no puede haber cambiado el camino de los otros ocho atlas.
+    const f = frescuraDelAtlas(
+      { construido: '2026-08-26T13:00:00Z', naturaleza: 'medida', ultimoDiaConHoras: '2026-08-22' },
+      AHORA);
+    assert.equal(f.porQue, 'al-dia');
+    assert.equal(f.diasDelDato, 4);
+    assert.equal(f.diasPorDelante, undefined, 'a una medición no se le inventa adelanto');
+  });
+
+  test('una ficha SIN naturaleza se lee como medida, y no revienta', () => {
+    // Las ocho fichas publicadas antes de `§ADR-086` no traen el campo. Una
+    // pantalla que lo exigiera dejaría el mapa en blanco hasta que el vigía las
+    // rehiciera todas — el arreglo sería peor que el fallo.
+    const f = frescuraDelAtlas(
+      { construido: '2026-08-26T13:00:00Z', ultimoDiaConHoras: '2026-08-22' }, AHORA);
+    assert.equal(f.naturaleza, 'medida');
+    assert.equal(f.porQue, 'al-dia');
+  });
+
+  test('la pantalla NO le pone a un pronóstico el texto de una medición', () => {
+    const PANTALLA = readFileSync(
+      fileURLToPath(new URL('../web/src/componentes/AtlasCaribe.tsx', import.meta.url)), 'utf-8');
+    assert.match(PANTALLA, /frescura\.naturaleza === 'pronostico' \?/,
+      'la cinta dejó de bifurcar: le aplicaría a un modelo el texto de lo medido');
+    assert.match(PANTALLA, /por delante/, 'desapareció el «por delante» del pronóstico');
+    assert.match(PANTALLA, /Es un PRONÓSTICO, no una medición/,
+      'la cinta dejó de avisar de que no es una medición');
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+describe('la palabra «medida» no se le aplica a un pronóstico en NINGUNA pieza', () => {
+  // ⚠️ ESTA PRUEBA NACE DE UN FALLO REAL Y CAZADO MIRANDO (`§ADR-086`). La cinta
+  // de arriba ya bifurcaba bien… y el panel del día de al lado seguía diciendo
+  // «20 de las 24 horas no traen MEDIDA» y «días MEDIDOS» sobre un modelo. Es
+  // literalmente `30 · L-68`: arreglado donde se veía, vivo en la pieza hermana.
+  // Las dos piezas comparten los once atlas, así que las dos tienen que preguntar.
+  const PIEZAS = ['../web/src/componentes/AtlasCaribe.tsx', '../web/src/componentes/PanelDelClima.tsx'];
+
+  test('las dos piezas que pintan un atlas preguntan qué es antes de hablar', () => {
+    for (const ruta of PIEZAS) {
+      const s = readFileSync(fileURLToPath(new URL(ruta, import.meta.url)), 'utf-8');
+      assert.match(s, /naturaleza === 'pronostico'/,
+        `${ruta}: pinta los once atlas y no pregunta si lo midió alguien`);
+    }
+  });
+
+  test('y el panel del día ya no llama «medido» a lo que nadie midió', () => {
+    const s = readFileSync(
+      fileURLToPath(new URL('../web/src/componentes/PanelDelClima.tsx', import.meta.url)), 'utf-8');
+    for (const [que, patron] of [
+      ['las horas sin dato', /no las da el modelo/],
+      ['los días del mes', /días pronosticados/],
+      ['el día entero vacío', /el modelo no da ni una hora/],
+    ]) {
+      assert.match(s, patron, `volvió la palabra fija en: ${que}`);
+    }
   });
 });

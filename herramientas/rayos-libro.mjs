@@ -54,6 +54,7 @@ const RAMPA_RAYOS = [
 export const PERFIL_RAYOS = Object.freeze({
   capa: 'rayos-caribe',
   prefijo: 'rayos-caribe',
+  naturaleza: 'medida',
   titulo: 'Descargas atmosféricas del Caribe colombiano, hora a hora',
   // ⚠️ LA UNIDAD ES «rayos», NO «rayos/h». La pantalla ya añade el «/h» cuando
   // habla del PICO de una hora y lo quita cuando habla del TOTAL del día —igual
