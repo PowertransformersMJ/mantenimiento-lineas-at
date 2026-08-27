@@ -131,10 +131,17 @@
 - **Síntoma (2026-08-27):** el Ingeniero preguntó dónde ve **la cargabilidad**. Busqué la palabra en
   todo el proyecto, salieron **cero** coincidencias, y respondí que aquí no existe — y me fui al
   repo de TRANSFORMADORES, que sí la nombra, a darle una respuesta de otro dominio.
-- **La verdad medida:** la cargabilidad de una línea está aquí desde el primer día, **con otros dos
-  nombres del oficio**: la eléctrica se llama **ampacidad** (`nucleo/termica.js`, IEEE 738, pestaña
-  Térmica) y la mecánica se llama **utilización** (`utilizacion_pct` en `cargas.js` y
-  `longitudinal.js`, pestaña Cargas). El `grep` no falló: yo pregunté mal.
+- **La verdad medida:** la cargabilidad de una línea está aquí desde el primer día, **con otro
+  nombre del oficio**: es el indicador **«Corriente de operación frente a la ampacidad»**
+  (`nucleo/umbrales.js` §8 — `uso_pct = corriente / ampacidad`, IEEE 738), última fila de la tabla de
+  umbrales de la pestaña **Mecánico**; la CAPACIDAD contra la que se compara, y su derrateo por
+  clima, viven en **Térmica**. El `grep` no falló: yo pregunté mal.
+- **⚠️ Y NO es la utilización mecánica del apoyo.** Al corregirme la primera vez contesté «está en
+  dos sitios: Térmica y Cargas», y me corrigió otra vez: *«me refería a parámetros eléctricos, no
+  mecánicos»*. `utilizacion_pct` de `cargas.js`/`longitudinal.js` es carga ESTRUCTURAL en kgf sobre
+  el apoyo — otra magnitud, otro eje, otro veredicto. Meterlas en la misma respuesta es la misma
+  falla de dominio un nivel más abajo: **una respuesta que además de la buena trae otra de al lado
+  no es una respuesta más completa, es una respuesta con ruido que hay que desmentir.**
 - **Los tres pasos del error, en orden:** ① confundí ausencia de TÉRMINO con ausencia de CONCEPTO ·
   ② al no encontrarlo **salí del proyecto en vez de preguntar cómo se llama aquí** · ③ el término sí
   existe literalmente en el repo hermano, así que la coincidencia de texto me dio una respuesta
