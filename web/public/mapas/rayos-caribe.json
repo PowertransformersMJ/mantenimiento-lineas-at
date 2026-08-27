@@ -35,7 +35,7 @@
  "valorMaximoRepresentable": 9975,
  "medido": {
   "min": 0,
-  "max": 3336
+  "max": 4349
  },
  "cuadros": {
   "horas": 24,
@@ -49,13 +49,13 @@
    "clave": "08",
    "archivo": "rayos-caribe-2026-08.png",
    "dias": 31,
-   "horasConDato": 74,
-   "bytes": 830
+   "horasConDato": 78,
+   "bytes": 895
   }
  ],
  "ultimoDiaConHoras": "2026-08-26",
  "ultimoDiaConTotal": "2026-08-26",
- "construido": "2026-08-26T23:34:35.686Z",
+ "construido": "2026-08-27T03:17:59.053Z",
  "resumenDiario": [
   {
    "d": "2026-08-23",
@@ -71,7 +71,7 @@
   },
   {
    "d": "2026-08-26",
-   "v": 21354
+   "v": 46490
   }
  ],
  "resumenDiarioEtiqueta": "Rayos contados en la región",

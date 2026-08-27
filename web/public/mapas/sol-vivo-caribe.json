@@ -31,7 +31,7 @@
  },
  "valorMaximoRepresentable": 1143,
  "medido": {
-  "min": 0.03,
+  "min": 0.02,
   "max": 985.1
  },
  "cuadros": {
@@ -46,13 +46,13 @@
    "clave": "08",
    "archivo": "sol-vivo-caribe-2026-08.png",
    "dias": 31,
-   "horasConDato": 31.88888888888889,
-   "bytes": 1336
+   "horasConDato": 32.69444444444444,
+   "bytes": 1345
   }
  ],
  "ultimoDiaConHoras": "2026-08-26",
  "ultimoDiaConTotal": "2026-08-26",
- "construido": "2026-08-26T23:34:43.756Z",
+ "construido": "2026-08-27T03:18:16.652Z",
  "resumenDiario": [
   {
    "d": "2026-08-24",
