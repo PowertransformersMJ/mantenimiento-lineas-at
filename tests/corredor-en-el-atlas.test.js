@@ -146,8 +146,14 @@ describe('el atlas de la región se aparta mientras la capa fina está puesta', 
     assert.match(ATLAS_TSX, /El mapa enseña ahora la capa fina del corredor/,
       'nadie dice qué es lo que se está pintando de verdad');
     // Y la entradilla, que describía celdas de 111 km a cuadros, tampoco.
-    assert.match(ATLAS_TSX, /\{corredor \? \(\s*<>Debajo sigue el/,
+    assert.match(ATLAS_TSX, /\{corredor \? \(\s*<>Debajo sigue el atlas de la región/,
       'la entradilla sigue describiendo la celda de 1° con celdas de 2 km en pantalla');
+    // ⚠️ Y NO SE NOMBRA CON `toLowerCase()`. El título de un atlas ya trae su
+    // artículo («Lluvia que se espera en el Caribe»), así que anteponerle otro y
+    // bajarlo a minúsculas producía «el lluvia que se espera en el caribe» — se
+    // vio en PRODUCCIÓN, no en una prueba. Se usa el rótulo corto, tal cual.
+    assert.ok(!/def\.titulo\.toLowerCase\(\)|def\.rotulo\.toLowerCase\(\)/.test(ATLAS_TSX),
+      'volvió el nombre del atlas en minúsculas detrás de un artículo: «el lluvia que…»');
   });
 
   test('solo hay UNA capa fina encendida a la vez, y una sola capa de MapLibre', () => {

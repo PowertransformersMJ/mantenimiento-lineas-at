@@ -899,9 +899,9 @@ export function AtlasCaribe({
             medida» mientras en pantalla había celdas de 2 km interpoladas.
             Verdadera en su sitio, falsa en el de al lado — `30 · L-68`. */}
         {corredor ? (
-          <>Debajo sigue el <b>{def.titulo.toLowerCase()}</b>, en pausa mientras mira el corredor.
-            Lo pintado ahora son celdas de <b>2 km</b>, suavizadas al acercarse: la celda sigue
-            midiendo 2 km, solo deja de verse a cuadros.</>
+          <>Debajo sigue el atlas de la región —<b>{def.rotulo}</b>—, en pausa mientras mira el
+            corredor. Lo pintado ahora son celdas de <b>2 km</b>, suavizadas al acercarse: la celda
+            sigue midiendo 2 km, solo deja de verse a cuadros.</>
         ) : (
           <>{def.entradilla} <b>hora a hora</b> sobre {ficha?.departamentos.join(', ')}.
             Cada cuadro es una celda de <b>1°</b> (unos 111 km) medida por satélite: se pinta a
@@ -961,8 +961,8 @@ export function AtlasCaribe({
           {corredor && (
             <p className="mapa-capas-n aviso">
               <b>El atlas de la región está en pausa.</b> Son dos rampas de color sobre el mismo
-              territorio: superpuestas no se lee ninguna de las dos. Apague la capa fina y
-              {' '}{def.rotulo.toLowerCase()} vuelve tal como estaba.
+              territorio: superpuestas no se lee ninguna de las dos. Apague la capa fina y{' '}
+              <b>{def.rotulo}</b> vuelve tal como estaba.
             </p>
           )}
           {ficha && mes && (
