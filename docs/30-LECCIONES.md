@@ -126,6 +126,29 @@
 - **Por qué reincide:** es un dato DERIVADO escrito a mano. Cada vez que alguien hace lo correcto —añadir una lección— deja el cerebro mintiendo, y el linter no lo caza: valida que las refs RESUELVAN, no que el resumen sea cierto.
 - **Regla:** un número que un guardián puede contar **no se escribe en prosa** — o lo publica el guardián, o no se publica. Si debe estar escrito, necesita un gate que lo compare con la realidad; «acuérdate de actualizarlo» no es un gate, es una esperanza. Se cerró **quitando la cifra**, no corrigiéndola por tercera vez. Misma familia: «13 pestañas» en `20`, «24 apoyos» en `05`, la versión del molde espejada a mano. **Qué mirar la próxima vez:** todo renglón con un número que también viva en el código, en git o en otro nodo (`99 §ADR-065`). ⚠️ **REINCIDIÓ DOS VECES en 16 ADRs** (24-08, `99 §ADR-083`): el `05` decía «1.937 pruebas» y eran 1.941, y el índice del PARAGUAS decía «77 ADRs» y eran 81 — **ése está FUERA del repo, donde no mira ningún gate**, y es la dimensión nueva: la regla no basta ni siquiera donde hay linter, y menos donde no lo hay. Se cierra igual que la primera vez: **quitando la cifra o poniéndole un guardián**, nunca corrigiéndola otra vez.
 
+### M-02 · Buscar la PALABRA no es buscar la COSA: que un término no salga en `grep` no dice que el concepto no esté
+
+- **Síntoma (2026-08-27):** el Ingeniero preguntó dónde ve **la cargabilidad**. Busqué la palabra en
+  todo el proyecto, salieron **cero** coincidencias, y respondí que aquí no existe — y me fui al
+  repo de TRANSFORMADORES, que sí la nombra, a darle una respuesta de otro dominio.
+- **La verdad medida:** la cargabilidad de una línea está aquí desde el primer día, **con otros dos
+  nombres del oficio**: la eléctrica se llama **ampacidad** (`nucleo/termica.js`, IEEE 738, pestaña
+  Térmica) y la mecánica se llama **utilización** (`utilizacion_pct` en `cargas.js` y
+  `longitudinal.js`, pestaña Cargas). El `grep` no falló: yo pregunté mal.
+- **Los tres pasos del error, en orden:** ① confundí ausencia de TÉRMINO con ausencia de CONCEPTO ·
+  ② al no encontrarlo **salí del proyecto en vez de preguntar cómo se llama aquí** · ③ el término sí
+  existe literalmente en el repo hermano, así que la coincidencia de texto me dio una respuesta
+  falsa con toda la apariencia de ser la buena.
+- **Regla:** ante un término que no aparece, antes de contestar «no está» hay que **traducirlo al
+  vocabulario del dominio de ESTE proyecto** —`docs/40` y `nucleo/` son el diccionario— y buscar la
+  magnitud, no la palabra. Y si aun así no aparece, se **pregunta**; nunca se contesta desde otro
+  proyecto: el paraguas tiene varios y **la respuesta correcta de otro dominio es una respuesta
+  equivocada** (orden suya del 27-08: *«en este espacio solo trabajamos lo referente a líneas AT»*).
+- **Agravante propio, y va aquí para no repetirlo:** aquella sesión yo había dejado el directorio de
+  trabajo dentro del repo hermano tras un `cd`, y eso ya había mandado un commit al sitio
+  equivocado. Un `cd` que sobrevive al comando **corre la frontera del proyecto sin avisar**: las
+  rutas se escriben absolutas, y antes de responder «esto no está aquí» se comprueba dónde es aquí.
+
 ---
 
 ## Método de trabajo — las lecciones que se quedan en la madre

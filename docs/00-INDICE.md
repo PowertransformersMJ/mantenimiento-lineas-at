@@ -48,6 +48,7 @@ Guarda `research-archive/` (crudos de deliberación: comités, consejos externos
 | «¿hubo tormenta eléctrica / rayos?», «¿por qué no consta una descarga atmosférica?» | `99 §ADR-060` + `35 · L-37` |
 | «declaré el dato y el sistema sigue con el valor por defecto» | `30 · L-68` + `99 §ADR-013/052` |
 | «¿qué es el vano ideal de regulación?», «¿de dónde sale esta fórmula?» | `40` |
+| «¿dónde veo la CARGABILIDAD?» — aquí no se llama así: **eléctrica = ampacidad** (pestaña **Térmica**, `nucleo/termica.js`, IEEE 738) · **mecánica del apoyo = utilización** (pestaña **Cargas**, `utilizacion_pct` en `cargas.js` y `longitudinal.js`) | `40 §4.2` + `99 §ADR-011/017` · el porqué del enredo, `30 · M-02` |
 | «¿por qué se eligió este stack y no el otro?» | `99` |
 | «¿por qué la prueba espera exactamente este número?» | `40 §8` y `tests/nucleo.test.js` |
 | «voy a tomar una decisión cara de revertir» | `CLAUDE.md §G.2` 🛰️ + comité + consejo externo |
