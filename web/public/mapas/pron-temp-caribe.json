@@ -3,7 +3,7 @@
  "titulo": "Temperatura del aire que se espera en el Caribe",
  "naturaleza": "pronostico",
  "caducaEn_h": 8,
- "caduca": "2026-08-28T19:25:22.720Z",
+ "caduca": "2026-08-29T06:22:03.054Z",
  "departamentos": [
   "Bolívar",
   "Córdoba",
@@ -34,7 +34,7 @@
  "valorMaximoRepresentable": 53.5,
  "medido": {
   "min": 11.7,
-  "max": 40.7
+  "max": 39.7
  },
  "cuadros": {
   "horas": 24,
@@ -48,8 +48,8 @@
    "clave": "08",
    "archivo": "pron-temp-caribe-2026-08.png",
    "dias": 31,
-   "horasConDato": 66,
-   "bytes": 1919
+   "horasConDato": 65,
+   "bytes": 1846
   },
   {
    "clave": "09",
@@ -61,11 +61,11 @@
  ],
  "ultimoDiaConHoras": "2026-09-06",
  "ultimoDiaConTotal": "2026-09-06",
- "construido": "2026-08-28T11:25:22.720Z",
+ "construido": "2026-08-28T22:22:03.054Z",
  "resumenDiario": [
   {
    "d": "2026-08-28",
-   "v": 30.05
+   "v": 28.95
   },
   {
    "d": "2026-08-29",
@@ -73,7 +73,7 @@
   },
   {
    "d": "2026-08-30",
-   "v": 29.5
+   "v": 29.15
   },
   {
    "d": "2026-08-31",
