@@ -40,7 +40,7 @@ import {
   mapaDeCalor, porLinea, procesarLote, resumen, separarNuevos, serieTemporal, tendencia,
 } from '@lineas/nucleo/cargabilidad';
 import {
-  COLOR_BANDA, colorDe, csvDeErrores, etiquetaInstante, filtrarPorTexto, LIENZO,
+  RELLENO_BANDA, TINTA_BANDA, tintaDe, csvDeErrores, etiquetaInstante, filtrarPorTexto, LIENZO,
   marcasX, marcasY, ordenarPor, paginar, REFERENCIAS, aCsv, techoY, tramosDeLinea, x, y,
   type Direccion,
 } from '../vistas/cargabilidadVista';
@@ -300,7 +300,7 @@ function VistaPrevia({ registros }: { registros: Registro[] }) {
                 <td>{x_.hora == null ? '—' : `${String(x_.hora).padStart(2, '0')}:00`}</td>
                 <td>{x_.linea}</td>
                 <td>{x_.circuito ?? '—'}</td>
-                <td style={{ color: colorDe(x_.cargabilidad_pct as number | null) }}>
+                <td style={{ color: tintaDe(x_.cargabilidad_pct as number | null) }}>
                   {x_.cargabilidad_pct == null ? 'sin medida' : `${nf(x_.cargabilidad_pct as number, 1)} %`}
                   {x_.naturaleza === 'derivada' && <span className="fine"> (derivada)</span>}
                 </td>
@@ -329,8 +329,8 @@ function Tablero({ t }: { t: ReturnType<typeof resumen> }) {
       <div className="kpis">
         <Kpi v={cifra(t.maxima?.pct)} r="Cargabilidad máxima"
           s={t.maxima ? `${t.maxima.linea} · ${t.maxima.fecha}` : undefined}
-          color={colorDe(t.maxima?.pct ?? null)} />
-        <Kpi v={cifra(t.promedio)} r="Promedio del periodo" color={colorDe(t.promedio)} />
+          color={tintaDe(t.maxima?.pct ?? null)} />
+        <Kpi v={cifra(t.promedio)} r="Promedio del periodo" color={tintaDe(t.promedio)} />
         <Kpi v={cifra(t.minima?.pct)} r="Cargabilidad mínima"
           s={t.minima ? `${t.minima.linea} · ${t.minima.fecha}` : undefined} />
         <Kpi v={t.lineaMasCargada?.linea ?? '—'} r="Línea con mayor pico"
@@ -343,14 +343,14 @@ function Tablero({ t }: { t: ReturnType<typeof resumen> }) {
         <Kpi v={nf(t.registros)} r="Registros procesados"
           s={`${nf(t.conMedida)} con medida`} />
         <Kpi v={nf(t.eventosSobrecarga)} r="Eventos de sobrecarga" s="≥ 100 %"
-          color={t.eventosSobrecarga > 0 ? 'var(--t-rojo)' : undefined} />
+          color={t.eventosSobrecarga > 0 ? 'var(--tx-alerta)' : undefined} />
         <Kpi v={cifra(t.disponibilidad_pct)} r="Datos disponibles"
           s="qué parte de lo cargado trae medida" />
       </div>
       <div className="bandas-reparto">
         {BANDAS.map((b) => (
           <span key={b.clave} className="banda-chip">
-            <i style={{ background: COLOR_BANDA[b.clave] }} /> {b.rotulo}:{' '}
+            <i style={{ background: RELLENO_BANDA[b.clave] }} /> {b.rotulo}:{' '}
             <b>{nf(t.porBanda[b.clave] ?? 0)}</b>
           </span>
         ))}
@@ -416,9 +416,9 @@ function Tendencia({ registros }: { registros: Registro[] }) {
           <g key={`r${v}`}>
             <line x1={LIENZO.margen.i} x2={LIENZO.ancho - LIENZO.margen.d}
               y1={y(v, techo)} y2={y(v, techo)} strokeDasharray="5 3" strokeWidth={1.4}
-              stroke={COLOR_BANDA[bandaDe(v)!.clave]} />
+              stroke={TINTA_BANDA[bandaDe(v)!.clave]} />
             <text x={LIENZO.ancho - LIENZO.margen.d} y={y(v, techo) - 4} textAnchor="end"
-              fontSize={10} fill={COLOR_BANDA[bandaDe(v)!.clave]}>{v} %</text>
+              fontSize={10} fill={TINTA_BANDA[bandaDe(v)!.clave]}>{v} %</text>
           </g>
         ))}
         {tramos.map((puntos, i) => (
@@ -427,7 +427,7 @@ function Tendencia({ registros }: { registros: Registro[] }) {
         ))}
         {serie.map((p: { pct: number }, i: number) => (
           <circle key={i} cx={x(i, serie.length)} cy={y(p.pct, techo)} r={2.4}
-            fill={colorDe(p.pct)}>
+            fill={tintaDe(p.pct)}>
             <title>{etiquetaInstante(serie[i])} · {nf(p.pct, 1)} %</title>
           </circle>
         ))}
@@ -493,7 +493,7 @@ function PorLinea({ registros }: { registros: Registro[] }) {
               <span className="barra-canal">
                 <span className="barra-valor" style={{
                   width: `${Math.min(100, ((v ?? 0) / techo) * 100)}%`,
-                  background: colorDe(v),
+                  background: tintaDe(v),
                 }} />
               </span>
               <span className="barra-cifra">
@@ -544,7 +544,7 @@ function MapaDeCalor({ registros }: { registros: Registro[] }) {
                 <th scope="row">{l}</th>
                 {m.celdas[i].map((celda, j) => (
                   <td key={j} className={celda ? '' : 'sin-dato'}
-                    style={celda ? { background: COLOR_BANDA[celda.banda] } : undefined}
+                    style={celda ? { background: RELLENO_BANDA[celda.banda] } : undefined}
                     title={celda
                       ? `${l} · ${m.columnas[j]} · ${celda.pct == null ? 'sin medida' : `${nf(celda.pct, 1)} %`}`
                         + ` (pico de ${celda.n} lectura/s)`
@@ -579,7 +579,7 @@ function Distribucion({ registros }: { registros: Registro[] }) {
           <div key={t.desde} className="histo-col"
             title={`${t.desde}–${t.hasta} % · ${nf(t.n)} lectura(s)`}>
             <span className="histo-barra"
-              style={{ height: `${(t.n / maxN) * 100}%`, background: COLOR_BANDA[t.banda] }} />
+              style={{ height: `${(t.n / maxN) * 100}%`, background: RELLENO_BANDA[t.banda] }} />
             <span className="histo-pie">{t.desde}</span>
           </div>
         ))}
@@ -663,7 +663,7 @@ function TablaDetallada({ registros, nombre }: { registros: Registro[]; nombre: 
                 <td>{f.hora == null ? '—' : `${String(f.hora).padStart(2, '0')}:00`}</td>
                 <td>{f.linea}</td>
                 <td>{f.circuito ?? '—'}</td>
-                <td style={{ color: colorDe(f.cargabilidad_pct as number | null) }}>
+                <td style={{ color: tintaDe(f.cargabilidad_pct as number | null) }}>
                   {f.cargabilidad_pct == null ? 'sin medida' : `${nf(f.cargabilidad_pct as number, 1)} %`}
                 </td>
                 <td>{f.corriente_A == null ? '—' : nf(f.corriente_A as number, 0)}</td>

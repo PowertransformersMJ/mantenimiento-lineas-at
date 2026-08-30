@@ -26,25 +26,52 @@ export interface PuntoSerie {
 }
 
 /**
- * EL COLOR DE CADA BANDA — un solo sitio.
+ * EL COLOR DE CADA BANDA — y son DOS familias, no una.
  *
- * ⚠️ Salen de los tokens de `estilo.css` y no son colores escritos aquí: hay una
- * prueba que prohíbe escribir color fuera del tablero de color. Y el rojo NO es
- * un veredicto: es una banda de lectura (`nucleo/cargabilidad.js §5`).
+ * ⚠️ ESTO LO CAZÓ UNA FOTO, no una prueba. Al principio había un solo mapa, el
+ * de RELLENO, y se usó también para el texto de los indicadores y para las
+ * líneas de referencia de la gráfica. El resultado: «103,2 %» impreso en
+ * `#fceceb` sobre panel claro — la cifra más importante de la pantalla, ilegible;
+ * y las rayas del 80/90/100, invisibles. Los tokens `--t-*` de esta hoja son
+ * FONDOS de tarjeta (`#fdf3df`, `#fceceb`…), no colores de tinta.
+ *
+ * Así que hay dos mapas y cada uno dice para qué sirve:
+ *   · `RELLENO_BANDA` → superficies grandes: celda del mapa de calor, columna
+ *     del histograma, cuadrito de la leyenda.
+ *   · `TINTA_BANDA` → todo lo que es TRAZO o TEXTO: cifras, líneas de
+ *     referencia, barras finas.
+ *
+ * Los dos salen del tablero de color de `estilo.css`; aquí no se escribe un
+ * literal, que además lo prohíbe una prueba. Y el rojo NO es un veredicto: es
+ * una banda de lectura (`nucleo/cargabilidad.js §5`).
  */
-export const COLOR_BANDA: Record<string, string> = {
+export const RELLENO_BANDA: Record<string, string> = {
   normal: 'var(--t-verde)',
   elevada: 'var(--t-ambar)',
   atencion: 'var(--t-ambar-fuerte)',
   sobrecarga: 'var(--t-rojo)',
 };
 
+export const TINTA_BANDA: Record<string, string> = {
+  normal: 'var(--tx-ok)',
+  elevada: 'var(--tx-aviso)',
+  atencion: 'var(--acc)',
+  sobrecarga: 'var(--tx-alerta)',
+};
+
 /** El gris de «aquí no se midió». No es una banda: es la ausencia de banda. */
 export const COLOR_SIN_DATO = 'var(--bd)';
 
-export const colorDe = (pct: number | null): string => {
+/** Para superficies. */
+export const rellenoDe = (pct: number | null): string => {
   const b = bandaDe(pct);
-  return b ? COLOR_BANDA[b.clave] : COLOR_SIN_DATO;
+  return b ? RELLENO_BANDA[b.clave] : COLOR_SIN_DATO;
+};
+
+/** Para tinta: cifras, trazos y barras finas. Es el que se usa al escribir. */
+export const tintaDe = (pct: number | null): string => {
+  const b = bandaDe(pct);
+  return b ? TINTA_BANDA[b.clave] : 'var(--tx3)';
 };
 
 /** Las tres referencias que él pidió sobre la gráfica de tendencia. */

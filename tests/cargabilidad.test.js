@@ -22,6 +22,11 @@
 // ============================================================================
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
+/** El texto de un archivo del repo. Lo piden los guardianes de color del §10. */
+const leer = (p) => readFileSync(fileURLToPath(new URL('../' + p, import.meta.url)), 'utf-8');
 
 import {
   aFecha, aHora, aNumero, atipicos, bandaDe, camposAusentes, claveDeRegistro,
@@ -444,5 +449,49 @@ describe('el % del archivo frente al % contra la ampacidad del día', () => {
   test('y dice de qué naturaleza era el porcentaje que compara', () => {
     const c = contrasteConLaAmpacidad(conCorriente, 700);
     assert.equal(c.naturalezaDeclarada, 'declarada');
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// 10 · EL COLOR — dos familias, y no se pueden intercambiar
+// ════════════════════════════════════════════════════════════════════════════
+//
+// ⚠️ ESTE GUARDIÁN NACE DE UNA FOTO. La primera versión tenía UN solo mapa de
+// color, el de relleno, y se usó también para la tinta: «103,2 %» —la cifra más
+// importante de la pantalla— salió impresa en `#fceceb` sobre panel claro, y las
+// rayas del 80/90/100 salieron invisibles. Compilaba, pasaba las 2.050 pruebas y
+// el guardián de estilo decía que sí, porque las clases existían y los tokens
+// también. Lo que ninguna prueba miraba era **para qué sirve cada token**.
+describe('un token de FONDO no puede usarse como tinta', () => {
+  test('el mapa de RELLENO usa tokens de superficie, y el de TINTA no', () => {
+    const vista = leer('web/src/vistas/cargabilidadVista.ts');
+    const trozo = (nombre) => {
+      const i = vista.indexOf(`export const ${nombre}`);
+      assert.ok(i > 0, `falta el mapa ${nombre}`);
+      return vista.slice(i, vista.indexOf('};', i));
+    };
+    // `--t-*` son fondos de tarjeta (#fdf3df, #fceceb…). `--tx-*` y `--acc` son tinta.
+    for (const token of trozo('RELLENO_BANDA').match(/var\(--[a-z0-9-]+\)/g) ?? []) {
+      assert.match(token, /var\(--t-/, `${token} no es un token de superficie`);
+    }
+    for (const token of trozo('TINTA_BANDA').match(/var\(--[a-z0-9-]+\)/g) ?? []) {
+      assert.ok(/var\(--(tx-|acc)/.test(token),
+        `${token} es un FONDO usado como tinta: eso deja la cifra ilegible sobre el panel`);
+    }
+  });
+
+  test('la pantalla no escribe texto ni traza con un token de relleno', () => {
+    const pant = leer('web/src/componentes/Cargabilidad.tsx');
+    for (const m of pant.matchAll(/(color|fill|stroke)=\{([^}]*)\}/g)) {
+      assert.ok(!/RELLENO_BANDA|rellenoDe/.test(m[2]),
+        `«${m[0]}» pinta tinta con un token de fondo`);
+    }
+    // Y al revés: una superficie grande con tinta encima quedaría de un color plano.
+    for (const m of pant.matchAll(/background: ([A-Za-z_]+[^,}]*)/g)) {
+      if (/TINTA_BANDA/.test(m[1])) {
+        assert.match(m[0], /barra-|histo-|banda-chip|tintaDe\(v\)/,
+          `«${m[0]}» rellena una superficie grande con tinta`);
+      }
+    }
   });
 });
