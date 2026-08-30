@@ -13,10 +13,10 @@
 > `§ADR-049/050`—. La fase viva es **la página**.
 
 ## 🛑 LO PRIMERO AL RETOMAR
-0. 🔴 **`main` ≠ PRODUCCIÓN (26-08).** `ADR-087` está en `main`, CI verde, pero el alias de
-   Cloudflare **no se movió**: sirve el paquete de `4d4e6d8`. Dos despliegues dicen `Success` y
-   `Production` y la web no cambia (`35 · L-75`). **Mano suya**: promoverlo en el panel, o los dos
-   secretos de `TODO-89`. Se comprueba con el `src` del HTML.
+0. 🆕 **CARGABILIDAD ELÉCTRICA, 1ª vuelta EN PRODUCCIÓN (`§ADR-088`, `TODO-93`).** Pestaña nueva:
+   se suelta un `.xlsx` —leído **sin dependencias**— y salen mapeo, errores, 9 indicadores y 5
+   gráficas. ⚠️ **NO guarda, y lo dice arriba:** falta el modelo de datos (un año horario = **8.760
+   registros/línea**; recomendado: un doc por línea y día + resumen diario). **Falta MIRARLA.**
 1. **EL CUELLO DE BOTELLA NO ES CÓDIGO: ES EL DATO**: 0 de 26 con veredicto (`TODO-57`).
 2. **EL PATRÓN QUE LO DOMINA TODO:** *«arreglado donde se veía, vivo en la pieza hermana»* —
    `34 · L-65/L-74`, `32 · L-67`, `30 · L-68`, `30 · M-01`. Mordió el 24-08 (`§ADR-078`) y otra vez
@@ -28,16 +28,15 @@
    mapa, **radiación y temperatura del corredor a 2 km**. ⏱️ La frescura la manda la FUENTE: MERRA-2
    **4 días**, CERES **87**, satélite **~15 min**, pronóstico **10 días por DELANTE**; las del
    corredor **no tienen fecha: son un PROMEDIO de muchos años**. Tres relojes: 4 h POWER y
-   pronóstico, **1 h satélite**. Agrupadas por fuente con marca propia (`§ADR-082/084`).
+   pronóstico, **1 h satélite**. Por fuente, con marca propia (`§ADR-082/084`).
    ⚠️ **CADA CAPA DECLARA QUÉ ES y sin valor por defecto** — `medida` · `pronostico` · `promedio` —
    o no se publica ni se pinta (`§ADR-086/087`).
-   ⚙️ **El vigía FUSIONA SOLO** (`§ADR-085`): mira → reconstruye → **un PORTERO abre el mapa en
-   Chrome sin cabeza y lo mira** → propone → firma → fusiona. Si dice que no, NO hay propuesta.
-   Queda UN eslabón a mano: **publicar** (`TODO-89`).
+   ⚙️ **El vigía FUSIONA SOLO** (`§ADR-085`) y un PORTERO mira el mapa antes; si dice que no, NO
+   hay propuesta. Queda UN eslabón a mano: **publicar** (`TODO-89`).
 4. **LO QUE NO SE PUEDE ROMPER DEL CLIMA (`§ADR-057..086`):** gana el HECHO sobre el modelo · el recorrido se comprueba **punto a punto**, nunca por promedio · el clima vive en el ATLAS y Detalle GPS = solo el recorrido · **«tormenta eléctrica» NO existe en la fuente de nubes**.
-5. **CERRADO 23-26/08 (`§ADR-074..087`).** ⚠️ **El robot NO dispara el CI** y **«medida» no se
-   aplica a lo que no se midió ESE día** (ni modelo `§086`, ni promedio `§087`). ✅ **`TODO-87`
-   CERRADO:** el clima ya NO vive en Detalle GPS, ni un resto.
+5. **CERRADO 23-29/08 (`§ADR-074..088`).** ⚠️ **El robot NO dispara el CI** · **«medida» no se
+   aplica a lo que no se midió ESE día** (§086/087) · **un despliegue en `Success` no es la web
+   cambiada** (`35 · L-75`). ✅ `TODO-87`: el clima ya no vive en Detalle GPS, ni un resto.
    ⏳ **ESPERA SU RESPUESTA:** el satelital «tiene huecos»; está al **100 % en z8-z16** → falta
    **DÓNDE los ve**.
 6. **⚠️ EL LIENZO NO SE VE EN SEGUNDO PLANO, PERO SE FOTOGRAFÍA** (`34 · L-16/L-58/L-72`):

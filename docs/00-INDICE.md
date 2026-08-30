@@ -164,6 +164,7 @@ Guarda `research-archive/` (crudos de deliberación: comités, consejos externos
 | `ADR-085` | 2026-08-25 | La fusión automática se enciende, y el que mira el mapa pasa a ser la máquina | *(`herramientas/mirar-los-atlas.mjs`)* |
 | `ADR-086` | 2026-08-26 | El atlas del tiempo que VIENE, y cómo se guarda un pronóstico sin que se confunda con una medición | *(`herramientas/pronostico-caribe.mjs`)* |
 | `ADR-087` | 2026-08-26 | Las dos capas finas del corredor se mudan al atlas, y aprenden a decir que son un PROMEDIO | *(`web/src/componentes/CapasDelCorredor.tsx`)* |
+| `ADR-088` | 2026-08-29 | Cargabilidad eléctrica: el motor, un lector de Excel sin dependencias, y una pantalla que no promete lo que no guarda | *(`nucleo/cargabilidad.js`)* |
 
 > Toda decisión cara de revertir entra aquí con su ADR y su crudo enlazado. Si hubo comité o consejo
 > externo y el crudo no está archivado, la tarea **no está cerrada** (`CLAUDE.md §G.4`).

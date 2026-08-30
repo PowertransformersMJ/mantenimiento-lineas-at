@@ -7431,3 +7431,80 @@ navegador.
 ### Crudo de respaldo
 
 `../brain-private/mantenimiento-lineas-at/research-archive/2026-08-26-corredor-al-atlas/`
+
+---
+
+## ADR-088 · 2026-08-29 · Cargabilidad eléctrica: el motor, un lector de Excel sin dependencias, y una pantalla que no promete lo que no guarda
+
+### Contexto
+
+El Ingeniero pidió un módulo para «visualizar, analizar y almacenar históricamente la cargabilidad
+eléctrica». Y lo pidió **después de dos correcciones seguidas** sobre el mismo asunto: que
+Transformadores y Líneas AT no se mezclan (`30 · M-02`), y que **cargabilidad aquí es ELÉCTRICA** —
+corriente de operación frente a la que se puede llevar— y **no** la utilización mecánica del apoyo.
+
+Al medir el terreno salieron cuatro hechos que decidieron el diseño, y ninguno estaba en el plan:
+
+1. **El proyecto no leía Excel.** Ninguna dependencia, ningún lector. Traer un tercero cuesta
+   licencia (repo PÚBLICO, uso comercial), peso de paquete y mantenimiento.
+2. **Ya hay un dueño del concepto**: el indicador nº 8 de `nucleo/umbrales.js` («Corriente de
+   operación frente a la ampacidad»), hoy `NO EVALUABLE` porque le faltan la corriente (`TODO-80`)
+   y que alguien le pase la ampacidad calculada (`§ADR-052` lo dejó declarado abierto).
+3. **El archivo y el motor calculan cosas distintas.** El Excel trae un % contra la capacidad
+   NOMINAL; `nucleo/termica.js` calcula la ampacidad REAL del día por IEEE 738. Medido en LN-627:
+   **718 A** en día típico y **512 A** en El Niño con viento en calma — los mismos 512 A son el
+   **71 % de la nominal y el 100 % de la de ese día**.
+4. **Sería la primera colección de VOLUMEN.** Un año horario son **8.760 registros por línea**.
+
+### Decisión
+
+**El motor va primero y va solo** (`nucleo/cargabilidad.js`, puro): mapeo de columnas, validación,
+deduplicación, resumen, ranking, mapa de calor, histograma, tendencia, promedio móvil y atípicos.
+Es la única parte que no depende de ninguna decisión pendiente.
+
+**El % del archivo se guarda `declarada`; el que derivamos, `derivada`; y NUNCA se pisan.**
+`contrasteConLaAmpacidad()` pone las dos cifras al lado con su nombre y **no corrige ninguna**. Es
+`§ADR-052` (un número, un dueño) con la doctrina de `naturaleza` de `§ADR-086/087`. Ésa es la única
+cifra que este sistema aporta y que el Excel no traía.
+
+**Se lee `.xlsx` SIN dependencias** (`importar/xlsx.js`). Un `.xlsx` es un ZIP con XML y
+`DecompressionStream('deflate-raw')` es API web estándar: ~200 líneas y la decisión de la librería
+deja de existir. Misma familia que PMTiles, el GPX y las rejillas PNG (`31 · L-03/L-10`).
+El `.xls` viejo se rechaza **por su nombre**, diciendo la salida.
+
+**La pantalla no promete lo que no guarda**, y lo dice ARRIBA. Hasta que se decida el modelo de
+datos, lee, comprueba y enseña. Una pantalla que dijera «cargado» sobre algo que solo vive en la
+memoria del navegador sería la peor mentira posible aquí.
+
+**Y la pestaña se llama «Cargabilidad», pegada a Térmica**: aquélla dice cuánta corriente PUEDE
+llevar la línea, ésta cuánta lleva de verdad. No se llama «Cargas» — ésa es la estructural, en kgf.
+
+### Alternativas descartadas
+
+- **Traer ExcelJS o SheetJS.** El precio (licencia a revisar en repo público, ~1 MB de paquete, una
+  dependencia más) no lo vale cuando la plataforma ya descomprime.
+- **Que el módulo publique su propia «cargabilidad» y punto.** Habría un segundo dueño del mismo
+  veredicto, y discreparía del indicador nº 8 sin que nadie supiera cuál mirar.
+- **Guardar ya, registro por registro.** Con 8.760 al año por línea, «histórico completo» de 10
+  líneas pediría 87.600 documentos de un clic. Se pospone hasta decidir el modelo — la recomendación
+  es **un documento por línea y día** (24 horas dentro) más un **resumen diario** para el tablero:
+  el mismo año pasa de 87.600 lecturas a 3.650, y el tablero a unas 10.
+- **Adivinar la escala del porcentaje fila por fila.** Convertiría una línea al 0,8 % en una al 80 %.
+  Se decide por COLUMNA mirando el lote, y si mezcla se declara ambigua y se pregunta.
+
+### Consecuencias
+
+- **2.050 pruebas en verde** (60 nuevas). Motor `0.3.0 → 0.4.1`.
+- **Dos guardianes del proyecto pararon el trabajo, los dos con razón:** el del motor (cambiarlo sin
+  subir su versión firmaría dos informes con el mismo número) y el de estilo (toda clase usada tiene
+  que estar declarada, o el navegador la descarta en silencio; faltaban 18).
+- **`M-01` por enésima vez:** `docs/05` decía «pestañas 14/14» y ya son 15. Se cerró **quitando la
+  cifra**, que es lo que la propia lección manda.
+- **Abre camino a cerrar `TODO-80`**: el archivo trae la corriente de operación que ese indicador
+  lleva meses pidiendo.
+- **NO cierra el histórico** ni la consulta por fechas: eso es la segunda vuelta y espera la decisión
+  del modelo de datos.
+
+### Crudo de respaldo
+
+`../brain-private/mantenimiento-lineas-at/research-archive/2026-08-29-cargabilidad-electrica/`

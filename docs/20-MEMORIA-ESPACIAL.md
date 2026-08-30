@@ -8,26 +8,19 @@
 
 ## §1 — El ecosistema: dónde encaja este repo
 
-```
-~/Desktop/GitHub-MJ/                     ← paraguas (no es un repo)
-├── brain-private/                       🔐 bóveda LOCAL, nunca pública
-│   ├── kernel/                          🔑 kernel canónico — escritor único
-│   └── mantenimiento-lineas-at/         ← la carpeta de ESTE proyecto en la bóveda
-│       ├── NOTAS-OPERATIVAS.md          🔑 credenciales, llave admin, usuarios y roles. Todo dato
-│       │                                personal o de acceso vive AQUÍ, nunca en el repo
-│       ├── research-archive/            crudos de deliberación (comités, workflows, consejo).
-│       │                                Su README.md es el índice ÚNICO
-│       ├── datos-campo/                 lo que el Ingeniero DIJO o midió en campo. Dato real: se
-│       │                                cita desde el ADR, nunca se copia
-│       ├── fixtures/                    datos reales de cliente que usan las pruebas · entregables/
-│       └── fotos/                        material de campo (207 archivos, versionados)
-├── powertransformersmj.github.io/       proyecto hermano (SGM)
-└── mantenimiento-lineas-at/             ← ESTE repo
-```
+El mapa del paraguas es del paraguas (`~/Desktop/GitHub-MJ/CLAUDE.md`). Lo de este nodo: **este
+repo tiene que ser HERMANO de `brain-private/`**, o `brain:pull` y el `archiveDir` se rompen.
+Moverlo sin la bóveda **no da error** — el linter degrada a `info` y sigue diciendo «SANO».
 
-**Por qué importa la posición:** el repo debe ser **hermano** de `brain-private/`, o `brain:pull` y
-el `archiveDir` se rompen. Moverlo sin la bóveda **no da error**: el linter degrada a `info` y sigue
-diciendo "SANO". Se mueven juntos, siempre.
+Su carpeta en la bóveda, `brain-private/mantenimiento-lineas-at/`:
+
+| Dentro | Qué guarda |
+|---|---|
+| `NOTAS-OPERATIVAS.md` | 🔑 credenciales, llave admin, usuarios y roles. Todo dato personal o de acceso vive AHÍ, nunca en el repo |
+| `research-archive/` | crudos de deliberación. Su `README.md` es el índice ÚNICO |
+| `datos-campo/` | lo que el Ingeniero DIJO o midió. Dato real: se cita desde el ADR, nunca se copia |
+| `fixtures/` | datos reales de cliente que usan las pruebas · `entregables/` |
+| `fotos/` | material de campo (207 archivos, versionados) |
 
 ---
 
@@ -52,7 +45,10 @@ mantenimiento-lineas-at/
 │   ├── longitudinal.js          carga LONGITUDINAL: el segundo eje del veredicto (ADR-017)
 │   ├── rca.js                   método de causa raíz: espinas, porqués, árbol, hipótesis,
 │   │                            y las 6 condiciones del cierre. NUNCA marca la causa (ADR-020)
-│   └── clima.js                 sondeo meteorológico de un evento Y sus límites redactados
+│   ├── clima.js                 sondeo meteorológico de un evento Y sus límites redactados
+│   └── cargabilidad.js          la cargabilidad ELÉCTRICA (ADR-088): valida, deduplica y analiza un
+│                                lote. El % del archivo va `declarada` y NUNCA se pisa: el contraste
+│                                con la ampacidad IEEE 738 va aparte y no corrige nada
 │
 ├── contratos/                   ⭐ WORKSPACE @lineas/contratos — los esquemas Zod que ambos lados
 │                                obedecen. `comunes.ts` es el dueño de `VERSION_CONTRATO` (el
@@ -80,25 +76,26 @@ mantenimiento-lineas-at/
 │                                (observaciones calculadas) · procedencia.js · gms.js · version.js
 │                                · mecanica.js y bom.js (CSV de cálculo) · informe.js (documento
 │                                imprimible, autocontenido: cero JS y cero recursos externos)
-├── importar/                    ⭐ WORKSPACE @lineas/importar (17-08, ADR-028) — el camino INVERSO
-│                                de exportar/: gpx.js (leer lo que trae la cuadrilla) · identidad.js
-│                                (BUSCA el id en el registro de semillas; NUNCA lo acuña) · punto.js
-│                                (construye UN punto, jamás reconstruye los que ya están) · plan.js
-│                                (el antes/después con el motor de siempre) · **decisiones.js**
-│                                (ADR-029: lee lo que él YA FIRMÓ, con su fecha; NUNCA `Object.keys`
-│                                de la página — eso es de identidad.js) · **evidencias.js**
+├── importar/                    ⭐ WORKSPACE @lineas/importar (ADR-028) — el camino INVERSO de
+│                                exportar/, y CERO `node:`: gpx.js · identidad.js (BUSCA el id en el
+│                                registro de semillas; NUNCA lo acuña) · punto.js (construye UNO,
+│                                jamás reconstruye los que ya están) · plan.js (el antes/después con
+│                                el motor de siempre) · **decisiones.js** (ADR-029: lee lo que él YA
+│                                FIRMÓ; nunca `Object.keys` de la página) · **evidencias.js**
 │                                (ADR-031: la CADENA archivo → carpeta → canónico → apoyo, nunca por
-│                                posición; UNA implementación, DOS lectores). CERO `node:`.
-│                                ⚠️ `identidad.js` deriva el id de una FOTO (de su huella); el de un
-│                                PUNTO sigue vetado y con guardián (ADR-028/031)
+│                                posición) · **xlsx.js** (ADR-088: un `.xlsx` es un ZIP y
+│                                `DecompressionStream` lo abre — CERO dependencias; la posición de
+│                                una celda sale de su atributo `r`, nunca del orden).
+│                                ⚠️ `identidad.js` deriva el id de una FOTO; el de un PUNTO sigue
+│                                vetado y con guardián (ADR-028/031)
 ├── evidencias/                  🚪 PORTERO DE FOTOS (Worker, ADR-010 + **ADR-031**): verifica la
 │                                FIRMA del token. `GET` sirve, `PUT` bajo diez cerrojos.
 │                                🚫 **NO borra y NO lista** — con prueba que lo impide
 ├── herramientas/atlas-caribe.mjs EL MOTOR (ADR-053/055/079/086). `construirAtlas` baja de POWER;
 │                                **`publicarAtlas` escribe la ficha de los ONCE y EXIGE `naturaleza`**.
 │                                Perfiles POWER: `sol-caribe` (⚠️ ese nombre lo llama el vigía) ·
-│                                `temp` · `viento` · `lluvia` · `nubes`; el perfil trae `factor` (la
-│                                lluvia de NASA es TASA mm/día, ÷24)
+│                                `temp` · `viento` · `lluvia` · `nubes`; el `factor` del perfil
+│                                convierte la lluvia de NASA, que es TASA mm/día (÷24)
 ├── herramientas/rayos-caribe.mjs ⚡ RAYOS (ADR-079): del GLM del GOES-19 (NOAA, sin llave)
 ├── herramientas/abi-caribe.mjs  ☀️☁️ «Sol ahora» y «Nubes ahora» (ADR-081): del ABI del mismo
 │                                satélite, a ~15 min. Hermanas de `sol` y `nubes`, NO sus
@@ -165,6 +162,8 @@ mantenimiento-lineas-at/
 │   ├── atlasCaribe.ts           el cuadro de una hora de CUALQUIER atlas (ADR-053/060)
 │   ├── corredor.ts              las capas finas del corredor (ADR-087): la 3ª naturaleza
 │   │                            —`promedio`— y `techoDelCorredor`, que DERIVA el techo de zoom
+│   ├── cargabilidadVista.ts     geometría SVG, orden y CSV de la pestaña Cargabilidad (ADR-088).
+│   │                            Dibujo, no cálculo: los números los da el núcleo
 │   ├── radiacion.ts             el recurso solar del corredor (ADR-037/046): rampa ajustada al
 │   │                            recorte y su aviso de escala
 │   ├── temperatura.ts           el AIRE del corredor (ADR-039): media, no extremo.
