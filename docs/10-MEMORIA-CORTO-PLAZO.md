@@ -13,10 +13,11 @@
 > `§ADR-049/050`—. La fase viva es **la página**.
 
 ## 🛑 LO PRIMERO AL RETOMAR
-0. 🆕 **CARGABILIDAD ELÉCTRICA, 1ª vuelta EN PRODUCCIÓN (`§ADR-088`, `TODO-93`).** Pestaña nueva:
-   se suelta un `.xlsx` —leído **sin dependencias**— y salen mapeo, errores, 9 indicadores y 5
-   gráficas. ⚠️ **NO guarda, y lo dice arriba:** falta el modelo de datos (un año horario = **8.760
-   registros/línea**; recomendado: un doc por línea y día + resumen diario). **Falta MIRARLA.**
+0. 🆕 **CARGABILIDAD ELÉCTRICA en producción (`§ADR-088`).** Pestaña nueva: se suelta un `.xlsx`
+   —leído **sin dependencias**— y salen mapeo, errores, 9 indicadores y 5 gráficas. Mirada y va.
+   ⚠️ **NO guarda, y lo dice arriba:** falta el modelo de datos (un año horario = **8.760
+   registros/línea**; recomendado: un doc por línea y día + resumen diario). ⚠️ Tres defectos los
+   cazó la FOTO, no las 2.053 pruebas.
 1. **EL CUELLO DE BOTELLA NO ES CÓDIGO: ES EL DATO**: 0 de 26 con veredicto (`TODO-57`).
 2. **EL PATRÓN QUE LO DOMINA TODO:** *«arreglado donde se veía, vivo en la pieza hermana»* —
    `34 · L-65/L-74`, `32 · L-67`, `30 · L-68`, `30 · M-01`. Mordió el 24-08 (`§ADR-078`) y otra vez
