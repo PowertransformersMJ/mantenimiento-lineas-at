@@ -490,7 +490,7 @@ function PorLinea({ registros }: { registros: Registro[] }) {
           return (
             <div key={f.linea} className="barra-fila">
               <span className="barra-rotulo" title={f.linea}>{f.linea}</span>
-              <span className="barra-canal">
+              <span className="barra-pista">
                 <span className="barra-valor" style={{
                   width: `${Math.min(100, ((v ?? 0) / techo) * 100)}%`,
                   background: tintaDe(v),

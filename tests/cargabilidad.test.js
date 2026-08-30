@@ -495,3 +495,20 @@ describe('un token de FONDO no puede usarse como tinta', () => {
     }
   });
 });
+
+describe('la barra vive dentro de su pista', () => {
+  test('⚠️ `.barra-valor` es absoluta: su padre TIENE que ser `.barra-pista`', () => {
+    // Lo cazó una foto: se inventó un `.barra-canal` paralelo, `.barra-valor`
+    // se salió de él —no era un padre posicionado— y la barra no se dibujó. Se
+    // veía el canal vacío con el número al lado, y todo en verde.
+    const pant = leer('web/src/componentes/Cargabilidad.tsx');
+    for (const m of pant.matchAll(/<span className="([a-z-]*)"[^>]*>\s*<span className="barra-valor"/g)) {
+      assert.equal(m[1], 'barra-pista',
+        `«barra-valor» dentro de «${m[1]}»: si ese padre no es relativo, la barra no se pinta`);
+    }
+    assert.match(pant, /className="barra-pista"/, 'la barra dejó de usar la pista que ya existía');
+    const css = leer('web/src/estilo.css');
+    assert.match(css, /\.barra-pista \{[^}]*position: relative/,
+      '`.barra-pista` dejó de ser el padre posicionado del que depende `.barra-valor`');
+  });
+});

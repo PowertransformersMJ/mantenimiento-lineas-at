@@ -1733,10 +1733,10 @@ p.fund-vivo + .sello-calculo { margin-top: 5px; }
   flex: 0 0 128px; font-size: .84rem; color: var(--tx2);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.barra-canal {
-  flex: 1 1 auto; height: 14px; background: var(--sup-hund);
-  border-radius: 3px; overflow: hidden; border: 1px solid var(--bd-tenue);
-}
+/* ⚠️ NO se declara aquí un canal propio: la barra usa `.barra-pista`, que ya
+   existe. `.barra-valor` es `position: absolute` y su contrato es vivir dentro
+   de un padre relativo; inventar un contenedor paralelo dejó la barra sin
+   dibujar — se veía el canal vacío y el número al lado, y ninguna prueba lo vio. */
 
 /* ── El mapa de calor ──────────────────────────────────────────────────────── */
 .calor { border-collapse: collapse; font-size: .72rem; }
