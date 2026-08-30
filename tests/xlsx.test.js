@@ -24,8 +24,10 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-import { columnaDeRef, leerXlsx, letraDeColumna } from '../importar/xlsx.js';
-import { detectarMapeo, procesarLote, resumen } from '../nucleo/cargabilidad.js';
+import { columnaDeRef, filasDesde, leerXlsx, letraDeColumna } from '../importar/xlsx.js';
+import {
+  detectarMapeo, elegirHoja, encontrarCabecera, procesarLote, resumen,
+} from '../nucleo/cargabilidad.js';
 
 const ARCHIVO = fileURLToPath(new URL('./fixtures/cargabilidad-sintetico.xlsx', import.meta.url));
 const bytes = () => readFileSync(ARCHIVO);
@@ -156,5 +158,47 @@ describe('del .xlsx al tablero, sin tocar nada a mano', () => {
     assert.equal(s.promedio, 91.85, 'el hueco se promedió como 0 y hundió la media');
     assert.equal(s.eventosSobrecarga, 1);
     assert.equal(s.disponibilidad_pct, 66.7);
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// 5 · LA REGRESIÓN DEL PRIMER ARCHIVO REAL
+// ════════════════════════════════════════════════════════════════════════════
+//
+// ⚠️ Esta suite existe por un caso concreto, y por eso el fixture imita su forma.
+// Con «Cargas 22 Jul LN-627.xlsx» el mapeo salió ENTERO en «sin asignar» y con
+// una sola columna: la hoja empieza por un título y una fila en blanco, y el
+// lector tomó el título por cabecera. Es como sale cualquier informe de
+// operación, así que suponer la fila 1 estaba mal de raíz.
+describe('una hoja que empieza por un título se lee igual de bien', () => {
+  const CON_TITULO = fileURLToPath(new URL('./fixtures/cargabilidad-con-titulo.xlsx', import.meta.url));
+
+  test('⚠️ suponer la fila 1 daba UNA columna: el título', async () => {
+    // Se deja escrito el comportamiento viejo para que se vea qué se arregló.
+    const { hojas } = await leerXlsx(readFileSync(CON_TITULO));
+    assert.deepEqual(hojas[0].cabeceras, ['CARGAS 22 JUL LN-627'],
+      'el fixture dejó de reproducir el caso: ya no empieza por un título');
+  });
+
+  test('buscando la cabecera, salen las cinco columnas y se mapean solas', async () => {
+    const { hojas } = await leerXlsx(readFileSync(CON_TITULO));
+    const elegida = elegirHoja(hojas);
+    const cab = encontrarCabecera(hojas[elegida.indice].matriz);
+    assert.equal(cab.fila, 2, 'no encontró la cabecera detrás del título y el blanco');
+
+    const { cabeceras, filas } = filasDesde(hojas[elegida.indice].matriz, cab.fila);
+    assert.equal(cabeceras.length, 5);
+    const det = detectarMapeo(cabeceras);
+    assert.equal(det.completo, true, `faltaron: ${det.faltanRequeridos.join(', ')}`);
+    assert.equal(det.mapeo.cargabilidad_pct, '% Carga');
+    assert.equal(det.mapeo.corriente_A, 'Corriente');
+    assert.deepEqual(det.sinReconocer, [], 'quedaron columnas sin identificar');
+
+    // Y la cadena entera llega hasta registros usables, sin tocar nada a mano.
+    const { registros, resumen: r } = procesarLote(filas, det.mapeo);
+    assert.equal(r.correctos, 2);
+    assert.equal(r.conError, 0);
+    assert.equal(registros[0].cargabilidad_pct, 62.4);
+    assert.equal(registros[0].hora, 12, 'la fracción de día no se leyó como hora');
   });
 });
