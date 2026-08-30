@@ -102,8 +102,23 @@ import { z } from 'zod';
  * ⚠️ MISMA DIRECCIÓN ÚNICA que 0.5.0: un documento con `orden: -1` NO valida
  * contra un bundle desplegado con el contrato anterior y se descarta EN
  * SILENCIO — el punto simplemente no aparece. DESPLEGAR antes de cargarlo.
+ *
+ * 0.10.0 — MENOR (tres colecciones NUEVAS; nada renombrado ni cambiado de tipo,
+ * cero migración): entra el histórico de cargabilidad ELÉCTRICA en
+ * `cargabilidad.ts` — `DiaDeCargabilidad`, `ResumenDiarioCargabilidad` y
+ * `CargaDeCargabilidad` (`99 §ADR-088`). Todo lo anterior valida igual: no se ha
+ * tocado un solo campo existente.
+ *
+ * ⚠️ DOS COSAS QUE MIRAR AQUÍ, porque no son de rutina:
+ *   · **`DiaDeCargabilidad` tiene id DETERMINISTA**, no UUID. Es la excepción
+ *     razonada a `ADR-001` y está argumentada en su archivo: sin ella, volver a
+ *     cargar el mismo Excel duplicaría el histórico y ese día tendría dos
+ *     verdades. La identidad de un APOYO —un activo— sigue siendo un UUID.
+ *   · **Una hora con porcentaje EXIGE declarar su naturaleza** (`declarada` o
+ *     `derivada`). Sin valor por defecto: un `?? 'declarada'` convertiría
+ *     olvidarlo en mentir sobre contra qué capacidad se calculó (`§ADR-086/087`).
  */
-export const VERSION_CONTRATO = '0.9.0';
+export const VERSION_CONTRATO = '0.10.0';
 
 // ── Identificadores ─────────────────────────────────────────────────────────
 

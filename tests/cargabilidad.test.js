@@ -31,8 +31,9 @@ const leer = (p) => readFileSync(fileURLToPath(new URL('../' + p, import.meta.ur
 import {
   aFecha, aHora, aNumero, atipicos, bandaDe, camposAusentes, claveDeRegistro,
   contrasteConLaAmpacidad, derivarPorcentaje, detectarMapeo, escalaDelPorcentaje,
-  histograma, mapaDeCalor, normalizarCabecera, normalizarFila, porLinea, procesarLote,
-  promedioMovil, resumen, separarNuevos, serieTemporal, tendencia,
+  costeDeLectura, desempaquetarDia, empaquetarPorDia, histograma, mapaDeCalor,
+  normalizarCabecera, normalizarFila, porLinea, procesarLote, promedioMovil, resumen,
+  resumirDia, separarNuevos, serieTemporal, tendencia,
 } from '../nucleo/cargabilidad.js';
 
 /** Un registro de juguete. Solo lo que mira la pieza bajo prueba. */
@@ -510,5 +511,97 @@ describe('la barra vive dentro de su pista', () => {
     const css = leer('web/src/estilo.css');
     assert.match(css, /\.barra-pista \{[^}]*position: relative/,
       '`.barra-pista` dejó de ser el padre posicionado del que depende `.barra-valor`');
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// 11 · EMPAQUETAR PARA GUARDAR — la decisión que evita la factura
+// ════════════════════════════════════════════════════════════════════════════
+describe('un documento por línea y día, no uno por lectura', () => {
+  const dia = (h, pct, extra = {}) =>
+    ({ linea: 'LN-A', circuito: null, fecha: '2026-04-01', hora: h,
+      cargabilidad_pct: pct, naturaleza: pct == null ? null : 'declarada', ...extra });
+
+  test('las 24 horas caben en UN documento', () => {
+    const { dias } = empaquetarPorDia([dia(10, 80), dia(11, 104), dia(12, 70)]);
+    assert.equal(dias.length, 1, 'se hizo un documento por lectura: eso es lo que se evita');
+    assert.deepEqual(Object.keys(dias[0].horas).sort(), ['10', '11', '12']);
+  });
+
+  test('⚠️ una hora SIN medida no se escribe: ni null, ni cero', () => {
+    const { dias } = empaquetarPorDia([dia(10, 80), dia(11, null)]);
+    assert.deepEqual(Object.keys(dias[0].horas), ['10'],
+      'la hora vacía entró en el documento y afirma una lectura que nadie tomó');
+  });
+
+  test('⚠️ un registro SIN hora no se coloca en la 0: se devuelve aparte', () => {
+    // Es justo la fila a la que Excel le omitió la celda. Meterla en la hora 0
+    // sería inventar una medida a medianoche.
+    const { dias, sinHora } = empaquetarPorDia([dia(null, 90), dia(10, 80)]);
+    assert.equal(sinHora.length, 1);
+    assert.deepEqual(Object.keys(dias[0].horas), ['10']);
+  });
+
+  test('la hora va como CLAVE de texto con dos cifras', () => {
+    const { dias } = empaquetarPorDia([dia(7, 80)]);
+    assert.ok('07' in dias[0].horas, `las claves salieron ${Object.keys(dias[0].horas)}`);
+  });
+
+  test('el porcentaje NUNCA viaja sin su naturaleza', () => {
+    // El molde se niega a guardarlo, así que dejarlo salir de aquí sería mandar
+    // a la base algo que va a rebotar — o peor, que valida por defecto.
+    const { dias } = empaquetarPorDia([{ ...dia(10, 80), naturaleza: null }]);
+    assert.equal(dias[0].horas['10'].naturaleza, 'declarada');
+    const { dias: d2 } = empaquetarPorDia([dia(11, null, { corriente_A: 400 })]);
+    assert.equal(d2[0].horas['11'].naturaleza, undefined,
+      'se puso naturaleza a una hora sin porcentaje: no hay nada que calificar');
+  });
+
+  test('líneas, circuitos y días distintos NO se mezclan en el mismo documento', () => {
+    const { dias } = empaquetarPorDia([
+      dia(10, 80),
+      { ...dia(10, 81), linea: 'LN-B' },
+      { ...dia(10, 82), circuito: '2' },
+      { ...dia(10, 83), fecha: '2026-04-02' },
+    ]);
+    assert.equal(dias.length, 4);
+  });
+
+  test('ida y vuelta: lo que se guarda se puede volver a leer igual', () => {
+    const originales = [dia(10, 80, { corriente_A: 400 }), dia(11, 104)];
+    const { dias } = empaquetarPorDia(originales);
+    const vuelta = desempaquetarDia(dias[0]);
+    assert.equal(vuelta.length, 2);
+    assert.deepEqual(vuelta.map((v) => [v.hora, v.cargabilidad_pct]), [[10, 80], [11, 104]]);
+    assert.equal(vuelta[0].corriente_A, 400);
+    assert.equal(vuelta[1].corriente_A, null, 'lo que no se guardó vuelve como hueco, no como 0');
+  });
+
+  test('el resumen del día trae lo que el tablero necesita sin abrir las horas', () => {
+    const { dias } = empaquetarPorDia([dia(10, 80), dia(11, 104), dia(12, null)]);
+    const res = resumirDia(dias[0]);
+    assert.equal(res.horasConMedida, 2);
+    assert.equal(res.maxima_pct, 104);
+    assert.equal(res.minima_pct, 80);
+    assert.equal(res.promedio_pct, 92);
+    assert.equal(res.horaMaxima, '11');
+    assert.deepEqual(res.porBanda, { normal: 0, elevada: 1, atencion: 0, sobrecarga: 1 });
+  });
+
+  test('un día sin ninguna medida se resume sin inventar cifras', () => {
+    const res = resumirDia({ linea: 'LN-A', fecha: '2026-04-01', horas: {} });
+    assert.equal(res.horasConMedida, 0);
+    assert.equal(res.maxima_pct, undefined, 'un día vacío no tiene máximo, y no es 0');
+    assert.equal(res.promedio_pct, undefined);
+  });
+
+  test('⚠️ el coste de leer se puede decir ANTES de pedirlo', () => {
+    // Una pantalla que ofrece «histórico completo» sin decir lo que cuesta es
+    // una pantalla que un día tumba el servicio sin avisar.
+    const c = costeDeLectura({ lineas: 10, dias: 365 });
+    assert.equal(c.documentos, 3650);
+    assert.equal(c.siFueraPorLectura, 87600,
+      'la cifra que justifica el diseño entero dejó de calcularse');
+    assert.ok(c.siFueraPorLectura / c.documentos === 24);
   });
 });

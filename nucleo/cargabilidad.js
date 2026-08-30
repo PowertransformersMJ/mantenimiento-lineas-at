@@ -793,3 +793,150 @@ export function contrasteConLaAmpacidad(registro, ampacidadDelDia_A) {
       : null,
   };
 }
+
+// ════════════════════════════════════════════════════════════════════════════
+// 10 · EMPAQUETAR PARA GUARDAR — donde se decide si esto cuesta dinero
+// ════════════════════════════════════════════════════════════════════════════
+//
+// ⚠️ UN DOCUMENTO POR LÍNEA Y DÍA, con las 24 horas dentro. No uno por lectura.
+//
+// No es una preferencia de modelado: es aritmética de factura. Un año horario
+// son 8.760 lecturas POR LÍNEA. Guardadas una a una, «histórico completo» de
+// diez líneas pediría 87.600 documentos de un solo clic —más de lo que el plan
+// gratuito da en un día entero—, y el módulo dejaría de funcionar justo cuando
+// empezara a servir. Empaquetadas por día son 3.650; y el tablero, que lee el
+// resumen diario, unas diez. Es `CLAUDE.md §3.1` aplicado al diseño.
+//
+// Aquí solo se ARMA la forma. Quién la escribe, con qué permisos y en qué
+// colección es cosa de la capa de datos: este módulo no sabe que existe una base.
+
+/** `07` a partir de 7. La hora es CLAVE de un mapa, así que va como texto. */
+const claveHora = (h) => String(h).padStart(2, '0');
+
+/**
+ * Los registros sueltos → un documento por línea, circuito y día.
+ *
+ * ⚠️ **Una hora sin medida NO aparece en el mapa.** No se escribe `null` ni `0`:
+ * se omite. Así el documento nunca afirma una lectura que nadie tomó, y quien
+ * pinta recorre de 0 a 23 sabiendo que lo que falta es un hueco.
+ *
+ * ⚠️ **Los registros SIN hora no se pueden empaquetar** y se devuelven aparte.
+ * Un dato diario metido en la hora 0 sería una medida inventada a medianoche —y
+ * es justo la fila que Excel deja sin hora cuando omite la celda. Se dicen, no
+ * se colocan.
+ */
+export function empaquetarPorDia(registros) {
+  const dias = new Map();
+  const sinHora = [];
+
+  for (const reg of registros ?? []) {
+    if (reg.hora == null) { sinHora.push(reg); continue; }
+    const k = [reg.linea, reg.circuito ?? '-', reg.fecha].join('|');
+    if (!dias.has(k)) {
+      dias.set(k, {
+        linea: reg.linea,
+        circuito: reg.circuito ?? null,
+        subestacionOrigen: reg.subestacionOrigen ?? null,
+        subestacionDestino: reg.subestacionDestino ?? null,
+        fecha: reg.fecha,
+        horas: {},
+      });
+    }
+    const dia = dias.get(k);
+    // Las subestaciones se rellenan con la primera hora que las traiga: el
+    // archivo suele ponerlas solo en la primera fila de cada bloque.
+    dia.subestacionOrigen ??= reg.subestacionOrigen ?? null;
+    dia.subestacionDestino ??= reg.subestacionDestino ?? null;
+
+    const hora = {};
+    for (const campo of ['cargabilidad_pct', 'corriente_A', 'potenciaActiva_MW',
+      'potenciaReactiva_MVAr', 'tension_kV', 'capacidadNominal_A', 'estado', 'observaciones']) {
+      if (reg[campo] != null) hora[campo] = reg[campo];
+    }
+    // La naturaleza viaja SIEMPRE con el porcentaje, y solo con él: sin ella el
+    // molde se niega a guardar, porque no se sabría contra qué se calculó.
+    if (hora.cargabilidad_pct != null) hora.naturaleza = reg.naturaleza ?? 'declarada';
+    // Una hora vacía tampoco se escribe: sería un hueco disfrazado de lectura.
+    if (Object.keys(hora).length) dia.horas[claveHora(reg.hora)] = hora;
+  }
+
+  return {
+    dias: [...dias.values()].filter((d) => Object.keys(d.horas).length),
+    sinHora,
+  };
+}
+
+/** El camino de vuelta: un documento de día → sus registros sueltos. */
+export function desempaquetarDia(dia) {
+  return Object.entries(dia?.horas ?? {})
+    .map(([h, v]) => ({
+      linea: dia.linea,
+      circuito: dia.circuito ?? null,
+      subestacionOrigen: dia.subestacionOrigen ?? null,
+      subestacionDestino: dia.subestacionDestino ?? null,
+      fecha: dia.fecha,
+      hora: Number(h),
+      cargabilidad_pct: v.cargabilidad_pct ?? null,
+      corriente_A: v.corriente_A ?? null,
+      potenciaActiva_MW: v.potenciaActiva_MW ?? null,
+      potenciaReactiva_MVAr: v.potenciaReactiva_MVAr ?? null,
+      tension_kV: v.tension_kV ?? null,
+      capacidadNominal_A: v.capacidadNominal_A ?? null,
+      estado: v.estado ?? null,
+      observaciones: v.observaciones ?? null,
+      naturaleza: v.naturaleza ?? null,
+    }))
+    .sort((a, b) => a.hora - b.hora);
+}
+
+/**
+ * EL RESUMEN DE UN DÍA — lo que lee el tablero sin abrir las 24 horas.
+ *
+ * Es DERIVADO: se puede reconstruir entero desde el día, y si algún día
+ * discrepara del día que resume, **manda el día**. Se guarda solo porque leerlo
+ * es la diferencia entre 365 documentos y 8.760.
+ */
+export function resumirDia(dia) {
+  const horas = Object.entries(dia?.horas ?? {})
+    .filter(([, v]) => v.cargabilidad_pct != null);
+  const base = {
+    linea: dia?.linea ?? null,
+    fecha: dia?.fecha ?? null,
+    horasConMedida: horas.length,
+    porBanda: bandasVacias(),
+  };
+  if (!horas.length) return base;
+
+  const pcts = horas.map(([, v]) => v.cargabilidad_pct);
+  const alta = horas.reduce((a, b) => (b[1].cargabilidad_pct > a[1].cargabilidad_pct ? b : a));
+  for (const [, v] of horas) base.porBanda[bandaDe(v.cargabilidad_pct).clave] += 1;
+
+  return {
+    ...base,
+    maxima_pct: r(Math.max(...pcts)),
+    minima_pct: r(Math.min(...pcts)),
+    promedio_pct: r(pcts.reduce((a, b) => a + b, 0) / pcts.length),
+    horaMaxima: alta[0],
+  };
+}
+
+/**
+ * CUÁNTO COSTARÍA LEER UN PERIODO — para poder decirlo ANTES de pedirlo.
+ *
+ * ⚠️ Existe porque una pantalla que ofrece «histórico completo» sin decir lo que
+ * cuesta es una pantalla que un día tumba el servicio sin avisar. Devuelve
+ * cuántos documentos hay que leer de cada forma, y la pantalla puede advertir.
+ */
+export function costeDeLectura({ lineas = 1, dias = 1, conDetalle = false } = {}) {
+  const n = Math.max(0, Math.round(lineas)) * Math.max(0, Math.round(dias));
+  return {
+    documentos: n,
+    // El resumen basta para el tablero y las tendencias; el detalle solo hace
+    // falta cuando se abre un día concreto o se pide la gráfica hora a hora.
+    porQue: conDetalle
+      ? 'se leen los días completos: hace falta el detalle hora a hora'
+      : 'se leen solo los resúmenes diarios, que es lo que pinta el tablero',
+    /** Lo que habría costado guardando una lectura por documento. */
+    siFueraPorLectura: n * 24,
+  };
+}
