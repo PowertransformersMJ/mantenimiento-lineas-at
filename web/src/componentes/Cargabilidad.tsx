@@ -48,6 +48,8 @@ import {
 import {
   cerosAlFinal, CRITERIOS_DE_FASE, pareceAncho, registrosDesdeAncho,
 } from '@lineas/nucleo/cargabilidadAncho';
+import { empaquetarPorDia, resumirDia } from '@lineas/nucleo/cargabilidad';
+import { guardarCarga, huellaDe, resumenesEntre, type Acuse } from '../datos/cargabilidadRepo';
 import { nf } from '../vistas/formato';
 
 type Registro = Record<string, string | number | null>;
@@ -80,7 +82,16 @@ function descargar(nombre: string, texto: string) {
   URL.revokeObjectURL(url);
 }
 
-export default function Cargabilidad({ lineaAbierta }: { lineaAbierta?: string } = {}) {
+export default function Cargabilidad({ lineaAbierta, sesion }: {
+  lineaAbierta?: string;
+  /**
+   * Quién está mirando. **Sin ella no se puede guardar**, y la pantalla lo dice
+   * en vez de enseñar un botón que va a fallar. El rol se comprueba además en
+   * las reglas de la base, que son la última línea (`ADR-004`): esconder un
+   * botón no impide nada, solo evita el trabajo perdido.
+   */
+  sesion?: { rol: string; orgId: string; uid: string };
+} = {}) {
   const entrada = useRef<HTMLInputElement>(null);
   const [cargado, setCargado] = useState<Cargado | null>(null);
   const [mapeo, setMapeo] = useState<Mapeo>({});
@@ -90,13 +101,21 @@ export default function Cargabilidad({ lineaAbierta }: { lineaAbierta?: string }
   const [linea, setLinea] = useState<string>(lineaAbierta ?? '');
   const [criterioFase, setCriterioFase] = useState('maxima');
   const [asignado, setAsignado] = useState<Record<number, string | null>>({});
+  /** El guardado y su acuse. `null` = todavía no se ha guardado esta carga. */
+  const [guardando, setGuardando] = useState(false);
+  const [acuse, setAcuse] = useState<Acuse | null>(null);
+  const [falloGuardar, setFalloGuardar] = useState<string | null>(null);
+  const [bytes, setBytes] = useState<ArrayBuffer | null>(null);
 
   // ── Leer el archivo ───────────────────────────────────────────────────────
   const alElegir = async (archivo: File | null) => {
     if (!archivo) return;
     setFallo(null); setLeyendo(true);
     try {
-      const { hojas } = await leerXlsx(await archivo.arrayBuffer());
+      const datos = await archivo.arrayBuffer();
+      setBytes(datos);
+      setAcuse(null); setFalloGuardar(null);
+      const { hojas } = await leerXlsx(datos);
       if (!hojas.length) throw new Error('el archivo no trae ninguna hoja');
 
       // ⚠️ NI LA PRIMERA HOJA NI LA MÁS GRANDE: la que MÁS CAMPOS RECONOCE
@@ -137,7 +156,10 @@ export default function Cargabilidad({ lineaAbierta }: { lineaAbierta?: string }
     }
   };
 
-  const descartar = () => { setCargado(null); setMapeo({}); setFallo(null); };
+  const descartar = () => {
+    setCargado(null); setMapeo({}); setFallo(null);
+    setAcuse(null); setFalloGuardar(null); setBytes(null);
+  };
 
   /**
    * MOVER LA CABECERA A MANO. La detección acierta sola en un archivo normal,
@@ -181,6 +203,39 @@ export default function Cargabilidad({ lineaAbierta }: { lineaAbierta?: string }
   const registros = (lote?.registros ?? []) as Registro[];
   const tablero = useMemo(() => (registros.length ? resumen(registros) : null), [registros]);
 
+  /**
+   * GUARDAR LA CARGA. Empaqueta por día, resume y escribe — en ese orden, y con
+   * las piezas que ya venían armadas del núcleo. Aquí no se calcula nada.
+   */
+  const guardar = async () => {
+    if (!cargado || !sesion || !registros.length) return;
+    setGuardando(true); setFalloGuardar(null);
+    try {
+      const { dias } = empaquetarPorDia(registros as never[]);
+      const resumenes = dias.map((d) => resumirDia(d));
+      const fechas = [...new Set(dias.map((d) => d.fecha))].sort();
+      const a = await guardarCarga({
+        dias: dias as unknown as Record<string, unknown>[],
+        resumenes: resumenes as unknown as Record<string, unknown>[],
+        carga: {
+          nombreArchivo: cargado.nombre, hoja: cargado.hoja,
+          huella: bytes ? await huellaDe(bytes) : undefined,
+          filasDelArchivo: lote?.resumen?.filas ?? registros.length,
+          registrosGuardados: registros.length,
+          filasConError: lote?.resumen?.conError ?? 0,
+          mapeo: cargado.ancho ? {} : mapeo,
+          lineas: [...new Set(dias.map((d) => d.linea))],
+          desde: fechas[0], hasta: fechas[fechas.length - 1],
+        },
+      }, { uid: sesion.uid, orgId: sesion.orgId });
+      setAcuse(a);
+    } catch (e) {
+      setFalloGuardar((e as Error).message);
+    } finally {
+      setGuardando(false);
+    }
+  };
+
   return (
     <section className="panel">
       <h2>Cargabilidad eléctrica</h2>
@@ -194,12 +249,26 @@ export default function Cargabilidad({ lineaAbierta }: { lineaAbierta?: string }
       {/* ⚠️ EL AVISO VA ARRIBA Y NO AL FINAL. Mientras esto no guarde, decirlo
           después de las gráficas sería dejar que se mire media pantalla creyendo
           que hay un histórico detrás. */}
-      <p className="advertencia">
-        <b>Todavía no se guarda nada.</b> Esta pantalla lee el archivo, lo comprueba y lo enseña;
-        al recargar, se pierde. El histórico acumulable espera una decisión sobre dónde y cómo se
-        almacena — un año de datos horarios son <b>8.760 registros por línea</b>, y guardarlos uno
-        a uno haría que consultar el histórico completo se comiera la cuota gratuita de un clic.
-      </p>
+      {/* ⚠️ EL AVISO DICE LA VERDAD DE CADA CASO, no una fija. Antes decía
+          siempre «no se guarda nada»; desde que guarda, decirlo igual sería
+          mentir al revés — y quien lea que no se guarda no volverá a mirar. */}
+      {!sesion ? (
+        <p className="advertencia">
+          <b>Aquí no se puede guardar:</b> no consta su sesión. La pantalla lee el archivo y lo
+          enseña, pero al recargar se pierde.
+        </p>
+      ) : sesion.rol !== 'admin' ? (
+        <p className="advertencia">
+          <b>Su cuenta puede mirar, no guardar.</b> El histórico de carga lo escribe solo un
+          administrador: es dato de operación que alimenta un dictamen de ampacidad. Puede leer el
+          archivo y verlo; al recargar, se pierde.
+        </p>
+      ) : (
+        <p className="fine">
+          Lo que cargue se guarda por <b>día y línea</b> —las 24 horas en un solo documento— y
+          volver a cargar el mismo día lo <b>reemplaza</b>, no lo duplica.
+        </p>
+      )}
 
       <div className="acciones">
         <button type="button" className="boton" disabled={leyendo}
@@ -214,6 +283,10 @@ export default function Cargabilidad({ lineaAbierta }: { lineaAbierta?: string }
       </div>
 
       {fallo && <p className="advertencia alerta"><b>No se pudo leer el archivo:</b> {fallo}</p>}
+
+      {/* El histórico se consulta SIN cargar nada: es lo que se mira el día que
+          no hay archivo nuevo, que son casi todos. */}
+      {sesion && <HistoricoGuardado sesion={sesion} lineaAbierta={lineaAbierta} />}
 
       {/* ⚠️ EL VACÍO SE DICE. Orden del Ingeniero (2026-08-29): «no coloques
           información basura en el módulo de cargabilidad, ahí solo se deben
@@ -263,6 +336,51 @@ export default function Cargabilidad({ lineaAbierta }: { lineaAbierta?: string }
             <>
               <ResumenDeLaCarga lote={lote!} registros={registros} nombre={cargado.nombre} />
               <VistaPrevia registros={registros} />
+              {sesion?.rol === 'admin' && registros.length > 0 && (
+                <div className="tarjeta">
+                  <p className="mapa-capas-t">Guardar en el histórico</p>
+                  {acuse ? (
+                    <>
+                      <p className="mapa-capas-n">
+                        ✅ Guardado: <b>{nf(acuse.dias)} día(s)</b> de línea,{' '}
+                        {nf(acuse.resumenes)} resumen(es) diario(s).
+                        {acuse.reemplazados > 0
+                          ? <> ⚠️ <b>{nf(acuse.reemplazados)} de esos días YA estaban</b> y se han
+                            reemplazado con lo que trae este archivo.</>
+                          : <> Ninguno estaba antes: todos son nuevos.</>}
+                      </p>
+                      <p className="fine">
+                        {nf(acuse.escrituras)} escritura(s) en total. Volver a cargar el mismo día
+                        lo reemplaza otra vez; el histórico no se duplica y no se borra.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      {/* ⚠️ NO viene preseleccionado ni se guarda solo. Es la
+                          misma regla que «Cargar»: un acto sobre el histórico se
+                          decide, no se confirma por inercia. */}
+                      <button type="button" className="boton" disabled={guardando}
+                        onClick={() => void guardar()}>
+                        {guardando ? 'Guardando…' : `Guardar ${nf(registros.length)} registro(s)`}
+                      </button>
+                      <p className="fine">
+                        Compruebe antes lo de arriba: qué línea, qué señal es qué y qué entró.
+                        Después de guardar, corregir es volver a cargar — no se borra nada.
+                      </p>
+                    </>
+                  )}
+                  {falloGuardar && (
+                    <p className="advertencia alerta">
+                      <b>No se pudo guardar:</b> {falloGuardar}
+                      {/[Pp]ermis|insufficient/.test(falloGuardar) && (
+                        <> · Si dice «permisos», falta desplegar las reglas de la base: el código
+                          nuevo sin sus reglas da «no hay datos» en vez de «faltan reglas»
+                          (`35 · L-22`).</>
+                      )}
+                    </p>
+                  )}
+                </div>
+              )}
               {tablero && <Tablero t={tablero} />}
               {registros.length > 1 && <Tendencia registros={registros} />}
               {registros.length > 0 && <PorLinea registros={registros} />}
@@ -274,6 +392,169 @@ export default function Cargabilidad({ lineaAbierta }: { lineaAbierta?: string }
         </>
       )}
     </section>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// EL HISTÓRICO GUARDADO — consultar por fecha
+// ════════════════════════════════════════════════════════════════════════════
+//
+// ⚠️ LEE RESÚMENES DIARIOS, NUNCA DÍAS COMPLETOS. Es la mitad del diseño: un año
+// de diez líneas son 3.650 resúmenes y 87.600 lecturas horarias. Pedir lo
+// segundo para pintar lo primero es lo que convierte un módulo gratis en uno que
+// factura (`99 §ADR-088`).
+
+/** Los periodos que él pidió. `dias: null` = desde el principio. */
+const PERIODOS = [
+  { id: '1', rotulo: 'Últimas 24 h', dias: 1 },
+  { id: '7', rotulo: 'Últimos 7 días', dias: 7 },
+  { id: '30', rotulo: 'Últimos 30 días', dias: 30 },
+  { id: '90', rotulo: 'Últimos 3 meses', dias: 90 },
+  { id: 'todo', rotulo: 'Histórico completo', dias: null },
+] as const;
+
+const iso = (d: Date) => d.toISOString().slice(0, 10);
+
+function HistoricoGuardado({ sesion, lineaAbierta }: {
+  sesion: { rol: string; orgId: string; uid: string };
+  lineaAbierta?: string;
+}) {
+  const [periodo, setPeriodo] = useState<string>('7');
+  const [desde, setDesde] = useState('');
+  const [hasta, setHasta] = useState('');
+  const [soloEsta, setSoloEsta] = useState(true);
+  const [filas, setFilas] = useState<Record<string, unknown>[] | null>(null);
+  const [recortado, setRecortado] = useState(false);
+  const [buscando, setBuscando] = useState(false);
+  const [fallo, setFallo] = useState<string | null>(null);
+
+  const rango = () => {
+    if (periodo === 'rango') return { desde, hasta };
+    const p = PERIODOS.find((x) => x.id === periodo)!;
+    const fin = new Date();
+    // «Desde el principio» no se escribe como una fecha inventada: se pide desde
+    // el año 2000, que es antes de que exista un solo dato de este sistema.
+    const ini = p.dias == null ? new Date('2000-01-01')
+      : new Date(fin.getTime() - (p.dias - 1) * 86400000);
+    return { desde: iso(ini), hasta: iso(fin) };
+  };
+
+  const consultar = async () => {
+    const r = rango();
+    if (!r.desde || !r.hasta) { setFallo('faltan las dos fechas del rango'); return; }
+    setBuscando(true); setFallo(null);
+    try {
+      const res = await resumenesEntre(
+        { ...r, lineas: soloEsta && lineaAbierta ? [lineaAbierta] : [] },
+        { uid: sesion.uid, orgId: sesion.orgId },
+      );
+      setFilas(res.resumenes);
+      setRecortado(res.recortado);
+    } catch (e) {
+      setFallo((e as Error).message);
+      setFilas(null);
+    } finally { setBuscando(false); }
+  };
+
+  const r = rango();
+  const conMedida = (filas ?? []).filter((f) => f.maxima_pct != null);
+  const pico = conMedida.length
+    ? conMedida.reduce((a, b) => ((b.maxima_pct as number) > (a.maxima_pct as number) ? b : a))
+    : null;
+
+  return (
+    <div className="tarjeta">
+      <p className="mapa-capas-t">El histórico guardado</p>
+      <div className="acciones" role="group" aria-label="Periodo">
+        {PERIODOS.map((p) => (
+          <button key={p.id} type="button"
+            className={'boton chico' + (periodo === p.id ? ' activo' : '')}
+            aria-pressed={periodo === p.id} onClick={() => setPeriodo(p.id)}>{p.rotulo}</button>
+        ))}
+        <button type="button" className={'boton chico' + (periodo === 'rango' ? ' activo' : '')}
+          aria-pressed={periodo === 'rango'} onClick={() => setPeriodo('rango')}>Entre dos fechas</button>
+      </div>
+      {periodo === 'rango' && (
+        <div className="acciones">
+          <label className="mapa-tiempo-dia"><span>Desde</span>
+            <input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} /></label>
+          <label className="mapa-tiempo-dia"><span>Hasta</span>
+            <input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} /></label>
+        </div>
+      )}
+      {lineaAbierta && (
+        <label>
+          <input type="checkbox" checked={soloEsta} onChange={(e) => setSoloEsta(e.target.checked)} />
+          {' '}Solo <b>{lineaAbierta}</b>
+        </label>
+      )}
+      <p className="mapa-capas-n">
+        <button type="button" className="boton" disabled={buscando} onClick={() => void consultar()}>
+          {buscando ? 'Consultando…' : 'Consultar'}
+        </button>
+        {' '}<span className="fine">del {r.desde} al {r.hasta}</span>
+      </p>
+
+      {fallo && <p className="advertencia alerta"><b>No se pudo consultar:</b> {fallo}</p>}
+
+      {/* ⚠️ «No hay» se DICE, con la fecha que se pidió. Una tabla vacía sin
+          frase se lee como que la pantalla está rota. */}
+      {filas && filas.length === 0 && (
+        <p className="advertencia">
+          <b>No existen registros de cargabilidad para el periodo seleccionado</b> ({r.desde} al{' '}
+          {r.hasta}{soloEsta && lineaAbierta ? `, línea ${lineaAbierta}` : ''}).
+        </p>
+      )}
+
+      {filas && filas.length > 0 && (
+        <>
+          <p className="mapa-capas-n">
+            <b>{nf(filas.length)} día(s)</b> con dato · pico del periodo{' '}
+            {pico
+              ? <><b style={{ color: tintaDe(pico.maxima_pct as number) }}>
+                {nf(pico.maxima_pct as number, 1)} %</b> el {String(pico.fecha)} en{' '}
+                {String(pico.linea)}</>
+              : <b>sin medida</b>}
+          </p>
+          {/* ⚠️ Si se recortó, se dice. Enseñar 1.200 de 3.000 días sin avisar
+              haría creer que se vio el total del histórico. */}
+          {recortado && (
+            <p className="advertencia">
+              <b>Se recortó la consulta.</b> Hay más días de los que caben de una vez; se muestran
+              los primeros. Acote el periodo o filtre por una línea para verlo entero.
+            </p>
+          )}
+          <div className="tabla-scroll">
+            <table className="tabla">
+              <thead><tr><th>Fecha</th><th>Línea</th><th>Máxima</th><th>Promedio</th>
+                <th>Mínima</th><th>Horas con dato</th><th>Sobrecarga</th></tr></thead>
+              <tbody>
+                {filas.slice(0, 60).map((f, i) => (
+                  <tr key={i}>
+                    <td>{String(f.fecha)}</td>
+                    <td>{String(f.linea)}</td>
+                    <td style={{ color: tintaDe(f.maxima_pct as number ?? null) }}>
+                      {f.maxima_pct == null ? 'sin medida' : `${nf(f.maxima_pct as number, 1)} %`}
+                    </td>
+                    <td>{f.promedio_pct == null ? '—' : `${nf(f.promedio_pct as number, 1)} %`}</td>
+                    <td>{f.minima_pct == null ? '—' : `${nf(f.minima_pct as number, 1)} %`}</td>
+                    <td>{nf(f.horasConMedida as number)} de 24</td>
+                    <td>{nf((f.porBanda as Record<string, number>)?.sobrecarga ?? 0)} h</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {filas.length > 60 && (
+            <p className="fine">Se muestran 60 de {nf(filas.length)} días.</p>
+          )}
+        </>
+      )}
+      <p className="fine">
+        Esta consulta lee <b>resúmenes diarios</b>, no las 24 horas de cada día: un año de diez
+        líneas son 3.650 lecturas así, y 87.600 de la otra forma.
+      </p>
+    </div>
   );
 }
 

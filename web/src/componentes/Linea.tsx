@@ -853,7 +853,10 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
             quien no abra la pestaña no baja un byte de eso. */}
         {activa === 'cargabilidad' && (
           <Suspense fallback={<p className="fine">Preparando el lector de archivos…</p>}>
-            <Cargabilidad lineaAbierta={linea.codigo} />
+            <Cargabilidad lineaAbierta={linea.codigo}
+              sesion={sesion.fase === 'autenticado'
+                ? { rol: sesion.rol, orgId: sesion.orgId, uid: sesion.uid }
+                : undefined} />
           </Suspense>
         )}
         {activa === 'viento' && <Viento apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} />}
