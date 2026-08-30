@@ -1,6 +1,6 @@
 {
   "name": "@lineas/nucleo",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "private": true,
   "type": "module",
   "description": "Núcleo de cálculo de ingeniería de líneas AT — funciones puras, sin DOM ni red.",
@@ -18,7 +18,8 @@
     "./longitudinal": "./longitudinal.js",
     "./rca": "./rca.js",
     "./clima": "./clima.js",
-    "./cargabilidad": "./cargabilidad.js"
+    "./cargabilidad": "./cargabilidad.js",
+    "./cargabilidadAncho": "./cargabilidadAncho.js"
   },
   "sideEffects": false
 }

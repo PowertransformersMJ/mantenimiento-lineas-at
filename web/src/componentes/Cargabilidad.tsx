@@ -45,6 +45,9 @@ import {
   marcasX, marcasY, ordenarPor, paginar, REFERENCIAS, aCsv, techoY, tramosDeLinea, x, y,
   type Direccion,
 } from '../vistas/cargabilidadVista';
+import {
+  cerosAlFinal, CRITERIOS_DE_FASE, pareceAncho, registrosDesdeAncho,
+} from '@lineas/nucleo/cargabilidadAncho';
 import { nf } from '../vistas/formato';
 
 type Registro = Record<string, string | number | null>;
@@ -60,8 +63,10 @@ interface Cargado {
   matriz: Celda[][];
   /** Qué fila se está usando como cabecera. Se detecta, y se puede corregir. */
   filaCabecera: number;
-  /** Por qué se eligió esa fila. Se dice en pantalla: no se decide a escondidas. */
+  /** Por qué se eligió esa fila (o por qué se leyó como matriz). Se dice. */
   porQue: string;
+  /** `true` = exportación de SCADA transpuesta; `false` = tabla de siempre. */
+  ancho: boolean;
   cabeceras: string[];
   filas: Record<string, Celda>[];
 }
@@ -75,12 +80,16 @@ function descargar(nombre: string, texto: string) {
   URL.revokeObjectURL(url);
 }
 
-export default function Cargabilidad() {
+export default function Cargabilidad({ lineaAbierta }: { lineaAbierta?: string } = {}) {
   const entrada = useRef<HTMLInputElement>(null);
   const [cargado, setCargado] = useState<Cargado | null>(null);
   const [mapeo, setMapeo] = useState<Mapeo>({});
   const [fallo, setFallo] = useState<string | null>(null);
   const [leyendo, setLeyendo] = useState(false);
+  /** Lo que hace falta cuando el archivo viene TRANSPUESTO, de SCADA. */
+  const [linea, setLinea] = useState<string>(lineaAbierta ?? '');
+  const [criterioFase, setCriterioFase] = useState('maxima');
+  const [asignado, setAsignado] = useState<Record<number, string | null>>({});
 
   // ── Leer el archivo ───────────────────────────────────────────────────────
   const alElegir = async (archivo: File | null) => {
@@ -100,16 +109,25 @@ export default function Cargabilidad() {
       // Ingeniero, suponerlo dio UNA columna sin nombre y cero campos: su hoja
       // empieza por un título. Se busca la fila que más campos reconoce.
       const cab = encontrarCabecera(hoja.matriz);
+
+      // ⚠️ ¿TABLA O MATRIZ TRANSPUESTA? (`§ADR-088`). Una exportación de SCADA
+      // no tiene cabecera que encontrar: el tiempo va en COLUMNAS y cada
+      // magnitud en su fila. Buscar mejor la cabecera no arregla eso — hay que
+      // reconocer la FORMA, y son dos caminos distintos desde aquí.
+      const forma = pareceAncho(hoja.matriz, cab);
       const fila = cab.fila ?? 0;
       const { cabeceras, filas } = filasDesde(hoja.matriz, fila);
-      if (!filas.length) throw new Error('el archivo no trae ninguna fila con datos');
+      if (!forma.ancho && !filas.length) throw new Error('el archivo no trae ninguna fila con datos');
 
+      setAsignado({});
+      setLinea(lineaAbierta ?? '');
       setCargado({
         nombre: archivo.name, cuando: new Date(), hoja: hoja.nombre,
-        matriz: hoja.matriz, filaCabecera: fila, porQue: cab.porQue,
-        cabeceras, filas,
+        matriz: hoja.matriz, filaCabecera: fila,
+        porQue: forma.ancho ? forma.porQue : cab.porQue,
+        ancho: forma.ancho, cabeceras, filas,
       });
-      setMapeo(detectarMapeo(cabeceras).mapeo);
+      if (!forma.ancho) setMapeo(detectarMapeo(cabeceras).mapeo);
     } catch (e) {
       setFallo((e as Error).message);
       setCargado(null);
@@ -135,12 +153,30 @@ export default function Cargabilidad() {
   };
 
   // ── Procesar con el mapeo que haya AHORA ──────────────────────────────────
+  /** La lectura ANCHA, cuando toca. Se recalcula al cambiar línea, señal o criterio. */
+  const ancho = useMemo(() => {
+    if (!cargado?.ancho) return null;
+    return registrosDesdeAncho(cargado.matriz, { linea: linea.trim(), asignado, criterioFase });
+  }, [cargado, linea, asignado, criterioFase]);
+
   const lote = useMemo(() => {
     if (!cargado) return null;
+    if (cargado.ancho) {
+      if (!linea.trim()) {
+        return { faltanAncho: true, registros: [], errores: [], resumen: null, escalaPct: null };
+      }
+      const registros = ancho?.registros ?? [];
+      return {
+        faltan: [], registros, errores: [],
+        escalaPct: { escala: 1, porQue: 'la matriz trae magnitudes, no porcentajes', ambigua: false },
+        resumen: { filas: registros.length, correctos: registros.length, conError: 0,
+          camposPorLlenar: camposAusentes(registros as never[]) },
+      };
+    }
     const faltan = Object.keys(CAMPOS).filter((c) => CAMPOS[c].requerido && !mapeo[c]);
     if (faltan.length) return { faltan, registros: [], errores: [], resumen: null, escalaPct: null };
     return { faltan: [], ...procesarLote(cargado.filas as Record<string, unknown>[], mapeo) };
-  }, [cargado, mapeo]);
+  }, [cargado, mapeo, ancho, linea]);
 
   const registros = (lote?.registros ?? []) as Registro[];
   const tablero = useMemo(() => (registros.length ? resumen(registros) : null), [registros]);
@@ -201,10 +237,24 @@ export default function Cargabilidad() {
             {' '}· cargado el {cargado.cuando.toLocaleString('es-CO')}
           </p>
 
-          <CabeceraElegida cargado={cargado} alUsarFila={usarFila} />
-          <MapeoDeColumnas cabeceras={cargado.cabeceras} mapeo={mapeo} alCambiar={setMapeo} />
+          {cargado.ancho ? (
+            <SenalesDelScada cargado={cargado} ancho={ancho} linea={linea} alCambiarLinea={setLinea}
+              lineaAbierta={lineaAbierta} criterioFase={criterioFase} alCambiarCriterio={setCriterioFase}
+              asignado={asignado} alAsignar={setAsignado} />
+          ) : (
+            <>
+              <CabeceraElegida cargado={cargado} alUsarFila={usarFila} />
+              <MapeoDeColumnas cabeceras={cargado.cabeceras} mapeo={mapeo} alCambiar={setMapeo} />
+            </>
+          )}
 
-          {lote?.faltan?.length ? (
+          {cargado.ancho && !linea.trim() ? (
+            <p className="advertencia">
+              <b>Falta decir de qué línea es este archivo.</b> La exportación nombra la subestación y
+              la bahía, no la línea — y atribuir estas mediciones a la línea equivocada es lo más
+              caro de equivocar aquí, así que no se adivina.
+            </p>
+          ) : lote?.faltan?.length ? (
             <p className="advertencia">
               <b>Falta decir qué columna es {lote.faltan.map((c) => CAMPOS[c].rotulo).join(' y ')}.</b>{' '}
               Sin eso una fila no se puede fechar ni atribuir a una línea, así que no se procesa nada.
@@ -224,6 +274,113 @@ export default function Cargabilidad() {
         </>
       )}
     </section>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// LA EXPORTACIÓN DE SCADA — el tiempo en columnas, cada magnitud en su fila
+// ════════════════════════════════════════════════════════════════════════════
+//
+// Aquí se piden las TRES cosas que el archivo no dice y el sistema no puede
+// deducir sin arriesgarse: de qué línea es, qué señal es qué magnitud, y con qué
+// criterio se juntan las tres fases. Ninguna viene decidida de fábrica.
+function SenalesDelScada({
+  cargado, ancho, linea, alCambiarLinea, lineaAbierta, criterioFase, alCambiarCriterio,
+  asignado, alAsignar,
+}: {
+  cargado: Cargado;
+  ancho: ReturnType<typeof registrosDesdeAncho> | null;
+  linea: string; alCambiarLinea: (v: string) => void; lineaAbierta?: string;
+  criterioFase: string; alCambiarCriterio: (v: string) => void;
+  asignado: Record<number, string | null>;
+  alAsignar: (a: Record<number, string | null>) => void;
+}) {
+  const senales = ancho?.senales ?? [];
+  const ceros = ancho ? cerosAlFinal(ancho.senales, ancho.eje) : null;
+  const fases = senales.filter((s) => s.campo === 'corriente_A' && s.fase).length;
+
+  return (
+    <div className="tarjeta">
+      <p className="mapa-capas-t">Este archivo viene de SCADA</p>
+      <p className="mapa-capas-n">
+        No es una tabla: es una <b>matriz transpuesta</b> — {cargado.porQue}. Se lee tal cual, sin
+        que usted tenga que reescribirla.
+      </p>
+
+      {/* ── 1 · DE QUÉ LÍNEA ES ─────────────────────────────────────────── */}
+      <label className="mapa-tiempo-dia">
+        <span>Línea *</span>
+        <input type="text" value={linea} onChange={(e) => alCambiarLinea(e.target.value)}
+          placeholder="p. ej. LN-627" aria-label="De qué línea es este archivo" />
+      </label>
+      <p className="fine">
+        {lineaAbierta
+          ? <>Se propone <b>{lineaAbierta}</b> porque es la línea que tiene abierta. Cámbielo si el
+            archivo es de otra: el archivo nombra la subestación y la bahía, no la línea.</>
+          : <>El archivo nombra la subestación y la bahía, no la línea. Escríbala usted.</>}
+      </p>
+
+      {/* ── 2 · QUÉ SEÑAL ES QUÉ ────────────────────────────────────────── */}
+      <p className="mapa-capas-t">Qué señal es qué</p>
+      <div className="tabla-scroll">
+        <table className="tabla">
+          <thead><tr><th>Señal del archivo</th><th>Se leyó como</th><th>Primeros valores</th></tr></thead>
+          <tbody>
+            {senales.map((s) => (
+              <tr key={s.fila}>
+                <td>{s.etiqueta}</td>
+                <td>
+                  <select value={s.campo ?? ''}
+                    onChange={(e) => alAsignar({ ...asignado, [s.fila]: e.target.value || null })}>
+                    <option value="">— no usar —</option>
+                    {Object.keys(CAMPOS).filter((c) => CAMPOS[c].tipo === 'numero')
+                      .map((c) => (
+                        <option key={c} value={c}>
+                          {CAMPOS[c].rotulo}{CAMPOS[c].unidad ? ` (${CAMPOS[c].unidad})` : ''}
+                        </option>
+                      ))}
+                  </select>
+                  {s.propuesta && asignado[s.fila] === undefined && (
+                    <span className="fine"> · {s.propuesta.porQue}</span>
+                  )}
+                </td>
+                <td className="fine">
+                  {s.valores.slice(0, 6).map((v: number | null) => (v == null ? '—' : nf(v, 0))).join(' · ')}…
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {senales.some((s) => !s.campo) && (
+        <p className="fine">
+          Una señal en «no usar» no aporta nada y no estorba. Se dejan así las que no se
+          reconocieron: asignar mal una señal no da error, da una gráfica falsa.
+        </p>
+      )}
+
+      {/* ── 3 · CÓMO SE JUNTAN LAS FASES ────────────────────────────────── */}
+      {fases > 1 && (
+        <>
+          <p className="mapa-capas-t">Las {fases} fases, en un solo número por hora</p>
+          <div className="acciones" role="group" aria-label="Criterio para juntar las fases">
+            {CRITERIOS_DE_FASE.map((c) => (
+              <button key={c.id} type="button"
+                className={'boton chico' + (criterioFase === c.id ? ' activo' : '')}
+                aria-pressed={criterioFase === c.id} onClick={() => alCambiarCriterio(c.id)}>
+                {c.rotulo}
+              </button>
+            ))}
+          </div>
+          <p className="fine">
+            {CRITERIOS_DE_FASE.find((c) => c.id === criterioFase)?.porQue}
+          </p>
+        </>
+      )}
+
+      {/* ⚠️ EL AVISO QUE NO SE PUEDE CALLAR NI DECIDIR. */}
+      {ceros && <p className="advertencia"><b>Ojo con el final del día.</b> {ceros.aviso}</p>}
+    </div>
   );
 }
 
