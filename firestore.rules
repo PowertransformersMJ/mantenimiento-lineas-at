@@ -294,6 +294,63 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // ── CARGABILIDAD ELÉCTRICA (`99 §ADR-088`) ─────────────────────────────
+    //
+    // Tres colecciones, y la primera diferencia con todo lo demás: **son las de
+    // VOLUMEN**. Hasta aquí la base guardaba 26 apoyos; esto mete miles de
+    // mediciones de operación al mes. Por eso el día entero va en UN documento
+    // con sus 24 horas dentro — la decisión está argumentada en
+    // `contratos/src/cargabilidad.ts`, y aquí solo se hace cumplir quién escribe.
+    //
+    // ⚠️ SOLO ADMINISTRADOR ESCRIBE, y es más estricto que `esEditor()` a
+    // propósito: esto es dato de OPERACIÓN que alimenta un dictamen de
+    // ampacidad. Quien va a campo con el teléfono no tiene por qué poder
+    // reescribir el histórico de carga de una línea. Recomendación aceptada por
+    // el Ingeniero el 2026-08-30.
+    //
+    // ⚠️ `update` SÍ se permite —y solo aquí—: volver a cargar el mismo día
+    // corregido tiene que ESCRIBIR ENCIMA, no crear un gemelo. El id es
+    // determinista justo para eso. Sin `update`, la segunda carga fallaría y el
+    // Ingeniero no tendría forma de corregir un dato malo.
+    //
+    // ⚠️ `delete` NO. Un histórico del que se puede borrar una hora incómoda no
+    // es un histórico. Corregir es volver a cargar; retirar es una decisión que
+    // se toma fuera y deja rastro.
+    function cargabilidadCoherente() {
+      return altaCoherente()
+          // La línea es obligatoria y no puede venir vacía: un registro que no
+          // se sabe de qué línea es no sirve para nada y ensucia el histórico.
+          && request.resource.data.linea is string
+          && request.resource.data.linea.size() > 0;
+    }
+
+    match /cargabilidad_dias/{diaId} {
+      allow read:   if puedeLeer();
+      allow create: if esAdmin() && cargabilidadCoherente();
+      allow update: if esAdmin() && deMiOrg(resource.data) && noTocaReservados();
+      allow delete: if false;
+    }
+
+    // El resumen es DERIVADO del día: se reconstruye entero desde él, y si algún
+    // día discreparan, manda el día. Se guarda solo para que el tablero no tenga
+    // que leer 8.760 lecturas para pintar 365 puntos.
+    match /cargabilidad_resumenes/{resumenId} {
+      allow read:   if puedeLeer();
+      allow create: if esAdmin() && altaCoherente();
+      allow update: if esAdmin() && deMiOrg(resource.data) && noTocaReservados();
+      allow delete: if false;
+    }
+
+    // De qué archivo salió cada cosa. Es el rastro que permite responder «¿de
+    // dónde salió este número?» dentro de seis meses, así que **no se toca**:
+    // se crea y se queda, igual que `sondeos_clima`.
+    match /cargabilidad_cargas/{cargaId} {
+      allow read:   if puedeLeer();
+      allow create: if esAdmin() && altaCoherente();
+      allow update: if false;
+      allow delete: if false;
+    }
+
     // Todo lo no declarado queda cerrado. Añadir una colección exige añadir su
     // regla: no hay forma de colar datos por una puerta que nadie pensó.
     match /{document=**} {
