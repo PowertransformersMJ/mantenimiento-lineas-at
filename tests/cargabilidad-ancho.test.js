@@ -19,6 +19,11 @@
 // ============================================================================
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
+import { leerXlsx } from '../importar/xlsx.js';
+import { contrasteConLaAmpacidad, encontrarCabecera, resumen } from '../nucleo/cargabilidad.js';
 
 import {
   campoDeSenal, cerosAlFinal, CRITERIOS_DE_FASE, encontrarEjeDeTiempo, instanteDeSerial,
@@ -240,5 +245,56 @@ describe('reconocer la forma del archivo antes de leerlo', () => {
 
   test('un archivo sin sellos de tiempo tampoco es ancho', () => {
     assert.equal(pareceAncho([['Fecha', 'Línea'], ['22/07/2026', 'LN-627']], { fila: 0 }).ancho, false);
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// 6 · LA CADENA ENTERA, desde un `.xlsx` DE VERDAD
+// ════════════════════════════════════════════════════════════════════════════
+//
+// Las suites de arriba prueban la lógica sobre una matriz escrita a mano. Ésta
+// prueba lo mismo pasando por el LECTOR real, con un `.xlsx` que tiene la
+// estructura de su exportación: si algún día el lector cambia y deja de entregar
+// la matriz cruda, esto se pone rojo y las otras no.
+describe('del .xlsx de SCADA al tablero, sin tocar nada a mano', () => {
+  const ARCHIVO = fileURLToPath(new URL('./fixtures/cargabilidad-scada-ancho.xlsx', import.meta.url));
+
+  test('se reconoce como matriz, no como tabla', async () => {
+    const { hojas } = await leerXlsx(readFileSync(ARCHIVO));
+    const forma = pareceAncho(hojas[0].matriz, encontrarCabecera(hojas[0].matriz));
+    assert.equal(forma.ancho, true, 'se intentó leer como tabla y no lo es');
+    assert.match(forma.porQue, /24 sellos de tiempo/);
+  });
+
+  test('las tres fases se reconocen solas y salen 24 horas del 22 de julio', async () => {
+    const { hojas } = await leerXlsx(readFileSync(ARCHIVO));
+    const r = registrosDesdeAncho(hojas[0].matriz, { linea: 'LN-627' });
+    assert.equal(r.senales.length, 3);
+    assert.ok(r.senales.every((s) => s.campo === 'corriente_A'));
+    assert.deepEqual(r.senales.map((s) => s.fase), ['R', 'S', 'T']);
+    assert.equal(r.registros.length, 24);
+    assert.equal(r.registros[0].fecha, '2026-07-22');
+  });
+
+  test('el tablero cuenta el día entero, y el pico es el de la fase más cargada', async () => {
+    const { hojas } = await leerXlsx(readFileSync(ARCHIVO));
+    const r = registrosDesdeAncho(hojas[0].matriz, { linea: 'LN-627' });
+    const t = resumen(r.registros);
+    assert.equal(t.registros, 24);
+    assert.equal(t.lineas, 1);
+    const pico = r.registros.reduce((a, b) => (b.corriente_A > a.corriente_A ? b : a));
+    assert.equal(pico.corriente_A, 502);
+    assert.equal(pico.hora, 21);
+  });
+
+  test('⚠️ sin porcentaje en el archivo, el contraste con la AMPACIDAD sí se puede dar', () => {
+    // Es lo único que este sistema aporta y el archivo no traía: 502 A no dicen
+    // nada solos; contra la ampacidad de un día en calma son el 98 %.
+    const c = contrasteConLaAmpacidad(
+      { cargabilidad_pct: null, corriente_A: 502, naturaleza: null }, 512);
+    assert.equal(c.comparable, true);
+    assert.equal(c.contraAmpacidad_pct, 98.05);
+    assert.equal(c.banda, 'atencion');
+    assert.equal(c.declarado_pct, null, 'se inventó un porcentaje que el archivo no traía');
   });
 });
