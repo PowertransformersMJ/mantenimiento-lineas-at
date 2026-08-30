@@ -298,3 +298,31 @@ describe('del .xlsx de SCADA al tablero, sin tocar nada a mano', () => {
     assert.equal(c.declarado_pct, null, 'se inventó un porcentaje que el archivo no traía');
   });
 });
+
+// ════════════════════════════════════════════════════════════════════════════
+// 7 · SE PUEDE MIRAR SIN SESIÓN Y SIN TOCAR PRODUCCIÓN
+// ════════════════════════════════════════════════════════════════════════════
+//
+// ⚠️ `§ADR-071` dejó escrito que no se publica dibujo que no se pueda mirar, y
+// el Ingeniero añadió el 29-08 que no se le carguen archivos ajenos contra su
+// producción. Las dos cosas se cumplen con lo mismo: la pantalla vive también en
+// el BANCO, que no pide sesión y no es el sitio publicado.
+describe('la pantalla se puede mirar en el banco', () => {
+  const leer = (p) => readFileSync(fileURLToPath(new URL('../' + p, import.meta.url)), 'utf-8');
+
+  test('el banco monta la pantalla de cargabilidad y se abre por la dirección', () => {
+    const banco = leer('web/src/sonda-satelital.tsx');
+    assert.match(banco, /import Cargabilidad from '\.\/componentes\/Cargabilidad'/,
+      'el banco dejó de montar la pantalla: verificarla vuelve a exigir su navegador');
+    assert.match(banco, /'cargabilidad'/, 'no se puede abrir por `?que=cargabilidad`');
+    assert.match(banco, /<Cargabilidad lineaAbierta=/,
+      'el banco no le pasa una línea: no se puede probar la propuesta');
+  });
+
+  test('el banco NO viaja al sitio publicado', () => {
+    // Es lo que permite que exista sin riesgo: se construye aparte, con
+    // `SONDA_MAPA=1`, y Vite solo publica `index.html`.
+    const vite = leer('web/vite.config.ts');
+    assert.match(vite, /SONDA_MAPA/, 'el banco dejó de estar detrás de su bandera');
+  });
+});

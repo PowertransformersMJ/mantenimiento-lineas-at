@@ -26,6 +26,7 @@ import { createRoot } from 'react-dom/client';
 import type { Apoyo } from '@lineas/contratos';
 import Mapa from './componentes/Mapa';
 import { AtlasCaribe } from './componentes/AtlasCaribe';
+import Cargabilidad from './componentes/Cargabilidad';
 import { ATLAS, ATLAS_EN_ORDEN, type ClaveAtlas } from './vistas/atlasCatalogo';
 import { CORREDOR, CORREDOR_EN_ORDEN, type ClaveCorredor } from './vistas/corredor';
 import { bordeDeCelda, celdaDe } from './vistas/rejilla';
@@ -104,7 +105,7 @@ function lineaFalsaEnElAtlas(ficha: FichaAtlas, cruzando: boolean): Apoyo[] {
 }
 
 /** Qué se está mirando en el banco. */
-type Que = 'mapa' | 'atlas-una' | 'atlas-dos';
+type Que = 'mapa' | 'atlas-una' | 'atlas-dos' | 'cargabilidad';
 
 /**
  * EL BANCO SE PUEDE ABRIR YA PUESTO, por la dirección: `?que=atlas-una&atlas=lluvia`.
@@ -124,7 +125,7 @@ function Banco() {
   const [apoyos, setApoyos] = useState<Apoyo[] | null>(null);
   const [fallo, setFallo] = useState<string | null>(null);
   const [que, setQue] = useState<Que>(
-    () => delDirectorio<Que>('que', ['mapa', 'atlas-una', 'atlas-dos'], 'mapa'));
+    () => delDirectorio<Que>('que', ['mapa', 'atlas-una', 'atlas-dos', 'cargabilidad'], 'mapa'));
   const [atlas, setAtlas] = useState<ClaveAtlas>(
     () => delDirectorio<ClaveAtlas>('atlas', ATLAS_EN_ORDEN, 'temperatura'));
   const [ficha, setFicha] = useState<FichaAtlas | null>(null);
@@ -165,13 +166,22 @@ function Banco() {
           onClick={() => setQue('atlas-una')}>Atlas · línea en UNA celda</button>
         <button type="button" className={'boton chico' + (que === 'atlas-dos' ? ' activo' : '')}
           onClick={() => setQue('atlas-dos')}>Atlas · línea que cruza DOS</button>
+        {/* ⚠️ CARGABILIDAD EN EL BANCO (`§ADR-088`). Esa pantalla vive detrás de
+            la sesión, así que mirarla dependía de que el Ingeniero abriera su
+            navegador — y además él prohibió cargarle archivos que no son suyos
+            contra producción (29-08). Aquí se puede mirar sin sesión, sin tocar
+            producción y con un archivo de prueba, que es lo que su orden pide. */}
+        <button type="button" className={'boton chico' + (que === 'cargabilidad' ? ' activo' : '')}
+          onClick={() => setQue('cargabilidad')}>Cargabilidad eléctrica</button>
       </div>
       {corredor !== 'no' && (
         <p className="fine">
           Banco con la capa fina del corredor puesta: <b>{CORREDOR[corredor].rotulo}</b>.
         </p>
       )}
-      {que === 'mapa'
+      {que === 'cargabilidad'
+        ? <Cargabilidad lineaAbierta="LN-FALSA" />
+        : que === 'mapa'
         ? <Mapa apoyos={apoyos} pantalla="banco-componente-real" />
         : (
           <AtlasCaribe atlas={atlas} alCambiarAtlas={setAtlas}
