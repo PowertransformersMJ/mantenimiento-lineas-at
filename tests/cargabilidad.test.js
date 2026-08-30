@@ -23,6 +23,7 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import * as nodeFs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 /** El texto de un archivo del repo. Lo piden los guardianes de color del §10. */
@@ -603,5 +604,80 @@ describe('un documento por línea y día, no uno por lectura', () => {
     assert.equal(c.siFueraPorLectura, 87600,
       'la cifra que justifica el diseño entero dejó de calcularse');
     assert.ok(c.siFueraPorLectura / c.documentos === 24);
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// 12 · NI UN DATO INVENTADO — orden del Ingeniero (2026-08-29)
+// ════════════════════════════════════════════════════════════════════════════
+//
+// «No coloques información basura en el módulo de cargabilidad, ahí solo se
+// deben reflejar datos reales que yo te entregue.»
+//
+// No es una preferencia de estilo: en el proyecto hermano ya costó un ADR entero
+// («veo información basura»: una pantalla enseñaba equipos inventados sin
+// rotularlos). Un dato de ejemplo en un módulo que alimenta dictámenes no se
+// distingue de un dato real cuando alguien lo mira con prisa — y el que mira con
+// prisa es siempre el que decide.
+describe('el módulo no enseña nada que el Ingeniero no haya entregado', () => {
+  const FUENTES = [
+    'web/src/componentes/Cargabilidad.tsx',
+    'web/src/vistas/cargabilidadVista.ts',
+    'nucleo/cargabilidad.js',
+    'importar/xlsx.js',
+  ];
+
+  test('no hay líneas, subestaciones ni lecturas escritas en el código', () => {
+    for (const f of FUENTES) {
+      // Se mira el CÓDIGO, no los comentarios: un ejemplo explicando el porqué
+      // es documentación; el mismo texto en un literal es un dato falso.
+      const codigo = leer(f)
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .split('\n').filter((l) => !l.trim().startsWith('//')).join('\n');
+      assert.ok(!/'LN-[A-Z0-9]/.test(codigo) && !/"LN-[A-Z0-9]/.test(codigo),
+        `${f} tiene un nombre de línea escrito en el código`);
+      assert.ok(!/\bSE [A-ZÁÉÍÓÚ]/.test(codigo), `${f} tiene una subestación escrita en el código`);
+    }
+  });
+
+  test('no hay respaldo de «demostración» al que caer cuando falta el dato', () => {
+    // Es la trampa exacta del proyecto hermano: un baseline local de tres
+    // equipos que se enseña cuando no hay parque cargado. Aquí, sin archivo no
+    // se enseña NADA — que es la única respuesta honesta.
+    for (const f of FUENTES) {
+      const codigo = leer(f);
+      assert.ok(!/baseline|datos de ejemplo|demo[Dd]atos|FIXTURE|fixture/.test(codigo),
+        `${f} tiene un respaldo de demostración`);
+    }
+  });
+
+  test('la pantalla DICE que está vacía, en vez de callar', () => {
+    const pant = leer('web/src/componentes/Cargabilidad.tsx');
+    assert.match(pant, /Aquí no hay nada hasta que usted cargue su archivo/,
+      'una pantalla muda invita a rellenarla con un ejemplo');
+    assert.match(pant.replace(/\s+/g, ' '), /no trae datos de ejemplo ni de demostración/,
+      'se cayó la promesa de que aquí no hay datos inventados');
+  });
+
+  test('el fixture sintético NO sale de `tests/`', () => {
+    // Existe para probar el lector y jamás para enseñarse. Si un día apareciera
+    // en `web/public/` viajaría al sitio publicado y podría cargarse por error.
+    for (const ruta of ['web/public/cargabilidad-sintetico.xlsx',
+      'web/src/cargabilidad-sintetico.xlsx', 'web/dist/cargabilidad-sintetico.xlsx']) {
+      assert.ok(!nodeFs.existsSync(fileURLToPath(new URL('../' + ruta, import.meta.url))),
+        `el fixture se coló en ${ruta}: desde ahí viaja al sitio publicado`);
+    }
+  });
+
+  test('el entorno es DINÁMICO: nada del archivo se da por sabido', () => {
+    // Las líneas, las columnas, las fechas y el número de registros salen SIEMPRE
+    // de lo que se cargue. Lo único fijo son las bandas 80/90/100, que las pidió
+    // él y viven en UN sitio declarado como convención de lectura, no como norma.
+    const nucleo = leer('nucleo/cargabilidad.js');
+    assert.match(nucleo, /BANDAS DE LECTURA|son de LECTURA, NO un dictamen|ESTAS BANDAS SON DE LECTURA/,
+      'las bandas dejaron de declararse como convención y pasan por norma');
+    const pant = leer('web/src/componentes/Cargabilidad.tsx');
+    assert.match(pant, /\[\.\.\.new Set\(registros\.map\(/,
+      'las líneas de la gráfica dejaron de salir del archivo cargado');
   });
 });

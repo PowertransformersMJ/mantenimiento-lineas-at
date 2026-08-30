@@ -145,6 +145,21 @@ export default function Cargabilidad() {
 
       {fallo && <p className="advertencia alerta"><b>No se pudo leer el archivo:</b> {fallo}</p>}
 
+      {/* ⚠️ EL VACÍO SE DICE. Orden del Ingeniero (2026-08-29): «no coloques
+          información basura en el módulo de cargabilidad, ahí solo se deben
+          reflejar datos reales que yo te entregue». Una pantalla muda invita a
+          rellenarla con un ejemplo «para que se vea cómo queda», y de ahí a que
+          alguien tome ese ejemplo por un dato hay un paso. Aquí no hay ejemplos,
+          no hay datos de demostración y no los va a haber: lo que se ve sale de
+          SU archivo o no se ve nada. Hay un guardián que lo comprueba. */}
+      {!cargado && !fallo && (
+        <p className="mapa-capas-n">
+          <b>Aquí no hay nada hasta que usted cargue su archivo.</b> Este módulo no trae datos de
+          ejemplo ni de demostración: todo lo que aparezca sale de lo que usted entregue, y por eso
+          cada cifra se puede rastrear hasta su fila del Excel.
+        </p>
+      )}
+
       {cargado && (
         <>
           <p className="mapa-capas-n">
