@@ -32,7 +32,8 @@ const leer = (p) => readFileSync(fileURLToPath(new URL('../' + p, import.meta.ur
 import {
   aFecha, aHora, aNumero, atipicos, bandaDe, camposAusentes, claveDeRegistro,
   contrasteConLaAmpacidad, derivarPorcentaje, detectarMapeo, escalaDelPorcentaje,
-  costeDeLectura, desempaquetarDia, empaquetarPorDia, histograma, mapaDeCalor,
+  costeDeLectura, desempaquetarDia, elegirHoja, empaquetarPorDia, encontrarCabecera,
+  histograma, mapaDeCalor, puntuarCabecera,
   normalizarCabecera, normalizarFila, porLinea, procesarLote, promedioMovil, resumen,
   resumirDia, separarNuevos, serieTemporal, tendencia,
 } from '../nucleo/cargabilidad.js';
@@ -679,5 +680,78 @@ describe('el módulo no enseña nada que el Ingeniero no haya entregado', () => 
     const pant = leer('web/src/componentes/Cargabilidad.tsx');
     assert.match(pant, /\[\.\.\.new Set\(registros\.map\(/,
       'las líneas de la gráfica dejaron de salir del archivo cargado');
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// 13 · LA CABECERA CASI NUNCA ES LA PRIMERA FILA
+// ════════════════════════════════════════════════════════════════════════════
+//
+// ⚠️ NACE DE UN ARCHIVO REAL. El lector daba por hecho que la fila 1 era la
+// cabecera; con el primer `.xlsx` del Ingeniero el resultado fue **una sola
+// columna, sin nombre, y ningún campo reconocido** — su hoja empieza por un
+// título, como cualquier informe de operación. La pantalla le pedía mapear trece
+// columnas a mano, que es justo lo que no puede pasar.
+describe('la cabecera se BUSCA, no se supone', () => {
+  const conTitulo = [
+    ['CARGAS 22 JUL LN-627', null, null],
+    [],
+    ['Fecha', 'Hora', '% Carga'],
+    ['22/07/2026', 10, 80],
+  ];
+
+  test('un título y una fila en blanco por delante no despistan', () => {
+    const c = encontrarCabecera(conTitulo);
+    assert.equal(c.fila, 2, 'se tomó el título por cabecera');
+    assert.equal(c.reconocidas, 3);
+    assert.match(c.porQue, /fila 3/);
+  });
+
+  test('⚠️ gana la más RECONOCIBLE, no la más llena', () => {
+    // El título de un informe también está lleno. Si «llena» pesara, ganaría él.
+    const c = encontrarCabecera([
+      ['Informe', 'de', 'cargas', 'de', 'la', 'linea', 'en', 'julio'],
+      ['Fecha', 'Línea'],
+    ]);
+    assert.equal(c.fila, 1, 'ganó la fila con más celdas en vez de la que reconoce campos');
+  });
+
+  test('si la cabecera se repite más abajo, manda la de arriba', () => {
+    const c = encontrarCabecera([
+      ['Fecha', 'Hora', 'Línea'], ['22/07/2026', 1, 'X'], ['Fecha', 'Hora', 'Línea'],
+    ]);
+    assert.equal(c.fila, 0);
+  });
+
+  test('⚠️ si NADA se reconoce, NO se inventa una cabecera: se devuelven candidatas', () => {
+    // Mapear a ciegas la primera fila llenaría la pantalla de números
+    // equivocados. Es mejor enseñar las filas crudas y que él señale.
+    const c = encontrarCabecera([['a', 'b'], ['c', 'd']]);
+    assert.equal(c.fila, null);
+    assert.ok(c.candidatas.length >= 1, 'no se ofrece con qué decidir');
+    assert.match(c.porQue, /no se reconoció ni un campo/);
+  });
+
+  test('la hoja se elige por lo que RECONOCE, no por la primera ni la mayor', () => {
+    const mejor = elegirHoja([
+      { nombre: 'Portada', matriz: [['Informe mensual'], ['Elaboró: —'], ['Fecha de emisión']] },
+      { nombre: 'Datos', matriz: conTitulo },
+    ]);
+    assert.equal(mejor.nombre, 'Datos');
+    assert.equal(mejor.cabecera.fila, 2);
+  });
+
+  test('una fila vacía no puntúa nada', () => {
+    assert.deepEqual(puntuarCabecera([]), { llenas: 0, reconocidas: 0, requeridos: 0, puntos: 0 });
+    assert.equal(puntuarCabecera([null, '', '   ']).puntos, 0);
+  });
+
+  test('la pantalla DICE qué fila usó y deja señalar otra', () => {
+    const pant = leer('web/src/componentes/Cargabilidad.tsx');
+    assert.match(pant, /encontrarCabecera\(hoja\.matriz\)/, 'la pantalla volvió a suponer la fila 1');
+    assert.match(pant, /elegirHoja\(hojas\)/, 'la pantalla volvió a elegir hoja por tamaño');
+    assert.match(pant, /Se está usando la <b>fila \{cargado\.filaCabecera \+ 1\}/,
+      'no se dice de dónde salió la cabecera: si falla, nadie sabe por qué');
+    assert.match(pant, /alUsarFila/, 'no hay forma de corregir la fila sin salir a tocar el Excel');
   });
 });

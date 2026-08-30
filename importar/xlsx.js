@@ -221,15 +221,37 @@ function leerRelaciones(xml) {
 }
 
 /**
- * UN `.xlsx` → sus hojas, con las filas ya como objetos por cabecera.
+ * LAS FILAS DE UNA MATRIZ, a partir de la fila que sea la cabecera.
  *
- * `filaCabecera` es 0 por defecto pero se puede mover: hay exportaciones de
- * SCADA que ponen un título y dos líneas en blanco antes de la tabla, y en esas
- * la primera fila no es la cabecera. Se ofrece el control en vez de adivinar.
+ * Se separa del lector a propósito: **el lector no sabe qué fila es la
+ * cabecera**, y no debe saberlo — eso depende del dominio, y quien lo decide es
+ * `nucleo/cargabilidad.js` mirando qué fila reconoce más campos. Un lector que
+ * además adivine la cabecera es un lector con opinión, y su opinión se equivocó
+ * con el primer archivo real (`99 §ADR-088`).
+ */
+export function filasDesde(matriz, filaCabecera = 0) {
+  const cruda = matriz[filaCabecera] ?? [];
+  // Una cabecera vacía se nombra por su letra, no se descarta: la columna existe
+  // y su dato también, y el usuario tiene que poder mapearla.
+  const cabeceras = cruda.map((c, i) => (c == null || String(c).trim() === ''
+    ? `(columna ${letraDeColumna(i)})` : String(c).trim()));
+  const filas = matriz.slice(filaCabecera + 1)
+    .filter((f) => f.some((c) => c != null && String(c).trim() !== ''))
+    .map((f) => Object.fromEntries(cabeceras.map((h, i) => [h, f[i] ?? null])));
+  return { cabeceras, filas };
+}
+
+/**
+ * UN `.xlsx` → sus hojas, CRUDAS y también ya despiezadas.
+ *
+ * Cada hoja trae su `matriz` —las celdas tal cual, sin decidir nada— y, por
+ * comodidad, `cabeceras`/`filas` calculadas desde `filaCabecera`. Quien quiera
+ * elegir bien la cabecera usa la `matriz` y `filasDesde()`.
  *
  * @param {ArrayBuffer|Uint8Array} datos
- * @returns {Promise<{hojas: {nombre:string, cabeceras:string[],
- *            filas: Record<string, string|number|boolean|null>[], nFilas:number}[]}>}
+ * @returns {Promise<{hojas: {nombre:string, matriz:(string|number|boolean|null)[][],
+ *            cabeceras:string[], filas: Record<string, string|number|boolean|null>[],
+ *            nFilas:number}[]}>}
  */
 export async function leerXlsx(datos, { filaCabecera = 0 } = {}) {
   const bytes = datos instanceof Uint8Array ? datos : new Uint8Array(datos);
@@ -259,15 +281,8 @@ export async function leerXlsx(datos, { filaCabecera = 0 } = {}) {
   for (const { nombre, destino } of declaradas) {
     const xml = await texto(`xl/${destino}`) ?? await texto('xl/worksheets/sheet1.xml');
     const matriz = leerHoja(xml, cadenas);
-    const cruda = matriz[filaCabecera] ?? [];
-    // Una cabecera vacía se nombra por su letra, no se descarta: la columna
-    // existe y su dato también, y el usuario tiene que poder mapearla.
-    const cabeceras = cruda.map((c, i) => (c == null || String(c).trim() === ''
-      ? `(columna ${letraDeColumna(i)})` : String(c).trim()));
-    const filas = matriz.slice(filaCabecera + 1)
-      .filter((f) => f.some((c) => c != null && String(c).trim() !== ''))
-      .map((f) => Object.fromEntries(cabeceras.map((h, i) => [h, f[i] ?? null])));
-    hojas.push({ nombre, cabeceras, filas, nFilas: filas.length });
+    const { cabeceras, filas } = filasDesde(matriz, filaCabecera);
+    hojas.push({ nombre, matriz, cabeceras, filas, nFilas: filas.length });
   }
   return { hojas };
 }

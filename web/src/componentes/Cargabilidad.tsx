@@ -34,10 +34,11 @@
 //    decidirse.
 // ============================================================================
 import { useMemo, useRef, useState } from 'react';
-import { leerXlsx } from '@lineas/importar/xlsx';
+import { filasDesde, leerXlsx } from '@lineas/importar/xlsx';
 import {
-  atipicos, bandaDe, BANDAS, CAMPOS, camposAusentes, detectarMapeo, histograma,
-  mapaDeCalor, porLinea, procesarLote, resumen, separarNuevos, serieTemporal, tendencia,
+  atipicos, bandaDe, BANDAS, CAMPOS, camposAusentes, detectarMapeo, elegirHoja,
+  encontrarCabecera, histograma, mapaDeCalor, porLinea, procesarLote, resumen,
+  separarNuevos, serieTemporal, tendencia,
 } from '@lineas/nucleo/cargabilidad';
 import {
   RELLENO_BANDA, TINTA_BANDA, tintaDe, csvDeErrores, etiquetaInstante, filtrarPorTexto, LIENZO,
@@ -49,12 +50,20 @@ import { nf } from '../vistas/formato';
 type Registro = Record<string, string | number | null>;
 type Mapeo = Record<string, string>;
 
+type Celda = string | number | boolean | null;
+
 interface Cargado {
   nombre: string;
   cuando: Date;
   hoja: string;
+  /** La hoja CRUDA. De aquí sale todo, y se puede volver a despiezar. */
+  matriz: Celda[][];
+  /** Qué fila se está usando como cabecera. Se detecta, y se puede corregir. */
+  filaCabecera: number;
+  /** Por qué se eligió esa fila. Se dice en pantalla: no se decide a escondidas. */
+  porQue: string;
   cabeceras: string[];
-  filas: Record<string, string | number | boolean | null>[];
+  filas: Record<string, Celda>[];
 }
 
 /** Bajar un texto como archivo. El navegador ya sabe; solo hay que pedírselo. */
@@ -79,16 +88,28 @@ export default function Cargabilidad() {
     setFallo(null); setLeyendo(true);
     try {
       const { hojas } = await leerXlsx(await archivo.arrayBuffer());
-      // La hoja con más filas y no la primera: los informes suelen traer una
-      // portada delante, y abrir por la portada haría creer que el archivo está
-      // vacío. Si empatan, gana la primera, que es la que el usuario espera.
-      const hoja = hojas.reduce((a, b) => (b.nFilas > a.nFilas ? b : a), hojas[0]);
-      if (!hoja || !hoja.nFilas) throw new Error('el archivo no trae ninguna fila con datos');
+      if (!hojas.length) throw new Error('el archivo no trae ninguna hoja');
+
+      // ⚠️ NI LA PRIMERA HOJA NI LA MÁS GRANDE: la que MÁS CAMPOS RECONOCE
+      // (`§ADR-088`). Un libro de operación suele traer portada y notas; abrir
+      // por la primera enseña la portada, y abrir por la mayor puede enseñar un
+      // registro que no es éste.
+      const elegida = elegirHoja(hojas)!;
+      const hoja = hojas[elegida.indice];
+      // ⚠️ Y LA CABECERA CASI NUNCA ES LA FILA 1. Con el primer archivo real del
+      // Ingeniero, suponerlo dio UNA columna sin nombre y cero campos: su hoja
+      // empieza por un título. Se busca la fila que más campos reconoce.
+      const cab = encontrarCabecera(hoja.matriz);
+      const fila = cab.fila ?? 0;
+      const { cabeceras, filas } = filasDesde(hoja.matriz, fila);
+      if (!filas.length) throw new Error('el archivo no trae ninguna fila con datos');
+
       setCargado({
         nombre: archivo.name, cuando: new Date(), hoja: hoja.nombre,
-        cabeceras: hoja.cabeceras, filas: hoja.filas,
+        matriz: hoja.matriz, filaCabecera: fila, porQue: cab.porQue,
+        cabeceras, filas,
       });
-      setMapeo(detectarMapeo(hoja.cabeceras).mapeo);
+      setMapeo(detectarMapeo(cabeceras).mapeo);
     } catch (e) {
       setFallo((e as Error).message);
       setCargado(null);
@@ -99,6 +120,19 @@ export default function Cargabilidad() {
   };
 
   const descartar = () => { setCargado(null); setMapeo({}); setFallo(null); };
+
+  /**
+   * MOVER LA CABECERA A MANO. La detección acierta sola en un archivo normal,
+   * pero cuando no —una hoja con dos títulos, una tabla que empieza a media
+   * página— esto es lo que evita tener que salir a arreglar el Excel.
+   */
+  const usarFila = (fila: number) => {
+    if (!cargado) return;
+    const { cabeceras, filas } = filasDesde(cargado.matriz, fila);
+    setCargado({ ...cargado, filaCabecera: fila, cabeceras, filas,
+      porQue: `la señaló usted: fila ${fila + 1}` });
+    setMapeo(detectarMapeo(cabeceras).mapeo);
+  };
 
   // ── Procesar con el mapeo que haya AHORA ──────────────────────────────────
   const lote = useMemo(() => {
@@ -167,6 +201,7 @@ export default function Cargabilidad() {
             {' '}· cargado el {cargado.cuando.toLocaleString('es-CO')}
           </p>
 
+          <CabeceraElegida cargado={cargado} alUsarFila={usarFila} />
           <MapeoDeColumnas cabeceras={cargado.cabeceras} mapeo={mapeo} alCambiar={setMapeo} />
 
           {lote?.faltan?.length ? (
@@ -189,6 +224,60 @@ export default function Cargabilidad() {
         </>
       )}
     </section>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// DE DÓNDE SALIÓ LA CABECERA — dicho, y corregible
+// ════════════════════════════════════════════════════════════════════════════
+//
+// ⚠️ Existe porque la detección puede fallar, y cuando falla el usuario se queda
+// mirando trece «sin asignar» sin saber por qué. Aquí se dice qué fila se tomó y
+// se enseñan las primeras filas CRUDAS para que se pueda señalar otra. Sin esto,
+// el único camino era salir a arreglar el Excel.
+function CabeceraElegida({ cargado, alUsarFila }: {
+  cargado: Cargado; alUsarFila: (fila: number) => void;
+}) {
+  const [abierto, setAbierto] = useState(false);
+  const primeras = cargado.matriz.slice(0, 12);
+  const texto = (c: Celda) => (c == null || String(c).trim() === '' ? '' : String(c).trim());
+
+  return (
+    <div className="tarjeta">
+      <p className="mapa-capas-t">La cabecera</p>
+      <p className="mapa-capas-n">
+        Se está usando la <b>fila {cargado.filaCabecera + 1}</b> como cabecera — {cargado.porQue}.{' '}
+        <button type="button" className="boton chico" onClick={() => setAbierto(!abierto)}>
+          {abierto ? 'Ocultar el principio de la hoja' : '¿No es ésa? Ver el principio de la hoja'}
+        </button>
+      </p>
+      {abierto && (
+        <div className="tabla-scroll">
+          <table className="tabla">
+            <thead>
+              <tr><th>Fila</th><th>Contenido</th><th /></tr>
+            </thead>
+            <tbody>
+              {primeras.map((celdas, i) => (
+                <tr key={i}>
+                  <td>{i + 1}</td>
+                  <td>{celdas.map(texto).filter((t) => t !== '').join(' · ') || <i>(vacía)</i>}</td>
+                  <td>
+                    {i === cargado.filaCabecera
+                      ? <b>en uso</b>
+                      : (
+                        <button type="button" className="boton chico" onClick={() => alUsarFila(i)}>
+                          Usar ésta
+                        </button>
+                      )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
   );
 }
 

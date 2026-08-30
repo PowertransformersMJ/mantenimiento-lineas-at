@@ -940,3 +940,105 @@ export function costeDeLectura({ lineas = 1, dias = 1, conDetalle = false } = {}
     siFueraPorLectura: n * 24,
   };
 }
+
+// ════════════════════════════════════════════════════════════════════════════
+// 13 · ENCONTRAR LA CABECERA — porque casi nunca es la primera fila
+// ════════════════════════════════════════════════════════════════════════════
+//
+// ⚠️ POR QUÉ EXISTE (2026-08-29). El lector daba por hecho que la fila 1 era la
+// cabecera. Con un archivo REAL del Ingeniero salió **una sola columna, sin
+// nombre, y ningún campo reconocido**: su hoja empieza con un título, o con
+// filas en blanco, o con las dos cosas — que es como sale cualquier informe de
+// operación. Suponer la fila 1 no es un atajo: es la diferencia entre que el
+// módulo funcione solo y que le pida mapear trece columnas a mano.
+//
+// Lo que se hace: se MIRAN las primeras filas y gana la que más campos
+// reconoce. No la primera, no la más llena: la más RECONOCIBLE — porque el
+// título de un informe también está lleno y no es una cabecera.
+
+/** Cuántas filas del principio se miran buscando la cabecera. */
+export const FILAS_QUE_SE_MIRAN = 25;
+
+/**
+ * Puntúa una fila como candidata a cabecera.
+ *
+ * Los campos REQUERIDOS pesan doble a propósito: una fila que trae «Fecha» y
+ * «Línea» es la cabecera aunque no reconozca nada más. Y una fila con un título
+ * largo en la celda A tiene una celda llena y cero campos reconocidos — por eso
+ * «llena» casi no puntúa: el título de un informe también está lleno.
+ */
+export function puntuarCabecera(celdas) {
+  const textos = (celdas ?? []).map((c) => (c == null ? '' : String(c).trim()));
+  const llenas = textos.filter((t) => t !== '').length;
+  if (!llenas) return { llenas: 0, reconocidas: 0, requeridos: 0, puntos: 0 };
+
+  const { mapeo } = detectarMapeo(textos.filter((t) => t !== ''));
+  const reconocidas = Object.keys(mapeo).length;
+  const requeridos = CAMPOS_REQUERIDOS.filter((c) => mapeo[c]).length;
+
+  return {
+    llenas,
+    reconocidas,
+    requeridos,
+    puntos: reconocidas * 10 + requeridos * 20 + Math.min(llenas, 20),
+  };
+}
+
+/**
+ * QUÉ FILA ES LA CABECERA. Devuelve su índice y POR QUÉ se eligió.
+ *
+ * ⚠️ Si ninguna fila reconoce un solo campo devuelve `fila: null` y las
+ * candidatas, en vez de inventarse una. Mapear a ciegas la primera llenaría la
+ * pantalla de números equivocados; enseñarle las filas crudas al Ingeniero y que
+ * la señale él es lo honesto — y además es lo que resuelve el caso.
+ */
+export function encontrarCabecera(matriz, { mirar = FILAS_QUE_SE_MIRAN } = {}) {
+  const filas = (matriz ?? []).slice(0, mirar);
+  let mejor = null;
+  filas.forEach((celdas, i) => {
+    const p = puntuarCabecera(celdas);
+    if (!p.reconocidas) return;
+    // Gana la PRIMERA de las mejores: si una tabla repite su cabecera más
+    // abajo, la buena es la de arriba.
+    if (!mejor || p.puntos > mejor.puntos) mejor = { fila: i, ...p };
+  });
+
+  if (!mejor) {
+    return {
+      fila: null,
+      porQue: 'ninguna de las primeras filas parece una cabecera: no se reconoció ni un campo',
+      candidatas: filas.map((c, i) => ({ fila: i, ...puntuarCabecera(c) }))
+        .filter((c) => c.llenas > 0).slice(0, 8),
+    };
+  }
+  return {
+    ...mejor,
+    porQue: mejor.fila === 0
+      ? `la primera fila trae ${mejor.reconocidas} campo(s) reconocido(s)`
+      : `la cabecera está en la fila ${mejor.fila + 1}: las ${mejor.fila} de arriba no reconocen `
+        + 'ningún campo (título o filas en blanco)',
+  };
+}
+
+/**
+ * QUÉ HOJA ES LA BUENA. La que más campos reconoce — no la primera ni la mayor.
+ *
+ * Un libro de operación suele traer una portada, una hoja de notas y la tabla.
+ * Abrir por la primera enseña la portada; abrir por la que más filas tiene puede
+ * enseñar un registro que no es éste.
+ *
+ * @param {{nombre?: string, matriz?: any[][]}[]} hojas
+ * @returns {{indice: number, nombre: string, cabecera: any, puntos: number}|null}
+ */
+export function elegirHoja(hojas) {
+  /** @type {{indice: number, nombre: string, cabecera: any, puntos: number}|null} */
+  let mejor = null;
+  (hojas ?? []).forEach((hoja, i) => {
+    const cab = encontrarCabecera(hoja.matriz ?? []);
+    const puntos = cab.fila == null ? -1 : cab.puntos;
+    if (!mejor || puntos > mejor.puntos) {
+      mejor = { indice: i, nombre: hoja.nombre, cabecera: cab, puntos };
+    }
+  });
+  return mejor;
+}
