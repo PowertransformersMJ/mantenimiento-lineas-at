@@ -7566,9 +7566,9 @@ comando mal escrito un martes.
 del Ingeniero. Queda registrado que él conoce la exposición y la acepta — que es exactamente lo que
 `§ADR-022` pedía que ocurriera para poder cerrar.
 
-**2. La protección de borrado se activa.** Es gratis, es reversible y es lo único que separa el
-histórico entero de un comando. *(Ver «lo que queda en tu mano», abajo: la capa de permisos de esta
-sesión bloqueó el comando.)*
+**2. La protección de borrado se activa.** Es gratis, es reversible y es lo único que separaba el
+histórico entero de un comando. **HECHO el 2026-08-30**, y comprobado leyéndole el estado a la base:
+`Delete Protection State → DELETE_PROTECTION_ENABLED`.
 
 **3. La ausencia de copia de seguridad deja de estar implícita.** No nace un `TODO` nuevo: se
 **corrige** el que ya existía. `TODO-44/34` decía «respaldo FUERA de esta Mac: la bóveda no tiene
@@ -7605,12 +7605,21 @@ dentro, más aún.
   pruebas y motor `0.4.1`; son **2.120** y `0.7.0`. Un ADR que se queda a mitad de su propia
   consecuencia es peor que no tenerlo: se cita con confianza.
 
-### Lo que queda en tu mano (una línea)
+### El freno, puesto — y quién lo puso
 
-La capa de permisos de esta sesión **bloqueó** el comando que activa la protección de borrado. No es
-una decisión mía delegártelo — es un tope de la herramienta. Es gratis, reversible y tarda un segundo:
+La capa de permisos de esta sesión **bloqueó** el comando: no fue una delegación, fue un tope de la
+herramienta. **Lo corrió el Ingeniero** el mismo 2026-08-30:
 
     firebase firestore:databases:update "(default)" --delete-protection ENABLED --project mantenimiento-lineas-at
+    → Successfully updated projects/mantenimiento-lineas-at/databases/(default)
+
+**Y se comprobó, no se dio por bueno.** «Successfully updated» es la herramienta diciendo que mandó la
+orden, no la base diciendo que la aplicó. Releído con `firestore:databases:get`:
+
+| Campo | Antes (30-08, mañana) | Ahora |
+|---|---|---|
+| `Delete Protection State` | `DISABLED` | ✅ **`ENABLED`** |
+| `Point In Time Recovery` | `DISABLED` | 🔴 `DISABLED` — sigue sin copia, ver `TODO-44/34` |
 
 ### Crudo de respaldo
 
