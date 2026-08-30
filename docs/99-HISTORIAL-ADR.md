@@ -7494,7 +7494,7 @@ llevar la línea, ésta cuánta lleva de verdad. No se llama «Cargas» — ésa
 
 ### Consecuencias
 
-- **2.050 pruebas en verde** (60 nuevas). Motor `0.3.0 → 0.4.1`.
+- **2.120 pruebas en verde** (130 nuevas). Motor `0.3.0 → 0.7.0`.
 - **Dos guardianes del proyecto pararon el trabajo, los dos con razón:** el del motor (cambiarlo sin
   subir su versión firmaría dos informes con el mismo número) y el de estilo (toda clase usada tiene
   que estar declarada, o el navegador la descarta en silencio; faltaban 18).
@@ -7502,9 +7502,116 @@ llevar la línea, ésta cuánta lleva de verdad. No se llama «Cargas» — ésa
   cifra**, que es lo que la propia lección manda.
 - **Abre camino a cerrar `TODO-80`**: el archivo trae la corriente de operación que ese indicador
   lleva meses pidiendo.
-- **NO cierra el histórico** ni la consulta por fechas: eso es la segunda vuelta y espera la decisión
-  del modelo de datos.
+- **La segunda vuelta SÍ llegó, el mismo día.** El histórico se guarda y se consulta por fecha:
+  `web/src/datos/cargabilidadRepo.ts` es la única pieza del módulo que toca la base, tres colecciones
+  nuevas con sus reglas y sus índices desplegados, y el id del día es determinista para que volver a
+  cargar CORRIJA en vez de duplicar. Nada se borra: `allow delete: if false` en las tres.
+- **Y con ella, una consecuencia que este ADR no había pesado:** a partir de aquí el sistema guarda
+  **mediciones de operación** del empleador —cuánta corriente lleva una línea energizada, hora a
+  hora—, no solo coordenadas y fotos. Eso agranda la pregunta de `TODO-58` y es lo que la obliga a
+  cerrarse (`§ADR-089`).
 
 ### Crudo de respaldo
 
 `../brain-private/mantenimiento-lineas-at/research-archive/2026-08-29-cargabilidad-electrica/`
+
+---
+
+## ADR-089 · 2026-08-30 · Los datos del empleador se quedan donde están, y se le pone freno a lo único que sí se podía perder
+
+> ⚠️ **Decisión Fuerte NO revisada externamente** (§G.2 🛰️). Se documenta así a propósito: la orden
+> fue cerrar, y un consejo externo sobre residencia de dato sin contrato ni contraparte habría
+> deliberado sobre una hipótesis. Si algún día aparece contrato o proyecto corporativo, esta decisión
+> se revisita — ése es el disparador, no una fecha.
+
+### Contexto
+
+`TODO-58` nació en `§ADR-022`, el día que el Ingeniero fijó el contexto real: **no hay cliente ni
+contrato**, así que la residencia del dato dejó de ser una pregunta contractual y pasó a ser
+**laboral**. Los datos operativos del empleador —coordenadas reales y fotografías de
+infraestructura— viven en Firestore `southamerica-east1` (São Paulo) y en R2, bajo **cuentas
+personales del Ingeniero**. Aquel ADR lo dejó dicho con precisión: *no es un incumplimiento de nada
+conocido; es una exposición que él tiene que querer*.
+
+**Lo que cambió desde entonces, y es lo que obliga a cerrar.** `§ADR-088` metió el módulo de
+cargabilidad. A partir de él el sistema ya no guarda solo dónde están los apoyos y cómo se ven:
+guarda **cuánta corriente lleva una línea energizada, hora a hora**. Es dato de operación de la red
+del empleador. La pregunta no se hizo más difícil — se hizo más grande, y seguir con ella abierta
+mientras el módulo escribía era la peor de las combinaciones.
+
+### Lo que se midió antes de decidir (2026-08-30, no supuesto)
+
+`firebase firestore:databases:get "(default)"` sobre `mantenimiento-lineas-at`:
+
+| Campo | Valor | Qué significa en dinero, tiempo o riesgo |
+|---|---|---|
+| `Location` | `southamerica-east1` | São Paulo. Confirmado contra la máquina, no contra el papel |
+| `Create Time` | 2026-07-29 | Nació el mismo día que se decidió repo público |
+| `Type` / `Edition` | `FIRESTORE_NATIVE` / `STANDARD` | Sin sorpresas |
+| **`Delete Protection`** | **`DISABLED`** | 🔴 **Un solo comando borra la base entera.** Sin pregunta |
+| **`Point In Time Recovery`** | **`DISABLED`** | 🔴 **No hay vuelta atrás.** Si alguien pisa un dato, se pisó |
+| Plan de facturación | *no especificado* | Nada factura hoy. Coherente con `§3.1` |
+
+Y alrededor: 21 colecciones declaradas en las reglas (3 nuevas de cargabilidad), R2 con ~35 MB de
+10 GB, y la bóveda local `brain-private/` **todavía sin remoto** (`TODO-44/34`).
+
+**El hallazgo que reordena la pregunta:** `TODO-58` preguntaba *dónde* deben vivir los datos, y
+llevaba semanas mirando el mapa. El riesgo real no era el meridiano — era que la base **no tenía
+freno de borrado ni copia de seguridad**. Mover el dato a Colombia no lo habría salvado de un
+comando mal escrito un martes.
+
+### Decisión
+
+**1. Los datos se quedan donde están.** Firestore `southamerica-east1` y R2 privado, bajo las cuentas
+del Ingeniero. Queda registrado que él conoce la exposición y la acepta — que es exactamente lo que
+`§ADR-022` pedía que ocurriera para poder cerrar.
+
+**2. La protección de borrado se activa.** Es gratis, es reversible y es lo único que separa el
+histórico entero de un comando. *(Ver «lo que queda en tu mano», abajo: la capa de permisos de esta
+sesión bloqueó el comando.)*
+
+**3. La ausencia de copia de seguridad deja de estar implícita.** No nace un `TODO` nuevo: se
+**corrige** el que ya existía. `TODO-44/34` decía «respaldo FUERA de esta Mac: la bóveda no tiene
+remoto» y era incompleto — Firestore tampoco lo tiene.
+
+**4. No cambia nada de lo que ya era condición de supervivencia:** el repositorio sigue siendo
+público y la regla de **cero bytes de cliente** sigue siendo innegociable. Con dato de operación
+dentro, más aún.
+
+### Alternativas descartadas, con su porqué
+
+- **Mover la región.** Imposible por definición: es inmutable. «Mover» significa proyecto nuevo,
+  migrar todo, rehacer reglas, índices y despliegue, y volver a probar la cadena entera. No verifiqué
+  si existe hoy región de Firestore en Colombia porque la decisión **no depende de eso**: no hay
+  obligación conocida que exija residencia local, y sin obligación el coste no compra nada.
+- **Pasarlo a cuentas de la empresa.** No hay a quién. `§ADR-022` ya lo estableció: sin contrato ni
+  contraparte, «la cuenta corporativa» es una carpeta que no existe. Es el disparador de la revisión,
+  no una alternativa disponible hoy.
+- **Dejar de guardar el dato de operación.** Mataría el módulo que se acaba de entregar para reducir
+  una exposición que nadie ha objetado. Se rechaza por desproporcionado.
+- **Activar el punto de recuperación (PITR) ya mismo.** Se factura por almacenamiento y este proyecto
+  no tiene plan de facturación especificado: encenderlo obliga a tocar dinero, y `§3.1` dice que
+  **nada factura sin aprobación del Ingeniero**. **No verificado** cuánto costaría a este volumen.
+  Queda en `TODO-44/34` con su cifra pendiente de medir, no adoptada de memoria (`30 · L-09`).
+
+### Consecuencias
+
+- **`TODO-58` cierra** y sale de `docs/10`. Deja de aparecer como deuda crítica en `docs/05`.
+- **`TODO-44/34` crece y se hace exacto:** ya no es solo la bóveda; es también Firestore.
+- **La exposición queda escrita, no supuesta.** Si mañana aparece un contrato que exija residencia
+  local, esto no será una sorpresa: será una migración con su coste conocido de antemano.
+- **`§ADR-088` se corrigió al escribir esto:** su cierre decía «NO cierra el histórico» y el histórico
+  había cerrado el mismo día en `2456ec5`, un commit que no tocó documentación. También decía 2.050
+  pruebas y motor `0.4.1`; son **2.120** y `0.7.0`. Un ADR que se queda a mitad de su propia
+  consecuencia es peor que no tenerlo: se cita con confianza.
+
+### Lo que queda en tu mano (una línea)
+
+La capa de permisos de esta sesión **bloqueó** el comando que activa la protección de borrado. No es
+una decisión mía delegártelo — es un tope de la herramienta. Es gratis, reversible y tarda un segundo:
+
+    firebase firestore:databases:update "(default)" --delete-protection ENABLED --project mantenimiento-lineas-at
+
+### Crudo de respaldo
+
+`../brain-private/mantenimiento-lineas-at/research-archive/2026-08-30-residencia-del-dato/`
