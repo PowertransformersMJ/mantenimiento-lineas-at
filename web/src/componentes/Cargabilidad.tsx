@@ -37,13 +37,13 @@ import { useMemo, useRef, useState } from 'react';
 import { filasDesde, leerXlsx } from '@lineas/importar/xlsx';
 import {
   atipicos, bandaDe, BANDAS, CAMPOS, camposAusentes, detectarMapeo, elegirHoja,
-  encontrarCabecera, histograma, mapaDeCalor, porLinea, procesarLote, resumen,
-  separarNuevos, serieTemporal, tendencia,
+  encontrarCabecera, histograma, mapaDeCalor, porLinea, porLineaDesdeResumenes, procesarLote,
+  resumen, resumenDelHistorico, separarNuevos, serieDiaria, serieTemporal, tendencia,
 } from '@lineas/nucleo/cargabilidad';
 import {
-  RELLENO_BANDA, TINTA_BANDA, tintaDe, csvDeErrores, etiquetaInstante, filtrarPorTexto, LIENZO,
-  marcasX, marcasY, ordenarPor, paginar, REFERENCIAS, aCsv, techoY, tramosDeLinea, x, y,
-  type Direccion,
+  RELLENO_BANDA, TINTA_BANDA, tintaDe, areasDeBanda, csvDeErrores, etiquetaInstante,
+  filtrarPorTexto, LIENZO, marcasX, marcasY, ordenarPor, paginar, REFERENCIAS, aCsv, techoY,
+  tramosDeLinea, x, y, type Direccion,
 } from '../vistas/cargabilidadVista';
 import {
   cerosAlFinal, CRITERIOS_DE_FASE, pareceAncho, registrosDesdeAncho,
@@ -516,6 +516,16 @@ function HistoricoGuardado({ sesion, lineaAbierta }: {
                 {String(pico.linea)}</>
               : <b>sin medida</b>}
           </p>
+          {/* ⚠️ LAS GRÁFICAS VAN AQUÍ, no solo en la carga recién leída. Durante
+              una versión entera el histórico solo tuvo tabla: quien abría la
+              pantalla sin cargar un archivo —que son casi todos los días— no
+              veía una sola gráfica, y el módulo parecía no tenerlas
+              (`32 · L-76`). Se pintan de lo que YA está en memoria: estos
+              resúmenes diarios, sin una lectura más a la base. */}
+          <TableroDelHistorico resumenes={filas} />
+          <TendenciaDiaria resumenes={filas} />
+          <PorLineaDelHistorico resumenes={filas} />
+
           {/* ⚠️ Si se recortó, se dice. Enseñar 1.200 de 3.000 días sin avisar
               haría creer que se vio el total del histórico. */}
           {recortado && (
@@ -553,6 +563,192 @@ function HistoricoGuardado({ sesion, lineaAbierta }: {
       <p className="fine">
         Esta consulta lee <b>resúmenes diarios</b>, no las 24 horas de cada día: un año de diez
         líneas son 3.650 lecturas así, y 87.600 de la otra forma.
+      </p>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// LAS GRÁFICAS DEL HISTÓRICO GUARDADO
+// ────────────────────────────────────────────────────────────────────────────
+// ⚠️ SON DISTINTAS DE LAS DE LA CARGA, y tienen que serlo. Las de abajo
+// (`Tendencia`, `PorLinea`, `MapaDeCalor`) dibujan registros HORARIOS: un punto
+// por instante medido. Aquí la unidad es el DÍA, porque el histórico guarda un
+// resumen diario y no las 24 horas — que es lo que mantiene el módulo dentro del
+// plan gratuito (`99 §ADR-088`). Pintar esto con las de arriba obligaría a abrir
+// los días completos, o sea a pagar por lo mismo que se ve gratis.
+//
+// ⚠️ Y NO CUESTAN UNA LECTURA MÁS: se pintan de los resúmenes que la consulta ya
+// trajo a memoria. Añadir gráficas no añadió factura.
+// ════════════════════════════════════════════════════════════════════════════
+
+type ResumenDiario = Record<string, unknown>;
+
+function TableroDelHistorico({ resumenes }: { resumenes: ResumenDiario[] }) {
+  const t = useMemo(() => resumenDelHistorico(resumenes as never[]), [resumenes]);
+  const cifra = (v: number | null | undefined, u = ' %') => (v == null ? '—' : `${nf(v, 1)}${u}`);
+  return (
+    <div className="tarjeta">
+      <p className="mapa-capas-t">El periodo guardado, de un vistazo</p>
+      <div className="kpis">
+        <Kpi v={cifra(t.pico?.pct)} r="Pico del periodo"
+          s={t.pico ? `${t.pico.linea} · ${t.pico.fecha}` : undefined}
+          color={tintaDe(t.pico?.pct ?? null)} />
+        <Kpi v={cifra(t.promedio)} r="Promedio del periodo"
+          s="ponderado por horas medidas" color={tintaDe(t.promedio)} />
+        <Kpi v={cifra(t.valle?.pct)} r="Valle del periodo"
+          s={t.valle ? `${t.valle.linea} · ${t.valle.fecha}` : undefined} />
+        <Kpi v={t.lineaMasCargada?.linea ?? '—'} r="Línea con mayor pico"
+          s={t.lineaMasCargada?.maximo != null ? `${nf(t.lineaMasCargada.maximo, 1)} %` : undefined} />
+        <Kpi v={nf(t.dias)} r="Días guardados"
+          s={t.diasConMedida !== t.dias ? `${nf(t.diasConMedida)} con medida` : undefined} />
+        <Kpi v={nf(t.lineas)} r="Líneas en el periodo" />
+        <Kpi v={nf(t.diasConSobrecarga)} r="Días con sobrecarga"
+          s={t.horasDeSobrecarga > 0 ? `${nf(t.horasDeSobrecarga)} h en total` : '≥ 100 %'}
+          color={t.diasConSobrecarga > 0 ? 'var(--tx-alerta)' : undefined} />
+        <Kpi v={cifra(t.cobertura_pct)} r="Cobertura horaria"
+          s="de las 24 h de cada día guardado" />
+      </div>
+      <div className="bandas-reparto">
+        {BANDAS.map((b) => (
+          <span key={b.clave} className="banda-chip">
+            <i style={{ background: RELLENO_BANDA[b.clave] }} /> {b.rotulo}:{' '}
+            <b>{nf(t.porBanda[b.clave] ?? 0)}</b> h
+          </span>
+        ))}
+      </div>
+      <p className="fine">
+        Del <b>{t.desde ?? '—'}</b> al <b>{t.hasta ?? '—'}</b>. La cobertura se mide contra los días
+        que HAY guardados, no contra el calendario que usted pidió: tres días completos son 100 %,
+        no «el 10 % de un mes».
+      </p>
+    </div>
+  );
+}
+
+function TendenciaDiaria({ resumenes }: { resumenes: ResumenDiario[] }) {
+  const lineas = useMemo(
+    () => [...new Set(resumenes.map((s) => String(s.linea)))].sort(), [resumenes]);
+  const [cual, setCual] = useState<string>('');
+  const serie = useMemo(
+    () => serieDiaria(resumenes as never[], cual || null), [resumenes, cual]);
+
+  const techo = techoY(serie.map((p) => p.maxima_pct ?? 0));
+  const franjas = areasDeBanda(
+    serie.map((p) => ({ alto: p.maxima_pct, bajo: p.minima_pct })), techo);
+  const deMaxima = tramosDeLinea(serie.map((p) => ({ pct: p.maxima_pct })), techo);
+  const dePromedio = tramosDeLinea(serie.map((p) => ({ pct: p.promedio_pct })), techo);
+  const idx = marcasX(serie.length);
+
+  if (!serie.length) return null;
+
+  return (
+    <div className="tarjeta">
+      <p className="mapa-capas-t">Día a día, en el histórico</p>
+      <label className="mapa-tiempo-dia">
+        <span>Línea</span>
+        <select value={cual} onChange={(e) => setCual(e.target.value)}>
+          <option value="">Todas — cada día, la más cargada</option>
+          {lineas.map((l) => <option key={l} value={l}>{l}</option>)}
+        </select>
+      </label>
+
+      <svg viewBox={`0 0 ${LIENZO.ancho} ${LIENZO.alto}`} className="grafica" role="img"
+        aria-label={`Cargabilidad día a día${cual ? ` de ${cual}` : ''}`}>
+        {marcasY(techo).map((v) => (
+          <g key={v}>
+            <line x1={LIENZO.margen.i} x2={LIENZO.ancho - LIENZO.margen.d}
+              y1={y(v, techo)} y2={y(v, techo)} stroke="var(--bd-tenue)" strokeWidth={1} />
+            <text x={LIENZO.margen.i - 6} y={y(v, techo) + 4} textAnchor="end"
+              fontSize={10} fill="var(--tx-tenue, #888)">{v}</text>
+          </g>
+        ))}
+        {/* La franja es el RECORRIDO del día: sin ella, un punto al 60 % se lee
+            igual viniendo de un día plano que de uno que osciló de 20 a 104. */}
+        {franjas.map((puntos, i) => (
+          <polygon key={`f${i}`} points={puntos} fill="var(--acc)" opacity={0.14} />
+        ))}
+        {REFERENCIAS.filter((v) => v <= techo).map((v) => (
+          <g key={`r${v}`}>
+            <line x1={LIENZO.margen.i} x2={LIENZO.ancho - LIENZO.margen.d}
+              y1={y(v, techo)} y2={y(v, techo)} strokeDasharray="5 3" strokeWidth={1.4}
+              stroke={TINTA_BANDA[bandaDe(v)!.clave]} />
+            <text x={LIENZO.ancho - LIENZO.margen.d} y={y(v, techo) - 4} textAnchor="end"
+              fontSize={10} fill={TINTA_BANDA[bandaDe(v)!.clave]}>{v} %</text>
+          </g>
+        ))}
+        {dePromedio.map((puntos, i) => (
+          <polyline key={`p${i}`} points={puntos} fill="none" stroke="var(--tx3)"
+            strokeWidth={1.2} strokeDasharray="4 3" strokeLinejoin="round" />
+        ))}
+        {deMaxima.map((puntos, i) => (
+          <polyline key={`m${i}`} points={puntos} fill="none" stroke="var(--acc)"
+            strokeWidth={1.8} strokeLinejoin="round" strokeLinecap="round" />
+        ))}
+        {serie.map((p, i) => (
+          <circle key={i} cx={x(i, serie.length)} cy={y(p.maxima_pct ?? 0, techo)} r={2.6}
+            fill={tintaDe(p.maxima_pct)}>
+            <title>
+              {etiquetaInstante({ fecha: p.fecha, hora: null })} · {p.linea} · máxima{' '}
+              {nf(p.maxima_pct ?? 0, 1)} %{p.promedio_pct != null
+                ? ` · promedio ${nf(p.promedio_pct, 1)} %` : ''}
+              {p.minima_pct != null ? ` · mínima ${nf(p.minima_pct, 1)} %` : ''}
+              {' '}· {nf(p.horasConMedida)} h medidas
+            </title>
+          </circle>
+        ))}
+        {idx.map((i) => (
+          <text key={i} x={x(i, serie.length)} y={LIENZO.alto - 10} textAnchor="middle"
+            fontSize={9} fill="var(--tx-tenue, #888)">
+            {etiquetaInstante({ fecha: serie[i].fecha, hora: null })}
+          </text>
+        ))}
+      </svg>
+
+      <p className="fine">
+        <b>{nf(serie.length)} día(s)</b> · la línea llena es la <b>máxima</b> de cada día, la
+        punteada su <b>promedio</b>, y la franja el recorrido entre mínima y máxima. Sin línea
+        elegida, cada día muestra <b>la línea más cargada de ese día</b> — no el promedio de todas,
+        que escondería justo el día que hay que mirar. Un día sin medir parte la línea: no se une
+        con una recta que nadie midió.
+      </p>
+    </div>
+  );
+}
+
+function PorLineaDelHistorico({ resumenes }: { resumenes: ResumenDiario[] }) {
+  const filas = useMemo(() => porLineaDesdeResumenes(resumenes as never[]), [resumenes]);
+  const techo = techoY(filas.map((f) => f.maximo ?? 0));
+  if (filas.length < 2) return null;   // con una sola línea, un ranking no dice nada
+
+  return (
+    <div className="tarjeta">
+      <p className="mapa-capas-t">Por línea en el periodo, por su pico</p>
+      <div className="barras">
+        {filas.map((f) => (
+          <div key={f.linea} className="barra-fila">
+            <span className="barra-rotulo" title={f.linea}>{f.linea}</span>
+            <span className="barra-pista">
+              <span className="barra-valor" style={{
+                width: `${Math.min(100, ((f.maximo ?? 0) / techo) * 100)}%`,
+                background: tintaDe(f.maximo),
+              }} />
+            </span>
+            <span className="barra-cifra">
+              {f.maximo == null ? '—' : `${nf(f.maximo, 1)} %`}
+              {f.horasDeSobrecarga > 0 && (
+                <span className="fine" title="horas por encima del 100 %">
+                  {' '}· {nf(f.horasDeSobrecarga)}⚠
+                </span>
+              )}
+            </span>
+          </div>
+        ))}
+      </div>
+      <p className="fine">
+        {nf(filas.length)} línea(s) · la barra es el <b>pico</b> del periodo, no su promedio: para
+        decidir si una línea aguanta, lo que importa es a cuánto llegó. El número tras el ⚠ son las
+        horas por encima del 100 %.
       </p>
     </div>
   );

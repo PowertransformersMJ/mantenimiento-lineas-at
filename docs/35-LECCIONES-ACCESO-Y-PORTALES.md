@@ -73,7 +73,7 @@
   vacía. Entre el despliegue del código y el de las reglas, la línea **siguió viéndose completa**.
   *Una capa opcional jamás puede tener poder de veto sobre una esencial* (misma regla que `L-11`).
 - ⚠️ **Volvió a pasar el 04-08-2026** con la colección `analisis`, y se escribió otra lección sin ver
-  ésta. La recaída está anotada en `32 · L-36`, y la regla para no repetirla en `30 · L-39`.
+  ésta. La recaída está anotada en `L-36`, aquí mismo, y la regla para no repetirla en `30 · L-39`.
 
 ### L-64 · Para una hipótesis INSTANTÁNEA no sirve una serie de MEDIAS HORARIAS
 Verificado el 2026-08-21 llamando a cada fuente, no de memoria.
@@ -157,6 +157,45 @@ Verificado el 2026-08-04 contra `datos.gov.co` (IDEAM), integrando el clima del 
   documentar no se distingue de un error, y el que viene detrás lo revierte.
 
 ---
+
+### L-35 · `deploy` NO construye: se puede desplegar un `dist/` rancio y no enterarse
+- **Síntoma:** se arregla un detalle (el separador decimal del factor de amplificación), se
+  commitea, se despliega, se espera la propagación **y la comprobación da VERDE**… pero producción
+  sigue sirviendo el paquete anterior y el punto decimal sigue ahí.
+- **Causa:** la cadena usada fue `npm test && git commit && git push && npm run deploy`. El script
+  `deploy` del workspace `web` es solo `wrangler pages deploy dist`: **no construye nada**. Se subió
+  el `dist/` de la fase anterior, intacto.
+- **Lo que hizo el fallo INVISIBLE, y es lo grave:** la comprobación de propagación compara lo que
+  sirve producción contra `web/dist/index.html`. Si `dist/` está rancio, se está comparando el
+  artefacto viejo contra sí mismo: **la verificación pasa siempre**. Es la familia de «verde no
+  prueba nada» (`30 · L-33`) aplicada al despliegue — el oráculo estaba contaminado por la misma
+  causa que el defecto.
+- **Regla:** el despliegue es `npm run build && npm run deploy --workspace web`, en ese orden y sin
+  saltarse el primero. Está escrito así en `docs/10` desde el principio; el atajo fue mío.
+- **Cómo se detecta en 10 segundos:** preguntarle a la PESTAÑA qué paquete cargó
+  (`[...document.querySelectorAll('script[src]')].map(s => s.src)`) y contrastarlo con el hash que
+  acaba de imprimir `vite build` — **no con el contenido de `dist/`**. El navegador es el único
+  testigo que no comparte la causa del fallo con el artefacto que se está juzgando.
+
+### L-36 · ⇢ PUNTERO a `L-22`, aquí al lado — y la recaída, que es lo que hay que leer
+> **El cuerpo de esta lección NO vive aquí.** El dueño es
+> **`35 · L-22` · «Desplegar el código sin desplegar las reglas de Firestore: el dato existe y no
+> llega»**, que lo dice completo y con el remedio de los tres despliegues. El número `L-36` se
+> conserva porque `docs/10` y este nodo lo citan, y los `L-NN` no se renumeran jamás.
+
+- **Qué pasó de verdad el 04-08-2026:** se añadió la colección `analisis`, la pantalla dijo
+  *«Missing or insufficient permissions»*, se perdió la tarde depurando el cliente… y al final se
+  escribió esta lección **sin ver que `L-22` ya existía, escrita días antes por el mismo síntoma**.
+- **Por qué se escapó, que es lo valioso:** el síntoma es de PANTALLA y la causa es de PROVEEDOR.
+  Se buscó en el hijo equivocado. Desde que la familia de lecciones se repartió por tema
+  (`99 §ADR-016`), un gotcha con el síntoma en un tema y la causa en otro **queda invisible** para
+  quien busca por donde le duele.
+- **Regla operativa que sale de esto:** ver `30 · L-39` — antes de escribir un `L-NN` nuevo se busca
+  el mensaje de error literal en los CUATRO archivos, no el tema.
+- **El remedio, por si llegaste aquí con el error delante:**
+  `npx firebase deploy --only firestore:rules --project mantenimiento-lineas-at`. Si una consulta
+  nueva falla con «insufficient permissions» y el código es correcto, la regla no está en
+  producción: no se depura el cliente.
 
 ### L-75 · «Success! · Production» de Cloudflare Pages NO quiere decir que la web haya cambiado
 

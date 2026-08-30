@@ -1042,3 +1042,171 @@ export function elegirHoja(hojas) {
   });
   return mejor;
 }
+
+// ════════════════════════════════════════════════════════════════════════════
+// EL HISTÓRICO GUARDADO — leer RESÚMENES DIARIOS, que no son registros horarios
+// ────────────────────────────────────────────────────────────────────────────
+// ⚠️ POR QUÉ ESTO EXISTE APARTE. `resumen`, `porLinea` y `serieTemporal` toman
+// registros HORARIOS: una fila = un instante. El histórico guardado no tiene
+// eso — guarda un resumen por línea y día (`resumirDia`), justamente para que
+// mirar un año no cueste 87.600 lecturas (`99 §ADR-088`). Reusar las de arriba
+// obligaría a abrir los días completos, que es exactamente lo que el diseño
+// evita. Así que el histórico tiene sus propias funciones, y por eso la unidad
+// aquí es el DÍA y nunca la hora.
+//
+// ⚠️ Y LA TRAMPA DE PROMEDIAR PROMEDIOS. Un día con 3 horas medidas y otro con
+// 24 no pesan igual. El promedio del periodo se pondera por `horasConMedida`, o
+// una jornada con tres lecturas altas movería la media del mes entero.
+// ════════════════════════════════════════════════════════════════════════════
+
+/** Los resúmenes que traen medida, ordenados por fecha. El resto no se pinta. */
+function conMedida(resumenes) {
+  return (resumenes ?? [])
+    .filter((s) => s && s.maxima_pct != null)
+    .sort((a, b) => String(a.fecha).localeCompare(String(b.fecha)));
+}
+
+/** Promedio ponderado por horas medidas. `null` si no hay ninguna. */
+function promedioPonderado(filas) {
+  let suma = 0; let horas = 0;
+  for (const s of filas) {
+    const h = Number(s.horasConMedida) || 0;
+    if (s.promedio_pct == null || h <= 0) continue;
+    suma += s.promedio_pct * h; horas += h;
+  }
+  return horas > 0 ? r(suma / horas) : null;
+}
+
+/**
+ * LA SERIE DIARIA, un punto por día.
+ *
+ * Con `linea` se toma esa; sin ella se funden todas por fecha y el punto del día
+ * es **el peor de las líneas**, no su promedio: en operación lo que importa del
+ * día es cuánto llegó a cargar la más cargada, y promediarla con una descargada
+ * escondería justo el día que hay que mirar.
+ *
+ * @param {Record<string, any>[]} resumenes
+ * @param {string|null} [linea]
+ * @returns {{fecha: string, linea: string, maxima_pct: number|null,
+ *            promedio_pct: number|null, minima_pct: number|null,
+ *            horasConMedida: number, lineas: number}[]}
+ */
+export function serieDiaria(resumenes, linea = null) {
+  const filas = conMedida(resumenes).filter((s) => !linea || String(s.linea) === String(linea));
+  if (linea) {
+    return filas.map((s) => ({
+      fecha: String(s.fecha), linea: String(s.linea),
+      maxima_pct: r(s.maxima_pct), promedio_pct: r(s.promedio_pct), minima_pct: r(s.minima_pct),
+      horasConMedida: Number(s.horasConMedida) || 0, lineas: 1,
+    }));
+  }
+  const porDia = new Map();
+  for (const s of filas) {
+    const k = String(s.fecha);
+    if (!porDia.has(k)) porDia.set(k, []);
+    porDia.get(k).push(s);
+  }
+  return [...porDia.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([fecha, dia]) => {
+    const peor = dia.reduce((a, b) => (b.maxima_pct > a.maxima_pct ? b : a));
+    const minimos = dia.filter((s) => s.minima_pct != null).map((s) => s.minima_pct);
+    return {
+      fecha, linea: String(peor.linea),
+      maxima_pct: r(peor.maxima_pct),
+      promedio_pct: promedioPonderado(dia),
+      minima_pct: minimos.length ? r(Math.min(...minimos)) : null,
+      horasConMedida: dia.reduce((a, s) => a + (Number(s.horasConMedida) || 0), 0),
+      lineas: dia.length,
+    };
+  });
+}
+
+/**
+ * EL TABLERO DEL HISTÓRICO. Las cifras que se leen de un vistazo sobre un
+ * periodo ya guardado, sin abrir un solo día completo.
+ *
+ * @param {Record<string, any>[]} resumenes
+ * @returns {{dias: number, diasConMedida: number, lineas: number,
+ *            desde: string|null, hasta: string|null,
+ *            pico: {pct: number|null, fecha: string, linea: string}|null,
+ *            valle: {pct: number|null, fecha: string, linea: string}|null,
+ *            promedio: number|null,
+ *            lineaMasCargada: {linea: string, maximo: number|null}|null,
+ *            diasConSobrecarga: number, horasDeSobrecarga: number,
+ *            horasConMedida: number, cobertura_pct: number|null,
+ *            porBanda: Record<string, number>}}
+ */
+export function resumenDelHistorico(resumenes) {
+  const todas = (resumenes ?? []).filter(Boolean);
+  const filas = conMedida(todas);
+  const base = {
+    dias: todas.length, diasConMedida: filas.length,
+    lineas: new Set(todas.map((s) => String(s.linea))).size,
+    desde: null, hasta: null,
+    pico: null, valle: null, promedio: null,
+    lineaMasCargada: null,
+    diasConSobrecarga: 0, horasDeSobrecarga: 0,
+    horasConMedida: 0, cobertura_pct: null,
+    porBanda: bandasVacias(),
+  };
+  if (!todas.length) return base;
+
+  const fechas = todas.map((s) => String(s.fecha)).sort();
+  base.desde = fechas[0]; base.hasta = fechas[fechas.length - 1];
+
+  for (const s of todas) {
+    base.horasConMedida += Number(s.horasConMedida) || 0;
+    const b = s.porBanda ?? {};
+    for (const k of Object.keys(base.porBanda)) base.porBanda[k] += Number(b[k]) || 0;
+    if ((Number(b.sobrecarga) || 0) > 0) base.diasConSobrecarga += 1;
+    base.horasDeSobrecarga += Number(b.sobrecarga) || 0;
+  }
+  // ⚠️ La cobertura se mide contra los días QUE HAY, no contra el calendario
+  // pedido: un periodo de 30 días con 3 guardados es 3 días al 100 %, no 10 %.
+  // Decir lo contrario haría parecer roto un histórico que solo está empezando.
+  base.cobertura_pct = todas.length ? r((base.horasConMedida / (todas.length * 24)) * 100) : null;
+
+  if (!filas.length) return base;
+  const alto = filas.reduce((a, b) => (b.maxima_pct > a.maxima_pct ? b : a));
+  base.pico = { pct: r(alto.maxima_pct), fecha: String(alto.fecha), linea: String(alto.linea) };
+  const conMin = filas.filter((s) => s.minima_pct != null);
+  if (conMin.length) {
+    const bajo = conMin.reduce((a, b) => (b.minima_pct < a.minima_pct ? b : a));
+    base.valle = { pct: r(bajo.minima_pct), fecha: String(bajo.fecha), linea: String(bajo.linea) };
+  }
+  base.promedio = promedioPonderado(filas);
+  const ranking = porLineaDesdeResumenes(todas);
+  base.lineaMasCargada = ranking.length ? ranking[0] : null;
+  return base;
+}
+
+/**
+ * EL RANKING POR LÍNEA sobre resúmenes diarios. Ordenado por pico descendente:
+ * la primera fila es la línea que más llegó a cargar en todo el periodo.
+ *
+ * @param {Record<string, any>[]} resumenes
+ * @returns {{linea: string, dias: number, diasConMedida: number,
+ *            maximo: number|null, promedio: number|null, minimo: number|null,
+ *            horasDeSobrecarga: number, horasConMedida: number}[]}
+ */
+export function porLineaDesdeResumenes(resumenes) {
+  const porNombre = new Map();
+  for (const s of (resumenes ?? []).filter(Boolean)) {
+    const k = String(s.linea);
+    if (!porNombre.has(k)) porNombre.set(k, []);
+    porNombre.get(k).push(s);
+  }
+  return [...porNombre.entries()].map(([linea, filas]) => {
+    const medidos = filas.filter((s) => s.maxima_pct != null);
+    const minimos = filas.filter((s) => s.minima_pct != null).map((s) => s.minima_pct);
+    return {
+      linea,
+      dias: filas.length,
+      diasConMedida: medidos.length,
+      maximo: medidos.length ? r(Math.max(...medidos.map((s) => s.maxima_pct))) : null,
+      promedio: promedioPonderado(filas),
+      minimo: minimos.length ? r(Math.min(...minimos)) : null,
+      horasDeSobrecarga: filas.reduce((a, s) => a + (Number(s.porBanda?.sobrecarga) || 0), 0),
+      horasConMedida: filas.reduce((a, s) => a + (Number(s.horasConMedida) || 0), 0),
+    };
+  }).sort((a, b) => (b.maximo ?? -1) - (a.maximo ?? -1));
+}

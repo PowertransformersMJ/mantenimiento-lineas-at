@@ -7624,3 +7624,96 @@ orden, no la base diciendo que la aplicó. Releído con `firestore:databases:get
 ### Crudo de respaldo
 
 `../brain-private/mantenimiento-lineas-at/research-archive/2026-08-30-residencia-del-dato/`
+
+---
+
+## ADR-090 · 2026-08-30 · El histórico guardado también dibuja: las gráficas estaban atadas al archivo recién cargado
+
+### Contexto
+
+El Ingeniero, mirando la pantalla: *«no logro apreciar gráficas en cargabilidad»*. Tenía razón, y el
+módulo se había entregado con seis visualizaciones.
+
+**Lo que se midió, leyendo el componente y no suponiendo.** Las seis —`Tablero`, `Tendencia`,
+`PorLinea`, `MapaDeCalor`, `Distribucion`, `TablaDetallada`— viven dentro de `{cargado && …}`
+(`Cargabilidad.tsx:306`), la rama que **solo existe mientras hay un archivo recién leído en
+memoria**. El histórico guardado (`HistoricoGuardado`) renderizaba un párrafo con el pico y **una
+tabla**. Cero gráficas.
+
+Consecuencia real: el día que se carga un archivo, seis gráficas. **Todos los demás días —que son
+casi todos, y para los que existe el histórico— ninguna.** Recargar la página las hacía desaparecer
+aunque el dato siguiera guardado.
+
+Es un agujero de la costura entre las dos vueltas de `§ADR-088`: la primera hizo el lector y sus
+gráficas, la segunda añadió el histórico, y nadie recorrió la pantalla **desde la fuente nueva**.
+
+### Decisión
+
+**1. El histórico tiene sus propias gráficas**, tres, y se pintan de los resúmenes que la consulta
+ya trajo a memoria: **cero lecturas adicionales a la base**. Añadir gráficas no añadió factura.
+
+- **`TableroDelHistorico`** — pico del periodo con su fecha y su línea, valle, promedio, días
+  guardados, días con sobrecarga y horas que duró, cobertura horaria y reparto por bandas.
+- **`TendenciaDiaria`** — línea llena para la **máxima** del día, punteada para el **promedio**, y
+  una **franja** entre mínima y máxima que enseña el recorrido de la jornada.
+- **`PorLineaDelHistorico`** — ranking por el **pico** del periodo. Se oculta con una sola línea:
+  un ranking de uno no dice nada.
+
+**2. La unidad aquí es el DÍA, y por eso son funciones nuevas.** `resumen`, `porLinea` y
+`serieTemporal` toman registros HORARIOS. El histórico guarda un resumen por línea y día — que es
+justo lo que mantiene el módulo en el plan gratuito (`§ADR-088`). Reusar las de arriba habría
+obligado a abrir los días completos: pagar por lo que ya se ve gratis. Nacen en `nucleo/`, puras:
+`serieDiaria`, `resumenDelHistorico`, `porLineaDesdeResumenes`. Motor `0.7.0 → 0.8.0`.
+
+**3. Dos honestidades que el dato exige**, y que se probaron antes de pintarlas:
+
+- **El promedio del periodo se pondera por horas medidas.** Un día con 3 horas no pesa como uno con
+  24; sin ponderar, tres lecturas altas mueven la media de un mes entero.
+- **Sin línea elegida, el punto del día es la línea MÁS CARGADA de ese día, no el promedio de
+  todas.** Promediar escondería justo el día que hay que mirar: 104 % en una y 30 % en la vecina no
+  son «67 %».
+
+### Alternativas descartadas, con su porqué
+
+- **Traer los días completos y reusar las gráficas horarias.** Es la opción que parece más limpia y
+  es la que rompe el modelo: un año de diez líneas pasa de 3.650 lecturas a 87.600. El módulo dejaría
+  de ser gratis justo cuando empieza a servir.
+- **Mover las seis gráficas fuera de `{cargado && …}` y alimentarlas con lo que haya.** Mezclaría dos
+  unidades distintas —horas y días— en el mismo eje sin decirlo. Una gráfica que no sabe si su punto
+  es una hora o un día es peor que ninguna.
+- **Rellenar el histórico vacío con un ejemplo «para que se vea cómo queda».** Prohibido por orden
+  expresa del Ingeniero (2026-08-29) y vigilado por un guardián. El vacío se dice; no se decora.
+- **Dibujar el día sin medir como 0 %.** Diría que la línea estuvo descargada, que es una afirmación
+  distinta de «no se midió». Corta la línea y corta la franja.
+
+### Consecuencias
+
+- **2.131 pruebas en verde** (11 nuevas, todas sobre las trampas de arriba). Motor `0.8.0`.
+- **Desplegado y comprobado en producción**, no solo subido: el `index-BjeVYlc4.js` local y el que
+  sirve el sitio son el mismo, y el trozo nuevo responde 200 (`35 · L-75`).
+- **Lo que este ADR NO puede afirmar:** que el Ingeniero VEA las gráficas del histórico. Eso exige
+  su sesión de administrador y que haya **datos guardados**; si nunca llegó a completar un guardado,
+  el histórico dirá «no existen registros» y seguirá sin dibujar — correctamente. Queda por
+  comprobar con él.
+- Nace `L-76`: una funcionalidad entregada en dos vueltas se recorre desde la fuente NUEVA, no solo
+  desde la vieja. El estado por defecto de una pantalla es aquel en que el usuario la ABRE.
+- Se indexaron de paso `L-74` y `L-75`, que se escribieron ayer y nunca llegaron al nodo madre.
+
+### Lo que se ordenó de paso, porque el guardián lo destapó
+
+El tope de `docs/32` saltó al escribir `L-76`. La salida NO fue podar lecciones ajenas: **dos estaban
+archivadas en el nodo equivocado y su propio texto lo decía.**
+
+- **`L-35`** («`deploy` NO construye») es la otra mitad de **`L-75`** («Success! de Cloudflare no
+  quiere decir que la web cambió»), que ya vivía en `35`. Eran un solo *gotcha* partido en dos nodos.
+- **`L-36`** es un PUNTERO a `L-22`… y apuntaba a `31 · L-22`, **cuando `L-22` vive en `35`**. El
+  puntero llevaba mal desde alguna mudanza anterior. Su propio cuerpo ya avisaba del patrón: *«el
+  síntoma es de PANTALLA y la causa es de PROVEEDOR; se buscó en el hijo equivocado»*.
+
+Las dos se mudaron a `35`, junto a su familia. `32` queda en 19.928/20.000 y `35` en 17.322/20.000,
+las dos por debajo sin haber perdido una sola lección. De camino se corrigieron **cuatro punteros**
+más que mandaban a `31 · L-22`, un sitio donde esa lección no está.
+
+### Crudo de respaldo
+
+*(sin deliberación separada: el diagnóstico salió de leer `Cargabilidad.tsx:306-393` y `399-559`)*

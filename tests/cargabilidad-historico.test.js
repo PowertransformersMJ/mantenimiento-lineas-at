@@ -166,3 +166,124 @@ describe('de dónde salió cada número', () => {
     assert.match(REPO, /No sirve para bloquear/);
   });
 });
+
+// ════════════════════════════════════════════════════════════════════════════
+// 4 · LO QUE SE PINTA DEL HISTÓRICO GUARDADO
+// ────────────────────────────────────────────────────────────────────────────
+// El histórico guarda un resumen por línea y día, no horas sueltas. Pintar eso
+// tiene dos trampas que estas pruebas existen para clavar:
+//   1. **Promediar promedios.** Un día con 3 horas medidas no pesa igual que uno
+//      con 24. Sin ponderar, tres lecturas altas mueven la media de un mes.
+//   2. **Fundir líneas por su promedio.** El día que una línea llegó al 104 % no
+//      puede desaparecer porque la vecina iba al 30 %.
+// ════════════════════════════════════════════════════════════════════════════
+import {
+  serieDiaria, resumenDelHistorico, porLineaDesdeResumenes,
+} from '../nucleo/cargabilidad.js';
+
+/** Un resumen diario sintético. Líneas LN-AAA/LN-BBB: nunca dato real. */
+const dia = (fecha, linea, { max, min, prom, horas = 24, sobre = 0 }) => ({
+  linea, fecha, horasConMedida: horas,
+  ...(max == null ? {} : { maxima_pct: max, minima_pct: min, promedio_pct: prom }),
+  porBanda: { normal: horas - sobre, elevada: 0, atencion: 0, sobrecarga: sobre },
+});
+
+describe('la serie diaria del histórico', () => {
+  test('con una línea, sale un punto por día y ordenado por fecha', () => {
+    const s = serieDiaria([
+      dia('2026-08-03', 'LN-AAA', { max: 70, min: 30, prom: 50 }),
+      dia('2026-08-01', 'LN-AAA', { max: 60, min: 20, prom: 40 }),
+    ], 'LN-AAA');
+    assert.deepEqual(s.map((p) => p.fecha), ['2026-08-01', '2026-08-03']);
+  });
+
+  test('⚠️ sin línea, el punto del día es el PEOR, no el promedio de las líneas', () => {
+    // Es la diferencia entre ver el día que hubo sobrecarga y no verlo.
+    const s = serieDiaria([
+      dia('2026-08-01', 'LN-AAA', { max: 104, min: 80, prom: 95 }),
+      dia('2026-08-01', 'LN-BBB', { max: 30, min: 10, prom: 20 }),
+    ]);
+    assert.equal(s.length, 1, 'las dos líneas del mismo día deben fundirse en un punto');
+    assert.equal(s[0].maxima_pct, 104, 'la sobrecarga de una línea se perdió al fundir');
+    assert.equal(s[0].linea, 'LN-AAA', 'no dice cuál línea marcó el pico');
+    assert.equal(s[0].lineas, 2);
+  });
+
+  test('⚠️ el promedio del día pondera por horas medidas', () => {
+    // 24 h al 20 % y 2 h al 90 %: la media simple daría 55, la real 25,4.
+    const s = serieDiaria([
+      dia('2026-08-01', 'LN-AAA', { max: 25, min: 15, prom: 20, horas: 24 }),
+      dia('2026-08-01', 'LN-BBB', { max: 90, min: 85, prom: 90, horas: 2 }),
+    ]);
+    assert.ok(s[0].promedio_pct < 30,
+      `promedió sin ponderar: ${s[0].promedio_pct} % (la media simple sería 55)`);
+  });
+
+  test('un día guardado SIN medida no se dibuja', () => {
+    // Dibujarlo como 0 % diría que la línea estuvo descargada, no que no se midió.
+    const s = serieDiaria([
+      dia('2026-08-01', 'LN-AAA', { max: 50, min: 40, prom: 45 }),
+      dia('2026-08-02', 'LN-AAA', { max: null, horas: 0 }),
+    ], 'LN-AAA');
+    assert.equal(s.length, 1);
+  });
+
+  test('sin nada que pintar no revienta', () => {
+    assert.deepEqual(serieDiaria([]), []);
+    assert.deepEqual(serieDiaria(null), []);
+  });
+});
+
+describe('el tablero del histórico', () => {
+  const muestra = [
+    dia('2026-08-01', 'LN-AAA', { max: 70, min: 30, prom: 50 }),
+    dia('2026-08-02', 'LN-AAA', { max: 104, min: 60, prom: 88, sobre: 3 }),
+    dia('2026-08-02', 'LN-BBB', { max: 45, min: 12, prom: 28 }),
+    dia('2026-08-03', 'LN-AAA', { max: null, horas: 0 }),
+  ];
+
+  test('el pico dice CUÁNTO, CUÁNDO y DE QUÉ LÍNEA', () => {
+    // Un pico sin fecha ni línea no se puede ir a comprobar, y este módulo
+    // existe para que cada cifra se pueda rastrear.
+    const t = resumenDelHistorico(muestra);
+    assert.deepEqual(t.pico, { pct: 104, fecha: '2026-08-02', linea: 'LN-AAA' });
+    assert.equal(t.valle.pct, 12);
+  });
+
+  test('cuenta los días con sobrecarga y las horas que duró', () => {
+    const t = resumenDelHistorico(muestra);
+    assert.equal(t.diasConSobrecarga, 1);
+    assert.equal(t.horasDeSobrecarga, 3);
+  });
+
+  test('un día sin medida cuenta como día, pero no como día con dato', () => {
+    const t = resumenDelHistorico(muestra);
+    assert.equal(t.dias, 4);
+    assert.equal(t.diasConMedida, 3);
+    assert.equal(t.lineas, 2);
+  });
+
+  test('la cobertura se mide contra los días QUE HAY, no contra el calendario', () => {
+    // 3 días guardados y completos son 100 %, no «10 % de un mes».
+    const t = resumenDelHistorico([
+      dia('2026-08-01', 'LN-AAA', { max: 50, min: 40, prom: 45, horas: 24 }),
+    ]);
+    assert.equal(t.cobertura_pct, 100);
+  });
+
+  test('sin datos devuelve ceros, no `undefined` ni una excepción', () => {
+    const t = resumenDelHistorico([]);
+    assert.equal(t.dias, 0);
+    assert.equal(t.pico, null);
+    assert.equal(t.promedio, null);
+    assert.deepEqual(t.porBanda, { normal: 0, elevada: 0, atencion: 0, sobrecarga: 0 });
+  });
+
+  test('el ranking por línea encabeza por el PICO del periodo', () => {
+    const filas = porLineaDesdeResumenes(muestra);
+    assert.equal(filas[0].linea, 'LN-AAA');
+    assert.equal(filas[0].maximo, 104);
+    assert.equal(filas[0].horasDeSobrecarga, 3);
+    assert.equal(filas[1].linea, 'LN-BBB');
+  });
+});

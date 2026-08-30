@@ -132,6 +132,40 @@ export function tramosDeLinea(
   return tramos;
 }
 
+/**
+ * LA FRANJA ENTRE EL MÍNIMO Y EL MÁXIMO DEL DÍA.
+ *
+ * ⚠️ Solo tiene sentido sobre la serie DIARIA del histórico, donde cada punto ya
+ * es un día resumido: la franja es el recorrido que hizo la línea ese día, y sin
+ * ella un punto al 60 % parece lo mismo tanto si el día fue plano como si osciló
+ * entre 20 y 104. Es justo la diferencia que hay que ver.
+ *
+ * Devuelve un polígono por TRAMO CONTIGUO, por la misma razón que
+ * `tramosDeLinea`: un día sin medir corta la franja en vez de rellenar el hueco
+ * con una superficie que nadie midió.
+ */
+export function areasDeBanda(
+  serie: { alto: number | null; bajo: number | null }[], techo: number, l: Lienzo = LIENZO,
+): string[] {
+  const areas: string[] = [];
+  let corrido: number[] = [];
+  const cerrar = () => {
+    if (corrido.length > 1) {
+      const arriba = corrido.map((i) => `${x(i, serie.length, l).toFixed(1)},${y(serie[i].alto!, techo, l).toFixed(1)}`);
+      const abajo = [...corrido].reverse()
+        .map((i) => `${x(i, serie.length, l).toFixed(1)},${y(serie[i].bajo!, techo, l).toFixed(1)}`);
+      areas.push([...arriba, ...abajo].join(' '));
+    }
+    corrido = [];
+  };
+  serie.forEach((p, i) => {
+    if (p.alto == null || p.bajo == null) { cerrar(); return; }
+    corrido.push(i);
+  });
+  cerrar();
+  return areas;
+}
+
 /** Las marcas del eje Y: de 0 al techo, cada 20, y siempre con el techo puesto. */
 export function marcasY(techo: number): number[] {
   const marcas: number[] = [];

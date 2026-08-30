@@ -124,7 +124,7 @@ mantenimiento-lineas-at/
 │   └── publicar-decisiones.mjs  lo genera con LISTA BLANCA de campos. Local, jamás en CI
 ├── firestore.rules              🔒 parte del CONTRATO, no configuración: RBAC por *claims* y un
 │   firebase.json                catch-all que niega lo no declarado. **Por SU canal**, no con el
-│   firestore.indexes.json       sitio (`31 · L-22`)
+│   firestore.indexes.json       sitio (`35 · L-22`)
 ├── disenos/                     5 maquetas de la carcasa; ganó `5-horizonte` (ADR-018)
 ├── web/src/estilo.css           el tablero de color: ~61 tokens en `:root`, paleta CLARA. Ningún
 │                                color se escribe fuera de ahí; lo vigila una prueba

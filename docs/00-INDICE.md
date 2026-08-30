@@ -42,7 +42,7 @@ Guarda `research-archive/` (crudos de deliberación: comités, consejos externos
 | «desplegué y la pantalla sigue igual», «ese número está mal escrito» | `32` |
 | «el mapa es un rectángulo gris», «enciendo la capa y no pasa nada», «no veo el gradiente» | `34` |
 | «este número del informe firmable no cuadra» | `33` |
-| «el CI está VERDE pero el cambio NO está en producción», «Actions en verde y la pantalla igual» | `32 · L-35/L-18` |
+| «el CI está VERDE pero el cambio NO está en producción», «Actions en verde y la pantalla igual» | `35 · L-35/L-18` |
 | «voy a añadir una capa o un atlas nuevo: ¿qué toco y qué NO?» | `20` + `99 §ADR-055/060` |
 | «¿por qué esta capa se dibuja como UNA celda y su número, y no como campo de colores?» | `99 §ADR-035/046/056` |
 | «¿hubo tormenta eléctrica / rayos?», «¿por qué no consta una descarga atmosférica?» | `99 §ADR-060` + `35 · L-37` |
@@ -166,6 +166,7 @@ Guarda `research-archive/` (crudos de deliberación: comités, consejos externos
 | `ADR-087` | 2026-08-26 | Las dos capas finas del corredor se mudan al atlas, y aprenden a decir que son un PROMEDIO | *(`web/src/componentes/CapasDelCorredor.tsx`)* |
 | `ADR-088` | 2026-08-29 | Cargabilidad eléctrica: el motor, un lector de Excel sin dependencias, y una pantalla que no promete lo que no guarda | *(`nucleo/cargabilidad.js`)* |
 | `ADR-089` | 2026-08-30 | Los datos del empleador se quedan donde están, y se le pone freno a lo único que sí se podía perder | `research-archive/2026-08-30-residencia-del-dato/` |
+| `ADR-090` | 2026-08-30 | El histórico guardado también dibuja: las gráficas estaban atadas al archivo recién cargado | *(`web/src/componentes/Cargabilidad.tsx`)* |
 
 > Toda decisión cara de revertir entra aquí con su ADR y su crudo enlazado. Si hubo comité o consejo
 > externo y el crudo no está archivado, la tarea **no está cerrada** (`CLAUDE.md §G.4`).

@@ -63,8 +63,8 @@
 ## 🧭 Cómo retomar
 
 1. **Abrir Claude Code DENTRO del proyecto** (desde el paraguas: `session-handoff.mjs --boot-echo`).
-2. Desplegar: `npm run build && npm run deploy --workspace web`, en ese orden (`32 · L-35`). Repo
-   PÚBLICO → **cero bytes de cliente**. Reglas de Firestore por SU canal y ANTES (`31 · L-22`).
+2. Desplegar: `npm run build && npm run deploy --workspace web`, en ese orden (`35 · L-35`). Repo
+   PÚBLICO → **cero bytes de cliente**. Reglas de Firestore por SU canal y ANTES (`35 · L-22`).
 3. **Verificar contra PRODUCCIÓN con su Chrome**, no contra `dist/` (`32 · L-18/35`); el MAPA, con el portero del punto 6.
 4. Antes de CADA push: `npm test` + `contrato:verificar` + `brain:check` (bloquea si el boot se pasa).
 

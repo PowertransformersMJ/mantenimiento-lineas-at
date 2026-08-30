@@ -62,8 +62,8 @@
 - `L-26` · El núcleo escribe con PUNTO decimal, y en Colombia el punto son miles
 - `L-27` · Una nota que el núcleo escribe POR FILA no se pinta por fila
 - `L-30` · `loading="lazy"` no carga URLs `blob:` — y el fallo se lee como «faltan los datos»
-- `L-35` · `deploy` NO construye: se puede desplegar un `dist/` rancio y no enterarse
-- `L-36` · Recaída de `L-22`: las reglas de Firestore no se despliegan solas (el cuerpo vive en `31 · L-22`)
+- `L-35` · `deploy` NO construye: se puede desplegar un `dist/` rancio y no enterarse *(`35`)*
+- `L-36` · Recaída de `L-22`: las reglas de Firestore no se despliegan solas (el cuerpo, en `35 · L-22`) *(`35`)*
 - `L-44` · Un tercer estado que la pantalla aplana se convierte en un aprobado
 - `L-48` · Silenciar `stderr` convirtió un guion que reventó en un guion que "funcionó"
 - `L-49` · Volver a guardar un `.pptx` clonado con python-pptx lo deja inservible
@@ -119,6 +119,9 @@
 - `L-71` · Un resumen de OTRO ámbito, puesto al lado del número, destruye la confianza en la capa entera *(`34`)*
 - `L-72` · «No puedo mirar el lienzo» tenía salida: un Chrome sin cabeza SÍ pinta — y el tiempo virtual miente *(`34`)*
 - `L-73` · Un icono se juzga a su TAMAÑO REAL: a 3× todo se ve bien, y a 18 px el trazo fino ya no existe *(`32`)*
+- `L-74` · Al MUDAR una capa de pantalla, la que miente no es la capa: son las frases de al lado *(`34`)*
+- `L-75` · «Success! · Production» de Cloudflare Pages NO quiere decir que la web haya cambiado *(`35`)*
+- `L-76` · Las gráficas se construyeron para el archivo recién cargado, no para el dato guardado *(`32`)*
 
 ### M-01 · Una cifra escrita a mano que un guardián puede contar es una cifra que envejece sola
 
@@ -290,7 +293,7 @@
 ### L-39 · Con la familia repartida, una lección nueva se DUPLICA si no buscas el síntoma en los cuatro archivos
 - **Síntoma:** el 04-08-2026 se pagó una tarde a *«Missing or insufficient permissions»* al añadir la
   colección `analisis`, y se escribió `L-36` para que no volviera a pasar. La lección **ya existía**:
-  `31 · L-22`, escrita días antes por el mismo síntoma, con la misma causa y hasta con el mismo
+  `35 · L-22`, escrita días antes por el mismo síntoma, con la misma causa y hasta con el mismo
   remedio de los tres despliegues. No solo se duplicó el texto: **se pagó otra vez un error que ya
   estaba documentado**, que es el fallo de verdad.
 - **Causa:** desde que la familia se repartió en madre + tres hijos (`99 §ADR-016`), ningún archivo se
