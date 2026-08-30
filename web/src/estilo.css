@@ -1681,3 +1681,87 @@ p.fund-vivo + .sello-calculo { margin-top: 5px; }
 .escala-tabla tr.hubo.g-nuboso      { border-left-color: var(--nub-nuboso); }
 .escala-tabla tr.hubo.g-cubierto    { border-left-color: var(--nub-cubierto); }
 .sol-rampa { height: 10px; border-radius: 3px; margin: 6px 0 2px; border: 1px solid var(--bd); }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   CARGABILIDAD ELÉCTRICA (`99 §ADR-088`)
+   ----------------------------------------------------------------------------
+   Todo el color sale del tablero de `:root`. Aquí no se escribe ni un literal:
+   hay una prueba que lo prohíbe, y con razón — un color a mano es un color que
+   no cambia cuando cambia la paleta.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* La caja que agrupa un bloque de la pantalla. Sustituye al `<section>` suelto:
+   con nueve bloques seguidos, sin caja no se sabe dónde acaba uno y empieza otro. */
+.tarjeta {
+  border: 1px solid var(--bd);
+  border-radius: var(--radio);
+  background: var(--pnl);
+  padding: 12px 14px;
+  margin: 14px 0;
+}
+
+/* ── El mapeo de columnas ──────────────────────────────────────────────────── */
+.mapeo-rejilla {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 6px 16px;
+  margin: 8px 0;
+}
+.mapeo-fila { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+.mapeo-fila > span { font-size: .86rem; color: var(--tx2); }
+.mapeo-fila select { max-width: 58%; }
+
+/* ── Texto de estado ───────────────────────────────────────────────────────── */
+.tx-alerta { color: var(--tx-alerta); }
+
+/* Una tabla ancha se desplaza DENTRO de su caja; la página nunca en horizontal. */
+.tabla-scroll { overflow-x: auto; }
+
+/* ── El reparto por bandas ─────────────────────────────────────────────────── */
+.bandas-reparto { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 8px 0 4px; }
+.banda-chip { font-size: .82rem; color: var(--tx2); display: inline-flex; align-items: center; gap: 5px; }
+.banda-chip i { width: 11px; height: 11px; border-radius: 3px; display: inline-block; border: 1px solid var(--bd); }
+
+/* El rótulo de un indicador. `.kpi`, `.kpi-v` y `.kpi-s` ya existían. */
+.kpi-r { font-size: .74rem; color: var(--tx3); text-transform: uppercase; letter-spacing: .04em; }
+
+/* ── Las gráficas ──────────────────────────────────────────────────────────── */
+.grafica { width: 100%; height: auto; display: block; margin: 8px 0 4px; }
+
+.barras { display: flex; flex-direction: column; gap: 4px; margin: 8px 0; }
+.barra-rotulo {
+  flex: 0 0 128px; font-size: .84rem; color: var(--tx2);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.barra-canal {
+  flex: 1 1 auto; height: 14px; background: var(--sup-hund);
+  border-radius: 3px; overflow: hidden; border: 1px solid var(--bd-tenue);
+}
+
+/* ── El mapa de calor ──────────────────────────────────────────────────────── */
+.calor { border-collapse: collapse; font-size: .72rem; }
+.calor th { color: var(--tx3); font-weight: 500; padding: 2px 4px; text-align: center; }
+.calor th[scope="row"] { text-align: right; white-space: nowrap; padding-right: 8px; }
+.calor td { width: 18px; height: 18px; border: 1px solid var(--bd-tenue); }
+/* ⚠️ La celda sin medida va PUNTEADA y sin relleno, como el resto de huecos de
+   la aplicación: pintarla de un color la haría parecer un valor bajo. */
+.calor td.sin-dato { background: transparent; border-style: dotted; }
+
+/* ── El histograma ─────────────────────────────────────────────────────────── */
+.histograma {
+  display: flex; align-items: flex-end; gap: 3px;
+  height: 120px; margin: 10px 0 4px;
+  border-bottom: 1px solid var(--bd);
+}
+.histo-col { flex: 1 1 0; display: flex; flex-direction: column; justify-content: flex-end; height: 100%; }
+.histo-barra { display: block; width: 100%; border-radius: 2px 2px 0 0; min-height: 1px; }
+.histo-pie { font-size: .64rem; color: var(--tx4); text-align: center; padding-top: 2px; }
+
+/* El encabezado que ordena. Es un botón de verdad —se llega con el teclado—,
+   vestido de encabezado: una cabecera que solo responde al ratón deja fuera a
+   quien navega tabulando. */
+.th-orden {
+  background: none; border: 0; padding: 0; font: inherit; color: inherit;
+  cursor: pointer; text-align: inherit;
+}
+.th-orden:hover { color: var(--acc); }

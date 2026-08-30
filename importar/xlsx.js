@@ -228,7 +228,8 @@ function leerRelaciones(xml) {
  * la primera fila no es la cabecera. Se ofrece el control en vez de adivinar.
  *
  * @param {ArrayBuffer|Uint8Array} datos
- * @returns {Promise<{hojas: {nombre:string, cabeceras:string[], filas:Object[], nFilas:number}[]}>}
+ * @returns {Promise<{hojas: {nombre:string, cabeceras:string[],
+ *            filas: Record<string, string|number|boolean|null>[], nFilas:number}[]}>}
  */
 export async function leerXlsx(datos, { filaCabecera = 0 } = {}) {
   const bytes = datos instanceof Uint8Array ? datos : new Uint8Array(datos);

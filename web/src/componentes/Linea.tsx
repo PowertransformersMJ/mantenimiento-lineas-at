@@ -48,6 +48,7 @@ const nf = (v: number, d = 0) =>
 // El mapa pesa (MapLibre ≈ 230 kB comprimido) y es OPCIONAL: va en su propio
 // trozo, con reintentos, y si aun así falla se cae al esquema SVG.
 const Mapa = lazy(() => conReintentos(() => import('./Mapa')));
+const Cargabilidad = lazy(() => conReintentos(() => import('./Cargabilidad')));
 
 function Kpi({ valor, etiqueta, sub, tono }: { valor: string; etiqueta: string; sub?: string; tono?: string }) {
   return (
@@ -115,6 +116,13 @@ const PESTANAS = [
   { id: 'fundamentos', rotulo: 'Fundamentos', lista: true },
   { id: 'mecanico', rotulo: 'Mecánico', lista: true },
   { id: 'termica', rotulo: 'Térmica', lista: true },
+  // Va PEGADA a Térmica y no al final: Térmica dice cuánta corriente PUEDE
+  // llevar la línea (la ampacidad, que se mueve con el clima) y ésta dice cuánta
+  // lleva DE VERDAD. Son las dos mitades de la misma pregunta, y separarlas
+  // obligaría a recordar un número de una pestaña para leer otra.
+  // ⚠️ NO se llama «Cargas»: aquélla es la carga ESTRUCTURAL sobre el apoyo, en
+  // kgf, y es otro veredicto. Confundirlas es el enredo que costó `30 · M-02`.
+  { id: 'cargabilidad', rotulo: 'Cargabilidad', lista: true },
   { id: 'viento', rotulo: 'Viento', lista: true },
   // Va DESPUÉS de Viento a propósito: la carga sobre el apoyo se compone con el
   // empuje que la pestaña anterior acaba de caracterizar. Y va aparte de
@@ -841,6 +849,13 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
         {activa === 'mecanico' && <Mecanico apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} />}
         {activa === 'fundamentos' && <Fundamentos apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} />}
         {activa === 'termica' && <Termica linea={linea} conductor={conductor} hipotesis={hipotesis} />}
+        {/* Perezosa a propósito: trae el lector de `.xlsx` y las gráficas, y
+            quien no abra la pestaña no baja un byte de eso. */}
+        {activa === 'cargabilidad' && (
+          <Suspense fallback={<p className="fine">Preparando el lector de archivos…</p>}>
+            <Cargabilidad />
+          </Suspense>
+        )}
         {activa === 'viento' && <Viento apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} />}
         {activa === 'cargas' && <Cargas linea={linea} apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} />}
         {activa === 'cantidades' && <Cantidades linea={linea} apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} />}

@@ -52,6 +52,8 @@ const r = (v, n = 2) => (v == null || !Number.isFinite(v) ? null : Math.round(v 
  * corriente y capacidad, sin el porcentaje ya hecho, es un archivo VÁLIDO — y de
  * hecho es el mejor de los dos, porque deja el cálculo de este lado, donde se
  * sabe con qué capacidad se hizo.
+ *
+ * @type {Record<string, {rotulo: string, tipo: string, unidad?: string, requerido: boolean}>}
  */
 export const CAMPOS = {
   fecha: { rotulo: 'Fecha', tipo: 'fecha', requerido: true },
@@ -122,6 +124,10 @@ export function normalizarCabecera(s) {
  * ⚠️ Una cabecera solo se asigna a UN campo, y el primer campo que la reclama se
  * la queda por orden del catálogo. Sin eso, «corriente nominal» caería a la vez
  * en `corriente_A` y en `capacidadNominal_A`, y la línea saldría al 100 % fijo.
+ *
+ * @param {string[]} cabeceras
+ * @returns {{mapeo: Record<string, string>, sinReconocer: string[],
+ *            faltanRequeridos: string[], completo: boolean}}
  */
 export function detectarMapeo(cabeceras) {
   const vistas = (cabeceras ?? []).map((c) => ({ original: c, norma: normalizarCabecera(c) }));
@@ -329,6 +335,13 @@ export function normalizarFila(fila, mapeo, { escalaPct = 1, nFila = null } = {}
  * El lote entero: registros buenos, filas malas y de qué murió cada una.
  * Devuelve TAMBIÉN las filas con error para poder descargarlas — un archivo que
  * dice «317 registros con error» y no dice cuáles obliga a revisarlo a ojo.
+ *
+ * @param {Record<string, unknown>[]} filas
+ * @param {Record<string, string>} mapeo
+ * @returns {{registros: Record<string, any>[],
+ *            errores: {nFila: number|null, campo: string, valor: unknown, porQue: string}[],
+ *            escalaPct: {escala: number|null, porQue: string, ambigua: boolean},
+ *            resumen: {filas: number, correctos: number, conError: number, camposPorLlenar: string[]}}}
  */
 export function procesarLote(filas, mapeo) {
   const columnaPct = mapeo.cargabilidad_pct;
@@ -373,7 +386,11 @@ export function derivarPorcentaje(reg) {
   };
 }
 
-/** Qué campos opcionales no trajo NI UNA fila. Se dice, no se rellena. */
+/**
+ * Qué campos opcionales no trajo NI UNA fila. Se dice, no se rellena.
+ * @param {Record<string, any>[]} registros
+ * @returns {string[]}
+ */
 export function camposAusentes(registros) {
   if (!registros.length) return Object.keys(CAMPOS);
   return Object.keys(CAMPOS).filter((c) => registros.every((reg) => reg[c] == null));
@@ -433,6 +450,10 @@ export const BANDAS = [
   { clave: 'sobrecarga', desde: 100, hasta: Infinity, rotulo: 'Sobrecarga' },
 ];
 
+/**
+ * @param {number|null|undefined} pct
+ * @returns {{clave: string, desde: number, hasta: number, rotulo: string}|null}
+ */
 export function bandaDe(pct) {
   if (pct == null || !Number.isFinite(pct)) return null;
   return BANDAS.find((b) => pct >= b.desde && pct < b.hasta) ?? BANDAS[BANDAS.length - 1];
@@ -526,7 +547,13 @@ export function contarBandas(registros) {
 // 7 · LAS VISTAS QUE PIDEN LAS GRÁFICAS
 // ════════════════════════════════════════════════════════════════════════════
 
-/** Barras y ranking: una fila por línea, con las cuatro medidas que se piden. */
+/**
+ * Barras y ranking: una fila por línea, con las cuatro medidas que se piden.
+ * @param {Record<string, any>[]} registros
+ * @returns {{linea: string, n: number, promedio: number|null, maximo: number|null,
+ *            minimo: number|null, ultimo: number|null,
+ *            ultimoInstante: {fecha: string, hora: number|null}, sobrecargas: number}[]}
+ */
 export function porLinea(registros) {
   const mapa = new Map();
   for (const x of conPct(registros)) {
@@ -552,7 +579,12 @@ export function porLinea(registros) {
 const comparaInstante = (a, b) =>
   (a.fecha === b.fecha ? (a.hora ?? -1) - (b.hora ?? -1) : (a.fecha < b.fecha ? -1 : 1));
 
-/** La serie de una línea, ordenada en el tiempo. Es lo que pinta la tendencia. */
+/**
+ * La serie de una línea, ordenada en el tiempo. Es lo que pinta la tendencia.
+ * @param {Record<string, any>[]} registros
+ * @param {string|null} [linea] `null` = todas, una detrás de otra.
+ * @returns {{fecha: string, hora: number|null, pct: number, linea: string}[]}
+ */
 export function serieTemporal(registros, linea = null) {
   return conPct(registros)
     .filter((x) => linea == null || x.linea === linea)
@@ -564,6 +596,11 @@ export function serieTemporal(registros, linea = null) {
  * Mapa de calor: filas = líneas, columnas = horas (o fechas).
  * La celda sin medida vale `null` y **no se pinta**, que no es lo mismo que
  * pintarla del color del cero.
+ *
+ * @param {Record<string, any>[]} registros
+ * @param {'hora'|'fecha'} [eje]
+ * @returns {{eje: string, lineas: string[], columnas: (string|number)[],
+ *            celdas: ({pct: number|null, n: number, banda: string}|null)[][]}}
  */
 export function mapaDeCalor(registros, eje = 'hora') {
   const lineas = [...new Set(conPct(registros).map((x) => x.linea))].sort();
@@ -595,7 +632,11 @@ export function mapaDeCalor(registros, eje = 'hora') {
   };
 }
 
-/** Histograma por anchos fijos. El último tramo recoge todo lo que se pase. */
+/**
+ * Histograma por anchos fijos. El último tramo recoge todo lo que se pase.
+ * @param {Record<string, any>[]} registros
+ * @returns {{desde: number, hasta: number, n: number, banda: string}[]}
+ */
 export function histograma(registros, ancho = 10) {
   const xs = conPct(registros).map((x) => x.cargabilidad_pct);
   if (!xs.length) return [];
@@ -671,6 +712,12 @@ export function promedioMovil(serie, ventana = 5) {
  * ⚠️ **Atípico no es erróneo.** Una sobrecarga real es atípica y es justo lo que
  * hay que mirar. Esta función SEÑALA, no descarta: quien la use tiene prohibido
  * filtrar el dato, solo marcarlo.
+ *
+ * @param {Record<string, any>[]} registros
+ * @returns {{suficiente: boolean, n: number, q1?: number|null, q3?: number|null,
+ *            iqr?: number|null, limiteBajo?: number|null, limiteAlto?: number|null,
+ *            marcados: {linea: string, fecha: string, hora: number|null,
+ *                       pct: number|null, lado: string}[]}}
  */
 export function atipicos(registros, { k = 1.5 } = {}) {
   const xs = conPct(registros);
