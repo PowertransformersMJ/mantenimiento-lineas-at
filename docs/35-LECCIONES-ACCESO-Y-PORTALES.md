@@ -216,3 +216,43 @@ Verificado el 2026-08-04 contra `datos.gov.co` (IDEAM), integrando el clima del 
   panel de Cloudflare (promover el despliegue a producción), y eso es **mano del Ingeniero**.
 - **Hermana de `32 · L-18/L-35`** (verificar contra producción, no contra `dist/`) y de la razón por
   la que existe `TODO-89`: mientras publicar sea a mano, este eslabón se comprueba a mano.
+
+### L-77 · Construir sin integrar primero PUBLICA datos viejos: el despliegue deshace el trabajo del bot
+
+**Síntoma (2026-09-01).** Se desplegó y todo salió bien: el bundle correcto, hashes comprobados. Y
+sin querer se devolvió el atlas del clima **varios días hacia atrás** en producción.
+
+**Causa.** Este repositorio tiene un robot de GitHub Actions que empuja **commits de DATO** cada
+pocas horas —atlas de satélite, pronóstico, temperatura, viento, lluvia— y esos datos viven en
+`web/public/mapas/`, o sea **dentro del sitio publicado**. Yo llevaba 37 commits de retraso.
+`npm run build` empaquetó mi copia local, que era vieja, y `wrangler pages deploy` la publicó
+encima de la buena. El sitio quedó con **28 ficheros de datos retrocedidos**.
+
+**Lo que hace esto especialmente traicionero:** todas las comprobaciones daban verde. El bundle de
+código era el correcto y su hash coincidía con producción, porque **mi código sí era el más
+nuevo**. Lo que había retrocedido era el DATO, que no viaja en el bundle y que ninguna prueba mira.
+Se descubrió por casualidad, al rechazar el `git push` por estar detrás del remoto.
+
+**Es hermana de `L-35` pero NO es la misma.** Aquélla: *`deploy` no construye, se publica un `dist/`
+rancio*. Ésta: *`build` sí construyó, y construyó bien — sobre un árbol rancio*. Poner `build`
+delante no salva de esto. Lo único que salva es **traerse el remoto ANTES de construir**.
+
+**La regla, en este orden y sin saltarse el primero:**
+
+```
+git pull --rebase origin main   →   npm run build   →   deploy   →   comprobar
+```
+
+**Y comprobar el DATO, no solo el bundle.** El hash del `index-*.js` no dice nada del atlas. Se
+compara el fichero de datos:
+
+```
+shasum -a 256 web/public/mapas/temp-caribe.json
+curl -s https://…/mapas/temp-caribe.json | shasum -a 256
+```
+
+**Regla general que sale de aquí:** en un repositorio donde **un automatismo empuja datos**, el
+despliegue manual es una operación de escritura sobre lo que ese automatismo produjo. Desplegar sin
+integrar no es publicar lo tuyo: es **pisar lo suyo**.
+
+**Cerrada en** `99 §ADR-091`. Emparenta con `L-35` y con `L-75`.

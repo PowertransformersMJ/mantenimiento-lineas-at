@@ -7817,6 +7817,20 @@ Las cinco erraban **en el sentido de tranquilizar**, que es el peor.
   viaja al papel que se firma.
 - **Nada de esto se ha visto en producción con dato real.** En esta casa «hecho» es lo que se VE.
 
+### Un tropiezo propio, cazado por casualidad: `L-77`
+
+Al desplegar esta tanda **se devolvió el atlas del clima varios días hacia atrás** en producción.
+El robot de Actions empuja commits de DATO cada pocas horas a `web/public/mapas/`, que está DENTRO
+del sitio; yo llevaba 37 commits de retraso y `build` empaquetó mi copia vieja. **Todas las
+comprobaciones daban verde**: el bundle era el correcto y su hash coincidía, porque lo que había
+retrocedido era el dato, que no viaja en el bundle y que ninguna prueba mira. Se descubrió porque
+`git push` rechazó por estar detrás.
+
+Reparado en ~10 minutos (rebase → build → deploy → los cuatro ficheros de atlas comparados **byte a
+byte** contra producción). Nace `L-77`: en un repositorio donde un automatismo empuja datos,
+desplegar sin integrar no es publicar lo tuyo, es **pisar lo suyo**. El orden es `pull` → `build` →
+`deploy` → comprobar **el dato**, no solo el bundle.
+
 ### Crudo de respaldo
 
 `../brain-private/mantenimiento-lineas-at/research-archive/2026-09-01-auditoria-holistica/`
