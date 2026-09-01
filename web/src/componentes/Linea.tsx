@@ -405,7 +405,11 @@ function Mecanico({ apoyos, conductor, hipotesis }:
   const r = useMemo(() => {
     const L = vanos(apoyos);
     return {
-      vir: vanoIdealRegulacion(L) ?? 0,
+      // ⚠️ SIN `?? 0`. El núcleo devuelve nulo cuando NO hay vano ideal
+      // calculable, y ese cero se leía como una medida: «0,0 m». La tabla
+      // vano a vano de esta misma pestaña ya respeta los tres estados
+      // (cumple / revisar / no evaluable); el titular no lo hacía (`§ADR-091`).
+      vir: vanoIdealRegulacion(L),
       anclas: proyectar(apoyos).filter((p) => p.esAncla).length,
       amp: ampacidad(
         { material: conductor.material, seccion: conductor.seccion_mm2, diametro: conductor.diametro_m },
@@ -425,7 +429,9 @@ function Mecanico({ apoyos, conductor, hipotesis }:
         <div className="kpis">
           <Kpi valor={`${conductor.material} ${conductor.codigo}`} etiqueta="conductor" sub={conductor.calibre} />
           <Kpi valor={`${nf(conductor.rts_kgf)} kgf`} etiqueta="carga de rotura (RTS)" />
-          <Kpi valor={`${nf(r.vir, 1)} m`} etiqueta="VIR de la línea" sub="pero se calcula por tramo" />
+          <Kpi valor={r.vir == null ? 'no evaluable' : `${nf(r.vir, 1)} m`}
+            etiqueta="VIR de referencia"
+            sub={r.vir == null ? 'sin datos suficientes' : 'el del cálculo va por tramo'} />
           <Kpi valor={nf(filas.length)} etiqueta="tramos de tensión" sub={`${r.anclas} anclajes`} />
           <Kpi valor={`${nf(r.amp)} A`} etiqueta="ampacidad IEEE 738" sub={`${temperaturaLimite(conductor.material)} °C · 32 °C amb.`} />
         </div>

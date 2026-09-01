@@ -99,6 +99,40 @@ export const HoraDeCargabilidad = z.object({
  * —un activo físico, que se renumera y se secciona— sigue siendo un UUID
  * inmutable. Una medición no es un activo.
  */
+/**
+ * EL SELLO DE TRAZABILIDAD — con qué se produjo lo que se guarda.
+ *
+ * ⚠️ `CLAUDE.md §3.1` lo exige para TODO resultado guardado: «con qué versión del
+ * motor y con qué hipótesis se produjo». Cargabilidad era la única colección que
+ * escribía sin él, y el daño era permanente: un día guardado sin sello no se
+ * puede comparar con uno posterior porque no se sabe si el cálculo cambió entre
+ * medias (`99 §ADR-091`).
+ *
+ * OPCIONAL, y a propósito: los días escritos ANTES de esta versión no lo tienen,
+ * y rellenarlos ahora sería inventar un sello que nadie puso. Se leen, se marcan
+ * «sin sello» y se dejan en paz. La regla del proyecto es que los cambios son
+ * ADITIVOS, no retroactivos.
+ */
+export const SelloDeCalculo = z.object({
+  /** Versión de `@lineas/nucleo` que produjo estas cifras. */
+  versionMotor: z.string().max(30),
+  /** Versión del molde con la que se escribió el documento. */
+  versionContrato: z.string().max(30).optional(),
+});
+
+/**
+ * CUÁNTAS HORAS DEL DÍA ERAN MEDIDAS Y CUÁNTAS LAS CALCULAMOS NOSOTROS.
+ *
+ * Sin esto, un promedio de 24 horas medidas y uno de 6 medidas + 18 derivadas se
+ * guardan idénticos. El motor lleva la naturaleza hora a hora; el resumen la
+ * disolvía. Aquí sobrevive.
+ */
+export const RepartoPorNaturaleza = z.object({
+  declarada: z.number().int().min(0).max(24),
+  derivada: z.number().int().min(0).max(24),
+  sinDeclarar: z.number().int().min(0).max(24),
+});
+
 export const DiaDeCargabilidad = Base.extend({
   /** La línea, TAL Y COMO LA NOMBRA EL ARCHIVO. Ver la nota de abajo. */
   linea: z.string().min(1).max(120),
@@ -125,6 +159,8 @@ export const DiaDeCargabilidad = Base.extend({
   horas: z.record(ClaveHora, HoraDeCargabilidad),
   /** De qué carga vino la última escritura de este día. Para poder rastrearlo. */
   cargaId: Id,
+  /** Con qué motor se produjo. Ausente = escrito antes del sello (`§ADR-091`). */
+  versionMotor: z.string().max(30).optional(),
 });
 
 /**
@@ -153,6 +189,10 @@ export const ResumenDiarioCargabilidad = Base.extend({
     atencion: z.number().int().min(0).max(24),
     sobrecarga: z.number().int().min(0).max(24),
   }),
+  /** De qué naturaleza eran esas horas. Ausente = resumen anterior al sello. */
+  porNaturaleza: RepartoPorNaturaleza.optional(),
+  /** Con qué motor se produjo. Ausente = escrito antes del sello (`§ADR-091`). */
+  versionMotor: z.string().max(30).optional(),
 });
 
 /** En qué acabó el procesamiento de un archivo. Sin texto libre. */
@@ -188,9 +228,14 @@ export const CargaDeCargabilidad = Base.extend({
   desde: DiaIso.optional(),
   hasta: DiaIso.optional(),
   estado: EstadoCarga,
+  /** Con qué motor y con qué molde se proceso este archivo. */
+  versionMotor: z.string().max(30).optional(),
+  versionContrato: z.string().max(30).optional(),
 });
 
 // ── Tipos ───────────────────────────────────────────────────────────────────
+export type SelloDeCalculo = z.infer<typeof SelloDeCalculo>;
+export type RepartoPorNaturaleza = z.infer<typeof RepartoPorNaturaleza>;
 export type NaturalezaCargabilidad = z.infer<typeof NaturalezaCargabilidad>;
 export type HoraDeCargabilidad = z.infer<typeof HoraDeCargabilidad>;
 export type DiaDeCargabilidad = z.infer<typeof DiaDeCargabilidad>;

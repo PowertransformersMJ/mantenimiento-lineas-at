@@ -189,7 +189,16 @@ export function Falla({ investigaciones, apoyos, evidencias = [], noSePudoLeer, 
               <section className="panel">
                 <h2>Qué falta para cerrar el análisis</h2>
                 <p className="fine">
-                  <b>{nf(ev.verificacionesPendientes.filter((v) => v.estado === 'pendiente').length)} de{' '}
+                  {/* ⚠️ «Sin resolver» son TRES estados, no uno. Contaba solo
+                      `pendiente`, así que lo SOLICITADO —pedido y sin llegar— y
+                      lo NO DISPONIBLE —que no va a llegar— caían en el saco de
+                      las resueltas, y la pantalla se contradecía con su propia
+                      tabla de abajo, que las pinta en ámbar. El error iba
+                      siempre en el sentido de tranquilizar (`§ADR-091`).
+                      Los cuatro estados del molde son `pendiente`,
+                      `solicitado`, `recibido` y `no_disponible`: resuelta es
+                      SOLO `recibido`. */}
+                  <b>{nf(ev.verificacionesPendientes.filter((v) => v.estado !== 'recibido').length)} de{' '}
                   {nf(ev.verificacionesPendientes.length)}</b> sin resolver. Esta lista es lo que
                   separa un informe defendible de uno que solo suena convincente.
                 </p>

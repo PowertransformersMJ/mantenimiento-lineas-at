@@ -76,19 +76,20 @@
 | **TODO-57** | **La FICHA se puede ESCRIBIR y está EN PRODUCCIÓN** (`99 §ADR-030`). Falta **el DATO**: ¿está en planos y actas, o hay que levantarlo? Los seis: rotura · altura libre · altura del amarre · capacidad longitudinal · fases amarradas · tipo de apoyo | **EL CUELLO DE BOTELLA REAL.** Al meter el primero saldrán «REVISAR»: no son averías nuevas |
 | **TODO-81** | **Descargar el acta de la carga del 22-08** desde Cargar: es el único sitio donde queda escrito POR QUÉ se decidió cada cosa | Se pierde al recargar |
 | **TODO-82/83** | **Dos decisiones suyas sobre el clima.** ① ¿FASE 2 del pronóstico (`§ADR-057`): franja mañana/tarde y sensación térmica? ② ¿Dato FINO por extremos (`§ADR-064`)? Las capas de 2 km tocan **3 celdas** y salen por PROMEDIO | Sensación de **40 °C** con aire a 32,5 · amplitud fina: 1,2 °C |
-| **TODO-88** ⚠️ **CAMBIÓ DE FORMA (26-08)** | **¿Se junta otra vez el eje del tiempo?** El pronóstico YA está en la pantalla del atlas con su mes, día y hora (`§ADR-086`), pero en su propia FAMILIA. Lo que sigue abierto es si lo quiere junto a lo medido en **una sola tira** | Medido y modelo en la misma tira hacía «ganar el hecho» de un vistazo |
+| **TODO-88** | **¿Se junta otra vez el eje del tiempo?** El pronóstico ya está en el atlas con mes, día y hora (`§ADR-086`) pero en su propia FAMILIA. Abierto: si lo quiere junto a lo medido en **una sola tira** | Medido y modelo juntos hacían «ganar el hecho» |
 | **TODO-80** | **¿Qué tope de puesta a tierra rige y cuál es la corriente de operación?** Los campos ya existen (`ADR-052`); declararlos basta. Sin decisión suya siguen **10 Ω** | Con 18 Ω medidos, 10 Ω dice «revisar» y 25 Ω «cumple» |
 | **TODO-90** | **La capa de rayos que piden las NORMAS** (rayos/km²/año, RETIE e IEEE 1243). Espera una **cuenta Earthdata gratuita**; el cómo, en `99 §ADR-079` | La horaria dice CUÁNDO hubo tormenta; ésta es la que entra en el cálculo de salidas por descarga |
-| **TODO-89** ⬅️ **DOS ÓRDENES SUYAS** | **Encender el despliegue automático.** Ya está hecho y comprobado; faltan los dos secretos de Cloudflare, y las llaves no pasan por el chat. **Los comandos exactos y el permiso que hace falta, en `99 §ADR-077`.** ⚠️ Al encenderlo, **nadie mirará el mapa antes de publicar** | Tercer y último eslabón de «que se actualice cada 4 horas» de verdad |
+| **TODO-89** ⬅️ **ORDEN SUYA** | **Encender el despliegue automático.** Hecho y comprobado; faltan los dos secretos de Cloudflare y las llaves no pasan por el chat (comandos en `99 §ADR-077`). ⚠️ Al encenderlo **nadie mirará el mapa antes de publicar** | Último eslabón de «cada 4 horas» de verdad |
 | **TODO-72** | **¿Autorización del IGAC para sus ortoimágenes?** Cubren esto a **3 m** y **10 cm** en Turbaco, contra los 10 m de Sentinel-2 (`99 §ADR-040`) | Única vía a más resolución real |
 | **TODO-71** | **¿Se cierran las hipótesis con dato real?** El **viento** (`ADR-035`) y los **1.000 W/m² adoptados**. Los cuatro atlas (`ADR-055`) los ACERCAN y NO los cierran: un año de medias horarias no valida un extremo de diseño | De ahí salen los tiros y la capacidad |
 | **TODO-59** | **Qué ficha se le pide a CADA tipología.** La línea mezcla 4 y el molde es de POSTE (`40 §8.3`) | Son 3 o 4 formularios |
 | **TODO-33** | **50 % o 25 % de RTS** como tope de tiro. Ya no hay dos dueños (`§ADR-051`): falta decidir CUÁL rige | Factor 2 sobre un dictamen |
+| **TODO-93/94 NUEVO** | **Lo abierto por el comité** (`§ADR-091`): conectar `contrasteConLaAmpacidad` (existe, probado, **cero llamadores**) · UN dueño de la ampacidad (hoy 3 cálculos, mismo rótulo) · **la ampacidad NO llega al papel**: 0 menciones en `exportar/` | El veredicto está construido y apagado |
 | **TODO-44/34** | Alerta de gasto en Cloudflare · **nada tiene copia**: la bóveda no tiene remoto **y Firestore no tiene punto de recuperación** (`§ADR-089`) | Un fallo de disco se lleva la bóveda; un comando se lleva la base |
 | **TODO-61/54/68** | ¿App Check? · ¿linter de frescura semántica? · ¿cazar un ADR repetido? Las dos últimas tocan el KERNEL | Las TRES son TUYAS |
 | **TODO-76** | **¿Se guarda que un apoyo es autosoportado / retenido?** Hoy no cabe en el modelo: iría por APOYO (26 declaraciones) | Cierra media incógnita de la capacidad longitudinal |
-| **TODO-92 NUEVO** | **Las dos sondas que faltan de la auditoría del cerebro** (`§ADR-083`): el *retrieval-drill* con un agente FRÍO y la voz adversarial. Miden si el cerebro ENTREGA, no si está bien escrito, y exigen subagentes — que aquí están vetados salvo orden suya | Sin ellas, la auditoría dice que el almacén está ordenado, no que la memoria funcione |
-| **TODO-78/84** ⬆️⬆️ | **Cerebro LLENO** (`§ADR-065`): el ARRANQUE cerró con **3 caracteres de margen** (31.497/31.500) y `20` y `32` pasan su tope. Cada sesión gasta un rato podando texto bueno. **Shard o recalibrar** | El freno más caro del día a día |
+| **TODO-92** | **Las dos sondas que faltan de la auditoría del cerebro** (`§ADR-083`): *retrieval-drill* con agente FRÍO y voz adversarial. Miden si el cerebro ENTREGA, no si está bien escrito | Dicen que el almacén está ordenado, no que la memoria funcione |
+| **TODO-78/84** ⬆️⬆️ | **Cerebro LLENO** (`§ADR-065`): el ARRANQUE vive con ~40 caracteres de margen y `20` pasa su tope; `32` se ordenó en `§ADR-090`. **Cada sesión gasta un rato podando texto bueno.** Shard o recalibrar | El freno más caro del día a día |
 
 ## 🔲 Pendientes de CLAUDE — en este orden
 
@@ -98,8 +99,8 @@
 | **TODO-66** | **Que una acción pruebe que FUNCIONÓ**, no solo que se hizo: verificación posterior con fecha | `99 §ADR-026` |
 | **TODO-50** | **Blindaje**: ✅ F1 · ✅ F2a · ✅ F3 · ⬜ **2b retirar Google** — espera la contraseña | `99 §ADR-019/024` |
 | **TODO-79** | **Saldo del entorno: 34 vivos + 5 parciales**, por gravedad (`99 §ADR-049`). Los dos restos más caros: el identificador crudo en el **informe firmable** y la red del **mapa** | Varios son decisión suya |
-| **TODO-52/49/48** | RCA: el lienzo del árbol · contador de PARQUE · deuda de ADR-017 | `99 §ADR-017/018/020` |
-| **TODO-30/11 · 13-23** | XSD de GPX/KML en CI · nota técnica de LN-627 · F3-F5 | crudo de `ADR-013` |
+| **TODO-52/49/48** | RCA: lienzo del árbol · contador de PARQUE · deuda de ADR-017 | `§ADR-017/018/020` |
+| **TODO-30/11 · 13-23** | XSD de GPX/KML en CI · nota técnica de LN-627 · F3-F5 | `ADR-014` |
 
 ## ✅ Consolidado — el detalle vive en su dueño
 

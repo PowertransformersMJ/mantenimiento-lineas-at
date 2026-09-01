@@ -134,6 +134,13 @@ export interface CargasEnPantalla {
   /** Cuántas filas tienen carga calculada, de cuántas estructuras hay. */
   conCarga: number;
   total: number;
+  /**
+   * Cuántos apoyos DECLARAN capacidad (traen carga de rotura), que NO es lo
+   * mismo que cuántos tienen veredicto: para dictaminar hacen falta además las
+   * alturas. Confundirlos manda a la cuadrilla a buscar el dato equivocado — es
+   * el mismo arreglo que el eje longitudinal hizo en `§ADR-017` (`§ADR-091`).
+   */
+  conCapacidadDeclarada: number;
   /** Cuántas tienen utilización evaluada, y cuántas de esas piden revisión. */
   conUtilizacion: number;
   aRevisar: number;
@@ -324,6 +331,7 @@ function resumir(filas: FilaCargaApoyo[]) {
     cuantosAmplifican: filas.filter((r) => r.amplifica === true).length,
     conCarga: conCargaFilas.length,
     total: filas.length,
+    conCapacidadDeclarada: filas.filter((r) => r.capacidadDeclarada).length,
     conUtilizacion: filas.filter((r) => r.utilizacion_pct !== null).length,
     aRevisar: filas.filter((r) => r.estadoUtilizacion === 'revisar').length,
   };

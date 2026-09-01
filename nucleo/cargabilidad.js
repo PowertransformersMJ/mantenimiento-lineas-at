@@ -904,12 +904,25 @@ export function resumirDia(dia) {
     fecha: dia?.fecha ?? null,
     horasConMedida: horas.length,
     porBanda: bandasVacias(),
+    porNaturaleza: { declarada: 0, derivada: 0, sinDeclarar: 0 },
   };
   if (!horas.length) return base;
 
   const pcts = horas.map(([, v]) => v.cargabilidad_pct);
   const alta = horas.reduce((a, b) => (b[1].cargabilidad_pct > a[1].cargabilidad_pct ? b : a));
-  for (const [, v] of horas) base.porBanda[bandaDe(v.cargabilidad_pct).clave] += 1;
+  for (const [, v] of horas) {
+    base.porBanda[bandaDe(v.cargabilidad_pct).clave] += 1;
+    // ⚠️ LA NATURALEZA SOBREVIVE AL RESUMEN. No lo hacía, y era el único sitio
+    // del módulo donde se perdía: el motor la lleva hora a hora con cuidado
+    // (`empaquetarPorDia`), y aquí se disolvía en una media única. Un día que
+    // mezcla horas MEDIDAS con horas que calculamos nosotros se guardaba
+    // indistinguible, y eso no se puede reconstruir después: el documento ya
+    // no lo tiene. Se cuenta cuántas de cada, que es lo que permite decir «este
+    // promedio sale de 18 horas medidas y 6 derivadas» (`99 §ADR-091`).
+    const n = v.naturaleza;
+    if (n === 'declarada' || n === 'derivada') base.porNaturaleza[n] += 1;
+    else base.porNaturaleza.sinDeclarar += 1;
+  }
 
   return {
     ...base,
@@ -1133,7 +1146,9 @@ export function serieDiaria(resumenes, linea = null) {
  *            lineaMasCargada: {linea: string, maximo: number|null}|null,
  *            diasConSobrecarga: number, horasDeSobrecarga: number,
  *            horasConMedida: number, cobertura_pct: number|null,
- *            porBanda: Record<string, number>}}
+ *            porBanda: Record<string, number>,
+ *            porNaturaleza: {declarada: number, derivada: number, sinDeclarar: number},
+ *            diasSinSello: number}}
  */
 export function resumenDelHistorico(resumenes) {
   const todas = (resumenes ?? []).filter(Boolean);
@@ -1147,6 +1162,8 @@ export function resumenDelHistorico(resumenes) {
     diasConSobrecarga: 0, horasDeSobrecarga: 0,
     horasConMedida: 0, cobertura_pct: null,
     porBanda: bandasVacias(),
+    porNaturaleza: { declarada: 0, derivada: 0, sinDeclarar: 0 },
+    diasSinSello: 0,
   };
   if (!todas.length) return base;
 
@@ -1159,6 +1176,14 @@ export function resumenDelHistorico(resumenes) {
     for (const k of Object.keys(base.porBanda)) base.porBanda[k] += Number(b[k]) || 0;
     if ((Number(b.sobrecarga) || 0) > 0) base.diasConSobrecarga += 1;
     base.horasDeSobrecarga += Number(b.sobrecarga) || 0;
+    // Un día guardado ANTES del sello no trae naturaleza ni versión de motor, y
+    // eso no se rellena: se cuenta y se dice. Reescribir el pasado sería
+    // inventarlo (`99 §ADR-091`).
+    const nat = s.porNaturaleza;
+    if (!nat || !s.versionMotor) base.diasSinSello += 1;
+    if (nat) for (const k of Object.keys(base.porNaturaleza)) {
+      base.porNaturaleza[k] += Number(nat[k]) || 0;
+    }
   }
   // ⚠️ La cobertura se mide contra los días QUE HAY, no contra el calendario
   // pedido: un periodo de 30 días con 3 guardados es 3 días al 100 %, no 10 %.

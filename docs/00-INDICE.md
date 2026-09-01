@@ -167,6 +167,7 @@ Guarda `research-archive/` (crudos de deliberación: comités, consejos externos
 | `ADR-088` | 2026-08-29 | Cargabilidad eléctrica: el motor, un lector de Excel sin dependencias, y una pantalla que no promete lo que no guarda | *(`nucleo/cargabilidad.js`)* |
 | `ADR-089` | 2026-08-30 | Los datos del empleador se quedan donde están, y se le pone freno a lo único que sí se podía perder | `research-archive/2026-08-30-residencia-del-dato/` |
 | `ADR-090` | 2026-08-30 | El histórico guardado también dibuja: las gráficas estaban atadas al archivo recién cargado | *(`web/src/componentes/Cargabilidad.tsx`)* |
+| `ADR-091` | 2026-09-01 | Auditoría holística con comité: el sello que faltaba, cinco contradicciones, y la palabra que nunca se escribió | `research-archive/2026-09-01-auditoria-holistica/` |
 
 > Toda decisión cara de revertir entra aquí con su ADR y su crudo enlazado. Si hubo comité o consejo
 > externo y el crudo no está archivado, la tarea **no está cerrada** (`CLAUDE.md §G.4`).

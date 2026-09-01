@@ -206,6 +206,53 @@ I = √( (q_c + q_r − q_s) / R(Tc) )
 
 ---
 
+### 4.3 Cargabilidad — la palabra que faltaba en este diccionario
+
+> **Definida el 2026-09-01 por el Ingeniero.** Hasta ese día la palabra que él más usa **no
+> aparecía ni una vez en este nodo**, y ésa es la causa raíz de dos errores documentados:
+> irse a buscarla al proyecto de transformadores (`30 · M-02`) y contestarla mezclando lo
+> eléctrico con lo mecánico. Un término del dominio que no está escrito se reinventa cada vez.
+
+**Cargabilidad NO es una medida: es un COCIENTE.** Y vale lo que valga su denominador.
+
+```
+cargabilidad (%) = corriente de operación (A) ÷ capacidad (A) × 100
+```
+
+**Hay dos denominadores posibles, y NO son intercambiables:**
+
+| Denominador | Qué es | Cómo se comporta | Quién lo produce |
+|---|---|---|---|
+| **Capacidad nominal** | El valor de placa, de catálogo | **Fijo** | Viene en el archivo de SCADA |
+| **Ampacidad** (`§4.2`) | La capacidad REAL del conductor con el clima de ese momento, IEEE 738 | **Se mueve** con ambiente, viento y sol | `nucleo/termica.js` |
+
+Los mismos amperios pueden dar **71 % contra la nominal y 98 % contra la ampacidad de un día en
+calma**. No es que uno esté mal: responden a preguntas distintas.
+
+**LA REGLA, palabras del Ingeniero (2026-09-01):**
+
+> *«Lo único con lo que podría comparar la cargabilidad de manera constante es la ampacidad —es
+> decir, la capacidad en corriente de la línea—; del resto, seguimiento operativo de la línea.»*
+
+De ahí salen las dos mitades del módulo, y no se mezclan:
+
+1. **El VEREDICTO** — corriente de operación contra **ampacidad**. Es lo único que dictamina.
+   Lo calcula `contrasteConLaAmpacidad` en `nucleo/cargabilidad.js`.
+2. **EL SEGUIMIENTO OPERATIVO** — tendencias, picos, mapa de calor, reparto por bandas. Describe
+   cómo se comportó la línea. **No dictamina nada**, y la pantalla no puede insinuar que sí.
+
+**Las bandas 80/90/100 son de LECTURA, no norma.** Son convención de operación para leer el mapa de
+un vistazo. Un color no es un dictamen.
+
+⚠️ **Cargabilidad ≠ Cargas.** «Cargabilidad» es ELÉCTRICA (A y %). «Cargas» es la carga
+ESTRUCTURAL sobre el apoyo (kgf) y su `utilizacion_pct` es **otro veredicto distinto**. Son dos
+pestañas, dos dominios y dos firmas. Confundirlas es el enredo que costó `30 · M-02`.
+
+⚠️ **De dónde salió el porcentaje se declara SIEMPRE** (`naturaleza`): `declarada` si venía en el
+archivo, `derivada` si lo calculó este sistema. Un porcentaje sin naturaleza no dice contra qué
+capacidad se calculó, y por tanto no significa nada (`99 §ADR-091`).
+
+
 ## §5 — Aislamiento
 
 - **Distancia de fuga total** = nº de unidades de la cadena × fuga por unidad (mm).

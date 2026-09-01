@@ -48,6 +48,22 @@ export function Distancias({ apoyos }: { apoyos: Apoyo[] }) {
   const porLinea = Math.abs(prog[ib] - prog[ia]);
   const rodeo = r.d > 0 ? porLinea / r.d : 1;
 
+  // ── El desnivel y su precisión, SIN rellenar huecos ───────────────────────
+  // El desnivel solo existe si las DOS estructuras traen cota. Y la precisión
+  // que se publica es la PEOR de las dos, porque el desnivel arrastra el error
+  // de ambos extremos: publicar la del origen sería declarar una exactitud que
+  // el otro extremo no sostiene (`99 §ADR-091`).
+  const cotaA = E[ia].coordenada.cotaTerreno_m;
+  const cotaB = E[ib].coordenada.cotaTerreno_m;
+  const desnivel = cotaA == null || cotaB == null ? null : Math.abs(cotaB - cotaA);
+  const sinCota = [
+    cotaA == null ? nombreVisible(E[ia]) : null,
+    cotaB == null ? nombreVisible(E[ib]) : null,
+  ].filter(Boolean) as string[];
+  const precisiones = [E[ia].coordenada.precision_m, E[ib].coordenada.precision_m];
+  const peorPrecision = precisiones.some((v) => v == null)
+    ? null : Math.max(...(precisiones as number[]));
+
   // Tono de la celda: más oscuro cuanto más lejos. Solo presentación.
   // El color sale del tablero (--calor-rgb), no de un ámbar escrito aquí: si
   // se escribe a mano, el día que cambie la paleta esta matriz se queda sola.
@@ -81,9 +97,21 @@ export function Distancias({ apoyos }: { apoyos: Apoyo[] }) {
             <div className="kpi-s">{ia === ib ? '—' : `rodeo ×${nf(rodeo, 2)}`}</div></div>
           <div className="kpi"><div className="kpi-v">{ia === ib ? '—' : `${nf(r.az, 1)}°`}</div><div className="kpi-l">azimut</div>
             <div className="kpi-s">{ia === ib ? '' : `rumbo ${rumbo(r.az)}`}</div></div>
-          <div className="kpi"><div className="kpi-v">{nf(Math.abs((E[ib].coordenada.cotaTerreno_m ?? 0) - (E[ia].coordenada.cotaTerreno_m ?? 0)), 1)} m</div>
+          {/* ⚠️ NI UN `?? 0` AQUÍ. Los tenía los dos, y los dos mentían en el
+              sentido tranquilizador: sin cota, ponía la estructura al nivel del
+              mar y publicaba un desnivel que nadie midió; sin precisión,
+              imprimía «± 0 m», que en topografía es la firma de un levantamiento
+              exacto. Este pantallazo se pega en un correo para pedir una grúa
+              (`99 §ADR-091`). El hueco se DICE, y la precisión que se publica es
+              la PEOR de los dos extremos, porque el desnivel arrastra el error
+              de ambos. */}
+          <div className="kpi"><div className="kpi-v">{desnivel == null ? '—' : `${nf(desnivel, 1)} m`}</div>
             <div className="kpi-l">desnivel GPS</div>
-            <div className="kpi-s">± {nf(E[ia].coordenada.precision_m ?? 0)} m de precisión — no firmable</div></div>
+            <div className="kpi-s">{desnivel == null
+              ? `falta la cota de ${sinCota.join(' y ')}`
+              : peorPrecision == null
+                ? 'precisión no declarada — no firmable'
+                : `± ${nf(peorPrecision)} m de precisión — no firmable`}</div></div>
         </div>
         <p className="fine">
           El recorrido por la línea suma los vanos entre las dos estructuras. El desnivel sale de la

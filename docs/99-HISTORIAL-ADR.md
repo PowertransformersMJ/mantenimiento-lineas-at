@@ -7717,3 +7717,106 @@ más que mandaban a `31 · L-22`, un sitio donde esa lección no está.
 ### Crudo de respaldo
 
 *(sin deliberación separada: el diagnóstico salió de leer `Cargabilidad.tsx:306-393` y `399-559`)*
+
+---
+
+## ADR-091 · 2026-09-01 · Auditoría holística con comité: el sello que faltaba, cinco contradicciones, y la palabra que nunca se escribió
+
+### Contexto
+
+Orden del Ingeniero: *«necesito que no tengamos información basura y que cada segmento sea
+coherente, noto que en varios apartados se repite la información y esto genera confusión, hagamos
+una evaluación holística y comité de expertos, procedamos con workflow»*.
+
+Se corrió un `Workflow` de **15 agentes Opus, todos solo-lectura**, siguiendo la skill
+`comite-expertos`: inventario por familias de pestañas → cruce (barrera legítima: la repetición
+solo se ve comparando todas a la vez) → cuatro expertos en paralelo **con la tensión obligatoria**
+(un escéptico que busca el fallo fatal, un ejecutor que pregunta si se puede hacer) → peer review
+anónimo → presidencia. Cero agentes caídos.
+
+**Se le exigió al presidente una lista de «NO TOCAR»**, y devolvió doce. No es cortesía: el
+Ingeniero ya corrigió una vez un sobre-retiro, y sin esa lista un comité solo sabe recortar.
+
+### El giro: la queja era «repetición», el daño era «contradicción»
+
+El comité lo dijo y la verificación lo confirmó: **la aplicación está mejor construida de lo que
+sugiere la lista.** El motor distingue con cuidado el hueco, lo adoptado y lo medido. Casi todo el
+daño está en la **última capa** —la pantalla—, que tira ese trabajo justo antes de que se lea. Y lo
+que confunde no es tanto que algo se repita como que **en dos sitios diga cosas distintas**.
+
+Varias repeticiones se quedan, con su porqué escrito: el aviso «esto no es un dictamen firmable» en
+cada pestaña que publica cálculo, los KPIs de vano del Resumen, y la fila de cargabilidad en
+Mecánico —dos expertos querían mudarla y el presidente los contradijo citando `docs/00`, que fija
+ahí su domicilio—.
+
+### Verificación propia antes de actuar
+
+Los hallazgos de un comité son **hipótesis** (`§3.2`). Se releyeron con ojos propios las nueve
+primeras acciones: **las nueve, ciertas y literales**. Y al implementarlas, la comprobación contra
+el molde cazó **dos errores míos**: escribí un agregado que no existía (`conCapacidadDeclarada` solo
+estaba en el eje longitudinal) y un estado que no existe (`resuelta`; los del molde son `pendiente`,
+`solicitado`, `recibido`, `no_disponible`). **El segundo habría compilado** y habría contado mal.
+
+### Decisión — lo que se hace en esta vuelta
+
+**1. `docs/40 §4.3`: se escribe «cargabilidad», que no estaba.** Al comprobar cómo definirla se
+descubrió que el diccionario del dominio tenía **cero menciones** de la palabra que el Ingeniero más
+usa. Es la causa raíz de `30 · M-02` — un término que no está escrito se reinventa cada vez. Queda
+definido: **cargabilidad no es una medida, es un cociente**, y hay dos denominadores que no son
+intercambiables (capacidad nominal, fija; ampacidad, que se mueve con el clima). Con su regla:
+
+> *«Lo único con lo que podría comparar la cargabilidad de manera constante es la ampacidad —es
+> decir, la capacidad en corriente de la línea—; del resto, seguimiento operativo de la línea.»*
+
+Eso parte el módulo en dos que no se mezclan: **el veredicto** (contra ampacidad) y **el
+seguimiento operativo** (tendencias, picos, mapa de calor) que **no dictamina nada**.
+
+**2. El sello de Cargabilidad — lo único con daño irreversible.** Era la única colección que
+escribía sin decir con qué se produjo, contra `§3.1`. Y el daño empezaba antes: `resumirDia()`
+**perdía la naturaleza del dato**, que el motor lleva hora a hora con cuidado. Un día de 24 horas
+medidas y uno de 6 medidas + 18 derivadas se guardaban **indistinguibles**, y eso no se reconstruye.
+
+- `resumirDia()` devuelve `porNaturaleza` (declaradas / derivadas / sin declarar).
+- Los tres documentos llevan `versionMotor`; la carga lleva además `versionContrato`. Molde
+  `0.10.0 → 0.11.0`, **campos opcionales**: los días viejos siguen leyéndose.
+- La pantalla estampa el `<Sello>` y dice de qué está hecho el promedio.
+- **Los días ya guardados NO se reescriben.** Se cuentan y se avisa: «guardados antes del sello, no
+  estrictamente comparables». Ponerles un sello que nadie estampó sería inventarlo.
+
+**3. Cinco contradicciones que se veían hoy en pantalla.**
+
+| Dónde | Decía | Dice ahora |
+|---|---|---|
+| Distancias | «± 0 m de precisión» y desnivel contra cota inventada | «—» y de quién falta la cota; y publica la **peor** precisión de los dos extremos, porque el desnivel arrastra el error de ambos |
+| Resumen | «0,0 m» de vano ideal | «no evaluable», y el subtítulo deja de contradecirse |
+| Cargabilidad | Proponía **«p. ej. LN-627»** en la casilla que ella misma llama «lo más caro de equivocar» | sin ejemplo; la única propuesta admisible es la que sale del dato |
+| Cargas | «apoyos con capacidad declarada: ninguna» contando **veredictos** | dos tarjetas, dos hechos — propagando el arreglo que `§ADR-017` ya hizo en el otro eje |
+| Falla | «1 de 5 sin resolver» mirando **1 de 4 estados** | los tres que no son `recibido` |
+
+Las cinco erraban **en el sentido de tranquilizar**, que es el peor.
+
+### Alternativas descartadas, con su porqué
+
+- **Reescribir los días viejos con el sello de hoy.** Sería inventar trazabilidad. Se marcan.
+- **Sustituir el porcentaje del archivo por el nuestro.** Pondría un segundo dueño sobre el mismo
+  número, justo lo que `§ADR-052` cerró. Se muestran los dos y su diferencia.
+- **Repartir los nueve indicadores de Mecánico entre cuatro pestañas** (lo pidió una voz). Destruye
+  lo único que esa tabla da y ninguna otra: el estado de la línea ENTERA de un golpe.
+- **Borrar los ocho `.replace('LN-627 ', '')`.** No es limpieza: hoy es la única línea cargada y los
+  nombres volverían a salir largos. Primero el dueño único, después el borrado.
+
+### Consecuencias
+
+- **2.137 pruebas en verde** (6 nuevas). Motor `0.8.0 → 0.9.0`. Molde `0.10.0 → 0.11.0`.
+- **Queda pendiente y escrito**, no olvidado: conectar `contrasteConLaAmpacidad` —existe, está
+  probado y **nadie lo llama**—, el dueño único de la ampacidad (hoy tres cálculos bajo el mismo
+  rótulo IEEE 738), y las acciones 10-18.
+- **Un hallazgo que el comité no buscó y hay que decidir:** la palabra «ampacidad» aparece **cero
+  veces en los 15 generadores de `exportar/`**, y `gerencial.js` y `acta.js` no sellan con la
+  versión del motor mientras `informe.js` sí. El número que decide cuánta corriente se despacha no
+  viaja al papel que se firma.
+- **Nada de esto se ha visto en producción con dato real.** En esta casa «hecho» es lo que se VE.
+
+### Crudo de respaldo
+
+`../brain-private/mantenimiento-lineas-at/research-archive/2026-09-01-auditoria-holistica/`

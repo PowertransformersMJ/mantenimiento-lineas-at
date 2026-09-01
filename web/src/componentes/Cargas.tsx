@@ -211,11 +211,23 @@ export function Cargas({ linea, apoyos, conductor, hipotesis }:
             valor={`${nf(r.conCarga)} / ${nf(r.total)}`}
             etiqueta="estructuras con carga calculada"
             explica="las demás dicen en su fila qué dato les falta" />
+          {/* ⚠️ DOS tarjetas, porque son DOS hechos. Era UNA que rotulaba
+              «apoyos con capacidad declarada» y mostraba el conteo de
+              VEREDICTOS: con la carga de rotura cargada pero sin alturas seguía
+              diciendo «ninguna», y el ingeniero mandaba la cuadrilla a buscar
+              otra vez la rotura en vez de las alturas — un día de camioneta y
+              una ventana de indisponibilidad tirados. El eje longitudinal ya lo
+              arregló así en `§ADR-017`; esto es propagarlo (`§ADR-091`). */}
           <Tarjeta
-            valor={r.conUtilizacion ? `${nf(r.conUtilizacion)} / ${nf(r.total)}` : 'ninguna'}
-            etiqueta="apoyos con capacidad declarada"
+            valor={r.conCapacidadDeclarada ? `${nf(r.conCapacidadDeclarada)} / ${nf(r.total)}` : 'ninguno'}
+            etiqueta="apoyos que DECLARAN capacidad"
+            tono={r.conCapacidadDeclarada ? undefined : 'gris'}
+            explica="traen carga de rotura en su ficha" />
+          <Tarjeta
+            valor={r.conUtilizacion ? `${nf(r.conUtilizacion)} / ${nf(r.total)}` : 'ninguno'}
+            etiqueta="apoyos con VEREDICTO"
             tono={r.conUtilizacion ? undefined : 'gris'}
-            explica="sin carga de rotura y alturas no se dictamina: se declara no evaluable" />
+            explica="sin carga de rotura Y alturas no se dictamina: cada fila dice cuál le falta" />
         </div>
       </section>
 

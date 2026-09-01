@@ -287,3 +287,74 @@ describe('el tablero del histórico', () => {
     assert.equal(filas[1].linea, 'LN-BBB');
   });
 });
+
+// ════════════════════════════════════════════════════════════════════════════
+// 5 · EL SELLO, Y LA NATURALEZA QUE SE PERDÍA AL RESUMIR
+// ────────────────────────────────────────────────────────────────────────────
+// El motor lleva la naturaleza hora a hora con cuidado —«declarada» si el
+// porcentaje venía en el archivo, «derivada» si lo calculamos nosotros— y
+// `resumirDia` la disolvía en una media única. Un día de 24 horas medidas y uno
+// de 6 medidas + 18 derivadas se guardaban IDÉNTICOS, y eso no se reconstruye:
+// el documento ya no lo tiene. `99 §ADR-091`.
+// ════════════════════════════════════════════════════════════════════════════
+import { resumirDia, empaquetarPorDia } from '../nucleo/cargabilidad.js';
+
+const REPO_TXT = leer('web/src/datos/cargabilidadRepo.ts');
+
+describe('la naturaleza del dato sobrevive al resumen diario', () => {
+  const hora = (h, pct, naturaleza) => ({
+    linea: 'LN-AAA', fecha: '2026-08-01', hora: h, cargabilidad_pct: pct, naturaleza,
+  });
+
+  test('⚠️ un día que MEZCLA medido y derivado ya no se guarda indistinguible', () => {
+    const { dias } = empaquetarPorDia([
+      hora(0, 40, 'declarada'), hora(1, 50, 'declarada'), hora(2, 90, 'derivada'),
+    ]);
+    const r = resumirDia(dias[0]);
+    assert.equal(r.porNaturaleza.declarada, 2);
+    assert.equal(r.porNaturaleza.derivada, 1);
+    assert.equal(r.horasConMedida, 3);
+  });
+
+  test('el reparto por naturaleza suma las horas con medida', () => {
+    const { dias } = empaquetarPorDia([hora(0, 40, 'declarada'), hora(1, 90, 'derivada')]);
+    const r = resumirDia(dias[0]);
+    const suma = r.porNaturaleza.declarada + r.porNaturaleza.derivada + r.porNaturaleza.sinDeclarar;
+    assert.equal(suma, r.horasConMedida, 'hay horas que no declaran de dónde salen y nadie lo dice');
+  });
+
+  test('un día sin ninguna medida trae el reparto en ceros, no `undefined`', () => {
+    const r = resumirDia({ linea: 'LN-AAA', fecha: '2026-08-01', horas: {} });
+    assert.deepEqual(r.porNaturaleza, { declarada: 0, derivada: 0, sinDeclarar: 0 });
+  });
+});
+
+describe('lo guardado dice con qué se produjo', () => {
+  test('⚠️ el repositorio estampa la versión del MOTOR en lo que escribe', () => {
+    // CLAUDE.md §3.1: todo resultado guardado lleva con qué versión del motor y
+    // con qué hipótesis se produjo. Esta colección fue la única que no lo hacía.
+    assert.match(REPO_TXT, /nucleoPkg\.version/, 'no se sella con la versión del motor');
+    assert.match(REPO_TXT, /const SELLO = /, 'desapareció el sello');
+  });
+
+  test('el sello va en las TRES colecciones, no solo en una', () => {
+    const i = REPO_TXT.indexOf('export async function guardarCarga');
+    const cuerpo = REPO_TXT.slice(i, REPO_TXT.indexOf('export async function resumenesEntre'));
+    assert.match(cuerpo, /\.\.\.SELLO/, 'la carga no lleva sello');
+    assert.equal((cuerpo.match(/versionMotor: SELLO\.versionMotor/g) ?? []).length, 2,
+      'el día o el resumen se están escribiendo sin la versión del motor');
+  });
+
+  test('⚠️ los días viejos NO se reescriben: se cuentan y se dicen', () => {
+    // Ponerle un sello a un documento que nadie selló es inventarlo.
+    const t = resumenDelHistorico([
+      { linea: 'LN-AAA', fecha: '2026-08-01', horasConMedida: 24, maxima_pct: 50, minima_pct: 40,
+        promedio_pct: 45, porBanda: { normal: 24, elevada: 0, atencion: 0, sobrecarga: 0 } },
+      { linea: 'LN-AAA', fecha: '2026-08-02', horasConMedida: 24, maxima_pct: 60, minima_pct: 40,
+        promedio_pct: 50, porBanda: { normal: 24, elevada: 0, atencion: 0, sobrecarga: 0 },
+        porNaturaleza: { declarada: 24, derivada: 0, sinDeclarar: 0 }, versionMotor: '0.9.0' },
+    ]);
+    assert.equal(t.diasSinSello, 1, 'no distingue lo guardado antes del sello');
+    assert.equal(t.porNaturaleza.declarada, 24);
+  });
+});

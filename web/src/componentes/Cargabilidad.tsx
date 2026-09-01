@@ -51,6 +51,7 @@ import {
 import { empaquetarPorDia, resumirDia } from '@lineas/nucleo/cargabilidad';
 import { guardarCarga, huellaDe, resumenesEntre, type Acuse } from '../datos/cargabilidadRepo';
 import { nf } from '../vistas/formato';
+import { Sello } from './Sello';
 
 type Registro = Record<string, string | number | null>;
 type Mapeo = Record<string, string>;
@@ -617,11 +618,32 @@ function TableroDelHistorico({ resumenes }: { resumenes: ResumenDiario[] }) {
           </span>
         ))}
       </div>
+      {/* ⚠️ DE QUÉ ESTÁ HECHO EL PROMEDIO. Un promedio de 24 horas medidas y uno
+          de 6 medidas + 18 calculadas por nosotros NO son la misma cifra, y
+          durante una versión entera se guardaron indistinguibles. */}
+      {(t.porNaturaleza.declarada + t.porNaturaleza.derivada + t.porNaturaleza.sinDeclarar) > 0 && (
+        <p className="fine">
+          De las {nf(t.horasConMedida)} horas con medida: <b>{nf(t.porNaturaleza.declarada)}</b>{' '}
+          venían en el archivo y <b>{nf(t.porNaturaleza.derivada)}</b> las calculó este sistema
+          dividiendo la corriente por la capacidad nominal.
+          {t.porNaturaleza.sinDeclarar > 0 && (
+            <> {nf(t.porNaturaleza.sinDeclarar)} no declaran de dónde salen.</>
+          )}
+        </p>
+      )}
+      {t.diasSinSello > 0 && (
+        <p className="advertencia">
+          <b>{nf(t.diasSinSello)} de estos días se guardaron antes del sello</b> y no dicen con qué
+          versión del motor se produjeron: no son estrictamente comparables con los posteriores. No
+          se han reescrito a propósito — ponerles un sello que nadie estampó sería inventarlo.
+        </p>
+      )}
       <p className="fine">
         Del <b>{t.desde ?? '—'}</b> al <b>{t.hasta ?? '—'}</b>. La cobertura se mide contra los días
         que HAY guardados, no contra el calendario que usted pidió: tres días completos son 100 %,
         no «el 10 % de un mes».
       </p>
+      <Sello />
     </div>
   );
 }
@@ -787,8 +809,15 @@ function SenalesDelScada({
       {/* ── 1 · DE QUÉ LÍNEA ES ─────────────────────────────────────────── */}
       <label className="mapa-tiempo-dia">
         <span>Línea *</span>
+        {/* ⚠️ SIN EJEMPLO. Lo tuvo —«p. ej. LN-627»— y proponía como pista el
+            código de una línea REAL del proyecto, justo en la casilla que dos
+            párrafos más abajo se declara «lo más caro de equivocar aquí».
+            Aceptarlo sin pensar le cuelga a LN-627 la operación de otra línea.
+            La única propuesta admisible es la que sale del dato: la línea
+            abierta, que se ofrece debajo con un botón (`99 §ADR-091`). */}
         <input type="text" value={linea} onChange={(e) => alCambiarLinea(e.target.value)}
-          placeholder="p. ej. LN-627" aria-label="De qué línea es este archivo" />
+          placeholder="código de la línea a la que pertenecen estas mediciones"
+          aria-label="De qué línea es este archivo" />
       </label>
       <p className="fine">
         {lineaAbierta

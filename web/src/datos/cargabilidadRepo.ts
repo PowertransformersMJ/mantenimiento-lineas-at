@@ -21,6 +21,10 @@
 //    segunda carga escribe ENCIMA. Es lo que el Ingeniero pidió y la razón de
 //    que ese id no sea un UUID.
 //
+// 4. **TODO LO QUE SE ESCRIBE VA SELLADO.** Con qué motor y con qué molde. Se
+//    añadió tarde (`99 §ADR-091`) y por eso hay días sin sello: se marcan al
+//    leerlos, no se rellenan.
+//
 // ⚠️ Y lo que NO hace: no borra. Un histórico del que se puede quitar una hora
 // incómoda no es un histórico. Las reglas de la base lo niegan además de esto.
 // ============================================================================
@@ -28,7 +32,22 @@ import {
   CargaDeCargabilidad, DiaDeCargabilidad, idDelDia, idDelResumen,
   ResumenDiarioCargabilidad, VERSION_CONTRATO,
 } from '@lineas/contratos';
+import nucleoPkg from '@lineas/nucleo/package.json';
 import { cargarFirebase } from './cargar';
+
+/**
+ * EL SELLO QUE SE ESTAMPA EN TODO LO QUE SE ESCRIBE.
+ *
+ * ⚠️ `CLAUDE.md §3.1`: todo resultado guardado lleva con qué versión del motor se
+ * produjo. Esta colección fue la ÚNICA que escribió sin él, y el daño era
+ * permanente y creciente: sin la versión, un día de julio y uno de septiembre no
+ * se pueden comparar porque no se sabe si el cálculo cambió entre medias, y eso
+ * no se reconstruye después (`99 §ADR-091`).
+ *
+ * No se rellena hacia atrás. Lo escrito antes no lo tiene, se marca «sin sello»
+ * al leerlo y se deja en paz: inventar un sello es peor que no tenerlo.
+ */
+const SELLO = { versionMotor: nucleoPkg.version, versionContrato: VERSION_CONTRATO };
 
 const firestore = () => import('firebase/firestore');
 
@@ -105,6 +124,7 @@ export async function guardarCarga(
     ...carga,
     cargadoEn: ahora, cargadoPor: sesion.uid,
     estado: 'guardada',
+    ...SELLO,
   });
   await setDoc(doc(db, CARGAS, cargaId), docCarga);
 
@@ -119,13 +139,14 @@ export async function guardarCarga(
   dias.forEach((d, i) => {
     paraEscribir.push([DIAS, ids[i], DiaDeCargabilidad.parse({
       id: ids[i], orgId: sesion.orgId, creadoEn: ahora, creadoPor: sesion.uid, revision: 0,
-      ...d, cargaId,
+      ...d, cargaId, versionMotor: SELLO.versionMotor,
     }) as unknown as Record<string, unknown>]);
   });
   for (const r of resumenes) {
     const id = idDelResumen(sesion.orgId, String(r.linea), String(r.fecha));
     paraEscribir.push([RESUMENES, id, ResumenDiarioCargabilidad.parse({
       id, orgId: sesion.orgId, creadoEn: ahora, creadoPor: sesion.uid, revision: 0, ...r,
+      versionMotor: SELLO.versionMotor,
     }) as unknown as Record<string, unknown>]);
   }
 
