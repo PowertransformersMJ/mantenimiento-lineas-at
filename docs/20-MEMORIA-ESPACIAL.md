@@ -35,7 +35,8 @@ mantenimiento-lineas-at/
 ├── nucleo/                      ⭐ EL ACTIVO: cálculo de ingeniería, funciones PURAS
 │   ├── geodesia.js              Vincenty, azimuts, deflexiones, progresivas, vano viento, VIR
 │   ├── mecanica.js              catenaria, parábola, viento, cambio de estado, tramos, vano peso
-│   ├── termica.js               resistencia c.c., ampacidad IEEE 738, derrateo
+│   ├── termica.js               resistencia c.c., ampacidad IEEE 738, derrateo · DUEÑO de las seis
+│   │                           condiciones (ADR-093) · electrica.js: variables OPERATIVAS (ADR-094)
 │   ├── estadisticas.js          distribución de vanos (media, mediana, desv. de muestra…)
 │   ├── vanos.js                 detalle vano a vano + control catenaria vs parábola
 │   ├── umbrales.js              los 8 indicadores con semáforo y FUENTE (ADR-009)
@@ -51,9 +52,9 @@ mantenimiento-lineas-at/
 │                                con la ampacidad IEEE 738 va aparte y no corrige nada
 │
 ├── contratos/                   ⭐ WORKSPACE @lineas/contratos — los esquemas Zod que ambos lados
-│                                obedecen. `comunes.ts` es el dueño de `VERSION_CONTRATO` (el
-│                                `package.json` del paquete NO manda) y lleva el registro de qué
-│                                cambió en cada versión. activos · eventos · rca · ia · index
+│                                obedecen. `comunes.ts` es dueño de `VERSION_CONTRATO` (el
+│                                `package.json` NO manda) y del registro de qué cambió en cada
+│                                versión. activos · eventos · rca · ia · index
 │
 ├── tests/                       una por subsistema, con el mismo nombre que él. Las de ORO:
 │   │                            `nucleo.test.js` (la red de la migración) y `exportar.test.js`
@@ -63,8 +64,8 @@ mantenimiento-lineas-at/
 │                                `tope-de-tiro` · `atlas-ficha` (`30 · L-68`).
 │
 ├── docs/                        las neuronas. **Quién es cada una es del `00-INDICE.md`**: aquí no
-│   └── .brain-manifest.json     se repite. Es la configuración del cerebro (topes, archiveDir,
-│                                kernelFiles) y NO es una neurona
+│   └── .brain-manifest.json     configuración del cerebro (topes, archiveDir, kernelFiles) · NO es
+│                                una neurona
 │
 ├── scripts/                     🔑 KERNEL — NO se edita aquí
 │   ├── .kernel-version.json     sello de integridad (SÍ se commitea)
@@ -74,8 +75,8 @@ mantenimiento-lineas-at/
 ├── exportar/                    ⭐ WORKSPACE @lineas/exportar, HERMANO de nucleo (ADR-005/006/007):
 │                                levantamiento.js (LA derivación única) · gpx/kml/csv · calidad.js
 │                                (observaciones calculadas) · procedencia.js · gms.js · version.js
-│                                · mecanica.js y bom.js (CSV de cálculo) · informe.js (documento
-│                                imprimible, autocontenido: cero JS y cero recursos externos)
+│                                · mecanica.js y bom.js (CSV de cálculo) · informe.js (imprimible y
+│                                autocontenido: cero JS, cero recursos externos)
 ├── importar/                    ⭐ WORKSPACE @lineas/importar (ADR-028) — el camino INVERSO de
 │                                exportar/, y CERO `node:`: gpx.js · identidad.js (BUSCA el id en el
 │                                registro de semillas; NUNCA lo acuña) · punto.js (construye UNO,
@@ -92,7 +93,7 @@ mantenimiento-lineas-at/
 │                                FIRMA del token. `GET` sirve, `PUT` bajo diez cerrojos.
 │                                🚫 **NO borra y NO lista** — con prueba que lo impide
 ├── herramientas/atlas-caribe.mjs EL MOTOR (ADR-053/055/079/086). `construirAtlas` baja de POWER;
-│                                **`publicarAtlas` escribe la ficha de los ONCE y EXIGE `naturaleza`**.
+│                                `publicarAtlas` escribe la ficha de los ONCE, y EXIGE `naturaleza`
 │                                Perfiles POWER: `sol-caribe` (⚠️ ese nombre lo llama el vigía) ·
 │                                `temp` · `viento` · `lluvia` · `nubes`; el `factor` del perfil
 │                                convierte la lluvia de NASA, que es TASA mm/día (÷24)
@@ -107,13 +108,13 @@ mantenimiento-lineas-at/
 │   ├── rayos-libro.mjs          lo propio de los rayos: su perfil y su ruta
 │   └── *-libro.json / rayos-conteo.json  📕 hora (reloj de COLOMBIA) → celda → valor. Solo crecen
 ├── herramientas/foto-del-banco.mjs 📸 MIRAR el lienzo (ADR-074): Chrome sin cabeza + reloj REAL; con
-│                                tiempo virtual MIENTE (`34 · L-72`). `--exigir` = suspende (ADR-085)
+│                                el tiempo virtual MIENTE (`34 · L-72`) · `--exigir` suspende
 ├── herramientas/mirar-los-atlas.mjs ⚖️ EL PORTERO (ADR-085/087): mira cada atlas —y las capas del
 │                                corredor, con `corredor:`— y SUSPENDE. Es quien mira el mapa
 ├── herramientas/pronostico-caribe.mjs 🌦️ 36 celdas a MET Norway → `pron-*` (ADR-086). SE GUARDA,
 │                                declarando `naturaleza` y con caducidad. Nunca entra en un cálculo
 ├── herramientas/teselas/        construir-raster.py — rehace las capas del mapa (ADR-087: y
-│                             declara su `naturaleza`). ⚠️ ÚNICO Python del repo; no lo usan app ni pruebas
+│                             declara su `naturaleza`). ⚠️ ÚNICO Python del repo
 ├── herramientas/                sembrar.mjs (línea + expediente) · subir-evidencias.mjs (fotos) ·
 │                                ⚠️ usuarios.mjs — **la ÚNICA vía de alta de personas**. Rechaza a
 │                                propósito la contraseña por tubería o argumento (ADR-019)
@@ -130,8 +131,7 @@ mantenimiento-lineas-at/
 │                                color se escribe fuera de ahí; lo vigila una prueba
 ├── web/src/componentes/         React SOLO pinta (ADR-005): Linea (las pestañas ARIA —cuántas son,
 │                                en `05`— **y** la carcasa de 3 columnas), **RedDeSeguridad** (la red
-│                                que evita la página en blanco de TODA la aplicación, montada en
-│                                `web/src/main.tsx`), **AtlasCaribe** (LOS ONCE atlas + **el trazado
+│                                que evita la página en blanco de TODA la app, en `main.tsx`), **AtlasCaribe** (LOS ONCE atlas + **el trazado
 │                                de la línea encima**, ADR-045/053/055/074; piezas comunes en
 │                                **PanelDelClima**; la marca de cada fuente en **EmblemaFuente**,
 │                                ADR-084; y colgadas de SU mapa **CapasDelCorredor**, las dos capas
@@ -170,7 +170,7 @@ mantenimiento-lineas-at/
 │   │                            ⚠️ NO es el atlas regional: otra fuente, otro recuadro
 │   ├── coberturaEjes.ts         qué se sabe de CADA apoyo, eje por eje: los 4 estados y los
 │   │                            textos del horizonte. Los piden `estadoLinea` y `Horizonte`
-│   ├── estadoLinea.ts           el CIELO de la línea (amanecer/tormenta/niebla). Pide el cruce a
+│   ├── estadoLinea.ts           el CIELO de la línea (amanecer/tormenta/niebla) · pide el cruce a
 │   │                            `coberturaEjes.ts`, no lo reimplementa
 │   └── fotosNuevas.ts           (ADR-031) cifras y frases de Fotos: el «106 entrarían nuevas»
 │                                que él lee ANTES de firmar

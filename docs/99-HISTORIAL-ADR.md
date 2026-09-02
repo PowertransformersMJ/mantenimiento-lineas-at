@@ -8021,3 +8021,88 @@ calcula igual —para no romper a quien dependía— pero **lo confiesa**.
 ### Crudo de respaldo
 
 `../brain-private/mantenimiento-lineas-at/research-archive/2026-09-01-cerrar-cargabilidad/`
+
+---
+
+## ADR-094 · 2026-09-02 · Las variables operativas de la línea, y lo que el sistema se NIEGA a inventar
+
+### Contexto
+
+Orden del Ingeniero: *«incluye todas las variables operativas, factor de potencia, potencia reactiva
+en VAR, desbalance entre fases, si consideras que me falta algo inclúyelo»*, y después
+*«procede, vamos con workflow, recuerda no suponer nada, no colocar información basura»*.
+
+**El workflow se lanzó y murió entero:** los cuatro agentes chocaron con el límite de sesión de la
+cuenta. No fue un fallo del plan ni del código — fue cuota. Se hizo el trabajo directamente, que es
+donde acababa igualmente: verificando cada cifra con ojos propios.
+
+### El error que ordenó todo el diseño
+
+Antes de lanzar nada, al ir a comprobar qué trae su archivo de SCADA, salió esto: **yo había
+afirmado en una maqueta que «su archivo no trae la columna de tensión» sin haberlo comprobado
+nunca.** Su archivo no está en el repositorio ni en la bóveda —es dato de cliente y no puede
+estarlo—, así que **nadie sabe qué columnas trae**.
+
+De ese error salió la regla de arquitectura que gobierna esta entrega:
+
+> ⚠️ **PROHIBIDO CABLEAR QUE UNA VARIABLE «FALTA».** El estado de cada variable se DERIVA del mapeo
+> real de la carga que se acaba de leer. Nunca un literal, nunca un valor por defecto.
+
+### Decisión
+
+**1. `nucleo/electrica.js`** — dueño nuevo, puro. `cargabilidad.js` sabe LEER el archivo y
+`termica.js` sabe cuánto AGUANTA el conductor; faltaba la aritmética de en medio.
+
+| Función | Y lo que se NIEGA a hacer |
+|---|---|
+| `desbalanceDeFases` | publicar un desbalance de una sola fase |
+| `residualDeFases` | **calcularla con solo las magnitudes** — ver abajo |
+| `potenciasDelInstante` | inventar un factor de potencia «típico»; declarar la naturaleza sin el signo de Q |
+| `perdidasJoule` | calcular sin que se **declare la temperatura** del conductor |
+| `desviacionDeTension` | **dictaminar**: la banda la declara el Ingeniero, aquí no se cita norma |
+| `comportamientoEnElTiempo` | sacar un factor de carga de dos lecturas; unir una rampa saltando un hueco |
+| `disponibilidadDeVariables` | dar por ausente lo que no comprobó |
+
+**2. La residual es el caso que define el fichero.** Es la suma **fasorial** de las tres corrientes:
+sin los ángulos no sale. Sumar los módulos daría un número que se leería como «hay corriente a
+tierra» y **mandaría una cuadrilla a buscar una falla que no existe**. Se devuelve `null` con el
+motivo y con lo que hay que pedirle al SCADA. Es exactamente la basura que el Ingeniero prohibió: un
+número con cara de medida que nadie midió.
+
+**3. `disponibilidadDeVariables` distingue TRES ausencias**, porque son tres acciones distintas para
+él: `sin_columna` (pedírsela a quien exporta) · `columna_vacia` (el dato existe y no se registra) ·
+`no_reconocida` (**es fallo nuestro** de sinónimos, y devuelve el nombre literal de la cabecera).
+
+**4. En pantalla, cuatro bloques con una regla:** ninguna tarjeta enseña «—» mudo. Si no hay dato,
+dice **por qué** no lo hay. Un hueco sin motivo deja al lector sin saber si falta el dato o falló el
+cálculo — y eso también es basura. Es el séptimo tipo, añadido a la lista del Ingeniero.
+
+**5. `Linea.tsx` le pasa además la tensión nominal y la longitud** del levantamiento: sin ellas no
+hay MVA ni pérdidas.
+
+### Alternativas descartadas, con su porqué
+
+- **Meter esto en `cargabilidad.js`.** Ya son ~1.300 líneas y su asunto es *leer un archivo de
+  operación*; esto son derivaciones de un punto de operación. Dos asuntos, dos dueños.
+- **Sumar los módulos y llamarlo residual.** Ver arriba: es el ejemplo canónico de la basura
+  prohibida.
+- **Asumir un factor de potencia típico** para poder pintar la tarjeta. Cambiaría 219 A de veredicto.
+- **Elegir una temperatura de conductor por defecto** para las pérdidas. Entre 32 y 90 °C hay un
+  19 % de diferencia: elegirla en silencio publica un número que nadie puede comprobar.
+- **Citar ±10 % como banda de tensión.** `30 · L-09` lo prohíbe. La pantalla publica la desviación y
+  deja el veredicto sin emitir.
+
+### Consecuencias
+
+- **2.213 pruebas en verde** (+20). Motor `0.10.1 → 0.11.1`.
+- El hallazgo que el módulo existe para dar, en cuanto el archivo traiga MW y MVAr: con factor de
+  potencia 0,90, **219 de los 502 A no transportan energía**. Compensar hasta 0,98 liberaría unos
+  **119 A** — más de la mitad del margen que hoy tiene contra un día en calma, sin obra.
+- **`docs/40 §4.4`** recoge el dominio: la definición del desbalance, por qué la peor fase gobierna,
+  las pérdidas con sus tres temperaturas y los tres límites de cargabilidad de una línea.
+- **Lo que sigue sin poder afirmarse:** qué columnas trae de verdad su exportación. La tabla «qué NO
+  trae esta carga» lo dirá con certeza **la primera vez que él cargue y guarde su archivo**.
+
+### Crudo de respaldo
+
+`../brain-private/mantenimiento-lineas-at/research-archive/2026-09-02-variables-operativas/`

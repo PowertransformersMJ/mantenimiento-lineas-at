@@ -268,6 +268,47 @@ archivo, `derivada` si lo calculó este sistema. Un porcentaje sin naturaleza no
 capacidad se calculó, y por tanto no significa nada (`99 §ADR-091`).
 
 
+### 4.4 Las variables operativas, y cuál de ellas decide
+
+**El veredicto lo decide LA FASE MÁS CARGADA, nunca el promedio.** El conductor que primero llega a
+su límite es el que descuelga y el que fija el gálibo; promediar las tres esconde justo la que está
+peor. El **desbalance** es lo que permite decir cuánto esconde ese promedio:
+
+```
+desbalance % = ( |máxima desviación respecto al promedio| ÷ promedio ) × 100
+```
+
+⚠️ **La corriente RESIDUAL no se puede calcular con las magnitudes.** Es la suma **fasorial** de las
+tres, y sin los ángulos no sale. Sumar los módulos daría un número que se leería como corriente a
+tierra sin serlo. El sistema se niega y dice qué pedirle al SCADA (`nucleo/electrica.js`).
+
+**La reactiva no hace trabajo, pero ocupa conductor.** Es la única palanca que devuelve capacidad
+sin obra:
+
+```
+corriente gastada en reactiva:  I_Q = Q ÷ (√3 · V)
+```
+
+Medido en LN-627 con su pico de 502 A a 66 kV (S = 57,4 MVA): con factor de potencia **0,90 son
+219 A —el 44 %— que no transportan energía**. Compensar hasta 0,98 liberaría unos 119 A.
+
+**Pérdidas por efecto Joule**, `3 · I² · R · longitud`. Con el Darien AAAC en los 3,03 km de LN-627 y
+502 A: **282 kW a 32 °C · 299 a 50 °C · 337 a 90 °C**. La resistencia sube con la temperatura, así
+que la temperatura **se declara siempre**: entre esos dos extremos hay un 19 % de diferencia. Y como
+van con el CUADRADO de la corriente, la parte reactiva también se paga aquí.
+
+**Los tres límites de cargabilidad de una línea** son el térmico, la caída de tensión y la
+estabilidad. En LN-627 —**3,03 km a 66 kV**— gobierna el **térmico** con diferencia; los otros dos
+empiezan a morder en decenas y centenas de kilómetros. Por eso la cargabilidad se mide contra la
+ampacidad. Pero la tensión entra por otra puerta: **con la misma potencia, si la tensión baja la
+corriente sube**, y es la corriente la que calienta. Un hueco de tensión no relaja el veredicto: lo
+empeora.
+
+⚠️ **La banda admisible de tensión NO está declarada** en este sistema, y no se cita de memoria
+(`30 · L-09`). La pantalla publica la desviación respecto a la nominal y deja el veredicto sin
+emitir hasta que el Ingeniero declare su criterio.
+
+
 ## §5 — Aislamiento
 
 - **Distancia de fuga total** = nº de unidades de la cadena × fuga por unidad (mm).

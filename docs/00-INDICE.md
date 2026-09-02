@@ -170,6 +170,7 @@ Guarda `research-archive/` (crudos de deliberación: comités, consejos externos
 | `ADR-091` | 2026-09-01 | Auditoría holística con comité: el sello que faltaba, cinco contradicciones, y la palabra que nunca se escribió | `research-archive/2026-09-01-auditoria-holistica/` |
 | `ADR-092` | 2026-09-01 | El papel firmado deja de autodenunciarse — y por qué el veredicto eléctrico sigue apagado a propósito | `research-archive/2026-09-01-veredicto-electrico/` |
 | `ADR-093` | 2026-09-01 | El veredicto eléctrico se enciende: un solo dueño de las condiciones, y la capacidad llega al papel | `research-archive/2026-09-01-cerrar-cargabilidad/` |
+| `ADR-094` | 2026-09-02 | Las variables operativas de la línea, y lo que el sistema se NIEGA a inventar | `research-archive/2026-09-02-variables-operativas/` |
 
 > Toda decisión cara de revertir entra aquí con su ADR y su crudo enlazado. Si hubo comité o consejo
 > externo y el crudo no está archivado, la tarea **no está cerrada** (`CLAUDE.md §G.4`).
