@@ -53,7 +53,11 @@ import { guardarCarga, huellaDe, resumenesEntre, type Acuse } from '../datos/car
 import { nf } from '../vistas/formato';
 import { Sello } from './Sello';
 import nucleoPkg from '@lineas/nucleo/package.json';
-import { ampacidadDeLinea } from '@lineas/nucleo/termica';
+import { ampacidadDeLinea, resistenciaDC } from '@lineas/nucleo/termica';
+import {
+  comportamientoEnElTiempo, desbalanceDeFases, disponibilidadDeVariables,
+  desviacionDeTension, perdidasJoule, potenciasDelInstante,
+} from '@lineas/nucleo/electrica';
 import { contrasteConLaAmpacidad } from '@lineas/nucleo/cargabilidad';
 
 const VERSION_DEL_MOTOR = nucleoPkg.version;
@@ -88,7 +92,8 @@ function descargar(nombre: string, texto: string) {
   URL.revokeObjectURL(url);
 }
 
-export default function Cargabilidad({ lineaAbierta, conductor, hipotesis, sesion }: {
+export default function Cargabilidad({
+  lineaAbierta, conductor, hipotesis, tensionNominal_kV, longitud_m, sesion }: {
   lineaAbierta?: string;
   /**
    * El conductor de la línea. **Sin él no hay veredicto**: la ampacidad sale de
@@ -102,6 +107,16 @@ export default function Cargabilidad({ lineaAbierta, conductor, hipotesis, sesio
   conductor?: Record<string, unknown> | null;
   /** Donde el Ingeniero declara su condición ambiental, si la ha declarado. */
   hipotesis?: Record<string, unknown> | null;
+  /**
+   * La tensión NOMINAL de la línea y su longitud.
+   *
+   * ⚠️ Sirven para derivar los MVA y las pérdidas, y las dos van marcadas como
+   * lo que son. La nominal **no es una medida**: si el archivo trae tensión, se
+   * usa la del archivo y se dice; si no, se usa ésta y también se dice
+   * (`99 §ADR-094`).
+   */
+  tensionNominal_kV?: number | null;
+  longitud_m?: number | null;
   /**
    * Quién está mirando. **Sin ella no se puede guardar**, y la pantalla lo dice
    * en vez de enseñar un botón que va a fallar. El rol se comprueba además en
@@ -238,6 +253,28 @@ export default function Cargabilidad({ lineaAbierta, conductor, hipotesis, sesio
    * una línea lo decide el momento en que más cargó, no su promedio. Y así el
    * coste es una comparación, no ocho mil.
    */
+  /**
+   * QUÉ VARIABLES TRAE ESTA CARGA — y cuáles no, y por qué no.
+   *
+   * ⚠️ Se DERIVA de la carga, nunca se cablea. Nace de un error mío que el
+   * Ingeniero cazó: afirmé que su archivo no traía la columna de tensión sin
+   * haberlo comprobado. Su archivo no está en el repositorio —es dato de
+   * cliente— así que la pantalla no puede saberlo de antemano (`99 §ADR-094`).
+   */
+  const disponible = useMemo(
+    () => {
+      // Las cabeceras que nadie supo mapear. Se derivan igual que en el panel de
+      // mapeo: si una de ésas era la tensión, el fallo es NUESTRO de sinónimos.
+      const usadas = new Set(Object.values(mapeo).filter(Boolean));
+      const sinReconocer = (cargado?.cabeceras ?? []).filter((c) => !usadas.has(c));
+      return disponibilidadDeVariables(registros as never[], mapeo, sinReconocer);
+    },
+    [registros, mapeo, cargado]);
+
+  /** Cómo se comportó el periodo: factor de carga, horas por banda y rampa. */
+  const enElTiempo = useMemo(
+    () => comportamientoEnElTiempo(registros as never[]), [registros]);
+
   const veredicto = useMemo(() => {
     if (referencia.ampacidad_A == null || !registros.length) return null;
     const conA = registros.filter((x_) => Number.isFinite(x_.corriente_A as number));
@@ -246,6 +283,32 @@ export default function Cargabilidad({ lineaAbierta, conductor, hipotesis, sesio
       ((b.corriente_A as number) > (a.corriente_A as number) ? b : a));
     return { pico, contraste: contrasteConLaAmpacidad(pico as never, referencia.ampacidad_A) };
   }, [registros, referencia]);
+
+  /** Qué transportaba la línea en ese pico, y qué se perdía por el camino. */
+  const operacion = useMemo(() => {
+    const pico = veredicto?.pico;
+    if (!pico) return null;
+    return {
+      potencias: potenciasDelInstante({
+        tension_kV: pico.tension_kV as number | null,
+        tensionNominal_kV: tensionNominal_kV ?? null,
+        corriente_A: pico.corriente_A as number | null,
+        potenciaActiva_MW: pico.potenciaActiva_MW as number | null,
+        potenciaReactiva_MVAr: pico.potenciaReactiva_MVAr as number | null,
+      }),
+      // ⚠️ La temperatura se declara a propósito: es la del conductor con la que
+      // se calculó la ampacidad, así que las pérdidas y la capacidad hablan del
+      // MISMO estado térmico. Es el peor caso, y va dicho en la tarjeta.
+      perdidas: perdidasJoule({
+        conductor: conductor as never,
+        corriente_A: pico.corriente_A as number | null,
+        longitud_m: longitud_m ?? null,
+        temperaturaConductor_C: referencia.temperatura.valor_C,
+        resistenciaDC,
+      }),
+      tension: desviacionDeTension(pico.tension_kV as number, tensionNominal_kV as number),
+    };
+  }, [veredicto, conductor, longitud_m, tensionNominal_kV, referencia]);
 
   /**
    * GUARDAR LA CARGA. Empaqueta por día, resume y escribe — en ese orden, y con
@@ -426,6 +489,10 @@ export default function Cargabilidad({ lineaAbierta, conductor, hipotesis, sesio
                 </div>
               )}
               {veredicto && <ElVeredicto v={veredicto} referencia={referencia} />}
+              {operacion && <QueTransporta o={operacion} pico={veredicto!.pico} />}
+              {operacion && <LoQueCuesta p={operacion.perdidas} />}
+              <EnElTiempo c={enElTiempo} />
+              <QueTraeElArchivo filas={disponible} />
               {tablero && <Tablero t={tablero} />}
               {registros.length > 1 && <Tendencia registros={registros} />}
               {registros.length > 0 && <PorLinea registros={registros} />}
@@ -1217,6 +1284,186 @@ function ElVeredicto({ v, referencia }: {
         </p>
       )}
       <Sello />
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// LAS VARIABLES OPERATIVAS
+// ────────────────────────────────────────────────────────────────────────────
+// ⚠️ LA REGLA DE ESTOS CUATRO BLOQUES — orden del Ingeniero, 2026-09-01:
+// «no suponer nada, no colocar información basura». De ahí dos disciplinas:
+//
+//   · **Ninguna tarjeta enseña «—» mudo.** Si no hay dato, dice POR QUÉ no lo
+//     hay. Un hueco sin motivo deja al lector sin saber si falta el dato o
+//     falló el cálculo, y eso también es basura.
+//   · **Nada está cableado.** Lo que se enseña sale de lo que la carga trae de
+//     verdad (`disponibilidadDeVariables`), no de lo que yo creí que traía.
+// ════════════════════════════════════════════════════════════════════════════
+
+/** Un indicador que, cuando no tiene dato, dice por qué. */
+function Dato({ v, r, s, color, falta }: {
+  v: string | null; r: string; s?: string | null; color?: string; falta?: string | null;
+}) {
+  return (
+    <div className="kpi">
+      <div className="kpi-v" style={v == null ? { color: 'var(--tx3)' } : color ? { color } : undefined}>
+        {v ?? '—'}
+      </div>
+      <div className="kpi-r">{r}</div>
+      {/* El motivo ocupa el sitio del subtítulo: nunca se queda sin decir. */}
+      {v == null ? <div className="kpi-s">{falta ?? 'sin dato en esta carga'}</div>
+        : s ? <div className="kpi-s">{s}</div> : null}
+    </div>
+  );
+}
+
+function QueTransporta({ o, pico }: {
+  o: { potencias: ReturnType<typeof potenciasDelInstante>;
+       tension: ReturnType<typeof desviacionDeTension> };
+  pico: Registro;
+}) {
+  const p = o.potencias;
+  const fases = desbalanceDeFases({
+    R: pico.corrienteR_A as number, S: pico.corrienteS_A as number, T: pico.corrienteT_A as number,
+  });
+
+  return (
+    <div className="tarjeta">
+      <p className="mapa-capas-t">Qué transporta la línea en ese pico</p>
+      <div className="kpis">
+        <Dato v={p.aparente_MVA == null ? null : `${nf(p.aparente_MVA, 1)} MVA`} r="Potencia aparente"
+          s={p.tensionUsada.de === 'nominal'
+            ? `√3 · ${nf(p.tensionUsada.kV!, 0)} kV NOMINALES · ${nf(pico.corriente_A as number)} A`
+            : `√3 · ${nf(p.tensionUsada.kV!, 1)} kV medidos · ${nf(pico.corriente_A as number)} A`}
+          falta={p.motivo} />
+        <Dato v={p.activa_MW == null ? null : `${nf(p.activa_MW, 1)} MW`} r="Potencia activa"
+          falta="esta carga no trae la columna de MW" />
+        <Dato v={p.reactiva_MVAr == null ? null : `${nf(p.reactiva_MVAr, 1)} MVAr`} r="Potencia reactiva"
+          s={p.naturaleza ?? undefined} falta="esta carga no trae la columna de MVAr" />
+        <Dato v={p.factorDePotencia == null ? null : nf(p.factorDePotencia, 3)} r="Factor de potencia"
+          falta="hace falta la potencia activa para calcularlo" />
+        <Dato v={p.corrienteReactiva_A == null ? null : `${nf(p.corrienteReactiva_A)} A`}
+          r="Corriente en reactiva"
+          s={p.corrienteReactiva_pct != null ? `${nf(p.corrienteReactiva_pct, 1)} % de la corriente` : undefined}
+          color="var(--tx-aviso)" falta="hace falta la reactiva y una tensión" />
+        <Dato v={p.tensionUsada.de === 'medida' ? `${nf(p.tensionUsada.kV!, 1)} kV` : null}
+          r="Tensión de operación"
+          s={o.tension.desviacion_pct != null
+            ? `${o.tension.desviacion_pct > 0 ? '+' : ''}${nf(o.tension.desviacion_pct, 1)} % de la nominal`
+            : undefined}
+          falta={o.tension.motivo} />
+        <Dato v={fases.desbalance_pct == null ? null : `${nf(fases.desbalance_pct, 1)} %`}
+          r="Desbalance entre fases"
+          s={fases.faseMaxima ? `peor fase: ${fases.faseMaxima}` : undefined}
+          falta={fases.motivo} />
+      </div>
+
+      {/* ⚠️ EL HALLAZGO. Sin este párrafo, la corriente reactiva es un número
+          más; con él, es la única palanca que devuelve capacidad sin obra. */}
+      {p.corrienteReactiva_A != null ? (
+        <p className="mapa-capas-n">
+          <b>{nf(p.corrienteReactiva_A)} A de los {nf(pico.corriente_A as number)} no transportan
+          energía.</b> La reactiva no hace trabajo, pero ocupa conductor: consume amperios,
+          calienta y le come margen a la línea. Compensarla es lo único que devuelve capacidad
+          <b> sin tocar un solo conductor</b>.
+        </p>
+      ) : (
+        <p className="fine">
+          Con la potencia activa y la reactiva, aquí saldría cuántos de esos amperios no
+          transportan energía — que suele ser la palanca más barata para recuperar capacidad.
+        </p>
+      )}
+      <p className="fine">
+        Y la tensión importa aunque no sea el límite que manda: <b>con la misma potencia, si la
+        tensión baja la corriente sube</b>, y es la corriente la que calienta. Un hueco de tensión
+        no relaja el veredicto térmico — lo empeora.
+      </p>
+    </div>
+  );
+}
+
+function LoQueCuesta({ p }: { p: ReturnType<typeof perdidasJoule> }) {
+  return (
+    <div className="tarjeta">
+      <p className="mapa-capas-t">Lo que cuesta transportarlo</p>
+      {p.perdidas_kW == null ? (
+        <p className="advertencia"><b>No se pueden calcular las pérdidas:</b> {p.motivo}</p>
+      ) : (
+        <>
+          <div className="kpis">
+            <Dato v={`${nf(p.perdidas_kW)} kW`} r="Pérdidas en el conductor"
+              s={`a ${nf(p.temperatura_C!, 0)} °C · el peor caso`} color="var(--tx-aviso)" />
+            <Dato v={`${nf(p.resistencia_ohm_km!, 3)} Ω/km`} r="Resistencia"
+              s={`${nf(p.resistenciaTramo_ohm!, 3)} Ω en la línea`} />
+            <Dato v={`${nf(p.longitud_m! / 1000, 2)} km`} r="Longitud" s="del levantamiento" />
+          </div>
+          <p className="fine">
+            3 · I² · R, con la resistencia real del conductor a la temperatura con la que se calculó
+            la ampacidad — así las dos cifras hablan del mismo estado térmico. <b>Las pérdidas van
+            con el CUADRADO de la corriente</b>: si una parte de esos amperios es reactiva, esa
+            parte también se está pagando aquí.
+          </p>
+        </>
+      )}
+    </div>
+  );
+}
+
+function EnElTiempo({ c }: { c: ReturnType<typeof comportamientoEnElTiempo> }) {
+  const horas = Object.values(c.horasPorBanda).reduce((a, b) => a + b, 0);
+  if (!horas && !c.suficiente) return null;
+  return (
+    <div className="tarjeta">
+      <p className="mapa-capas-t">Cómo se comportó en el tiempo</p>
+      <div className="kpis">
+        <Dato v={c.factorDeCarga == null ? null : nf(c.factorDeCarga, 2)} r="Factor de carga"
+          s="promedio ÷ pico" falta={c.porQue} />
+        <Dato v={`${nf(c.horasPorBanda.sobrecarga)}`} r="Horas sobre 100 %"
+          color={c.horasPorBanda.sobrecarga > 0 ? 'var(--tx-alerta)' : 'var(--tx-ok)'}
+          s={`de ${nf(horas)} con medida`} />
+        <Dato v={`${nf(c.horasPorBanda.atencion + c.horasPorBanda.sobrecarga)}`}
+          r="Horas sobre 90 %" s="condición de atención" />
+        <Dato v={c.rampaMaxima_A_h == null ? null : `${nf(c.rampaMaxima_A_h)} A/h`}
+          r="Rampa máxima" s="entre horas consecutivas"
+          falta={c.porQue ?? 'no hay dos horas seguidas del mismo día'} />
+      </div>
+      <p className="fine">
+        <b>Un pico de un minuto y uno de seis horas piden decisiones distintas.</b> El conductor
+        tiene inercia térmica y responde a lo segundo: por eso las horas sobre umbral dicen más del
+        riesgo real que el instante más alto.
+      </p>
+    </div>
+  );
+}
+
+function QueTraeElArchivo({ filas }: { filas: ReturnType<typeof disponibilidadDeVariables> }) {
+  const faltan = filas.filter((f) => !f.hay);
+  if (!faltan.length) return null;
+  return (
+    <div className="tarjeta">
+      <p className="mapa-capas-t">Qué NO trae esta carga, y qué desbloquearía</p>
+      <div className="tabla-scroll">
+        <table className="tabla">
+          <thead><tr><th>Variable</th><th>Por qué no está</th><th>Desbloquearía</th></tr></thead>
+          <tbody>
+            {faltan.map((f) => (
+              <tr key={f.variable}>
+                <td><b>{f.rotulo}</b> <span className="fine">({f.unidad})</span></td>
+                <td>{f.porQue}</td>
+                <td>{f.desbloquea}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {/* ⚠️ La distinción que convierte esta tabla en algo accionable. */}
+      <p className="fine">
+        Esto sale de ESTA carga, no de una lista escrita a mano. «No trae la columna» se arregla
+        pidiéndosela a quien exporta del SCADA; «la columna viene vacía» significa que el dato
+        existe y no se está registrando; y si aparece una cabecera sin reconocer, <b>el fallo es
+        nuestro</b> y se arregla añadiendo el sinónimo.
+      </p>
     </div>
   );
 }

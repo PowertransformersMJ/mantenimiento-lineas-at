@@ -239,7 +239,7 @@ export function potenciasDelInstante({
  *
  * @param {{conductor?: {material?: string, seccion_mm2?: number}|null, corriente_A?: number|null,
  *          longitud_m?: number|null, temperaturaConductor_C?: number|null,
- *          resistenciaDC: (c: {material?: string, seccion: number}, T: number) => number}} e
+ *          resistenciaDC?: (c: any, T: number) => number}} e
  *   `resistenciaDC` se INYECTA para que este módulo no dependa de `termica.js`:
  *   son dos dueños distintos y encadenarlos ataría el cálculo eléctrico al térmico.
  * @returns {{perdidas_kW: number|null, resistencia_ohm_km: number|null,

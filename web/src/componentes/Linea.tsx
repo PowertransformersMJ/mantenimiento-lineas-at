@@ -872,6 +872,8 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
                 (`99 §ADR-093`). */}
             <Cargabilidad lineaAbierta={linea.codigo}
               conductor={conductor} hipotesis={hipotesis}
+              tensionNominal_kV={linea.tensionNominal_kV}
+              longitud_m={derivarLevantamiento(apoyos).longitud_m}
               sesion={sesion.fase === 'autenticado'
                 ? { rol: sesion.rol, orgId: sesion.orgId, uid: sesion.uid }
                 : undefined} />
