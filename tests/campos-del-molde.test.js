@@ -71,7 +71,7 @@ function camposDelMolde(nombreEsquema, hasta) {
  * la vista (`vViento`, `cx`, `rho`, `circuitos`), no el documento. Marcarlo daría
  * falsos positivos, y un guardián que grita sin razón se acaba apagando.
  */
-const RECIBEN_LA_HIPOTESIS = ['nucleo/umbrales.js'];
+const RECIBEN_LA_HIPOTESIS = ['nucleo/umbrales.js', 'nucleo/termica.js'];
 
 describe('el motor no lee campos que el molde no admite', () => {
   const declarados = camposDelMolde('Hipotesis', 'export type Linea');

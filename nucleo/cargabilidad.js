@@ -899,13 +899,30 @@ export function desempaquetarDia(dia) {
 export function resumirDia(dia) {
   const horas = Object.entries(dia?.horas ?? {})
     .filter(([, v]) => v.cargabilidad_pct != null);
+
+  // ⚠️ LOS AMPERIOS VAN APARTE, y con su PROPIO filtro. Sin ellos el histórico
+  // dibuja pero no DICTAMINA: el porcentaje del archivo salió de la capacidad
+  // NOMINAL, y el veredicto exige la corriente cruda para dividirla por la
+  // ampacidad. Filtro propio porque una hora puede traer corriente sin traer
+  // porcentaje, y al revés (`99 §ADR-093`).
+  const conAmperios = Object.entries(dia?.horas ?? {})
+    .filter(([, v]) => Number.isFinite(v.corriente_A));
+
   const base = {
     linea: dia?.linea ?? null,
     fecha: dia?.fecha ?? null,
     horasConMedida: horas.length,
     porBanda: bandasVacias(),
     porNaturaleza: { declarada: 0, derivada: 0, sinDeclarar: 0 },
+    // Siempre presente, cero incluido: ausente significa «resumen viejo», y
+    // cero significa «ese día no trajo corriente». No son lo mismo.
+    horasConCorriente: conAmperios.length,
   };
+  if (conAmperios.length) {
+    const alto = conAmperios.reduce((x, y) => (y[1].corriente_A > x[1].corriente_A ? y : x));
+    base.corrienteMaxima_A = r(alto[1].corriente_A, 1);
+    base.horaCorrienteMaxima = alto[0];
+  }
   if (!horas.length) return base;
 
   const pcts = horas.map(([, v]) => v.cargabilidad_pct);
@@ -1148,7 +1165,8 @@ export function serieDiaria(resumenes, linea = null) {
  *            horasConMedida: number, cobertura_pct: number|null,
  *            porBanda: Record<string, number>,
  *            porNaturaleza: {declarada: number, derivada: number, sinDeclarar: number},
- *            diasSinSello: number}}
+ *            diasSinSello: number, diasSinAmperios: number, diasConCorriente: number,
+ *            picoDeCorriente: {A: number, fecha: string, linea: string, hora: string|null}|null}}
  */
 export function resumenDelHistorico(resumenes) {
   const todas = (resumenes ?? []).filter(Boolean);
@@ -1164,6 +1182,9 @@ export function resumenDelHistorico(resumenes) {
     porBanda: bandasVacias(),
     porNaturaleza: { declarada: 0, derivada: 0, sinDeclarar: 0 },
     diasSinSello: 0,
+    diasSinAmperios: 0,
+    diasConCorriente: 0,
+    picoDeCorriente: null,
   };
   if (!todas.length) return base;
 
@@ -1183,6 +1204,18 @@ export function resumenDelHistorico(resumenes) {
     if (!nat || !s.versionMotor) base.diasSinSello += 1;
     if (nat) for (const k of Object.keys(base.porNaturaleza)) {
       base.porNaturaleza[k] += Number(nat[k]) || 0;
+    }
+    // ⚠️ AUSENTE ≠ CERO. Sin el campo, el resumen se escribió antes de que
+    // llevara amperios; con cero, ese día no trajo corriente. Tratarlos igual
+    // haría parecer vacío un día que sí se midió.
+    if (s.horasConCorriente == null) base.diasSinAmperios += 1;
+    else if (s.horasConCorriente > 0) base.diasConCorriente += 1;
+    if (Number.isFinite(s.corrienteMaxima_A)
+      && (!base.picoDeCorriente || s.corrienteMaxima_A > base.picoDeCorriente.A)) {
+      base.picoDeCorriente = {
+        A: r(s.corrienteMaxima_A, 1), fecha: String(s.fecha), linea: String(s.linea),
+        hora: s.horaCorrienteMaxima ?? null,
+      };
     }
   }
   // ⚠️ La cobertura se mide contra los días QUE HAY, no contra el calendario

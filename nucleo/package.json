@@ -1,6 +1,6 @@
 {
   "name": "@lineas/nucleo",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "private": true,
   "type": "module",
   "description": "Núcleo de cálculo de ingeniería de líneas AT — funciones puras, sin DOM ni red.",

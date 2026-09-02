@@ -118,7 +118,7 @@ import { z } from 'zod';
  *     `derivada`). Sin valor por defecto: un `?? 'declarada'` convertiría
  *     olvidarlo en mentir sobre contra qué capacidad se calculó (`§ADR-086/087`).
  */
-export const VERSION_CONTRATO = '0.11.0';
+export const VERSION_CONTRATO = '0.12.0';
 
 // ── Identificadores ─────────────────────────────────────────────────────────
 

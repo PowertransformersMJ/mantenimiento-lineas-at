@@ -182,6 +182,18 @@ export const ResumenDiarioCargabilidad = Base.extend({
   promedio_pct: z.number().optional(),
   /** La hora del máximo, para poder señalarla sin abrir el día entero. */
   horaMaxima: ClaveHora.optional(),
+  /**
+   * LOS AMPERIOS DEL DÍA. Sin ellos el histórico DIBUJA pero no DICTAMINA: el
+   * porcentaje del archivo se calculó contra la capacidad nominal, y el veredicto
+   * exige la corriente cruda para dividirla por la ampacidad (`99 §ADR-093`).
+   *
+   * `horasConCorriente` ausente (≠ 0) significa **resumen escrito antes de que
+   * el resumen llevara amperios**. Cero significa «ese día no trajo corriente».
+   * Confundirlos haría parecer vacío un día que sí se midió.
+   */
+  horasConCorriente: z.number().int().min(0).max(24).optional(),
+  corrienteMaxima_A: z.number().min(0).optional(),
+  horaCorrienteMaxima: ClaveHora.optional(),
   /** Cuántas horas cayeron en cada banda de lectura. Suma ≤ `horasConMedida`. */
   porBanda: z.object({
     normal: z.number().int().min(0).max(24),

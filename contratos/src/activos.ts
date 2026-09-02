@@ -654,6 +654,53 @@ export const Hipotesis = Base.extend({
    * Es un dato de OPERACIÓN: no se deduce de la geometría ni del conductor.
    */
   corrienteOperacion_A: z.number().positive().optional(),
+
+  /**
+   * LA CONDICIÓN AMBIENTAL CON LA QUE SE CALCULA LA AMPACIDAD QUE DICTAMINA.
+   *
+   * ⚠️ POR QUÉ ESTE BLOQUE EXISTE. La ampacidad NO es una constante del
+   * conductor: con el mismo Darien AAAC a 90 °C, la capacidad va de **522 A en
+   * calma a 965 A con 2 m/s** (`docs/40 §4.2`, verificado contra tabla de
+   * fabricante). Elegir la condición es, literalmente, elegir el veredicto — y
+   * eso lo firma un ingeniero, no un programa.
+   *
+   * Hasta que el Ingeniero declare la suya, el motor ADOPTA la condición de
+   * referencia del dominio y **lo dice en cada número que publica**. La regla de
+   * la casa no prohíbe adoptar: prohíbe adoptar en SILENCIO.
+   *
+   * `ratificada` es el gesto por el que él la hace suya. Sin autor, fecha y
+   * fuente no vale: una ratificación anónima no se puede defender delante de
+   * nadie (`99 §ADR-093`).
+   */
+  condicionTermica: z.object({
+    ambiente_C: z.number().min(-50).max(70).optional(),
+    viento_m_s: z.number().min(0).max(40).optional(),
+    sol_W_m2: z.number().min(0).max(1400).optional(),
+    emisividad: z.number().gt(0).max(1).optional(),
+    absortividad: z.number().gt(0).max(1).optional(),
+    altitud_m: z.number().min(-500).max(5000).optional(),
+    ratificada: z.boolean().default(false),
+    ratificadaPor: Uid.optional(),
+    ratificadaEn: Instante.optional(),
+    fuente: z.string().max(400).optional(),
+  }).strict().optional().superRefine((c, ctx) => {
+    if (!c) return;
+    const valores = ['ambiente_C', 'viento_m_s', 'sol_W_m2', 'emisividad', 'absortividad', 'altitud_m']
+      .filter((k) => c[k as keyof typeof c] != null);
+    if (!valores.length && !c.ratificada) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom,
+        message: 'condicionTermica vacía: o se declara al menos un valor, o no se escribe el bloque' });
+    }
+    // Una firma sin nombre no es una firma.
+    if (c.ratificada && (!c.ratificadaPor || !c.ratificadaEn || !c.fuente)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom,
+        message: 'ratificada sin autor, fecha o fuente: una ratificación anónima no se puede defender' });
+    }
+    if (!c.ratificada && (c.ratificadaPor || c.ratificadaEn)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom,
+        message: 'hay firma pero ratificada es false: o se ratifica o no se firma' });
+    }
+  }),
   normaReferencia: z.string().optional(),
   procedencia: Procedencia,
   /** Congelada = ya se firmó un informe con ella; no se toca nunca más. */
