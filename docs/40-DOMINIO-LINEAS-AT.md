@@ -204,6 +204,21 @@ I = √( (q_c + q_r − q_s) / R(Tc) )
 > pesa más que la temperatura ambiente. Por eso la ampacidad de placa es engañosa y el sistema debe
 > calcularla contra condiciones reales, no citar el catálogo.
 
+**LA CONDICIÓN DE REFERENCIA, y quién la eligió (`99 §ADR-093`).** Como la condición ES el veredicto,
+el sistema tiene UN solo dueño de las seis: `condicionesDeAmpacidad()` en `nucleo/termica.js`. Toma
+lo que el Ingeniero haya declarado en `hipotesis.condicionTermica` y, para lo que no haya declarado,
+**adopta la condición de referencia de esta tabla y lo dice en cada número que publica**:
+
+| | Valor | |
+|---|---|---|
+| Ambiente | 32 °C | Emisividad 0,5 |
+| Viento | 0,61 m/s | Absortividad 0,5 |
+| Sol | 1 000 W/m² | Altitud 10 msnm |
+
+Con ella, el Darien AAAC da **718 A**. La regla es que **adoptar no está prohibido; adoptar en
+silencio sí**: mientras el Ingeniero no ratifique (con autor, fecha y fuente), la pantalla, el CSV y
+el informe firmable declaran las condiciones como **ADOPTADAS**.
+
 ---
 
 ### 4.3 Cargabilidad — la palabra que faltaba en este diccionario

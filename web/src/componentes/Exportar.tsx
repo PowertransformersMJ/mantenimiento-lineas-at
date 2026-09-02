@@ -24,6 +24,7 @@ import { generarKml } from '@lineas/exportar/kml';
 import { generarCsv } from '@lineas/exportar/csv';
 import { csvVerificacionMecanica } from '@lineas/exportar/mecanica';
 import { csvCantidades } from '@lineas/exportar/bom';
+import { ampacidadDeLinea } from '@lineas/nucleo/termica';
 import { informeHtml } from '@lineas/exportar/informe';
 import { gerencialHtml } from '@lineas/exportar/gerencial';
 import { tramosDeTension, estadosDelTramo } from '@lineas/nucleo/mecanica';
@@ -134,6 +135,16 @@ export function Exportar({ linea, apoyos, conductor, hipotesis, investigaciones 
     return { n, conCota, conHora, sinCanonico, dictaminados, estructuras };
   }, [lev, apoyos, conductor, hipotesis, linea.circuitos]);
 
+  /**
+   * LA CAPACIDAD EN CORRIENTE — se calcula UNA vez y va a los DOS papeles.
+   *
+   * ⚠️ Si cada generador la recalculara, dos documentos de la misma línea
+   * podrían publicar amperajes distintos, que es justo lo que el dueño único de
+   * `nucleo/termica.js` vino a cerrar (`99 §ADR-093`).
+   */
+  const ampacidadReferencia = useMemo(
+    () => ampacidadDeLinea({ conductor, hipotesis }), [conductor, hipotesis]);
+
   const bajar = (contenido: string, extension: string, mime: string, generar: (meta: { generadoEn: string; hipotesisNombre?: string }) => string) => {
     try {
       setFallo(null);
@@ -241,6 +252,12 @@ export function Exportar({ linea, apoyos, conductor, hipotesis, investigaciones 
               tramos: calc!.tramos, vanos: calc!.vanos, indicadores: calc!.indicadores,
               cargas: calc!.cargas, longitudinal: calc!.longitudinal,
               cantidades: calc!.cantidades, investigaciones, meta: m,
+              ampacidadReferencia,
+              // ⚠️ `cargabilidad` va explícitamente sin definir: la MEDIDA de
+              // operación vive en su pestaña y no viaja a este papel todavía.
+              // El informe imprime la CAPACIDAD y dice «sin medida cargada»
+              // en vez de callar el hueco.
+              cargabilidad: undefined,
             }))}>
           ⬇ Informe completo (HTML imprimible) — se abre sin internet
         </button>
@@ -254,7 +271,7 @@ export function Exportar({ linea, apoyos, conductor, hipotesis, investigaciones 
               linea, conductor, hipotesis, lev,
               indicadores: calc!.indicadores, cargas: calc!.cargas,
               cantidades: calc!.cantidades, investigaciones,
-              meta: m,
+              meta: m, ampacidadReferencia,
             }))}>
           ⬇ Informe GERENCIAL — para quien decide, no para quien calcula
         </button>

@@ -84,7 +84,7 @@
 | **TODO-71** | **¿Se cierran las hipótesis con dato real?** El **viento** (`ADR-035`) y los **1.000 W/m² adoptados**. Los cuatro atlas (`ADR-055`) los ACERCAN y NO los cierran: un año de medias horarias no valida un extremo de diseño | De ahí salen los tiros y la capacidad |
 | **TODO-59** | **Qué ficha se le pide a CADA tipología.** La línea mezcla 4 y el molde es de POSTE (`40 §8.3`) | Son 3 o 4 formularios |
 | **TODO-33** | **50 % o 25 % de RTS** como tope de tiro. Ya no hay dos dueños (`§ADR-051`): falta decidir CUÁL rige | Factor 2 sobre un dictamen |
-| **TODO-93/94** ⬅️ **6 DECISIONES SUYAS** | **Veredicto eléctrico** (`§ADR-092`): el sello ya llega al papel ✅; encenderlo pide su palabra. Muros: **no hay dónde teclear la corriente de operación** · sol horario parado en mayo · **ningún atlas trae rumbo de viento** | Todos los atajos inflan la ampacidad |
+| **TODO-93/94** ⬅️ **DOS COSAS SUYAS** | **Cargabilidad cerrada** (`§ADR-093`): veredicto encendido, capacidad en el papel, CSV con procedencia. Falta ① **ratificar la condición** (hoy ADOPTADA: 718 A) y ② **cargar su archivo y GUARDARLO** — ese camino nunca se ha visto con su sesión | Sin ② el histórico está vacío |
 | **TODO-44/34** | Alerta de gasto en Cloudflare · **nada tiene copia**: la bóveda no tiene remoto **y Firestore no tiene punto de recuperación** (`§ADR-089`) | Un fallo de disco se lleva la bóveda; un comando se lleva la base |
 | **TODO-61/54/68** | ¿App Check? · ¿linter de frescura semántica? · ¿cazar un ADR repetido? Las dos últimas tocan el KERNEL | Las TRES son TUYAS |
 | **TODO-76** | **¿Se guarda que un apoyo es autosoportado / retenido?** Hoy no cabe en el modelo: iría por APOYO (26 declaraciones) | Cierra media incógnita de la capacidad longitudinal |

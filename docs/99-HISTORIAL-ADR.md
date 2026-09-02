@@ -7926,3 +7926,98 @@ condición que él declare.
 ### Crudo de respaldo
 
 `../brain-private/mantenimiento-lineas-at/research-archive/2026-09-01-veredicto-electrico/`
+
+---
+
+## ADR-093 · 2026-09-01 · El veredicto eléctrico se enciende: un solo dueño de las condiciones, y la capacidad llega al papel
+
+### Contexto
+
+Orden del Ingeniero: *«realiza todo lo que dependa de ti, vamos con workflow, procede con la última
+actualización de fable con todo»*. Antes había fijado la doctrina en dos frases:
+
+> *«Lo único con lo que podría comparar la cargabilidad de manera constante es la ampacidad —la
+> capacidad en corriente de la línea—; del resto, seguimiento operativo.»*
+> *«La ampacidad, recuerda, es según las propiedades del conductor AAAC que ya te entregué.»*
+
+Y tenía razón en lo segundo: su conductor estaba cargado y completo desde el principio —Darien AAAC
+559,5 MCM, 283,5 mm², Ø 21,79 mm, 90 °C de la aleación 6201-T81—. **Lo que faltaba no era el
+conductor: era decir con qué AIRE se compara.**
+
+Workflow de 4 agentes solo-lectura (3 frentes con Opus, **reconciliación con Fable**), 7 choques
+entre frentes resueltos con razones. Cero agentes caídos.
+
+### Lo que se verificó ejecutando el motor, no leyendo
+
+| | |
+|---|---|
+| Darien AAAC a 75/80/90/100 °C | **611 · 649 · 718 · 779 A** — cuadra con la tabla de fabricante |
+| Sensibilidad al viento a 90 °C | calma **522** · 0,61 **718** · 1,0 **807** · 2,0 **965 A** |
+| El pico real de LN-627 | **502 A ÷ 718 A = 69,9 %** · y en calma, **96,2 %** |
+
+**El mismo cable y los mismos amperios, de 522 a 965 A.** Ésa es la razón de todo este ADR: *elegir
+la condición es elegir el veredicto*, y eso lo firma un ingeniero, no un programa.
+
+### Decisión
+
+**1. UN dueño de las condiciones, en `nucleo/termica.js`.** La fórmula ya lo tenía; las condiciones
+no —cada pantalla escribía las suyas—. Tres funciones puras que **no eligen ningún clima**: hacen
+explícito lo que se adoptaba en silencio.
+
+- `CONDICION_DE_REFERENCIA` — la verificada del dominio.
+- `condicionesDeAmpacidad()` — las seis, diciendo cuál fue **declarada** y cuál **adoptada**.
+- `temperaturaDelConductor()` — una sola cascada: pedida → **ficha** → material.
+- `ampacidadDeLinea()` — nunca un número suelto: siempre con sus condiciones y su sensibilidad.
+
+**2. Las tres pantallas migran, sin fusionar ni borrar nada.** Mecánico dejaba de mirar la **ficha**
+del conductor: con una ficha a 75 °C habría publicado 718 A donde solo caben 611. Térmica calculaba
+a **0 msnm** y las otras a 10, porque nadie le pasa altitud. Fundamentos se ancla al dueño y explica
+por qué su cifra para 40 °C difiere de la de Térmica — **no se fusiona**: es la única pantalla cuyo
+trabajo es demostrar que la ampacidad no es una constante del conductor.
+
+**3. El veredicto, encendido.** `contrasteConLaAmpacidad` llevaba semanas escrita, probada y sin un
+solo llamador. Se calcula sobre el **pico** del periodo, no sobre el promedio.
+
+⚠️ **Las dos cifras van juntas y del mismo tamaño.** El «% del archivo» se calculó contra la
+capacidad NOMINAL de placa; el «% contra la ampacidad», contra la real. Poner una grande y otra de
+nota al pie habría sido elegir el veredicto por el Ingeniero.
+
+**4. La capacidad llega al papel.** Sección nueva en el informe técnico —con las seis condiciones,
+su procedencia una a una, la sensibilidad al viento y la confesión de que están adoptadas— y un
+renglón en el gerencial que dice **quién eligió** las condiciones, sin la tabla: quien lo lee no va a
+abrir el cálculo. El CSV de la pantalla deja de salir mudo.
+
+**5. El molde abre `hipotesis.condicionTermica`** — opcional, aditivo, con firma que exige **autor,
+fecha y fuente**: una ratificación anónima no se puede defender delante de nadie.
+
+### Alternativas descartadas, con su porqué
+
+- **Fusionar Fundamentos con Térmica** para quitar el número repetido. Borraría la única pantalla
+  que enseña que la ampacidad no es constante.
+- **Cambiar `temperaturaLimite`** para que no caiga en el genérico «Otro». Hay pantallas que
+  dependen de ello y una ya avisa: se arreglaría esto rompiendo aquello. En su lugar, la función
+  nueva **lo confiesa**.
+- **Encender el veredicto con la condición que elija el programa, sin decirlo.** Es lo que el motor
+  se niega a hacer por escrito. Se adopta **y se declara**, en las tres salidas.
+- **Recalcular la ampacidad en cada generador de papel.** Dos documentos de la misma línea podrían
+  publicar amperajes distintos. Se calcula una vez en `Exportar.tsx` y viaja a los dos.
+- **Meter la medida de operación en el informe** aprovechando que ya hay sección. La capacidad y la
+  medida son cosas distintas: el papel publica la capacidad y **dice** «sin medida cargada».
+
+### Un fallo propio, cazado por una prueba que yo mismo escribí
+
+Un conductor **sin material declarado** caía en silencio al perfil genérico «Otro» y publicaba
+646 A con cara de dato del conductor. La prueba lo exigió y el código no lo hacía. Corregido: ahora
+calcula igual —para no romper a quien dependía— pero **lo confiesa**.
+
+### Consecuencias
+
+- **2.193 pruebas en verde** (+33). Motor `0.9.0 → 0.10.1`. Molde `0.11.0 → 0.12.0`.
+- `tests/tres-ampacidades.test.js` es una prueba de **arquitectura**: se pone roja si alguien vuelve
+  a llamar a la fórmula cruda con condiciones propias en una pantalla.
+- **Queda para el Ingeniero**, y solo para él: **ratificar la condición** (o declarar otra), y
+  **cargar su archivo y guardarlo** — el guardado nunca se ha comprobado con su sesión.
+
+### Crudo de respaldo
+
+`../brain-private/mantenimiento-lineas-at/research-archive/2026-09-01-cerrar-cargabilidad/`

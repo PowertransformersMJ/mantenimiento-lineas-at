@@ -1501,6 +1501,87 @@ function seccionLimites(entrada) {
  *                                              este módulo es puro y no mira el reloj
  * @returns {string} documento HTML completo, sin JavaScript y sin recursos externos
  */
+/**
+ * LA CAPACIDAD EN CORRIENTE, y la medida de operación si la hay.
+ *
+ * ⚠️ ESTA SECCIÓN NO EXISTÍA: la palabra «ampacidad» no aparecía ni una vez en
+ * los quince generadores de papel. El número que decide cuánta corriente se
+ * puede despachar por una línea no viajaba al documento que se firma.
+ *
+ * ⚠️ Y NO PUBLICA UN AMPERAJE SUELTO. La ampacidad del mismo conductor va de
+ * 522 A en calma a 965 A con 2 m/s: sin sus condiciones al lado, el número no
+ * significa nada. Si están ADOPTADAS y no ratificadas, el papel lo dice con
+ * todas las letras — quien firma tiene derecho a saber qué eligió él y qué
+ * eligió el programa (`99 §ADR-093`).
+ */
+function seccionAmpacidad(ref, carga) {
+  if (!ref) {
+    return parrafo('<b>No se declaró la capacidad en corriente de la línea.</b> Sin ella este '
+      + 'informe no dice cuánta corriente puede despachar el conductor: la parte eléctrica del '
+      + 'dictamen queda fuera.');
+  }
+  if (ref.ampacidad_A == null) {
+    return parrafo(`<b>Capacidad en corriente: no evaluable.</b> ${esc(ref.motivo ?? '')}`);
+  }
+
+  const c = ref.condiciones ?? {};
+  const CAMPOS = ['ambiente_C', 'viento_m_s', 'sol_W_m2', 'emisividad', 'absortividad', 'altitud_m'];
+  const ROTULOS = ['Temperatura ambiente', 'Velocidad del viento', 'Radiación solar',
+    'Emisividad', 'Absortividad', 'Altitud'];
+  const UNIDADES = [' °C', ' m/s', ' W/m²', '', '', ' msnm'];
+  const r = [];
+
+  r.push(parrafo(`<b>Ampacidad de la línea: ${nu(ref.ampacidad_A, 0, 'A')}</b>, por IEEE Std 738 `
+    + `en régimen permanente, con el conductor a ${esc(ref.temperatura?.rotulo ?? '')}.`));
+
+  r.push(tabla({
+    leyenda: 'Las condiciones con las que se calculó, y de quién es cada una.',
+    cabecera: '<th>Condición</th><th>Valor</th><th>Procedencia</th>',
+    filas: CAMPOS.map((campo, i) => {
+      const adoptada = (c.adoptadas ?? []).includes(campo);
+      return `<tr${adoptada ? ' class="revisar"' : ''}><td>${esc(ROTULOS[i])}</td>`
+        + `<td>${esc(String(c.valores?.[campo]))}${esc(UNIDADES[i])}</td>`
+        + `<td>${esc(c.procedencias?.[campo] ?? '—')}</td></tr>`;
+    }),
+  }));
+
+  if (c.todoAdoptado) {
+    r.push(parrafo('<b>⚠️ LAS SEIS CONDICIONES ESTÁN ADOPTADAS POR EL SISTEMA</b>, no declaradas '
+      + 'por el ingeniero que firma. Este amperaje es una REFERENCIA verificada contra tabla de '
+      + 'fabricante, no un dictamen de operación: con el mismo conductor, un día en calma deja la '
+      + 'capacidad muy por debajo de esta cifra.'));
+  } else if (!c.ratificada) {
+    r.push(parrafo('<b>⚠️ La condición no está ratificada</b> por el ingeniero: hay valores '
+      + 'declarados, pero nadie ha firmado que sean los de esta línea.'));
+  } else {
+    r.push(parrafo(`Condición <b>ratificada</b> el ${esc(String(c.ratificadaEn ?? ''))} `
+      + `(${esc(c.fuente ?? 'sin fuente declarada')}).`));
+  }
+
+  if (Array.isArray(ref.sensibilidadViento) && ref.sensibilidadViento.length) {
+    r.push(tabla({
+      leyenda: 'El mismo conductor, cambiando SOLO el viento. Por eso la condición se declara.',
+      cabecera: '<th>Viento</th><th>Capacidad</th>',
+      filas: ref.sensibilidadViento.map((x) =>
+        `<tr><td>${x.viento_m_s === 0 ? 'calma' : `${esc(String(x.viento_m_s))} m/s`}</td>`
+        + `<td>${nu(x.ampacidad_A, 0, 'A')}</td></tr>`),
+    }));
+  }
+
+  // ⚠️ CAPACIDAD y MEDIDA son cosas distintas. Si no hay archivo cargado se
+  // DICE, en vez de dejar un hueco que alguien llene suponiendo.
+  if (carga && Number.isFinite(carga.corriente_A)) {
+    r.push(parrafo(`<b>Medida de operación:</b> ${nu(carga.corriente_A, 0, 'A')}`
+      + `${carga.fecha ? ` el ${esc(String(carga.fecha))}` : ''} = `
+      + `<b>${nu(carga.contraAmpacidad_pct, 1, '%')}</b> de la capacidad de arriba.`));
+  } else {
+    r.push(parrafo('<b>Sin medida de operación cargada.</b> Este informe publica la CAPACIDAD de '
+      + 'la línea, no cuánta corriente lleva: para lo segundo hace falta cargar el archivo de '
+      + 'operación en la pestaña de cargabilidad.'));
+  }
+  return r.join('\n');
+}
+
 export function informeHtml(entrada) {
   const e = objeto(entrada);
   const linea = objeto(e.linea);
@@ -1529,6 +1610,12 @@ export function informeHtml(entrada) {
     { titulo: 'Carga sobre las estructuras', html: seccionCargas(cargas) },
     { titulo: 'Carga longitudinal sobre las estructuras', html: seccionLongitudinal(longitudinal) },
     { titulo: 'Umbrales y criterios de evaluación', html: seccionUmbrales(indicadores) },
+    // ⚠️ DESPUÉS DE LOS UMBRALES Y ANTES DE LAS CANTIDADES. La capacidad en
+    // corriente es un criterio de evaluación, no una cantidad a comprar. Y se
+    // lee CON los umbrales delante: el veredicto eléctrico solo significa algo
+    // si ya se sabe contra qué se mide.
+    { titulo: 'Capacidad en corriente de la línea (IEEE 738)',
+      html: seccionAmpacidad(e.ampacidadReferencia, e.cargabilidad) },
     { titulo: 'Memoria de cantidades (geométrica)', html: seccionCantidades(cantidades) },
   ];
 

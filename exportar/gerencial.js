@@ -607,6 +607,26 @@ export function gerencialHtml(entrada) {
   <ol class="indice">${indice.map((t) => `<li>${esc(t)}</li>`).join('')}</ol>
 </header>
 ${secciones}
+${(() => {
+  // ⚠️ EL GERENCIAL NO LLEVA LA TABLA DE CONDICIONES: quien lo lee no va a abrir
+  // el cálculo. Lleva UNA frase con la capacidad y, sobre todo, con QUIÉN eligió
+  // las condiciones — porque de eso depende si la cifra sirve para decidir un
+  // despacho o solo para orientarse (`99 §ADR-093`).
+  const a = e.ampacidadReferencia;
+  if (!a) return '';
+  if (a.ampacidad_A == null) {
+    return `<p class="nota"><b>Capacidad en corriente: no evaluable.</b> ${esc(a.motivo ?? '')}</p>`;
+  }
+  return `<p class="nota"><b>Capacidad de referencia de la línea: `
+    + `${n(Math.round(a.ampacidad_A))} A</b> (IEEE 738, ${esc(a.condiciones?.rotulo ?? '')}).`
+    + (a.condiciones?.todoAdoptado
+      ? ' <b>Estas condiciones las adoptó el sistema, no el ingeniero.</b> Sirve para orientarse;'
+        + ' para decidir un despacho hace falta que el ingeniero las ratifique.'
+      : a.condiciones?.ratificada
+        ? ' Condiciones ratificadas por el ingeniero.'
+        : ' Condiciones declaradas pero SIN ratificar.')
+    + '</p>';
+})()}
 <p class="pie">${esc(linea.codigo ?? 'Línea sin identificar')} · informe gerencial generado por la
 plataforma de mantenimiento de líneas AT. Este documento no certifica nada por sí mismo: certifica
 el ingeniero que lo firma. El detalle del cálculo está en el informe técnico de la misma línea.<br>
