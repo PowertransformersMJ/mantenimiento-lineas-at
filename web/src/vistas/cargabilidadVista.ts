@@ -240,13 +240,28 @@ export function filtrarPorTexto<T extends Record<string, unknown>>(filas: T[], t
  * primero que lo vea creerá que la descarga está rota. El BOM del principio es
  * lo que hace que Excel respete las tildes.
  */
-export function aCsv(cabeceras: string[], filas: (string | number | null)[][]): string {
+export function aCsv(
+  cabeceras: string[], filas: (string | number | null)[][],
+  procedencia: readonly string[] = [],
+): string {
   const celda = (v: string | number | null): string => {
     if (v == null) return '';
     if (typeof v === 'number') return String(v).replace('.', ',');
     return /[;"\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
   };
-  return '﻿' + [cabeceras.join(';'), ...filas.map((f) => f.map(celda).join(';'))].join('\r\n');
+  // ⚠️ EL ARCHIVO SALE DICIENDO DE DÓNDE VIENE. Salía mudo: una hoja con
+  // amperios y porcentajes, sin línea, sin fecha de carga y sin la versión del
+  // motor. A los tres días nadie sabe qué es, y a los seis meses alguien la cita
+  // en un correo como si fuera un dictamen (`99 §ADR-093`).
+  //
+  // Los renglones van entrecomillados y con `#` delante para que Excel los trate
+  // como texto. El `sep=;` va PRIMERO: Excel solo lo obedece en el renglón 1.
+  const cabecera = procedencia.length
+    ? ['sep=;', ...procedencia.map((t) => `"# ${t.replace(/"/g, '""')}"`)]
+    : [];
+  return '﻿' + [
+    ...cabecera, cabeceras.join(';'), ...filas.map((f) => f.map(celda).join(';')),
+  ].join('\r\n');
 }
 
 export interface ErrorDeFila { nFila: number | null; campo: string; valor: unknown; porQue: string }

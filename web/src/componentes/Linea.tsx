@@ -865,7 +865,13 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
             quien no abra la pestaña no baja un byte de eso. */}
         {activa === 'cargabilidad' && (
           <Suspense fallback={<p className="fine">Preparando el lector de archivos…</p>}>
+            {/* ⚠️ El conductor y la hipótesis, como ya se le pasan a Térmica
+                cinco líneas más arriba. Sin ellos la pantalla no puede calcular
+                la ampacidad, y sin ampacidad no hay veredicto: solo el
+                porcentaje que trae el archivo, contra la capacidad NOMINAL
+                (`99 §ADR-093`). */}
             <Cargabilidad lineaAbierta={linea.codigo}
+              conductor={conductor} hipotesis={hipotesis}
               sesion={sesion.fase === 'autenticado'
                 ? { rol: sesion.rol, orgId: sesion.orgId, uid: sesion.uid }
                 : undefined} />

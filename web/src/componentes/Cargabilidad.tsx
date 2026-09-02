@@ -52,6 +52,11 @@ import { empaquetarPorDia, resumirDia } from '@lineas/nucleo/cargabilidad';
 import { guardarCarga, huellaDe, resumenesEntre, type Acuse } from '../datos/cargabilidadRepo';
 import { nf } from '../vistas/formato';
 import { Sello } from './Sello';
+import nucleoPkg from '@lineas/nucleo/package.json';
+import { ampacidadDeLinea } from '@lineas/nucleo/termica';
+import { contrasteConLaAmpacidad } from '@lineas/nucleo/cargabilidad';
+
+const VERSION_DEL_MOTOR = nucleoPkg.version;
 
 type Registro = Record<string, string | number | null>;
 type Mapeo = Record<string, string>;
@@ -83,8 +88,20 @@ function descargar(nombre: string, texto: string) {
   URL.revokeObjectURL(url);
 }
 
-export default function Cargabilidad({ lineaAbierta, sesion }: {
+export default function Cargabilidad({ lineaAbierta, conductor, hipotesis, sesion }: {
   lineaAbierta?: string;
+  /**
+   * El conductor de la línea. **Sin él no hay veredicto**: la ampacidad sale de
+   * sus propiedades, y sin ampacidad esta pantalla solo puede enseñar el
+   * porcentaje que trae el archivo — que se calculó contra la capacidad NOMINAL
+   * de placa, no contra la capacidad real (`99 §ADR-093`).
+   *
+   * Opcional a propósito: el banco de pruebas monta esta pantalla sin línea real
+   * y tiene que seguir abriéndose.
+   */
+  conductor?: Record<string, unknown> | null;
+  /** Donde el Ingeniero declara su condición ambiental, si la ha declarado. */
+  hipotesis?: Record<string, unknown> | null;
   /**
    * Quién está mirando. **Sin ella no se puede guardar**, y la pantalla lo dice
    * en vez de enseñar un botón que va a fallar. El rol se comprueba además en
@@ -203,6 +220,32 @@ export default function Cargabilidad({ lineaAbierta, sesion }: {
 
   const registros = (lote?.registros ?? []) as Registro[];
   const tablero = useMemo(() => (registros.length ? resumen(registros) : null), [registros]);
+
+  /**
+   * LA AMPACIDAD DE LA LÍNEA — el denominador del veredicto.
+   *
+   * ⚠️ Sale del DUEÑO ÚNICO, con las condiciones que el Ingeniero haya declarado
+   * en su hipótesis o, si no ha declarado ninguna, con la de referencia del
+   * dominio marcada como ADOPTADA. Aquí no se elige ningún clima.
+   */
+  const referencia = useMemo(
+    () => ampacidadDeLinea({ conductor, hipotesis }), [conductor, hipotesis]);
+
+  /**
+   * EL VEREDICTO SOBRE EL PICO DEL LOTE.
+   *
+   * ⚠️ Se hace sobre el PICO y no sobre cada fila a propósito: el veredicto de
+   * una línea lo decide el momento en que más cargó, no su promedio. Y así el
+   * coste es una comparación, no ocho mil.
+   */
+  const veredicto = useMemo(() => {
+    if (referencia.ampacidad_A == null || !registros.length) return null;
+    const conA = registros.filter((x_) => Number.isFinite(x_.corriente_A as number));
+    if (!conA.length) return null;
+    const pico = conA.reduce((a, b) =>
+      ((b.corriente_A as number) > (a.corriente_A as number) ? b : a));
+    return { pico, contraste: contrasteConLaAmpacidad(pico as never, referencia.ampacidad_A) };
+  }, [registros, referencia]);
 
   /**
    * GUARDAR LA CARGA. Empaqueta por día, resume y escribe — en ese orden, y con
@@ -382,12 +425,19 @@ export default function Cargabilidad({ lineaAbierta, sesion }: {
                   )}
                 </div>
               )}
+              {veredicto && <ElVeredicto v={veredicto} referencia={referencia} />}
               {tablero && <Tablero t={tablero} />}
               {registros.length > 1 && <Tendencia registros={registros} />}
               {registros.length > 0 && <PorLinea registros={registros} />}
               {registros.length > 0 && <MapaDeCalor registros={registros} />}
               {registros.length > 3 && <Distribucion registros={registros} />}
-              {registros.length > 0 && <TablaDetallada registros={registros} nombre={cargado.nombre} />}
+              {registros.length > 0 && (
+                <TablaDetallada registros={registros} nombre={cargado.nombre}
+                  procedencia={procedenciaDelCsv({
+                    nombre: cargado.nombre, hoja: cargado.hoja, cuando: cargado.cuando,
+                    lineaAbierta, referencia, veredicto,
+                  })} />
+              )}
             </>
           )}
         </>
@@ -1086,6 +1136,92 @@ function VistaPrevia({ registros }: { registros: Registro[] }) {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
+// EL VEREDICTO ELÉCTRICO — la única cifra de este módulo que DICTAMINA
+// ────────────────────────────────────────────────────────────────────────────
+// ⚠️ AQUÍ HAY DOS PORCENTAJES Y NO SON EL MISMO. Es todo el enredo de este
+// módulo, así que la pantalla los separa a la fuerza:
+//
+//   · **% del archivo** — corriente ÷ capacidad NOMINAL (la de placa, fija).
+//     Lo trae el SCADA. No es un veredicto: es lo que el archivo declaró.
+//   · **% contra ampacidad** — corriente ÷ capacidad REAL del conductor con unas
+//     condiciones declaradas (IEEE 738). **Éste es el veredicto.**
+//
+// Los mismos amperios pueden salir al 71 % con uno y al 98 % con el otro. Poner
+// uno de los dos «grande» y el otro de nota al pie sería elegir por el
+// Ingeniero. Van del mismo tamaño, uno al lado del otro, con su denominador
+// escrito debajo (`99 §ADR-093`).
+//
+// ⚠️ Y el veredicto sale del PICO, no del promedio: lo que decide si una línea
+// aguanta es el momento en que más cargó.
+// ════════════════════════════════════════════════════════════════════════════
+
+function ElVeredicto({ v, referencia }: {
+  v: { pico: Registro; contraste: ReturnType<typeof contrasteConLaAmpacidad> };
+  referencia: ReturnType<typeof ampacidadDeLinea>;
+}) {
+  const c = v.contraste as Record<string, unknown>;
+  if (!c.comparable) {
+    return (
+      <div className="tarjeta">
+        <p className="mapa-capas-t">Veredicto eléctrico</p>
+        <p className="advertencia"><b>No se puede dictaminar:</b> {String(c.porQue)}</p>
+      </div>
+    );
+  }
+  const contra = c.contraAmpacidad_pct as number;
+  const declarado = c.declarado_pct as number | null;
+
+  return (
+    <div className="tarjeta">
+      <p className="mapa-capas-t">Veredicto eléctrico — el pico del periodo</p>
+      <div className="kpis">
+        <Kpi v={`${nf(contra, 1)} %`} r="contra la AMPACIDAD"
+          s={`${nf(c.corriente_A as number)} A ÷ ${nf(c.ampacidad_A as number)} A`}
+          color={tintaDe(contra)} />
+        <Kpi v={declarado == null ? '—' : `${nf(declarado, 1)} %`} r="% del ARCHIVO"
+          s="contra la capacidad nominal de placa" />
+        <Kpi v={`${nf(c.corriente_A as number)} A`} r="corriente del pico"
+          s={`${String(v.pico.linea)} · ${String(v.pico.fecha)}`
+            + (v.pico.hora != null ? ` · ${String(v.pico.hora).padStart(2, '0')}:00` : '')} />
+        <Kpi v={`${nf(c.ampacidad_A as number)} A`} r="ampacidad de la línea"
+          s={referencia.condiciones.todoAdoptado ? 'condición ADOPTADA' : 'condición declarada'} />
+      </div>
+
+      {/* ⚠️ La frase que impide leer las dos cifras como si compitieran. */}
+      <p className="fine">
+        <b>Las dos son ciertas y responden a preguntas distintas.</b> El «% del archivo» se calculó
+        contra la capacidad <b>nominal</b> de placa, que es fija. El «contra la ampacidad» usa la
+        capacidad <b>real</b> del conductor con las condiciones de abajo, que es la que decide si la
+        línea aguanta{c.diferencia_pct != null && Math.abs(c.diferencia_pct as number) >= 1
+          ? <> — hay <b>{nf(Math.abs(c.diferencia_pct as number), 1)} puntos</b> de diferencia
+            entre las dos</>
+          : null}.
+      </p>
+
+      {c.aviso ? <p className="advertencia alerta">⚠️ {String(c.aviso)}</p> : null}
+
+      <p className="mapa-capas-n">
+        <b>Ampacidad:</b> {referencia.rotulo}
+      </p>
+      {referencia.avisos.map((a, i) => (
+        <p key={i} className="advertencia">{a}</p>
+      ))}
+
+      {/* Lo que hace visible que la condición ES el veredicto. */}
+      {referencia.sensibilidadViento.length > 0 && (
+        <p className="fine">
+          Con este mismo conductor, solo cambiando el viento:{' '}
+          {referencia.sensibilidadViento.map((x) =>
+            `${x.viento_m_s === 0 ? 'calma' : `${x.viento_m_s} m/s`} → ${nf(x.ampacidad_A)} A`)
+            .join(' · ')}. Por eso la condición se declara, y no se supone.
+        </p>
+      )}
+      <Sello />
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
 // EL TABLERO
 // ════════════════════════════════════════════════════════════════════════════
 function Tablero({ t }: { t: ReturnType<typeof resumen> }) {
@@ -1382,7 +1518,47 @@ const COLUMNAS = [
   { id: 'estado', rotulo: 'Estado' }, { id: 'observaciones', rotulo: 'Observaciones' },
 ] as const;
 
-function TablaDetallada({ registros, nombre }: { registros: Registro[]; nombre: string }) {
+/**
+ * DE DÓNDE VIENE LO QUE SE DESCARGA.
+ *
+ * ⚠️ El CSV salía mudo. Un archivo con amperios y porcentajes, sin línea, sin
+ * fecha, sin las condiciones de la ampacidad y sin la versión del motor, es un
+ * archivo que a los seis meses alguien cita en un correo como si fuera un
+ * dictamen. Este bloque es lo que permite rastrear cada cifra hasta su fila del
+ * Excel original (`99 §ADR-093`).
+ */
+function procedenciaDelCsv({ nombre, hoja, cuando, lineaAbierta, referencia, veredicto }: {
+  nombre: string; hoja?: string; cuando: Date; lineaAbierta?: string;
+  referencia: ReturnType<typeof ampacidadDeLinea>;
+  veredicto: { contraste: Record<string, unknown> } | null;
+}): string[] {
+  const r = [
+    `Cargabilidad eléctrica${lineaAbierta ? ` · línea ${lineaAbierta}` : ''}`,
+    `Origen: archivo «${nombre}»${hoja ? ` · hoja «${hoja}»` : ''}`
+      + ` · leído el ${cuando.toLocaleString('es-CO')}`,
+    `Motor de cálculo @lineas/nucleo v${VERSION_DEL_MOTOR}`,
+  ];
+  if (referencia.ampacidad_A != null) {
+    r.push(`Ampacidad de referencia: ${referencia.rotulo}`);
+    if (referencia.condiciones.todoAdoptado) {
+      r.push('ATENCIÓN: la condición ambiental está ADOPTADA por el sistema, no declarada por el '
+        + 'ingeniero. Este archivo es una referencia, no un dictamen firmado.');
+    }
+  } else {
+    r.push(`Ampacidad: no evaluable — ${referencia.motivo}`);
+  }
+  if (veredicto?.contraste?.comparable) {
+    r.push(`Pico del periodo: ${veredicto.contraste.corriente_A} A`
+      + ` = ${veredicto.contraste.contraAmpacidad_pct} % de la ampacidad`);
+  }
+  r.push('El % de la columna «Cargabilidad» viene del ARCHIVO y se calculó contra la capacidad '
+    + 'NOMINAL de placa; el % contra la ampacidad es el de este encabezado. No son el mismo número.');
+  return r;
+}
+
+function TablaDetallada({ registros, nombre, procedencia = [] }: {
+  registros: Registro[]; nombre: string; procedencia?: string[];
+}) {
   const [busca, setBusca] = useState('');
   const [campo, setCampo] = useState<string>('fecha');
   const [dir, setDir] = useState<Direccion>('asc');
@@ -1407,7 +1583,8 @@ function TablaDetallada({ registros, nombre }: { registros: Registro[]; nombre: 
         <button type="button" className="boton chico"
           onClick={() => descargar(`cargabilidad-${nombre.replace(/\.[^.]+$/, '')}.csv`,
             aCsv(COLUMNAS.map((c) => c.rotulo),
-              ordenadas.map((f) => COLUMNAS.map((c) => f[c.id] as string | number | null))))}>
+              ordenadas.map((f) => COLUMNAS.map((c) => f[c.id] as string | number | null)),
+              procedencia))}>
           Descargar lo que se ve ({nf(ordenadas.length)})
         </button>
       </div>
