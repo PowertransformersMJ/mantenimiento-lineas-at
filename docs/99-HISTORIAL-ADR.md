@@ -7834,3 +7834,95 @@ desplegar sin integrar no es publicar lo tuyo, es **pisar lo suyo**. El orden es
 ### Crudo de respaldo
 
 `../brain-private/mantenimiento-lineas-at/research-archive/2026-09-01-auditoria-holistica/`
+
+---
+
+## ADR-092 · 2026-09-01 · El papel firmado deja de autodenunciarse — y por qué el veredicto eléctrico sigue apagado a propósito
+
+### Contexto
+
+Continuación de `§ADR-091`. Workflow acotado de **4 agentes solo-lectura** —tres frentes con Opus y
+**Fable analizando el resultado**, como el Ingeniero tiene ordenado desde 2026-07-23—: dueño único
+de la ampacidad · cómo se enciende el veredicto · por qué la ampacidad no llega al papel.
+
+### Lo que se comprobó con ojos propios
+
+| Afirmación | Comprobación |
+|---|---|
+| El informe FIRMABLE imprime «versión NO declarada — sin ella este informe no es reproducible» | ✅ `exportar/informe.js:323-327`. **El generador sabía imprimirla; el llamador nunca se la pasaba** (`Exportar.tsx:139` mandaba solo `generadoEn` e `hipotesisNombre`) |
+| `corrienteOperacion_A` existe en el molde y en el motor, y **no hay pantalla donde teclearla** | ✅ 2 en `contratos`, 2 en `nucleo/umbrales.js`, **0 en `web/`** |
+| Nadie le pasa la altitud a Térmica | ✅ `Linea.tsx:857` — el parámetro existe y va vacío |
+| Ningún atlas trae DIRECCIÓN del viento | ✅ 0 capas de rumbo en `vistas/atlasCatalogo.ts` |
+
+**Y una afirmación del comité que NO resistió la comprobación, y se descarta:** que los 661 A de
+Fundamentos contra los 512 A de Térmica salieran de «un viento que una frase calla». Es falso:
+`Fundamentos.tsx:109` **declara** su viento («IEEE Std 738, viento 0,61 m/s, sol 1 000 W/m²») y
+Térmica rotula el suyo («El Niño, viento en calma»). Son dos escenarios distintos y **los dos
+declaran el suyo**. Queda como asunto de legibilidad —dos cifras para «40 °C» en pantallas
+distintas—, no como la contradicción no declarada que se había reportado.
+
+### Decisión — lo que se hace ahora
+
+**El sello llega al papel.** Es lo único de todo el plan que no depende de ninguna decisión de
+ingeniería, y era lo más grave: el documento que el Ingeniero firma se declaraba a sí mismo no
+reproducible.
+
+- `Exportar.tsx` declara `versionNucleo` en la metadata de los tres generadores.
+- `gerencial.js` lo imprime al pie, como el técnico.
+- `acta.js` **dice cuál es** ese «mismo motor» que prometía por escrito sin nombrarlo.
+- Nuevo `tests/sello-en-el-papel.test.js`: **seis pruebas comprueban que se IMPRIME**, no que se
+  reciba. Había pruebas que le pasaban la versión en su fixture y ninguna miraba la salida — pasar
+  el dato y publicarlo son dos cosas distintas, y el verde de la primera se leía como si cubriera
+  la segunda. Dos pruebas más vigilan al **llamador**, que es donde estaba el defecto.
+- Se conserva a propósito el aviso «versión NO declarada» cuando nadie la declara, **con su propia
+  prueba**: el hueco declarado era la parte BUENA del diseño. Silenciarlo habría convertido este
+  arreglo en el bug siguiente.
+
+### Por qué el veredicto eléctrico NO se enciende en esta vuelta
+
+No es que falte trabajo: es que **encenderlo sin que el Ingeniero fije la condición sería firmar por
+él**. Tres muros medidos, no supuestos:
+
+1. **No hay numerador.** `corrienteOperacion_A` no se puede teclear en ninguna pantalla. Sin
+   numerador no hay cociente, por muy bien que esté el denominador.
+2. **No hay clima completo para un día pasado.** Temperatura y viento medidos llegan al 29-08, pero
+   el sol horario se quedó en el 30-05 y **la dirección del viento no existe en ninguna fuente**. La
+   refrigeración de IEEE 738 solo usa la componente perpendicular: tomar la velocidad del atlas como
+   si toda lo fuera **infla la ampacidad**.
+3. **El resumen diario guardado no lleva amperios**, solo porcentaje y bandas.
+
+**Todos los atajos se equivocan por el lado optimista y en silencio** — y una ampacidad inflada hace
+que una línea sobrecargada parezca sana en un papel firmado. Por eso el orden es: primero los sellos
+(que solo pueden mejorar la honestidad del papel), y el veredicto **estrictamente detrás** de la
+condición que él declare.
+
+### Alternativas descartadas, con su porqué
+
+- **Abrir `ampacidad_A` como campo declarable del conductor.** Esa puerta se cerró con motivo en
+  `§ADR-052`: una ampacidad escrita a mano compite con la calculada, y la de placa siempre gana por
+  optimista. Hay una prueba que lo prohíbe y **no se toca**.
+- **Encender el veredicto en el papel con la condición que elija el programa.** Es exactamente lo
+  que el motor se niega a hacer por escrito (`nucleo/umbrales.js`): elegir la condición es elegir el
+  veredicto, y eso lo firma un ingeniero.
+- **Usar el viento del atlas como perpendicular** «para aprovechar el dato medido». Infla la
+  capacidad y no hay forma de saber en cuánto.
+- **Rellenar hacia atrás los resúmenes con amperios, o reconstruir el sol horario que falta.** La
+  regla de la casa ya la fijó `§ADR-091`: no se rellena hacia atrás.
+- **Meter la ampacidad en el acta, en los GPX/KML o en la memoria de cantidades.** El acta es
+  geometría, los GPX/KML son coordenadas y la memoria es para comprar material. Amperios ahí son
+  ruido, no rigor.
+- **Fusionar Fundamentos con Térmica** para quitar el número repetido. Fundamentos tiene un trabajo
+  legítimo: demostrar que la ampacidad NO es una constante del conductor, y para eso necesita
+  enseñar dos temperaturas.
+
+### Consecuencias
+
+- **2.145 pruebas en verde** (8 nuevas). Desplegado y comprobado — y esta vez **integrando antes de
+  construir** (`35 · L-77`), con el dato del atlas verificado además del bundle.
+- **Seis decisiones quedan sobre la mesa del Ingeniero**, cada una con opciones y recomendación, en
+  `docs/10` (`TODO-93/94`). La central: con qué condición de clima se calcula la ampacidad que
+  dictamina en el papel que él firma.
+
+### Crudo de respaldo
+
+`../brain-private/mantenimiento-lineas-at/research-archive/2026-09-01-veredicto-electrico/`

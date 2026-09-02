@@ -15,6 +15,7 @@
 // captura de campo (F4): dependen de fotos y notas que este sistema aún no
 // tiene, y aquí no se finge nada.
 // ============================================================================
+import nucleoPkg from '@lineas/nucleo/package.json';
 import { useMemo, useState } from 'react';
 import type { Apoyo, Conductor, Hipotesis, Investigacion, Linea as TLinea } from '@lineas/contratos';
 import { derivarLevantamiento } from '@lineas/exportar/levantamiento';
@@ -136,7 +137,16 @@ export function Exportar({ linea, apoyos, conductor, hipotesis, investigaciones 
   const bajar = (contenido: string, extension: string, mime: string, generar: (meta: { generadoEn: string; hipotesisNombre?: string }) => string) => {
     try {
       setFallo(null);
-      const meta = { generadoEn: new Date().toISOString(), hipotesisNombre: hipotesis?.nombre };
+      // ⚠️ `versionNucleo` NO es adorno. `exportar/` no la adivina a propósito —
+      // la declara quien manda a generar— y sin ella el informe FIRMABLE imprime
+      // en su propia portada «versión NO declarada — sin ella este informe no es
+      // reproducible». Es decir: el papel que se firma se autodenunciaba, y lo
+      // hacía por una línea que nadie escribió (`99 §ADR-092`).
+      const meta = {
+        generadoEn: new Date().toISOString(),
+        hipotesisNombre: hipotesis?.nombre,
+        versionNucleo: nucleoPkg.version,
+      };
       const nombre = `${linea.codigo}_${contenido}_${selloFecha()}.${extension}`;
       descargar(nombre, mime, generar(meta));
       setInfo(`Se descargó ${nombre} — ${lev.puntos.length} puntos (${lev.nEstructuras} estructuras + ${lev.nEmpalmes} empalmes), ${nf(lev.longitud_m)} m de línea.`);

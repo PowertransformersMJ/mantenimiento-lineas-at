@@ -59,6 +59,7 @@
 //     una intención. La casilla empieza vacía SIEMPRE, aunque el libro diga
 //     «aprobado», y la pantalla dice por qué con esas palabras.
 // ============================================================================
+import nucleoPkg from '@lineas/nucleo/package.json';
 import { useMemo, useState } from 'react';
 import type { Apoyo, Linea as TLinea } from '@lineas/contratos';
 import { FuncionEstructural, TipoPunto } from '@lineas/contratos';
@@ -341,6 +342,8 @@ export function Cargar({ linea, apoyos, sesion }: {
         // cargó hoy.
         sellos: Object.fromEntries(
           Object.entries(recuerdos).map(([k, v]) => [k, v.procedencia])),
+        // El acta promete «el mismo motor»: aquí se dice cuál (`99 §ADR-092`).
+        versionNucleo: nucleoPkg.version,
       }));
     } catch (e) {
       // El motivo entero, tal como llegó. Resumirlo aquí en «no se pudo cargar»

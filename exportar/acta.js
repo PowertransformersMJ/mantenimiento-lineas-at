@@ -265,7 +265,12 @@ function comoSeMovieron(entrada) {
   return `<h2>Cómo se movieron las cifras de la línea</h2>
 ${parrafo('Las produce el <b>mismo motor</b> que pinta las demás pantallas, corrido dos veces: '
   + 'una con la línea como estaba y otra con los puntos nuevos dentro. '
-  + 'Aquí no hay una segunda aritmética.')}
+  + 'Aquí no hay una segunda aritmética.'
+  // ⚠️ Prometía «el mismo motor» sin decir CUÁL. Una promesa de reproducibilidad
+  // que no se puede comprobar es peor que no hacerla (`99 §ADR-092`).
+  + (entrada.versionNucleo
+    ? ` Ese motor es <b>@lineas/nucleo v${esc(entrada.versionNucleo)}</b>.`
+    : ' <b>La versión de ese motor no se declaró</b>, así que estas cifras no son reproducibles.'))}
 ${tabla({
   leyenda: 'Antes y después. Se declara también lo que NO se movió.',
   cabecera: '<th>Cifra</th><th>Antes</th><th>Después</th><th>¿Se movió?</th>',

@@ -852,6 +852,8 @@ export interface ActaDeCarga {
   yaEstaban: string[];
   rechazados: { nombre: string; motivo: string }[];
   cifras: FilaCifra[];
+  /** Con qué motor se produjeron las cifras. Ver `actaDeLaCarga` (`§ADR-092`). */
+  versionNucleo?: string;
 }
 
 /**
@@ -884,6 +886,15 @@ export function actaDeLaCarga(entrada: {
    * decisiones en un papel que dice algo distinto de lo que se cargó.
    */
   sellos?: Record<string, ProcedenciaDeFicha>;
+  /**
+   * La versión del motor que produjo las cifras del acta.
+   *
+   * ⚠️ El acta PROMETE por escrito que sus cifras «las produce el mismo motor
+   * que pinta las demás pantallas»… y no decía CUÁL. Una promesa de
+   * reproducibilidad que no se puede comprobar es peor que no hacerla, porque
+   * invita a confiar (`99 §ADR-092`).
+   */
+  versionNucleo?: string;
 }): ActaDeCarga {
   const escritos = new Set(entrada.resultado.escritos);
   const cargados = entrada.fichas
@@ -932,5 +943,6 @@ export function actaDeLaCarga(entrada: {
     yaEstaban: entrada.resultado.yaEstaban,
     rechazados: entrada.resultado.rechazados,
     cifras: entrada.cifras,
+    versionNucleo: entrada.versionNucleo,
   };
 }

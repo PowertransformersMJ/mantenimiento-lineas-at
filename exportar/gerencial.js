@@ -609,7 +609,10 @@ export function gerencialHtml(entrada) {
 ${secciones}
 <p class="pie">${esc(linea.codigo ?? 'Línea sin identificar')} · informe gerencial generado por la
 plataforma de mantenimiento de líneas AT. Este documento no certifica nada por sí mismo: certifica
-el ingeniero que lo firma. El detalle del cálculo está en el informe técnico de la misma línea.</p>
+el ingeniero que lo firma. El detalle del cálculo está en el informe técnico de la misma línea.<br>
+Motor de cálculo @lineas/nucleo: ${meta.versionNucleo ?? meta.versionMotor
+  ? `v${esc(meta.versionNucleo ?? meta.versionMotor)}`
+  : '<b>versión NO declarada</b> — este informe no es reproducible'}.</p>
 </main>
 </body>
 </html>`;
