@@ -16,7 +16,7 @@ import type { Apoyo, Conductor, Hipotesis } from '@lineas/contratos';
 import { tramosDeTension, estadosDelTramo, flechaCatenaria, tiroMaximoAdmisible, topeDeTiro }
   from '@lineas/nucleo/mecanica';
 import { vanoViento } from '@lineas/nucleo/geodesia';
-import { ampacidad, temperaturaLimite } from '@lineas/nucleo/termica';
+import { ampacidadDeLinea } from '@lineas/nucleo/termica';
 import { derivarLevantamiento } from '@lineas/exportar/levantamiento';
 import { TARJETAS, MARCO_NORMATIVO, INTRO_FUNDAMENTOS } from '../contenido/fundamentos';
 import { conductorParaNucleo, paramsParaNucleo, calcularTramos } from '../vistas/tramos';
@@ -100,13 +100,21 @@ function valorVivo(id: string, x: Ctx): ReactNode {
         terreno, y la altimetría GPS (±8 m) no tiene la precisión necesaria. No se inventa.
       </>;
     case 'amp': {
-      const tc = c.tempMaxOperacion_C ?? temperaturaLimite(c.material);
-      const cond = { material: c.material, seccion: c.seccion_mm2, diametro: c.diametro_m };
-      const amb = { v: 0.61, eps: 0.5, abso: 0.5, qs: 1000, he: 10 };
-      const i32 = ampacidad(cond, tc, 32, amb);
-      const i40 = ampacidad(cond, tc, 40, amb);
-      return <>A 32 °C ambiente y {tc} °C en el conductor ({c.tempMaxOperacion_C != null ? 'declarada del conductor' : 'límite típico del material'}):
-        <b> {nf(i32)} A</b>. A 40 °C ambiente baja a {nf(i40)} A — IEEE Std 738, viento 0,61 m/s, sol 1 000 W/m².</>;
+      // ⚠️ AL DUEÑO ÚNICO, y ESTA tarjeta cambia SOLO el ambiente a propósito:
+      // su trabajo es demostrar que la ampacidad no es una constante del
+      // conductor. Por eso publica una cifra distinta de la de Térmica para
+      // «40 °C» — allí el escenario El Niño baja ADEMÁS el viento, y el viento
+      // pesa más que el ambiente. Las dos declaran el suyo; lo que faltaba era
+      // decir cuál es la diferencia entre las dos (`99 §ADR-093`).
+      const ref = ampacidadDeLinea({ conductor: c, hipotesis: h });
+      const calor = ampacidadDeLinea({ conductor: c, hipotesis: h, pedida: { ambiente_C: 40 } });
+      if (ref.ampacidad_A == null || calor.ampacidad_A == null) return <>{ref.motivo}</>;
+      return <>A {ref.condiciones.valores.ambiente_C} °C ambiente y {ref.temperatura.rotulo}:
+        <b> {nf(ref.ampacidad_A)} A</b>. Subiendo <b>solo el ambiente</b> a 40 °C baja a{' '}
+        {nf(calor.ampacidad_A)} A — IEEE Std 738, {ref.condiciones.rotulo}.{' '}
+        <span className="fine">En la pestaña Térmica verá una cifra menor para 40 °C: aquel
+        escenario baja también el viento, que pesa más que el ambiente. Con este mismo conductor,
+        el aire quieto deja la capacidad en {nf(ref.sensibilidadViento[0].ampacidad_A)} A.</span></>;
     }
     case 'terr': {
       if (!gob) return null;

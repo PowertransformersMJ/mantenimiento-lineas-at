@@ -11,7 +11,7 @@
 import { Component, Suspense, lazy, useEffect, useMemo, useState, type KeyboardEvent, type ReactNode } from 'react';
 import type { Apoyo, Conductor, Evidencia, Hipotesis, Investigacion, Linea as TLinea } from '@lineas/contratos';
 import { vincenty, vanoIdealRegulacion } from '@lineas/nucleo/geodesia';
-import { ampacidad, temperaturaLimite } from '@lineas/nucleo/termica';
+import { ampacidadDeLinea } from '@lineas/nucleo/termica';
 import { estadisticasVanos } from '@lineas/nucleo/estadisticas';
 import { coherenciaFuncionDeflexion } from '@lineas/nucleo/coherencia';
 import { derivarLevantamiento } from '@lineas/exportar/levantamiento';
@@ -411,13 +411,14 @@ function Mecanico({ apoyos, conductor, hipotesis }:
       // (cumple / revisar / no evaluable); el titular no lo hacía (`§ADR-091`).
       vir: vanoIdealRegulacion(L),
       anclas: proyectar(apoyos).filter((p) => p.esAncla).length,
-      amp: ampacidad(
-        { material: conductor.material, seccion: conductor.seccion_mm2, diametro: conductor.diametro_m },
-        temperaturaLimite(conductor.material), 32,
-        { v: 0.61, eps: 0.5, abso: 0.5, qs: 1000, he: 10 },
-      ),
+      // ⚠️ AL DUEÑO ÚNICO. Antes calculaba aquí, con condiciones escritas a mano
+      // y **descartando la ficha del conductor**: usaba el límite del material.
+      // Con LN-627 da el mismo número porque su ficha también dice 90 °C, pero
+      // una ficha a 75 °C habría publicado 718 A donde solo caben 611 — 107 A de
+      // más, siempre por el lado optimista (`99 §ADR-093`).
+      amp: ampacidadDeLinea({ conductor, hipotesis }),
     };
-  }, [apoyos, conductor]);
+  }, [apoyos, conductor, hipotesis]);
 
   if (!filas.length) return null;
   const excedidos = filas.filter((f) => f.excede);
@@ -433,7 +434,12 @@ function Mecanico({ apoyos, conductor, hipotesis }:
             etiqueta="VIR de referencia"
             sub={r.vir == null ? 'sin datos suficientes' : 'el del cálculo va por tramo'} />
           <Kpi valor={nf(filas.length)} etiqueta="tramos de tensión" sub={`${r.anclas} anclajes`} />
-          <Kpi valor={`${nf(r.amp)} A`} etiqueta="ampacidad IEEE 738" sub={`${temperaturaLimite(conductor.material)} °C · 32 °C amb.`} />
+          {/* El rótulo dice las SEIS condiciones, no dos, y confiesa que están
+              adoptadas mientras el Ingeniero no las ratifique. */}
+          <Kpi valor={r.amp.ampacidad_A == null ? 'no evaluable' : `${nf(r.amp.ampacidad_A)} A`}
+            etiqueta={`ampacidad IEEE 738${r.amp.condiciones.todoAdoptado ? ' (adoptada)' : ''}`}
+            sub={r.amp.ampacidad_A == null ? r.amp.motivo ?? undefined
+              : `conductor a ${r.amp.temperatura.rotulo} · ${r.amp.condiciones.rotulo}`} />
         </div>
       </section>
 

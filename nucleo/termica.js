@@ -75,9 +75,8 @@ const CAMPOS_CONDICION = Object.freeze(
  * lado optimista — y una capacidad inflada hace que una línea sobrecargada
  * parezca sana.
  *
- * @param {{pedida_C?: number|null, conductor?: {material?: string, tempMaxOperacion_C?: number}}} e
- * @returns {{valor_C: number|null, origen: 'pedida'|'ficha'|'material'|'generico',
- *            rotulo: string, aviso?: string}}
+ * @param {{pedida_C?: number|null, conductor?: Record<string, any>|null}} [e]
+ * @returns {TemperaturaDelConductor}
  */
 export function temperaturaDelConductor({ pedida_C = null, conductor = null } = {}) {
   if (Number.isFinite(pedida_C)) {
@@ -109,14 +108,35 @@ export function temperaturaDelConductor({ pedida_C = null, conductor = null } = 
 }
 
 /**
+ * @typedef {object} CondicionesDeAmpacidad
+ * @property {{ambiente_C: number, viento_m_s: number, sol_W_m2: number,
+ *             emisividad: number, absortividad: number, altitud_m: number}} valores
+ * @property {{v: number, eps: number, abso: number, qs: number, he: number}} paraElNucleo
+ * @property {string[]} declaradas
+ * @property {string[]} adoptadas
+ * @property {boolean} todoAdoptado
+ * @property {boolean} ratificada
+ * @property {string|null} ratificadaPor
+ * @property {string|null} ratificadaEn
+ * @property {string|null} fuente
+ * @property {Record<string, string>} procedencias
+ * @property {string} rotulo
+ * @property {string|null} aviso
+ */
+
+/**
+ * @typedef {object} TemperaturaDelConductor
+ * @property {number|null} valor_C
+ * @property {'pedida'|'ficha'|'material'|'generico'} origen
+ * @property {string} rotulo
+ * @property {string} [aviso]
+ */
+
+/**
  * LAS SEIS CONDICIONES RESUELTAS, diciendo cuál es de quién.
  *
- * @param {{pedida?: object|null, hipotesis?: object|null}} e
- * @returns {{valores: Record<string, number>, paraElNucleo: object,
- *            declaradas: string[], adoptadas: string[], todoAdoptado: boolean,
- *            ratificada: boolean, ratificadaPor: string|null, ratificadaEn: string|null,
- *            fuente: string|null, procedencias: Record<string, string>,
- *            rotulo: string, aviso: string|null}}
+ * @param {{pedida?: Record<string, any>|null, hipotesis?: Record<string, any>|null}} [e]
+ * @returns {CondicionesDeAmpacidad}
  */
 export function condicionesDeAmpacidad({ pedida = null, hipotesis = null } = {}) {
   const declarada = hipotesis?.condicionTermica ?? null;
@@ -166,8 +186,11 @@ export function condicionesDeAmpacidad({ pedida = null, hipotesis = null } = {})
  * corta del núcleo (`seccion`, `diametro`): aquí se traduce, y por eso esta
  * función es el único sitio donde conviven las dos formas.
  *
- * @returns {{ampacidad_A: number|null, motivo: string|null, condiciones: object,
- *            temperatura: object, rotulo: string, avisos: string[],
+ * @param {{conductor?: Record<string, any>|null, hipotesis?: Record<string, any>|null,
+ *           pedida?: Record<string, any>|null, temperaturaConductor_C?: number|null}} [e]
+ * @returns {{ampacidad_A: number|null, motivo: string|null,
+ *            condiciones: CondicionesDeAmpacidad, temperatura: TemperaturaDelConductor,
+ *            rotulo: string, avisos: string[],
  *            sensibilidadViento: {viento_m_s: number, ampacidad_A: number}[]}}
  */
 export function ampacidadDeLinea({

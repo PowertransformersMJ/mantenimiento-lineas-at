@@ -31,7 +31,7 @@
 //
 // Ver docs/40-DOMINIO-LINEAS-AT.md §4.
 // ============================================================================
-import { derrateo, resistenciaDC, temperaturaLimite, MATERIALES }
+import { CONDICION_DE_REFERENCIA, derrateo, resistenciaDC, temperaturaLimite, MATERIALES }
   from '@lineas/nucleo/termica';
 
 // ── Tipos de entrada ────────────────────────────────────────────────────────
@@ -213,12 +213,14 @@ const NOTA_RESISTENCIA: Readonly<Record<number, string>> = Object.freeze({
 // medio del rango que documenta el núcleo (0,23 nuevo … 0,91 envejecido): un
 // conductor con años encima absorbe más sol y también radia mejor, y por eso el
 // medio no es una cobardía sino la hipótesis honesta mientras nadie mida.
-const EMISIVIDAD_POR_DEFECTO = 0.5;
-const ABSORTIVIDAD_POR_DEFECTO = 0.5;
-// Altitud 0 = nivel del mar. No se inventa la cota de la línea: al nivel del mar
-// el aire es el más denso posible, o sea el caso que MÁS ampacidad da. Si la
-// línea sube, la vista debe pasar su altitud o la tabla queda optimista.
-const ALTITUD_POR_DEFECTO_M = 0;
+// ⚠️ LOS TRES SALEN DEL DUEÑO ÚNICO, no de literales de esta hoja. Los tenía
+// propios, y la altitud divergía: aquí 0 msnm y en las otras dos pestañas 10.
+// Nadie le pasa `altitud_m` a Térmica (`Linea.tsx:857`), así que la divergencia
+// era permanente. Hoy la diferencia son décimas de amperio; en una línea de
+// montaña es un 5 %, y el 718 A del dominio se verificó a 10 msnm (`§ADR-093`).
+const EMISIVIDAD_POR_DEFECTO = CONDICION_DE_REFERENCIA.emisividad;
+const ABSORTIVIDAD_POR_DEFECTO = CONDICION_DE_REFERENCIA.absortividad;
+const ALTITUD_POR_DEFECTO_M = CONDICION_DE_REFERENCIA.altitud_m;
 
 // ── Ayudas internas ─────────────────────────────────────────────────────────
 
