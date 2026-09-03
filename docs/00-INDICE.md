@@ -21,6 +21,7 @@
 | `docs/33-LECCIONES-NUCLEO-Y-DATO.md` | Hija de `30`: el número que se firma y el dato que no puede salir del repo | bajo trigger 🧪 |
 | `docs/34-LECCIONES-MAPA.md` | Hija de `30`: el mapa no pinta, o pinta algo que no se puede leer | bajo trigger 🧪 |
 | `docs/40-DOMINIO-LINEAS-AT.md` | Lóbulo de dominio: ingeniería de líneas AT, fórmulas y su procedencia | bajo trigger 🔵 |
+| `docs/41-OPERACION-Y-SEGURIDAD-LINEAS-AT.md` | Lóbulo hermano de `40`: mantenimiento, horas de indisponibilidad (CREG), plan de inspección y seguridad de cuadrillas (RETIE 2024, Res. 4272) | bajo trigger 🔵 |
 | `docs/99-HISTORIAL-ADR.md` | Largo plazo: por qué se decidió cada cosa (`ADR-NNN`) | bajo trigger 🟢 |
 
 **Fuera del repo:** `../brain-private/mantenimiento-lineas-at/` — bóveda privada, uso local.
@@ -43,6 +44,14 @@ Guarda `research-archive/` (crudos de deliberación: comités, consejos externos
 | «el mapa es un rectángulo gris», «enciendo la capa y no pasa nada», «no veo el gradiente» | `34` |
 | «este número del informe firmable no cuadra» | `33` |
 | «el CI está VERDE pero el cambio NO está en producción», «Actions en verde y la pantalla igual» | `35 · L-35/L-18` |
+| «¿cuántas horas puedo sacar la línea al año?», «¿esto cuenta como mantenimiento mayor?» | `41 §1` (38 h · 0,5 h por reprogramación · 96 h/6 años) |
+| «¿a qué distancia trabaja la cuadrilla?», «¿qué permiso hace falta para subir?» | `41 §3` (1,40 m / 1,0 m / 2,5-3,0 m · Tabla 3.15.2.a · Res. 4272) |
+| «¿qué se inspecciona, cada cuánto, y qué va primero?» | `41 §2` (rayo → tierra · calendario para corrosión · condición para el resto) |
+| «¿qué tan tenso puede ir el conductor sin que vibre?» — **es H/w, no el EDS %** | `40 §3.2` + `nucleo/umbrales.js` indicador 4 |
+| «¿cuánto despeje al terreno exige el RETIE a 66 kV?», «¿cuánto mide la servidumbre?» | `40 §3.4` (5,8 / 8,3 m · 15 m) |
+| «¿la termografía habría visto ese aislador?» | `40 §5` (no: corona) |
+| «¿cuánto dura el galvanizado aquí?», «¿qué categoría de corrosión somos?» | `40 §11` (ISO 9223; categoría NO medida) |
+| «¿qué norma o brochure hay que comprar, y cuál es gratis?» | `31 · L-78` |
 | «voy a añadir una capa o un atlas nuevo: ¿qué toco y qué NO?» | `20` + `99 §ADR-055/060` |
 | «¿por qué esta capa se dibuja como UNA celda y su número, y no como campo de colores?» | `99 §ADR-035/046/056` |
 | «¿hubo tormenta eléctrica / rayos?», «¿por qué no consta una descarga atmosférica?» | `99 §ADR-060` + `35 · L-37` |
@@ -171,6 +180,7 @@ Guarda `research-archive/` (crudos de deliberación: comités, consejos externos
 | `ADR-092` | 2026-09-01 | El papel firmado deja de autodenunciarse — y por qué el veredicto eléctrico sigue apagado a propósito | `research-archive/2026-09-01-veredicto-electrico/` |
 | `ADR-093` | 2026-09-01 | El veredicto eléctrico se enciende: un solo dueño de las condiciones, y la capacidad llega al papel | `research-archive/2026-09-01-cerrar-cargabilidad/` |
 | `ADR-094` | 2026-09-02 | Las variables operativas de la línea, y lo que el sistema se NIEGA a inventar | `research-archive/2026-09-02-variables-operativas/` |
+| `ADR-095` | 2026-09-02 | El cerebro gana un lóbulo de operación, y la norma que el motor no tenía | `research-archive/2026-09-02-fortalecer-el-cerebro/` |
 
 > Toda decisión cara de revertir entra aquí con su ADR y su crudo enlazado. Si hubo comité o consejo
 > externo y el crudo no está archivado, la tarea **no está cerrada** (`CLAUDE.md §G.4`).

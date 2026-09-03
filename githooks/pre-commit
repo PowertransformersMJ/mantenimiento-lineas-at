@@ -27,9 +27,20 @@ for d in "$HOME"/.nvm/versions/node/*/bin; do [ -d "$d" ] && PATH="$d:$PATH"; do
 # El patrón es el mismo que documenta `docs/10`: cuatro o más decimales en la
 # franja de latitud/longitud del Caribe colombiano. Se miran solo las líneas
 # AÑADIDAS y se excluyen los recortes del mapa, que son públicos por decisión.
+#
+# ⚠️ Y se excluye una cosa más, aprendida el 2026-09-02: **TODO DOI empieza por
+# `10.`** — `10.3390/resources8020080` es un artículo citado, no una latitud de
+# Barranquilla. Sin esta salvedad, el guardián bloqueaba cada vez que el cerebro
+# citaba una fuente, y empujaba justo a lo peor: a saltárselo con `--no-verify`,
+# que apaga TODOS los demás guardianes de una vez. Un guardián que grita sin
+# razón se acaba apagando (`§ADR-095`).
+#
+# La distinción es exacta y no debilita nada: en un DOI, los dígitos van
+# SIEMPRE seguidos de `/`; en una coordenada, jamás.
 fugas=$(git diff --cached -U0 -- . ':(exclude)web/public/mapas/*' \
   | grep -E '^\+' | grep -vE '^\+\+\+' \
-  | grep -nE '(10\.[0-9]{4,}|-7[45]\.[0-9]{4,})')
+  | grep -nE '(10\.[0-9]{4,}|-7[45]\.[0-9]{4,})' \
+  | grep -vE '(doi\.org/)?10\.[0-9]{4,}/')
 if [ -n "$fugas" ]; then
   echo ""
   echo "❌ COMMIT BLOQUEADO: parecen COORDENADAS REALES en lo que se va a commitear."

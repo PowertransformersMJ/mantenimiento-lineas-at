@@ -38,6 +38,7 @@ El día que un número salga mal, la discusión debe ser sobre el cálculo, no s
 | `docs/33-LECCIONES-NUCLEO-Y-DATO.md` | ↳ el número que se firma · el dato que no sale | trigger 🧪 |
 | `docs/34-LECCIONES-MAPA.md` | ↳ el mapa: no pinta, o pinta lo que no se puede leer | trigger 🧪 |
 | `docs/40-DOMINIO-LINEAS-AT.md` | ingeniería de líneas AT: fórmulas y procedencia | trigger 🔵 |
+| `docs/41-OPERACION-Y-SEGURIDAD-LINEAS-AT.md` | qué se le HACE a la línea: horas CREG, plan, cuadrilla | trigger 🔵 |
 | `docs/99-HISTORIAL-ADR.md` | por qué se decidió cada cosa (`ADR-NNN`) | trigger 🟢 |
 
 **Fuera del repo:** `../brain-private/mantenimiento-lineas-at/` — bóveda LOCAL, nunca pública:
@@ -109,10 +110,8 @@ pagado por el Ingeniero. Y **la ausencia de bandera nunca es aprobación**.
 - **Ante un conflicto se ACEPTA y se pone en cuarentena; nunca se rechaza y descarta** (rechazar
   convierte un problema de calidad de dato en pérdida de jornada de campo).
 
-**Lo que se descartó y por qué** (detalle en `99 §ADR-001`): GitHub Pages (repo público obligado y
-**uso comercial prohibido**) · Firebase Storage y Functions (facturación obligatoria y retroactiva
-desde el 03-02-2026) · Supabase · MapTiler y Stadia gratis (**uso comercial prohibido**) · teselas de
-`tile.openstreetmap.org` (**el uso offline está prohibido textualmente**).
+**Lo que se descartó y por qué** (GitHub Pages, Firebase Storage/Functions, Supabase, MapTiler,
+Stadia, teselas OSM) → `99 §ADR-001` y `31 · L-01/L-02/L-03/L-10`.
 
 ---
 
@@ -122,7 +121,8 @@ desde el 03-02-2026) · Supabase · MapTiler y Stadia gratis (**uso comercial pr
 `30` · mapa que cambió → `20` · dominio → `40` · salud → `05`.
 
 **Formato ADR:** `## ADR-NNN · AAAA-MM-DD · Título` → Contexto · Decisión · Alternativas descartadas
-(con el porqué) · Consecuencias · Crudo de respaldo (ruta en la bóveda).
+(con el porqué) · **Supuestos que deben ser ciertos + la señal que diría que dejaron de serlo** ·
+Consecuencias · Crudo de respaldo (ruta en la bóveda).
 
 **Reglas git (heredadas del ecosistema, ADR-051):** Claude hace **commit + push + merge + deploys sin
 pedir permiso**; validar = entregar el resumen en el mismo turno, no esperar el "sí". **NUNCA**

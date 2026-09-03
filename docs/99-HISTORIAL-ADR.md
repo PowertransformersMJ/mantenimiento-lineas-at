@@ -8106,3 +8106,133 @@ hay MVA ni pérdidas.
 ### Crudo de respaldo
 
 `../brain-private/mantenimiento-lineas-at/research-archive/2026-09-02-variables-operativas/`
+
+---
+
+## ADR-095 · 2026-09-02 · El cerebro gana un lóbulo de operación, y la norma que el motor no tenía
+
+### Contexto
+
+Orden del Ingeniero: *«fortalece el cerebro en todos los aspectos técnicos, analíticos, críticos…
+cuidadoso, cauto, anticipado… considerando riesgos, equipos de trabajo, decisiones cruciales, pero
+siempre pensando en mantener en buenas condiciones y extender vida útil. Busca en cada rincón de
+la web»*.
+
+Workflow de **6 agentes** (5 frentes con Opus buscando en la web, **síntesis con Fable**): vida
+útil, mantenimiento, riesgo y cuadrillas, diagnóstico, y método crítico. **281 llamadas, 0 caídos,
+40 hallazgos con fuente.** A cada frente se le impuso la regla `30 · L-09`: ninguna cifra ni norma
+de memoria — fuente, URL y fecha, o marcado **NO VERIFICADO**.
+
+### Lo que la investigación destapó DENTRO de este repositorio
+
+El hallazgo de más valor no vino de la web: vino de cruzar la web con el propio código, y está
+**verificado a mano** (2026-09-02):
+
+**1. El criterio de fatiga que rige NO es el EDS en % de RTS: es `C = H/w`.** CIGRÉ descartó el EDS
+como criterio de vibración eólica. Y este sistema **ya calcula C = H/w** —`nucleo/umbrales.js`
+indicador 4— pero con una bandera de **1.800 m** cuya fuente dice literalmente
+`'criterio de diseño (sin norma)'`. El límite CIGRÉ para conductor simple sin amortiguadores en
+categoría 1 —que incluye *«cerca de o cruzando grandes cuerpos de agua»*, o sea LN-627— es
+**1.000 m**.
+
+Con los valores que el propio motor usa en sus pruebas (`tests/nucleo.test.js:129`: w = 0,776 kg/m,
+RTS = 8.528 kgf), **EDS 20 % → H = 1.705,6 kgf → C = 2.198 m**: más del doble del límite, y por
+encima incluso de la bandera propia. Cumplir 1.000 m exigiría **EDS 9,1 %**, fuera de la banda
+18-22 % que vigila el indicador 2. **La salida física no es destensar: son amortiguadores.**
+
+**2. Una contradicción interna en `docs/40`.** §3.1 dice *«EDS 20 % RTS = 3 524 kgf»*. Sobre una
+RTS de 8.528 kgf, **3.524 es el 41,3 %**, no el 20 %. Para que fuera el 20 %, la RTS tendría que
+ser 17.620 kgf. **Uno de los dos números está mal y hoy no se sabe cuál** — y el EDS gobierna todo
+el cálculo mecánico. Ninguno se firma hasta contrastar la RTS del Darien con hoja de fabricante.
+
+### Decisión
+
+**1. Nace `docs/41-OPERACION-Y-SEGURIDAD-LINEAS-AT.md`** — lóbulo hermano de `40`. Éste dice qué
+*es* la línea; aquél, **qué se le HACE**: horas de indisponibilidad, plan de inspección, seguridad
+de cuadrillas. Se paga comprimiendo en `CLAUDE.md §1` un párrafo que **duplicaba** lo que ya tienen
+`99 §ADR-001` y `31 · L-01/L-02/L-03/L-10` — violaba la regla SSoT. El arranque queda con **más
+margen que antes** (57 caracteres, frente a 44).
+
+**2. `docs/40` pasa de 34.289 a 61.337 caracteres** — es el único nodo sin tope, y es donde va la
+ingeniería. Entran ocho bloques: el criterio H/w con su norma, los valores del RETIE, el
+**recocido** como mecanismo detrás de los 90 °C, la ampacidad ajustada al ambiente real, la
+**corona** que la termografía no ve, el índice de salud por componente, la diferencia entre
+fiabilidad y seguridad de personas, y un **§11 nuevo sobre corrosión en la costa**.
+
+**3. El formato ADR gana un campo obligatorio:** *«Supuestos que deben ser ciertos + la señal que
+diría que dejaron de serlo»*. Es la contramedida directa a `30 · L-42` —ocho días razonando sobre
+un contrato que nadie afirmó—: la regla de marcar el supuesto ya existía; faltaba **la señal que lo
+caduca**.
+
+### Qué verifiqué yo, y hasta dónde
+
+| | |
+|---|---|
+| El indicador C = H/w con umbral 1.800 «sin norma» | ✅ leído en `nucleo/umbrales.js:422-427` |
+| w = 0,776 · RTS = 8.528 | ✅ leído en `tests/nucleo.test.js:129` |
+| C = 2.198 m · 3.524 = 41,3 % de 8.528 | ✅ calculado a mano |
+| La contradicción de `docs/40 §3.1` | ✅ leída en el archivo |
+| RETIE = Resolución 40117 del 02-04-2024, Diario Oficial 52.716 | ✅ confirmado en fuente |
+| La corrección de altitud (+3 % / 300 m sobre 1.000 msnm) | ✅ confirmado en fuente |
+| **Los despejes de 5,8 / 8,3 m a 66 kV** | ❌ **NO los abrí**: viven en el Libro 3, que no está en el extracto público. Entran marcados, y hay que confirmarlos antes de firmar un despeje |
+
+### Alternativas descartadas, con su porqué
+
+La síntesis devolvió **diez cosas que NO entran**, y ésa es la mitad del valor. Las que más importan:
+
+- **Umbrales sin fuente abierta** (los límites CIGRÉ *con* amortiguadores, los mm/kV de IEC 60815).
+  Ningún frente los leyó: un umbral sin procedencia es un dictamen que nadie puede defender.
+- **Cifras de prensa y de vendedor** (el «30 % más de aciertos» del premortem, precios por km de
+  dron). Es la basura que el Ingeniero prohibió.
+- **Pesos de índices de salud de otras empresas.** Entran como método, jamás como valores suyos.
+- **Todo lo del hemisferio norte como obligación** (hielo, galope) y las tablas de otras
+  jurisdicciones: aquí rigen RETIE y CREG, y mezclar dos países es la receta del número equivocado.
+- **Repotenciación con ACCC/ACSS y gemelo digital.** En 3,03 km gobierna el térmico con margen, y
+  sin ficha estructural de los 26 apoyos cualquier estudio daría un porcentaje sin respaldo.
+- **Una lección de método nueva en `docs/30`.** Está en 38.460/40.000: no cabe sin podar texto
+  bueno, y eso es `TODO-78/84`.
+
+### Supuestos que deben ser ciertos, y la señal que diría que dejaron de serlo
+
+*(estrenando el campo que este mismo ADR añade)*
+
+| Supuesto | Señal de que dejó de ser cierto |
+|---|---|
+| La RTS del Darien es 8.528 kgf | La hoja del fabricante dice otra cosa → el EDS y todo `§3` se recalculan |
+| LN-627 cae en categoría 1 de CIGRÉ (junto al mar) | Un levantamiento de entorno que diga otra cosa |
+| LN-627 **no** tiene amortiguadores | La foto de campo del lunes: si los tiene, el límite aplicable es otro |
+| Los despejes del Libro 3 son 5,8 / 8,3 m | Abrir el PDF oficial y ver otra cifra |
+
+### Consecuencias
+
+- `docs/41` nace con 10.817 caracteres · `docs/40` +27.048 · `docs/31` gana `L-78` (qué fuentes son
+  de pago y cuáles se pueden citar) · `docs/00` enruta **8 síntomas nuevos**.
+- **Nada de esto cambia todavía un veredicto.** Cambiar el umbral del indicador 4 de 1.800 a
+  1.000 m es un cambio de dictamen: va por ADR propio y con decisión suya.
+- **Lo primero que él haría el lunes**, según la síntesis: con la cuadrilla y sin desenergizar,
+  confirmar si LN-627 tiene amortiguadores Stockbridge y fotografiar de cerca las grapas de
+  suspensión del vano E22→E23 (336,70 m), buscando hilos rotos y polvo blanco. Es la evidencia
+  física que decide si el hallazgo se actúa o se descarta.
+
+### El guardián que empujaba a apagar a todos los demás
+
+Al commitear esto, el guardián de coordenadas bloqueó por un **falso positivo**: su patrón es
+`10\.[0-9]{4,}` —la franja de latitud del Caribe— y **todo DOI empieza por `10.`**. El
+`10.3390/resources8020080` de un artículo citado se leía como una latitud de Barranquilla.
+
+No es un detalle: significa que **el guardián bloqueaba cada vez que el cerebro citara una
+fuente**, justo ahora que la regla es citar siempre. Y su propio mensaje empujaba a `--no-verify`,
+que **apaga de una vez todos los demás guardianes** —el del motor, el del molde, el del arranque,
+el del cerebro—. Un guardián que grita sin razón se acaba apagando, y se lleva por delante a los
+que sí tenían razón.
+
+Arreglado en `githooks/pre-commit` con una distinción exacta que no debilita nada: en un DOI los
+dígitos van **siempre seguidos de `/`**; en una coordenada, jamás. Comprobado con una latitud y una
+longitud sintéticas del Caribe, de cinco decimales: **las sigue cazando**, y deja pasar el DOI.
+
+*(Y una gracia: al escribir este ADR puse esa pareja de ejemplo con sus dígitos, y el guardián
+—ya afinado— **la cazó a ella**. Funcionando exactamente como debe.)*
+
+### Crudo de respaldo
+
+`../brain-private/mantenimiento-lineas-at/research-archive/2026-09-02-fortalecer-el-cerebro/`

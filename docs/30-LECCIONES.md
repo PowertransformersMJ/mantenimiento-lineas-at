@@ -123,6 +123,7 @@
 - `L-75` · «Success! · Production» de Cloudflare Pages NO quiere decir que la web haya cambiado *(`35`)*
 - `L-76` · Las gráficas se construyeron para el archivo recién cargado, no para el dato guardado *(`32`)*
 - `L-77` · Construir sin integrar primero PUBLICA datos viejos: el despliegue deshace el trabajo del bot *(`35`)*
+- `L-78` · Las fuentes de vida útil y diagnóstico: cuáles son de pago y cuáles se pueden citar *(`31`)*
 
 ### M-01 · Una cifra escrita a mano que un guardián puede contar es una cifra que envejece sola
 
