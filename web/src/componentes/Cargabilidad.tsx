@@ -410,6 +410,16 @@ export default function Cargabilidad({
             cada cifra se puede rastrear hasta su fila del Excel.
           </p>
           <LoQueSaldra referencia={referencia} />
+          {/* ⚠️ Y EL ENTORNO ENTERO, VACÍO. Orden del Ingeniero (2026-09-04):
+              «dame todo el entorno y los valores en 0 hasta que yo vaya cargando
+              los archivos, pero necesito ver las gráficas, los parámetros y las
+              variables». No choca con su orden del 29-08: enseñar el instrumento
+              vacío —ejes, bandas de lectura, la ampacidad del conductor— no es
+              inventar una medida. Lo que NO se hace es escribir «0 A» donde no
+              hay lectura: un hueco no es un cero, y confundirlos es justo lo que
+              este módulo existe para impedir (`99 §ADR-097`). */}
+          <ElEntorno referencia={referencia} disponible={disponible}
+            enElTiempo={enElTiempo} />
         </>
       )}
 
@@ -1359,6 +1369,184 @@ function LoQueSaldra({ referencia }: { referencia: ReturnType<typeof ampacidadDe
       )}
       {referencia.avisos.map((a, i) => <p key={i} className="fine">{a}</p>)}
     </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// EL ENTORNO COMPLETO, VACÍO — el instrumento antes de que llegue la medida
+// ────────────────────────────────────────────────────────────────────────────
+// ⚠️ Orden del Ingeniero (2026-09-04): «dame todo el entorno y los valores en 0
+// hasta que yo vaya cargando los archivos, pero necesito ver las gráficas, los
+// parámetros y las variables».
+//
+// ⚠️ Y LA REGLA QUE LO HACE COMPATIBLE con su orden del 2026-08-29. Se enseña
+// TODO el instrumento —los ejes, las bandas 80/90/100, la ampacidad del
+// conductor, cada parámetro con su nombre y su unidad— porque nada de eso es una
+// medida inventada: la escala existe, las bandas existen y la ampacidad sale del
+// conductor declarado. Lo que NO se escribe es «0 A» donde no hay lectura.
+//
+// **Un hueco no es un cero.** Cero amperios significa «línea sin carga»; ningún
+// dato significa «nadie ha medido». Confundirlos es el error que este módulo
+// entero existe para impedir. Así que: los CONTADORES van a 0 —porque cero
+// registros cargados es verdad— y las MEDIDAS van a «—» con su motivo.
+// ════════════════════════════════════════════════════════════════════════════
+
+/** La rejilla y las referencias de una gráfica de cargabilidad, sin serie. */
+function LienzoVacio({ techo, etiqueta }: { techo: number; etiqueta: string }) {
+  return (
+    <svg viewBox={`0 0 ${LIENZO.ancho} ${LIENZO.alto}`} className="grafica" role="img"
+      aria-label={`${etiqueta} — sin datos cargados`}>
+      {marcasY(techo).map((v) => (
+        <g key={v}>
+          <line x1={LIENZO.margen.i} x2={LIENZO.ancho - LIENZO.margen.d}
+            y1={y(v, techo)} y2={y(v, techo)} stroke="var(--bd-tenue)" strokeWidth={1} />
+          <text x={LIENZO.margen.i - 6} y={y(v, techo) + 4} textAnchor="end"
+            fontSize={10} fill="var(--tx3)">{v}</text>
+        </g>
+      ))}
+      {/* Las tres bandas de lectura SÍ existen sin dato: son la escala. */}
+      {REFERENCIAS.filter((v) => v <= techo).map((v) => (
+        <g key={`r${v}`}>
+          <line x1={LIENZO.margen.i} x2={LIENZO.ancho - LIENZO.margen.d}
+            y1={y(v, techo)} y2={y(v, techo)} strokeDasharray="5 3" strokeWidth={1.4}
+            stroke={TINTA_BANDA[bandaDe(v)!.clave]} />
+          <text x={LIENZO.ancho - LIENZO.margen.d} y={y(v, techo) - 4} textAnchor="end"
+            fontSize={10} fill={TINTA_BANDA[bandaDe(v)!.clave]}>{v} %</text>
+        </g>
+      ))}
+      <text x={LIENZO.ancho / 2} y={LIENZO.alto / 2} textAnchor="middle"
+        fontSize={13} fill="var(--tx3)">Sin lecturas — el eje y las bandas ya están</text>
+      <text x={LIENZO.margen.i} y={LIENZO.alto - 8} fontSize={10} fill="var(--tx3)">
+        cada punto será una hora de su archivo
+      </text>
+    </svg>
+  );
+}
+
+function ElEntorno({ referencia, disponible, enElTiempo }: {
+  referencia: ReturnType<typeof ampacidadDeLinea>;
+  disponible: ReturnType<typeof disponibilidadDeVariables>;
+  enElTiempo: ReturnType<typeof comportamientoEnElTiempo>;
+}) {
+  const amp = referencia.ampacidad_A;
+  const sinLectura = 'ninguna lectura cargada todavía';
+
+  return (
+    <>
+      {/* ── El veredicto, con su denominador ya puesto ─────────────────── */}
+      <div className="tarjeta">
+        <p className="mapa-capas-t">Veredicto eléctrico — esperando la corriente</p>
+        <div className="kpis">
+          <Dato v={null} r="Cargabilidad" falta="falta la corriente: es lo único que no tenemos" />
+          <Dato v={null} r="Corriente del pico" falta={sinLectura} />
+          <Dato v={amp == null ? null : `${nf(amp)} A`} r="Ampacidad"
+            s="del conductor, no del archivo" color="var(--acc)" falta={referencia.motivo} />
+          <Dato v={null} r="Margen disponible" falta="saldrá de restar la corriente a la ampacidad" />
+        </div>
+        <p className="fine">
+          El denominador ya está; falta el numerador. <b>No se escribe «0 %»</b>: cero por ciento
+          significaría línea descargada, y lo que pasa es que nadie ha medido todavía.
+        </p>
+      </div>
+
+      {/* ── Qué transporta: todos los parámetros con su nombre y unidad ── */}
+      <div className="tarjeta">
+        <p className="mapa-capas-t">Qué transporta — los parámetros que se leerán</p>
+        <div className="kpis">
+          <Dato v={null} r="Potencia aparente" s="MVA · √3·V·I" falta={sinLectura} />
+          <Dato v={null} r="Potencia activa" s="MW" falta="columna de MW" />
+          <Dato v={null} r="Potencia reactiva" s="MVAr" falta="columna de MVAr" />
+          <Dato v={null} r="Factor de potencia" s="cos φ = P ÷ S" falta="hace falta la activa" />
+          <Dato v={null} r="Corriente en reactiva" s="A que no hacen trabajo" falta="hace falta la reactiva" />
+          <Dato v={null} r="Tensión de operación" s="kV" falta="columna de tensión" />
+          <Dato v={null} r="Desbalance entre fases" s="%" falta="las tres corrientes de fase" />
+          <Dato v={null} r="Corriente residual" s="A" falta="exige los ángulos, no solo las magnitudes" />
+        </div>
+      </div>
+
+      {/* ── Lo que cuesta ──────────────────────────────────────────────── */}
+      <div className="tarjeta">
+        <p className="mapa-capas-t">Lo que cuesta transportarlo</p>
+        <div className="kpis">
+          <Dato v={null} r="Pérdidas en el conductor" s="kW · 3·I²·R" falta={sinLectura} />
+          <Dato v={null} r="Resistencia" s="Ω/km a la temperatura del cálculo" falta="se fija al calcular" />
+        </div>
+      </div>
+
+      {/* ── En el tiempo: aquí los CONTADORES sí van a cero, y es verdad ── */}
+      <div className="tarjeta">
+        <p className="mapa-capas-t">Cómo se comportó en el tiempo</p>
+        <div className="kpis">
+          <Dato v={`${nf(enElTiempo.n)}`} r="Lecturas con corriente" s="cargadas hasta ahora" />
+          <Dato v={`${nf(enElTiempo.horasPorBanda.sobrecarga)}`} r="Horas sobre 100 %"
+            s="no hay ninguna porque no hay ninguna hora" />
+          <Dato v={null} r="Factor de carga" s="promedio ÷ pico" falta={enElTiempo.porQue} />
+          <Dato v={null} r="Rampa máxima" s="A/h" falta="hacen falta horas consecutivas" />
+        </div>
+        <p className="fine">
+          Estos contadores sí van a <b>cero</b>, y es cierto: cero lecturas cargadas. Las
+          <b> medidas</b> de al lado van a «—» porque no existen, que no es lo mismo.
+        </p>
+      </div>
+
+      {/* ── LAS GRÁFICAS, con su escala y sus bandas ────────────────────── */}
+      <div className="tarjeta">
+        <p className="mapa-capas-t">Cómo se comportará en el día</p>
+        <div className="tabla-scroll"><LienzoVacio techo={100} etiqueta="Cargabilidad hora a hora" /></div>
+        <div className="bandas-reparto">
+          {BANDAS.map((b) => (
+            <span key={b.clave} className="banda-chip">
+              <i style={{ background: RELLENO_BANDA[b.clave] }} /> {b.rotulo}: <b>0</b> h
+            </span>
+          ))}
+        </div>
+        <p className="fine">
+          La escala y las tres bandas de lectura (80 · 90 · 100 %) <b>ya son ciertas sin dato</b>:
+          son la convención de operación, no una medida. Lo único que falta es la línea.
+        </p>
+      </div>
+
+      <div className="tarjeta">
+        <p className="mapa-capas-t">Mapa de calor — hora contra día</p>
+        <div className="tabla-scroll">
+          <table className="calor">
+            <thead><tr><th /> {Array.from({ length: 24 }, (_, h) => (
+              <th key={h}>{String(h).padStart(2, '0')}</th>))}</tr></thead>
+            <tbody><tr><th scope="row">—</th>{Array.from({ length: 24 }, (_, h) => (
+              <td key={h} className="sin-dato" title={`${String(h).padStart(2, '0')}h · sin medir`} />
+            ))}</tr></tbody>
+          </table>
+        </div>
+        <p className="fine">
+          Una fila por línea y una celda por hora. <b>La celda en blanco es «no se midió»</b> — y
+          seguirá en blanco para las horas que su archivo no traiga, también después de cargarlo.
+        </p>
+      </div>
+
+      {/* ── Qué le falta a la exportación ──────────────────────────────── */}
+      <div className="tarjeta">
+        <p className="mapa-capas-t">Las variables que este módulo sabe leer</p>
+        <div className="tabla-scroll">
+          <table className="tabla">
+            <thead><tr><th>Variable</th><th>Unidad</th><th>Desbloquea</th><th>Estado</th></tr></thead>
+            <tbody>
+              {disponible.map((v) => (
+                <tr key={v.variable}>
+                  <td><b>{v.rotulo}</b></td>
+                  <td className="fine">{v.unidad}</td>
+                  <td className="fine">{v.desbloquea}</td>
+                  <td className="fine">sin archivo</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="fine">
+          En cuanto cargue, esta columna dirá para CADA variable si vino, si vino vacía, o si hay
+          una cabecera que no supimos leer — que en ese caso <b>es fallo nuestro</b>.
+        </p>
+      </div>
+    </>
   );
 }
 
