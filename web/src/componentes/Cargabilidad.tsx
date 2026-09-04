@@ -403,11 +403,14 @@ export default function Cargabilidad({
           no hay datos de demostración y no los va a haber: lo que se ve sale de
           SU archivo o no se ve nada. Hay un guardián que lo comprueba. */}
       {!cargado && !fallo && (
-        <p className="mapa-capas-n">
-          <b>Aquí no hay nada hasta que usted cargue su archivo.</b> Este módulo no trae datos de
-          ejemplo ni de demostración: todo lo que aparezca sale de lo que usted entregue, y por eso
-          cada cifra se puede rastrear hasta su fila del Excel.
-        </p>
+        <>
+          <p className="mapa-capas-n">
+            <b>Aquí no hay nada hasta que usted cargue su archivo.</b> Este módulo no trae datos de
+            ejemplo ni de demostración: todo lo que aparezca sale de lo que usted entregue, y por eso
+            cada cifra se puede rastrear hasta su fila del Excel.
+          </p>
+          <LoQueSaldra referencia={referencia} />
+        </>
       )}
 
       {cargado && (
@@ -1284,6 +1287,77 @@ function ElVeredicto({ v, referencia }: {
         </p>
       )}
       <Sello />
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// LO QUE SALDRÁ — la pantalla vacía enseña su ESTRUCTURA, no datos
+// ────────────────────────────────────────────────────────────────────────────
+// ⚠️ POR QUÉ EXISTE ESTE BLOQUE, y es un fallo mío corregido. El Ingeniero pidió
+// tres veces ver «las gráficas y las variables» y las tres veces se encontró una
+// pantalla que solo decía «cargue su archivo». Todo lo construido vive detrás de
+// esa frase, así que le pedí que confiara a ciegas en algo que no podía ver.
+//
+// ⚠️ Y NO se resuelve inventando cifras de muestra: eso está prohibido por orden
+// suya del 2026-08-29, y con razón —de una muestra a que alguien la tome por
+// medida hay un paso—. Lo que sí se puede enseñar es **la estructura**: qué hay,
+// qué contesta cada uno y qué columna del archivo lo enciende. Ni una cifra
+// inventada; el único número que aparece es la ampacidad, que **no sale del
+// archivo sino del conductor declarado** y ya está calculada (`99 §ADR-096`).
+// ════════════════════════════════════════════════════════════════════════════
+
+const LO_QUE_SALDRA = [
+  { q: 'Veredicto eléctrico', a: '¿va cargada esta línea, de verdad?',
+    con: 'la corriente de cada hora' },
+  { q: 'Qué transporta', a: '¿cuántos amperios NO están haciendo trabajo?',
+    con: 'potencia activa y reactiva · tensión' },
+  { q: 'Las tres fases', a: '¿es carga, o hay una fase degradándose?',
+    con: 'la corriente de las tres fases' },
+  { q: 'Lo que cuesta', a: '¿cuántos kW se quedan en el conductor?',
+    con: 'la corriente (y ya tenemos conductor y longitud)' },
+  { q: 'En el tiempo', a: '¿fue un pinchazo o una tarde entera?',
+    con: 'al menos seis horas con corriente' },
+  { q: 'Qué NO trae su archivo', a: '¿qué le pido a quien exporta del SCADA?',
+    con: 'se llena solo, mirando lo que llegó' },
+];
+
+function LoQueSaldra({ referencia }: { referencia: ReturnType<typeof ampacidadDeLinea> }) {
+  return (
+    <div className="tarjeta">
+      <p className="mapa-capas-t">Lo que saldrá en cuanto cargue el archivo</p>
+      <p className="fine">
+        Esto es la <b>estructura</b>, no una demostración: no hay ni una cifra de ejemplo. Cada
+        bloque dice qué pregunta contesta y qué columna de su exportación lo enciende.
+      </p>
+      <div className="tabla-scroll">
+        <table className="tabla">
+          <thead><tr><th>Bloque</th><th>Qué contesta</th><th>Se enciende con</th></tr></thead>
+          <tbody>
+            {LO_QUE_SALDRA.map((x) => (
+              <tr key={x.q}><td><b>{x.q}</b></td><td>{x.a}</td><td className="fine">{x.con}</td></tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* ⚠️ EL ÚNICO NÚMERO DE ESTA TARJETA, y no sale del archivo: sale del
+          conductor que la línea ya declara. Contra él se dividirá la corriente
+          el día que llegue. Enseñarlo ahora no es un ejemplo — es el
+          denominador, que ya existe. */}
+      {referencia.ampacidad_A != null ? (
+        <p className="mapa-capas-n">
+          <b>El denominador ya está listo: {nf(referencia.ampacidad_A)} A.</b> Sale del conductor de
+          esta línea, no de su archivo. Cuando cargue la corriente, el veredicto es esa división.
+          <br /><span className="fine">{referencia.rotulo}</span>
+        </p>
+      ) : (
+        <p className="advertencia">
+          <b>Falta el denominador:</b> {referencia.motivo}. Sin ampacidad habrá porcentajes del
+          archivo, pero no veredicto.
+        </p>
+      )}
+      {referencia.avisos.map((a, i) => <p key={i} className="fine">{a}</p>)}
     </div>
   );
 }

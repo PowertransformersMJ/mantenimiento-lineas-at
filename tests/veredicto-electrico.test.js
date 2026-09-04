@@ -113,3 +113,59 @@ describe('lo que se descarga dice de dónde viene', () => {
     assert.match(PANTALLA, /ATENCIÓN: la condición ambiental está ADOPTADA/);
   });
 });
+
+// ════════════════════════════════════════════════════════════════════════════
+// LA PANTALLA VACÍA ENSEÑA SU ESTRUCTURA — sin una sola cifra de ejemplo
+// ────────────────────────────────────────────────────────────────────────────
+// ⚠️ Nace de un fallo mío repetido TRES veces: el Ingeniero pidió ver «las
+// gráficas y las variables» y las tres se encontró una pantalla que solo decía
+// «cargue su archivo». Todo lo construido vivía detrás de esa frase.
+//
+// Y no se arregla con datos de ejemplo —prohibidos por orden suya del
+// 2026-08-29—. Se arregla enseñando la ESTRUCTURA. Estas pruebas vigilan las dos
+// mitades: que la estructura se enseñe, y que no se cuele ni un dato falso por
+// esa puerta nueva (`99 §ADR-096`).
+// ════════════════════════════════════════════════════════════════════════════
+describe('sin archivo cargado, la pantalla dice lo que saldrá', () => {
+  const bloque = PANTALLA.slice(PANTALLA.indexOf('function LoQueSaldra'),
+    PANTALLA.indexOf('// LAS VARIABLES OPERATIVAS'));
+
+  test('⚠️ el estado vacío monta la estructura, no solo la frase', () => {
+    assert.match(PANTALLA, /<LoQueSaldra referencia=\{referencia\} \/>/,
+      'el estado vacío volvió a ser una sola frase: el Ingeniero no puede ver qué hace el módulo');
+    assert.ok(bloque.length > 0);
+  });
+
+  test('los seis bloques dicen QUÉ PREGUNTA contestan', () => {
+    // Una lista de títulos no enseña nada; lo que orienta es la pregunta.
+    for (const q of ['Veredicto eléctrico', 'Qué transporta', 'Las tres fases',
+      'Lo que cuesta', 'En el tiempo', 'Qué NO trae su archivo']) {
+      assert.ok(PANTALLA.includes(q), `falta el bloque «${q}» en lo que saldrá`);
+    }
+    assert.match(PANTALLA, /¿cuántos amperios NO están haciendo trabajo\?/);
+  });
+
+  test('y dicen QUÉ COLUMNA los enciende: es lo accionable', () => {
+    assert.match(PANTALLA, /Se enciende con/);
+    assert.match(PANTALLA, /potencia activa y reactiva/);
+  });
+
+  test('⚠️ NI UNA cifra de ejemplo en esa tarjeta', () => {
+    // La puerta por la que se colaría un dato de demostración. El único número
+    // permitido es la ampacidad, que sale del CONDUCTOR y no del archivo.
+    const numeros = bloque.match(/(?<![\w.])\d{2,}(?![\w%])/g) ?? [];
+    assert.deepEqual(numeros, [],
+      `se coló un número literal en la tarjeta vacía: ${numeros.join(', ')}`);
+  });
+
+  test('el único número que sale es el denominador, y declara de dónde viene', () => {
+    assert.match(bloque, /referencia\.ampacidad_A/);
+    assert.match(bloque, /no de su archivo/,
+      'enseña la ampacidad sin decir que no sale del archivo: se leería como un dato cargado');
+  });
+
+  test('si no hay conductor, lo dice en vez de callarlo', () => {
+    assert.match(bloque, /Falta el denominador/);
+    assert.match(bloque, /referencia\.motivo/);
+  });
+});
