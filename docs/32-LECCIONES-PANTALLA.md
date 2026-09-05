@@ -19,14 +19,13 @@
 ### L-67 · Un guardián que vigila la FUNCIÓN y no a quien la LLAMA cubre media carrera
 
 - **Síntoma:** el 15-08 se arregló «un fallo al guardar destruye la pantalla del análisis», con su
-  prueba. Verde desde entonces. Y el 22-08, al triar la auditoría vieja, resultó que en **tres
-  sitios** el texto del ingeniero se seguía borrando al fallar el guardado — incluido el enunciado de
-  la **causa raíz**, el acto más caro del expediente. Y la franja roja decía, en negrita, *«Lo que
-  escribiste sigue en pantalla y no se ha perdido»*: mentía.
+  prueba, verde desde entonces. El 22-08 resultó que en **tres sitios** el texto del ingeniero se
+  seguía borrando al fallar el guardado —incluida la **causa raíz**— y la franja roja decía en
+  negrita *«Lo que escribiste sigue en pantalla»*: mentía.
 - **Causa:** las cuatro funciones que escriben **se tragan el fallo a propósito** —lo convierten en
-  la franja, que es lo correcto— y devolvían `void`. Así que su `await` **termina bien aunque no se
-  haya escrito nada**, y quien llamaba vaciaba el formulario igual: `setEnunciado('')`, `setR(null)`,
-  `setQue('')`. La prueba miraba el estado que la función deja y **nunca a sus llamadores**.
+  la franja, que es lo correcto— y devolvían `void`; su `await` **termina bien aunque no se haya
+  escrito nada**, y quien llamaba vaciaba el formulario igual. La prueba miraba el estado que la
+  función deja y **nunca a sus llamadores**.
 - **Regla:** cuando una función se traga un fallo, **tiene que devolver si funcionó** —aquí,
   `Promise<boolean>`— y el guardián debe recorrer **a quien la llama**, no solo a ella. La pregunta
   que caza esto: *«¿qué hace la pantalla justo DESPUÉS del await?»*. Y si la interfaz promete algo
@@ -76,28 +75,26 @@
   formato RFC 4180 que esperan QGIS, pandas y R.
 - **Regla:** toda promesa de la interfaz sobre un entregable se comprueba contra el entregable
   GENERADO, no contra la intención. Si un formato no puede cumplirla, la pantalla dice **cuál** y
-  **por qué** — aquí, que ese archivo declara su procedencia columna por columna en vez de en
-  cabecera. Una promesa general que falla en un caso es peor que una promesa con su excepción
+  **por qué**. Una promesa general que falla en un caso es peor que una promesa con su excepción
   escrita: la primera se descubre delante del cliente.
 
 ### L-21 · "Se ve muy oscuro / no se ve de alto nivel" casi nunca es la paleta
 - **Síntoma:** el Ingeniero pidió *"un entorno igual al archivo html, el que tenemos es muy oscuro"*.
   La reacción fácil era aclarar el tema.
-- **Qué se encontró al ABRIR el original al lado** (en localhost desde el área temporal, nunca desde
-  `web/public/`, que habría publicado datos de cliente): **el original es igual de oscuro y usa la
-  misma paleta exacta** (`--bg:#0f1419`, `--acc:#f0a500`). Aclararlo habría empeorado el problema.
-- **La causa real era la DENSIDAD:** el original es un tablero a pantalla completa
-  (`grid-template-columns:1fr 420px; height:calc(100vh - 74px)`), base 14 px, títulos de 11,5 px en
-  mayúsculas con filete. El nuestro era una columna de 1080 px con letra de 15 px: leía como un blog.
+- **Al ABRIR el original al lado** (en localhost desde el área temporal, nunca desde `web/public/`,
+  que habría publicado datos de cliente): **es igual de oscuro y usa la misma paleta exacta**
+  (`--bg:#0f1419`, `--acc:#f0a500`). Aclararlo habría empeorado el problema.
+- **La causa real era la DENSIDAD:** el original es un tablero a pantalla completa, base 14 px,
+  títulos de 11,5 px en mayúsculas con filete. El nuestro, una columna de 1080 px con letra de
+  15 px: leía como un blog.
 - **Regla:** ante una queja de aspecto, **abrir la referencia y medirla** (paleta, anchos, tamaños)
   antes de tocar un color. El "alto nivel" en una herramienta de ingeniería viene de densidad,
   alineación y jerarquía — no de luminosidad. El tablero usa toda la pantalla; **la prosa se acota**
   (110ch).
 
 ### L-26 · El núcleo escribe con PUNTO decimal, y en Colombia el punto son miles
-- **Síntoma:** la frase estrella de la pestaña Cargas decía *"multiplica la tensión por 1.726"*. En
-  es-CO eso se lee **mil setecientos veintiséis**. Igual en Resumen (*"Quiebre de 118.2°"*), en
-  Cantidades y en el semáforo de cada ficha: cuatro pantallas, el mismo defecto, desde antes.
+- **Síntoma:** *"multiplica la tensión por 1.726"* — en es-CO se lee **mil setecientos veintiséis**.
+  Igual en Resumen (*"Quiebre de 118.2°"*), Cantidades y el semáforo: cuatro pantallas, un defecto.
 - **Por qué existe y por qué NO se arregla en el núcleo:** el núcleo arma su prosa con `toFixed` y
   jamás con `toLocaleString`, a propósito — el formateo regional depende del ICU de la máquina y un
   veredicto no puede decir una cosa en la Mac del Ingeniero y otra en el CI. La decisión es correcta;
@@ -109,10 +106,10 @@
   tocan. Corolario: **no escribir números de versión dentro de la prosa** — «v0.2.0» sale «v0,2.0».
 
 ### L-27 · Una nota que el núcleo escribe POR FILA no se pinta por fila
-- **Síntoma:** la sección «apoyo por apoyo» de Cargas imprimía 24 párrafos, 22 de ellos idénticos.
-  Las TRES filas que decían algo distinto —los apoyos que amplifican la tensión— quedaban enterradas.
-- **Por qué el núcleo tiene razón igualmente:** cada fila debe poder imprimirse SOLA en un informe,
-  así que su nota tiene que viajar completa dentro de ella. El error era de la pantalla, no del dato.
+- **Síntoma:** «apoyo por apoyo» imprimía 24 párrafos, 22 idénticos; las TRES filas que decían algo
+  distinto quedaban enterradas.
+- **El núcleo tiene razón igualmente:** cada fila debe poder imprimirse SOLA en un informe, así que
+  su nota viaja completa dentro de ella. El error era de la pantalla, no del dato.
 - **Regla:** al listar observaciones de muchas entidades, **agrupar por texto idéntico** y ordenar de
   lo específico a lo general (lo que le pasa a un apoyo es un hallazgo; lo que les pasa a los 24 es
   contexto). Y la agrupación vive en la capa pura, no en el componente: es una decisión de lectura,
@@ -121,10 +118,9 @@
 ### L-30 · `loading="lazy"` no carga URLs `blob:` — y el fallo se lee como «faltan los datos»
 - **Síntoma:** la galería del expediente pintaba los cuatro marcos con sus pies de foto y **ninguna
   imagen**. Todo lo demás estaba bien: el token, el portero, R2 y la red.
-- **Causa:** el `<img loading="lazy">` nunca seleccionaba la fuente — `currentSrc` VACÍO y
-  `complete: false` aun estando a la vista y con `scrollIntoView` hecho. El binario ya estaba
-  descargado (comprobado a mano: el blob era un JPEG válido, cabecera `FF D8 FF E0`, y una
-  `new Image()` con esa misma URL cargaba 1051×1400 al instante).
+- **Causa:** el `<img loading="lazy">` nunca seleccionaba la fuente —`currentSrc` VACÍO,
+  `complete: false`— aun a la vista. El binario ya estaba descargado: el blob era un JPEG válido
+  (`FF D8 FF E0`) y una `new Image()` con esa misma URL cargaba al instante.
 - **Regla:** con URL `blob:`, NO se usa `loading="lazy"`. Y no se pierde nada: cuando ese elemento
   se pinta, el binario YA se bajó —por eso existe el blob—, así que diferir la PINTURA de algo que
   está en memoria no ahorra ni una petición.
@@ -165,35 +161,29 @@
   puede comprobar, se hace fallar (`assert viejo in s` antes de sustituir).
 - **Hermana de `L-35`** y del mismo tronco que `30 · L-33`: miré la salida equivocada y la di por
   buena.
-- **REINCIDIÓ el 2026-08-25 (`99 §ADR-085`), y el precio fue arreglar lo que no estaba roto.**
-  `foto-del-banco.mjs` abría la tubería de `stderr` de Chrome y **no la leía nunca**. Un atlas de
-  seis no arrancó Chrome en el servidor y al registro llegó «no publicó su puerto en 10 s». Sin la
-  queja se culpó a la **caja de arena** —plausible y falsa— y se escribió el `--no-sandbox`. Lo
-  desmintió el propio registro: los otros CINCO habían abierto Chrome en esa misma corrida. Era
-  arranque en frío con la máquina cargada.
-  **Abrir una tubería y no leerla es peor que cerrarla:** con `'ignore'` el mensaje sale por la
-  consola; con `'pipe'` sin lector se pierde y encima parece capturado. **Y antes de creerse una
-  causa, mírese si el resto de casos la desmiente:** cinco verdes al lado de un rojo dicen más que
-  el rojo solo.
+- **REINCIDIÓ el 2026-08-25 (`99 §ADR-085`)** y el precio fue arreglar lo que no estaba roto:
+  `foto-del-banco.mjs` abría la tubería de `stderr` de Chrome y **no la leía nunca**; sin la queja
+  se culpó a la caja de arena —plausible y falsa— cuando era arranque en frío. **Abrir una tubería
+  y no leerla es peor que cerrarla** (`'ignore'` deja salir el mensaje; `'pipe'` sin lector lo
+  pierde y parece capturado). **Y antes de creerse una causa, mírese si el resto de casos la
+  desmiente:** los otros CINCO habían abierto Chrome en esa misma corrida.
 
 ### L-49 · Volver a guardar un `.pptx` clonado con python-pptx lo deja inservible
 
 - **Síntoma:** abrir el mazo con `Presentation()` y hacer `save()` — sin tocar una sola forma —
   produce un archivo que python-pptx relee tan campante y que **LibreOffice rechaza**: *«no se pudo
   cargar el archivo de origen»*.
-- **Causa:** el aviso lo daba el propio `zipfile` y yo lo estaba tapando (ver `L-48`):
-  `UserWarning: Duplicate name: 'ppt/slides/slide6.xml'`. El mazo se construyó CLONANDO una lámina
-  de la plantilla del Ingeniero, y al reescribir el paquete dos partes reclaman el mismo nombre. El
-  zip acepta duplicados; el lector de OOXML, no.
-- **Cómo se detecta en un segundo:** `len(nombres)` contra `len(set(nombres))` sobre el `.pptx`. El
-  respaldo previo daba 0 duplicados y el recién guardado, 2: eso señaló el guardado, no el origen.
-- **Regla:** en un mazo con láminas clonadas, **se edita a nivel de zip** — reescribir entrada por
-  entrada y sustituir solo el XML o el binario que toca. Preserva todas las relaciones, no renumera
-  nada y no puede duplicar partes. El guion queda en la bóveda (`entregables/armar.py`) y reconstruye
-  siempre desde el respaldo limpio, nunca encima de su propia salida.
-- **Corolario que casi cuesta otro error:** al sustituir una imagen, identificarla por el `r:embed`
-  de SU forma, no por «el PNG más grande de la lámina». Con ese criterio cambié `image32.png`
-  mientras el mapa era `image9.png`, y el resultado fue un archivo correcto con la figura vieja.
+- **Causa:** el aviso lo daba `zipfile` y yo lo tapaba (ver `L-48`): `Duplicate name:
+  'ppt/slides/slide6.xml'`. El mazo CLONA una lámina de la plantilla y al reescribir el paquete dos
+  partes reclaman el mismo nombre. El zip acepta duplicados; el lector de OOXML, no.
+- **Detección en un segundo:** `len(nombres)` contra `len(set(nombres))`. El respaldo daba 0 y el
+  recién guardado 2: señalaba al guardado, no al origen.
+- **Regla:** con láminas clonadas **se edita a nivel de zip** —entrada por entrada, sustituyendo
+  solo el XML o el binario que toca—: preserva relaciones, no renumera y no duplica. El guion vive
+  en la bóveda (`entregables/armar.py`) y reconstruye desde el respaldo limpio, nunca sobre su
+  propia salida.
+- **Corolario:** al sustituir una imagen, identificarla por el `r:embed` de SU forma, no por «el PNG
+  más grande». Cambié `image32.png` siendo el mapa `image9.png`: archivo correcto, figura vieja.
 
 ### L-69 · Una rama inalcanzable no da error: da una respuesta creíble y falsa
 
@@ -231,31 +221,42 @@
 
 ### L-73 · Un icono se juzga a su TAMAÑO REAL — a 3× todo se ve bien
 
-- **Síntoma (2026-08-25, `99 §ADR-084`):** el emblema del satélite se dibujó en un lienzo de 24
-  unidades y en el editor se leía perfecto. **En pantalla mide 18 px**: un bulto naranja sobre una
-  sonrisa azul.
-- **Causa:** la unidad del lienzo no es la de la pantalla. Un trazo de 1,7 en un lienzo de 24 a 18 px
-  son **1,3 px reales**, por debajo de lo que el antialiasing conserva. Sin error: el navegador
-  dibuja obedientemente algo ilegible.
-- **Regla:** un dibujo pequeño **se juzga al tamaño al que se publica**. Si hace falta ampliar, se
-  amplía **la foto del tamaño real**, nunca el dibujo. Foto + recorte ampliado = un minuto.
-- **Criterio que salió:** a ese tamaño sobreviven las SUPERFICIES, no los trazos, y las formas
-  necesitan **hueco visible** o se funden. Comparar variantes en una página suelta es más barato
-  que discutirlo.
+- **Síntoma (2026-08-25, `99 §ADR-084`):** el emblema del satélite, dibujado en un lienzo de 24
+  unidades, se leía perfecto en el editor. **En pantalla mide 18 px**: un bulto naranja.
+- **Causa:** la unidad del lienzo no es la de la pantalla. Un trazo de 1,7 en 24, a 18 px, son
+  **1,3 px reales** — bajo lo que el antialiasing conserva. Sin error: dibuja algo ilegible.
+- **Regla:** se juzga **al tamaño al que se publica**; para ampliar se amplía **la foto del tamaño
+  real**, nunca el dibujo. A ese tamaño sobreviven las SUPERFICIES, no los trazos, y las formas
+  piden **hueco visible** o se funden. Comparar variantes en una página suelta es más barato.
 - Hermana de `34 · L-72` —el lienzo se MIRA— aplicada a lo pequeño.
 
 ### L-76 · Las gráficas se construyeron para el archivo recién cargado, no para el dato guardado
 
 - **Síntoma:** *«no logro apreciar gráficas en cargabilidad»* — en un módulo entregado con SEIS.
 - **Causa:** las seis vivían dentro de `{cargado && …}`, la rama que solo existe **mientras hay un
-  archivo recién leído en memoria**. El histórico guardado —lo que se mira todos los días en que no
-  se carga nada— tenía una tabla y nada más. Recargar la página las borraba con el dato aún en la
-  base.
-- **Por qué no lo cazó ninguna prueba:** las 2.120 verdes cubrían motor, reglas, coste y colores.
-  Ninguna preguntaba *«¿qué se ve cuando NO acabas de cargar un archivo?»* — que es el estado
-  NORMAL del módulo, no el excepcional.
-- **Regla:** cuando algo se entrega en dos vueltas y la segunda añade **otra fuente del mismo
-  dato**, se recorre la pantalla desde la fuente NUEVA. El estado por defecto es aquel en que el
-  usuario ABRE, no aquel en que el programador estaba probando.
-- **Emparenta con** `L-59` (la pantalla existe, el dato no). Aquí no hubo regresión: la visibilidad
-  **nunca llegó** por ese camino. Cerrada en `99 §ADR-090`.
+  archivo recién leído en memoria**. El histórico guardado tenía una tabla y nada más; recargar la
+  página las borraba con el dato aún en la base.
+- **Por qué no lo cazó ninguna prueba:** las 2.120 verdes cubrían motor, reglas, coste y colores;
+  ninguna preguntaba *«¿qué se ve cuando NO acabas de cargar un archivo?»* — el estado NORMAL.
+- **Regla:** cuando la segunda vuelta añade **otra fuente del mismo dato**, se recorre la pantalla
+  desde la fuente NUEVA. El estado por defecto es aquel en que el usuario ABRE, no aquel en que el
+  programador probaba.
+- **Emparenta con** `L-59`. No hubo regresión: la visibilidad **nunca llegó** por ese camino.
+  Cerrada en `99 §ADR-090`. **Y no bastó — sigue en `L-79`.**
+
+### L-79 · «Es que no hay datos» es cierto, y es una respuesta inútil dicha tres veces
+
+- **Síntoma:** el Ingeniero pidió ver *«las gráficas y las variables»* **TRES veces**. Las tres se
+  encontró una pantalla que solo decía «cargue su archivo», y las tres le contesté lo mismo: *«es
+  que no hay datos»*. La tercera dejó de preguntar y dio la orden él (`99 §ADR-096/097`).
+- **Causa:** entregué un módulo que **no puede enseñar lo que hace** hasta que le entreguen el dato,
+  y traté cada aviso como una pregunta que contestar en vez de un defecto que arreglar. `L-76`
+  arregló el camino del dato GUARDADO, no el del que no tiene ninguno.
+- **La trampa, que se resuelve y no se esquiva:** está PROHIBIDO inventar cifras de muestra (orden
+  suya del 29-08), pero **enseñar la ESTRUCTURA no es inventar una MEDIDA**: ejes, bandas, unidades,
+  qué pregunta contesta cada bloque y **qué columna lo enciende** son ciertos sin una sola lectura
+  — y esto último es lo accionable: dice qué pedirle a quien exporta.
+- **El candado:** ⚠️ **un hueco no es un cero.** Los CONTADORES van a `0` (contar cero es verdad);
+  las MEDIDAS van a `—` con su motivo, y una prueba falla si alguien escribe una medida como cero.
+- **Regla:** si avisa DOS veces de lo mismo, la tercera respuesta **no es una explicación: es un
+  cambio en la pantalla**. Toda pantalla que dependa de un dato suyo se diseña **primero vacía**.

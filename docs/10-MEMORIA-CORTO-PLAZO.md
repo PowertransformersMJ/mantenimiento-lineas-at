@@ -13,11 +13,11 @@
 > `§ADR-049/050`—. La fase viva es **la página**.
 
 ## 🛑 LO PRIMERO AL RETOMAR
-0. 🆕 **CARGABILIDAD ELÉCTRICA en producción (`§ADR-088`).** Pestaña nueva: se suelta un `.xlsx`
-   —leído **sin dependencias**— y salen mapeo, errores, 9 indicadores y 5 gráficas. Mirada y va.
-   ⚠️ **NO guarda, y lo dice arriba:** falta el modelo de datos (un año horario = **8.760
-   registros/línea**; recomendado: un doc por línea y día + resumen diario). ⚠️ Tres defectos los
-   cazó la FOTO, no las 2.053 pruebas.
+0. 🆕 **CARGABILIDAD ELÉCTRICA CERRADA por mi parte (`§ADR-088..097`).** Se suelta un `.xlsx`
+   —sin dependencias—, sale el veredicto contra **ampacidad** y **SÍ GUARDA**: un doc por línea y
+   día + resumen; recargar escribe ENCIMA, no duplica. Sin archivo la pantalla enseña su ESTRUCTURA
+   y las gráficas con eje y bandas — **jamás cifras de muestra**, y **un hueco no es un cero**.
+   ⚠️ Falta lo SUYO: ratificar los **718 A** y guardar UNA carga con su sesión (`TODO-93/94`).
 1. **EL CUELLO DE BOTELLA NO ES CÓDIGO: ES EL DATO**: 0 de 26 con veredicto (`TODO-57`).
 2. **EL PATRÓN QUE LO DOMINA TODO:** *«arreglado donde se veía, vivo en la pieza hermana»* —
    `34 · L-65/L-74`, `32 · L-67`, `30 · L-68`, `30 · M-01`. Mordió el 24-08 (`§ADR-078`) y otra vez
@@ -84,7 +84,7 @@
 | **TODO-71** | **¿Se cierran las hipótesis con dato real?** El **viento** (`ADR-035`) y los **1.000 W/m² adoptados**. Los cuatro atlas (`ADR-055`) los ACERCAN y NO los cierran: un año de medias horarias no valida un extremo de diseño | De ahí salen los tiros y la capacidad |
 | **TODO-59** | **Qué ficha se le pide a CADA tipología.** La línea mezcla 4 y el molde es de POSTE (`40 §8.3`) | Son 3 o 4 formularios |
 | **TODO-33** | **50 % o 25 % de RTS** como tope de tiro. Ya no hay dos dueños (`§ADR-051`): falta decidir CUÁL rige | Factor 2 sobre un dictamen |
-| **TODO-93/94** ⬅️ **DOS SUYAS** | **Cargabilidad cerrada** (`§ADR-093/094`). Falta ① **ratificar la condición** (hoy ADOPTADA: 718 A) y ② **cargar su archivo y GUARDARLO** — nunca visto con su sesión, y es lo único que dirá qué columnas trae | Sin ② no se sabe nada del archivo |
+| **TODO-93/94** ⬅️ **DOS SUYAS** | ① **ratificar la condición** de ampacidad (ADOPTADA: 718 A) · ② **cargar su archivo y GUARDARLO**, nunca visto con su sesión (detalle en `0`) | Sin ② no se sabe nada de ese archivo |
 | **TODO-44/34** | Alerta de gasto en Cloudflare · **nada tiene copia**: la bóveda no tiene remoto **y Firestore no tiene punto de recuperación** (`§ADR-089`) | Un fallo de disco se lleva la bóveda; un comando se lleva la base |
 | **TODO-61/54/68** | ¿App Check? · ¿linter de frescura semántica? · ¿cazar un ADR repetido? Las dos últimas tocan el KERNEL | Las TRES son TUYAS |
 | **TODO-76** | **¿Se guarda que un apoyo es autosoportado / retenido?** Hoy no cabe en el modelo: iría por APOYO (26 declaraciones) | Cierra media incógnita de la capacidad longitudinal |

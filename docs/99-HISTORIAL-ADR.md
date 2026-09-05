@@ -8236,3 +8236,143 @@ longitud sintéticas del Caribe, de cinco decimales: **las sigue cazando**, y de
 ### Crudo de respaldo
 
 `../brain-private/mantenimiento-lineas-at/research-archive/2026-09-02-fortalecer-el-cerebro/`
+
+---
+
+## ADR-096 · 2026-09-04 · La pantalla vacía enseña su ESTRUCTURA: un fallo mío repetido tres veces
+
+### Contexto
+
+El Ingeniero pidió ver *«las gráficas y las variables»* **TRES veces**. Las tres se encontró una
+pantalla que solo decía «cargue su archivo». Las tres le contesté lo mismo —*«es que no hay
+datos»*— que es **cierto y no sirve de nada**.
+
+Le construí un módulo que no puede enseñar lo que hace hasta que le entregue sus datos, y le pedí
+que confiara a ciegas en algo que no podía ver. La tercera vez dejó de preguntar y dio la orden.
+
+### La tensión que había que resolver, no esquivar
+
+Su orden del **29-08** es explícita: *«no coloques informacion basura … ahi solo se deben reflejar
+datos reales que yo te entregue»*, y un guardián la hace cumplir en las pruebas. Leídas de la
+manera perezosa, esa orden y la de ahora se contradicen.
+
+**No se contradicen.** La distinción que las reconcilia es la que ordena todo este ADR:
+
+> ⚠️ **ENSEÑAR LA ESTRUCTURA NO ES INVENTAR UNA MEDIDA.** Se puede decir qué pregunta contesta
+> cada bloque y qué columna lo enciende sin escribir un solo número que no sea verdad.
+
+### Decisión
+
+El estado vacío monta una tarjeta con **los seis bloques del módulo**, y cada uno declara **QUÉ
+PREGUNTA CONTESTA** y **QUÉ COLUMNA de su exportación lo enciende**. Eso es lo accionable: sabe qué
+pedirle a quien exporta del SCADA **antes** de cargar nada.
+
+**El único número de esa tarjeta es la AMPACIDAD, y va con su procedencia:** sale del conductor
+declarado de la línea, **NO del archivo**. Es el denominador del veredicto y ya existía. Enseñarlo
+no es una muestra. Si no hay conductor declarado, la tarjeta lo dice y no inventa.
+
+Seis pruebas nuevas vigilan las dos mitades: que la estructura se enseñe, y que **no se cuele un
+dato falso por esa puerta nueva** — una de ellas falla si aparece CUALQUIER número literal de dos
+cifras dentro de la tarjeta.
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| Cifras de muestra / modo demostración | **Prohibido por orden suya del 29-08**, y con razón: es un módulo de dictamen |
+| Un dato sintético «claramente falso» (999 A) | Sigue siendo un número en una pantalla que firma veredictos. La marca de «falso» se pierde en una captura |
+| Dejarlo como estaba y explicarlo por chat | Es lo que hice **tres veces**. Ahí está el fallo |
+| Bloquear la pestaña hasta que haya dato | Esconde precisamente lo que él pedía ver |
+
+### Supuestos que deben ser ciertos — y la señal que diría que dejaron de serlo
+
+| Supuesto | Señal de que caducó |
+|---|---|
+| La ampacidad se puede calcular sin el archivo, solo con el conductor declarado | Que un cambio de motor haga depender `ampacidadDeLinea` de una lectura de operación. La prueba que exige ampacidad sin carga fallaría |
+| Las bandas 80/90/100 % son convención de operación, no una lectura | Que `umbrales.js` empiece a derivarlas del histórico |
+| La tarjeta no contiene ningún número inventado | La prueba del literal de dos cifras se pone en rojo |
+| Enseñar estructura satisface lo que él pedía | Que vuelva a decir «no veo las variables» con la pantalla vacía delante |
+
+### Consecuencias
+
+- El estado NORMAL del módulo —abrir sin cargar nada— **por fin enseña qué hace**.
+- Cualquier bloque nuevo que se añada al módulo tiene que declararse también en la tarjeta vacía, o
+  el módulo vuelve a mentir por omisión.
+- **Inconsistencia REPORTADA, no arreglada:** el guardián anti-demostración saltó sobre mi propio
+  comentario que explicaba que NO hay datos de ejemplo — caza la frase también en comentarios,
+  mientras su prueba hermana las descarta a propósito («un ejemplo explicando el porqué es
+  documentación»). **NO se tocó el guardián: vigila una orden suya.** Se reformuló el comentario.
+
+`2.219` pruebas en verde · commit `6b619b5`.
+
+### Crudo de respaldo
+
+`../brain-private/mantenimiento-lineas-at/research-archive/2026-09-04-entorno-vacio/`
+
+---
+
+## ADR-097 · 2026-09-04 · El entorno entero visible antes de cargar, y la regla que lo hace honesto
+
+### Contexto
+
+Orden del Ingeniero, el mismo día y sobre el mismo módulo: *«puedes darme todo el entorno y los
+valores en 0 hasta que yo vaya cargando los archivos, pero necesito ver las gráficas, todos los
+parámetros y variables»*.
+
+`§ADR-096` enseñó la **lista** de los bloques. Esto enseña **el entorno montado**: los ejes, las
+bandas, las casillas y los contadores, en su sitio, esperando el dato.
+
+### Decisión
+
+Sin un solo archivo cargado ahora se ve:
+
+| Lo que se ve | Por qué es cierto sin dato |
+|---|---|
+| El veredicto con **el denominador ya puesto** (718 A) y el numerador pendiente | La ampacidad sale del conductor, no del archivo |
+| Los **ocho parámetros** de «qué transporta», con nombre y unidad | Es el vocabulario del módulo |
+| Las **pérdidas**, con su fórmula a la vista | La fórmula no es una medida |
+| Los **contadores de tiempo**, en `0` | «Cero lecturas cargadas» es un hecho verdadero |
+| **La gráfica** con su eje, sus marcas y las tres bandas de lectura | 0 → ampacidad es el rango físico; 80/90/100 % es convención |
+| **El mapa de calor** con sus 24 horas en blanco | La rejilla horaria existe antes que el dato |
+| La tabla de las **seis variables** que el módulo sabe leer | Es su capacidad declarada |
+
+### La regla que lo hace honesto
+
+> ⚠️ **UN HUECO NO ES UN CERO.** «0 A» significa *línea descargada*; la ausencia significa que
+> *nadie midió*. Confundirlos es el error que este módulo entero existe para impedir.
+
+Por eso los **CONTADORES** van a `0` —contar cero cargas es verdad— y las **MEDIDAS** van a `—`
+con su motivo. **Hay una prueba que falla si alguien escribe una medida como cero.**
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| Poner todas las casillas a `0` como pidió literalmente | Un `0 A` en la casilla de corriente es una **medida falsa**: dice «línea descargada». Se le advirtió y se construyó la versión que sí resuelve lo que pedía |
+| Gráficas con línea plana en 0 | Misma trampa, pintada |
+| Ocultar los bloques sin dato | Es exactamente la pantalla que le falló tres veces |
+
+### Supuestos que deben ser ciertos — y la señal que diría que dejaron de serlo
+
+| Supuesto | Señal de que caducó |
+|---|---|
+| La distinción hueco ≠ cero se sostiene en TODO el módulo | La prueba de «medida como cero» se pone en rojo, o aparece un `0` en una casilla de medida |
+| Los ejes y bandas no dependen de ninguna lectura | Que la gráfica vacía deje de dibujarse al quitar el histórico |
+| Él lee «—» como ausencia y no como error | Que pregunte por qué está «fallando» la pantalla vacía |
+| Su archivo trae al menos la corriente | **Nunca se ha comprobado.** La señal es la primera carga real: `TODO-94` |
+
+### Consecuencias
+
+- **La orden literal no se cumplió al pie de la letra, y se dijo:** los valores de MEDIDA no van a
+  cero. Se advirtió una vez y se construyó la versión que resuelve el problema de verdad.
+- Tres fallos míos los cazaron las pruebas antes de desplegar: usé `.svgcaja` —clase de la maqueta
+  que no existe en la hoja real— y dos pruebas propias con el límite mal puesto (una se tragaba el
+  bloque nuevo; otra comparaba contra un literal que aparece antes, en el botón de descartar).
+- Con esto **el módulo queda conforme por mi parte**. Lo que falta es SUYO: `TODO-93` (ratificar los
+  718 A) y `TODO-94` (cargar su archivo y GUARDARLO, lo único que dirá qué columnas trae).
+
+`2.226` pruebas en verde · commit `ae41731` · verificado en producción: paquete `index-DZ-kNwPt.js`.
+
+### Crudo de respaldo
+
+`../brain-private/mantenimiento-lineas-at/research-archive/2026-09-04-entorno-vacio/`
