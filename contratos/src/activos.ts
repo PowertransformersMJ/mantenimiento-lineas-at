@@ -163,6 +163,59 @@ export const Coordenada = z.object({
  * y uno de la ficha del proveedor real ha decidido, en esta misma línea, si un
  * tramo cumple o no el límite del RETIE.
  */
+/**
+ * LA AMPACIDAD QUE DECLARA EL FABRICANTE EN SU FICHA TÉCNICA.
+ *
+ * ⚠️ ORDEN DEL INGENIERO (2026-09-05): *«la ampacidad debe ser lo que dice el
+ * fabricante conforme a sus especificaciones técnicas»*. Cuando este bloque
+ * existe, ES la ampacidad de registro de la línea y el cálculo IEEE 738 pasa a
+ * ser el CONTRASTE — dice si el clima del día honra esa cifra o la desmiente.
+ *
+ * ⚠️ Y POR QUÉ NO ES SOLO UN NÚMERO. Un amperaje suelto no se puede comparar
+ * con nada: toda tabla de fabricante se calcula bajo unas condiciones, y son
+ * ellas las que mandan sobre el número. En este mismo Darien, cambiar solo el
+ * viento lo mueve de 522 A (calma) a 965 A (2 m/s) — el 85 % de diferencia con
+ * el mismo cable. Por eso `corriente_A` y `tempConductor_C` son OBLIGATORIAS: un
+ * catálogo que no dice a qué temperatura del conductor se refiere no permite
+ * saber si son 611 A (75 °C) o 718 A (90 °C), y la diferencia es un dictamen.
+ *
+ * Las condiciones de ambiente van OPCIONALES a propósito: hay fichas que no las
+ * imprimen. Cuando faltan, el sistema NO las supone — dice que el fabricante no
+ * las declaró y se niega a calcular el contraste, que es lo honesto.
+ */
+export const AmpacidadDeFabricante = z.object({
+  /** Amperios que la ficha declara. */
+  corriente_A: z.number().positive(),
+  /** A qué temperatura del conductor. Sin esto la cifra no significa nada. */
+  tempConductor_C: z.number().positive(),
+
+  // ── Las condiciones de la ficha. Opcionales; su ausencia se DICE. ──────────
+  ambiente_C: z.number().optional(),
+  viento_m_s: z.number().nonnegative().optional(),
+  sol_W_m2: z.number().nonnegative().optional(),
+  emisividad: z.number().min(0).max(1).optional(),
+  absortividad: z.number().min(0).max(1).optional(),
+  altitud_m: z.number().optional(),
+
+  /**
+   * Con qué método construyó el fabricante esa tabla. `no_declarado` es un
+   * valor legítimo y frecuente: muchas fichas no lo dicen.
+   */
+  metodo: z.enum(['IEEE 738', 'CIGRE 601', 'IEC 61597', 'otro', 'no_declarado'])
+    .default('no_declarado'),
+
+  // ── La trazabilidad, que es la razón de ser de esta orden ─────────────────
+  /** Quién fabrica el conductor. */
+  fabricante: z.string().min(1),
+  /** Ficha, catálogo o especificación, CON su revisión o fecha. */
+  documento: z.string().min(1),
+  /** Página o tabla dentro de ese documento. Para que otro lo encuentre. */
+  ubicacionEnDocumento: z.string().optional(),
+  /** Quién lo declaró en el sistema. */
+  declaradaPor: Uid,
+  declaradaEn: Instante,
+});
+
 export const Conductor = z.object({
   codigo: z.string().min(1),            // p. ej. "Darien"
   material: MaterialConductor,
@@ -179,6 +232,12 @@ export const Conductor = z.object({
   tempMaxOperacion_C: z.number().positive(),
   procedencia: Procedencia,
   fuente: z.string().optional(),         // fabricante y referencia de la ficha
+  /**
+   * ⚠️ CUANDO ESTÁ, MANDA. Es la ampacidad de registro (orden del Ingeniero,
+   * 2026-09-05) y el IEEE 738 queda como contraste. Cuando NO está, el sistema
+   * calcula y lo declara como DERIVADA — nunca en silencio.
+   */
+  ampacidadDeFabricante: AmpacidadDeFabricante.optional(),
 });
 
 // ── Línea ───────────────────────────────────────────────────────────────────
@@ -713,6 +772,7 @@ export type SelloDeDato = z.infer<typeof SelloDeDato>;
 export type ProcedenciasDeApoyo = z.infer<typeof ProcedenciasDeApoyo>;
 export type FichaEstructural = z.infer<typeof FichaEstructural>;
 export type Conductor = z.infer<typeof Conductor>;
+export type AmpacidadDeFabricante = z.infer<typeof AmpacidadDeFabricante>;
 export type Hipotesis = z.infer<typeof Hipotesis>;
 export type Coordenada = z.infer<typeof Coordenada>;
 export type FuncionEstructural = z.infer<typeof FuncionEstructural>;

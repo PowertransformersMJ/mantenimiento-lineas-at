@@ -77,3 +77,51 @@ describe('lo que NO se tocó, y no se debe tocar', () => {
     assert.match(t, /solo el ambiente/i, 'perdió la frase que evita confundirla con Térmica');
   });
 });
+
+// ════════════════════════════════════════════════════════════════════════════
+// Y EL PECADO HERMANO, que costó cuatro sitios (`99 §ADR-098`)
+// ────────────────────────────────────────────────────────────────────────────
+// Nadie recalculaba la ampacidad, pero CUATRO sitios la ROTULABAN a mano como
+// «IEEE 738»: dos pantallas y **dos informes**, uno de ellos el firmable. Desde
+// que el número puede venir de la ficha del FABRICANTE, ese rótulo es una
+// atribución falsa impresa sobre la firma de un ingeniero.
+//
+// Es el patrón que domina este proyecto —«arreglado donde se veía, vivo en la
+// pieza hermana»— aplicado al TEXTO en vez de al cálculo.
+// ════════════════════════════════════════════════════════════════════════════
+describe('nadie atribuye a IEEE 738 un número que puede ser del fabricante', () => {
+  const QUE_ROTULAN = [
+    'web/src/componentes/Linea.tsx',
+    'exportar/gerencial.js',
+    'exportar/informe.js',
+  ];
+
+  for (const p of QUE_ROTULAN) {
+    test(`${p.split('/').pop()} no pega «IEEE 738» a la cifra sin mirar su naturaleza`, () => {
+      const t = leer(p);
+      if (!/IEEE\s*(Std\s*)?738/.test(t)) return;   // no lo nombra: nada que vigilar
+      // Si nombra la norma, tiene que distinguir las dos naturalezas: o llama al
+      // dueño del rótulo, o ramifica por `naturaleza === 'declarada'`.
+      assert.ok(/etiquetaDeAmpacidad\(/.test(t) || /naturaleza\s*===\s*'declarada'/.test(t),
+        'nombra IEEE 738 junto a una ampacidad sin distinguir si la declaró el fabricante');
+    });
+  }
+
+  test('⚠️ el informe FIRMABLE no afirma que la ampacidad esté verificada contra tabla', () => {
+    // Lo estuvo la RESISTENCIA (0,1198 Ω/km del Darien, `tests/nucleo.test.js`).
+    // La ampacidad nunca. Decirlo en un papel firmado es prestarle al número una
+    // autoridad que no tiene.
+    const t = leer('exportar/informe.js');
+    assert.ok(!/amperaje es una REFERENCIA verificada contra tabla/.test(t),
+      'el informe firmable vuelve a atribuirle a la ampacidad una verificación que no existe');
+  });
+
+  test('el dueño del rótulo distingue las dos naturalezas', async () => {
+    const { etiquetaDeAmpacidad } = await import('../nucleo/termica.js');
+    assert.match(etiquetaDeAmpacidad({ ampacidad_A: 700, naturaleza: 'declarada',
+      fabricante: { fabricante: 'Quien sea' } }), /DECLARADA por Quien sea/);
+    assert.match(etiquetaDeAmpacidad({ ampacidad_A: 718, naturaleza: 'derivada',
+      condiciones: { todoAdoptado: true } }), /CALCULADA \(IEEE 738\)/);
+    assert.match(etiquetaDeAmpacidad({ ampacidad_A: null }), /no evaluable/);
+  });
+});

@@ -108,13 +108,33 @@ function valorVivo(id: string, x: Ctx): ReactNode {
       // decir cuál es la diferencia entre las dos (`99 §ADR-093`).
       const ref = ampacidadDeLinea({ conductor: c, hipotesis: h });
       const calor = ampacidadDeLinea({ conductor: c, hipotesis: h, pedida: { ambiente_C: 40 } });
-      if (ref.ampacidad_A == null || calor.ampacidad_A == null) return <>{ref.motivo}</>;
-      return <>A {ref.condiciones.valores.ambiente_C} °C ambiente y {ref.temperatura.rotulo}:
-        <b> {nf(ref.ampacidad_A)} A</b>. Subiendo <b>solo el ambiente</b> a 40 °C baja a{' '}
-        {nf(calor.ampacidad_A)} A — IEEE Std 738, {ref.condiciones.rotulo}.{' '}
+      // ⚠️ ESTA TARJETA DEMUESTRA FÍSICA, ASÍ QUE USA EL NÚMERO CALCULADO —
+      // nunca el de registro (`99 §ADR-098`). Si la línea declara la ficha del
+      // fabricante, `ampacidad_A` vale lo mismo a 32 °C que a 40 °C (es una
+      // constante impresa), y la demostración diría dos veces la misma cifra:
+      // justo lo contrario de lo que esta tarjeta existe para enseñar.
+      const calculada = (r: typeof ref) =>
+        r.naturaleza === 'declarada' ? r.contraste?.enElSitio_A ?? null : r.ampacidad_A;
+      const aqui = calculada(ref);
+      const a40 = calculada(calor);
+      if (aqui == null || a40 == null) {
+        return <>{ref.naturaleza === 'declarada'
+          ? <>La ampacidad de registro son <b>{nf(ref.ampacidad_A ?? 0)} A</b>, declarados por{' '}
+            {ref.fabricante?.fabricante}. No se puede enseñar cuánto pesa el ambiente porque{' '}
+            {ref.contraste?.motivo ?? 'falta la geometría del conductor'}.</>
+          : ref.motivo}</>;
+      }
+      return <>{ref.naturaleza === 'declarada' && <>La capacidad de registro son{' '}
+        <b>{nf(ref.ampacidad_A ?? 0)} A</b>, los que declara {ref.fabricante?.fabricante} en su
+        ficha. Lo que sigue <b>no la reemplaza</b>: enseña cuánto se mueve este mismo conductor con
+        el clima, que es lo que la ficha no puede decir.{' '}</>}
+        A {ref.condiciones.valores.ambiente_C} °C ambiente y {nf(ref.temperatura.valor_C ?? 0)} °C
+        en el conductor: <b>{nf(aqui)} A</b>. Subiendo <b>solo el ambiente</b> a 40 °C baja a{' '}
+        {nf(a40)} A — IEEE Std 738, {ref.condiciones.rotulo}.{' '}
         <span className="fine">En la pestaña Térmica verá una cifra menor para 40 °C: aquel
         escenario baja también el viento, que pesa más que el ambiente. Con este mismo conductor,
-        el aire quieto deja la capacidad en {nf(ref.sensibilidadViento[0].ampacidad_A)} A.</span></>;
+        el aire quieto deja la capacidad en{' '}
+        {ref.sensibilidadViento.length ? nf(ref.sensibilidadViento[0].ampacidad_A) : '—'} A.</span></>;
     }
     case 'terr': {
       if (!gob) return null;

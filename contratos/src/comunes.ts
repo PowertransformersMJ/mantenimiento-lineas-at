@@ -117,8 +117,20 @@ import { z } from 'zod';
  *   · **Una hora con porcentaje EXIGE declarar su naturaleza** (`declarada` o
  *     `derivada`). Sin valor por defecto: un `?? 'declarada'` convertiría
  *     olvidarlo en mentir sobre contra qué capacidad se calculó (`§ADR-086/087`).
+ *
+ * 0.13.0 — MENOR (un campo opcional; cero migración): el `Conductor` gana
+ * `ampacidadDeFabricante`, la cifra que la FICHA DEL FABRICANTE declara, con sus
+ * condiciones y su trazabilidad. **Orden del Ingeniero (2026-09-05):** cuando ese
+ * bloque existe, ES la ampacidad de registro y el IEEE 738 pasa a CONTRASTE.
+ *
+ * ⚠️ `corriente_A` y `tempConductor_C` son obligatorias dentro del bloque, y no
+ * por gusto: sin saber a qué temperatura del conductor se refiere la cifra no se
+ * distingue 611 A (75 °C) de 718 A (90 °C) en este mismo Darien — y esa
+ * diferencia ES el dictamen. Las condiciones de ambiente van opcionales porque
+ * hay fichas que no las imprimen; cuando faltan, el sistema lo DICE y se niega a
+ * calcular el contraste en vez de suponerlas.
  */
-export const VERSION_CONTRATO = '0.12.0';
+export const VERSION_CONTRATO = '0.13.0';
 
 // ── Identificadores ─────────────────────────────────────────────────────────
 

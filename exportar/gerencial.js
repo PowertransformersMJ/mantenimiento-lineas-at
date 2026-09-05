@@ -617,8 +617,28 @@ ${(() => {
   if (a.ampacidad_A == null) {
     return `<p class="nota"><b>Capacidad en corriente: no evaluable.</b> ${esc(a.motivo ?? '')}</p>`;
   }
+  // ⚠️ El rótulo NO se escribe aquí (`99 §ADR-098`): desde que la ampacidad puede
+  // venir de la ficha del fabricante, llamarla «IEEE 738» sería falso.
+  if (a.naturaleza === 'declarada') {
+    const f = a.fabricante ?? {};
+    return `<p class="nota"><b>Capacidad de la línea: ${n(Math.round(a.ampacidad_A))} A</b> — `
+      + `<b>declarada por ${esc(f.fabricante ?? 'el fabricante')}</b>`
+      + (f.documento ? ` (${esc(f.documento)})` : '')
+      + `, conductor a ${n(a.temperatura?.valor_C ?? 0)} °C.`
+      + (a.contraste?.elSitioEsMasDuro
+        ? ` <b>⚠️ Con las condiciones del sitio este conductor da ${n(Math.round(a.contraste.enElSitio_A))} A</b>`
+          + ` — un ${Math.abs(a.contraste.delta_pct).toFixed(1)} % menos que la ficha.`
+          + ' Decidir si se derratea es del ingeniero.'
+        : '')
+      + (a.condicionesDeLaFicha && !a.condicionesDeLaFicha.completa
+        ? ' <b>La ficha no imprime todas sus condiciones</b>, así que no se puede comprobar'
+          + ' si el clima del sitio la honra.'
+        : '')
+      + '</p>';
+  }
   return `<p class="nota"><b>Capacidad de referencia de la línea: `
-    + `${n(Math.round(a.ampacidad_A))} A</b> (IEEE 738, ${esc(a.condiciones?.rotulo ?? '')}).`
+    + `${n(Math.round(a.ampacidad_A))} A</b> (CALCULADA, IEEE 738, ${esc(a.condiciones?.rotulo ?? '')}).`
+    + ' <b>La línea no declara ampacidad de fabricante.</b>'
     + (a.condiciones?.todoAdoptado
       ? ' <b>Estas condiciones las adoptó el sistema, no el ingeniero.</b> Sirve para orientarse;'
         + ' para decidir un despacho hace falta que el ingeniero las ratifique.'

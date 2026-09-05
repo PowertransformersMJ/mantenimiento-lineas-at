@@ -281,7 +281,12 @@ export default function Cargabilidad({
     if (!conA.length) return null;
     const pico = conA.reduce((a, b) =>
       ((b.corriente_A as number) > (a.corriente_A as number) ? b : a));
-    return { pico, contraste: contrasteConLaAmpacidad(pico as never, referencia.ampacidad_A) };
+    // ⚠️ EL VEREDICTO DIVIDE ENTRE LA **VIGENTE**, no entre la de registro
+    // (`99 §ADR-098`). Son el mismo número salvo cuando el clima del día da
+    // menos que la ficha del fabricante; ahí manda el día, porque dividir
+    // entre una capacidad que el cable no entrega hoy es lo que FERC llama
+    // «sobrecarga inadvertida». La de registro sigue intacta y a la vista.
+    return { pico, contraste: contrasteConLaAmpacidad(pico as never, referencia.vigente_A) };
   }, [registros, referencia]);
 
   /** Qué transportaba la línea en ese pico, y qué se perdía por el camino. */
@@ -1223,8 +1228,10 @@ function VistaPrevia({ registros }: { registros: Registro[] }) {
 //
 //   · **% del archivo** — corriente ÷ capacidad NOMINAL (la de placa, fija).
 //     Lo trae el SCADA. No es un veredicto: es lo que el archivo declaró.
-//   · **% contra ampacidad** — corriente ÷ capacidad REAL del conductor con unas
-//     condiciones declaradas (IEEE 738). **Éste es el veredicto.**
+//   · **% contra ampacidad** — corriente ÷ capacidad del conductor. **Éste es el
+//     veredicto.** Desde `99 §ADR-098` ese denominador es, por orden del
+//     Ingeniero, **el que declara la ficha del FABRICANTE** cuando la línea la
+//     tiene; y solo si no la tiene, el que calculamos por IEEE 738.
 //
 // Los mismos amperios pueden salir al 71 % con uno y al 98 % con el otro. Poner
 // uno de los dos «grande» y el otro de nota al pie sería elegir por el
@@ -1263,8 +1270,10 @@ function ElVeredicto({ v, referencia }: {
         <Kpi v={`${nf(c.corriente_A as number)} A`} r="corriente del pico"
           s={`${String(v.pico.linea)} · ${String(v.pico.fecha)}`
             + (v.pico.hora != null ? ` · ${String(v.pico.hora).padStart(2, '0')}:00` : '')} />
-        <Kpi v={`${nf(c.ampacidad_A as number)} A`} r="ampacidad de la línea"
-          s={referencia.condiciones.todoAdoptado ? 'condición ADOPTADA' : 'condición declarada'} />
+        {/* ⚠️ Desde `99 §ADR-098` este número puede NO ser nuestro, y además
+            puede no ser el de registro: el veredicto divide entre la VIGENTE. */}
+        <Kpi v={`${nf(c.ampacidad_A as number)} A`} r="ampacidad VIGENTE"
+          s={referencia.vigenteRotulo} />
       </div>
 
       {/* ⚠️ La frase que impide leer las dos cifras como si compitieran. */}
@@ -1283,6 +1292,44 @@ function ElVeredicto({ v, referencia }: {
       <p className="mapa-capas-n">
         <b>Ampacidad:</b> {referencia.rotulo}
       </p>
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          DE QUIÉN ES EL DENOMINADOR — `99 §ADR-098`
+          ────────────────────────────────────────────────────────────────────
+          Orden del Ingeniero (2026-09-05): la ampacidad es la que dice el
+          fabricante. Eso da trazabilidad y NO da física: la ficha se calculó con
+          SUS condiciones y la línea opera con las del sitio. El sistema no
+          cambia su cifra — enseña las dos y deja la decisión donde va.
+          ══════════════════════════════════════════════════════════════════════ */}
+      {referencia.naturaleza === 'declarada' && referencia.fabricante && (
+        <div className="tabla-scroll">
+          <table>
+            <tbody>
+              <tr><td>Fabricante</td><td><b>{referencia.fabricante.fabricante}</b></td></tr>
+              <tr><td>Documento</td><td>{referencia.fabricante.documento}
+                {referencia.fabricante.ubicacionEnDocumento
+                  ? ` · ${referencia.fabricante.ubicacionEnDocumento}` : ''}</td></tr>
+              <tr><td>Conductor a</td><td>{referencia.fabricante.tempConductor_C} °C</td></tr>
+              <tr><td>Método de la ficha</td><td>{referencia.fabricante.metodo}</td></tr>
+              {referencia.contraste?.comparable && (
+                <tr>
+                  <td>Con las condiciones del sitio</td>
+                  <td><b>{nf(referencia.contraste.enElSitio_A)} A</b>{' '}
+                    ({referencia.contraste.delta_A > 0 ? '+' : ''}
+                    {nf(referencia.contraste.delta_pct, 1)} % respecto a la ficha)</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {referencia.naturaleza === 'derivada' && (
+        <p className="fine">
+          Esta cifra la <b>calculó el sistema</b>: la línea no declara todavía la ampacidad de su
+          ficha de fabricante. Declararla la convierte en el número de registro y deja este
+          cálculo como contraste.
+        </p>
+      )}
       {referencia.avisos.map((a, i) => (
         <p key={i} className="advertencia">{a}</p>
       ))}
@@ -1357,8 +1404,14 @@ function LoQueSaldra({ referencia }: { referencia: ReturnType<typeof ampacidadDe
           denominador, que ya existe. */}
       {referencia.ampacidad_A != null ? (
         <p className="mapa-capas-n">
-          <b>El denominador ya está listo: {nf(referencia.ampacidad_A)} A.</b> Sale del conductor de
-          esta línea, no de su archivo. Cuando cargue la corriente, el veredicto es esa división.
+          <b>El denominador ya está listo: {nf(referencia.ampacidad_A)} A.</b>{' '}
+          {referencia.naturaleza === 'declarada'
+            ? <>Es la cifra que <b>declara {referencia.fabricante?.fabricante}</b> en su ficha
+              técnica, no un cálculo nuestro.</>
+            : <>La <b>calculó el sistema</b> a partir del conductor de esta línea — la línea
+              todavía no declara la ampacidad de su ficha de fabricante.</>}{' '}
+          En cualquier caso no sale de su archivo. Cuando cargue la corriente, el veredicto es esa
+          división.
           <br /><span className="fine">{referencia.rotulo}</span>
         </p>
       ) : (

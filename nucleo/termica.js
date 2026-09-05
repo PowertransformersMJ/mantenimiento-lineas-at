@@ -176,10 +176,149 @@ export function condicionesDeAmpacidad({ pedida = null, hipotesis = null } = {})
 }
 
 /**
+ * LAS SEIS CONDICIONES QUE LA FICHA DEL FABRICANTE DECLARA — y las que no.
+ *
+ * ⚠️ NO SUPONE NADA. Un campo que la ficha no imprime sale como `null` y se
+ * cuenta en `faltan`. La tentación de rellenar con «lo típico» es exactamente
+ * lo que convierte un dato trazable en una hipótesis disfrazada de dato.
+ *
+ * @param {Record<string, any>|null} ficha
+ * @returns {{valores: Record<string, number|null>, faltan: string[], completa: boolean}}
+ */
+export function condicionesDeLaFicha(ficha) {
+  const valores = {};
+  const faltan = [];
+  for (const c of CAMPOS_CONDICION) {
+    const v = ficha && Number.isFinite(ficha[c]) ? ficha[c] : null;
+    valores[c] = v;
+    if (v == null) faltan.push(c);
+  }
+  return { valores, faltan, completa: faltan.length === 0 };
+}
+
+/**
+ * EL RÓTULO DE LA AMPACIDAD — dueño único, y por una razón cara.
+ *
+ * ⚠️ CUATRO SITIOS escribían «IEEE 738» pegado al número: dos pantallas y **dos
+ * informes firmables**. Desde `99 §ADR-098` ese número puede venir de la ficha
+ * del FABRICANTE, y entonces llamarlo «IEEE 738» es una mentira impresa sobre
+ * un papel que firma un ingeniero. Cualquier sitio que rotule una ampacidad
+ * llama aquí; hay una prueba que lo vigila.
+ *
+ * @param {Record<string, any>|null} amp  lo que devuelve `ampacidadDeLinea`
+ * @returns {string}
+ */
+export function etiquetaDeAmpacidad(amp) {
+  if (!amp || amp.ampacidad_A == null) return 'capacidad en corriente: no evaluable';
+  if (amp.naturaleza === 'declarada') {
+    const quien = amp.fabricante && amp.fabricante.fabricante ? amp.fabricante.fabricante : 'el fabricante';
+    return `ampacidad DECLARADA por ${quien}`;
+  }
+  return 'ampacidad CALCULADA (IEEE 738)'
+    + (amp.condiciones && amp.condiciones.todoAdoptado ? ' · condiciones adoptadas' : '');
+}
+
+/**
+ * LOS CUATRO VIENTOS. Se calcula AQUÍ y solo aquí, para que nadie vuelva a
+ * rehacer una ampacidad con condiciones propias. Vale para las dos naturalezas:
+ * cuando la cifra de registro es la del fabricante, esto sigue diciendo cuánto
+ * pesa el viento sobre ESE conductor — que es la lectura operativa.
+ *
+ * @returns {{viento_m_s: number, ampacidad_A: number}[]}
+ */
+export function sensibilidadDeViento({ conductor, tempConductor_C, condiciones }) {
+  if (!conductor || !Number.isFinite(conductor.seccion_mm2) || !Number.isFinite(conductor.diametro_m)
+    || !Number.isFinite(tempConductor_C)) return [];
+  const paraNucleo = {
+    material: conductor.material, seccion: conductor.seccion_mm2, diametro: conductor.diametro_m,
+  };
+  return VIENTOS_DE_SENSIBILIDAD.map((v) => ({
+    viento_m_s: v,
+    ampacidad_A: ampacidad(paraNucleo, tempConductor_C, condiciones.valores.ambiente_C,
+      { ...condiciones.paraElNucleo, v }),
+  }));
+}
+
+/**
+ * EL CONTRASTE: lo que dice la ficha contra lo que da el clima del sitio.
+ *
+ * ⚠️ POR QUÉ EXISTE. Desde el 2026-09-05 la ampacidad de registro es la del
+ * FABRICANTE (orden del Ingeniero). Eso resuelve la trazabilidad y NO resuelve
+ * la física: la ficha se calculó con SUS condiciones, y la línea opera con las
+ * del sitio. Si el sitio es más duro que la ficha, la cifra de registro promete
+ * más de lo que el cable puede dar ese día — y no avisarlo sería peor que no
+ * tener la cifra.
+ *
+ * Este contraste NO cambia el veredicto: lo acompaña. Quien decide si se
+ * derratea es el ingeniero, no el código.
+ *
+ * @returns {ContrasteDeFabricante}
+ */
+export function contrasteDeFabricante({
+  conductor = null, ficha = null, condicionesDelSitio = null, tempConductor_C = null } = {}) {
+  if (!ficha) return { motivo: 'la línea no declara ampacidad de fabricante', comparable: false };
+  if (!conductor || !Number.isFinite(conductor.seccion_mm2) || !Number.isFinite(conductor.diametro_m)) {
+    return { motivo: 'el conductor no declara sección o diámetro: no se puede recalcular', comparable: false };
+  }
+
+  const deLaFicha = condicionesDeLaFicha(ficha);
+  const paraNucleo = {
+    material: conductor.material, seccion: conductor.seccion_mm2, diametro: conductor.diametro_m,
+  };
+  const Tc = Number.isFinite(tempConductor_C) ? tempConductor_C : ficha.tempConductor_C;
+
+  // ── Lo que da el SITIO con la temperatura de conductor de la ficha ────────
+  const enElSitio = condicionesDelSitio
+    ? ampacidad(paraNucleo, Tc, condicionesDelSitio.valores.ambiente_C, condicionesDelSitio.paraElNucleo)
+    : null;
+
+  // ── Lo que da la propia FICHA recalculada, si declaró sus condiciones ─────
+  // Sirve para una pregunta muy concreta: ¿reproduce el número del catálogo?
+  // Si no reproduce, el fabricante usó otro método u otras hipótesis, y eso se
+  // DICE en vez de tomarlo por un error de nadie.
+  const reproducida = deLaFicha.completa
+    ? ampacidad(paraNucleo, Tc, deLaFicha.valores.ambiente_C, {
+        v: deLaFicha.valores.viento_m_s, eps: deLaFicha.valores.emisividad,
+        abso: deLaFicha.valores.absortividad, qs: deLaFicha.valores.sol_W_m2,
+        he: deLaFicha.valores.altitud_m,
+      })
+    : null;
+
+  const declarada_A = ficha.corriente_A;
+  const delta_A = enElSitio == null ? null : enElSitio - declarada_A;
+  const delta_pct = delta_A == null ? null : (delta_A / declarada_A) * 100;
+
+  return {
+    comparable: enElSitio != null,
+    motivo: enElSitio == null ? 'no hay condiciones de sitio con las que contrastar' : null,
+    declarada_A,
+    enElSitio_A: enElSitio,
+    delta_A,
+    delta_pct,
+    /** ⚠️ NEGATIVO = el sitio da MENOS de lo que promete la ficha. */
+    elSitioEsMasDuro: delta_A == null ? null : delta_A < 0,
+    reproducida_A: reproducida,
+    /** Cuánto se aleja el recálculo del número impreso, en %. Null si no se pudo. */
+    desviacionDeLaFicha_pct: reproducida == null ? null
+      : ((reproducida - declarada_A) / declarada_A) * 100,
+    condicionesDeLaFicha: deLaFicha,
+    tempConductor_C: Tc,
+  };
+}
+
+/**
  * LA AMPACIDAD DE UNA LÍNEA, con sus condiciones pegadas — o `null` con motivo.
  *
  * ⚠️ NUNCA devuelve un número suelto. Un amperaje sin las condiciones con que se
  * calculó no significa nada: el mismo conductor da 522 o 965 A según el aire.
+ *
+ * ⚠️ DOS NATURALEZAS, Y SIEMPRE SE DICE CUÁL (`99 §ADR-098`):
+ *   · `declarada` — la línea trae `conductor.ampacidadDeFabricante`. Esa cifra
+ *     ES la de registro (orden del Ingeniero, 2026-09-05) y el IEEE 738 baja a
+ *     `contraste`.
+ *   · `derivada`  — no hay ficha: la calculamos, y se rotula CALCULADA.
+ *   · `null`      — no evaluable. **No hay valor por defecto**: un `?? 'derivada'`
+ *     convertiría «no se sabe» en una afirmación.
  *
  * ⚠️ Recibe el `Conductor` DEL CONTRATO (`seccion_mm2`, `diametro_m` en metros,
  * `tempMaxOperacion_C`). `ampacidad()` y `derrateo()` siguen recibiendo la forma
@@ -188,8 +327,18 @@ export function condicionesDeAmpacidad({ pedida = null, hipotesis = null } = {})
  *
  * @param {{conductor?: Record<string, any>|null, hipotesis?: Record<string, any>|null,
  *           pedida?: Record<string, any>|null, temperaturaConductor_C?: number|null}} [e]
- * @returns {{ampacidad_A: number|null, motivo: string|null,
- *            condiciones: CondicionesDeAmpacidad, temperatura: TemperaturaDelConductor,
+ * ⚠️ DOS NÚMEROS, Y NO SON EL MISMO: `ampacidad_A` es el valor de REGISTRO
+ * (el del fabricante cuando lo hay) y **`vigente_A` es el DENOMINADOR del
+ * veredicto** — el menor entre la ficha y lo que el clima del día permite.
+ * La vigente **nunca sube** por encima de la declarada: el fabricante pone el
+ * techo y el día solo puede bajarlo.
+ *
+ * @returns {{ampacidad_A: number|null, vigente_A: number|null, vigenteRotulo: string,
+ *            naturaleza: 'declarada'|'derivada'|null,
+ *            motivo: string|null, fabricante: Record<string, any>|null,
+ *            contraste: Record<string, any>|null,
+ *            condiciones: CondicionesDeAmpacidad, temperatura: Record<string, any>,
+ *            condicionesDeLaFicha?: Record<string, any>,
  *            rotulo: string, avisos: string[],
  *            sensibilidadViento: {viento_m_s: number, ampacidad_A: number}[]}}
  */
@@ -201,6 +350,109 @@ export function ampacidadDeLinea({
   if (condiciones.aviso) avisos.push(condiciones.aviso);
   if (temperatura.aviso) avisos.push(temperatura.aviso);
 
+  // ══════════════════════════════════════════════════════════════════════════
+  // LA FICHA DEL FABRICANTE MANDA — orden del Ingeniero, 2026-09-05
+  // ──────────────────────────────────────────────────────────────────────────
+  // «la ampacidad debe ser lo que dice el fabricante conforme a sus
+  // especificaciones técnicas». Cuando la línea declara ese bloque, ESE es el
+  // número de registro y el IEEE 738 baja a CONTRASTE.
+  //
+  // ⚠️ Y ojo al orden: esta rama va ANTES de exigir sección y diámetro. La
+  // cifra del fabricante no necesita la geometría —ya la tuvo en cuenta él—,
+  // así que una línea con la ficha declarada y el conductor a medio describir
+  // SIGUE teniendo ampacidad. Es una ventaja real de esta orden.
+  // ══════════════════════════════════════════════════════════════════════════
+  const ficha = conductor && conductor.ampacidadDeFabricante ? conductor.ampacidadDeFabricante : null;
+  if (ficha) {
+    const avisosFicha = [];
+    const deLaFicha = condicionesDeLaFicha(ficha);
+    if (!deLaFicha.completa) {
+      avisosFicha.push(`La ficha del fabricante NO declara ${deLaFicha.faltan.join(', ')}. `
+        + 'El número se publica igual —es el suyo— pero sin sus condiciones no se puede saber si el '
+        + 'clima del sitio lo honra. Pídalas a quien emitió la ficha.');
+    }
+    // El desajuste que sobre-califica una línea sin que nadie lo note.
+    const maxDelConductor = Number.isFinite(conductor.tempMaxOperacion_C)
+      ? conductor.tempMaxOperacion_C : null;
+    if (maxDelConductor != null && ficha.tempConductor_C > maxDelConductor) {
+      avisosFicha.push(`⚠️ La ficha da esa corriente con el conductor a ${ficha.tempConductor_C} °C, `
+        + `pero la línea declara un máximo de ${maxDelConductor} °C. Usar esta cifra publica `
+        + 'capacidad de MÁS. Pida al fabricante la fila de su temperatura, o rectifique el máximo.');
+    }
+    if (ficha.metodo === 'no_declarado') {
+      avisosFicha.push('La ficha no dice con qué método se calculó esa tabla (IEEE 738, CIGRÉ 601…). '
+        + 'No la invalida; sí impide explicar una diferencia con nuestro cálculo.');
+    }
+
+    const contraste = contrasteDeFabricante({
+      conductor, ficha, condicionesDelSitio: condiciones, tempConductor_C: ficha.tempConductor_C,
+    });
+    if (contraste.elSitioEsMasDuro === true) {
+      avisosFicha.push(`Con las condiciones del sitio (${condiciones.rotulo}) este conductor da `
+        + `${Math.round(contraste.enElSitio_A)} A, un ${Math.abs(contraste.delta_pct).toFixed(1)} % `
+        + 'MENOS que la ficha. La cifra de registro promete más de lo que el cable entrega ese día: '
+        + 'la decisión de derratear es del ingeniero, no del sistema.');
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // LA VIGENTE: el TECHO lo pone el fabricante, el SUELO lo pone el día
+    // ──────────────────────────────────────────────────────────────────────
+    // ⚠️ La cifra del fabricante es el valor de REGISTRO y no se toca nunca.
+    // Pero el veredicto diario no puede dividir entre un número que la física
+    // del día no honra: FERC Orden 881 §35 lo llama, con esas palabras,
+    // «riesgo de sobrecarga inadvertida».
+    //
+    // Y la regla que hace que la orden del Ingeniero mande DE VERDAD: la
+    // vigente **nunca sube por encima de la declarada**. Una noche fresca con
+    // brisa no autoriza a pasarse del catálogo — el fabricante puso el techo.
+    // Así que es un MÍNIMO, y solo puede bajar.
+    //
+    // Sin contraste posible (ficha sin condiciones, conductor sin geometría) la
+    // vigente ES la declarada, y el motivo lo dice.
+    // ══════════════════════════════════════════════════════════════════════
+    const vigente_A = contraste.comparable
+      ? Math.min(ficha.corriente_A, contraste.enElSitio_A)
+      : ficha.corriente_A;
+    const laLimitaElDia = contraste.comparable && contraste.enElSitio_A < ficha.corriente_A;
+
+    return {
+      ampacidad_A: ficha.corriente_A,
+      /**
+       * ⚠️ EL DENOMINADOR DEL VEREDICTO. Distinto de `ampacidad_A` —que es el
+       * valor de REGISTRO— cuando el clima del día da menos que la ficha.
+       */
+      vigente_A,
+      vigenteRotulo: laLimitaElDia
+        ? `${Math.round(vigente_A)} A — la limita el clima del sitio, no la ficha `
+          + `(${Math.round(ficha.corriente_A)} A)`
+        : contraste.comparable
+          ? `${Math.round(vigente_A)} A — la ficha del fabricante manda: el sitio da más`
+          : `${Math.round(vigente_A)} A — la ficha, sin contrastar (${contraste.motivo})`,
+      naturaleza: 'declarada',
+      motivo: null,
+      fabricante: {
+        ...ficha,
+        rotulo: `${ficha.fabricante} · ${ficha.documento}`
+          + (ficha.ubicacionEnDocumento ? ` · ${ficha.ubicacionEnDocumento}` : ''),
+      },
+      condiciones: { ...condiciones, sonDelSitio: true },
+      condicionesDeLaFicha: deLaFicha,
+      temperatura: {
+        valor_C: ficha.tempConductor_C,
+        rotulo: `${ficha.tempConductor_C} °C`,
+        de: 'ficha del fabricante',
+        aviso: null,
+      },
+      rotulo: `${Math.round(ficha.corriente_A)} A · DECLARADA por ${ficha.fabricante} `
+        + `(${ficha.documento}) · conductor a ${ficha.tempConductor_C} °C`,
+      avisos: [...avisosFicha, ...avisos],
+      contraste,
+      sensibilidadViento: contraste.comparable ? sensibilidadDeViento({
+        conductor, tempConductor_C: ficha.tempConductor_C, condiciones,
+      }) : [],
+    };
+  }
+
   const falta = !conductor ? 'no hay conductor declarado en la línea'
     : temperatura.valor_C == null ? 'el conductor no declara material ni temperatura máxima'
     : !Number.isFinite(conductor.seccion_mm2) ? 'el conductor no declara sección'
@@ -209,7 +461,9 @@ export function ampacidadDeLinea({
 
   if (falta) {
     return {
-      ampacidad_A: null, motivo: falta, condiciones, temperatura,
+      ampacidad_A: null, vigente_A: null, vigenteRotulo: `no evaluable: ${falta}`,
+      naturaleza: null, motivo: falta, condiciones, temperatura,
+      fabricante: null, contraste: null,
       rotulo: `no evaluable: ${falta}`, avisos, sensibilidadViento: [],
     };
   }
@@ -222,18 +476,25 @@ export function ampacidadDeLinea({
 
   return {
     ampacidad_A: A,
+    /** Sin ficha, registro y vigente son el mismo número: lo calculamos hoy. */
+    vigente_A: A,
+    vigenteRotulo: `${Math.round(A)} A — calculada para las condiciones de hoy`,
+    /**
+     * ⚠️ DERIVADA: la calculamos nosotros porque la línea NO declara la ficha
+     * del fabricante. Desde `99 §ADR-098` esto es el camino SECUNDARIO, y se
+     * dice en cada número que se publica.
+     */
+    naturaleza: 'derivada',
     motivo: null,
+    fabricante: null,
+    contraste: null,
     condiciones,
     temperatura,
-    rotulo: `${Math.round(A)} A · conductor a ${temperatura.rotulo} · ${condiciones.rotulo}`,
+    rotulo: `${Math.round(A)} A · CALCULADA (IEEE 738) · conductor a ${temperatura.rotulo} · ${condiciones.rotulo}`,
     avisos,
-    // Se calcula AQUÍ y solo aquí: quien la necesite la recibe, para que nadie
-    // vuelva a rehacer una ampacidad con condiciones propias.
-    sensibilidadViento: VIENTOS_DE_SENSIBILIDAD.map((v) => ({
-      viento_m_s: v,
-      ampacidad_A: ampacidad(paraNucleo, temperatura.valor_C, condiciones.valores.ambiente_C,
-        { ...condiciones.paraElNucleo, v }),
-    })),
+    sensibilidadViento: sensibilidadDeViento({
+      conductor, tempConductor_C: temperatura.valor_C, condiciones,
+    }),
   };
 }
 

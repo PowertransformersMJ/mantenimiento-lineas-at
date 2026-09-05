@@ -8376,3 +8376,151 @@ con su motivo. **Hay una prueba que falla si alguien escribe una medida como cer
 ### Crudo de respaldo
 
 `../brain-private/mantenimiento-lineas-at/research-archive/2026-09-04-entorno-vacio/`
+
+---
+
+## ADR-098 · 2026-09-05 · La ampacidad la dice el FABRICANTE, y el cálculo pasa a ser el contraste
+
+### Contexto
+
+Orden del Ingeniero, literal: *«la ampacidad debe ser lo que dice el fabricante conforme a sus
+especificaciones técnicas»*.
+
+**El sistema hacía exactamente lo contrario, y lo tenía escrito como doctrina.** `docs/40 §4.2`
+decía: *«la ampacidad de placa es engañosa y el sistema debe calcularla contra condiciones reales,
+**no citar el catálogo**»*. De ahí salían los **718 A** de LN-627: IEEE 738 con seis condiciones
+**adoptadas por el sistema** y nunca ratificadas por él.
+
+Antes de tocar nada se le dijo el choque. No es una orden caprichosa: **la cifra del catálogo es
+trazable a un documento con nombre y revisión, auditable por un tercero, y no depende de seis
+supuestos míos.** En un dictamen que él firma, eso pesa más que la precisión aparente de un cálculo
+propio con hipótesis de nadie.
+
+### Lo que se buscó antes de decidir
+
+Workflow de 4 frentes con Opus + síntesis Fable. El frente de fichas técnicas barrió **13
+fabricantes y leyó 10 PDF en crudo** (`pdftotext`, no resumen):
+
+| Fabricante | Ampacidad | Condiciones DECLARADAS |
+|---|---|---|
+| **CENTELSA · Nexans (Colombia)** | **665,0 A** | 25 °C amb · **conductor 75 °C** · 1 kW/m² · ε=α=0,5 · 0,61 m/s |
+| VIAKON (México) | 656 A | 25 °C · 75 °C · 0,61 m/s · **«calculado con IEEE 738-2006»** |
+| Southwire · Nehring · Priority · Classic · Electrocable | 663 A | 25 °C · 75 °C · 0,61 m/s · pleno sol · ε=α=0,5 |
+| Nexans Brasil | 670 A | ⚠️ **ninguna condición en toda la ficha** |
+| APAR (India) | 412 / 514 A | **45 °C** amb · 75 / 85 °C · 0,56 m/s · 1.045 W/m² |
+| Prysmian (ex-General Cable) | — | ⚠️ **se niega a publicarla**; remite a calcularla |
+
+**Tres cosas que ordenan la decisión:**
+
+1. **Los fabricantes no discrepan del cable: discrepan de la condición.** De 412 a 670 A para el
+   mismo Darien, y la diferencia es la temperatura ambiente de referencia. La mecánica converge:
+   **RTS 8.527–8.528 kgf en seis fuentes independientes**.
+2. **La tabla del fabricante ES un cálculo IEEE 738** — VIAKON lo dice con todas las letras. No hay
+   conflicto de MÉTODO entre la ficha y el motor; hay conflicto de CONDICIONES.
+3. **Nadie publica a los ~32 °C de Turbaco.** La cifra aplicable a LN-627 **no existe publicada**.
+
+### Decisión
+
+**1. La ficha manda, y la naturaleza se declara siempre.** `conductor.ampacidadDeFabricante`
+(contrato **0.13.0**, campo opcional, cero migración). Cuando existe, ES la ampacidad de registro;
+cuando no, se calcula y **se rotula CALCULADA**. `ampacidadDeLinea()` devuelve `naturaleza`:
+`declarada` · `derivada` · `null`. **Sin valor por defecto**: un `?? 'derivada'` convertiría «no se
+sabe» en una afirmación.
+
+**2. El cálculo no desaparece: baja a CONTRASTE.** `contrasteDeFabricante()` responde tres preguntas
+y **ninguna es un veredicto**: ¿el sitio honra la cifra de registro? ¿reproduce la ficha al
+recalcularla con sus propias condiciones? ¿se puede contrastar siquiera? Cuando el sitio da menos
+que lo impreso se avisa con el porcentaje — **y se dice que derratear es del ingeniero, no del
+sistema**.
+
+**3. Dos campos obligatorios dentro del bloque, y no por gusto.** `corriente_A` y
+`tempConductor_C`: sin la segunda no se distingue 611 A (75 °C) de 718 A (90 °C) en este mismo
+conductor — un **17 %**, siempre por el lado optimista. Las condiciones de ambiente van opcionales
+porque **hay fichas que no las imprimen** (Nexans Brasil); cuando faltan, el sistema **lo dice y se
+niega a contrastar** en vez de suponerlas.
+
+**4. Un solo dueño del RÓTULO.** `etiquetaDeAmpacidad()`. Cuatro sitios escribían «IEEE 738» pegado
+a la cifra: dos pantallas y **dos informes, uno de ellos el firmable**. Con la cifra del fabricante,
+ese rótulo es una atribución falsa impresa sobre la firma de un ingeniero. Hay guardián.
+
+**5. DOS NÚMEROS, Y NO SON EL MISMO** — corrección de diseño que trajo la síntesis de Fable, y que
+mejora lo que yo había construido. Mi primera versión publicaba la cifra del fabricante como
+denominador del veredicto y **solo avisaba** cuando el día daba menos. Eso deja abierta la puerta
+que FERC Orden 881 §35 nombra con estas palabras: *«place transmission lines at risk of INADVERTENT
+OVERLOAD»*.
+
+| | Qué es | Quién manda |
+|---|---|---|
+| `ampacidad_A` | **REGISTRO.** La cifra de la ficha, intacta. Es la que se firma, se exporta y se declara al CNO | El fabricante, siempre |
+| `vigente_A` | **VEREDICTO.** El denominador con el que se divide la corriente | **El menor** entre la ficha y lo que el clima del día permite |
+
+> ⚠️ **Y la mitad que hace que su orden mande DE VERDAD: la vigente NUNCA sube por encima de la
+> declarada.** Una noche fresca con brisa no autoriza a pasarse del catálogo — el fabricante puso el
+> techo y el día solo puede bajarlo. Es un mínimo, no un recálculo.
+
+**La convergencia que valida el motor.** Con la ficha pública de CENTELSA (665 A a 25 °C, conductor
+a 75 °C), llevada a los 32 °C de Turbaco, salen **611 A** — que es **exactamente** lo que da nuestro
+motor calculando a 75 °C por su cuenta. Dos caminos independientes, el mismo número: el motor no
+está roto, y **toda la diferencia con los 718 A era la TEMPERATURA DEL CONDUCTOR**. Hay prueba.
+
+### ⚠️ EL HALLAZGO QUE HAY QUE RESOLVER ANTES DE FIRMAR NADA
+
+**CENTELSA declara para el Darien una temperatura máxima de operación de 75 °C.** El motor usa los
+**90 °C** genéricos del material AAAC, y de ahí salen los 718 A. **A 75 °C el mismo cálculo da
+611 A.**
+
+> Si el conductor de LN-627 es el de CENTELSA, el sistema **lleva publicando un 17 % de capacidad de
+> más** — el lado que hace que una línea sobrecargada parezca sana. **No se corrigió por mi cuenta:
+> no consta quién fabricó el conductor de esta línea**, y suponerlo sería el error que este módulo
+> entero existe para impedir.
+
+### Y una afirmación mía que no se sostenía
+
+`nucleo/termica.js` y el **informe firmable** decían que los 718 A eran *«una referencia verificada
+contra tabla de fabricante»*. **Es falso.** Lo verificado contra tabla de fabricante es la
+**RESISTENCIA** (0,1198 Ω/km a 20 °C, `tests/nucleo.test.js`). La ampacidad nunca se contrastó con
+ninguna ficha — hasta hoy. Corregido en los dos sitios, con guardián que impide reescribirlo.
+
+### Media contradicción vieja, cerrada de paso
+
+`docs/40` arrastraba desde `§ADR-095`: «EDS 20 % RTS = 3.524 kgf», cuando 3.524 es el **41,3 %** de
+los 8.528 kgf del motor. Faltaba confirmar la RTS **contra hoja de fabricante**: ahora está, en
+**seis fichas independientes**. El valor del motor es el correcto y ya no depende del módulo de
+campo. **Sigue abierto el 3.524**: o está mal rotulado, o el EDS de esta línea es del 41,3 % — el
+doble de la banda 18-22 %. No se firma hasta que él diga cuál de las dos cosas es.
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| Sustituir el cálculo por la ficha, a secas | La ficha se calculó con SUS condiciones. Sin contraste, un día de calma a 32 °C operaría contra una promesa que el cable no cumple |
+| Seguir calculando y citar la ficha en una nota | Es desobedecer con buenos modales. La orden es clara y su argumento —trazabilidad— es correcto |
+| Adoptar los 665 A de CENTELSA para LN-627 | **No consta que el conductor sea de CENTELSA.** Sería fabricar el dato |
+| «Traducir» la cifra del fabricante a 32 °C y publicar eso | Deja de ser la cifra del fabricante y vuelve a ser mía, con el agravante de parecer suya |
+| Tocar el guardián anti-demostración o el de condiciones | Vigilan órdenes suyas |
+
+### Supuestos que deben ser ciertos — y la señal que diría que dejaron de serlo
+
+| Supuesto | Señal de que caducó |
+|---|---|
+| La ficha del fabricante refleja el conductor REALMENTE instalado en LN-627 | Un acta de montaje o una placa que nombre otro fabricante. Hoy **no consta ninguno**: es el supuesto más débil de este ADR |
+| Los 90 °C del material valen para este conductor | Ya hay una señal: **CENTELSA dice 75 °C**. Pendiente de que él confirme el fabricante |
+| Un valor de catálogo es constante y no se recalcula | La prueba «cambiar el ambiente NO cambia la cifra de registro» se pone roja |
+| Las pantallas que demuestran física usan el contraste, no el registro | La prueba de `Fundamentos` se pone roja — ya cazó este fallo una vez |
+| Ninguna norma colombiana impone una condición de referencia obligatoria | ✅ **VERIFICADO EN NEGATIVO:** el Código de Redes no declara ninguna («temperatura ambiente» = 0 apariciones). La señal sería una resolución CREG o una circular del CNO que fije una condición de referencia: mandaría sobre cualquier ficha |
+| El valor de placa del fabricante es una base admisible de rating | ✅ **VERIFICADO:** NERC FAC-008-3 R3.1 lo admite textualmente. La señal sería una revisión de FAC-008 que lo retire, o una norma colombiana que exija cálculo propio |
+
+### Consecuencias
+
+- El número de registro deja de ser mío y pasa a tener dueño con nombre y documento.
+- **Una línea con la ficha declarada y el conductor a medio describir SIGUE teniendo ampacidad**: la
+  cifra del fabricante no necesita la geometría. Es una ventaja real de esta orden, y hay prueba.
+- El informe firmable imprime ahora fabricante, documento, ubicación en el documento y método, y
+  avisa **en negrita** cuando el sitio es más duro que la ficha.
+- `2.247` pruebas en verde · contrato **0.13.0** · TypeScript limpio.
+- **Lo que falta es suyo:** decir de qué fabricante es el conductor de LN-627 y aportar su ficha.
+  Sin eso, la ampacidad sigue siendo CALCULADA por el sistema y rotulada como tal.
+
+### Crudo de respaldo
+
+`../brain-private/mantenimiento-lineas-at/research-archive/2026-09-05-ampacidad-de-fabricante/`

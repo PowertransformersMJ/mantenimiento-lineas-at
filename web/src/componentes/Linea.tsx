@@ -11,7 +11,7 @@
 import { Component, Suspense, lazy, useEffect, useMemo, useState, type KeyboardEvent, type ReactNode } from 'react';
 import type { Apoyo, Conductor, Evidencia, Hipotesis, Investigacion, Linea as TLinea } from '@lineas/contratos';
 import { vincenty, vanoIdealRegulacion } from '@lineas/nucleo/geodesia';
-import { ampacidadDeLinea } from '@lineas/nucleo/termica';
+import { ampacidadDeLinea, etiquetaDeAmpacidad } from '@lineas/nucleo/termica';
 import { estadisticasVanos } from '@lineas/nucleo/estadisticas';
 import { coherenciaFuncionDeflexion } from '@lineas/nucleo/coherencia';
 import { derivarLevantamiento } from '@lineas/exportar/levantamiento';
@@ -435,9 +435,11 @@ function Mecanico({ apoyos, conductor, hipotesis }:
             sub={r.vir == null ? 'sin datos suficientes' : 'el del cálculo va por tramo'} />
           <Kpi valor={nf(filas.length)} etiqueta="tramos de tensión" sub={`${r.anclas} anclajes`} />
           {/* El rótulo dice las SEIS condiciones, no dos, y confiesa que están
-              adoptadas mientras el Ingeniero no las ratifique. */}
+              adoptadas mientras el Ingeniero no las ratifique. Y desde
+              `99 §ADR-098` dice también DE QUIÉN es el número: llamar «IEEE 738»
+              a la cifra de una ficha de fabricante sería mentir. */}
           <Kpi valor={r.amp.ampacidad_A == null ? 'no evaluable' : `${nf(r.amp.ampacidad_A)} A`}
-            etiqueta={`ampacidad IEEE 738${r.amp.condiciones.todoAdoptado ? ' (adoptada)' : ''}`}
+            etiqueta={etiquetaDeAmpacidad(r.amp)}
             sub={r.amp.ampacidad_A == null ? r.amp.motivo ?? undefined
               : `conductor a ${r.amp.temperatura.rotulo} · ${r.amp.condiciones.rotulo}`} />
         </div>

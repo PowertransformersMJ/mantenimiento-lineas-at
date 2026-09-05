@@ -1531,8 +1531,56 @@ function seccionAmpacidad(ref, carga) {
   const UNIDADES = [' °C', ' m/s', ' W/m²', '', '', ' msnm'];
   const r = [];
 
-  r.push(parrafo(`<b>Ampacidad de la línea: ${nu(ref.ampacidad_A, 0, 'A')}</b>, por IEEE Std 738 `
-    + `en régimen permanente, con el conductor a ${esc(ref.temperatura?.rotulo ?? '')}.`));
+  // ══════════════════════════════════════════════════════════════════════════
+  // DE QUIÉN ES ESTE NÚMERO — `99 §ADR-098`
+  // ──────────────────────────────────────────────────────────────────────────
+  // Va en un papel que FIRMA un ingeniero. Desde la orden del 2026-09-05 la
+  // ampacidad de registro puede ser la que declara el FABRICANTE en su ficha, y
+  // en ese caso escribir «por IEEE Std 738» sería atribuir a una norma un número
+  // que no salió de ella. El párrafo cambia entero según la naturaleza.
+  // ══════════════════════════════════════════════════════════════════════════
+  if (ref.naturaleza === 'declarada') {
+    const f = ref.fabricante ?? {};
+    r.push(parrafo(`<b>Ampacidad de la línea: ${nu(ref.ampacidad_A, 0, 'A')}</b> — cifra `
+      + `<b>DECLARADA por el fabricante</b>, con el conductor a `
+      + `${esc(String(ref.temperatura?.valor_C ?? ''))} °C.`));
+    r.push(tabla({
+      leyenda: 'De dónde sale la cifra. Es lo que la hace auditable.',
+      cabecera: '<th>Dato</th><th>Valor</th>',
+      filas: [
+        `<tr><td>Fabricante</td><td>${esc(f.fabricante ?? '—')}</td></tr>`,
+        `<tr><td>Documento</td><td>${esc(f.documento ?? '—')}</td></tr>`,
+        `<tr><td>Ubicación en el documento</td><td>${esc(f.ubicacionEnDocumento ?? '—')}</td></tr>`,
+        `<tr><td>Método declarado por el fabricante</td><td>${esc(f.metodo ?? 'no declarado')}</td></tr>`,
+        `<tr><td>Declarada en el sistema</td><td>${esc(String(f.declaradaEn ?? '—'))}</td></tr>`,
+      ],
+    }));
+    const cf = ref.condicionesDeLaFicha ?? {};
+    if (cf.completa === false) {
+      r.push(parrafo('<b>⚠️ La ficha del fabricante no imprime todas sus condiciones</b> '
+        + `(faltan: ${esc((cf.faltan ?? []).join(', '))}). El amperaje es el suyo y es trazable, `
+        + 'pero SIN esas condiciones no se puede comprobar si el clima de esta línea lo honra. '
+        + 'Este informe no las supone.'));
+    }
+    if (ref.contraste?.elSitioEsMasDuro) {
+      r.push(parrafo('<b>⚠️ EL SITIO ES MÁS DURO QUE LA FICHA.</b> Con las condiciones de esta '
+        + `línea el mismo conductor daría ${nu(ref.contraste.enElSitio_A, 0, 'A')}, un `
+        + `<b>${esc(Math.abs(ref.contraste.delta_pct).toFixed(1))} % menos</b> que la cifra de `
+        + 'registro. Operar hasta el valor de catálogo en un día así excede lo que el conductor '
+        + 'puede evacuar. <b>Decidir si se derratea, y cuánto, es del ingeniero que firma.</b>'));
+    }
+    if (Number.isFinite(ref.contraste?.desviacionDeLaFicha_pct)) {
+      r.push(parrafo('Comprobación independiente: recalculando por IEEE Std 738 con las propias '
+        + `condiciones de la ficha se obtienen ${nu(ref.contraste.reproducida_A, 0, 'A')}, un `
+        + `${esc(ref.contraste.desviacionDeLaFicha_pct.toFixed(1))} % respecto a lo impreso. `
+        + 'Una diferencia no invalida la ficha: los fabricantes no siempre usan el mismo método.'));
+    }
+  } else {
+    r.push(parrafo(`<b>Ampacidad de la línea: ${nu(ref.ampacidad_A, 0, 'A')}</b>, <b>CALCULADA</b> `
+      + `por IEEE Std 738 en régimen permanente, con el conductor a `
+      + `${esc(ref.temperatura?.rotulo ?? '')}. <b>La línea no declara ampacidad de fabricante</b>, `
+      + 'así que este número lo produjo el sistema, no un catálogo.'));
+  }
 
   r.push(tabla({
     leyenda: 'Las condiciones con las que se calculó, y de quién es cada una.',
@@ -1547,9 +1595,10 @@ function seccionAmpacidad(ref, carga) {
 
   if (c.todoAdoptado) {
     r.push(parrafo('<b>⚠️ LAS SEIS CONDICIONES ESTÁN ADOPTADAS POR EL SISTEMA</b>, no declaradas '
-      + 'por el ingeniero que firma. Este amperaje es una REFERENCIA verificada contra tabla de '
-      + 'fabricante, no un dictamen de operación: con el mismo conductor, un día en calma deja la '
-      + 'capacidad muy por debajo de esta cifra.'));
+      + 'por el ingeniero que firma. Este amperaje es una REFERENCIA, no un dictamen de operación: '
+      + 'con el mismo conductor, un día en calma deja la capacidad muy por debajo de esta cifra. '
+      + '<b>Lo que este sistema tiene verificado contra tabla de fabricante es la RESISTENCIA del '
+      + 'conductor, no esta ampacidad</b> (`99 §ADR-098`).'));
   } else if (!c.ratificada) {
     r.push(parrafo('<b>⚠️ La condición no está ratificada</b> por el ingeniero: hay valores '
       + 'declarados, pero nadie ha firmado que sean los de esta línea.'));
@@ -1614,7 +1663,7 @@ export function informeHtml(entrada) {
     // corriente es un criterio de evaluación, no una cantidad a comprar. Y se
     // lee CON los umbrales delante: el veredicto eléctrico solo significa algo
     // si ya se sabe contra qué se mide.
-    { titulo: 'Capacidad en corriente de la línea (IEEE 738)',
+    { titulo: 'Capacidad en corriente de la línea',
       html: seccionAmpacidad(e.ampacidadReferencia, e.cargabilidad) },
     { titulo: 'Memoria de cantidades (geométrica)', html: seccionCantidades(cantidades) },
   ];

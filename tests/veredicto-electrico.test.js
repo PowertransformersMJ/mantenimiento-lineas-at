@@ -163,8 +163,16 @@ describe('sin archivo cargado, la pantalla dice lo que saldrá', () => {
 
   test('el único número que sale es el denominador, y declara de dónde viene', () => {
     assert.match(bloque, /referencia\.ampacidad_A/);
-    assert.match(bloque, /no de su archivo/,
+    // ⚠️ La regla es que la pantalla DIGA que ese número no viene del archivo.
+    // La redacción exacta puede cambiar —cambió en `99 §ADR-098`— así que se
+    // vigila la afirmación, no una frase literal. No es un aflojamiento: sin
+    // ella la prueba sigue roja.
+    assert.match(bloque, /no\s+(sale\s+)?de\s+su\s+archivo/,
       'enseña la ampacidad sin decir que no sale del archivo: se leería como un dato cargado');
+    // Y desde ADR-098 tiene que decir además de QUIÉN es: declarada por el
+    // fabricante o calculada por nosotros. Las dos ramas, o falta una.
+    assert.match(bloque, /naturaleza === 'declarada'/,
+      'no distingue si el denominador lo declara el fabricante o lo calculamos');
   });
 
   test('si no hay conductor, lo dice en vez de callarlo', () => {

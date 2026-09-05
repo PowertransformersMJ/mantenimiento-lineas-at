@@ -1,6 +1,6 @@
 {
   "name": "@lineas/contratos",
-  "version": "0.12.0",
+  "version": "0.13.0",
   "private": true,
   "type": "module",
   "description": "Contrato del sistema — ÚNICA fuente de verdad. La versión que MANDA es VERSION_CONTRATO en src/comunes.ts (es la que la aplicación pinta); este campo la espeja y se sube con ella. De aquí salen los tipos de las dos mitades, el validador del servidor, el esquema que se le impone al modelo y los datos de prueba.",

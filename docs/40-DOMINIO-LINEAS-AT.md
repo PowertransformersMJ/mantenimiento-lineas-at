@@ -102,7 +102,11 @@ perfectamente utilizable; la catenaria se reserva para vanos largos o cuando se 
 >
 > **Decisiones que esto abre (suyas, no del sistema):** ① cambiar el umbral del indicador 4 de 1.800 → 1.000 m con fuente CIGRÉ TB 273 y categoría de terreno declarada en la hipótesis (es un cambio de veredicto, va por ADR); ② confirmar en campo si LN-627 tiene amortiguadores Stockbridge —hoy el sistema no lo sabe—; ③ inspeccionar primero los hilos junto a las grapas de suspensión de los vanos de mayor H/w (E22→E23, 336,70 m).
 >
-> ⚠️ **Contradicción interna detectada:** §3.1 dice «EDS 20 % RTS = 3.524 kgf»; 3.524 kgf es el **41,3 %** de los 8.528 kgf que usa el motor. O la RTS de §3.1 es otra, o el 3.524 no es EDS. Hasta que el Ingeniero confirme la RTS del Darien contra hoja de fabricante (`§7`), **ninguno de los dos números se firma** (`30 · L-09`, `M-01`).
+> ⚠️ **Contradicción interna detectada:** §3.1 dice «EDS 20 % RTS = 3.524 kgf»; 3.524 kgf es el **41,3 %** de los 8.528 kgf que usa el motor. O la RTS de §3.1 es otra, o el 3.524 no es EDS.
+>
+> ✅ **MEDIA CONTRADICCIÓN CERRADA el 2026-09-05** (`99 §ADR-098`). La RTS **ya está verificada contra hoja de fabricante**, que era la condición que faltaba: **8.527–8.528 kgf en SEIS fichas independientes** —CENTELSA 8.527 kgf · Nexans Brasil 8.527,8 · Prysmian 8.528 · Electrocable 8.527 · VIAKON 83,6 kN · el grupo estadounidense 18.800 lbf (= 8.528 kgf)—. El valor que usa el motor es el correcto y **ya no depende del módulo de campo**.
+>
+> ⚠️ **Lo que sigue abierto es el 3.524 kgf de §3.1**: con la RTS confirmada, ese número NO puede ser el 20 % de RTS. O está mal rotulado, o el EDS de esta línea es del 41,3 % — que sería el doble de la banda 18-22 % del indicador 2 y una decisión con consecuencias. **Sigue sin firmarse** hasta que el Ingeniero diga cuál de las dos cosas es (`30 · L-09`, `M-01`).
 >
 > Fuente: CIGRÉ TF B2.11.04 (C. Hardy), tutorial «Conductor Safe Design Tension with respect to Aeolian Vibrations», Colloquium Río 2005 / IEEE TPC 2009 — copia espejo en el sitio del IEEE TPC, leída íntegra; la cita canónica firmable es CIGRÉ TB 273 (original de pago, `31 · L-78`). https://www.oocities.org/ieee_tpc/ieee_tutorials/CIGRE_SAFE_DESIGN_TENSIONS.pdf · consultado 2026-09-02.
 
@@ -250,8 +254,13 @@ I = √( (q_c + q_r − q_s) / R(Tc) )
 | 2,0 m/s | 965 A | 42 °C | 646 A |
 
 > Lectura operativa: **un día sin viento le quita al conductor el 27 % de su capacidad**. El viento
-> pesa más que la temperatura ambiente. Por eso la ampacidad de placa es engañosa y el sistema debe
-> calcularla contra condiciones reales, no citar el catálogo.
+> pesa más que la temperatura ambiente.
+>
+> ⚠️ **ESTE PÁRRAFO DECÍA «la ampacidad de placa es engañosa … no citar el catálogo», y se
+> RECTIFICÓ el 2026-09-05 por orden del Ingeniero** (`99 §ADR-098`). La cifra del catálogo no es
+> engañosa: es trazable, auditable y no depende de supuestos nuestros. Lo engañoso es usarla **sin
+> sus condiciones**. Las dos cosas son ciertas a la vez y por eso el sistema publica las dos: la del
+> fabricante como valor de REGISTRO, y el cálculo como CONTRASTE del día.
 
 **LA CONDICIÓN DE REFERENCIA, y quién la eligió (`99 §ADR-093`).** Como la condición ES el veredicto,
 el sistema tiene UN solo dueño de las seis: `condicionesDeAmpacidad()` en `nucleo/termica.js`. Toma
@@ -267,6 +276,134 @@ lo que el Ingeniero haya declarado en `hipotesis.condicionTermica` y, para lo qu
 Con ella, el Darien AAAC da **718 A**. La regla es que **adoptar no está prohibido; adoptar en
 silencio sí**: mientras el Ingeniero no ratifique (con autor, fecha y fuente), la pantalla, el CSV y
 el informe firmable declaran las condiciones como **ADOPTADAS**.
+
+### 4.2.1 La ampacidad la dice el FABRICANTE — orden del Ingeniero, 2026-09-05
+
+> *«la ampacidad debe ser lo que dice el fabricante conforme a sus especificaciones técnicas»*
+
+**La regla:** cuando la línea declara `conductor.ampacidadDeFabricante`, **esa cifra ES la ampacidad
+de registro** y el IEEE 738 baja a CONTRASTE. Cuando no la declara, se calcula y **se rotula
+CALCULADA** — nunca en silencio. `nucleo/termica.js · ampacidadDeLinea()` devuelve siempre la
+`naturaleza`, y no tiene valor por defecto.
+
+**Por qué la orden es correcta técnicamente, y no solo jerárquicamente:** la cifra del catálogo es
+trazable a un documento con nombre y revisión, es auditable por un tercero y **no depende de seis
+supuestos nuestros**. En un dictamen que se firma, eso vale más que la precisión aparente de un
+cálculo propio con condiciones que nadie ratificó.
+
+#### Lo que se encontró al buscar la ficha real (barrido de 13 fabricantes, 10 PDF leídos en crudo)
+
+| Fabricante | Ampacidad | Condiciones que la ficha DECLARA |
+|---|---|---|
+| **CENTELSA · Nexans (Colombia)** | **665,0 A** | 25 °C amb · **conductor 75 °C** · 1 kW/m² · ε=α=0,5 · 0,61 m/s · nivel del mar · 60 Hz |
+| VIAKON (México) | 656 A | 25 °C amb · conductor 75 °C · 0,61 m/s · soleado · ε 0,5 · **«calculado con IEEE 738-2006»** |
+| Southwire · Nehring · Priority · Classic · Electrocable | **663 A** | 25 °C amb · conductor 75 °C · 2 ft/s (0,61 m/s) · pleno sol · ε=α=0,5 · nivel del mar |
+| Nexans Brasil | 670 A | ⚠️ **NINGUNA condición declarada en toda la ficha** |
+| APAR (India) | 412 A / 514 A | **45 °C amb** · conductor 75 / 85 °C · 0,56 m/s · 1.045 W/m² · ε 0,45 · α 0,80 |
+| **Prysmian (ex-General Cable)** | — | ⚠️ **SE NIEGA a publicarla** y remite a calcularla (Tabla 3 de la Aluminum Association) |
+
+**Tres lecturas que ordenan todo lo demás:**
+
+1. **Los fabricantes NO discrepan del cable: discrepan de la condición.** De 412 A a 670 A para el
+   mismo Darien, y la diferencia es la temperatura ambiente de referencia (25 °C contra 45 °C), no
+   el conductor. La mecánica sí converge: **RTS 8.527–8.528 kgf en SEIS fuentes independientes**,
+   masa 776–781 kg/km, diámetro 21,79–21,80 mm.
+2. **La tabla del fabricante ES un cálculo IEEE 738.** VIAKON lo dice con todas las letras. No hay,
+   por tanto, un conflicto de MÉTODO entre la ficha y nuestro motor — hay un conflicto de
+   CONDICIONES, que es exactamente lo que el contraste hace visible.
+3. **NADIE publica la ampacidad a los ~32 °C de Turbaco.** Todo el barrido vive en 25 °C o en 45 °C.
+   La cifra aplicable a LN-627 **no existe publicada**: o se calcula, o se le pide por escrito al
+   fabricante. Cualquier número que se use hoy viene de una condición ambiental que no es la del
+   sitio, y eso hay que decirlo en el papel.
+
+#### ⚠️ EL HALLAZGO QUE HAY QUE RESOLVER ANTES DE FIRMAR NADA
+
+**CENTELSA declara para el Darien una temperatura máxima de operación de 75 °C.** Nuestro motor usa
+los **90 °C** genéricos del material AAAC (`MATERIALES.AAAC.tMaxContinua`), y de ahí salen los 718 A
+de `§4.2`. A 75 °C **el mismo cálculo da 611 A**.
+
+> Si el conductor de LN-627 es el de CENTELSA, **el sistema lleva publicando un 17 % de capacidad de
+> más**, siempre por el lado optimista — que es el lado que hace que una línea sobrecargada parezca
+> sana. NO se corrige por mi cuenta: **no consta quién fabricó el conductor de esta línea**, y
+> suponerlo sería el error que este apartado entero existe para impedir.
+
+**Lo que cierra esto:** el Ingeniero dice de qué fabricante es el conductor y aporta su ficha. Con
+eso se declara `ampacidadDeFabricante` y el número deja de ser nuestro.
+
+#### Lo que dicen las NORMAS sobre esta orden (verificado en fuente, 2026-09-05)
+
+**La orden del Ingeniero tiene respaldo normativo explícito, y a la vez ninguna norma la convierte
+en obligatoria.** Las dos cosas importan:
+
+| Fuente | Qué dice, verificado |
+|---|---|
+| **NERC FAC-008-3 · R3.1** | **Admite el valor de placa del fabricante** como base VÁLIDA de un *Facility Rating*: la metodología debe ser consistente con al menos una de tres, y la primera es *«Ratings provided by equipment manufacturers … such as nameplate rating»* |
+| **IEEE Std 738-2012 y 2023** | Normaliza **solo el MÉTODO** y se niega explícitamente a decir qué condiciones usar: *«nor does it recommend appropriately conservative weather conditions for the rating of overhead power lines»* |
+| **IEEE P738.1** (en redacción) | El propio IEEE reconoce el hueco: la guía existe *«because IEEE 738-2023 does not recommend suitable weather conditions…»*. **Aún no existe publicada** |
+| **ASTM B399 / B398** | Fijan geometría, formación y alambre. **No fijan ampacidad** |
+| **IEC TR 61597** | Informe Técnico, no norma. Define la capacidad *«for given ambient conditions»* |
+| **CIGRÉ TB 601** | Método alternativo. Con las mismas condiciones da resultados **parecidos, no idénticos**: la diferencia es de segundo orden frente a la de las condiciones |
+| **Código de Redes (Colombia)** | ⚠️ **VERIFICACIÓN NEGATIVA:** NO declara ninguna condición ambiental de referencia. *«temperatura ambiente»* = **0 apariciones**. Sí define la capacidad de transporte como *«el mínimo valor entre el límite térmico de los conductores, límite por regulación de tensión y el límite por estabilidad»* |
+| **ENTSO-E** | La capacidad que da el fabricante lleva condiciones **implícitas**: *«implies certain ambient conditions and is usually provided by the manufacturer»* |
+| **FERC Orden 881 · §3 y §35** | El argumento es **bidireccional**: cuando el aire supera el supuesto, los ratings *«may OVERSTATE the near-term transfer capability»* y ponen la línea *«at risk of inadvertent overload»*. Y avisa: AAR da ratings **más exactos, no necesariamente más altos** |
+| **EPRI** | *«utilities using traditional static ratings already exceed true line capacity more than 10 % of the time»* |
+| **AEP** | Regla de conversión documentada: **la ampacidad cambia ≈ 1 % por cada °C de ambiente** |
+
+**La prueba más contundente de que la ampacidad no es una propiedad del conductor:** **Nexans
+Nueva Zelanda publica el MISMO Darien con 30 °C de ambiente y DOS columnas** —«still air» y «1 ft/s»—
+mientras Nexans Colombia lo publica a 25 °C con una sola. Mismo fabricante, mismo cable, tres cifras.
+
+**Y la práctica real, medida:** AEP presentó ante el comité nacional de CIGRÉ un contraste de siete
+operadores. Temperatura ambiente de verano adoptada: **32,2 · 35 · 36 · 37,7 · 40 · hasta 48 °C**.
+Mismo método normativo, hipótesis radicalmente distintas. AEP usa ε=α=0,5; *«the PJM guide (and most
+other users) use values between 0.7 and 0.9»*.
+
+> **Lectura para LN-627.** Las fichas de 663–665 A se calculan a **25 °C**. Turbaco está a **~32 °C**.
+> El salto térmico que gobierna todo el balance pasa de (75 − 25) = 50 K a (75 − 32) = **43 K**. Con
+> la regla de AEP, ≈ **7 % menos**. Por eso la cifra de registro va acompañada del contraste, y por
+> eso el contraste no es un adorno.
+
+#### Qué se guarda, y por qué cada campo
+
+| Campo | ¿Obligatorio? | Por qué |
+|---|---|---|
+| `corriente_A` | **Sí** | Es la cifra |
+| `tempConductor_C` | **Sí** | Sin ella no se distingue 611 A (75 °C) de 718 A (90 °C): un 17 % |
+| `ambiente_C`, `viento_m_s`, `sol_W_m2`, `emisividad`, `absortividad`, `altitud_m` | No | Hay fichas que **no las imprimen** (Nexans Brasil). Cuando faltan, el sistema lo DICE y **se niega a contrastar** en vez de suponerlas |
+| `metodo` | No | `no_declarado` es legítimo y frecuente. Solo VIAKON lo declara |
+| `fabricante`, `documento` | **Sí** | Es toda la razón de ser de la orden: sin ellos la cifra no es más trazable que un cálculo |
+| `declaradaPor`, `declaradaEn` | **Sí** | Quién puso su firma detrás, y cuándo |
+
+#### DOS NÚMEROS, y no son el mismo
+
+| | Qué es | Quién manda |
+|---|---|---|
+| **Ampacidad de REGISTRO** (`ampacidad_A`) | La cifra de la ficha, intacta. Es la que se firma, se exporta y se declara | **El fabricante, siempre** |
+| **Ampacidad VIGENTE** (`vigente_A`) | El denominador con el que se divide la corriente del día | **El menor** entre la ficha y lo que el clima permite |
+
+> ⚠️ **La vigente NUNCA sube por encima de la declarada.** Una noche fresca con brisa no autoriza a
+> pasarse del catálogo: el fabricante pone el techo y el día solo puede bajarlo. Es un **mínimo**,
+> no un recálculo — y es la mitad que hace que la cifra del fabricante mande de verdad sin que el
+> sistema divida entre una capacidad que el cable no entrega hoy (FERC Orden 881 §35: *«risk of
+> inadvertent overload»*).
+
+**Convergencia que valida el motor:** la ficha pública de CENTELSA (665 A a 25 °C, conductor 75 °C)
+llevada a los 32 °C de Turbaco da **611 A** — **exactamente** lo que da nuestro motor calculando a
+75 °C por su cuenta. Dos caminos independientes, el mismo número: **toda la diferencia con los
+718 A era la temperatura del conductor**, no el método.
+
+#### Lo que el contraste dice, y lo que NO decide
+
+`contrasteDeFabricante()` responde tres preguntas y ninguna es un veredicto:
+
+- **¿El sitio honra la cifra de registro?** Si con las condiciones de la línea el conductor da menos
+  que lo impreso, se avisa con el porcentaje. **Derratear o no es del ingeniero, no del sistema.**
+- **¿Reproduce la ficha?** Recalcula por IEEE 738 con las propias condiciones del fabricante. Una
+  diferencia no invalida la ficha: no todos usan el mismo método.
+- **¿Se puede contrastar siquiera?** Si la ficha no imprimió sus condiciones, la respuesta es no, y
+  se dice.
+
+---
 
 ---
 
