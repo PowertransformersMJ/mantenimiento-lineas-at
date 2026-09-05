@@ -374,6 +374,44 @@ other users) use values between 0.7 and 0.9»*.
 | `fabricante`, `documento` | **Sí** | Es toda la razón de ser de la orden: sin ellos la cifra no es más trazable que un cálculo |
 | `declaradaPor`, `declaradaEn` | **Sí** | Quién puso su firma detrás, y cuándo |
 
+#### La TEMPERATURA DE OPERACIÓN también la dice el fabricante (orden del 2026-09-05)
+
+> *«tomemos la temperatura de operación que recomienda el fabricante, debe ser información del
+> fabricante, no supongamos nada»*
+
+**Es la cifra más cara del motor.** La temperatura del conductor entra al balance térmico por el
+salto `(Tc − Ta)`, así que gobierna el amperaje entero. Para el Darien: **90 °C → 718 A · 75 °C →
+611 A**. Quince grados, **17 % de capacidad**, siempre por el lado optimista.
+
+**Y de dónde salían los 90 °C:** del **límite típico del material AAAC** (`MATERIALES.AAAC`), no de
+este conductor. **Siete fichas públicas dan 75 °C para el Darien.**
+
+**La cascada, con su naturaleza declarada en cada escalón:**
+
+| Orden | De dónde | Naturaleza | ¿Se firma? |
+|---|---|---|---|
+| 1 | Lo que pida quien llama (escenarios) | `pedida` | — |
+| 2 | **`ampacidadDeFabricante.tempMaxOperacion_C`** | `declarada` | **Sí** |
+| 3 | `conductor.tempMaxOperacion_C` con procedencia de fabricante, plano o confirmación humana | `declarada` | **Sí** |
+| 4 | El mismo campo con procedencia `supuesto` o `importado` | **`supuesta`** | **No** |
+| 5 | El límite típico del material | **`supuesta`** | **No** |
+
+> ⚠️ **La regla NO es borrar el número.** La visibilidad no se pierde (orden suya del 24-08): el
+> amperaje se sigue publicando porque el cálculo es correcto y sirve para orientarse. Lo que cambia
+> es que **`esDictamen` vale `false`** y todo sitio que lo publique —pantalla, resumen gerencial e
+> **informe firmable**— lo dice **antes del número**, no en la letra pequeña.
+
+#### ⚠️ La suposición que llevaba insignia de fabricante
+
+El conductor de LN-627 se sembraba con `procedencia: 'catalogo_fabricante'` mientras su propia
+`fuente`, dos líneas más abajo, decía: *«catálogo del módulo de campo LN-627 v10 — **PENDIENTE
+confirmar con el proveedor**»*. Las dos cosas no pueden ser ciertas, y la que mentía era la etiqueta.
+
+**Corregido a `supuesto` el 2026-09-05.** Consecuencia inmediata y buscada: hoy la ampacidad de
+LN-627 **se publica pero no se firma**. Y no es la única cifra de ese bloque a la espera de la misma
+ficha: la auditoría ya había encontrado conflicto en el **módulo elástico (6.300 vs 7.000)**, que
+decide si un tramo cumple el RETIE.
+
 #### DOS NÚMEROS, y no son el mismo
 
 | | Qué es | Quién manda |

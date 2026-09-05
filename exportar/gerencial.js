@@ -639,6 +639,11 @@ ${(() => {
   return `<p class="nota"><b>Capacidad de referencia de la línea: `
     + `${n(Math.round(a.ampacidad_A))} A</b> (CALCULADA, IEEE 738, ${esc(a.condiciones?.rotulo ?? '')}).`
     + ' <b>La línea no declara ampacidad de fabricante.</b>'
+    + (a.esDictamen === false
+      ? ' <b>⚠️ Y NO ES UN DICTAMEN:</b> la temperatura de operación del conductor no la ha'
+        + ' declarado ningún fabricante, así que el denominador descansa sobre un supuesto del'
+        + ' sistema. Sirve para orientarse, no para firmar una capacidad.'
+      : '')
     + (a.condiciones?.todoAdoptado
       ? ' <b>Estas condiciones las adoptó el sistema, no el ingeniero.</b> Sirve para orientarse;'
         + ' para decidir un despacho hace falta que el ingeniero las ratifique.'

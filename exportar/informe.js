@@ -1582,6 +1582,25 @@ function seccionAmpacidad(ref, carga) {
       + 'así que este número lo produjo el sistema, no un catálogo.'));
   }
 
+  // ══════════════════════════════════════════════════════════════════════════
+  // ⚠️ LO QUE MÁS PESA EN UN PAPEL QUE SE FIRMA — `99 §ADR-099`
+  // ──────────────────────────────────────────────────────────────────────────
+  // Orden del Ingeniero, 2026-09-05: la temperatura de operación tiene que
+  // venir del FABRICANTE. Si no vino, el amperaje se imprime igual —quitarlo
+  // sería esconder trabajo hecho— pero el informe declara, ANTES de la tabla de
+  // condiciones, que ESTO NO ES UN DICTAMEN. Un lector que firme abajo tiene
+  // derecho a saber que el denominador descansa sobre un supuesto del sistema.
+  // ══════════════════════════════════════════════════════════════════════════
+  if (ref.esDictamen === false) {
+    r.push(parrafo('<b>⚠️ ESTE AMPERAJE NO ES UN DICTAMEN.</b> La temperatura de operación del '
+      + `conductor no la ha declarado ningún fabricante: ${esc(ref.temperatura?.rotulo ?? '')}. `
+      + 'Se publica porque el cálculo es correcto y sirve para orientarse, <b>no para decidir un '
+      + 'despacho ni para firmar una capacidad</b>. Para el conductor de esta línea hay <b>siete '
+      + 'fichas públicas de fabricante que recomiendan 75 °C</b> como máximo continuo; con los '
+      + '90 °C típicos del material se publica del orden de un <b>17 % más de capacidad</b>, '
+      + 'siempre por el lado optimista. Cierra aportando la ficha del fabricante del conductor.'));
+  }
+
   r.push(tabla({
     leyenda: 'Las condiciones con las que se calculó, y de quién es cada una.',
     cabecera: '<th>Condición</th><th>Valor</th><th>Procedencia</th>',

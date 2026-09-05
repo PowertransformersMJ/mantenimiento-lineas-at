@@ -8524,3 +8524,103 @@ doble de la banda 18-22 %. No se firma hasta que él diga cuál de las dos cosas
 ### Crudo de respaldo
 
 `../brain-private/mantenimiento-lineas-at/research-archive/2026-09-05-ampacidad-de-fabricante/`
+
+---
+
+## ADR-099 · 2026-09-05 · La temperatura de operación también la dice el fabricante, y la suposición que llevaba su insignia
+
+### Contexto
+
+Orden del Ingeniero, el mismo día y sobre el mismo motor: *«tomemos la temperatura de operación que
+recomienda el fabricante, debe ser información del fabricante, no supongamos nada»*.
+
+Cierra `TODO-96`, que `§ADR-098` había dejado abierto como decisión suya — y lo cierra **más
+estrictamente de lo que yo había planteado**: yo pregunté si bajábamos el valor por defecto de 90 °C
+a 75 °C; él responde que **el defecto no se sustituye por otro defecto**, sino que el dato tiene que
+venir del fabricante.
+
+Tiene razón, y bajarlo a 75 °C habría sido suponer que el conductor de LN-627 es de CENTELSA — que
+es exactamente lo que `§ADR-098` dijo que no consta.
+
+### Por qué es la cifra más cara del motor
+
+La temperatura del conductor entra al balance térmico por el salto `(Tc − Ta)`, así que gobierna el
+amperaje entero:
+
+| Tc | Ampacidad del Darien |
+|---|---|
+| **90 °C** (límite típico del material AAAC) | **718 A** |
+| **75 °C** (lo que recomiendan siete fichas) | **611 A** |
+
+**Quince grados, 17 % de capacidad, siempre por el lado optimista** — el lado que hace que una línea
+sobrecargada parezca sana.
+
+### ⚠️ Lo que se encontró al ir a aplicar la orden
+
+El conductor de LN-627 se sembraba así:
+
+```
+tempMaxOperacion_C: 90,
+procedencia: 'catalogo_fabricante',
+fuente: 'catálogo del módulo de campo LN-627 v10 — PENDIENTE confirmar con el proveedor',
+```
+
+**La procedencia decía «catálogo de fabricante» y la fuente, dos líneas más abajo, decía que venía
+del módulo de campo y estaba pendiente de confirmar con el proveedor.** Las dos no pueden ser
+ciertas. Era una **suposición con insignia de fabricante**, y llevaba ahí desde el principio: es
+justo lo que la orden prohíbe.
+
+### Decisión
+
+**1. La cascada de temperatura declara su naturaleza en cada escalón** y no tiene valor por defecto
+silencioso:
+
+| Orden | De dónde | Naturaleza | ¿Firma? |
+|---|---|---|---|
+| 1 | Lo que pida quien llama (escenarios) | `pedida` | — |
+| 2 | **`ampacidadDeFabricante.tempMaxOperacion_C`** (contrato **0.14.0**) | `declarada` | **Sí** |
+| 3 | `conductor.tempMaxOperacion_C` con procedencia de fabricante, plano o confirmación humana | `declarada` | **Sí** |
+| 4 | El mismo campo con procedencia `supuesto` o `importado` | **`supuesta`** | **No** |
+| 5 | El límite típico del material | **`supuesta`** | **No** |
+
+**2. `esDictamen`, y la visibilidad NO se pierde.** El amperaje se sigue publicando —el cálculo es
+correcto y sirve para orientarse—, pero `esDictamen: false` y **lo dicen los tres sitios que lo
+publican antes del número**: la pantalla del veredicto, el resumen gerencial y el **informe
+firmable**. En el informe hay prueba de que el aviso va **antes de la tabla de condiciones**: en un
+papel que se firma, ir después es letra pequeña.
+
+**3. La procedencia sembrada, corregida a `supuesto`.** No es un cambio cosmético: es el acto
+concreto de «no suponer nada». Consecuencia inmediata y buscada: **hoy la ampacidad de LN-627 se
+publica pero no se firma.**
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| Bajar el defecto de 90 °C a 75 °C | Sustituye un supuesto por otro. Sería suponer que el conductor es de CENTELSA — lo que `§ADR-098` dijo que no consta |
+| Dejar la ampacidad en `null` sin temperatura declarada | **Regresión de visibilidad**, prohibida por orden suya del 24-08. El cálculo es correcto; lo que no está es la firma |
+| Dejar la procedencia como estaba y solo avisar | La etiqueta seguiría diciendo «fabricante» sobre un dato del módulo de campo. Un guardián lo vigila ahora |
+| Confiar en que `procedencia: 'catalogo_fabricante'` basta | Es lo que había, y era falso. Por eso el escalón 3 exige procedencia Y el escalón 4 existe |
+
+### Supuestos que deben ser ciertos — y la señal que diría que dejaron de serlo
+
+| Supuesto | Señal de que caducó |
+|---|---|
+| Una procedencia `catalogo_fabricante` es de verdad de un catálogo | Ya falló una vez, aquí. La señal es cualquier `fuente` que se contradiga con su `procedencia`; **no hay guardián que lo cace en general** — solo la prueba de esta semilla |
+| Los 90 °C típicos del AAAC no valen para este conductor | Siete fichas dan 75 °C. La señal contraria sería una ficha del fabricante REAL de LN-627 que diga 90 °C |
+| Publicar sin firmar es mejor que no publicar | Que él pida que desaparezca el número mientras no haya ficha |
+| El informe firmable avisa antes de la tabla | La prueba de posición se pone roja |
+
+### Consecuencias
+
+- **Hoy, en producción, la ampacidad de LN-627 dice «NO ES DICTAMEN».** Es el estado honesto y es
+  nuevo: antes se presentaba como capacidad sin más.
+- Cuando llegue la ficha del fabricante, el mismo bloque resuelve **la ampacidad y la temperatura a
+  la vez**, y el dictamen se enciende solo.
+- El bloque del conductor sembrado queda **entero a la espera de esa ficha**: también el módulo
+  elástico (6.300 vs 7.000), que decide si un tramo cumple el RETIE.
+- `2.264` pruebas en verde · motor **0.13.0** · contrato **0.14.0**.
+
+### Crudo de respaldo
+
+`../brain-private/mantenimiento-lineas-at/research-archive/2026-09-05-ampacidad-de-fabricante/`

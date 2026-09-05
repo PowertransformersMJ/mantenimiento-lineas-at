@@ -80,11 +80,50 @@ const CAMPOS_CONDICION = Object.freeze(
  */
 export function temperaturaDelConductor({ pedida_C = null, conductor = null } = {}) {
   if (Number.isFinite(pedida_C)) {
-    return { valor_C: pedida_C, origen: 'pedida', rotulo: `${pedida_C} °C (pedida)` };
+    return {
+      valor_C: pedida_C, origen: 'pedida', naturaleza: 'pedida',
+      rotulo: `${pedida_C} °C (pedida)`,
+    };
   }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // PRIMERO, LO QUE RECOMIENDA EL FABRICANTE — orden del Ingeniero, 2026-09-05
+  // ──────────────────────────────────────────────────────────────────────────
+  // «tomemos la temperatura de operación que recomienda el fabricante, debe ser
+  // información del fabricante, no supongamos nada». Es el ÚNICO origen con el
+  // que se firma un dictamen (`99 §ADR-099`).
+  // ══════════════════════════════════════════════════════════════════════════
+  const delFabricante = conductor?.ampacidadDeFabricante?.tempMaxOperacion_C;
+  if (Number.isFinite(delFabricante)) {
+    const quien = conductor.ampacidadDeFabricante.fabricante ?? 'el fabricante';
+    return {
+      valor_C: delFabricante, origen: 'fabricante', naturaleza: 'declarada',
+      rotulo: `${delFabricante} °C (máximo de operación que recomienda ${quien})`,
+    };
+  }
+
+  // ⚠️ SEGUNDO, LA FICHA DEL CONDUCTOR — pero solo cuenta como DECLARADA si su
+  // procedencia dice que salió de un catálogo de fabricante o de un documento
+  // del proyecto. Un valor con procedencia `supuesto` o `importado` es
+  // exactamente lo que la orden prohíbe usar como si fuera dato: se sigue
+  // usando —no se pierde visibilidad— pero **viaja marcado como SUPUESTO**.
   const ficha = conductor?.tempMaxOperacion_C;
   if (Number.isFinite(ficha)) {
-    return { valor_C: ficha, origen: 'ficha', rotulo: `${ficha} °C (declarada en la ficha del conductor)` };
+    const p = conductor?.procedencia;
+    const esDeFabricante = p === 'catalogo_fabricante' || p === 'documento_proyecto'
+      || p === 'confirmado_humano';
+    return esDeFabricante
+      ? {
+        valor_C: ficha, origen: 'ficha', naturaleza: 'declarada',
+        rotulo: `${ficha} °C (ficha del conductor · ${p})`,
+      }
+      : {
+        valor_C: ficha, origen: 'ficha', naturaleza: 'supuesta',
+        rotulo: `${ficha} °C (ficha del conductor, procedencia «${p ?? 'sin declarar'}»)`,
+        aviso: `La temperatura de operación viene de un dato con procedencia «${p ?? 'sin declarar'}», `
+          + 'no de la ficha del fabricante. **Este amperaje no se firma** hasta que el fabricante la '
+          + 'declare (orden del Ingeniero, 2026-09-05).',
+      };
   }
   // ⚠️ `temperaturaLimite` cae en el genérico «Otro» (75 °C) cuando no reconoce
   // el material, y eso NO se cambia: hay pantallas que dependen de ello y una de
@@ -95,15 +134,23 @@ export function temperaturaDelConductor({ pedida_C = null, conductor = null } = 
   const lim = temperaturaLimite(conductor?.material);
   if (!conocido) {
     return {
-      valor_C: lim, origen: 'generico',
+      valor_C: lim, origen: 'generico', naturaleza: 'supuesta',
       rotulo: `${lim} °C (material NO declarado: se usa el genérico «Otro»)`,
       aviso: 'El conductor no declara un material reconocido. La temperatura y la ampacidad salen '
         + 'del perfil genérico «Otro»: son una aproximación, no un dato del conductor.',
     };
   }
+  // ⚠️ EL LÍMITE TÍPICO DEL MATERIAL ES UNA SUPOSICIÓN, Y LA MÁS CARA DE TODAS.
+  // Para el AAAC son 90 °C genéricos; **siete fichas de fabricante dan 75 °C
+  // para el Darien**, y esos 15 °C son un 17 % de amperaje — siempre de más, que
+  // es el lado que hace que una línea sobrecargada parezca sana (`99 §ADR-099`).
+  // No se cambia el número por otro supuesto: se marca como lo que es.
   return {
-    valor_C: lim, origen: 'material',
-    rotulo: `${lim} °C (límite típico del material ${conductor.material})`,
+    valor_C: lim, origen: 'material', naturaleza: 'supuesta',
+    rotulo: `${lim} °C (límite TÍPICO del material ${conductor.material}, no del conductor)`,
+    aviso: `Nadie ha declarado la temperatura de operación de este conductor: se usan los ${lim} °C `
+      + `típicos del ${conductor.material}. **Este amperaje no se firma.** La temperatura tiene que `
+      + 'venir del fabricante (orden del Ingeniero, 2026-09-05).',
   };
 }
 
@@ -215,6 +262,7 @@ export function etiquetaDeAmpacidad(amp) {
     return `ampacidad DECLARADA por ${quien}`;
   }
   return 'ampacidad CALCULADA (IEEE 738)'
+    + (amp.esDictamen === false ? ' · ⚠️ NO ES DICTAMEN' : '')
     + (amp.condiciones && amp.condiciones.todoAdoptado ? ' · condiciones adoptadas' : '');
 }
 
@@ -333,7 +381,7 @@ export function contrasteDeFabricante({
  * La vigente **nunca sube** por encima de la declarada: el fabricante pone el
  * techo y el día solo puede bajarlo.
  *
- * @returns {{ampacidad_A: number|null, vigente_A: number|null, vigenteRotulo: string,
+ * @returns {{ampacidad_A: number|null, esDictamen: boolean, vigente_A: number|null, vigenteRotulo: string,
  *            naturaleza: 'declarada'|'derivada'|null,
  *            motivo: string|null, fabricante: Record<string, any>|null,
  *            contraste: Record<string, any>|null,
@@ -418,6 +466,11 @@ export function ampacidadDeLinea({
     return {
       ampacidad_A: ficha.corriente_A,
       /**
+       * ⚠️ ¿SE PUEDE FIRMAR ESTE NÚMERO? Aquí sí: la cifra y su temperatura son
+       * del fabricante, no nuestras (`99 §ADR-099`).
+       */
+      esDictamen: true,
+      /**
        * ⚠️ EL DENOMINADOR DEL VEREDICTO. Distinto de `ampacidad_A` —que es el
        * valor de REGISTRO— cuando el clima del día da menos que la ficha.
        */
@@ -461,7 +514,8 @@ export function ampacidadDeLinea({
 
   if (falta) {
     return {
-      ampacidad_A: null, vigente_A: null, vigenteRotulo: `no evaluable: ${falta}`,
+      ampacidad_A: null, esDictamen: false, vigente_A: null,
+      vigenteRotulo: `no evaluable: ${falta}`,
       naturaleza: null, motivo: falta, condiciones, temperatura,
       fabricante: null, contraste: null,
       rotulo: `no evaluable: ${falta}`, avisos, sensibilidadViento: [],
@@ -476,6 +530,14 @@ export function ampacidadDeLinea({
 
   return {
     ampacidad_A: A,
+    /**
+     * ⚠️ ¿SE PUEDE FIRMAR ESTE NÚMERO? Solo si la TEMPERATURA DE OPERACIÓN la
+     * declaró el fabricante — orden del Ingeniero, 2026-09-05: *«debe ser
+     * información del fabricante, no supongamos nada»*. Con los 90 °C típicos
+     * del AAAC este amperaje se sigue enseñando (no se pierde visibilidad) pero
+     * **no es un dictamen**, y cada sitio que lo publique tiene que decirlo.
+     */
+    esDictamen: temperatura.naturaleza === 'declarada',
     /** Sin ficha, registro y vigente son el mismo número: lo calculamos hoy. */
     vigente_A: A,
     vigenteRotulo: `${Math.round(A)} A — calculada para las condiciones de hoy`,
@@ -490,7 +552,9 @@ export function ampacidadDeLinea({
     contraste: null,
     condiciones,
     temperatura,
-    rotulo: `${Math.round(A)} A · CALCULADA (IEEE 738) · conductor a ${temperatura.rotulo} · ${condiciones.rotulo}`,
+    rotulo: `${Math.round(A)} A · CALCULADA (IEEE 738)`
+      + `${temperatura.naturaleza === 'supuesta' ? ' · ⚠️ NO ES DICTAMEN' : ''}`
+      + ` · conductor a ${temperatura.rotulo} · ${condiciones.rotulo}`,
     avisos,
     sensibilidadViento: sensibilidadDeViento({
       conductor, tempConductor_C: temperatura.valor_C, condiciones,

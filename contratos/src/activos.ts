@@ -186,8 +186,23 @@ export const Coordenada = z.object({
 export const AmpacidadDeFabricante = z.object({
   /** Amperios que la ficha declara. */
   corriente_A: z.number().positive(),
-  /** A qué temperatura del conductor. Sin esto la cifra no significa nada. */
+  /** A qué temperatura del conductor corresponde ESA fila de la tabla. */
   tempConductor_C: z.number().positive(),
+  /**
+   * LA TEMPERATURA MÁXIMA DE OPERACIÓN CONTINUA QUE **RECOMIENDA EL FABRICANTE**.
+   *
+   * ⚠️ ORDEN DEL INGENIERO (2026-09-05): *«tomemos la temperatura de operación
+   * que recomienda el fabricante, debe ser información del fabricante, no
+   * supongamos nada»*. Es un dato DISTINTO de `tempConductor_C`: la ficha puede
+   * publicar varias filas (APAR da 75 °C y 85 °C) y solo una de ellas es el
+   * máximo continuo que el fabricante autoriza. CENTELSA lo dice aparte y
+   * explícito para el Darien: **75 °C**.
+   *
+   * Cuando está, es la ÚNICA temperatura con la que se firma un dictamen. Sin
+   * ella el sistema calcula, lo enseña y **declara que la temperatura la supuso
+   * él** — nunca la presenta como dato del conductor.
+   */
+  tempMaxOperacion_C: z.number().positive().optional(),
 
   // ── Las condiciones de la ficha. Opcionales; su ausencia se DICE. ──────────
   ambiente_C: z.number().optional(),

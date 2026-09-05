@@ -129,8 +129,18 @@ import { z } from 'zod';
  * diferencia ES el dictamen. Las condiciones de ambiente van opcionales porque
  * hay fichas que no las imprimen; cuando faltan, el sistema lo DICE y se niega a
  * calcular el contraste en vez de suponerlas.
+ *
+ * 0.14.0 — MENOR (un campo opcional más): `ampacidadDeFabricante` gana
+ * `tempMaxOperacion_C`, **la temperatura de operación que RECOMIENDA el
+ * fabricante**. Orden del Ingeniero (2026-09-05): *«debe ser información del
+ * fabricante, no supongamos nada»*.
+ *
+ * ⚠️ No es lo mismo que `tempConductor_C`: aquella es la fila de la tabla de
+ * ampacidad; ésta es el máximo continuo que el fabricante autoriza. Una ficha
+ * puede traer varias filas (APAR: 75 y 85 °C) y solo un máximo. Es la ÚNICA
+ * temperatura con la que se firma un dictamen (`99 §ADR-099`).
  */
-export const VERSION_CONTRATO = '0.13.0';
+export const VERSION_CONTRATO = '0.14.0';
 
 // ── Identificadores ─────────────────────────────────────────────────────────
 

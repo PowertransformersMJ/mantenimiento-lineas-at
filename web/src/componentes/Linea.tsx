@@ -441,7 +441,8 @@ function Mecanico({ apoyos, conductor, hipotesis }:
           <Kpi valor={r.amp.ampacidad_A == null ? 'no evaluable' : `${nf(r.amp.ampacidad_A)} A`}
             etiqueta={etiquetaDeAmpacidad(r.amp)}
             sub={r.amp.ampacidad_A == null ? r.amp.motivo ?? undefined
-              : `conductor a ${r.amp.temperatura.rotulo} · ${r.amp.condiciones.rotulo}`} />
+              : `${r.amp.esDictamen === false ? '⚠️ NO ES DICTAMEN · ' : ''}`
+                + `conductor a ${r.amp.temperatura.rotulo} · ${r.amp.condiciones.rotulo}`} />
         </div>
       </section>
 

@@ -1289,6 +1289,19 @@ function ElVeredicto({ v, referencia }: {
 
       {c.aviso ? <p className="advertencia alerta">⚠️ {String(c.aviso)}</p> : null}
 
+      {/* ⚠️ ORDEN DEL INGENIERO (2026-09-05): la temperatura de operación tiene
+          que venir del FABRICANTE. Mientras no venga, este amperaje se sigue
+          enseñando —no se pierde visibilidad— pero NO se presenta como
+          dictamen, y se dice antes del número, no en la letra pequeña. */}
+      {referencia.esDictamen === false && (
+        <p className="advertencia alerta">
+          ⚠️ <b>Este amperaje NO es un dictamen.</b> La temperatura de operación del conductor no la
+          ha declarado ningún fabricante: {referencia.temperatura.rotulo}. Siete fichas públicas dan
+          <b> 75 °C</b> para este conductor y aquí se están usando <b>90 °C</b> — son <b>17 % de
+          capacidad de más</b>, por el lado que hace que una línea sobrecargada parezca sana.
+        </p>
+      )}
+
       <p className="mapa-capas-n">
         <b>Ampacidad:</b> {referencia.rotulo}
       </p>
@@ -1413,6 +1426,10 @@ function LoQueSaldra({ referencia }: { referencia: ReturnType<typeof ampacidadDe
           En cualquier caso no sale de su archivo. Cuando cargue la corriente, el veredicto es esa
           división.
           <br /><span className="fine">{referencia.rotulo}</span>
+          {referencia.esDictamen === false && (
+            <><br /><b>⚠️ Y todavía no es un dictamen:</b> la temperatura de operación del conductor
+            no la ha declarado ningún fabricante.</>
+          )}
         </p>
       ) : (
         <p className="advertencia">

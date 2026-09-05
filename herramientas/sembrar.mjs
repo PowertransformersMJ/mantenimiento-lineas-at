@@ -120,10 +120,21 @@ const linea = base(lineaId, {
     seccion_mm2: 283.5, diametro_m: 0.02179, masaLineal_kg_m: 0.776, rts_kgf: 8528,
     moduloElastico_kg_mm2: 6300, moduloEs: 'no_declarado', dilatacion_1_C: 23.0e-6,
     tempMaxOperacion_C: 90,
-    // ⚠️ Viene del catálogo embebido en el módulo de campo, NO de la ficha del
-    // proveedor real. La auditoría encontró conflicto en el módulo elástico
-    // (6.300 vs 7.000) y ese conflicto decide si un tramo cumple el RETIE.
-    procedencia: 'catalogo_fabricante',
+    // ⚠️ ESTA PROCEDENCIA ESTABA MAL ETIQUETADA, y era una suposición con
+    // insignia de fabricante (`99 §ADR-099`). Decía `catalogo_fabricante`
+    // mientras su propia `fuente` —dos líneas más abajo, sin cambiar— dice que
+    // viene del catálogo embebido en el módulo de campo y que está PENDIENTE de
+    // confirmar con el proveedor. Las dos cosas no pueden ser ciertas.
+    //
+    // Corregido a `supuesto` el 2026-09-05 por orden del Ingeniero: *«debe ser
+    // información del fabricante, no supongamos nada»*. Consecuencia inmediata y
+    // buscada: la temperatura de operación pasa a viajar marcada como SUPUESTA y
+    // el amperaje deja de presentarse como dictamen hasta que llegue la ficha.
+    //
+    // ⚠️ Y NO ES LA ÚNICA CIFRA AFECTADA: la auditoría ya había encontrado
+    // conflicto en el módulo elástico (6.300 vs 7.000), y ese conflicto decide
+    // si un tramo cumple el RETIE. Todo este bloque espera la misma ficha.
+    procedencia: 'supuesto',
     fuente: 'catálogo del módulo de campo LN-627 v10 — PENDIENTE confirmar con el proveedor',
   },
 });
