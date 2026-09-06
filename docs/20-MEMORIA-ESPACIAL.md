@@ -92,6 +92,8 @@ mantenimiento-lineas-at/
 ├── evidencias/                  🚪 PORTERO DE FOTOS (Worker, ADR-010 + **ADR-031**): verifica la
 │                                FIRMA del token. `GET` sirve, `PUT` bajo diez cerrojos.
 │                                🚫 **NO borra y NO lista** — con prueba que lo impide
+├── usuarios/                    👤 TRABAJADOR DE PERSONAS (ADR-100): alta, permisos, /bootstrap, limpieza
+├── comun/token-de-firebase.js   firma del token, compartida por los DOS trabajadores (+ revocación)
 ├── herramientas/atlas-caribe.mjs EL MOTOR (ADR-053/055/079/086). `construirAtlas` baja de POWER;
 │                                `publicarAtlas` escribe la ficha de los ONCE, y EXIGE `naturaleza`
 │                                Perfiles POWER: `sol-caribe` (⚠️ ese nombre lo llama el vigía) ·
@@ -109,15 +111,12 @@ mantenimiento-lineas-at/
 │   └── *-libro.json / rayos-conteo.json  📕 hora (reloj de COLOMBIA) → celda → valor. Solo crecen
 ├── herramientas/foto-del-banco.mjs 📸 MIRAR el lienzo (ADR-074): Chrome sin cabeza + reloj REAL; con
 │                                el tiempo virtual MIENTE (`34 · L-72`) · `--exigir` suspende
-├── herramientas/mirar-los-atlas.mjs ⚖️ EL PORTERO (ADR-085/087): mira cada atlas —y las capas del
-│                                corredor, con `corredor:`— y SUSPENDE. Es quien mira el mapa
-├── herramientas/pronostico-caribe.mjs 🌦️ 36 celdas a MET Norway → `pron-*` (ADR-086). SE GUARDA,
-│                                declarando `naturaleza` y con caducidad. Nunca entra en un cálculo
+├── herramientas/mirar-los-atlas.mjs ⚖️ EL PORTERO (ADR-085/087): mira cada atlas y las capas del corredor, y SUSPENDE
+├── herramientas/pronostico-caribe.mjs 🌦️ 36 celdas a MET Norway → `pron-*` (ADR-086), con `naturaleza` y caducidad
 ├── herramientas/teselas/        construir-raster.py — rehace las capas del mapa (ADR-087: y
 │                             declara su `naturaleza`). ⚠️ ÚNICO Python del repo
 ├── herramientas/                sembrar.mjs (línea + expediente) · subir-evidencias.mjs (fotos) ·
-│                                ⚠️ usuarios.mjs — **la ÚNICA vía de alta de personas**. Rechaza a
-│                                propósito la contraseña por tubería o argumento (ADR-019)
+│                                (`usuarios.mjs` retirada en ADR-100; el rescate vive en la bóveda)
 │   ├── semillas-emitidas.json   📗 LIBRO DE IDENTIDAD (ADR-027): quién ES cada punto. Solo crece;
 │   │                            una fila escrita NO SE TOCA JAMÁS: de ella cuelgan 99 fotos
 │   ├── decisiones-firmadas.json 📘 LIBRO DE DECISIONES (ADR-029): qué DECIDIÓ él. Se apenda, manda
