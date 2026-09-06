@@ -71,7 +71,7 @@
 
 | # | Qué | Por qué importa |
 |---|---|---|
-| **TODO-97** 🔴 ⬅️ **EL CORTE DE ACCESO** (`§ADR-100`) | Construido y verde, **sin desplegar**. Runbook en `usuarios/README.md §9`. Paso 0 suyo: **el correo del propietario** (distinto de su Google). Consola con pantallazos: sign-up OFF · cuenta de servicio · Add user · apagar Google | Sin el paso 0 nada arranca |
+| **TODO-97** 🔴 ⬅️ **EL CORTE DE ACCESO** (`§ADR-100`) | Construido y verde, **sin desplegar**. Runbook en `usuarios/README.md §9`. Paso 0 ✅ (correo en la bóveda). Consola con pantallazos: sign-up OFF · cuenta de servicio · Add user · apagar Google | Sin el paso 0 nada arranca |
 | **TODO-57** | **La FICHA se ESCRIBE y está EN PRODUCCIÓN** (`99 §ADR-030`). Falta **el DATO**: ¿planos y actas, o hay que levantarlo? Los seis: rotura · altura libre · altura del amarre · capacidad longitudinal · fases amarradas · tipo de apoyo | **EL CUELLO DE BOTELLA REAL.** Al meter el primero saldrán «REVISAR»: no son averías nuevas |
 | **TODO-81** | **Descargar el acta de la carga del 22-08** desde Cargar: único sitio donde queda escrito POR QUÉ se decidió cada cosa | Se pierde al recargar |
 | **TODO-82/83** | **Dos suyas sobre el clima.** ① ¿FASE 2 del pronóstico (`§ADR-057`): franja mañana/tarde y sensación térmica? ② ¿Dato FINO por extremos (`§ADR-064`)? Las capas de 2 km tocan 3 celdas y salen por PROMEDIO | Sensación de **40 °C** con aire a 32,5 |
