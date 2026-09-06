@@ -27,6 +27,10 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
+// El catálogo, para no volver a escribir a mano un código de función: si mañana
+// cambia el corto de `apoyos.editar`, esta prueba cambia con él.
+import { FUNCIONES } from '../contratos/src/usuarios.ts';
+
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..');
 const reglas = readFileSync(join(RAIZ, 'firestore.rules'), 'utf-8');
 const firestore = readFileSync(join(RAIZ, 'web/src/datos/firestore.ts'), 'utf-8');
@@ -70,7 +74,14 @@ describe('la REGLA de la base es el cerrojo', () => {
       'un análisis cerrado respalda un informe entregado: no se toca');
     assert.match(b, /noTocaReservados\(\)/,
       'los campos de identidad y propiedad siguen protegidos');
-    assert.match(b, /esEditor\(\)/, 'sigue haciendo falta ser editor');
+    // Decía `esEditor()`. El 2026-09-05 las reglas dejaron de decidir por
+    // jerarquía de rol y pasaron a las FUNCIONES del catálogo
+    // (`contratos/src/usuarios.ts`): un expediente lo trabaja quien trae
+    // `expedientes.editar`, que traen exactamente los mismos roles que antes
+    // pasaban por `esEditor()`. Lo que se vigila no cambió —sigue sin poder
+    // tocarlo cualquiera—, cambió con qué palabra se dice.
+    assert.match(b, new RegExp(`tiene\\('${FUNCIONES['expedientes.editar'].corto}'\\)`),
+      'sigue haciendo falta permiso de edición de expedientes');
   });
 });
 
@@ -102,7 +113,11 @@ describe('el cerrojo también cierra los APOYOS', () => {
   test('el cerrojo NO sustituye a las defensas que ya tenía el apoyo', () => {
     const b = bloqueApoyos();
     assert.match(b, /noTocaReservados\(\)/, 'orgId, creadoPor y creadoEn siguen congelados');
-    assert.match(b, /esEditor\(\)/, 'sigue haciendo falta ser editor');
+    // Igual que arriba: `esEditor()` → `tiene('ae')` (`apoyos.editar`), la misma
+    // gente con otro nombre. Editar la ficha y CREAR el punto se separaron en
+    // dos funciones distintas ese mismo día, y esta prueba mira la de editar.
+    assert.match(b, new RegExp(`tiene\\('${FUNCIONES['apoyos.editar'].corto}'\\)`),
+      'sigue haciendo falta permiso para editar la ficha de un apoyo');
     assert.match(b, /deMiOrg\(resource\.data\)/, 'sigue sin poder tocarse un apoyo de otra organización');
     assert.match(b, /allow delete:\s*if false/, 'un apoyo no se borra, y eso no cambia');
   });
@@ -127,8 +142,11 @@ describe('guardar la ficha de un apoyo comprueba TODO antes de mandar', () => {
   test('el PERMISO se comprueba antes de mandar nada', () => {
     // Una denegación de la base llega en inglés, sin causa y con el dato ya
     // tecleado. Preguntar aquí la convierte en una frase que se entiende.
+    // ⚠️ CAMBIÓ EL CÓMO, NO EL QUÉ (`99 §ADR-100`): antes se comparaba el rol,
+    // ahora se pregunta por la función `apoyos.editar` — la misma que miran las
+    // reglas. Quién puede escribir una ficha no ha cambiado.
     const b = cuerpo('guardarFichaApoyo');
-    assert.match(b, /rol !== 'admin' && rol !== 'editor'/, 'una ficha la escribe un editor');
+    assert.match(b, /puede\(\{ claims \}, 'apoyos\.editar'\)/, 'una ficha la escribe quien puede editar apoyos');
     assert.match(b, /No se ha mandado nada a la base/);
     assert.ok(b.indexOf('throw new Error') < b.indexOf('FichaEstructural.safeParse'),
       'el permiso se mira ANTES de nada');
@@ -209,8 +227,11 @@ describe('el LOTE es la pieza que más ahorra y la única que hace daño irrever
     return firestore.slice(i, j === -1 ? undefined : j);
   })();
 
-  test('exige ADMINISTRADOR, no editor: el daño de un lote no es el mismo', () => {
-    assert.match(lote, /rol !== 'admin'/);
+  test('exige la función del LOTE, que no es delegable: el daño de un lote no es el mismo', () => {
+    // ⚠️ CAMBIÓ EL CÓMO, NO EL QUÉ (`99 §ADR-100`). `ficha.lote` está declarada
+    // NO DELEGABLE en el catálogo, así que sigue siendo cosa de administración:
+    // un admin no se la puede regalar a un editor por la puerta de atrás.
+    assert.match(lote, /puede\(\{ claims \}, 'ficha\.lote'\)/);
     assert.match(lote, /No se ha mandado nada a la\s+base/);
   });
 

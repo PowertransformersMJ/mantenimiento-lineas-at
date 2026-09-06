@@ -31,6 +31,7 @@ export type { ClaveAtlas };// ==================================================
  *   #/lluvia         → el atlas de lluvia
  *   #/rca            → el índice de análisis
  *   #/rca/<codigo>   → un análisis concreto
+ *   #/personas       → administrar personas (de ORGANIZACIÓN, no de línea)
  *   #/<linea>/<pest> → una línea en una pestaña (ya existía y no se toca)
  */
 /** Los atlas regionales. La clave es la del componente, no un texto suelto. */
@@ -50,6 +51,13 @@ const POR_HASH: Record<string, ClaveAtlas> = Object.fromEntries(
 export type Ruta =
   | { tipo: 'atlas'; cual: ClaveAtlas }
   | { tipo: 'rca'; codigo?: string }
+  /**
+   * Personas. Sin segundo tramo: no cuelga de ninguna línea, y por eso se
+   * escribe igual que un atlas. Si alguien pega `#/personas/algo` cae al caso de
+   * línea y el código «personas» no existirá — una dirección inventada no debe
+   * abrir una pantalla real.
+   */
+  | { tipo: 'personas' }
   | { tipo: 'linea'; codigo: string; pestana?: string }
   | null;
 
@@ -61,6 +69,7 @@ export function leerRuta(hash = location.hash): Ruta {
   // `#/sol/algo`, cae al caso de línea y el código «sol» no existirá — que es lo
   // correcto: una dirección inventada no debe abrir una pantalla real.
   if (!b && POR_HASH[a]) return { tipo: 'atlas', cual: POR_HASH[a] };
+  if (!b && a === 'personas') return { tipo: 'personas' };
   if (a === 'rca') return { tipo: 'rca', codigo: b ? decodeURIComponent(b) : undefined };
   return { tipo: 'linea', codigo: decodeURIComponent(a), pestana: b };
 }

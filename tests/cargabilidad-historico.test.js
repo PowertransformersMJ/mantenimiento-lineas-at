@@ -23,6 +23,8 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import { costeDeLectura } from '../nucleo/cargabilidad.js';
+// El catálogo de permisos, para no escribir a mano el código de una función.
+import { FUNCIONES } from '../contratos/src/usuarios.ts';
 
 const leer = (p) => readFileSync(fileURLToPath(new URL('../' + p, import.meta.url)), 'utf-8');
 const REGLAS = leer('firestore.rules');
@@ -48,11 +50,23 @@ describe('el histórico de carga lo escribe solo el administrador', () => {
     for (const c of COLECCIONES) assert.ok(bloque(c).length > 0);
   });
 
-  test('⚠️ escribe `esAdmin()`, NO `esEditor()` ni `esCuadrilla()`', () => {
+  test('⚠️ escribe quien trae `cargabilidad.cargar` — y es SOLO el administrador', () => {
+    // Decía `allow create: if esAdmin()`. El 2026-09-05 las reglas dejaron de
+    // decidir por jerarquía de rol y pasaron a las FUNCIONES del catálogo
+    // (`contratos/src/usuarios.ts`). `cargabilidad.cargar` es NO DELEGABLE, así
+    // que solo la traen `propietario` y `admin`: el conjunto no cambió, cambió
+    // dónde está escrito. Y `esAdmin()` sigue en la condición a propósito, para
+    // que la decisión que el Ingeniero aprobó el 2026-08-30 —«el histórico solo
+    // lo escribe un administrador»— siga dicha aunque el catálogo se toque.
+    const CARGAR = FUNCIONES['cargabilidad.cargar'];
+    assert.equal(CARGAR.delegable, false,
+      'si `cargabilidad.cargar` se vuelve delegable, el `esAdmin()` de la regla pasa a mentir: '
+      + 'hay que quitarlo en el mismo cambio');
     for (const c of COLECCIONES) {
       const b = bloque(c);
-      assert.match(b, /allow create: if esAdmin\(\)/, `${c}: crear no exige administrador`);
-      assert.ok(!/esCuadrilla\(\)/.test(b),
+      assert.match(b, new RegExp(`allow create: if tiene\\('${CARGAR.corto}'\\) && esAdmin\\(\\)`),
+        `${c}: crear no exige administrador`);
+      assert.ok(!new RegExp(`tiene\\('${FUNCIONES['evidencias.aportar'].corto}'\\)`).test(b),
         `${c}: la cuadrilla puede escribir el histórico de carga de una línea`);
     }
   });
@@ -67,7 +81,8 @@ describe('el histórico de carga lo escribe solo el administrador', () => {
     // Volver a cargar el mismo día corregido tiene que escribir ENCIMA — el id
     // es determinista justo para eso. Pero el rastro de qué archivo trajo qué
     // no se toca: es lo que permite responder «¿de dónde salió este número?».
-    assert.match(bloque('cargabilidad_dias'), /allow update: if esAdmin\(\)/);
+    assert.match(bloque('cargabilidad_dias'),
+      new RegExp(`allow update: if tiene\\('${FUNCIONES['cargabilidad.cargar'].corto}'\\) && esAdmin\\(\\)`));
     assert.match(bloque('cargabilidad_cargas'), /allow update: if false/);
   });
 

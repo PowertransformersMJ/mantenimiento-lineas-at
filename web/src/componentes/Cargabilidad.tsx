@@ -59,6 +59,7 @@ import {
   desviacionDeTension, perdidasJoule, potenciasDelInstante,
 } from '@lineas/nucleo/electrica';
 import { contrasteConLaAmpacidad } from '@lineas/nucleo/cargabilidad';
+import { puede, type SesionDePantalla } from '../datos/permisos';
 
 const VERSION_DEL_MOTOR = nucleoPkg.version;
 
@@ -123,7 +124,7 @@ export default function Cargabilidad({
    * las reglas de la base, que son la última línea (`ADR-004`): esconder un
    * botón no impide nada, solo evita el trabajo perdido.
    */
-  sesion?: { rol: string; orgId: string; uid: string };
+  sesion?: Omit<SesionDePantalla, 'correo'>;
 } = {}) {
   const entrada = useRef<HTMLInputElement>(null);
   const [cargado, setCargado] = useState<Cargado | null>(null);
@@ -369,7 +370,7 @@ export default function Cargabilidad({
           <b>Aquí no se puede guardar:</b> no consta su sesión. La pantalla lee el archivo y lo
           enseña, pero al recargar se pierde.
         </p>
-      ) : sesion.rol !== 'admin' ? (
+      ) : !puede(sesion, 'cargabilidad.cargar') ? (
         <p className="advertencia">
           <b>Su cuenta puede mirar, no guardar.</b> El histórico de carga lo escribe solo un
           administrador: es dato de operación que alimenta un dictamen de ampacidad. Puede leer el
@@ -461,7 +462,7 @@ export default function Cargabilidad({
             <>
               <ResumenDeLaCarga lote={lote!} registros={registros} nombre={cargado.nombre} />
               <VistaPrevia registros={registros} />
-              {sesion?.rol === 'admin' && registros.length > 0 && (
+              {puede(sesion, 'cargabilidad.cargar') && registros.length > 0 && (
                 <div className="tarjeta">
                   <p className="mapa-capas-t">Guardar en el histórico</p>
                   {acuse ? (
@@ -552,7 +553,7 @@ const PERIODOS = [
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 
 function HistoricoGuardado({ sesion, lineaAbierta }: {
-  sesion: { rol: string; orgId: string; uid: string };
+  sesion: Omit<SesionDePantalla, 'correo'>;
   lineaAbierta?: string;
 }) {
   const [periodo, setPeriodo] = useState<string>('7');

@@ -18,6 +18,7 @@ import { FichaCriterios } from './FichaCriterios';
 import { FichaEditor } from './FichaEditor';
 import { FichaLote } from './FichaLote';
 import { Galeria } from './Galeria';
+import { puede, type SesionDePantalla } from '../datos/permisos';
 
 /**
  * Un instante ISO, en fecha legible. Se corta a la fecha a propósito: en
@@ -94,7 +95,7 @@ export function Fichas({ apoyos, linea, conductor, hipotesis, evidencias = [], s
      * se ofrece y se dice por qué — nunca se ofrece un botón que la base va a
      * negar.
      */
-    sesion?: { correo: string | null; rol: string; orgId: string; uid: string } }) {
+    sesion?: SesionDePantalla }) {
   const fichas = useMemo<FichaPunto[]>(() => {
     const orden = [...apoyos].sort((x, y) => x.orden - y.orden);
     const E = soloEstructuras(orden);
@@ -207,14 +208,14 @@ export function Fichas({ apoyos, linea, conductor, hipotesis, evidencias = [], s
    * Firestore. Existe para que nadie rellene un formulario de seis campos y se
    * entere al final de que la base lo niega.
    */
-  const puedeEditar = sesion?.rol === 'admin' || sesion?.rol === 'editor';
+  const puedeEditar = puede(sesion, 'apoyos.editar');
 
   /**
    * Aplicar un dato a VARIOS apoyos exige ADMINISTRACIÓN, no edición: la
    * escritura lo comprueba de verdad y aquí se comprueba igual, para no ofrecer
    * un botón que la base va a negar después de marcar veinte apoyos.
    */
-  const puedeLote = sesion?.rol === 'admin';
+  const puedeLote = puede(sesion, 'ficha.lote');
 
   const claseChip = (x: FichaPunto) =>
     !x.esEstructura ? 'chip emp'

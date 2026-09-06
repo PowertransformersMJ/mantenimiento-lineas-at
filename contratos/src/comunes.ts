@@ -139,8 +139,16 @@ import { z } from 'zod';
  * ampacidad; ésta es el máximo continuo que el fabricante autoriza. Una ficha
  * puede traer varias filas (APAR: 75 y 85 °C) y solo un máximo. Es la ÚNICA
  * temperatura con la que se firma un dictamen (`99 §ADR-099`).
+ *
+ * 0.15.0 — MENOR (un módulo NUEVO, `usuarios.ts`; nada existente cambia):
+ * entra el catálogo de QUIÉN PUEDE HACER QUÉ — roles, funciones y
+ * responsabilidades — con el perfil `usuarios/{uid}` escrito por el servidor
+ * y la bitácora `auditoria_accesos` (`99 §ADR-100`). El rol `propietario` es
+ * nuevo y la aplicación NO puede acuñarlo. Los reclamos ganan `f` (funciones
+ * en código corto) y `l` (alcance por línea): un token sin ellos vale mínimo
+ * privilegio, jamás el máximo.
  */
-export const VERSION_CONTRATO = '0.14.0';
+export const VERSION_CONTRATO = '0.15.0';
 
 // ── Identificadores ─────────────────────────────────────────────────────────
 

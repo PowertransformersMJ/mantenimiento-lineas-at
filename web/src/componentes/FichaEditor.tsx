@@ -55,6 +55,7 @@ import { TipoApoyo } from '@lineas/contratos';
 import { almacen } from '../datos/enlace';
 import type { AcuseDeFicha } from '../datos/repositorio';
 import { nf } from '../vistas/formato';
+import { puede, type SesionDePantalla } from '../datos/permisos';
 import {
   BLOQUES_DE_FICHA, CAMPOS_DE_FICHA, ORIGENES_DE_FICHA, TIPOS_DE_CAPACIDAD,
   borradorEnBlanco, etiquetaDeOrigen, fichaDelBorrador, geometriaDelBorrador,
@@ -253,7 +254,7 @@ export function FichaEditor({ apoyo, contexto, sesion, alCerrar }: {
   /** La línea entera, en la forma que el núcleo pide. La arma `vistas/ejesLinea.ts`. */
   contexto: ContextoDeLinea;
   /** Quién entró y con qué permiso. Se enseña ANTES de nada. */
-  sesion: { correo: string | null; rol: string; orgId: string; uid: string };
+  sesion: SesionDePantalla;
   alCerrar: () => void;
 }) {
   const [borrador, setBorrador] = useState<BorradorDeFicha>(borradorEnBlanco);
@@ -267,7 +268,7 @@ export function FichaEditor({ apoyo, contexto, sesion, alCerrar }: {
   const [panelGuardado, setPanelGuardado] = useState<PanelDeCambio | null>(null);
   const [fallo, setFallo] = useState<string | null>(null);
 
-  const puedeEditar = sesion.rol === 'admin' || sesion.rol === 'editor';
+  const puedeEditar = puede(sesion, 'apoyos.editar');
 
   // Todo lo que sigue lo calcula el módulo puro. Aquí no se convierte, no se
   // compara y no se dictamina nada.

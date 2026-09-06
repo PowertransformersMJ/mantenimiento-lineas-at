@@ -70,7 +70,7 @@ describe('cuándo SÍ se exige el cambio', () => {
   });
 
   test('EL CASO DE LA SEGUNDA CONTRASEÑA: una orden NUEVA vuelve a pedirla', () => {
-    // `usuarios.mjs contrasena` puede reponer una provisional una segunda vez.
+    // Reponer una contraseña desde la pantalla de personas puede reponer una provisional una segunda vez.
     // Con un recibo de sí/no, esa segunda no se exigiría cambiar NUNCA — el
     // recibo viejo la taparía. Por eso la orden lleva fecha.
     assert.equal(puertaDeAcceso({ ...conMarca({ contrasenaOrdenadaEn: HOY }), recibo: AYER }).fase,

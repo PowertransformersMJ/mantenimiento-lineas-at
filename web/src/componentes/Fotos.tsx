@@ -57,6 +57,7 @@ import { almacen } from '../datos/enlace';
 import { PORTERO, subirFotos, type FotoPorSubir, type IntentoDeSubida } from '../datos/fotos';
 import { descargar, selloFecha } from '../exportar/descargar';
 import { nf } from '../vistas/formato';
+import { puede, type SesionDePantalla } from '../datos/permisos';
 import {
   TEXTOS, actaDeFotos, confirmoConLaPalabra, faltasParaSubir, filasDeReparto,
   fraseDelProgreso, frasePedirConfirmacion, lineaDelActa, mapaActualizado,
@@ -92,7 +93,7 @@ export function Fotos({ linea, apoyos, evidencias = [], sesion }: {
   apoyos: Apoyo[];
   /** Las fichas que la aplicación YA tiene en memoria. Es la red nº 1. */
   evidencias?: Evidencia[];
-  sesion?: { correo: string | null; rol: string; orgId: string; uid: string };
+  sesion?: SesionDePantalla;
 }) {
   const [archivos, setArchivos] = useState<File[]>([]);
   const [indice, setIndice] = useState<EntradaDeIndice[] | null>(null);
@@ -107,7 +108,7 @@ export function Fotos({ linea, apoyos, evidencias = [], sesion }: {
   const [carpetasQueEntraron, setCarpetasQueEntraron] = useState<string[]>([]);
 
   const rol = sesion?.rol ?? 'sin declarar';
-  const puedeSubir = ['admin', 'editor', 'cuadrilla'].includes(rol);
+  const puedeSubir = puede(sesion, 'evidencias.aportar');
 
   /**
    * ⚠️ Sin contexto seguro no hay huellas, y sin huellas no se puede saber qué

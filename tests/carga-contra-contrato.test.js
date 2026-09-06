@@ -283,11 +283,18 @@ describe('LA ESCRITURA MANDA EL DOCUMENTO VALIDADO, NO EL CRUDO', () => {
   });
 
   test('el permiso se comprueba ANTES de mandar nada', () => {
+    // ⚠️ CAMBIÓ EL CÓMO, NO EL QUÉ (`99 §ADR-100`). Antes esto comprobaba
+    // `rol !== 'admin'`; ahora se pregunta por la FUNCIÓN del catálogo,
+    // `cargar.puntos`, que es lo mismo que miran las reglas de la base. El
+    // invariante que esta prueba defiende no se ha tocado: se pregunta ANTES de
+    // armar el lote, porque un lote es atómico y su denegación es opaca.
     const cuerpo = cuerpoDeLaCarga();
-    const iRol = cuerpo.indexOf("rol !== 'admin'");
+    const iPermiso = cuerpo.indexOf("puede({ claims }, 'cargar.puntos')");
     const iLote = cuerpo.indexOf('writeBatch(db)');
-    assert.ok(iRol !== -1 && iLote !== -1);
-    assert.ok(iRol < iLote,
+    assert.notEqual(iPermiso, -1,
+      'la carga tiene que preguntar por la función del catálogo, no comparar el rol a mano');
+    assert.notEqual(iLote, -1);
+    assert.ok(iPermiso < iLote,
       'un lote es atómico y su denegación es opaca: la base no dice cuál documento la causó');
   });
 });

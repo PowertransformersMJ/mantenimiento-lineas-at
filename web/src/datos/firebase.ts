@@ -10,9 +10,7 @@
 import { initializeApp, type FirebaseApp } from 'firebase/app';
 import {
   initializeAuth, getAuth, browserLocalPersistence, browserSessionPersistence,
-  inMemoryPersistence, browserPopupRedirectResolver, GoogleAuthProvider,
-  signInWithPopup, signInWithRedirect, getRedirectResult,
-  signOut as salirDeFirebase, onAuthStateChanged,
+  inMemoryPersistence, signOut as salirDeFirebase, onAuthStateChanged,
   type Auth, type User,
 } from 'firebase/auth';
 // ⚠️ Firestore NO se importa estáticamente: comprobar si hay sesión solo
@@ -20,6 +18,8 @@ import {
 // de base de datos entero (hallazgo P0 de la auditoría 2026-07-30). El tipo
 // viaja solo (se borra al compilar); el módulo real llega en `baseDatos()`.
 import type { Firestore } from 'firebase/firestore';
+import type { Reclamos } from '@lineas/contratos';
+import { leerReclamos } from './permisos';
 
 export const CONFIG = {
   apiKey: 'AIzaSyA3_kG3ow6wl847UNar7DXo2_aINxLVP3A',
@@ -87,11 +87,9 @@ export function autenticacion(): Auth {
   try {
     auth = initializeAuth(app, {
       persistence: [browserLocalPersistence, browserSessionPersistence, inMemoryPersistence],
-      // ⚠️ OBLIGATORIO y fácil de olvidar: `getAuth()` trae este resolvedor de
-      // serie, pero `initializeAuth()` NO. Sin él, abrir la ventana de Google
-      // falla con `auth/argument-error` — y el error no menciona en ningún
-      // momento que lo que falta es esto.
-      popupRedirectResolver: browserPopupRedirectResolver,
+      // Sin `popupRedirectResolver` a propósito: era lo que exigía «Entrar con
+      // Google», retirado el 2026-09-06 (`99 §ADR-100`). Volver a ponerlo sin
+      // volver a poner un proveedor federado es peso muerto.
     });
   } catch {
     // Ya estaba inicializada (recarga en caliente, doble montaje): se reusa.
@@ -100,50 +98,59 @@ export function autenticacion(): Auth {
   return auth;
 }
 
-/** Fallos del método de ventana emergente que SÍ tienen salida por redirección. */
-const SIN_VENTANA = new Set([
-  'auth/popup-blocked',
-  'auth/operation-not-supported-in-this-environment',
-  'auth/web-storage-unsupported',
-]);
-
 /**
- * Entra con Google. Intenta la ventana emergente y, si el navegador la bloquea,
- * **cae a redirección** en vez de rendirse.
+ * DÓNDE SE GUARDA LA SESIÓN, y quién lo elige.
  *
- * No es un adorno: los bloqueadores de ventanas emergentes son comunes, y en
- * varios navegadores de móvil la ventana emergente sencillamente no funciona.
- * Sin esta salida, la cuadrilla se queda fuera del sistema sin entender por qué.
- * Con redirección no hay ventana que bloquear: la propia página va a Google y
- * vuelve.
+ * Por defecto **la sesión muere al cerrar el navegador** (`browserSessionPersistence`,
+ * o sea `sessionStorage`). Es el defecto conservador: un portátil de oficina
+ * compartido, o un teléfono que se presta, no deben dejar la herramienta abierta
+ * para el siguiente. Quien marca «Recordar en este dispositivo» pasa a
+ * `browserLocalPersistence` y la sesión sobrevive al cierre.
+ *
+ * ⚠️ NINGUNA DE LAS DOS ES IndexedDB, y eso no es casualidad: es `35 · L-11`, el
+ * fallo que tumbó el acceso al dato DOS veces con «Database is closing/hidden».
+ * Si mañana alguien añade `indexedDBLocalPersistence` a esta lista, vuelve.
+ *
+ * Si el navegador no admite el almacén elegido —modo privado agresivo, permisos
+ * de sitio—, **no se cae el ingreso**: se sigue con lo que Firebase ya tenía.
+ * Una preferencia de comodidad jamás puede impedir entrar (misma regla de L-11).
  */
-export async function entrarConGoogle(): Promise<User | null> {
-  const a = autenticacion();
-  const proveedor = new GoogleAuthProvider();
+export async function recordarEnEsteDispositivo(recordar: boolean): Promise<void> {
   try {
-    const { user } = await signInWithPopup(a, proveedor);
-    olvidarSesion();
-    return user;
+    const { setPersistence } = await import('firebase/auth');
+    await setPersistence(autenticacion(), recordar ? browserLocalPersistence : browserSessionPersistence);
   } catch (e) {
-    const codigo = (e as { code?: string })?.code ?? '';
-    if (!SIN_VENTANA.has(codigo)) throw e;
-    // La página se va a Google y vuelve; al volver lo recoge `recogerRedireccion`.
-    await signInWithRedirect(a, proveedor);
-    return null;
+    console.warn('[acceso] no se pudo fijar dónde se guarda la sesión; se sigue con lo que había:', e);
   }
 }
 
 /**
  * Entra con correo y contraseña. Es la vía DEFINITIVA de esta herramienta.
  *
- * No hay registro: las cuentas las crea el administrador con
- * `herramientas/usuarios.mjs`. Aquí no existe —ni existirá— una función de alta,
- * y eso no es un olvido: es el control. El 31-07-2026 una cuenta ajena se dio
- * de alta sola por «Entrar con Google»; no pudo leer nada porque las reglas
- * exigen `orgId`, pero no debió poder crearse.
+ * No hay registro PÚBLICO: las cuentas las crea quien tiene `usuarios.gestionar`
+ * desde la pantalla de personas. Aquí no existe una función de alta, y **eso
+ * SOLO no basta**: la API de Firebase deja crear cuentas con la clave pública
+ * del proyecto aunque la pantalla no tenga botón. El cierre real está en la
+ * consola (Authentication → Settings → User actions → «Enable create» apagado),
+ * y es un paso del runbook, no una recomendación (`99 §ADR-100`).
+ *
+ * «Entrar con Google» SE RETIRÓ el 2026-09-06 por orden del Ingeniero: era una
+ * vía de alta pública y el incidente de abajo lo demostró.
+ *
+ * ⚠️ EL 31-07-2026 UNA CUENTA AJENA SE DIO DE ALTA SOLA por «Entrar con Google».
+ * Aquí decía que «no pudo leer NADA porque las reglas exigen orgId», y eso es
+ * FALSO: lo desmintió `99 §ADR-024`. Lo cierto, que es distinto y menos cómodo:
+ * no pudo tocar ningún dato de activo ni de cliente —esos sí exigen que el
+ * `orgId` del documento coincida con el del token—, pero **tuvo abierta
+ * `/config` hasta el 06-08-2026**, que era legible para cualquier sesión
+ * autenticada. Una cuenta que no debió poder crearse leyó algo durante seis
+ * días. Se cerró; se deja escrito porque una frase tranquilizadora y falsa es
+ * peor que el agujero: hace que se decida mal el día que se relaja la barrera
+ * de verdad.
  */
-export async function entrarConContrasena(correo: string, contrasena: string): Promise<User> {
+export async function entrarConContrasena(correo: string, contrasena: string, recordar = false): Promise<User> {
   const { signInWithEmailAndPassword } = await import('firebase/auth');
+  await recordarEnEsteDispositivo(recordar);
   const { user } = await signInWithEmailAndPassword(autenticacion(), correo.trim(), contrasena);
   olvidarSesion();
   return user;
@@ -167,21 +174,41 @@ export function motivoDeFallo(e: unknown): string {
   if (c === 'auth/too-many-requests') return 'Demasiados intentos. Espere unos minutos.';
   if (c === 'auth/invalid-email') return 'Ese correo no tiene un formato válido.';
   if (c === 'auth/network-request-failed') return 'Sin conexión con el servidor de acceso.';
+  // Una pestaña abierta desde antes del despliegue conserva el botón de Google
+  // en su paquete viejo; contra un proveedor apagado Firebase responde esto.
+  if (c === 'auth/operation-not-allowed') {
+    return 'El ingreso con Google ya no existe: use su correo y contraseña. Recargue la página.';
+  }
+  // La consola tiene el registro cerrado: un alta por la API muere aquí.
+  if (c === 'auth/admin-restricted-operation') {
+    return 'El registro de cuentas está cerrado: pídale acceso al administrador.';
+  }
   return 'No se pudo entrar. Inténtelo de nuevo.';
 }
 
 /**
- * Recoge el resultado cuando se volvió de Google por redirección. Se llama al
- * arrancar; si no hubo redirección, devuelve null sin hacer ruido.
+ * «OLVIDÉ MI CONTRASEÑA», por la vía estándar de Firebase, desde el navegador.
+ *
+ * ⚠️ LA RESPUESTA ES LA MISMA EXISTA O NO EL CORREO. Distinguirlas convierte el
+ * formulario en un buscador de cuentas dadas de alta (lo vimos hecho en uno de
+ * los tres CRM medidos). Por eso esta función NUNCA lanza por «no existe» y la
+ * pantalla enseña una sola frase en todos los casos.
+ *
+ * Va por el cliente y no por el trabajador de personas a propósito: un extremo
+ * sin sesión en un Worker sin freno es un enviador de correos abierto a
+ * internet (hallazgo del comité, `99 §ADR-100`). Aquí el freno lo pone Firebase.
  */
-export async function recogerRedireccion(): Promise<User | null> {
+export const FRASE_RECUPERACION = 'Si el correo existe en el sistema, recibirá un enlace para elegir una contraseña nueva.';
+
+export async function pedirEnlaceDeRecuperacion(correo: string): Promise<string> {
   try {
-    const r = await getRedirectResult(autenticacion());
-    if (r?.user) olvidarSesion();
-    return r?.user ?? null;
+    const { sendPasswordResetEmail } = await import('firebase/auth');
+    await sendPasswordResetEmail(autenticacion(), correo.trim());
   } catch {
-    return null;   // no había redirección pendiente: no es un error
+    // Misma frase. Un fallo de red también: decir «no se pudo» solo cuando el
+    // correo no existe sería la misma fuga por otra puerta.
   }
+  return FRASE_RECUPERACION;
 }
 
 export async function salir(): Promise<void> {
@@ -260,10 +287,90 @@ export async function reclamosDeSesion(u: User): Promise<{ proveedor: string | n
   }
 }
 
-export async function credenciales(u: User): Promise<{ orgId: string; rol: string }> {
+/**
+ * QUIÉN ES Y QUÉ PUEDE, en una sola lectura del token.
+ *
+ * Los tres ejes del catálogo viajan juntos porque se decidieron juntos: el ROL
+ * dice quién es, `f` qué puede hacer y `l` sobre qué líneas. La pantalla ya no
+ * compara el rol con una cadena en ningún sitio — pregunta por la FUNCIÓN.
+ *
+ * ⚠️ SI LOS RECLAMOS NO VALIDAN, `claims` es `null` y eso es MÍNIMO PRIVILEGIO,
+ * no un fallo que se traga: `motivoDeReclamos` trae la frase que la pantalla
+ * tiene que enseñar. Un token de antes del catálogo (sin `f` ni `l`) cae aquí, y
+ * es correcto que caiga: las reglas de la base miran esos mismos campos, así que
+ * ofrecerle botones sería prometerle escrituras que la base va a negar.
+ *
+ * `autenticadoEn` es la hora en que Firebase abrió ESTA sesión, no la de emisión
+ * del token —que se renueva cada hora—. Es la única base honesta para el reloj
+ * absoluto de sesión: con la de emisión, la sesión no caducaría jamás.
+ */
+export async function credenciales(u: User): Promise<{
+  orgId: string; rol: string;
+  claims: Reclamos | null; motivoDeReclamos: string | null;
+  autenticadoEn: number | null;
+}> {
   const t = await u.getIdTokenResult();
+  const { claims, motivo } = leerReclamos(t.claims);
+  const authTime = Date.parse(String(t.authTime ?? ''));
   return {
     orgId: (t.claims.orgId as string) ?? '',
     rol: (t.claims.rol as string) ?? 'ninguno',
+    claims,
+    motivoDeReclamos: motivo,
+    autenticadoEn: Number.isFinite(authTime) ? authTime : null,
   };
+}
+
+// ── APP CHECK: solo si hay clave, y sin fingir que la hay ───────────────────
+
+/**
+ * Prueba que quien llama es ESTA aplicación y no un guión ajeno.
+ *
+ * `CLAUDE.md §1` lo declara «obligatorio desde el día 1» y `docs/05` lo tiene en
+ * rojo desde entonces: sin él, el sitio público es un proxy anónimo a Firebase.
+ * Esto es la mitad del cliente. La otra mitad —crear la clave de reCAPTCHA y
+ * registrar la aplicación— es del Ingeniero, y **sin clave esto NO se
+ * inicializa**: se dice en consola y se sigue.
+ *
+ * ⚠️ Por qué no se fuerza: encender App Check en el servidor antes de que TODOS
+ * los clientes lo manden deja fuera a la cuadrilla en campo, que es justo a
+ * quien nunca se puede bloquear (`CLAUDE.md §1`, principio 3). El orden correcto
+ * es: cliente primero, medir que llegan tokens, y solo entonces exigirlo.
+ * Mientras tanto el trabajador de personas corre con `APP_CHECK_EXIGIDO=false`.
+ *
+ * La clave de sitio de reCAPTCHA v3 **no es un secreto**: viaja en el HTML de
+ * cualquier sitio que la use. Por eso puede vivir en `.env.production` con la
+ * dirección del portero, y no en `wrangler secret`.
+ */
+export type EstadoAppCheck = 'activado' | 'sin_clave' | 'fallo';
+
+let appCheck: Promise<EstadoAppCheck> | null = null;
+
+export function iniciarAppCheck(): Promise<EstadoAppCheck> {
+  if (appCheck) return appCheck;
+  appCheck = (async (): Promise<EstadoAppCheck> => {
+    const clave = import.meta.env.VITE_APP_CHECK_SITE_KEY as string | undefined;
+    if (!clave) {
+      console.info(
+        '[App Check] no se inicializa: no hay VITE_APP_CHECK_SITE_KEY en la configuración. '
+        + 'El sitio sigue funcionando igual; lo que falta es la prueba de que quien llama a '
+        + 'Firebase es esta aplicación.',
+      );
+      return 'sin_clave';
+    }
+    try {
+      const { initializeAppCheck, ReCaptchaV3Provider } = await import('firebase/app-check');
+      initializeAppCheck(iniciarFirebase(), {
+        provider: new ReCaptchaV3Provider(clave),
+        isTokenAutoRefreshEnabled: true,
+      });
+      return 'activado';
+    } catch (e) {
+      // Un fallo aquí NO puede impedir entrar: es una capa opcional y ya sabemos
+      // lo que pasa cuando una de ésas tiene veto sobre una esencial (`35 · L-11`).
+      console.warn('[App Check] no se pudo inicializar; el sitio sigue funcionando:', e);
+      return 'fallo';
+    }
+  })();
+  return appCheck;
 }

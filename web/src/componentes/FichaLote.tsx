@@ -39,6 +39,7 @@ import { TipoApoyo } from '@lineas/contratos';
 import { almacen } from '../datos/enlace';
 import type { AcuseDeLote } from '../datos/repositorio';
 import { nf } from '../vistas/formato';
+import { puede, type SesionDePantalla } from '../datos/permisos';
 import {
   BLOQUES_DE_FICHA, ORIGENES_DE_FICHA, POR_QUE_NO_TODO_VA_POR_LOTE, TIPOS_DE_CAPACIDAD,
   borradorEnBlanco, loQueVaACambiar,
@@ -196,7 +197,7 @@ export function FichaLote({ apoyos, contexto, sesion, alCerrar }: {
   apoyos: Apoyo[];
   /** La línea entera, en la forma que el núcleo pide. La arma `vistas/ejesLinea.ts`. */
   contexto: ContextoDeLinea;
-  sesion: { correo: string | null; rol: string; orgId: string; uid: string };
+  sesion: SesionDePantalla;
   alCerrar: () => void;
 }) {
   const [borrador, setBorrador] = useState<BorradorDeFicha>(borradorEnBlanco);
@@ -215,7 +216,7 @@ export function FichaLote({ apoyos, contexto, sesion, alCerrar }: {
    * daño de un lote no es el de una ficha. Es la misma guarda que la escritura,
    * dicha aquí para que nadie rellene el formulario y se entere al final.
    */
-  const puedeLote = sesion.rol === 'admin';
+  const puedeLote = puede(sesion, 'ficha.lote');
 
   // Todo lo que sigue lo calculan los módulos puros. Aquí no se convierte, no se
   // compara y no se dictamina nada.

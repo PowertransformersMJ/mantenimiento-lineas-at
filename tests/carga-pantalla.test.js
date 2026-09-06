@@ -367,8 +367,14 @@ describe('LA PANTALLA ESTÁ ENCHUFADA — el motor no puede quedarse sin quien l
     assert.match(LINEA_TSX, /<Cargar[\s\S]{0,200}sesion=\{/, 'sin la sesión no se puede sellar el autor');
   });
 
-  test('la pestaña SOLO se ofrece a quien tiene permiso de administración', () => {
-    assert.match(LINEA_TSX, /id: 'cargar'[^}]*soloAdmin: true/);
+  test('la pestaña SOLO se ofrece a quien tiene permiso de cargar', () => {
+    // ⚠️ CAMBIÓ EL CÓMO, NO EL QUÉ (`99 §ADR-100`). La pestaña decía
+    // `soloAdmin: true`, y con eso la única forma de dejar cargar el trazado a
+    // alguien era hacerlo administrador de todo — permisos de personas
+    // incluidos. Ahora declara la FUNCIÓN que necesita, que es exactamente lo
+    // que hace: `cargar.puntos`. Lo que esta prueba defiende sigue igual: la
+    // pestaña se filtra por permiso y se pinta la lista FILTRADA.
+    assert.match(LINEA_TSX, /id: 'cargar'[^}]*exige: 'cargar\.puntos'/);
     assert.match(LINEA_TSX, /useSesion\(\)/, 'el permiso hay que leerlo de la sesión, no suponerlo');
     // Y la lista que se pinta es la FILTRADA, no la completa: si se pintara
     // `PESTANAS`, el filtro existiría y no haría nada.

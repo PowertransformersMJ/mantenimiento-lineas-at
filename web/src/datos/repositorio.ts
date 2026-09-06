@@ -15,7 +15,8 @@
 // Este módulo es AGNÓSTICO a la interfaz: no toca el DOM. Si mañana cambia el
 // framework de pantallas, esto sobrevive intacto.
 // ============================================================================
-import type { AccionCapa, Apoyo, AnalisisCausa, Conductor, Evidencia, Hipotesis, Investigacion, Linea, SondeoClima } from '@lineas/contratos';
+import type { AccionCapa, Apoyo, AnalisisCausa, Conductor, EntradaDeAuditoria, Evidencia, Hipotesis, Investigacion, Linea, Reclamos, SondeoClima } from '@lineas/contratos';
+import type { Permisos } from './permisos';
 
 export type EstadoSesion =
   | { fase: 'comprobando' }
@@ -34,7 +35,34 @@ export type EstadoSesion =
    * base, que comprueban el mismo token del lado del servidor. Esto es higiene:
    * decirle a la persona lo que la base va a decidir, antes de que lo intente.
    */
-  | { fase: 'autenticado'; uid: string; correo: string | null; rol: string; orgId: string };
+  | { fase: 'autenticado'; uid: string; correo: string | null; rol: string; orgId: string;
+      /**
+       * LOS TRES EJES DEL CATÁLOGO, tal y como el token los trae y ya validados
+       * (`contratos/src/usuarios.ts`). `null` significa que **no validaron**, y
+       * eso es MÍNIMO PRIVILEGIO: sin `f` no se puede nada, sin `l` no se
+       * alcanza ninguna línea. Un reclamo ausente no es una promoción.
+       *
+       * Es lo que sustituye a comparar `rol === 'admin'` por toda la pantalla.
+       * El `rol` sigue aquí porque se ENSEÑA —la persona se reconoce en él— y
+       * porque los mensajes de la base lo nombran; pero ya no decide nada.
+       */
+      claims: Reclamos | null;
+      /** Por qué no valieron los reclamos, para poder decirlo en pantalla. */
+      motivoDeReclamos: string | null;
+      /** Lo que esta sesión puede, ya derivado del catálogo. Para dibujar. */
+      permisos: Permisos;
+      /** Cuándo abrió Firebase esta sesión. Base del reloj absoluto. */
+      autenticadoEn: number | null };
+
+/**
+ * UNA LÍNEA DE LA BITÁCORA, tal y como la pantalla la lee.
+ *
+ * Es la entrada del catálogo más el identificador del documento: la bitácora se
+ * lista y hace falta una clave estable para pintarla. Todo lo demás lo valida el
+ * molde del catálogo antes de entrar — una bitácora que acepta cualquier forma
+ * es un cajón donde nadie encuentra nada.
+ */
+export type EntradaLeidaDeAuditoria = EntradaDeAuditoria & { id: string };
 
 /**
  * Lo que pasó al cargar puntos nuevos. NO es un booleano a propósito: una carga
@@ -239,6 +267,27 @@ export interface Repositorio {
   /** Guarda un cambio de una acción. Se valida contra el contrato antes de escribir. */
   guardarAccion(accionId: string, parche: Record<string, unknown>, revision: number): Promise<void>;
 
+  /**
+   * Deja constancia de que esta persona entró, en su propio perfil.
+   *
+   * La fecha la pone el SERVIDOR (`request.time`), como el recibo de contraseña:
+   * así no se puede fechar hacia atrás desde la consola del navegador. Y **no
+   * lanza nunca**: entrar no puede depender de que se escriba una fecha. Los
+   * fallos se CUENTAN y se pueden mirar (`bitacora.ts`); lo que no se hace es
+   * tragárselos con un `catch` vacío, que es como se pierde una bitácora entera
+   * sin que nadie se entere.
+   */
+  dejarUltimoAcceso(): Promise<void>;
+
+  /**
+   * La bitácora de accesos y cambios de permiso.
+   *
+   * Se lee DIRECTO de la base, no por el trabajador: las reglas ya dejan leerla
+   * a quien tiene `usuarios.auditoria`, y hacerla pasar por un trabajador solo
+   * añadiría un salto que puede fallar. La ESCRIBE únicamente el servidor.
+   */
+  listarAuditoria(filtro?: { accion?: string; sujetoUid?: string; tope?: number }): Promise<EntradaLeidaDeAuditoria[]>;
+
   /** Cuándo cambió su contraseña esta persona, o `null`. Nunca lanza. */
   reciboContrasena(): Promise<number | null>;
   /** Deja constancia del cambio. La fecha la pone el servidor. */
@@ -378,6 +427,12 @@ export const repositorioSinSesion: Repositorio = {
   },
   async guardarAccion() {
     /* sin sesión no se escribe nada */
+  },
+  async dejarUltimoAcceso() {
+    /* sin sesión no se escribe nada */
+  },
+  async listarAuditoria() {
+    return [];
   },
   async reciboContrasena() {
     return null;

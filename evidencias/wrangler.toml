@@ -43,3 +43,10 @@ ORG_PERMITIDA = "transpower"
 [[r2_buckets]]
 binding = "EVIDENCIAS"
 bucket_name = "lineas-at-evidencias"
+
+# ⚠️ EL CORTE DE REVOCACIÓN (`99 §ADR-100`). Todo token emitido ANTES de esta marca
+# se rechaza. Vacía = sin corte. Se pone (fecha ISO o segundos) en el momento de
+# la limpieza inicial, en ESTE trabajador y en el de personas a la vez, y así la
+# revocación es inmediata en las dos puertas en vez de «en una hora». Una marca
+# que no se entiende APAGA el portero (503), no se ignora.
+REVOCADOS_ANTES_DE = ""

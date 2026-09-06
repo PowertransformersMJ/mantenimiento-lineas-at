@@ -71,7 +71,7 @@
 
 | # | Qué | Por qué importa |
 |---|---|---|
-| **CLAVE** | **Ponerse contraseña.** La llave admin no está en Descargas: regenerarla (Consola Firebase → Cuentas de servicio), guardarla fuera y `usuarios.mjs contrasena … --definitiva` | Desbloquea retirar Google (2b) |
+| **TODO-97** 🔴 ⬅️ **EL CORTE DE ACCESO** (`§ADR-100`) | Construido y verde, **sin desplegar**. Runbook en `usuarios/README.md §9`. Paso 0 suyo: **el correo del propietario** (distinto de su Google). Consola con pantallazos: sign-up OFF · cuenta de servicio · Add user · apagar Google | Sin el paso 0 nada arranca |
 | **TODO-57** | **La FICHA se ESCRIBE y está EN PRODUCCIÓN** (`99 §ADR-030`). Falta **el DATO**: ¿planos y actas, o hay que levantarlo? Los seis: rotura · altura libre · altura del amarre · capacidad longitudinal · fases amarradas · tipo de apoyo | **EL CUELLO DE BOTELLA REAL.** Al meter el primero saldrán «REVISAR»: no son averías nuevas |
 | **TODO-81** | **Descargar el acta de la carga del 22-08** desde Cargar: único sitio donde queda escrito POR QUÉ se decidió cada cosa | Se pierde al recargar |
 | **TODO-82/83** | **Dos suyas sobre el clima.** ① ¿FASE 2 del pronóstico (`§ADR-057`): franja mañana/tarde y sensación térmica? ② ¿Dato FINO por extremos (`§ADR-064`)? Las capas de 2 km tocan 3 celdas y salen por PROMEDIO | Sensación de **40 °C** con aire a 32,5 |
@@ -97,7 +97,7 @@
 |---|---|---|
 | **TODO-70** | **Cerrar la ola de la ficha.** Queda SOLO ③: el gesto «Confirmo este dato», que exige su propio molde | `99 §ADR-030/032/033/038` |
 | **TODO-66** | **Que una acción pruebe que FUNCIONÓ**, no solo que se hizo: verificación posterior con fecha | `99 §ADR-026` |
-| **TODO-50** | **Blindaje**: ✅ F1 · ✅ F2a · ✅ F3 · ⬜ **2b retirar Google** — espera la contraseña | `99 §ADR-019/024` |
+| **TODO-50** | **Blindaje**: ✅ F1 · ✅ F2a · ✅ F3 · **2b Google**: ✅ código · ⬜ consola (paso 8 del corte) | `99 §ADR-019/024/100` |
 | **TODO-79** | **Saldo del entorno: 34 vivos + 5 parciales** (`99 §ADR-049`). Los dos restos más caros: el identificador crudo en el **informe firmable** y la red del **mapa** | Varios son decisión suya |
 | **TODO-52/49/48** | RCA: lienzo del árbol · contador de PARQUE · deuda 017 | `§ADR-017/018/020` |
 | **TODO-30/11 · 13-23** | XSD de GPX/KML en CI · nota técnica de LN-627 · F3-F5 | `ADR-014` |

@@ -21,7 +21,7 @@ import {
 } from '@lineas/contratos';
 import { almacen } from '../datos/enlace';
 
-export function Contrasena({ correo }: { correo: string }) {
+export function Contrasena({ correo, obligatoria = true }: { correo: string; obligatoria?: boolean }) {
   const [actual, setActual] = useState('');
   const [nueva, setNueva] = useState('');
   const [repetida, setRepetida] = useState('');
@@ -77,15 +77,27 @@ export function Contrasena({ correo }: { correo: string }) {
 
   return (
     <section className="panel acceso">
-      <h2>Cambie su contraseña antes de continuar</h2>
-      <p>
-        Su contraseña la escribió el administrador cuando creó su cuenta, así que la conoce otra
-        persona. Mientras siga siendo ésa, <b>lo que usted firme en este sistema no es solo suyo</b>.
-        Elija ahora una que no sepa nadie más.
-      </p>
-      <p className="fine">
-        Es la única pantalla que se interpone antes de entrar, y solo aparece hasta que la cambie.
-      </p>
+      {obligatoria ? (
+        <>
+          <h2>Cambie su contraseña antes de continuar</h2>
+          <p>
+            Su contraseña la escribió el administrador cuando creó su cuenta, así que la conoce otra
+            persona. Mientras siga siendo ésa, <b>lo que usted firme en este sistema no es solo suyo</b>.
+            Elija ahora una que no sepa nadie más.
+          </p>
+          <p className="fine">
+            Es la única pantalla que se interpone antes de entrar, y solo aparece hasta que la cambie.
+          </p>
+        </>
+      ) : (
+        <>
+          <h2>Cambiar mi contraseña</h2>
+          <p className="fine">
+            Se le pide la actual porque un portátil abierto no debe bastar para cambiarla. No queda
+            escrita en este navegador.
+          </p>
+        </>
+      )}
 
       <form onSubmit={(e) => void enviar(e)}>
         <div className="calc-fila">
@@ -119,15 +131,45 @@ export function Contrasena({ correo }: { correo: string }) {
 
         <div className="rca-guardar">
           <button type="submit" className="boton" disabled={!listo}>
-            {trabajando ? 'Cambiando…' : 'Cambiar y entrar'}
+            {trabajando ? 'Cambiando…' : (obligatoria ? 'Cambiar y entrar' : 'Cambiar')}
           </button>
           {/* SIEMPRE hay salida. Una pantalla obligatoria sin puerta de atrás es
               una puerta que se cierra por dentro. */}
-          <button type="button" className="boton chico" onClick={() => void salir()}>
-            Salir sin cambiarla
-          </button>
+          {obligatoria && (
+            <button type="button" className="boton chico" onClick={() => void salir()}>
+              Salir sin cambiarla
+            </button>
+          )}
         </div>
       </form>
     </section>
+  );
+}
+
+/**
+ * CAMBIAR MI CONTRASEÑA, cuando NO es obligatorio: el autoservicio de cualquier
+ * persona desde la cabecera. Es la MISMA operación de arriba —reautenticar con
+ * la actual, cambiar, dejar recibo— con otra puerta de entrada, y por eso vive
+ * en este archivo y no en uno nuevo.
+ *
+ * ⚠️ Sustituye al antiguo «Ponerme contraseña» que hablaba con el trabajador de
+ * personas: aquel camino perdía la reautenticación (el servidor solo veía un
+ * token válido, también válido con el portátil abierto una hora) — hallazgo del
+ * comité del delta (`99 §ADR-100`). Aquí Firebase exige la contraseña ACTUAL.
+ */
+export function CambiarMiContrasena({ correo }: { correo: string }) {
+  const [abierto, setAbierto] = useState(false);
+  if (!abierto) {
+    return (
+      <button type="button" className="boton chico" onClick={() => setAbierto(true)}>
+        Cambiar mi contraseña
+      </button>
+    );
+  }
+  return (
+    <div className="mi-contrasena">
+      <Contrasena correo={correo} obligatoria={false} />
+      <button type="button" className="boton chico" onClick={() => setAbierto(false)}>Cerrar</button>
+    </div>
   );
 }

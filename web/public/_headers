@@ -10,3 +10,74 @@
 # Los assets llevan huella en el nombre: pueden cachearse para siempre.
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
+
+# ════════════════════════════════════════════════════════════════════════════
+# HIGIENE DEL SITIO — cabeceras de seguridad para TODO
+# ----------------------------------------------------------------------------
+# Estas cinco no rompen nada y cierran agujeros de verdad. Van en ENFORZADO
+# porque su efecto es comprobable sin abrir el navegador:
+#
+#   X-Content-Type-Options   el navegador NO adivina el tipo de un archivo. Sin
+#                            esto, un .json servido con el tipo equivocado puede
+#                            acabar ejecutándose como guion.
+#   X-Frame-Options / frame-ancestors
+#                            nadie puede meter esta aplicación dentro de un marco
+#                            en otro sitio. Es lo que impide el «clickjacking»:
+#                            una página ajena que pinta un botón invisible encima
+#                            del nuestro para que alguien pulse sin saberlo.
+#   Referrer-Policy          al salir a un sitio ajeno no se le cuenta en qué
+#                            pantalla estábamos. Aquí importa: la dirección lleva
+#                            el CÓDIGO DE LÍNEA de un cliente (`#/LN-627/...`).
+#   Permissions-Policy       cámara y ubicación SOLO para nosotros —la cuadrilla
+#                            las necesita— y micrófono para NADIE: esta
+#                            herramienta no graba audio y no debería poder.
+#   Strict-Transport-Security  un año de HTTPS obligatorio para este dominio.
+#
+# ⚠️ LA CSP VA EN «REPORT-ONLY», Y ESO ES DELIBERADO, NO UN OLVIDO.
+# Una política mal medida no da un error visible: **apaga el mapa, los atlas o
+# las fotos en silencio**, que es el modo de fallo más caro de este proyecto. La
+# lista de orígenes de abajo está MEDIDA sobre el código (`grep https://` en
+# `web/src` + las direcciones de los atlas), pero medir el código no es lo mismo
+# que verlo cargar: la comprobación exige entrar con una sesión real, y esta
+# sesión no puede iniciar sesión en nombre de nadie.
+#
+# QUÉ HACER PARA ENCENDERLA (dos minutos, con su Chrome):
+#   1. Entrar en producción, abrir el mapa, un atlas y la galería de fotos.
+#   2. Mirar la consola. Cada línea «[Report Only] Refused to…» es un origen que
+#      falta abajo; si no hay ninguna, la política ya es correcta.
+#   3. Cambiar `Content-Security-Policy-Report-Only` por
+#      `Content-Security-Policy` y volver a desplegar.
+# Hasta que eso ocurra, la CSP NO protege — informa. Se dice en vez de suponerlo.
+#
+# DE DÓNDE SALE CADA ORIGEN (todos medidos, ninguno de memoria):
+#   'self'                          la aplicación, los atlas y las teselas
+#                                   (`/mapas/*.pmtiles`, `/mapas/*.json`)
+#   api.met.no                      el pronóstico (`datos/pronostico.ts`)
+#   www.datos.gov.co                el clima (`datos/clima.ts`)
+#   lineas-at-evidencias…workers.dev  el portero de fotos (`web/.env.production`)
+#   lineas-at-usuarios…workers.dev    el trabajador de personas. El nombre está
+#                                   MEDIDO, no supuesto: sale de `name` en
+#                                   `usuarios/wrangler.toml` (con `workers_dev =
+#                                   true`) y del subdominio de cuenta que ya usa
+#                                   el portero. Si el despliegue le pone otra
+#                                   dirección, hay que cambiarla AQUÍ también.
+#   *.googleapis.com (los cuatro)   entrar, leer Firestore e instalar App Check
+#   apis.google.com / accounts.google.com / <proyecto>.firebaseapp.com
+#                                   la ventana de «Entrar con Google»
+#   www.google.com / www.gstatic.com  reCAPTCHA v3, que es lo que usa App Check.
+#                                   Van aunque hoy App Check no esté encendido:
+#                                   el día que se ponga la clave, no puede haber
+#                                   que acordarse de tocar también esto.
+#
+# script-src NO lleva 'unsafe-inline': `index.html` no tiene ni un guion en
+# línea (comprobado), así que no hace falta ni hash ni nonce.
+# style-src SÍ lo lleva, y no es lo mismo: cubre el atributo `style` de cada
+# elemento, y tanto React como MapLibre colocan estilos ahí en cada repintado
+# del mapa. Sin ello el mapa se dibuja descolocado.
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(self), geolocation=(self), microphone=()
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  Content-Security-Policy-Report-Only: default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' https://apis.google.com https://www.google.com https://www.gstatic.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; worker-src 'self' blob:; connect-src 'self' https://api.met.no https://www.datos.gov.co https://lineas-at-evidencias.ajimenezp99.workers.dev https://lineas-at-usuarios.ajimenezp99.workers.dev https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com https://www.googleapis.com https://firebaseinstallations.googleapis.com https://firebaseappcheck.googleapis.com https://content-firebaseappcheck.googleapis.com; frame-src 'self' https://mantenimiento-lineas-at.firebaseapp.com https://accounts.google.com https://www.google.com

@@ -12,6 +12,39 @@ rules_version = '2';
 //   La IA mira y redacta; el núcleo mide; el ingeniero decide.
 //   El modelo escribe SOLO en `sugerencias`. Tiene prohibido `hallazgos`,
 //   `calculos` y `apoyos` — y aunque alguien lo intente, la base lo niega.
+//
+// ───────────────────────────────────────────────────────────────────────────
+// 🔑 EL PERMISO NO SE DECIDE AQUÍ: SE HACE CUMPLIR AQUÍ.
+//
+// La fuente de verdad es `contratos/src/usuarios.ts`, y ese archivo dice tres
+// cosas distintas sobre una persona:
+//
+//   1. ROL (`rol`)  — quién ES. Cinco valores, lista cerrada. Ya NO decide nada
+//      en estas reglas: solo el servidor lo usa para calcular las funciones.
+//   2. FUNCIONES (`f`) — qué PUEDE HACER, en códigos cortos ('ae', 'ev'…).
+//      Es lo único que mira cada `allow` de este archivo.
+//   3. ALCANCE (`l`) — sobre QUÉ LÍNEAS. `['*']` o identificadores de línea.
+//
+// POR QUÉ SE DEJÓ LA JERARQUÍA POR ROL: `esEditor()` no podía decir «este
+// editor sí toca la ficha del apoyo pero no carga el trazado», así que cada
+// matiz nuevo exigía inventar un rol. `FUNCIONES_POR_ROL` del catálogo es la
+// traducción EXACTA de la jerarquía que había hasta el 2026-09-05 —está medido,
+// no supuesto: cada helper viejo tiene su función equivalente—, con una sola
+// diferencia declarada, en `cargabilidad_*`, que se explica en su sitio.
+//
+//   autenticado()  {admin,editor,cuadrilla,auditor}  ==  'lv'  y  'ev'
+//   esEditor()     {admin,editor}                    ==  'le' 'ae' 'he' 'xe'
+//   esCuadrilla()  {admin,editor,cuadrilla}          ==  'ea'
+//   esAuditor()    {admin,auditor}                   ==  'il'  y  'ua'
+//   esAdmin()      {admin}                           ==  'fl' 'cp' 'cc' 'ce' 'ug'
+//
+// ⚠️⚠️ ORDEN DE DESPLIEGUE — ESTO ROMPE EL ACCESO SI SE PUBLICA SOLO ⚠️⚠️
+// Los tokens vivos HOY llevan `orgId` y `rol`, y NO llevan `f` ni `l`
+// (`herramientas/usuarios.mjs` todavía no los escribe). Y aquí un reclamo
+// ausente es mínimo privilegio, no una promoción: sin `f` no se puede NADA,
+// ni siquiera con `rol: 'admin'`. Publicar este archivo antes de que el
+// escritor de reclamos ponga `f` y `l` —y antes de que cada sesión viva se
+// renueve— deja a todo el mundo fuera de su propia herramienta.
 // ═══════════════════════════════════════════════════════════════════════════
 
 service cloud.firestore {
@@ -29,20 +62,102 @@ service cloud.firestore {
                                      ? request.auth.token.rol : 'ninguno'; }
 
     function deMiOrg(rec)   { return autenticado() && rec.orgId == miOrg() && miOrg() != ''; }
-    function esAdmin()      { return autenticado() && rol() == 'admin'; }
-    function esEditor()     { return esAdmin() || rol() == 'editor'; }
-    function esCuadrilla()  { return esEditor() || rol() == 'cuadrilla'; }
-    function esAuditor()    { return esAdmin() || rol() == 'auditor'; }
 
-    // Lectura: cualquier miembro autenticado de la organización dueña del dato.
-    //
-    // ⚠️ `miOrg() != ''` NO es redundante, aunque `deMiOrg()` ya lo llevara.
-    // Sin él, un usuario cuyo token trae `rol` pero se quedó SIN `orgId` —un
-    // desliz de aprovisionamiento— cumple `resource.data.orgId == miOrg()`
-    // siempre que el documento también tenga la organización vacía, porque
-    // `'' == ''` es verdadero. El `min(1)` del contrato vive en el cliente, no
-    // aquí: las reglas son la última línea y no pueden apoyarse en él.
-    function puedeLeer()    { return autenticado() && miOrg() != ''
+    /**
+     * El ÚNICO resto de la jerarquía, y ya no decide quién escribe: acompaña a
+     * `tiene('cc')` y `tiene('ce')` para que siga escrita la decisión que el
+     * Ingeniero aprobó el 2026-08-30 —«la cargabilidad y la configuración solo
+     * las escribe un administrador»— aunque alguien toque el catálogo.
+     *
+     * Hoy no cambia NADA: `cc`, `ce`, `fl`, `cp` y `ug` son NO DELEGABLES, así
+     * que solo las traen `propietario` y `admin`, que es este mismo conjunto.
+     * La prueba de paridad vigila que sigan siendo no delegables; el día que
+     * una se vuelva delegable, esta conjunción hay que retirarla en el mismo
+     * cambio o estará mintiendo.
+     *
+     * ⚠️ `propietario` (`§ADR-100`) va DENTRO. Dejarlo fuera era el fallo del
+     * archivo anterior en cuanto naciera la cuenta de rescate del dueño: el
+     * techo de la delegación se habría quedado por debajo del admin.
+     */
+    /** Los dos documentos de `config/` que solo escribe el servidor (`99 §ADR-100`). */
+    function esCerrojo(docId) { return docId == 'arranque' || docId == 'limpieza'; }
+    function esAdmin() { return rol() == 'propietario' || rol() == 'admin'; }
+
+    // ── EJE 2 · LAS FUNCIONES ──────────────────────────────────────────────
+    /**
+     * ¿Trae el token esta función? `corto` es el código CORTO del catálogo
+     * (`FUNCIONES[...].corto`), no el nombre largo: en el token caben 1.000
+     * bytes contados y por eso viajan como 'ae', no como 'apoyos.editar'.
+     *
+     * Se lee DIRECTO del token, nunca con `.get()` ni con un `get()` a la base:
+     * una lectura dentro de una regla SE FACTURA aunque la regla deniegue, y el
+     * portero de fotos —que también verifica este token— no puede leer
+     * Firestore. El reclamo arregla las dos mitades a la vez (`§ADR-100`).
+     *
+     * SIN `f` NO SE PUEDE NADA. Un reclamo ausente es mínimo privilegio: no es
+     * una promoción, y no hay valor por defecto que abra.
+     */
+    function tiene(corto) {
+      return request.auth != null
+          && 'f' in request.auth.token
+          && corto in request.auth.token.f;
+    }
+
+    // ── EJE 3 · EL ALCANCE ─────────────────────────────────────────────────
+    /**
+     * ¿Alcanza esta sesión a esta línea? `['*']` = todas las de su
+     * organización; si no, la lista de identificadores que le asignaron.
+     *
+     * ⚠️ LO QUE ESTO LE HACE A UNA CONSULTA DE LISTA, y hay que saberlo antes
+     * de asignarle un alcance acotado a alguien: Firestore no evalúa las reglas
+     * documento a documento en un `getDocs`, exige que la CONSULTA pruebe por
+     * sí sola que solo puede devolver lo permitido. Con `l: ['*']` la parte
+     * izquierda del `||` es cierta sin mirar el documento y la consulta pasa.
+     * Con un alcance acotado, la consulta TIENE que traer su
+     * `where('lineaId','==',…)` — las de `apoyos`, `evidencias` e
+     * `investigaciones` ya lo traen; la de `lineas` (todavía) no.
+     */
+    function alcanza(lineaId) {
+      return request.auth != null
+          && 'l' in request.auth.token
+          && ('*' in request.auth.token.l || lineaId in request.auth.token.l);
+    }
+
+    /**
+     * El alcance donde el molde declara `lineaId` OPCIONAL — `hipotesis` y
+     * `cargabilidad_*`. Ahí la ausencia del campo no significa «de otra línea»,
+     * significa «todavía no se sabe de cuál»:
+     *
+     *   · una hipótesis sin `lineaId` es la hipótesis COMPARTIDA a la que
+     *     apunta `linea.hipotesisId`, y negarla dejaría la vista de línea en
+     *     blanco para cualquiera con alcance acotado;
+     *   · un día de cargabilidad sin `lineaId` es el que SCADA nombró a su
+     *     manera y aún no se ha emparejado (`contratos/src/cargabilidad.ts`).
+     *
+     * Así que se exige alcance CUANDO EL DOCUMENTO LO DECLARA, y no se inventa
+     * cuando no. Escribir `alcanza(datos.lineaId)` a secas sería peor que
+     * permisivo: el campo ausente hace que la expresión falle y DENIEGA incluso
+     * a quien tiene `['*']` — habría apagado el tablero de cargabilidad entero.
+     */
+    function alcanzaSiDeclara(datos) {
+      return !('lineaId' in datos) || alcanza(datos.lineaId);
+    }
+
+    // ── Lectura ────────────────────────────────────────────────────────────
+    /**
+     * Lectura: quien trae la función `corto` y es de la organización dueña del
+     * dato. Antes bastaba con estar autenticado; ahora hay que traer además la
+     * función, que es lo que permite que un auditor lea sin poder escribir sin
+     * inventarle un rol.
+     *
+     * ⚠️ `miOrg() != ''` NO es redundante, aunque `deMiOrg()` ya lo llevara.
+     * Sin él, un usuario cuyo token trae `rol` pero se quedó SIN `orgId` —un
+     * desliz de aprovisionamiento— cumple `resource.data.orgId == miOrg()`
+     * siempre que el documento también tenga la organización vacía, porque
+     * `'' == ''` es verdadero. El `min(1)` del contrato vive en el cliente, no
+     * aquí: las reglas son la última línea y no pueden apoyarse en él.
+     */
+    function puedeVer(corto)  { return tiene(corto) && miOrg() != ''
                                      && resource.data.orgId == miOrg(); }
 
     /** Un documento nuevo no puede nacer en otra organización ni suplantar autor. */
@@ -66,15 +181,26 @@ service cloud.firestore {
     // Mutan despacio y los edita una persona con criterio.
 
     match /lineas/{lineaId} {
-      allow read:   if puedeLeer();
-      allow create: if esEditor() && altaCoherente();
-      allow update: if esEditor() && deMiOrg(resource.data) && noTocaReservados();
+      // El identificador de la línea es el ID DEL DOCUMENTO — `lineas` no lleva
+      // un campo `lineaId`: ella ES la línea. Por eso el alcance se comprueba
+      // contra el comodín de la ruta y no contra `resource.data`.
+      allow read:   if puedeVer('lv') && alcanza(lineaId);
+      allow create: if tiene('le') && altaCoherente() && alcanza(lineaId);
+      allow update: if tiene('le') && deMiOrg(resource.data) && noTocaReservados()
+                    && alcanza(lineaId);
       allow delete: if false;   // no se borra: se marca inactiva
     }
 
     match /apoyos/{apoyoId} {
-      allow read:   if puedeLeer();
-      allow create: if esEditor() && altaCoherente();
+      allow read:   if puedeVer('lv') && alcanza(resource.data.lineaId);
+      // CREAR un apoyo es `cargar.puntos` ('cp'), NO `apoyos.editar` ('ae'), y
+      // el catálogo lo dice con esas mismas palabras: 'cp' es «cargar el trazado
+      // (GPS/KML) que crea puntos». Es también lo único que crea apoyos en la
+      // aplicación (`cargarPuntosNuevos`), que ya exigía administrador por su
+      // cuenta. La regla vieja era MÁS FLOJA que la pantalla: dejaba a un editor
+      // crear apoyos a mano desde la consola del navegador. Se cierra.
+      allow create: if tiene('cp') && altaCoherente()
+                    && alcanza(request.resource.data.lineaId);
       // EL CERROJO DE REVISIÓN, igual que en `analisis` — y aquí importa más:
       // un apoyo NO se borra (abajo), así que lo que se pise se pisa para
       // siempre. Sin esto, quien guarde la ficha a las 10:00 pisa completa la
@@ -83,17 +209,24 @@ service cloud.firestore {
       // `get('revision', 0)` y no `resource.data.revision`: los 26 apoyos ya
       // creados podrían no traer el campo, y una regla nueva no puede dejar
       // inservible lo que ya está.
-      allow update: if esEditor() && deMiOrg(resource.data) && noTocaReservados()
+      //
+      // Se comprueban las DOS líneas —la que tiene y la que tendría— para que
+      // nadie saque un apoyo de su alcance moviéndolo a otra línea.
+      allow update: if tiene('ae') && deMiOrg(resource.data) && noTocaReservados()
+                    && alcanza(resource.data.lineaId)
+                    && alcanza(request.resource.data.lineaId)
                     && request.resource.data.revision == resource.data.get('revision', 0) + 1;
       allow delete: if false;
     }
 
     match /hipotesis/{hipotesisId} {
-      allow read:   if puedeLeer();
-      allow create: if esEditor() && altaCoherente();
+      allow read:   if puedeVer('lv') && alcanzaSiDeclara(resource.data);
+      allow create: if tiene('he') && altaCoherente()
+                    && alcanzaSiDeclara(request.resource.data);
       // Una hipótesis CONGELADA ya respalda un informe firmado: es intocable.
-      allow update: if esEditor() && deMiOrg(resource.data)
-                    && resource.data.congelada == false && noTocaReservados();
+      allow update: if tiene('he') && deMiOrg(resource.data)
+                    && resource.data.congelada == false && noTocaReservados()
+                    && alcanzaSiDeclara(resource.data);
       allow delete: if false;
     }
 
@@ -101,20 +234,27 @@ service cloud.firestore {
     // Inmutables por naturaleza: una inspección de 2027 no pisa la de 2026.
 
     match /inspecciones/{inspeccionId} {
-      allow read:   if puedeLeer();
-      allow create: if esCuadrilla() && altaCoherente();
+      allow read:   if puedeVer('lv') && alcanza(resource.data.lineaId);
+      allow create: if tiene('ea') && altaCoherente()
+                    && alcanza(request.resource.data.lineaId);
       // Una inspección cerrada no se reabre desde el cliente.
-      allow update: if esCuadrilla() && deMiOrg(resource.data)
-                    && resource.data.cerrada == false && noTocaReservados();
+      allow update: if tiene('ea') && deMiOrg(resource.data)
+                    && resource.data.cerrada == false && noTocaReservados()
+                    && alcanza(resource.data.lineaId);
       allow delete: if false;
     }
 
     match /evidencias/{evidenciaId} {
-      allow read:   if puedeLeer();
-      allow create: if esCuadrilla() && altaCoherente();
+      // 'ev' y no 'lv': ver fotografías es su propia función en el catálogo, y
+      // hoy la traen exactamente los mismos roles que podían leer aquí. Que sea
+      // suya permite quitársela a alguien sin quitarle la línea entera.
+      allow read:   if puedeVer('ev') && alcanza(resource.data.lineaId);
+      allow create: if tiene('ea') && altaCoherente()
+                    && alcanza(request.resource.data.lineaId);
       // Solo avanza el estado de subida y el pie. El hash y la ruta no se tocan:
       // si cambiaran, la evidencia dejaría de probar lo que dice probar.
-      allow update: if esCuadrilla() && deMiOrg(resource.data)
+      allow update: if tiene('ea') && deMiOrg(resource.data)
+                    && alcanza(resource.data.lineaId)
                     && request.resource.data.diff(resource.data).affectedKeys()
                          .hasOnly(['subida', 'pie', 'actualizadoEn', 'actualizadoPor', 'revision']);
       allow delete: if false;
@@ -125,11 +265,13 @@ service cloud.firestore {
     // con su verosimilitud, y lo que falta por verificar. Lo escribe el
     // ingeniero que investiga, no el modelo.
     match /investigaciones/{investigacionId} {
-      allow read:   if puedeLeer();
-      allow create: if esEditor() && altaCoherente();
+      allow read:   if puedeVer('lv') && alcanza(resource.data.lineaId);
+      allow create: if tiene('xe') && altaCoherente()
+                    && alcanza(request.resource.data.lineaId);
       // Un expediente CERRADO respalda un informe entregado: ya no se toca.
-      allow update: if esEditor() && deMiOrg(resource.data)
-                    && resource.data.cerrada == false && noTocaReservados();
+      allow update: if tiene('xe') && deMiOrg(resource.data)
+                    && resource.data.cerrada == false && noTocaReservados()
+                    && alcanza(resource.data.lineaId);
       allow delete: if false;   // un evento ocurrido no se borra jamás
     }
 
@@ -137,9 +279,16 @@ service cloud.firestore {
     // Vive FUERA de la línea a propósito: un análisis puede abarcar varias, o
     // ninguna todavía. Meterlo dentro haría invisible el patrón más caro de un
     // parque — el mismo componente fallando en apoyos de líneas distintas.
+    //
+    // ⚠️ POR ESO NO LLEVA ALCANCE, y no es un olvido: su molde no tiene
+    // `lineaId`, tiene `alcance.lineaIds` —una LISTA, que puede ir VACÍA
+    // mientras no se sepa qué activo falló—. Comprobar el alcance contra una
+    // lista exigiría `hasAny` sobre el token y dejaría fuera justo el análisis
+    // recién abierto, que es cuando más se trabaja en él. Queda declarado como
+    // hueco conocido, no tapado con un campo inventado.
     match /analisis/{analisisId} {
-      allow read:   if puedeLeer();
-      allow create: if esEditor() && altaCoherente();
+      allow read:   if puedeVer('lv');
+      allow create: if tiene('xe') && altaCoherente();
       // Un análisis CERRADO respalda un informe entregado: ya no se toca. Misma
       // regla que las investigaciones y las hipótesis congeladas.
       // EL CERROJO CONTRA EL BORRADO SILENCIOSO ENTRE COMPAÑEROS.
@@ -157,7 +306,7 @@ service cloud.firestore {
       //
       // `get('revision', 0)` tolera un documento antiguo sin el campo: sin eso,
       // una regla nueva dejaría inservible un expediente ya creado.
-      allow update: if esEditor() && deMiOrg(resource.data)
+      allow update: if tiene('xe') && deMiOrg(resource.data)
                     && resource.data.cerrado == false && noTocaReservados()
                     && request.resource.data.revision == resource.data.get('revision', 0) + 1;
       allow delete: if false;   // un análisis hecho no se borra: se cierra
@@ -173,10 +322,13 @@ service cloud.firestore {
     //
     // Por eso el `update` NO mira si el análisis está cerrado: una acción de un
     // análisis firmado sigue ejecutándose, y tiene que poder cerrarse.
+    //
+    // Sin alcance, por lo mismo que `analisis`: cuelga de `analisisId`, no de
+    // una línea.
     match /acciones_capa/{accionId} {
-      allow read:   if puedeLeer();
-      allow create: if esEditor() && altaCoherente();
-      allow update: if esEditor() && deMiOrg(resource.data) && noTocaReservados()
+      allow read:   if puedeVer('lv');
+      allow create: if tiene('xe') && altaCoherente();
+      allow update: if tiene('xe') && deMiOrg(resource.data) && noTocaReservados()
                     // De qué análisis cuelga no se reescribe: mover una acción a
                     // otro análisis borraría el rastro de por qué se tomó.
                     && request.resource.data.analisisId == resource.data.analisisId;
@@ -188,9 +340,12 @@ service cloud.firestore {
     // corrige la serie, el informe firmado tiene que seguir mostrando lo que se
     // consultó el día que se firmó. Por eso se crea y NO se actualiza — ni el
     // admin. Permitir `update` convertiría la prueba en una opinión editable.
+    //
+    // Cuelga de `analisisId` y de un punto geográfico, no de una línea: sin
+    // alcance, igual que `analisis`.
     match /sondeos_clima/{sondeoId} {
-      allow read:   if puedeLeer();
-      allow create: if esEditor() && altaCoherente();
+      allow read:   if puedeVer('lv');
+      allow create: if tiene('xe') && altaCoherente();
       allow update: if false;
       allow delete: if false;
     }
@@ -199,23 +354,31 @@ service cloud.firestore {
     // Son juicio profesional y dictamen fechado. Ni el cliente ni el modelo
     // escriben aquí: pasan por una función que valida contra el contrato.
     match /hallazgos/{hallazgoId} {
-      allow read:  if puedeLeer();
+      allow read:  if puedeVer('lv') && alcanza(resource.data.lineaId);
       allow write: if false;
     }
 
     match /calculos/{calculoId} {
-      allow read:  if puedeLeer();
+      allow read:  if puedeVer('lv') && alcanza(resource.data.lineaId);
       allow write: if false;
     }
 
     // ── SUBSISTEMA DE IA ───────────────────────────────────────────────────
+    //
+    // ⚠️ EL CATÁLOGO NO TIENE FUNCIÓN PROPIA PARA PEDIRLE ALGO AL MODELO NI
+    // PARA DAR EL VEREDICTO SOBRE UNA SUGERENCIA. Solo tiene 'il', que es LEER
+    // la bitácora. Aquí no se inventa una: se hace cumplir con
+    // `evidencias.aportar` ('ea'), que es la única cuyo conjunto de roles es
+    // EXACTAMENTE el que podía escribir hasta hoy (admin, editor, cuadrilla) y
+    // además es de donde nace una solicitud — de lo que se vio en campo.
+    // Queda anotado como pregunta al Ingeniero, no como decisión cerrada.
 
     match /solicitudes_ia/{solicitudId} {
-      allow read: if puedeLeer();
+      allow read: if puedeVer('lv');
       // El cliente PIDE, no manda. Fíjese en lo que no está: prompt, modelo,
       // temperatura, max_tokens. Si pudiera mandarlos habría fuga de
       // presupuesto y jailbreak gratis (ADR-004).
-      allow create: if esCuadrilla() && altaCoherente()
+      allow create: if tiene('ea') && altaCoherente()
                     && request.resource.data.estado == 'pendiente'
                     && request.resource.data.keys().hasOnly([
                          'id', 'orgId', 'creadoEn', 'creadoPor', 'revision', 'tipo',
@@ -225,11 +388,11 @@ service cloud.firestore {
     }
 
     match /sugerencias/{sugerenciaId} {
-      allow read: if puedeLeer();
+      allow read: if puedeVer('lv');
       allow create: if false;           // solo el servidor, tras llamar al modelo
       // La persona SOLO deja su veredicto. El contenido del modelo es intocable:
       // sin eso no habría forma de auditar qué propuso realmente.
-      allow update: if esCuadrilla() && deMiOrg(resource.data)
+      allow update: if tiene('ea') && deMiOrg(resource.data)
                     && request.resource.data.diff(resource.data).affectedKeys()
                          .hasOnly(['decision', 'revisadoPor', 'revisadoEn', 'diffHumano',
                                    'actualizadoEn', 'actualizadoPor', 'revision'])
@@ -240,8 +403,14 @@ service cloud.firestore {
     // 🔒 BITÁCORA — escritura ÚNICA. Nadie modifica ni borra, ni el admin.
     // Es lo que hace defendible el sistema el día que pregunten por qué el
     // modelo dijo lo que dijo.
+    //
+    // ⚠️ SE LE AÑADE LA ORGANIZACIÓN, que le faltaba. Era la segunda regla de
+    // lectura sin `orgId` —la otra era `config`, y ya se cerró—: decía
+    // `esAuditor()` a secas, así que un auditor de otra organización habría
+    // leído esta bitácora entera. `LlamadaIA` sí trae `orgId`, así que exigirlo
+    // no rompe nada.
     match /llamadas_ia/{llamadaId} {
-      allow read:  if esAuditor();
+      allow read:  if puedeVer('il');
       allow write: if false;
     }
 
@@ -260,38 +429,98 @@ service cloud.firestore {
     // barato de arreglarla. `deMiOrg` obliga además a que el documento declare
     // su organización — un documento de configuración sin `orgId` deja de ser
     // legible, y eso es lo correcto: no se sabe de quién es.
+    // ⚠️ DOS DOCUMENTOS DE `config/` NO LOS ESCRIBE NINGÚN CLIENTE, ni un admin:
+    // `arranque` (quién es el propietario; mientras exista, el arranque es de
+    // un solo uso) y `limpieza` (la marca de que el borrado inicial ya se hizo).
+    // Los escribe SOLO el trabajador de personas con su cuenta de servicio.
+    //
+    // Y hay que EXCLUIRLOS de la regla genérica de abajo, no solo darles la
+    // suya: en Firestore las reglas de dos `match` que se solapan se combinan
+    // con O, y `write` incluye `delete` — un admin podría BORRAR `config/arranque`
+    // desde el navegador y rearmar el arranque (`99 §ADR-100`, hallazgo del
+    // verificador del delta).
     match /config/{docId} {
-      allow read:  if puedeLeer();
-      allow write: if esAdmin() && deMiOrg(resource.data);
+      // Los cerrojos los LEE solo quien administra de verdad (rol + función +
+      // organización): saber si el sistema arrancó es parte del runbook, no un
+      // dato de operación. Lo demás de config/ lo lee quien ve líneas.
+      allow read:  if (esCerrojo(docId) && esAdmin() && tiene('ce') && deMiOrg(resource.data))
+                   || (!esCerrojo(docId) && puedeVer('lv'));
+      allow write: if !esCerrojo(docId) && tiene('ce') && esAdmin() && deMiOrg(resource.data);
     }
 
-    // ── EL RECIBO DEL CAMBIO DE CONTRASEÑA ─────────────────────────────────
-    // Un documento por persona, con UN SOLO CAMPO: cuándo cambió su contraseña.
-    // Ni correo, ni nombre, ni rol — todo eso ya viaja en el token, y menos dato
-    // guardado es menos dato que proteger.
+    // ── EL PERFIL DE CADA PERSONA ──────────────────────────────────────────
+    // Espejo del token para que la pantalla pueda LISTAR personas: el token es
+    // la frontera, esto es el reflejo. **Lo escribe el servidor**, que salta las
+    // reglas con su cuenta de servicio; el navegador solo puede dejar aquí sus
+    // dos recibos.
+    //
+    // LECTURA — dos caminos, y el segundo tiene una trampa que hay que respetar:
+    //   · el propio uid, siempre;
+    //   · quien gestiona personas ('ug') o audita permisos ('ua'), pero SOLO
+    //     dentro de su organización.
+    //
+    // ⚠️ UNA CONSULTA DE LISTA FALLA ENTERA SI UN SOLO DOCUMENTO DEL RESULTADO
+    // NO PASA LA REGLA. Por eso la condición está escrita como la pantalla
+    // consulta: `where('orgId','==',…)`. Con ese filtro, `resource.data.orgId ==
+    // miOrg()` es cierto para todos los documentos que la consulta puede
+    // devolver y Firestore la deja pasar. Si mañana alguien lista sin ese
+    // `where`, la pantalla de personas se queda en blanco con «Missing or
+    // insufficient permissions» y el mensaje no menciona la consulta.
+    //
+    // ESCRITURA DEL CLIENTE — la lista blanca de `CAMPOS_PROPIOS_DEL_PERFIL`:
+    //   `contrasenaCambiadaEn` (el recibo de `§ADR-024`) y `ultimoAcceso`.
     //
     // ⚠️ ESTO NO ES UN CONTROL DE SEGURIDAD, Y HAY QUE DECIRLO AQUÍ MISMO:
     // cualquiera con la consola del navegador abierta puede escribir su propio
-    // recibo sin haber cambiado nada. Impedirlo exigiría un servidor, que este
-    // proyecto no tiene por la regla de coste cero. Se acepta, y el daño se lo
-    // hace a su propia cuenta.
-    //
-    // La pantalla de cambio de contraseña es HIGIENE. La frontera son las reglas
-    // de arriba y el rol. Escribir lo contrario sería repetir la frase que se
-    // retiró el 2026-08-05, cuando un comentario afirmaba que la aplicación
-    // obligaba a cambiar la contraseña provisional y no lo hacía nadie.
+    // recibo sin haber cambiado nada. El daño se lo hace a su propia cuenta.
+    // La pantalla de cambio de contraseña es HIGIENE; la frontera es el token.
     //
     // Lo que sí se hace cumplir, porque es barato y evita un dato inútil:
     //   · cada quien escribe SOLO su propio documento (`uid == uid`);
-    //   · un único campo permitido, ni uno más;
+    //   · solo esos dos campos, ni uno más — así el navegador no puede
+    //     ascenderse escribiendo `rol` en su propio espejo;
     //   · y la fecha la pone EL SERVIDOR (`request.time`), no el navegador, así
     //     que no se puede fechar hacia atrás para tapar una orden nueva.
+    //
+    // ⚠️ El sello se comprueba SOLO sobre los campos que esta escritura toca.
+    // Comprobarlo sobre todo el documento resultante rompería el segundo
+    // recibo: al escribir `ultimoAcceso` hoy, el `contrasenaCambiadaEn` del mes
+    // pasado sigue en el documento y jamás va a ser igual a `request.time`.
+    function selloDelServidor(afectadas) {
+      return (!afectadas.hasAny(['contrasenaCambiadaEn'])
+                || request.resource.data.contrasenaCambiadaEn == request.time)
+          && (!afectadas.hasAny(['ultimoAcceso'])
+                || request.resource.data.ultimoAcceso == request.time);
+    }
+
     match /usuarios/{uid} {
-      allow read:   if request.auth != null && request.auth.uid == uid;
-      allow create, update: if request.auth != null && request.auth.uid == uid
-                    && request.resource.data.keys().hasOnly(['contrasenaCambiadaEn'])
-                    && request.resource.data.contrasenaCambiadaEn == request.time;
+      allow read:   if request.auth != null && (
+                         request.auth.uid == uid
+                         || ((tiene('ug') || tiene('ua'))
+                             && miOrg() != '' && resource.data.orgId == miOrg())
+                       );
+      allow create: if request.auth != null && request.auth.uid == uid
+                    && request.resource.data.keys().hasOnly(['contrasenaCambiadaEn', 'ultimoAcceso'])
+                    && request.resource.data.keys().size() > 0
+                    && selloDelServidor(request.resource.data.keys());
+      allow update: if request.auth != null && request.auth.uid == uid
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['contrasenaCambiadaEn', 'ultimoAcceso'])
+                    && selloDelServidor(request.resource.data.diff(resource.data).affectedKeys());
       allow delete: if false;
+    }
+
+    // 🔒 LA BITÁCORA DE ACCESOS Y CAMBIOS DE PERMISO ────────────────────────
+    // Quién dio de alta a quién, quién cambió un rol, quién repuso una
+    // contraseña. La escribe SOLO el servidor, con el actor sacado del TOKEN
+    // verificado y nunca del cuerpo de la petición.
+    //
+    // `write: if false` para todo el mundo, y no es celo: un registro que el
+    // auditado puede firmar con el nombre de otro no es un registro de
+    // auditoría. Tampoco se actualiza ni se borra — ni el propietario.
+    match /auditoria_accesos/{entradaId} {
+      allow read:  if puedeVer('ua');
+      allow write: if false;
     }
 
     // ── CARGABILIDAD ELÉCTRICA (`99 §ADR-088`) ─────────────────────────────
@@ -302,11 +531,20 @@ service cloud.firestore {
     // con sus 24 horas dentro — la decisión está argumentada en
     // `contratos/src/cargabilidad.ts`, y aquí solo se hace cumplir quién escribe.
     //
-    // ⚠️ SOLO ADMINISTRADOR ESCRIBE, y es más estricto que `esEditor()` a
+    // ⚠️ SOLO ADMINISTRADOR ESCRIBE, y es más estricto que editar un apoyo a
     // propósito: esto es dato de OPERACIÓN que alimenta un dictamen de
     // ampacidad. Quien va a campo con el teléfono no tiene por qué poder
     // reescribir el histórico de carga de una línea. Recomendación aceptada por
-    // el Ingeniero el 2026-08-30.
+    // el Ingeniero el 2026-08-30, y por eso `tiene('cc')` va acompañado de
+    // `esAdmin()`.
+    //
+    // ⚠️ LA ÚNICA DIFERENCIA REAL DE ESTA MIGRACIÓN ESTÁ AQUÍ, EN LA LECTURA.
+    // Antes leía cualquier miembro de la organización, CUADRILLA INCLUIDA. El
+    // catálogo dice que `cargabilidad.ver` la traen propietario, admin, editor y
+    // auditor — y no cuadrilla—, así que a partir de ahora una cuadrilla no ve
+    // el histórico de carga. Es un cierre, no una apertura, y es lo que dice la
+    // fuente de verdad; si el Ingeniero quiere lo contrario, se le añade 'cv' a
+    // cuadrilla en `FUNCIONES_POR_ROL` y esta regla no se toca.
     //
     // ⚠️ `update` SÍ se permite —y solo aquí—: volver a cargar el mismo día
     // corregido tiene que ESCRIBIR ENCIMA, no crear un gemelo. El id es
@@ -325,9 +563,11 @@ service cloud.firestore {
     }
 
     match /cargabilidad_dias/{diaId} {
-      allow read:   if puedeLeer();
-      allow create: if esAdmin() && cargabilidadCoherente();
-      allow update: if esAdmin() && deMiOrg(resource.data) && noTocaReservados();
+      allow read:   if puedeVer('cv') && alcanzaSiDeclara(resource.data);
+      allow create: if tiene('cc') && esAdmin() && cargabilidadCoherente()
+                    && alcanzaSiDeclara(request.resource.data);
+      allow update: if tiene('cc') && esAdmin() && deMiOrg(resource.data) && noTocaReservados()
+                    && alcanzaSiDeclara(request.resource.data);
       allow delete: if false;
     }
 
@@ -335,18 +575,23 @@ service cloud.firestore {
     // día discreparan, manda el día. Se guarda solo para que el tablero no tenga
     // que leer 8.760 lecturas para pintar 365 puntos.
     match /cargabilidad_resumenes/{resumenId} {
-      allow read:   if puedeLeer();
-      allow create: if esAdmin() && altaCoherente();
-      allow update: if esAdmin() && deMiOrg(resource.data) && noTocaReservados();
+      allow read:   if puedeVer('cv') && alcanzaSiDeclara(resource.data);
+      allow create: if tiene('cc') && esAdmin() && altaCoherente()
+                    && alcanzaSiDeclara(request.resource.data);
+      allow update: if tiene('cc') && esAdmin() && deMiOrg(resource.data) && noTocaReservados()
+                    && alcanzaSiDeclara(request.resource.data);
       allow delete: if false;
     }
 
     // De qué archivo salió cada cosa. Es el rastro que permite responder «¿de
     // dónde salió este número?» dentro de seis meses, así que **no se toca**:
     // se crea y se queda, igual que `sondeos_clima`.
+    //
+    // Sin alcance: su molde lleva `lineas` —una lista de NOMBRES tal y como los
+    // escribió SCADA—, no un identificador de línea. No se inventa uno.
     match /cargabilidad_cargas/{cargaId} {
-      allow read:   if puedeLeer();
-      allow create: if esAdmin() && altaCoherente();
+      allow read:   if puedeVer('cv');
+      allow create: if tiene('cc') && esAdmin() && altaCoherente();
       allow update: if false;
       allow delete: if false;
     }

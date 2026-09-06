@@ -26,12 +26,14 @@
     "brain:diff": "node scripts/brain-diff.mjs",
     "brain:index": "node scripts/brain-index.mjs",
     "test": "node --test \"tests/**/*.test.js\"",
+    "test:reglas": "firebase emulators:exec --only firestore --project demo-lineas-at \"node --test tests/reglas/permisos.reglas.mjs\"",
     "contrato:verificar": "tsc -p contratos/tsconfig.json --noEmit"
   },
   "engines": {
     "node": ">=22"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.2",
     "firebase-admin": "^14.2.0",
     "h5wasm": "^0.10.3"
   }

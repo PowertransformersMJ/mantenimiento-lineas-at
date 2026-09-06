@@ -198,8 +198,15 @@ describe('portero — la puerta de subida y sus dos condiciones', () => {
   });
 
   test('subir exige un rol que trabaje: un auditor mira, no aporta', () => {
-    assert.match(fuente, /ROLES_QUE_SUBEN\s*=\s*Object\.freeze\(\[['"]admin['"], ['"]editor['"], ['"]cuadrilla['"]\]\)/);
-    assert.match(fuente, /ROLES_QUE_SUBEN\.includes\(sesion\.rol\)/);
+    // Desde `99 §ADR-100` la decisión es por FUNCIÓN del catálogo, no por rol:
+    // `ea` (evidencias.aportar) para subir, `ev` (evidencias.ver) para mirar. Una
+    // lista literal de roles aquí era justo lo que dejó al propietario sin poder
+    // subir una foto: no estaba en ella.
+    assert.ok(!/ROLES_QUE_SUBEN/.test(fuente), 'volvió la lista literal de roles');
+    assert.match(fuente, /FUNCION_APORTAR = 'ea'/);
+    assert.match(fuente, /FUNCION_VER = 'ev'/);
+    assert.match(fuente, /tiene\(sesion, FUNCION_APORTAR\)/);
+    assert.match(fuente, /tiene\(sesion, FUNCION_VER\)/);
   });
 
   test('la misma foto dos veces NO se escribe dos veces, y se dice', () => {

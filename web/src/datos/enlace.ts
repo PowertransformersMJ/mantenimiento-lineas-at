@@ -81,6 +81,23 @@ class Almacen {
    * problemas que no tiene.
    */
   #atlas: ClaveAtlas | null = null;
+  /**
+   * SI LA PANTALLA DE PERSONAS ESTÁ ENCIMA. Es de ORGANIZACIÓN, no de línea: se
+   * administra a la gente de la empresa, no la de una línea — y además tiene que
+   * poder abrirse cuando no hay ninguna línea cargada, que es exactamente el
+   * momento en que hace falta dar de alta a alguien. Por eso no es una pestaña
+   * de `Linea.tsx`, que solo existe con una línea abierta y con datos.
+   */
+  #personas = false;
+  /**
+   * POR QUÉ SE CERRÓ LA SESIÓN LA ÚLTIMA VEZ, o `null`.
+   *
+   * Vive en el almacén y no en el componente del reloj porque el componente se
+   * DESMONTA al cerrar sesión: si el motivo viviera ahí, la persona vería la
+   * pantalla de acceso sin ninguna explicación de por qué la han echado, que es
+   * indistinguible de una avería.
+   */
+  #motivoDeSalida: string | null = null;
   #oyentes = new Set<Oyente>();
 
   leer = (): EstadoDatos => this.#estado;
@@ -108,6 +125,86 @@ class Almacen {
   #ponerRca(e: EstadoRca): void { this.#rca = e; this.#avisar(); }
 
   leerAtlas = (): ClaveAtlas | null => this.#atlas;
+
+  leerPersonas = (): boolean => this.#personas;
+
+  leerMotivoDeSalida = (): string | null => this.#motivoDeSalida;
+
+  /**
+   * Abre la pantalla de personas ENCIMA de lo que haya, como los atlas.
+   *
+   * No comprueba el permiso: eso lo hace la propia pantalla con `puede()`, y
+   * detrás de ella lo hacen el trabajador y las reglas. Aquí solo se navega.
+   */
+  abrirPersonas(): void {
+    if (!this.#personas && this.#atlas === null && this.#rca.fase === 'cerrado') {
+      this.#hashPrevio = location.hash || null;
+    }
+    if (this.#rca.fase !== 'cerrado') this.#rca = { fase: 'cerrado' };
+    this.#atlas = null;
+    irA('#/personas');
+    this.#personas = true;
+    this.#avisar();
+  }
+
+  cerrarPersonas(): void {
+    irA(this.#hashPrevio ?? '#/');
+    this.#hashPrevio = null;
+    this.#personas = false;
+    this.#avisar();
+  }
+
+  /**
+   * CIERRA LA SESIÓN Y DICE POR QUÉ.
+   *
+   * Lo usa el reloj de sesión. Va aquí y no en el componente porque el motivo
+   * tiene que SOBREVIVIR al desmontaje: quien vuelve a la pantalla de acceso
+   * necesita leer «se cerró por inactividad», no adivinarlo.
+   */
+  async cerrarSesionPorReloj(motivo: string): Promise<void> {
+    try {
+      const { salir } = await cargarFirebase();
+      await salir();
+    } catch (e) {
+      console.warn('[sesión] no se pudo cerrar limpiamente:', e);
+    }
+    this.#motivoDeSalida = motivo;
+    this.#personas = false;
+    await this.cargar();
+  }
+
+  /** Se olvida el motivo cuando alguien vuelve a entrar. */
+  olvidarMotivoDeSalida(): void {
+    if (this.#motivoDeSalida === null) return;
+    this.#motivoDeSalida = null;
+    this.#avisar();
+  }
+
+  /**
+   * RELEE EL PERMISO DE LA PROPIA SESIÓN Y LO PARCHEA. **No rehace el arranque.**
+   *
+   * Es `32 · L-66` aplicado a los permisos: `cargar()` rehace sesión, token,
+   * líneas, apoyos, expedientes y fotos, y deja la aplicación en fase
+   * «cargando», donde `App.tsx` sustituye la pantalla — o sea que administrar a
+   * alguien destruiría la pantalla desde la que se está administrando, con la
+   * tabla y el enlace de un solo uso recién emitido dentro.
+   *
+   * El token se pide FORZADO (`getIdToken(true)`) porque un reclamo recién
+   * escrito por el trabajador no está en el token que el navegador ya tiene: sin
+   * el forzado, quien acaba de darse permiso seguiría sin verlo hasta una hora
+   * después o hasta volver a entrar (`35 · L-12b`).
+   */
+  async recargarSesion(): Promise<void> {
+    try {
+      conectarBase();
+      const { esperarSesion } = await cargarFirebase();
+      const u = await esperarSesion();
+      if (u) await u.getIdToken(true);
+      this.#ponerSesion(await repositorio.sesion());
+    } catch (e) {
+      console.warn('[sesión] no se pudo releer el permiso:', e);
+    }
+  }
 
   /**
    * Abre un atlas ENCIMA de la línea.
@@ -331,8 +428,35 @@ class Almacen {
     const abierto: ClaveAtlas | null = r2?.tipo === 'atlas' ? r2.cual : null;
     if (abierto !== this.#atlas) { this.#atlas = abierto; this.#avisar(); }
 
+    // La pantalla de personas, por la misma regla: la dirección manda. Sin
+    // esto, Atrás dejaría `#/personas` en la barra con la línea debajo.
+    const personas = r2?.tipo === 'personas';
+    if (personas !== this.#personas) { this.#personas = personas; this.#avisar(); }
+
     // La dirección ya no habla del segmento: si estaba abierto, se cierra.
     if (r.fase !== 'cerrado') this.#ponerRca({ fase: 'cerrado' });
+  }
+
+  /**
+   * LAS LÍNEAS DE LA ORGANIZACIÓN, para poder repartir alcance.
+   *
+   * Pasa por el puente y no por Firestore directo porque ésa es la regla de la
+   * casa (ADR-005): ningún componente habla con la base por su cuenta.
+   *
+   * ⚠️ Devuelve las que QUIEN PREGUNTA alcanza, no todas las que existen — es
+   * `listarLineas()`, que ya filtra por el alcance del token. Y está bien que
+   * sea así: quien administra no puede repartir un alcance que él mismo no
+   * tiene. Si un día hace falta lo contrario, se decide y se escribe.
+   */
+  async lineasDeLaOrganizacion(): Promise<Linea[]> {
+    conectarBase();
+    return await repositorio.listarLineas();
+  }
+
+  /** La bitácora de accesos y cambios de permiso. Lectura directa por reglas. */
+  async bitacoraDeAccesos(filtro?: { accion?: string; sujetoUid?: string; tope?: number }) {
+    conectarBase();
+    return await repositorio.listarAuditoria(filtro);
   }
 
   /** Cierra el segmento y devuelve la pantalla a la línea, sin recargarla. */
@@ -526,16 +650,26 @@ class Almacen {
     this.poner({ fase: 'cargando' });
     try {
       conectarBase();
-      // Si venimos de vuelta de Google por redirección, hay que recoger el
-      // resultado ANTES de preguntar por la sesión.
-      const { recogerRedireccion } = await cargarFirebase();
-      await recogerRedireccion();
+      // App Check, en cuanto Firebase existe y antes de pedir dato: prueba que
+      // quien llama es esta aplicación. Sin clave configurada no hace nada y lo
+      // dice en consola — nunca impide entrar (`35 · L-11`).
+      const { iniciarAppCheck } = await cargarFirebase();
+      void iniciarAppCheck();
+
       const s = await repositorio.sesion();
       // Se guarda SIEMPRE, también cuando no hay sesión: «no hay sesión» es una
       // respuesta, y una pantalla que no la reciba se quedaría comprobando para
       // siempre.
       this.#ponerSesion(s);
-      if (s.fase !== 'autenticado') return this.poner({ fase: 'sin_sesion' });
+      if (s.fase !== 'autenticado') {
+        this.#personas = false;
+        return this.poner({ fase: 'sin_sesion' });
+      }
+
+      // Queda constancia de que entró. NO se espera a que termine ni se deja
+      // fallar hacia arriba: la bitácora no puede retrasar ni impedir el
+      // arranque. Lo que falle se cuenta (`datos/bitacora.ts`).
+      void repositorio.dejarUltimoAcceso();
 
       // LA PUERTA, y va AQUÍ a propósito: después de comprobar la sesión y
       // ANTES de pedir un solo dato de línea. No es una ruta ni una ventana
@@ -569,10 +703,20 @@ class Almacen {
         const pedida = lineas.find((l) => l.codigo === ruta.codigo);
         if (pedida) objetivo = pedida;
         else {
-          // NUNCA en silencio: si el enlace pedía una línea que este usuario no
-          // tiene asignada, se abre otra y se dice cuál y por qué.
-          aviso = `El enlace pedía la línea ${ruta.codigo}, que no está entre las tuyas. `
-                + `Se abrió ${lineas[0].codigo}.`;
+          // NUNCA en silencio: se abre otra y se dice cuál y POR QUÉ — y el
+          // porqué son dos cosas distintas que antes se decían igual.
+          //
+          // ⚠️ Hasta hoy esto afirmaba siempre «no está entre las tuyas», y era
+          // una promesa sin nada detrás: el alcance por líneas NO EXISTÍA, así
+          // que la línea faltaba porque no estaba en la organización, no porque
+          // no fuera suya. Ahora el alcance existe de verdad (`l` en el token),
+          // así que hay dos motivos posibles y la frase tiene que decir cuál es.
+          const conAlcanceTotal = s.claims?.l?.includes('*') ?? false;
+          aviso = conAlcanceTotal
+            ? `El enlace pedía la línea ${ruta.codigo}, y no hay ninguna con ese código en su `
+              + `organización. Se abrió ${lineas[0].codigo}.`
+            : `El enlace pedía la línea ${ruta.codigo}, que no está entre las que su cuenta tiene `
+              + `asignadas. Se abrió ${lineas[0].codigo}.`;
         }
       }
 
@@ -590,6 +734,10 @@ class Almacen {
       // cargaba la línea y se llevaba por delante la dirección. Medido en
       // producción: la barra pasaba de `#/sol` a `#/LN-627/resumen` sola.
       if (ruta?.tipo === 'atlas') this.abrirAtlas(ruta.cual);
+
+      // Y la pantalla de personas, por lo mismo: pegar `#/personas` tiene que
+      // abrirla, no cargar la línea y llevarse la dirección por delante.
+      if (ruta?.tipo === 'personas') this.abrirPersonas();
     } catch (e) {
       this.poner({ fase: 'error', mensaje: e instanceof Error ? e.message : 'error desconocido' });
     }
@@ -642,4 +790,14 @@ export function useAtlas(): ClaveAtlas | null {
  */
 export function useSesion(): EstadoSesion {
   return useSyncExternalStore(almacen.suscribir, almacen.leerSesion, almacen.leerSesion);
+}
+
+/** Si la pantalla de personas está encima. Misma suscripción, otro trozo. */
+export function usePersonas(): boolean {
+  return useSyncExternalStore(almacen.suscribir, almacen.leerPersonas, almacen.leerPersonas);
+}
+
+/** Por qué se cerró la última sesión, para poder decirlo en la pantalla de acceso. */
+export function useMotivoDeSalida(): string | null {
+  return useSyncExternalStore(almacen.suscribir, almacen.leerMotivoDeSalida, almacen.leerMotivoDeSalida);
 }

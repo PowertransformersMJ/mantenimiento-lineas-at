@@ -113,6 +113,20 @@
           "order": "DESCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "auditoria_accesos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "orgId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "en",
+          "order": "DESCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []

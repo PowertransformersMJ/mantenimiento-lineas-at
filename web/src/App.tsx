@@ -7,7 +7,8 @@
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { VERSION_CONTRATO } from '@lineas/contratos';
 import { derivarLevantamiento } from '@lineas/exportar/levantamiento';
-import { useAtlas, useDatos, useRca, almacen } from './datos/enlace';
+import { useAtlas, useDatos, useMotivoDeSalida, usePersonas, useRca, useSesion, almacen } from './datos/enlace';
+import { puede, type SesionDePantalla } from './datos/permisos';
 import { Rca } from './componentes/Rca';
 import { conReintentos } from './datos/cargar';
 // ⚠️ EN DIFERIDO, y no por elegancia: el atlas arrastra MapLibre (cerca de un
@@ -20,9 +21,16 @@ import { conReintentos } from './datos/cargar';
 // blanco para siempre).
 const AtlasCaribe = lazy(() => conReintentos(() => import('./componentes/AtlasCaribe'))
   .then((m) => ({ default: m.AtlasCaribe })));
-import { Contrasena } from './componentes/Contrasena';
+import { Contrasena, CambiarMiContrasena } from './componentes/Contrasena';
 import { SinSesion, Cargando, Vacio, Error_ } from './componentes/Estado';
 import { VistaLinea } from './componentes/Linea';
+import { Inicializar } from './componentes/Inicializar';
+import { RelojDeSesion } from './componentes/RelojDeSesion';
+// ⚠️ EN DIFERIDO, como el atlas: la administración de personas la abre una
+// persona de cada diez, y arrastra su propio formulario y su bitácora. Quien
+// nunca la abre no baja un byte de eso.
+const Usuarios = lazy(() => conReintentos(() => import('./componentes/Usuarios'))
+  .then((m) => ({ default: m.Usuarios })));
 
 /**
  * Quién está adentro y cómo salir. En una demostración, no poder cerrar sesión
@@ -68,6 +76,9 @@ function Sesion() {
   return (
     <span className="sesion">
       {correo}
+      {/* La cuenta propia: cambiar la contraseña EN EL NAVEGADOR, con la actual
+          delante (`99 §ADR-100`). */}
+      <CambiarMiContrasena correo={correo} />
       <button type="button" className="salir" onClick={() => void salir()}>Salir</button>
     </span>
   );
@@ -84,6 +95,10 @@ const nf = (v: number, d = 0) =>
  */
 function Cabecera() {
   const d = useDatos();
+  const sesion = useSesion();
+  const quien: SesionDePantalla | undefined = sesion.fase === 'autenticado'
+    ? { correo: sesion.correo, rol: sesion.rol, orgId: sesion.orgId, uid: sesion.uid, claims: sesion.claims }
+    : undefined;
 
   const resumen = useMemo(() => {
     if (d.fase !== 'listo') return null;
@@ -136,6 +151,18 @@ function Cabecera() {
         <button type="button" className="boton chico" onClick={() => almacen.abrirAtlas('sol')}>
           Atlas del Caribe
         </button>
+        {/* PERSONAS es de ORGANIZACIÓN, no de línea: por eso está aquí arriba y
+            no entre las pestañas. Tiene que poder abrirse cuando todavía no hay
+            ninguna línea cargada — que es justo el día en que hay que dar de
+            alta a la primera cuadrilla.
+
+            Esconderlo es COSMÉTICO: quien decide de verdad son el trabajador y
+            las reglas, que miran el mismo token del otro lado. */}
+        {puede(quien, 'usuarios.gestionar') && (
+          <button type="button" className="boton chico" onClick={() => almacen.abrirPersonas()}>
+            Personas
+          </button>
+        )}
         <span className="fase">Fase 0 · fundación</span>
       </div>
     </header>
@@ -156,6 +183,9 @@ function Contenido() {
   const d = useDatos();
   const rca = useRca();
   const atlas = useAtlas();
+  const personas = usePersonas();
+  const sesion = useSesion();
+  const motivoDeSalida = useMotivoDeSalida();
 
   /**
    * Acceso con correo y contraseña — la vía definitiva.
@@ -165,30 +195,27 @@ function Contenido() {
    * de error general obligaría a recargar para reintentar, y además borraría
    * de la vista lo que la persona acaba de escribir.
    */
-  async function entrar(correo: string, contrasena: string) {
+  async function entrar(correo: string, contrasena: string, recordar: boolean) {
     // El SDK de Firebase pesa cerca de 1 MB. Se carga SOLO cuando alguien va
     // a entrar, no al abrir la página: la cuadrilla no debe pagar esa
     // descarga con dos rayas de señal para ver una pantalla de acceso.
     const { cargarFirebase } = await import('./datos/cargar');
     const { entrarConContrasena, motivoDeFallo } = await cargarFirebase();
     try {
-      await entrarConContrasena(correo, contrasena);
+      await entrarConContrasena(correo, contrasena, recordar);
     } catch (e) {
       throw new Error(motivoDeFallo(e));
     }
+    // Quien vuelve a entrar ya no necesita leer por qué se cerró la anterior.
+    almacen.olvidarMotivoDeSalida();
     await almacen.cargar();
   }
 
-  /** Salida de reserva mientras se completa el cambio. Se retira después. */
-  async function entrarConGoogle() {
-    try {
-      const { cargarFirebase } = await import('./datos/cargar');
-      const f = await cargarFirebase();
-      await f.entrarConGoogle();
-      await almacen.cargar();
-    } catch (e) {
-      almacen.poner({ fase: 'error', mensaje: e instanceof Error ? e.message : 'no se pudo iniciar sesión' });
-    }
+  /** «Olvidé mi contraseña»: una sola frase, exista o no el correo. */
+  async function recuperar(correo: string): Promise<string> {
+    const { cargarFirebase } = await import('./datos/cargar');
+    const { pedirEnlaceDeRecuperacion } = await cargarFirebase();
+    return pedirEnlaceDeRecuperacion(correo);
   }
 
   // El segmento RCA se pinta ENCIMA de la línea, sin destruirla: volver al
@@ -226,10 +253,34 @@ function Contenido() {
     );
   }
 
+  // ⚠️ INICIALIZAR SISTEMA, y se decide mirando la SESIÓN, no los datos: una
+  // sesión autenticada sin reclamos válidos es la cuenta recién creada en la
+  // consola (o una que nadie aprovisionó). Sin esta guarda, esa persona caía en
+  // la pantalla de ERROR de línea con un «Reintentar» que no lleva a ninguna
+  // parte — lo midió el comité del delta (`99 §ADR-100`).
+  if (sesion.fase === 'autenticado' && sesion.claims === null && d.fase !== 'cambiar_contrasena') {
+    return <Inicializar />;
+  }
+
+  // PERSONAS, encima de todo lo demás y ANTES del `switch`: es de organización
+  // y tiene que poder abrirse cuando la línea está vacía o dio error — que es
+  // exactamente cuando hay que dar de alta a alguien o revisar su alcance. Con
+  // el `switch` delante, la pantalla de «no hay líneas» se la habría comido.
+  if (personas && sesion.fase === 'autenticado' && d.fase !== 'cambiar_contrasena') {
+    return <Suspense fallback={<Cargando />}><Usuarios /></Suspense>;
+  }
+
   switch (d.fase) {
-    case 'sin_sesion': return <SinSesion onEntrar={entrar} onEntrarConGoogle={() => void entrarConGoogle()} />;
+    case 'sin_sesion': return (
+      <SinSesion onEntrar={entrar} onRecuperar={recuperar} motivoDeSalida={motivoDeSalida} />
+    );
     case 'cargando':   return <Cargando />;
-    case 'vacio':      return <Vacio />;
+    // El motivo de que no haya nada que abrir son DOS, y solo el alcance de la
+    // sesión sabe cuál: con `['*']` no hay líneas cargadas; con una lista, no
+    // hay ninguna suya. Antes se afirmaba siempre lo segundo.
+    case 'vacio':      return (
+      <Vacio alcanzaTodas={sesion.fase === 'autenticado' && (sesion.claims?.l?.includes('*') ?? false)} />
+    );
     case 'error':      return <Error_ mensaje={d.mensaje} onReintentar={() => void almacen.cargar()} />;
     // No es una ruta: es una fase. Y este `switch` NO tiene caso por defecto a
     // propósito — añadir una fase OBLIGA a tratarla aquí o la compilación se
@@ -254,6 +305,11 @@ export function App() {
 
   return (
     <>
+      {/* El reloj vive en la RAÍZ, no dentro de una pantalla: si viviera en la
+          vista de línea, abrir el atlas o el segmento de causa raíz lo
+          desmontaría y la sesión dejaría de caducar sin que nada avisara —
+          exactamente cómo otro sistema perdió su corte de 30 minutos. */}
+      <RelojDeSesion />
       <Cabecera />
       <main className="contenido"><Contenido /></main>
       <Pie />

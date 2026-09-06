@@ -9,8 +9,11 @@
 // cálculo es lo que el Ingeniero firma.
 // ============================================================================
 import { AccionCapa, AnalisisCausa, Apoyo, ETIQUETA_CAMPO_FICHA, Evidencia, FichaEstructural, Hipotesis, Investigacion, Linea, ParteDeAccion, ParteDeAnalisis, SondeoClima } from '@lineas/contratos';
+import { EntradaDeAuditoria } from '@lineas/contratos';
 import { cargarFirebase } from './cargar';
-import type { AcuseDeFicha, AcuseDeLote, EstadoDatos, EstadoSesion, FichaDeFoto, Repositorio, ResultadoCarga, ResultadoFotos } from './repositorio';
+import { anotarFalloDeBitacora } from './bitacora';
+import { alcanza, permisosDeSesion, puede } from './permisos';
+import type { AcuseDeFicha, AcuseDeLote, EntradaLeidaDeAuditoria, EstadoDatos, EstadoSesion, FichaDeFoto, Repositorio, ResultadoCarga, ResultadoFotos } from './repositorio';
 
 /**
  * La mitad pensante de la ficha —qué campos hay, qué geometría no puede dar
@@ -139,10 +142,21 @@ export const repositorioFirestore: Repositorio = {
     const u = await esperarSesion();
     if (!u) return { fase: 'sin_sesion' };
     try {
-      const { rol, orgId } = await credenciales(u);
-      return { fase: 'autenticado', uid: u.uid, correo: u.email, rol, orgId };
+      const { rol, orgId, claims, motivoDeReclamos, autenticadoEn } = await credenciales(u);
+      return {
+        fase: 'autenticado', uid: u.uid, correo: u.email, rol, orgId,
+        claims, motivoDeReclamos, permisos: permisosDeSesion({ claims }), autenticadoEn,
+      };
     } catch {
-      return { fase: 'autenticado', uid: u.uid, correo: u.email, rol: 'ninguno', orgId: '' };
+      // Sin token legible NO se encierra a nadie —la sesión sigue— pero tampoco
+      // se le regala nada: reclamos nulos, o sea mínimo privilegio.
+      return {
+        fase: 'autenticado', uid: u.uid, correo: u.email, rol: 'ninguno', orgId: '',
+        claims: null,
+        motivoDeReclamos: 'No se pudo leer el permiso de su sesión. Por precaución no se ofrece '
+          + 'ninguna acción de escritura. Salga y vuelva a entrar.',
+        permisos: permisosDeSesion(null), autenticadoEn: null,
+      };
     }
   },
 
@@ -151,7 +165,7 @@ export const repositorioFirestore: Repositorio = {
     const { collection, getDocs, limit, query, where } = await firestore();
     const u = await esperarSesion();
     if (!u) return [];
-    const { orgId } = await credenciales(u);
+    const { orgId, claims } = await credenciales(u);
     if (!orgId) return [];   // sin organización en el token no hay nada que ver
 
     // Se filtra SOLO por organización en la consulta. Lo de "activa" se descarta
@@ -160,9 +174,20 @@ export const repositorioFirestore: Repositorio = {
     // consulta colgada. A esta escala (decenas de líneas) no compensa el riesgo.
     const q = query(collection(await baseDatos(), 'lineas'), where('orgId', '==', orgId), limit(50));
     const s = await getDocs(q);
+    // EL ALCANCE SE HACE CUMPLIR AQUÍ, y hasta hoy no se hacía cumplir en
+    // ningún sitio: el token no traía `l`, así que «las líneas asignadas» era
+    // una frase de pantalla sin nada detrás. Ahora existe, y por eso el filtro
+    // existe también — un campo que se modela y nadie hace cumplir es la
+    // «ilusión de control» que el catálogo prohíbe por escrito.
+    //
+    // Se filtra en el CLIENTE por lo mismo que `activa`: meter un segundo
+    // filtro de igualdad en la consulta puede exigir un índice compuesto, y un
+    // índice que falta no da error claro. A esta escala (decenas de líneas) no
+    // compensa el riesgo. La frontera de verdad son las reglas, del otro lado.
     return s.docs
       .map((d) => validar<Linea>(Linea, d.data()))
-      .filter((x): x is Linea => x !== null && x.activa !== false);
+      .filter((x): x is Linea => x !== null && x.activa !== false)
+      .filter((l) => alcanza({ claims }, l.id));
   },
 
   async cargarLinea(lineaId: string): Promise<EstadoDatos> {
@@ -170,6 +195,18 @@ export const repositorioFirestore: Repositorio = {
     const { collection, doc, getDoc, getDocs, orderBy, query, where } = await firestore();
     const u = await esperarSesion();
     if (!u) return { fase: 'sin_sesion' };
+
+    // EL ALCANCE, ANTES DE PEDIR NADA. Si esta línea no está entre las suyas no
+    // se lee ni un documento: pedirla y que la base la niegue daría el mismo
+    // resultado con un mensaje en inglés y una lectura facturada de más.
+    const { orgId, claims } = await credenciales(u);
+    if (!alcanza({ claims }, lineaId)) {
+      return {
+        fase: 'error',
+        mensaje: 'Esta línea no está entre las que su cuenta tiene asignadas. No se ha leído '
+          + 'ningún dato. Si debería estarlo, el administrador puede añadírsela a su alcance.',
+      };
+    }
 
     const db = await baseDatos();
     const dLinea = await getDoc(doc(db, 'lineas', lineaId));
@@ -194,7 +231,6 @@ export const repositorioFirestore: Repositorio = {
     //
     // Se ordena por `orden`, NUNCA por nombre: en LN-627 conviven "E022",
     // "EMP TUB" y "EMPT", y ordenar por nombre daría vanos equivocados.
-    const { orgId } = await credenciales(u);
     const sApoyos = await getDocs(query(
       collection(db, 'apoyos'),
       where('orgId', '==', orgId),
@@ -306,8 +342,8 @@ export const repositorioFirestore: Repositorio = {
     const u = await esperarSesion();
     if (!u) throw new Error('No hay ninguna sesión abierta: no se puede cargar ningún punto.');
 
-    const { rol, orgId } = await credenciales(u);
-    if (rol !== 'admin') {
+    const { rol, orgId, claims } = await credenciales(u);
+    if (!puede({ claims }, 'cargar.puntos')) {
       throw new Error(
         `Su sesión entró con el permiso «${rol}», y crear puntos de una línea es acto de administración. `
         + 'No se ha mandado nada a la base. Si esto le sorprende, es que el permiso de su cuenta cambió: '
@@ -437,8 +473,8 @@ export const repositorioFirestore: Repositorio = {
     const u = await esperarSesion();
     if (!u) throw new Error('No hay ninguna sesión abierta: no se puede escribir la ficha de ninguna fotografía.');
 
-    const { rol, orgId } = await credenciales(u);
-    if (!['admin', 'editor', 'cuadrilla'].includes(rol)) {
+    const { rol, orgId, claims } = await credenciales(u);
+    if (!puede({ claims }, 'evidencias.aportar')) {
       throw new Error(
         `Su sesión entró con el permiso «${rol}», y subir fotografías necesita permiso de cuadrilla o superior. `
         + 'No se ha escrito nada en la base.',
@@ -541,8 +577,8 @@ export const repositorioFirestore: Repositorio = {
     const u = await esperarSesion();
     if (!u) throw new Error('No hay ninguna sesión abierta: no se puede guardar la ficha de ningún apoyo.');
 
-    const { rol, orgId } = await credenciales(u);
-    if (rol !== 'admin' && rol !== 'editor') {
+    const { rol, orgId, claims } = await credenciales(u);
+    if (!puede({ claims }, 'apoyos.editar')) {
       throw new Error(
         `Su sesión entró con el permiso «${rol}», y completar la ficha de un apoyo exige permiso de `
         + 'edición. No se ha mandado nada a la base.',
@@ -640,8 +676,8 @@ export const repositorioFirestore: Repositorio = {
       throw new Error('No hay ninguna sesión abierta: no se puede declarar el cable de guarda.');
     }
 
-    const { rol, orgId } = await credenciales(u);
-    if (rol !== 'admin' && rol !== 'editor') {
+    const { rol, orgId, claims } = await credenciales(u);
+    if (!puede({ claims }, 'apoyos.editar')) {
       throw new Error(
         `Su sesión entró con el permiso «${rol}», y declarar el cable de guarda exige permiso de `
         + 'edición. No se ha mandado nada a la base.',
@@ -717,8 +753,8 @@ export const repositorioFirestore: Repositorio = {
     const u = await esperarSesion();
     if (!u) throw new Error('No hay ninguna sesión abierta: no se puede guardar la ficha de ningún apoyo.');
 
-    const { rol, orgId } = await credenciales(u);
-    if (rol !== 'admin') {
+    const { rol, orgId, claims } = await credenciales(u);
+    if (!puede({ claims }, 'ficha.lote')) {
       throw new Error(
         `Su sesión entró con el permiso «${rol}», y aplicar un dato a varios apoyos de golpe es acto `
         + 'de administración: el daño de un lote no es el de una ficha. No se ha mandado nada a la '
@@ -1100,6 +1136,81 @@ export const repositorioFirestore: Repositorio = {
   },
 
   /**
+   * DEJA CONSTANCIA DE QUE ESTA PERSONA ENTRÓ.
+   *
+   * La fecha la pone el SERVIDOR, como el recibo de contraseña: la regla exige
+   * `request.time`, así que un navegador no puede fechar un acceso hacia atrás
+   * ni hacia adelante. Se escribe con `merge` para tocar UNA sola clave —el
+   * recibo de contraseña vive en el mismo documento y no puede quedar borrado
+   * por un inicio de sesión—.
+   *
+   * ⚠️ NO LANZA. Entrar no puede depender de que se escriba una fecha: eso es
+   * exactamente «una capa opcional con veto sobre una esencial» (`35 · L-11`).
+   * Pero tampoco se traga en silencio: el fallo se CUENTA y la pantalla de
+   * personas lo enseña, para que quien administra sepa que la bitácora tiene
+   * huecos en vez de suponer que está completa.
+   */
+  async dejarUltimoAcceso(): Promise<void> {
+    try {
+      const { esperarSesion, baseDatos } = await cargarFirebase();
+      const { doc, setDoc, serverTimestamp } = await firestore();
+      const u = await esperarSesion();
+      if (!u) return;
+      await setDoc(
+        doc(await baseDatos(), 'usuarios', u.uid),
+        { ultimoAcceso: serverTimestamp() },
+        { merge: true },
+      );
+    } catch (e) {
+      anotarFalloDeBitacora('el último acceso', e);
+    }
+  },
+
+  /**
+   * LA BITÁCORA DE ACCESOS Y CAMBIOS DE PERMISO.
+   *
+   * Lectura directa: las reglas la abren a quien tiene `usuarios.auditoria`, y
+   * la ESCRITURA es solo del servidor (`allow write: if false`). Un registro que
+   * el auditado puede firmar con el nombre de otro no es un registro.
+   *
+   * ⚠️ SE FILTRA EN LA CONSULTA POR `orgId`, obligatorio aunque parezca
+   * redundante: en Firestore las reglas NO son filtros — si la consulta no
+   * declara lo que la regla exige, la base niega la consulta ENTERA aunque cada
+   * documento fuera legible. Es la trampa que ya costó una tarde en `apoyos`.
+   *
+   * Los demás filtros (acción, persona) se aplican en el cliente a propósito:
+   * combinarlos en la consulta pediría índices compuestos, y un índice que falta
+   * no da un error claro — deja la consulta colgada. A esta escala no compensa.
+   *
+   * Lo que no valide el molde del catálogo **no entra**: una bitácora con
+   * entradas de forma libre es un cajón donde nadie encuentra nada.
+   */
+  async listarAuditoria(filtro: { accion?: string; sujetoUid?: string; tope?: number } = {}): Promise<EntradaLeidaDeAuditoria[]> {
+    const { esperarSesion, credenciales, baseDatos } = await cargarFirebase();
+    const { collection, getDocs, limit, orderBy, query, where } = await firestore();
+    const u = await esperarSesion();
+    if (!u) return [];
+    const { orgId } = await credenciales(u);
+    if (!orgId) return [];
+
+    const s = await getDocs(query(
+      collection(await baseDatos(), 'auditoria_accesos'),
+      where('orgId', '==', orgId),
+      orderBy('en', 'desc'),
+      limit(Math.min(Math.max(filtro.tope ?? 200, 1), 500)),
+    ));
+
+    return s.docs
+      .map((d) => {
+        const v = validar<EntradaDeAuditoria>(EntradaDeAuditoria, d.data());
+        return v ? { ...v, id: d.id } : null;
+      })
+      .filter((x): x is EntradaLeidaDeAuditoria => x !== null)
+      .filter((x) => !filtro.accion || x.accion === filtro.accion)
+      .filter((x) => !filtro.sujetoUid || x.sujetoUid === filtro.sujetoUid);
+  },
+
+  /**
    * Deja el recibo. La fecha la pone EL SERVIDOR: las reglas exigen que el campo
    * sea exactamente `request.time`, así que no se puede fechar hacia atrás para
    * tapar una orden nueva.
@@ -1109,7 +1220,20 @@ export const repositorioFirestore: Repositorio = {
     const { doc, setDoc, serverTimestamp } = await firestore();
     const u = await esperarSesion();
     if (!u) throw new Error('sin sesión');
-    await setDoc(doc(await baseDatos(), 'usuarios', u.uid), { contrasenaCambiadaEn: serverTimestamp() });
+    // ⚠️ CON `merge`, Y NO ES UN DETALLE. Sin él, `setDoc` SUSTITUYE el
+    // documento entero: se llevaría por delante el `ultimoAcceso` que se escribe
+    // al entrar, y —peor— la regla nueva lo DENEGARÍA. `selloDelServidor` exige
+    // que cada campo tocado valga `request.time`, y al borrar `ultimoAcceso` ese
+    // campo queda ausente en lo que se manda: la comparación da falso y la
+    // escritura se rechaza. O sea que el recibo dejaría de poder escribirse en
+    // cuanto la persona hubiera entrado una vez, y la pantalla de cambio de
+    // contraseña volvería a recibirla la próxima vez. Con `merge` se toca UNA
+    // clave y solo una.
+    await setDoc(
+      doc(await baseDatos(), 'usuarios', u.uid),
+      { contrasenaCambiadaEn: serverTimestamp() },
+      { merge: true },
+    );
   },
 
   async listarSondeos(analisisId: string): Promise<SondeoClima[]> {

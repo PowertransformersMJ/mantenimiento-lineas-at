@@ -76,3 +76,6 @@ web/dist/
 LN-627/
 **/Registro Fotografico/
 fotos-del-portero/
+
+# Estado local de wrangler dev: nunca al repositorio (es PÚBLICO)
+.wrangler/

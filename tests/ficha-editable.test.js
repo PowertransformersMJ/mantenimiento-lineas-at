@@ -549,14 +549,18 @@ describe('solo escribe quien tiene permiso, y si no lo tiene se dice', () => {
   });
 
   test('el botón solo aparece con permiso de edición, y si no, se explica', () => {
-    assert.match(fichas, /rol === 'admin' \|\| sesion\?\.rol === 'editor'/,
+    // ⚠️ CAMBIÓ EL CÓMO, NO EL QUÉ (`99 §ADR-100`): se pregunta por la FUNCIÓN
+    // del catálogo en vez de comparar el rol. Es la misma que miran las reglas
+    // para un apoyo, así que el botón sigue prometiendo exactamente lo que la
+    // base va a permitir — que es lo que esta prueba defiende.
+    assert.match(fichas, /puede\(sesion, 'apoyos\.editar'\)/,
       'el permiso que se comprueba tiene que ser el mismo que permiten las reglas para un apoyo');
     assert.match(fichas, /se puede ver, pero no escribir/,
       'esconder el botón sin decir por qué se lee como una avería de la aplicación');
   });
 
   test('el formulario vuelve a comprobarlo antes de encender su propio botón', () => {
-    assert.match(editor, /sesion\.rol === 'admin' \|\| sesion\.rol === 'editor'/,
+    assert.match(editor, /puede\(sesion, 'apoyos\.editar'\)/,
       'dos guardas del mismo hecho: la primera puede quedarse vieja si el permiso cambia');
     assert.match(editor, /disabled=\{!puedeGuardar\}/);
   });

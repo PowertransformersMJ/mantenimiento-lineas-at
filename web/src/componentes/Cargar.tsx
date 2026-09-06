@@ -73,6 +73,7 @@ import { REGISTRO_DECISIONES } from '../datos/registroDecisiones';
 import { leerArchivos, type ArchivoAportado } from '../importar/leerArchivo';
 import { descargar, selloFecha } from '../exportar/descargar';
 import { nf } from '../vistas/formato';
+import { puede, type SesionDePantalla } from '../datos/permisos';
 import {
   AL_FINAL, AL_PRINCIPIO, PRECISION_DECLARADA_M,
   actaDeLaCarga, cifrasDeLaCarga, consecuenciaDeFuncion, CONSECUENCIA_TIPO,
@@ -117,7 +118,7 @@ export function Cargar({ linea, apoyos, sesion }: {
   linea: TLinea;
   apoyos: Apoyo[];
   /** Quién entró y con qué permiso. Se enseña ANTES de nada: ver bloque ①. */
-  sesion: { correo: string | null; rol: string; orgId: string; uid: string };
+  sesion: SesionDePantalla;
 }) {
   const [archivos, setArchivos] = useState<ArchivoEnPantalla[]>([]);
   const [fichas, setFichas] = useState<FichaDeCarga[]>([]);
@@ -137,7 +138,13 @@ export function Cargar({ linea, apoyos, sesion }: {
     procedencia: ProcedenciaDeFicha; noSePudoPoner: NoSePudoRecordar[];
   }>>({});
 
-  const esAdmin = sesion.rol === 'admin';
+  /**
+   * ⚠️ ES LA FUNCIÓN, NO EL ROL. Antes esto era `sesion.rol === 'admin'`, y con
+   * eso la única forma de dejar cargar el trazado a alguien era hacerlo
+   * administrador de todo — permisos ajenos incluidos. Ahora pide exactamente lo
+   * que esta pantalla hace: `cargar.puntos`.
+   */
+  const puedePuntos = puede(sesion, 'cargar.puntos');
 
   // Los nombres del libro de esta línea que todavía no están puestos. Es lo
   // ÚNICO que alimenta el desplegable: así no hay forma de escribir un nombre
@@ -299,7 +306,7 @@ export function Cargar({ linea, apoyos, sesion }: {
    */
   const faltas = useMemo(() => {
     const xs: string[] = [];
-    if (!esAdmin) {
+    if (!puedePuntos) {
       xs.push(`su sesión entró con el permiso «${sesion.rol}», y crear puntos de una línea es acto de administración`);
     }
     for (const f of fichas) {
@@ -312,10 +319,10 @@ export function Cargar({ linea, apoyos, sesion }: {
       xs.push('no ha aprobado ningún punto todavía: la casilla de cada ficha empieza vacía a propósito');
     }
     return xs;
-  }, [esAdmin, fichas, sesion.rol]);
+  }, [puedePuntos, fichas, sesion.rol]);
 
   const cuantos = plan?.documentos.length ?? 0;
-  const puedeCargar = esAdmin && !faltas.length && cuantos > 0 && !enCurso;
+  const puedeCargar = puedePuntos && !faltas.length && cuantos > 0 && !enCurso;
 
   // ── El acto ───────────────────────────────────────────────────────────────
 
@@ -386,7 +393,7 @@ export function Cargar({ linea, apoyos, sesion }: {
         permiso no fuera el correcto, más vale saberlo ahora que después de media hora de trabajo.
       </p>
 
-      {!esAdmin && (
+      {!puedePuntos && (
         <p className="alerta">
           Crear puntos de una línea es acto de administración, y esta sesión no lo es. Puede mirar
           esta pantalla; el botón del final no se encenderá.

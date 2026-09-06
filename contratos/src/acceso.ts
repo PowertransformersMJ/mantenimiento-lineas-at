@@ -28,6 +28,17 @@
 
 export type Puerta = { fase: 'seguir' } | { fase: 'cambiar_contrasena' };
 
+/**
+ * CÓMO ESTAMPA FIREBASE EL INGRESO POR CONTRASEÑA en el token (`signInProvider`).
+ *
+ * Está aquí, en el contrato, y no tecleado en cada sitio: desde que se retiró
+ * Google (`§ADR-100`) es el ÚNICO proveedor del sistema, y dos capas lo miran —
+ * la puerta de abajo y la cabecera, que solo ofrece «Cambiar mi contraseña» a
+ * quien tiene una contraseña que cambiar. Una cadena tecleada dos veces es una
+ * cadena que un día se escribe mal en una sola de ellas.
+ */
+export const PROVEEDOR_CONTRASENA = 'password';
+
 export interface EntradaPuerta {
   /** Cómo entró: `'password'`, `'google.com'`… Lo estampa Firebase en el token. */
   proveedor: string | null;
@@ -64,7 +75,7 @@ function comoMilisegundos(v: unknown): number | null {
  * 3. NO HAY RECIBO POSTERIOR A LA ORDEN. Si ya cambió su contraseña después de
  *    que se le ordenara, no se le vuelve a pedir.
  *
- * POR QUÉ LA ORDEN LLEVA FECHA. `usuarios.mjs contrasena` puede reponer una
+ * POR QUÉ LA ORDEN LLEVA FECHA. Reponer una contraseña desde la pantalla de personas puede reponer una
  * contraseña provisional una SEGUNDA vez. Con un recibo de sí/no, esa segunda
  * contraseña no se exigiría cambiar nunca — el recibo viejo la taparía. Con
  * fechas, una orden nueva es más reciente que el recibo y la pantalla vuelve
@@ -76,7 +87,7 @@ export function puertaDeAcceso(e: EntradaPuerta): Puerta {
     const seguir: Puerta = { fase: 'seguir' };
 
     // 1 · Cerrojo fuerte: quien no entró con contraseña, no tiene qué cambiar.
-    if (e?.proveedor !== 'password') return seguir;
+    if (e?.proveedor !== PROVEEDOR_CONTRASENA) return seguir;
 
     // 2 · La marca, estricta.
     const c = e?.claims;
@@ -100,7 +111,7 @@ export function puertaDeAcceso(e: EntradaPuerta): Puerta {
 /**
  * El mínimo, aquí y en ninguna otra parte.
  *
- * ⚠️ Firebase acepta contraseñas de 6 caracteres. `herramientas/usuarios.mjs`
+ * ⚠️ Firebase acepta contraseñas de 6 caracteres. El trabajador de personas
  * exige 12. Si la pantalla de cambio se apoyara en el mínimo de Firebase, el
  * sistema gastaría una pantalla OBLIGATORIA en **debilitar** la contraseña: la
  * persona entraría con una de 12 puesta por el administrador y saldría con una

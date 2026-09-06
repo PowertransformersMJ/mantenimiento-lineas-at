@@ -1,0 +1,52 @@
+# ============================================================================
+# usuarios — configuración del trabajador administrativo de personas
+# ----------------------------------------------------------------------------
+# ⚠️ AQUÍ NO HAY NI UN SECRETO, Y NO PUEDE HABERLO: este repositorio es PÚBLICO.
+# El identificador del proyecto y el origen permitido son públicos por diseño; la
+# seguridad viene de que la firma del token se verifica contra las llaves de
+# Google y de que la llave de administración es un SECRETO de Cloudflare que
+# nunca toca el repositorio.
+#
+# El secreto se pone una sola vez, desde la Mac del Ingeniero:
+#     npx wrangler secret put CUENTA_DE_SERVICIO --config usuarios/wrangler.toml
+# y se pega el JSON entero de la cuenta de servicio (cabe: el tope es 5 KB).
+#
+# Si ese secreto FALTA, el trabajador no se abre: responde 503 y lo dice. Una
+# seguridad que depende de que una variable esté puesta no es seguridad.
+# ============================================================================
+name = "lineas-at-usuarios"
+main = "src/index.js"
+compatibility_date = "2026-07-01"
+
+# `nodejs_compat` NO hace falta: todo lo que se usa —WebCrypto, fetch, atob/btoa,
+# URL— es API estándar del entorno de trabajadores. Menos superficie, menos peso.
+workers_dev = true
+
+[vars]
+# El proyecto de Firebase que se administra. La cuenta de servicio TIENE que ser
+# de este mismo proyecto: si no, el trabajador se apaga (administrar la base de
+# otro no es un error tipográfico inofensivo).
+PROYECTO_FIREBASE = "mantenimiento-lineas-at"
+
+# Origen que se devuelve en la cabecera CORS.
+#
+# ⚠️ NO es un control de acceso. CORS impide que OTRA página LEA la respuesta; no
+# impide pedirla, y no impide nada fuera de un navegador — un `curl` con un token
+# válido pasa igual. Lo único que decide quién entra es la firma del token, el
+# reclamo `orgId` y la jerarquía de roles (§ADR-013, hallazgo 19).
+ORIGEN_PERMITIDO = "https://mantenimiento-lineas-at.pages.dev"
+
+# La organización dueña del dato. Una sesión válida de otra empresa no pasa, y si
+# esta variable falta el trabajador se APAGA en vez de abrirse (503).
+ORG_PERMITIDA = "transpower"
+
+# App Check. Hoy este trabajador NO sabe comprobarlo, así que la variable va en
+# `false` y ponerla en `true` APAGA el servicio en vez de simular que lo exige.
+# Es deliberado: una promesa que el código no cumple es la falta que más veces ha
+# aparecido en este proyecto. Cuando se implemente, esto pasa a `true`.
+APP_CHECK_EXIGIDO = "false"
+
+# ⚠️ EL CORTE DE REVOCACIÓN (`99 §ADR-100`): todo token emitido ANTES de esta marca
+# se rechaza. Vacía = sin corte. Se pone en la limpieza inicial, aquí y en el
+# portero de fotos a la vez. Una marca ilegible APAGA el trabajador (503).
+REVOCADOS_ANTES_DE = ""

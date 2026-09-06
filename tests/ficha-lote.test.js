@@ -349,13 +349,19 @@ describe('ni una fórmula en la pantalla del lote', () => {
 });
 
 describe('aplicar a varios es acto de administración', () => {
-  test('la pantalla del lote exige admin, igual que la escritura', () => {
-    assert.match(lote, /sesion\.rol === 'admin'/,
+  test('la pantalla del lote exige la MISMA función que la escritura', () => {
+    // ⚠️ CAMBIÓ EL CÓMO, NO EL QUÉ (`99 §ADR-100`). Antes las dos comparaban
+    // `rol === 'admin'`; ahora las dos preguntan por `ficha.lote`, que el
+    // catálogo declara NO DELEGABLE — o sea que sigue siendo administración y
+    // no se puede regalar suelta. Lo que esta prueba defiende es que la pantalla
+    // y la escritura pidan LO MISMO: un botón que promete algo que la base niega
+    // no es más seguro ni menos, es mentiroso.
+    assert.match(lote, /puede\(sesion, 'ficha\.lote'\)/,
       'el permiso que se comprueba tiene que ser el mismo que exige la base');
     assert.match(lote, /disabled=\{!puedeEscribir\}/);
     const escritura = leer('web/src/datos/firestore.ts');
     const cuerpo = escritura.slice(escritura.indexOf('async guardarFichaApoyoEnLote('));
-    assert.match(cuerpo, /rol !== 'admin'/, 'la guarda de verdad vive en la escritura');
+    assert.match(cuerpo, /puede\(\{ claims \}, 'ficha\.lote'\)/, 'la guarda de verdad vive en la escritura');
   });
 
   test('sin ese permiso NO se esconde el botón: se explica', () => {

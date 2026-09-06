@@ -29,21 +29,41 @@ export function Estado({ titulo, children, nota, accion }: Props) {
 }
 
 /**
- * Acceso con correo y contraseña. NO hay registro, y su ausencia es el control:
- * las cuentas las crea el administrador con `herramientas/usuarios.mjs`.
+ * Acceso con correo y contraseña. ÚNICO proveedor desde el 2026-09-06: «Entrar
+ * con Google» se retiró por orden del Ingeniero (`99 §ADR-100`) — era una vía de
+ * alta pública. NO hay registro: las cuentas las crea quien administra personas
+ * desde la propia herramienta.
  *
- * Google sigue de momento como salida de reserva, y está anunciado que se
- * retira. Se quita en cuanto la contraseña del administrador esté probada:
- * retirarlo antes lo dejaría a él fuera de su propio sistema.
+ * «¿Olvidó su contraseña?» responde SIEMPRE lo mismo, exista o no el correo.
  */
-export function SinSesion({ onEntrar, onEntrarConGoogle }: {
-  onEntrar: (correo: string, contrasena: string) => Promise<void>;
-  onEntrarConGoogle?: () => void;
+export function SinSesion({ onEntrar, onRecuperar, motivoDeSalida }: {
+  onEntrar: (correo: string, contrasena: string, recordar: boolean) => Promise<void>;
+  /** Pide el enlace de recuperación. Devuelve la frase única que se enseña. */
+  onRecuperar?: (correo: string) => Promise<string>;
+  /** Por qué se cerró la sesión anterior. Sin esto, una caducidad parece avería. */
+  motivoDeSalida?: string | null;
 }) {
   const [correo, setCorreo] = useState('');
   const [contrasena, setContrasena] = useState('');
   const [fallo, setFallo] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+  /**
+   * DÓNDE SE GUARDA LA SESIÓN, y arranca en NO.
+   *
+   * El defecto conservador es que la sesión muera al cerrar el navegador: un
+   * portátil de oficina o un teléfono prestado no deben dejar la herramienta
+   * abierta para el siguiente. Quien la marca sabe lo que hace y en qué aparato.
+   */
+  const [recordar, setRecordar] = useState(false);
+  const [recuperacion, setRecuperacion] = useState<string | null>(null);
+
+  const recuperar = async () => {
+    if (!onRecuperar || !correo.trim()) {
+      setRecuperacion('Escriba su correo arriba y vuelva a pulsar.');
+      return;
+    }
+    setRecuperacion(await onRecuperar(correo));
+  };
 
   const enviar = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,7 +71,7 @@ export function SinSesion({ onEntrar, onEntrarConGoogle }: {
     setFallo(null);
     setEnviando(true);
     try {
-      await onEntrar(correo, contrasena);
+      await onEntrar(correo, contrasena, recordar);
     } catch (err) {
       setFallo(err instanceof Error ? err.message : 'No se pudo entrar.');
       // La contraseña se borra al fallar: no se deja escrita en pantalla.
@@ -64,6 +84,10 @@ export function SinSesion({ onEntrar, onEntrarConGoogle }: {
   return (
     <section className="panel vacio">
       <div className="vacio-t">Acceso</div>
+      {/* Por qué se cerró la anterior. Una sesión que caduca sin decirlo es
+          indistinguible de una avería, y quien la sufre recarga la página tres
+          veces antes de pensar en volver a entrar. */}
+      {motivoDeSalida && <p className="aviso" role="status">{motivoDeSalida}</p>}
       <p className="vacio-c">
         Esta página no contiene ningún dato: las líneas reales se leen de la base después de
         autenticarse. Es deliberado — el sitio es público, y las coordenadas de la infraestructura
@@ -81,6 +105,15 @@ export function SinSesion({ onEntrar, onEntrarConGoogle }: {
           <input type="password" autoComplete="current-password" required value={contrasena}
             onChange={(e) => setContrasena(e.target.value)} disabled={enviando} />
         </label>
+        <label className="acceso-recordar">
+          <input type="checkbox" checked={recordar} disabled={enviando}
+            onChange={(e) => setRecordar(e.target.checked)} />
+          <span>
+            Recordar en este dispositivo
+            <b className="fine"> — solo si el aparato es suyo: sin marcarla, la sesión se cierra
+            al cerrar el navegador.</b>
+          </span>
+        </label>
         {fallo && <p className="acceso-fallo" role="alert">{fallo}</p>}
         <button className="boton" type="submit" disabled={enviando}>
           {enviando ? 'Entrando…' : 'Entrar'}
@@ -88,18 +121,16 @@ export function SinSesion({ onEntrar, onEntrarConGoogle }: {
       </form>
 
       <p className="fine">
-        <b>No hay registro.</b> Las cuentas las crea el administrador. Si necesita acceso o ha
-        olvidado su contraseña, avísele: nadie puede darse de alta por su cuenta.
-      </p>
-
-      {onEntrarConGoogle && (
-        <p className="fine acceso-reserva">
-          <button className="boton chico" type="button" onClick={onEntrarConGoogle}>
-            Entrar con Google
+        <b>No hay registro.</b> Las cuentas las crea el administrador: nadie puede darse de alta
+        por su cuenta.{' '}
+        {onRecuperar && (
+          <button className="boton chico" type="button" onClick={() => void recuperar()} disabled={enviando}>
+            ¿Olvidó su contraseña?
           </button>
-          {' '}Vía en retirada, disponible mientras se completa el cambio a contraseña.
-        </p>
-      )}
+        )}
+      </p>
+      {/* Una sola frase, exista o no el correo: lo contrario enumera cuentas. */}
+      {recuperacion && <p className="fine" role="status">{recuperacion}</p>}
     </section>
   );
 }
@@ -108,10 +139,41 @@ export function Cargando() {
   return <Estado titulo="Cargando…">Leyendo la línea desde la base.</Estado>;
 }
 
-export function Vacio() {
+/**
+ * NO HAY NADA QUE ABRIR — y por qué, que son DOS motivos distintos.
+ *
+ * ⚠️ Hasta hoy esta pantalla decía siempre «no tiene ninguna línea asignada», y
+ * era una promesa sin nada detrás: **el alcance por líneas no existía**. Quien
+ * la leía se iba a pedirle al administrador que le asignara una línea, y el
+ * administrador no tenía dónde asignarla. Ahora el alcance existe de verdad
+ * (`l` en el token), así que hay dos situaciones y solo una de ellas es ésa:
+ *
+ *   · alcance a TODAS  → no hay ninguna línea cargada todavía en la organización;
+ *   · alcance a UNAS   → sí las hay, pero ninguna de las suyas se pudo abrir.
+ *
+ * Un campo que la pantalla ofrece y nadie hace cumplir es una mentira; una frase
+ * que promete un mecanismo que no existe, también.
+ */
+export function Vacio({ alcanzaTodas }: { alcanzaTodas?: boolean }) {
+  if (alcanzaTodas) {
+    return (
+      <Estado
+        titulo="Todavía no hay ninguna línea"
+        nota="Si esperaba ver una, avise al administrador: puede que el trazado aún no se haya cargado."
+      >
+        Su usuario alcanza <b>todas las líneas de su organización</b>, y ahora mismo no hay ninguna
+        cargada. No es un problema de permiso.
+      </Estado>
+    );
+  }
   return (
-    <Estado titulo="No hay líneas asignadas" nota="Si esto no es lo que espera, avise al administrador.">
-      Su usuario está autenticado pero todavía no tiene ninguna línea asignada.
+    <Estado
+      titulo="No hay líneas asignadas"
+      nota="Si esto no es lo que espera, avise al administrador: es él quien decide sobre qué líneas actúa cada cuenta."
+    >
+      Su usuario está autenticado, pero <b>ninguna de las líneas asignadas a su cuenta</b> se pudo
+      abrir. El alcance de una cuenta se declara por línea: puede que aún no le hayan asignado
+      ninguna.
     </Estado>
   );
 }

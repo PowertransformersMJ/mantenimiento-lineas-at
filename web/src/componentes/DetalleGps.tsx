@@ -32,6 +32,7 @@ import { aGMS, nf } from '../vistas/formato';
 import { cableDeGuarda, type EstadoGuarda } from '../vistas/cableGuarda';
 import { almacen } from '../datos/enlace';
 import type { ClaveAtlas } from '../datos/ruta';
+import { puede, type SesionDePantalla } from '../datos/permisos';
 
 // ⚠️ `conReintentos`, y no un `import()` pelado. `datos/cargar.ts` es «la ÚNICA
 // frontera de carga diferida del sistema» y lo es por un fallo que ya ocurrió en
@@ -87,7 +88,7 @@ export function DetalleGps({
    * escritura de quien no puede aunque el control estuviera en pantalla
    * (`ADR-024`). Esconderlo es cortesía, no seguridad.
    */
-  sesion?: { rol: string };
+  sesion?: Pick<SesionDePantalla, 'rol' | 'claims'>;
 }) {
   const filas = useMemo<FilaGps[]>(() => [...apoyos]
     .sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0))
@@ -146,7 +147,7 @@ export function DetalleGps({
 
       <AtlasDelCaribe apoyos={apoyos} codigo={codigoLinea} hipotesis={hipotesis} />
 
-      {(sesion?.rol === 'admin' || sesion?.rol === 'editor') && (
+      {puede(sesion, 'apoyos.editar') && (
         <DeclararCableGuarda apoyos={apoyos} />
       )}
 

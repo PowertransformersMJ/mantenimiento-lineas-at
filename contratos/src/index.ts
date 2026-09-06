@@ -28,6 +28,7 @@ export * from './ia.ts';
 export * from './rca.ts';
 export * from './acceso.ts';
 export * from './cargabilidad.ts';
+export * from './usuarios.ts';
 
 // ── Las tres funciones invocables ───────────────────────────────────────────
 // Solo `onCall`, jamás `onRequest` abierta. Con verificación de identidad y de
@@ -58,7 +59,10 @@ export const EstadoContrato_Salida = z.object({
 });
 
 /** Catálogo de las funciones. El cliente no llama nada que no esté aquí. */
-export const FUNCIONES = Object.freeze({
+// ⚠️ Se llamaba `FUNCIONES` y TAPABA —por orden de exportación— al catálogo de
+// permisos `FUNCIONES` de `usuarios.ts`: `import { FUNCIONES } from '@lineas/contratos'`
+// devolvía esto sin que TypeScript protestara (`99 §ADR-100`). Renombrado.
+export const FUNCIONES_INVOCABLES = Object.freeze({
   crearSolicitudIA: { entrada: CrearSolicitudIA_Entrada, salida: CrearSolicitudIA_Salida },
   confirmarSugerencia: { entrada: ConfirmarSugerencia_Entrada, salida: ConfirmarSugerencia_Salida },
   estadoContrato: { entrada: z.object({}).strict(), salida: EstadoContrato_Salida },

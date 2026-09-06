@@ -69,7 +69,7 @@ no existe:**
 | Fotos | **R2 privado** detrás del portero `evidencias/` (ADR-010). El disco del Ingeniero sigue siendo el original | ✅ vivo |
 | Frontend | **React 19 + Vite + TypeScript** (ADR-005), web instalable | ✅ vivo |
 | Hosting | **Cloudflare Pages** — en producción, no en el futuro | ✅ vivo |
-| Cómputo servidor | **UN Worker y solo uno**: el portero de fotos. Nada más, y nada que facture | ✅ vivo |
+| Cómputo servidor | **DOS Workers gratuitos**: el portero de fotos y el de personas (`ADR-100`). Nada que facture | ✅ vivo |
 | Mapas | **Protomaps / PMTiles + MapLibre**, recortes por línea | ✅ vivo |
 | CI/CD | **GitHub Actions**, runners `ubuntu-latest` **siempre** | ✅ vivo |
 | Auth | **correo + contraseña**, aprovisionada a mano, **cero registro público**; RBAC por *claims* (ADR-019). Google sigue de reserva hasta que el Ingeniero se ponga contraseña | ⚠️ a medias |

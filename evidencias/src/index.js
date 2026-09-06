@@ -58,77 +58,16 @@
 //     `private` para que ninguna caché intermedia se quede una copia.
 // ============================================================================
 
-const JWKS = 'https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com';
-
-/** Llaves públicas de Google, cacheadas en memoria del aislado. */
-let llaves = null;
-let llavesHasta = 0;
-
-async function llavesDeGoogle() {
-  const ahora = Date.now();
-  if (llaves && ahora < llavesHasta) return llaves;
-  const r = await fetch(JWKS);
-  if (!r.ok) throw new Error('no se pudieron leer las llaves públicas de Google');
-  const { keys } = await r.json();
-  // Se respeta el `max-age` que manda Google: sus llaves rotan, y cachearlas
-  // más de la cuenta convierte una rotación normal en una caída total.
-  const cc = r.headers.get('cache-control') ?? '';
-  const max = Number(/max-age=(\d+)/.exec(cc)?.[1] ?? 3600);
-  llaves = Object.fromEntries(keys.map((k) => [k.kid, k]));
-  llavesHasta = ahora + Math.min(max, 86400) * 1000;
-  return llaves;
-}
-
-const b64url = (s) => {
-  const b = atob(s.replace(/-/g, '+').replace(/_/g, '/'));
-  return Uint8Array.from(b, (c) => c.charCodeAt(0));
-};
-
-/**
- * Verifica un token de identidad de Firebase. Devuelve sus datos o lanza.
- *
- * ⚠️ El orden importa: primero la FIRMA, después el contenido. Al revés se
- * estarían leyendo como ciertos unos datos que todavía no se sabe si alguien
- * escribió a mano.
- */
-async function verificarToken(token, proyecto) {
-  const partes = token.split('.');
-  if (partes.length !== 3) throw new Error('token mal formado');
-  const [cabeceraB64, cuerpoB64, firmaB64] = partes;
-
-  const cabecera = JSON.parse(new TextDecoder().decode(b64url(cabeceraB64)));
-  if (cabecera.alg !== 'RS256') throw new Error('algoritmo no admitido');
-
-  const jwk = (await llavesDeGoogle())[cabecera.kid];
-  if (!jwk) throw new Error('la llave del token no está entre las de Google');
-
-  const llave = await crypto.subtle.importKey(
-    'jwk', jwk, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['verify'],
-  );
-  const firmado = new TextEncoder().encode(`${cabeceraB64}.${cuerpoB64}`);
-  const valida = await crypto.subtle.verify('RSASSA-PKCS1-v1_5', llave, b64url(firmaB64), firmado);
-  if (!valida) throw new Error('firma inválida');
-
-  const cuerpo = JSON.parse(new TextDecoder().decode(b64url(cuerpoB64)));
-  const ahora = Math.floor(Date.now() / 1000);
-  if (cuerpo.aud !== proyecto) throw new Error('el token es de otro proyecto');
-  if (cuerpo.iss !== `https://securetoken.google.com/${proyecto}`) throw new Error('emisor inesperado');
-  if (!cuerpo.sub) throw new Error('token sin sujeto');
-  // ⚠️ Se comprueba que la marca de tiempo EXISTA y sea un número, no solo que
-  // esté dentro de rango. Con `exp` ausente, `undefined <= n` vale `false` y el
-  // token pasaba: un token sin caducidad no caducaba nunca. Este mismo archivo
-  // ya sabía hacerlo —tres líneas más arriba comprueba la presencia de `sub`— y
-  // no lo hacía ni para `exp` ni para `iat`. Hoy no es explotable (solo Google
-  // firma con esa llave, y Firebase siempre emite `exp`), pero una comprobación
-  // que depende de lo que el emisor tenga a bien incluir no es una comprobación
-  // (§ADR-013, hallazgo 17).
-  //
-  // Los 60 s de holgura cubren el desfase entre el reloj de ESTE trabajador y el
-  // de Google, NO el del móvil: la comparación es contra el reloj propio.
-  if (typeof cuerpo.exp !== 'number' || cuerpo.exp <= ahora - 60) throw new Error('token caducado');
-  if (typeof cuerpo.iat !== 'number' || cuerpo.iat > ahora + 60) throw new Error('token emitido en el futuro');
-  return cuerpo;
-}
+// ⚠️ LA COMPROBACIÓN DE LA SESIÓN NO VIVE AQUÍ, y desde el 2026-09-05 tampoco
+// vive dos veces. Está en `comun/token-de-firebase.js`, que es el ÚNICO sitio
+// donde se verifica la firma de un token de Firebase, porque ahora hay dos
+// trabajadores que tienen que hacer la misma pregunta —este portero y el
+// administrativo de personas (`usuarios/`)— y dos copias de una comprobación de
+// seguridad no se quedan iguales: una recibe el arreglo y la otra no.
+//
+// Lo que este portero hace con la respuesta —exigir organización, exigir rol
+// para subir— sí es suyo y sigue aquí abajo, sin cambiar una coma.
+import { verificarToken, revocadosAntesDeDe } from '../../comun/token-de-firebase.js';
 
 const cabecerasCors = (origen, permitido) => ({
   'Access-Control-Allow-Origin': origen === permitido ? origen : permitido,
@@ -156,8 +95,17 @@ const FIRMAS = Object.freeze([
  */
 const TOPE_ARCHIVO = 12 * 1024 * 1024;
 
-/** Quién puede subir. Un auditor mira; no aporta evidencia. */
-const ROLES_QUE_SUBEN = Object.freeze(['admin', 'editor', 'cuadrilla']);
+/**
+ * Quién puede MIRAR y quién puede SUBIR, por FUNCIÓN del catálogo, no por rol
+ * (`99 §ADR-100`). Los códigos cortos viven en `contratos/src/usuarios.ts`:
+ * `ev` = evidencias.ver · `ea` = evidencias.aportar. Un auditor trae `ev` y no
+ * `ea`: mira, no aporta. Y un token SIN `f` —los de antes del catálogo, o el de
+ * una cuenta apagada— no pasa ni a mirar: reclamo ausente es mínimo privilegio,
+ * y es lo que hace que la revocación sea inmediata en esta puerta.
+ */
+const FUNCION_VER = 'ev';
+const FUNCION_APORTAR = 'ea';
+const tiene = (sesion, corto) => Array.isArray(sesion?.f) && sesion.f.includes(corto);
 
 /** Reconoce el formato REAL por su firma. Devuelve null si no es de los admitidos. */
 function mimeReal(bytes) {
@@ -259,9 +207,13 @@ export default {
 
     let sesion;
     try {
-      sesion = await verificarToken(token, entorno.PROYECTO_FIREBASE);
+      // La marca de revocación se lee en cada petición: es configuración, no
+      // estado, y una marca ilegible apaga el portero en vez de ignorarse.
+      const revocadosAntesDe = revocadosAntesDeDe(entorno);
+      sesion = await verificarToken(token, entorno.PROYECTO_FIREBASE, { revocadosAntesDe });
     } catch (e) {
-      return noPasa(`sesión no válida: ${e.message}`, 401, cors);
+      const apagado = /REVOCADOS_ANTES_DE/.test(e.message);
+      return noPasa(apagado ? e.message : `sesión no válida: ${e.message}`, apagado ? 503 : 401, cors);
     }
 
     // La organización va en el token, no en un documento consultable: es lo que
@@ -272,14 +224,18 @@ export default {
     if (sesion.orgId !== entorno.ORG_PERMITIDA) {
       return noPasa('esta sesión no pertenece a la organización dueña del dato', 403, cors);
     }
+    // Mirar exige la función de ver. Sin `f` en el token no se mira nada.
+    if (!tiene(sesion, FUNCION_VER)) {
+      return noPasa('esta sesión no tiene permiso para ver evidencias', 403, cors);
+    }
 
     // ── SUBIR ─────────────────────────────────────────────────────────────
     // Llega aquí con la configuración comprobada, la firma del token verificada
     // y la organización confirmada: exactamente los mismos filtros que para leer.
     // Lo que se añade encima es lo propio de escribir.
     if (subiendo) {
-      // Un auditor mira; no aporta evidencia. Sin rol declarado, no pasa.
-      if (!ROLES_QUE_SUBEN.includes(sesion.rol)) {
+      // Un auditor mira; no aporta evidencia. Sin la función, no pasa.
+      if (!tiene(sesion, FUNCION_APORTAR)) {
         return noPasa('esta sesión puede mirar las evidencias, pero no subirlas', 403, cors);
       }
 

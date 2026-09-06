@@ -9,7 +9,7 @@
 // Aquí NO hay ni una fórmula. Todo el cálculo se le pide a @lineas/nucleo.
 // ============================================================================
 import { Component, Suspense, lazy, useEffect, useMemo, useState, type KeyboardEvent, type ReactNode } from 'react';
-import type { Apoyo, Conductor, Evidencia, Hipotesis, Investigacion, Linea as TLinea } from '@lineas/contratos';
+import type { Apoyo, Conductor, Evidencia, Funcion, Hipotesis, Investigacion, Linea as TLinea } from '@lineas/contratos';
 import { vincenty, vanoIdealRegulacion } from '@lineas/nucleo/geodesia';
 import { ampacidadDeLinea, etiquetaDeAmpacidad } from '@lineas/nucleo/termica';
 import { estadisticasVanos } from '@lineas/nucleo/estadisticas';
@@ -22,6 +22,7 @@ import { calcularTramos } from '../vistas/tramos';
 import { textoNucleo } from '../vistas/formato';
 import { conReintentos } from '../datos/cargar';
 import { almacen, useSesion } from '../datos/enlace';
+import { puede, type SesionDePantalla } from '../datos/permisos';
 import { ejesDeLinea } from '../vistas/ejesLinea';
 import { estadoDeLinea } from '../vistas/estadoLinea';
 import { vanosDeLinea } from '../vistas/vanosLinea';
@@ -133,10 +134,14 @@ const PESTANAS = [
   { id: 'exportar', rotulo: 'Exportar', lista: true },
   // La ÚNICA pestaña que escribe activos, y la única que se filtra por permiso.
   // Va la última a propósito: se llega a ella después de haber mirado la línea,
-  // no antes. Y `soloAdmin` es COSMÉTICO —esconder una pestaña no impide nada—;
+  // no antes. Y el filtro es COSMÉTICO —esconder una pestaña no impide nada—;
   // quien decide de verdad son las reglas de la base. Existe para que quien no
   // pueda cargar no descubra que no puede después de media hora de trabajo.
-  { id: 'cargar', rotulo: 'Cargar', lista: true, soloAdmin: true },
+  //
+  // ⚠️ DECLARA LA FUNCIÓN QUE NECESITA, no un rol. Antes decía `soloAdmin`, y
+  // con eso el único modo de dejar cargar a alguien era hacerlo administrador
+  // de todo. Ahora pide exactamente lo que hace: `cargar.puntos`.
+  { id: 'cargar', rotulo: 'Cargar', lista: true, exige: 'cargar.puntos' },
   // La segunda pestaña que ESCRIBE, y la segunda cuyo efecto no se deshace: las
   // reglas niegan borrar una evidencia. Va al lado de «Cargar» porque son el
   // mismo gesto —traer material de campo a la base— y separadas obligarían a
@@ -151,8 +156,9 @@ const PESTANAS = [
 
 type IdPestana = (typeof PESTANAS)[number]['id'];
 
-/** Si una pestaña exige permiso de administración para siquiera enseñarse. */
-const soloAdmin = (p: (typeof PESTANAS)[number]): boolean => 'soloAdmin' in p && p.soloAdmin === true;
+/** Qué función del catálogo exige una pestaña para siquiera enseñarse, si exige alguna. */
+const exigeDe = (p: (typeof PESTANAS)[number]): Funcion | null =>
+  'exige' in p ? (p.exige as Funcion) : null;
 
 // ── Pestaña RESUMEN: mapa + tarjetas como la pantalla del módulo original ───
 
@@ -640,9 +646,15 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
    */
   const eventosAbiertos = investigaciones.filter((i) => !i.cerrada).length;
 
-  // Quién entró y con qué permiso. Solo lo consume la pestaña que ESCRIBE.
+  // Quién entró y con qué permiso. Solo lo consumen las pestañas que ESCRIBEN.
   const sesion = useSesion();
-  const esAdmin = sesion.fase === 'autenticado' && sesion.rol === 'admin';
+  /**
+   * La rebanada que viaja a los componentes. Lleva `claims` porque es lo que
+   * decide: el `rol` va con ella para poder ENSEÑARLO, no para compararlo.
+   */
+  const quien: SesionDePantalla | undefined = sesion.fase === 'autenticado'
+    ? { correo: sesion.correo, rol: sesion.rol, orgId: sesion.orgId, uid: sesion.uid, claims: sesion.claims }
+    : undefined;
 
   /**
    * Las pestañas que esta sesión puede ver.
@@ -653,8 +665,11 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
    * en otra pantalla sin saber por qué.
    */
   const visibles = useMemo(
-    () => PESTANAS.filter((p) => !soloAdmin(p) || esAdmin),
-    [esAdmin],
+    () => PESTANAS.filter((p) => {
+      const exige = exigeDe(p);
+      return exige === null || puede(quien, exige);
+    }),
+    [quien],
   );
 
   // ── El estado VIVE EN LA DIRECCIÓN WEB ──────────────────────────────────
@@ -844,7 +859,7 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
           <DetalleGps apoyos={apoyos} investigaciones={investigaciones}
             alVerEvento={() => irA('falla')} hipotesis={hipotesis}
             codigoLinea={linea.codigo}
-            sesion={sesion.fase === 'autenticado' ? { rol: sesion.rol } : undefined} />
+            sesion={quien && { rol: quien.rol, claims: quien.claims }} />
         )}
         {activa === 'falla' && <Falla investigaciones={investigaciones} apoyos={apoyos} evidencias={evidencias} noSePudoLeer={noSePudoLeer?.investigaciones} noSePudoLeerFotos={noSePudoLeer?.evidencias} />}
         {activa === 'distancias' && <Distancias apoyos={apoyos} />}
@@ -857,9 +872,7 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
         {activa === 'fichas' && (
           <Fichas apoyos={apoyos} linea={linea} conductor={conductor} hipotesis={hipotesis}
             evidencias={evidencias} noSePudoLeerFotos={noSePudoLeer?.evidencias}
-            sesion={sesion.fase === 'autenticado'
-              ? { correo: sesion.correo, rol: sesion.rol, orgId: sesion.orgId, uid: sesion.uid }
-              : undefined} />
+            sesion={quien} />
         )}
         {activa === 'mecanico' && <Mecanico apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} />}
         {activa === 'fundamentos' && <Fundamentos apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} />}
@@ -877,9 +890,7 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
               conductor={conductor} hipotesis={hipotesis}
               tensionNominal_kV={linea.tensionNominal_kV}
               longitud_m={derivarLevantamiento(apoyos).longitud_m}
-              sesion={sesion.fase === 'autenticado'
-                ? { rol: sesion.rol, orgId: sesion.orgId, uid: sesion.uid }
-                : undefined} />
+              sesion={quien && { rol: quien.rol, orgId: quien.orgId, uid: quien.uid, claims: quien.claims }} />
           </Suspense>
         )}
         {activa === 'viento' && <Viento apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} />}
@@ -890,18 +901,15 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
             se enseña, y esto decide si el panel se pinta. Son dos guardas del
             mismo hecho a propósito — la primera puede quedarse vieja si el
             permiso cambia con la pantalla abierta. */}
-        {activa === 'cargar' && sesion.fase === 'autenticado' && (
-          <Cargar linea={linea} apoyos={apoyos}
-            sesion={{ correo: sesion.correo, rol: sesion.rol, orgId: sesion.orgId, uid: sesion.uid }} />
+        {activa === 'cargar' && quien && (
+          <Cargar linea={linea} apoyos={apoyos} sesion={quien} />
         )}
         {/* La sesión se pasa AUNQUE aún no conste: esta pantalla siempre se
             puede mirar —el reparto se revisa sin escribir nada— y lo que se
             guarda es el botón. Lo mismo que ya se hace con Fichas. */}
         {activa === 'fotos' && (
           <Fotos linea={linea} apoyos={apoyos} evidencias={evidencias}
-            sesion={sesion.fase === 'autenticado'
-              ? { correo: sesion.correo, rol: sesion.rol, orgId: sesion.orgId, uid: sesion.uid }
-              : undefined} />
+            sesion={quien} />
         )}
       </div>
         </div>
