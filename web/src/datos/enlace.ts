@@ -20,7 +20,7 @@ import { useSyncExternalStore } from 'react';
 import type { AccionCapa, AnalisisCausa, Evidencia, Linea, SondeoClima } from '@lineas/contratos';
 import { cargarFirebase } from './cargar';
 import { puertaDeAcceso } from '@lineas/contratos';
-import { repositorio, usarRepositorio, type AcuseDeFicha, type AcuseDeLote, type EstadoDatos, type EstadoRca, type EstadoSesion, type ResultadoCarga } from './repositorio';
+import { repositorio, usarRepositorio, type AcuseDeFicha, type AcuseDeLote, type EstadoDatos, type EstadoRca, type EstadoSesion, type FiltroDeAuditoria, type PaginaDeAuditoria, type ResultadoCarga } from './repositorio';
 import { leerRuta, HASH_ATLAS, type ClaveAtlas } from './ruta';
 import { repositorioFirestore } from './firestore';
 
@@ -453,8 +453,13 @@ class Almacen {
     return await repositorio.listarLineas();
   }
 
-  /** La bitácora de accesos y cambios de permiso. Lectura directa por reglas. */
-  async bitacoraDeAccesos(filtro?: { accion?: string; sujetoUid?: string; tope?: number }) {
+  /**
+   * La bitácora de accesos y cambios de permiso. Lectura directa por reglas.
+   *
+   * Devuelve UNA PÁGINA: las filas y el testigo con el que se pide la siguiente.
+   * La pantalla no interpreta el testigo, solo lo devuelve tal cual.
+   */
+  async bitacoraDeAccesos(filtro?: FiltroDeAuditoria): Promise<PaginaDeAuditoria> {
     conectarBase();
     return await repositorio.listarAuditoria(filtro);
   }

@@ -83,6 +83,22 @@ service cloud.firestore {
     function esCerrojo(docId) { return docId == 'arranque' || docId == 'limpieza'; }
     function esAdmin() { return rol() == 'propietario' || rol() == 'admin'; }
 
+    /**
+     * Quién LEE un cerrojo de `config/`. Definido una vez porque lo usan tres
+     * `match` (los dos cerrojos y, por exclusión, el genérico) y tres copias de
+     * una condición de acceso no se quedan iguales.
+     *
+     * ⚠️ DECISIÓN, POR MÍNIMO PRIVILEGIO: el AUDITOR no los lee. Saber si el
+     * sistema ya arrancó y quién quedó de propietario es parte del runbook de
+     * quien administra, no de la revisión de permisos — y quien audita ya tiene
+     * el hecho donde le corresponde: la bitácora `auditoria_accesos` guarda las
+     * acciones `bootstrap` y `limpieza` con actor y fecha, y ésa sí la lee con
+     * `ua`. Darle además el cerrojo sería un permiso que no le hace falta para
+     * hacer su trabajo. Si algún día se decide lo contrario, se cambia AQUÍ y en
+     * un solo sitio.
+     */
+    function puedeLeerCerrojo() { return esAdmin() && tiene('ce') && deMiOrg(resource.data); }
+
     // ── EJE 2 · LAS FUNCIONES ──────────────────────────────────────────────
     /**
      * ¿Trae el token esta función? `corto` es el código CORTO del catálogo
@@ -439,12 +455,36 @@ service cloud.firestore {
     // con O, y `write` incluye `delete` — un admin podría BORRAR `config/arranque`
     // desde el navegador y rearmar el arranque (`99 §ADR-100`, hallazgo del
     // verificador del delta).
+    // Los dos cerrojos, cada uno con su regla, para que se vean al leer el
+    // archivo en vez de esconderse dentro de una condición con dos ramas.
+    //
+    // ⚠️ NO SE FÍE DE ESTE `if false`: NO ES LO QUE LOS PROTEGE. Firestore
+    // combina con O las reglas de todos los `match` que encajan con la ruta, y
+    // `false || X` es `X`. Lo que impide de verdad que un admin escriba o BORRE
+    // estos dos documentos desde el navegador es el `!esCerrojo(docId)` de la
+    // regla genérica de abajo. Si alguien «simplifica» quitándolo de ahí, esta
+    // línea no salva nada: la puerta queda abierta. Hay dos pruebas que lo
+    // vigilan —una estática (`tests/usuarios-catalogo.test.js`) y una contra el
+    // emulador (`tests/reglas/permisos.reglas.mjs`)— y las dos tienen que
+    // seguir vivas.
+    //
+    // Por qué importan tanto: `arranque` es el cerrojo de un solo uso del
+    // `/bootstrap`. Borrarlo REARMA la coronación del propietario. `limpieza` es
+    // la marca de que el borrado inicial ya se hizo.
+    match /config/arranque {
+      allow read:  if puedeLeerCerrojo();
+      allow write: if false;
+    }
+    match /config/limpieza {
+      allow read:  if puedeLeerCerrojo();
+      allow write: if false;
+    }
+
     match /config/{docId} {
-      // Los cerrojos los LEE solo quien administra de verdad (rol + función +
-      // organización): saber si el sistema arrancó es parte del runbook, no un
-      // dato de operación. Lo demás de config/ lo lee quien ve líneas.
-      allow read:  if (esCerrojo(docId) && esAdmin() && tiene('ce') && deMiOrg(resource.data))
-                   || (!esCerrojo(docId) && puedeVer('lv'));
+      // AQUÍ está el cierre de verdad: los cerrojos quedan EXCLUIDOS de la regla
+      // genérica, en la lectura y en la escritura (y `write` incluye `delete`).
+      // Lo demás de config/ lo lee quien ve líneas y lo escribe quien administra.
+      allow read:  if !esCerrojo(docId) && puedeVer('lv');
       allow write: if !esCerrojo(docId) && tiene('ce') && esAdmin() && deMiOrg(resource.data);
     }
 
@@ -466,6 +506,24 @@ service cloud.firestore {
     // devolver y Firestore la deja pasar. Si mañana alguien lista sin ese
     // `where`, la pantalla de personas se queda en blanco con «Missing or
     // insufficient permissions» y el mensaje no menciona la consulta.
+    //
+    // ⚠️ LAS LÁPIDAS (`99 §ADR-100`). Cuando la limpieza inicial BORRA una cuenta
+    // de Auth, este documento NO se borra: el trabajador lo deja con
+    // `activo: false`, `borradoEn` y `borradoPor`, y su `orgId` y su `correo`
+    // intactos. Es lo único que impide que años de `creadoPor` se conviertan en
+    // códigos sin dueño, así que aquí importan dos cosas, y las dos ya están
+    // escritas abajo:
+    //   · esos dos campos los pone SOLO el servidor con su cuenta de servicio,
+    //     que salta estas reglas. El navegador no los puede escribir porque la
+    //     lista blanca es cerrada (`hasOnly`), y por eso nadie puede fingir que
+    //     una cuenta viva está borrada ni firmar el borrado con el nombre de
+    //     otro;
+    //   · `allow delete: if false` deja de ser una precaución y pasa a ser el
+    //     guardián del rastro: un cliente que pudiera borrar el espejo borraría
+    //     la única prueba de quién fue esa persona.
+    // La lápida se sigue LEYENDO por los mismos dos caminos de arriba —lleva
+    // `orgId`—, así que la pantalla de personas la lista como una cuenta más,
+    // apagada. Eso es lo que se quiere: el nombre sobrevive a la cuenta.
     //
     // ESCRITURA DEL CLIENTE — la lista blanca de `CAMPOS_PROPIOS_DEL_PERFIL`:
     //   `contrasenaCambiadaEn` (el recibo de `§ADR-024`) y `ultimoAcceso`.

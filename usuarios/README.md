@@ -22,6 +22,11 @@ cae nadie más puede devolverle permisos a nadie.
 
 ### 1.1 · La consola de Firebase (la toca el Ingeniero, guiado con pantallazos)
 
+> ✅ **HECHO Y COMPROBADO el 2026-09-06** (puntos 1 y 2). Prueba desde fuera:
+> `POST accounts:signUp` con la clave web y un correo desechable →
+> `400 ADMIN_ONLY_OPERATION`, y no se creó ninguna cuenta. **No hay que
+> repetirlo.** Queda vivo el punto 4: Google se apaga en el paso 8, no antes.
+
 **Antes de desplegar nada.** Quitar el botón de Google de la pantalla NO cierra el
 alta pública: la API de Firebase deja crear cuentas con la clave web del proyecto,
 que es pública. El cierre real es de consola:
@@ -39,12 +44,24 @@ que es pública. El cierre real es de consola:
 
 ### 1.2 · La cuenta de servicio (una sola vez)
 
+> ✅ **YA CREADA el 2026-09-06** y con los roles comprobados en IAM (pantallazo
+> del Ingeniero). Se llama
+> **`ing-miguel-jimenez@mantenimiento-lineas-at.iam.gserviceaccount.com`** — el
+> nombre lo eligió él y es cosmético; lo que la define son sus dos roles.
+> **NO se crea otra**: dos cuentas de servicio con estos permisos son dos llaves
+> que rotar y una que se olvida.
+> **Falta solo el punto 3**, la clave JSON.
+>
+> Y no confundirla con `firebase-adminsdk-fbsvc@…`, la **llave maestra vieja**
+> (Auth Admin + Agente del SDK + Creador de tokens), que tiene una clave activa
+> del 30-jul-2026: ésa se **revoca** en el paso 10 del runbook.
+
 En la consola de Google Cloud del proyecto `mantenimiento-lineas-at`:
 
-1. **IAM y administración → Cuentas de servicio → Crear**. Nombre sugerido:
-   `administrador-de-personas`. **Dedicada a este trabajador**: nunca la de
-   despliegue, nunca una con Owner/Editor.
-2. **Roles — los dos mínimos, y ni uno más:**
+1. ✅ **IAM y administración → Cuentas de servicio → Crear**. **Dedicada a este
+   trabajador**: nunca la de despliegue, nunca una con Owner/Editor.
+2. ✅ **Roles — los dos mínimos, y ni uno más** (los que tiene hoy: «Administrador
+   de Firebase Authentication» + «Usuario de Cloud Datastore», y ningún otro):
 
    | Rol | Para qué | Por qué no vale menos |
    |---|---|---|
@@ -252,7 +269,17 @@ va en `false` y ponerlo en `true` **apaga el servicio** en vez de fingir.
 ## 8 · El rescate (fuera del repo)
 
 `~/Desktop/GitHub-MJ/brain-private/mantenimiento-lineas-at/herramientas/rescate.mjs`,
-con el JSON de la cuenta de servicio dedicada guardado al lado, en la bóveda.
+con el JSON de la cuenta de servicio dedicada
+(`ing-miguel-jimenez@mantenimiento-lineas-at.iam.gserviceaccount.com`, la misma
+que está como secreto en Cloudflare) guardado al lado, en la bóveda.
+
+**Para qué existe:** la consola de Firebase sabe crear cuentas, apagarlas y
+mandar correos de restablecimiento, pero **NO sabe escribir reclamos de token**.
+Desde el delta, el único que los escribe es este trabajador. Si se cae —un
+despliegue malo, el secreto rotado, la clave borrada, Cloudflare caído— nadie
+puede devolverle permisos a nadie, ni al propietario, y desde la consola no hay
+manera. Ésta es la única. **Se ensaya ANTES de necesitarla** (`auditar` no toca
+nada), no el día del incidente.
 
 ```bash
 GOOGLE_APPLICATION_CREDENTIALS=/ruta/en/la/boveda/cuenta-de-servicio.json \
@@ -271,9 +298,9 @@ del catálogo, revoca sesiones, repara `config/arranque`, deja bitácora con act
 
 ## 9 · El runbook del corte (quién hace cada paso)
 
-0. **Él**: decide el correo del propietario — distinto del de su cuenta Google.
-1. **Él, consola** (§1.1): sign-up y delete apagados · enumeración protegida · «Expire after» al máximo.
-2. **Él, GCP** (§1.2): cuenta de servicio dedicada → llave JSON a un archivo → copia a la bóveda.
+0. ✅ **Él** — **hecho el 2026-09-06**: decidido el correo del propietario, distinto del de su cuenta Google. **No se escribe aquí: este repositorio es público.** Vive en la bóveda (`research-archive/2026-09-05-sistema-de-usuarios/03-diseno.md`).
+1. ✅ **Él, consola** (§1.1) — **hecho el 2026-09-06**: sign-up y delete apagados · enumeración protegida · «Expire after» al máximo. Comprobado desde fuera: `ADMIN_ONLY_OPERATION`.
+2. **Él, GCP** (§1.2): ✅ **2A hecho** — la cuenta dedicada `ing-miguel-jimenez@mantenimiento-lineas-at.iam.gserviceaccount.com` existe con los dos roles mínimos. ⬜ **2B pendiente**: Claves → Añadir clave → JSON → el archivo a la bóveda (no al repo, no al chat).
 3. **Claude**: `wrangler secret put CUENTA_DE_SERVICIO < archivo` · desplegar `usuarios/` y `evidencias/` · `GET /estado` → `configurado:false` (falta el uid) · prueba de humo: alta desechable con `targetProjectId` → funciona → se borra.
 4. **Él, consola**: Add user (correo del paso 0 + contraseña) → le dice a Claude el **uid** (no es secreto).
 5. **Claude**: `wrangler secret put PROPIETARIO_UID` · `npm run build` + desplegar la web (sin Google, con «Inicializar sistema») · comprobar el paquete servido.

@@ -65,6 +65,54 @@ export type EstadoSesion =
 export type EntradaLeidaDeAuditoria = EntradaDeAuditoria & { id: string };
 
 /**
+ * QUÉ SE PIDE DE LA BITÁCORA, y desde dónde.
+ *
+ * `desde` es el testigo OPACO de la página anterior — quien lo recibe solo lo
+ * devuelve tal cual. Sale así a propósito: por dentro es un documento de
+ * Firestore, y si su tipo asomara a la pantalla, `Usuarios.tsx` acabaría
+ * importando el SDK de la base para pintar un botón (ADR-005: ningún componente
+ * habla con la base por su cuenta).
+ */
+/**
+ * CUÁNTAS ANOTACIONES TRAE UNA PÁGINA DE LA BITÁCORA.
+ *
+ * 50, y no las 200 de antes, porque la bitácora crece para siempre: cada acceso
+ * y cada cambio de permiso deja una línea. Traerlas todas de golpe convierte
+ * abrir la pantalla de personas en una descarga que crece sola, y en Firestore
+ * cada documento leído se paga aunque nadie lo mire. Lo que falta se pide con
+ * «Ver más» (`99 §ADR-100`).
+ *
+ * Vive AQUÍ, en el molde, y no en el repositorio real ni en el componente:
+ * la pantalla dice en voz alta de cuántas en cuántas trae, y ese número tiene
+ * que ser el mismo que la consulta usa o el aviso sería mentira.
+ */
+export const PAGINA_DE_AUDITORIA = 50;
+
+export interface FiltroDeAuditoria {
+  accion?: string;
+  sujetoUid?: string;
+  /** Cuántas anotaciones trae UNA página. */
+  tope?: number;
+  /** Testigo devuelto por la página anterior. Sin él se empieza por el principio. */
+  desde?: unknown;
+}
+
+/**
+ * UNA PÁGINA de la bitácora.
+ *
+ * ⚠️ `cursor: null` significa «no hay más», y es lo único que la pantalla debe
+ * mirar para decidir si ofrece «Ver más». Contar las filas devueltas NO sirve:
+ * los filtros de acción y de persona se aplican en el cliente, así que una
+ * página legítima de 50 anotaciones puede quedarse en cero después de filtrar —
+ * y esconder el botón ahí dejaría el resto de la bitácora invisible para
+ * siempre, que es justo el tipo de hueco que esta pantalla existe para evitar.
+ */
+export interface PaginaDeAuditoria {
+  filas: EntradaLeidaDeAuditoria[];
+  cursor: unknown | null;
+}
+
+/**
  * Lo que pasó al cargar puntos nuevos. NO es un booleano a propósito: una carga
  * puede escribir dos puntos, saltarse uno que ya estaba y rechazar otro por no
  * cumplir el molde, todo a la vez — y las tres cosas tienen que poder contarse.
@@ -286,7 +334,7 @@ export interface Repositorio {
    * a quien tiene `usuarios.auditoria`, y hacerla pasar por un trabajador solo
    * añadiría un salto que puede fallar. La ESCRIBE únicamente el servidor.
    */
-  listarAuditoria(filtro?: { accion?: string; sujetoUid?: string; tope?: number }): Promise<EntradaLeidaDeAuditoria[]>;
+  listarAuditoria(filtro?: FiltroDeAuditoria): Promise<PaginaDeAuditoria>;
 
   /** Cuándo cambió su contraseña esta persona, o `null`. Nunca lanza. */
   reciboContrasena(): Promise<number | null>;
@@ -432,7 +480,7 @@ export const repositorioSinSesion: Repositorio = {
     /* sin sesión no se escribe nada */
   },
   async listarAuditoria() {
-    return [];
+    return { filas: [], cursor: null };
   },
   async reciboContrasena() {
     return null;

@@ -5,7 +5,7 @@
 // se lee el estado del almacén, se elige qué pantalla toca, y ya.
 // ============================================================================
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
-import { VERSION_CONTRATO } from '@lineas/contratos';
+import { PROVEEDOR_CONTRASENA, VERSION_CONTRATO } from '@lineas/contratos';
 import { derivarLevantamiento } from '@lineas/exportar/levantamiento';
 import { useAtlas, useDatos, useMotivoDeSalida, usePersonas, useRca, useSesion, almacen } from './datos/enlace';
 import { puede, type SesionDePantalla } from './datos/permisos';
@@ -39,6 +39,18 @@ const Usuarios = lazy(() => conReintentos(() => import('./componentes/Usuarios')
 function Sesion() {
   const d = useDatos();
   const [correo, setCorreo] = useState<string | null>(null);
+  /**
+   * CON QUÉ ENTRÓ esta sesión. Lo estampa Firebase en el token y no lo
+   * aprovisiona nadie, así que es el cerrojo fuerte: quien no entró con
+   * contraseña no tiene contraseña que cambiar.
+   *
+   * ⚠️ `null` significa «no se pudo leer», y ahí el botón SE SIGUE ENSEÑANDO. Es
+   * la regla de la casa (`35 · L-11`): una capa de comodidad no tiene veto sobre
+   * una esencial. Esconder el autoservicio por un token que tardó dejaría a la
+   * persona sin poder cambiar su contraseña sin ganar nada — el formulario exige
+   * la actual de todas formas, así que no esconde ninguna barrera.
+   */
+  const [proveedor, setProveedor] = useState<string | null>(null);
 
   // ⚠️ LA SESIÓN Y LOS DATOS SON DOS COSAS DISTINTAS, y confundirlas dejaba al
   // usuario encerrado. Esto solo preguntaba por la sesión en las fases `listo` y
@@ -55,11 +67,14 @@ function Sesion() {
     void (async () => {
       try {
         const { cargarFirebase } = await import('./datos/cargar');
-        const { esperarSesion } = await cargarFirebase();
+        const { esperarSesion, reclamosDeSesion } = await cargarFirebase();
         const u = await esperarSesion();
-        if (vivo) setCorreo(u?.email ?? null);
+        if (!vivo) return;
+        setCorreo(u?.email ?? null);
+        const prov = u ? (await reclamosDeSesion(u)).proveedor : null;
+        if (vivo) setProveedor(prov);
       } catch {
-        if (vivo) setCorreo(null);   // sin sesión que mostrar
+        if (vivo) { setCorreo(null); setProveedor(null); }   // sin sesión que mostrar
       }
     })();
     return () => { vivo = false; };
@@ -77,8 +92,13 @@ function Sesion() {
     <span className="sesion">
       {correo}
       {/* La cuenta propia: cambiar la contraseña EN EL NAVEGADOR, con la actual
-          delante (`99 §ADR-100`). */}
-      <CambiarMiContrasena correo={correo} />
+          delante (`99 §ADR-100`). Para CUALQUIER persona que entre con
+          contraseña — que desde el corte de acceso son todas. Se esconde solo
+          cuando se SABE que entró de otra forma; con el proveedor ilegible se
+          enseña igual (ver arriba). */}
+      {proveedor !== null && proveedor !== PROVEEDOR_CONTRASENA
+        ? null
+        : <CambiarMiContrasena correo={correo} />}
       <button type="button" className="salir" onClick={() => void salir()}>Salir</button>
     </span>
   );

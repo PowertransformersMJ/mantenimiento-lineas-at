@@ -1163,6 +1163,18 @@ async function reconciliar(ctx, uid) {
   const claims = reclamosDeLaCuenta(cuentaObjetivo);
   const sujeto = { sujetoUid: uid, sujetoCorreo: cuentaObjetivo.email ?? undefined };
 
+  // ⚠️ EL PROPIETARIO TAMBIÉN ES INTOCABLE AQUÍ, y era la ÚNICA ruta con `:uid`
+  // a la que le faltaba el veto. Reconciliar es convergente —del token al
+  // espejo— así que no puede SUBIRLE el permiso a nadie; pero sigue siendo una
+  // escritura sobre `usuarios/{propietario}` firmada por otra persona
+  // (`actualizadoPor`), y el veredicto del comité no dejó ni una operación de la
+  // aplicación con el propietario de sujeto (`99 §ADR-100`). Su reparación tiene
+  // camino propio y más estrecho —`POST /bootstrap`: ser él, con contraseña
+  // tecleada hace menos de cinco minutos— y, si el trabajador no responde, el
+  // rescate de la bóveda. Rechazar aquí no le quita ninguna salida.
+  const veto = motivoParaNoTocar(ctx.actorRol, claims.rol, uid === ctx.actorUid, uid, ctx.entorno);
+  if (veto) return rechazar(ctx, 403, veto, sujeto);
+
   if (!claims.orgId || !claims.rol) {
     throw new FalloConCodigo(409,
       'esa cuenta no tiene permisos que reflejar: está sin aprovisionar. Déle de alta, corríjala o apáguela');
@@ -1363,6 +1375,30 @@ async function simularLimpieza(ctx, sesion, entorno) {
  * EL BORRADO, con las cuatro redes del comité: secreto de un solo uso, lista
  * idéntica al ensayo, exclusión del llamante y del propietario, y lápida +
  * bitácora escritas ANTES de borrar en un solo viaje. Lotes de 8 y reanudable.
+ *
+ * ⚠️ POR QUÉ EL LOTE ES DE 8 Y NO «TODAS»: el plan gratuito de Cloudflare corta a
+ * las **50 subpeticiones por invocación**, y una petición que las agota no
+ * devuelve un error legible — se muere a mitad, con unas cuentas borradas y
+ * otras no. Contadas una a una, esta invocación gasta:
+ *
+ *   1  llaves públicas de Google (solo con el aislado frío; después, en caché)
+ *   1  token OAuth de la cuenta de servicio (ídem)
+ *   1  `accounts:lookup`     — comprobar al propietario contra el estado vivo
+ *   1  lectura `config/limpieza`
+ *   1  `accounts:batchGet`   — el censo (+1 por cada 1.000 cuentas más)
+ *   8  `accounts:update`     — apagar y vaciar, UNA por cuenta del lote
+ *   1  `documents:commit`    — las 8 lápidas y sus 8 entradas de bitácora
+ *   1  `accounts:batchDelete`— el borrado, `force:false`
+ *   1  escritura `config/limpieza` (el progreso)
+ *   1  entrada de bitácora del lote
+ *   ── 17 de 50 en el peor caso (15 con el aislado caliente).
+ *
+ * El coste crece como `lote + 9`: 8 deja un tercio del cupo gastado y sitio de
+ * sobra para la paginación del censo. Subirlo a 40 cabría en el papel y dejaría
+ * cero margen; no se sube. Lo que no cabe en una invocación se lleva en la
+ * siguiente — para eso está `config/limpieza.progreso` y la respuesta 202.
+ *
+ * (El ensayo, `GET ?simular=1`, gasta 6.)
  */
 async function ejecutarLimpieza(ctx, sesion, entorno, peticion, cuerpo) {
   const secreto = typeof entorno.LIMPIEZA_TOKEN === 'string' ? entorno.LIMPIEZA_TOKEN.trim() : '';
@@ -1408,7 +1444,24 @@ async function ejecutarLimpieza(ctx, sesion, entorno, peticion, cuerpo) {
   for (const c of lote) {
     escrituras.push({ ruta: `usuarios/${c.uid}`, campos: {
       orgId: ctx.org, correo: c._correo, nombre: c._nombre || c._correo || c.uid,
-      rol: c.rol === 'ninguno' ? 'auditor' : c.rol, funcionesExtra: [], funcionesQuitadas: [],
+      // ⚠️ EL ROL DE UNA LÁPIDA SIN ROL. Estas cuentas viejas no tienen ninguno
+      // —`customAttributes` vacío—, pero el molde exige uno de los cinco y aquí
+      // no se puede escribir «ninguno». Se pone el MÁS PEQUEÑO que existe,
+      // `cuadrilla` (3 funciones: ver líneas, ver y aportar evidencias). Antes
+      // se ponía `auditor`, que en el catálogo tiene SEIS —incluida
+      // `usuarios.auditoria`, leer la bitácora—: es decir, la lápida de alguien
+      // que nunca tuvo permisos le atribuía el rol que sí puede leer quién hizo
+      // qué. Un dato inventado, y encima al alza.
+      //
+      // Sigue siendo un valor de relleno, y por eso LA VERDAD SE ESCRIBE APARTE:
+      // la entrada `borrado` de la bitácora de esta misma operación guarda
+      // `antes.rol = 'ninguno'` y los proveedores reales. La lápida existe para
+      // que un `creadoPor` de hace dos años siga teniendo nombre, no para
+      // afirmar qué podía hacer esa persona; quien quiera saberlo, la bitácora.
+      // (Añadir un campo `rolAlBorrar` sería lo honesto, pero exige tocar el
+      // molde en `contratos/src/usuarios.ts` — y un campo que el molde no
+      // declara lo borra `zod` al leerlo: quedaría escrito y sería invisible.)
+      rol: c.rol === 'ninguno' ? 'cuadrilla' : c.rol, funcionesExtra: [], funcionesQuitadas: [],
       lineas: [TODAS_LAS_LINEAS], activo: false, creadoEn: c.creadaEn ?? en, creadoPor: ctx.actorUid,
       borradoEn: en, borradoPor: ctx.actorUid,
     } });

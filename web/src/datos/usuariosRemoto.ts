@@ -57,9 +57,14 @@ export interface PersonaListada {
   desincronizado?: boolean;
   /**
    * CON QUÉ ENTRA cada quien (`password`, `google.com`…). Lo trae el trabajador
-   * y no es un adorno: es lo único que dice quién sigue dependiendo de Google, y
-   * por tanto lo que hace falta saber para poder retirar ese botón
-   * (`TODO-50 2b`) sin dejar a nadie fuera de su propia herramienta.
+   * y no es un adorno: es lo único que dice quién sigue dependiendo de un
+   * proveedor federado.
+   *
+   * Nació para poder retirar «Entrar con Google» sin dejar a nadie fuera de su
+   * propia herramienta. Ese botón ya no existe (`99 §ADR-100`), y el campo se
+   * queda porque el trabajo cambió de sitio, no desapareció: es como se
+   * COMPRUEBA —sin suponerlo— que tras la limpieza inicial no queda ninguna
+   * cuenta entrando por otra puerta.
    */
   proveedores?: string[];
   /** Qué le pasa al espejo del perfil: `ok`, `falta`, `divergente`, `desconocido`. */
@@ -137,6 +142,20 @@ export interface CambioDePersona {
 export interface ResultadoDeCredencial {
   uid?: string;
   enlace?: string;
+  /**
+   * CUÁNDO CADUCA EL ENLACE, en fecha completa, si el trabajador lo sabe.
+   *
+   * Hoy **no lo manda** (comprobado en `usuarios/src/index.js`: la respuesta del
+   * alta y la de la reposición llevan `enlace` y nada más), y por eso llega
+   * `undefined` y la pantalla enseña el plazo POR DEFECTO diciendo que es el
+   * defecto. Se declara igualmente porque el plazo real se sube a mano en la
+   * consola (Authentication → Templates → «Expire after») y el navegador no
+   * tiene forma de averiguarlo: el día que el trabajador lo devuelva, la
+   * pantalla dirá la hora exacta sin tocar nada más. Lo que NO se hace es
+   * calcularla aquí sumando una hora — sería un dato inventado presentado como
+   * medido, que es la clase de mentira que hace tirar un enlace que servía.
+   */
+  caducidad?: string;
 }
 
 // ── El mensajero ────────────────────────────────────────────────────────────

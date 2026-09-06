@@ -25,7 +25,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 import trabajador from '../usuarios/src/index.js';
-import { reclamosDe } from '../contratos/src/usuarios.ts';
+import { reclamosDe, puede } from '../contratos/src/usuarios.ts';
 
 const ORG = 'organizacion-de-prueba';
 const PROYECTO = 'proyecto-de-prueba';
@@ -661,7 +661,14 @@ describe('la jerarquía: nadie administra a un igual ni a un superior', () => {
   for (const [ruta, metodo, cuerpo] of [
     ['/usuarios/uid-propietario', 'PATCH', { rol: 'cuadrilla' }],
     ['/usuarios/uid-propietario/deshabilitar', 'POST', {}],
+    ['/usuarios/uid-propietario/restituir', 'POST', {}],
     ['/usuarios/uid-propietario/contrasena', 'POST', { modo: 'enlace' }],
+    // ⚠️ `reconciliar` era la ruta con `:uid` a la que le faltaba el veto. No
+    // podía subirle el permiso a nadie —va del token al espejo— pero sí escribía
+    // `usuarios/{propietario}` firmado por otro (`actualizadoPor`), y el
+    // veredicto no dejó ninguna operación de la aplicación con el propietario de
+    // sujeto. Su reparación tiene camino propio: `/bootstrap`.
+    ['/usuarios/uid-propietario/reconciliar', 'POST', {}],
   ]) {
     test(`al propietario no lo toca la aplicación (${metodo} ${ruta})`, async () => {
       const falso = conCuentas();
@@ -1168,6 +1175,39 @@ describe('/estado: sin sesión, sin revelar nada', () => {
   });
 });
 
+describe('el propietario es intocable también por UID (`99 §ADR-100`)', () => {
+  // ── El propietario es intocable por UID, no solo por rol ──────────────────
+  // Es la mitad que de verdad protege: si sus reclamos se corrompen —un rol
+  // borrado a medias, un `customAttributes` vacío— la comprobación por ROL deja
+  // de reconocerlo y, sin el ancla al uid configurado, la cuenta de rescate
+  // pasaría a ser una cuenta cualquiera justo el día en que está averiada.
+  for (const [ruta, metodo, cuerpo] of [
+    [`/usuarios/${UID_PROPIETARIO}`, 'PATCH', { rol: 'cuadrilla' }],
+    [`/usuarios/${UID_PROPIETARIO}/reconciliar`, 'POST', {}],
+    [`/usuarios/${UID_PROPIETARIO}/deshabilitar`, 'POST', {}],
+    [`/usuarios/${UID_PROPIETARIO}/contrasena`, 'POST', { modo: 'enlace' }],
+  ]) {
+    test(`con los reclamos CORROMPIDOS sigue intocable, por uid (${metodo} ${ruta})`, async () => {
+      const falso = googleDeMentira({
+        cuentas: [{
+          localId: UID_PROPIETARIO, email: 'duenio@prueba.invalid',
+          // Sin rol: por ROL ya no se le reconoce. Solo lo salva `PROPIETARIO_UID`.
+          customAttributes: '{}', providerUserInfo: [{ providerId: 'password' }],
+        }],
+      });
+      const { r, cuerpo: respuesta } = await pedir(ruta, {
+        metodo, cuerpo, falso, entorno: ENT_PROP, token: await tokenDeAdmin(),
+      });
+      assert.equal(r.status, 403, JSON.stringify(respuesta));
+      assert.match(respuesta.error, /rescate/);
+      assert.equal(falso.bitacora()[0].accion, 'rechazado', 'un intento así tiene que quedar escrito');
+      // Y no se tocó nada: ni la cuenta de Auth ni su espejo.
+      assert.equal(falso.cuentas.get(UID_PROPIETARIO).customAttributes, '{}');
+      assert.equal(falso.perfil(UID_PROPIETARIO), null, 'escribió el espejo del propietario');
+    });
+  }
+});
+
 describe('/bootstrap: el arranque de un solo uso', () => {
   test('⚠️ sin PROPIETARIO_UID falla CERRADO: nadie se corona por una variable ausente', async () => {
     const { r } = await pedir('/bootstrap', { metodo: 'POST', token: await tokenVirgen(), falso: googleConPropietarioVirgen(), cuerpo: {} });
@@ -1354,6 +1394,28 @@ describe('/limpieza-inicial: ensayo y borrado con red', () => {
     assert.equal(otra.r.status, 409);
     const ensayo2 = await pedir('/limpieza-inicial?simular=1', { token: await tokenPropietario(), falso: g, entorno: ENT_LIMPIA });
     assert.equal(ensayo2.r.status, 409);
+  });
+
+  test('la lápida de una cuenta SIN rol no le inventa uno alto: mínimo, y la verdad en la bitácora', async () => {
+    const g = await proyectoParaLimpiar();
+    const { cuerpo: ensayo } = await pedir('/limpieza-inicial?simular=1', { token: await tokenPropietario(), falso: g, entorno: ENT_LIMPIA });
+    await borrar(g, { total: ensayo.total, uids: ensayo.uids, confirmacion: 'BORRAR', orgId: ORG });
+
+    // `uid-vieja-2` y `uid-vieja-3` no tenían NINGÚN reclamo. El molde exige un
+    // rol, así que se rellena con el más pequeño que existe — nunca con uno que
+    // pueda leer la bitácora.
+    for (const u of ['uid-vieja-2', 'uid-vieja-3']) {
+      const lapida = g.perfil(u);
+      assert.equal(lapida.rol, 'cuadrilla', `la lápida de ${u} inventa un rol más alto del que tuvo`);
+      assert.ok(!puede({ rol: lapida.rol, f: [] }, 'usuarios.auditoria'),
+        'una cuenta sin permisos acabó con el rol que lee la bitácora');
+      // La verdad, entera, en la entrada de bitácora de esa misma operación.
+      const entrada = g.bitacora().find((e) => e.accion === 'borrado' && e.sujetoUid === u);
+      assert.equal(entrada.antes.rol, 'ninguno', 'la bitácora tampoco dice la verdad: no queda dónde mirarla');
+    }
+    // Y el rol de quien SÍ lo tenía se conserva tal cual.
+    assert.equal(g.perfil('uid-vieja-1').rol, 'admin');
+    assert.equal(g.bitacora().find((e) => e.accion === 'borrado' && e.sujetoUid === 'uid-vieja-1').antes.rol, 'admin');
   });
 
   test('con más de 8 cuentas se procesa por lotes (202) y se reanuda hasta terminar', async () => {

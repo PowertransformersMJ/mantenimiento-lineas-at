@@ -108,7 +108,12 @@ describe('el arranque está cableado de punta a punta', () => {
     assert.match(ini, /arrancarSistema\(\)/);
     assert.match(ini, /recargarSesion\(\)/);
     assert.match(ini, /Salga y vuelva a entrar/);
-    assert.ok(!/pida acceso al administrador/i.test(ini.slice(0, ini.indexOf('arrancado ?'))),
+    // Sobre el CÓDIGO, no sobre los comentarios: el aviso que explica la regla la
+    // cita con esas mismas palabras, y mirar el texto crudo cazaba el aviso en
+    // vez del fallo. Lo que no puede haber es esa frase PINTADA en el camino del
+    // arranque — quien mira esta pantalla es el administrador.
+    const codigo = sinComentarios(ini);
+    assert.ok(!/pida acceso al administrador/i.test(codigo.slice(0, codigo.indexOf('arrancado ?'))),
       'al propietario nunca se le manda a pedir acceso');
   });
 
@@ -122,9 +127,14 @@ describe('el arranque está cableado de punta a punta', () => {
     assert.match(c, /X-Limpieza-Token/);
   });
 
-  test('la limpieza en pantalla es solo del propietario, por identidad del catálogo', () => {
+  test('la limpieza en pantalla exige propietario Y `usuarios.gestionar`, por identidad del catálogo', () => {
     const u = leer('web/src/componentes/Usuarios.tsx');
-    assert.match(u, /permisosDe\(quien\?\.claims\)\.esPropietario && <LimpiezaInicial/);
+    // Las DOS condiciones, y escritas juntas: la de gestionar ya la garantiza la
+    // salida temprana de la pantalla, pero atar una operación IRREVERSIBLE a una
+    // guarda que vive a doscientas líneas es cómo se pierde una barrera el día
+    // que alguien mueve el bloque.
+    assert.match(u, /permisosDe\(quien\?\.claims\)\.esPropietario && gestiona\s*\n?\s*&& <LimpiezaInicial/,
+      'la limpieza tiene que exigir propietario Y usuarios.gestionar en el mismo sitio');
     assert.ok(!/rol === 'propietario'/.test(sinComentarios(u)), 'comparación de cadenas prohibida');
     // El secreto no toca ningún almacén del navegador.
     const limpieza = u.slice(u.indexOf('function LimpiezaInicial'));
@@ -135,6 +145,16 @@ describe('el arranque está cableado de punta a punta', () => {
     const u = leer('web/src/componentes/Usuarios.tsx');
     assert.match(u, /Quien vea este enlace entra en esa cuenta/);
     assert.match(u, /Expire after/);
+    // La hora exacta se ENSEÑA si el trabajador la manda, y si no se dice el
+    // defecto DICIENDO que es el defecto. Nunca se calcula «ahora + 1 h»: el
+    // plazo se sube a mano en la consola y el navegador no puede saberlo.
+    assert.match(u, /caducidad\s*\n?\s*\? <>Caduca a las <b>\{fecha\(caducidad\)\}<\/b>/,
+      'con caducidad del trabajador hay que enseñar la hora exacta');
+    assert.match(u, /1 hora por defecto/,
+      'sin caducidad del trabajador hay que decir el plazo POR DEFECTO, y que es un defecto');
+    const codigo = sinComentarios(u);
+    assert.ok(!/3600|60 \* 60|3_600_000/.test(codigo),
+      'la caducidad no se calcula en el navegador: sería un dato inventado presentado como medido');
   });
 });
 

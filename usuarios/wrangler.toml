@@ -7,12 +7,31 @@
 # Google y de que la llave de administración es un SECRETO de Cloudflare que
 # nunca toca el repositorio.
 #
-# El secreto se pone una sola vez, desde la Mac del Ingeniero:
-#     npx wrangler secret put CUENTA_DE_SERVICIO --config usuarios/wrangler.toml
-# y se pega el JSON entero de la cuenta de servicio (cabe: el tope es 5 KB).
+# LOS TRES SECRETOS, DECLARADOS POR NOMBRE Y SOLO POR NOMBRE. Se ponen desde la
+# Mac del Ingeniero, una vez cada uno, y NO aparecen en este archivo ni como
+# `[vars]`: lo que se escribe aquí se publica con el repositorio.
 #
-# Si ese secreto FALTA, el trabajador no se abre: responde 503 y lo dice. Una
-# seguridad que depende de que una variable esté puesta no es seguridad.
+#     npx wrangler secret put CUENTA_DE_SERVICIO < /ruta/en/la/boveda/llave.json
+#     npx wrangler secret put PROPIETARIO_UID     # el uid que enseña la consola
+#     npx wrangler secret put LIMPIEZA_TOKEN      # de UN SOLO USO, y se borra después
+#
+# | Secreto              | Qué gobierna              | Si FALTA                  |
+# |----------------------|---------------------------|---------------------------|
+# | `CUENTA_DE_SERVICIO` | todo lo que toca a Google | **todo** responde 503     |
+# | `PROPIETARIO_UID`    | quién puede arrancar y    | `/bootstrap` y            |
+# |                      | a quién no toca la app    | `/limpieza-inicial`: 503  |
+# | `LIMPIEZA_TOKEN`     | arma el borrado inicial   | `POST /limpieza-inicial`: |
+# |                      |                           | 503 (no se borra nada)    |
+#
+# ⚠️ `PROPIETARIO_UID` va de SECRETO y no de variable a propósito. No es que el
+# uid sea confidencial —la consola lo enseña— es que una variable de este archivo
+# la cambia quien pueda abrir un `pull request`, y quien cambia ese valor se
+# corona propietario en el siguiente `/bootstrap`. Como secreto, cambiarlo exige
+# la sesión de `wrangler` del Ingeniero. Y como no se puede releer, `GET /estado`
+# dice si está PUESTO sin decir cuál es.
+#
+# Los tres FALLAN CERRADO: la ausencia apaga lo que gobiernan en vez de abrirlo.
+# Una seguridad que depende de que una variable esté puesta no es seguridad.
 # ============================================================================
 name = "lineas-at-usuarios"
 main = "src/index.js"
@@ -38,6 +57,13 @@ ORIGEN_PERMITIDO = "https://mantenimiento-lineas-at.pages.dev"
 
 # La organización dueña del dato. Una sesión válida de otra empresa no pasa, y si
 # esta variable falta el trabajador se APAGA en vez de abrirse (503).
+#
+# ⚠️ El veredicto del comité la llama `ORG_ID` al describir `/bootstrap`. Es LA
+# MISMA, y se queda con UN solo nombre: el que ya estaba. Dos variables con el
+# mismo valor son dos que se pueden desincronizar, y el día que difieran nadie
+# sabría cuál manda —quién entra la decidiría una y qué organización se estampa
+# en los reclamos del propietario, la otra—. Aquí `config/arranque.orgId` y el
+# `orgId` de todos los reclamos salen de esta línea.
 ORG_PERMITIDA = "transpower"
 
 # App Check. Hoy este trabajador NO sabe comprobarlo, así que la variable va en

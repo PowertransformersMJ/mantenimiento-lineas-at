@@ -29,6 +29,21 @@ ORIGEN_PERMITIDO = "https://mantenimiento-lineas-at.pages.dev"
 # si esta variable falta el portero se APAGA en vez de abrirse (503).
 ORG_PERMITIDA = "transpower"
 
+# ⚠️ EL CORTE DE REVOCACIÓN (`99 §ADR-100`). Todo token emitido ANTES de esta marca
+# se rechaza. Vacía = sin corte. Se pone (fecha ISO o segundos) en el momento de
+# la limpieza inicial, en ESTE trabajador y en el de personas a la vez, y así la
+# revocación es inmediata en las dos puertas en vez de «en una hora». Una marca
+# que no se entiende APAGA el portero (503), no se ignora.
+#
+# ⚠️ Y VA AQUÍ DENTRO, EN `[vars]`, NO AL FINAL DEL ARCHIVO. En TOML una clave
+# pertenece a la ÚLTIMA tabla declarada encima: escrita después de
+# `[[r2_buckets]]` se convertía en un campo del depósito, wrangler la descartaba
+# con un aviso («Unexpected fields found in r2_buckets[0]») y el portero se
+# desplegaba SIN corte. Se creía puesta y no lo estaba, que es justo el fallo del
+# que avisa el párrafo de arriba. Medido con `wrangler deploy --dry-run`: antes
+# no salía en la lista de Vars; ahora sí.
+REVOCADOS_ANTES_DE = ""
+
 # El depósito se enlaza por binding.
 #
 # ⚠️ Un `[[r2_buckets]]` NO tiene modo de solo lectura: el binding expone el
@@ -43,10 +58,3 @@ ORG_PERMITIDA = "transpower"
 [[r2_buckets]]
 binding = "EVIDENCIAS"
 bucket_name = "lineas-at-evidencias"
-
-# ⚠️ EL CORTE DE REVOCACIÓN (`99 §ADR-100`). Todo token emitido ANTES de esta marca
-# se rechaza. Vacía = sin corte. Se pone (fecha ISO o segundos) en el momento de
-# la limpieza inicial, en ESTE trabajador y en el de personas a la vez, y así la
-# revocación es inmediata en las dos puertas en vez de «en una hora». Una marca
-# que no se entiende APAGA el portero (503), no se ignora.
-REVOCADOS_ANTES_DE = ""

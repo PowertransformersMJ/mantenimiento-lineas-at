@@ -29,8 +29,9 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join, extname } from 'node:path';
 
 import {
-  DURACION_SESION_MIN, FUNCIONES_DELEGABLES, ROLES, ROLES_ASIGNABLES, TODAS_LAS_LINEAS,
+  DURACION_SESION_MIN, FUNCIONES, FUNCIONES_DELEGABLES, ROLES, ROLES_ASIGNABLES, TODAS_LAS_LINEAS,
 } from '../contratos/src/usuarios.ts';
+import { PAGINA_DE_AUDITORIA, repositorioSinSesion } from '../web/src/datos/repositorio.ts';
 import { puede, alcanza, permisosDeSesion, leerReclamos } from '../web/src/datos/permisos.ts';
 import { relojDeSesion, topesDeRol, AVISO_MIN } from '../web/src/datos/relojSesion.ts';
 
@@ -447,5 +448,361 @@ describe('lo que la pantalla PROMETE tiene que ser cierto', () => {
     for (const f of FUNCIONES_DELEGABLES) {
       assert.match(f, /^[a-z]+\.[a-z]+$/, `«${f}» no tiene la forma <recurso>.<acción>`);
     }
+  });
+});
+
+
+// ════════════════════════════════════════════════════════════════════════════
+// LA BITÁCORA SE PAGINA (`99 §ADR-100`)
+// ----------------------------------------------------------------------------
+// Antes se pedían 200 anotaciones de golpe y punto. La bitácora crece para
+// siempre —cada acceso y cada cambio de permiso deja una línea—, así que abrir
+// la pantalla de personas era una descarga que crecía sola y que en Firestore se
+// paga documento a documento, mire alguien o no.
+//
+// Lo que estas pruebas vigilan no es el número: es que el TESTIGO de la página
+// siguiente salga de lo LEÍDO y no de lo filtrado. Los filtros de acción y de
+// persona se aplican en el cliente; si el testigo saliera de la lista ya
+// filtrada, cada «Ver más» se saltaría en silencio todas las anotaciones que el
+// filtro descartó — una bitácora con huecos que nadie ve, que es exactamente lo
+// que una bitácora existe para que no pase.
+// ════════════════════════════════════════════════════════════════════════════
+describe('la bitácora de accesos se lee por páginas, sin huecos', () => {
+  const firestore = readFileSync(join(RAIZ, 'web/src/datos/firestore.ts'), 'utf-8');
+  const usuarios = readFileSync(join(RAIZ, 'web/src/componentes/Usuarios.tsx'), 'utf-8');
+  const consulta = firestore.slice(
+    firestore.indexOf('async listarAuditoria'),
+    firestore.indexOf('async dejarReciboContrasena'),
+  );
+
+  test('el tamaño de página es UNO solo: el que consulta y el que se anuncia', () => {
+    // La pantalla dice en voz alta «se trae de 50 en 50». Si ese número viviera
+    // tecleado en el componente y el otro en la consulta, el aviso sería mentira
+    // en cuanto uno de los dos cambiara.
+    assert.equal(PAGINA_DE_AUDITORIA, 50);
+    assert.match(consulta, /filtro\.tope \?\? PAGINA_DE_AUDITORIA/,
+      'la consulta tiene que usar la constante del molde, no un número suelto');
+    assert.match(usuarios, /\{PAGINA_DE_AUDITORIA\} en \{PAGINA_DE_AUDITORIA\}/,
+      'la pantalla tiene que anunciar el MISMO número que consulta');
+  });
+
+  test('la página siguiente se pide con `startAfter`, no releyendo desde el principio', () => {
+    assert.match(consulta, /startAfter/,
+      'sin cursor, «ver más» tendría que releer todo lo anterior: se paga dos veces lo mismo');
+    assert.match(consulta, /limit\(cuantas\)/);
+    assert.match(consulta, /orderBy\('en', 'desc'\)/,
+      'sin orden estable el cursor no significa nada');
+    assert.match(consulta, /where\('orgId', '==', orgId\)/,
+      'en Firestore las reglas NO son filtros: sin declarar el orgId la consulta ENTERA se niega');
+  });
+
+  test('⚠️ el testigo sale de lo LEÍDO, nunca de lo filtrado', () => {
+    // El orden de las líneas es la prueba: el cursor se calcula ANTES de que se
+    // apliquen los filtros de acción y de persona.
+    const iCursor = consulta.indexOf('const cursor =');
+    const iFiltro = consulta.indexOf('filtro.accion || x.accion');
+    assert.ok(iCursor > 0 && iFiltro > 0, 'no se encontraron el cursor y los filtros');
+    assert.ok(iCursor < iFiltro,
+      'el cursor se calcula después de filtrar: cada «Ver más» se saltaría lo que el filtro '
+      + 'descartó y la bitácora tendría huecos invisibles');
+    assert.match(consulta, /s\.docs\.length === cuantas/,
+      'que quede más o no se decide con lo LEÍDO (una página corta es el final), no con lo filtrado');
+  });
+
+  test('sin sesión la bitácora falla CERRADA, con la forma de página completa', async () => {
+    // Se ejecuta de verdad: una forma distinta aquí reventaría la pantalla al
+    // leer `p.filas` de algo que no lo tiene.
+    const p = await repositorioSinSesion.listarAuditoria();
+    assert.deepEqual(p, { filas: [], cursor: null });
+  });
+
+  test('la pantalla ofrece «Ver más» mientras haya testigo, y AÑADE en vez de sustituir', () => {
+    assert.match(usuarios, /Ver más/, 'sin botón, el resto de la bitácora es invisible');
+    assert.match(usuarios, /setFilas\(\(xs\) => \[\.\.\.\(xs \?\? \[\]\), \.\.\.p\.filas\]\)/,
+      'la página nueva se AÑADE: sustituir obligaría a empezar de cero para releer lo anterior');
+    assert.match(usuarios, /desde: cursor/, 'el testigo tiene que volver al repositorio tal cual');
+    // Cambiar el filtro empieza una lectura nueva: seguir con el testigo viejo
+    // mezclaría dos consultas distintas.
+    const efecto = usuarios.slice(usuarios.indexOf('// La primera página'), usuarios.indexOf('const verMas'));
+    assert.match(efecto, /setCursor\(null\)/, 'al cambiar de filtro hay que soltar el testigo viejo');
+  });
+
+  test('con cero filas y testigo vivo NO se afirma que no hay nada', () => {
+    // «Ninguna de las traídas cumple el filtro» y «no hay ninguna» son cosas
+    // distintas, y confundirlas es la misma familia de fallo que el espejo
+    // ilegible pintado como espejo sano (`32 · L-44`).
+    assert.match(usuarios, /Quedan más atrás: pulse «Ver más»/);
+    assert.match(usuarios, /se leyó la bitácora entera/);
+  });
+
+  test('el índice compuesto que esta consulta necesita EXISTE, y el que no, no se inventa', () => {
+    const idx = JSON.parse(readFileSync(join(RAIZ, 'firestore.indexes.json'), 'utf-8'));
+    const auditoria = idx.indexes.find((x) => x.collectionGroup === 'auditoria_accesos');
+    assert.ok(auditoria, 'sin él la pantalla se queda en blanco con «the query requires an index»');
+    assert.deepEqual(auditoria.fields.map((f) => `${f.fieldPath}:${f.order}`),
+      ['orgId:ASCENDING', 'en:DESCENDING']);
+
+    // ⚠️ MEDIDO, NO SUPUESTO. El índice `usuarios (orgId, correo)` NO está, y no
+    // es un olvido: la lista de personas la sirve el TRABAJADOR, y de la
+    // colección `usuarios` esta aplicación solo lee documentos sueltos por uid.
+    // Un índice que nadie usa cuesta escrituras en cada alta y hace creer que
+    // hay una consulta que no existe. Si algún día aparece esa consulta, esta
+    // prueba se pone roja y obliga a añadir el índice.
+    const firestoreLimpio = sinComentarios(firestore);
+    assert.ok(!/collection\((?:await )?baseDatos\(\), 'usuarios'\)/.test(firestoreLimpio),
+      'apareció una consulta de colección sobre `usuarios`: ahora SÍ hace falta su índice compuesto');
+    assert.ok(!idx.indexes.some((x) => x.collectionGroup === 'usuarios'),
+      'hay un índice de `usuarios` que ninguna consulta usa');
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+describe('la pantalla de personas dice lo que las cosas SIGNIFICAN', () => {
+  const usuarios = readFileSync(join(RAIZ, 'web/src/componentes/Usuarios.tsx'), 'utf-8');
+
+  test('los chips de funciones enseñan la descripción del CATÁLOGO, no una tecleada', () => {
+    // `usuarios.gestionar` no le dice nada a nadie; la frase del catálogo sí. Y
+    // tiene que salir del catálogo: teclearla sería la segunda copia, y el día
+    // que una función cambie de alcance la pantalla mentiría.
+    assert.match(usuarios, /FUNCIONES\[f\]\?\.que/,
+      'la descripción tiene que leerse de FUNCIONES[f].que');
+    assert.match(usuarios, /title=\{`\$\{queHace\(f\)\}/,
+      'cada chip tiene que llevar encima lo que esa función abre');
+    // Ninguna de las frases del catálogo está copiada a mano en la pantalla.
+    const copiadas = Object.values(FUNCIONES)
+      .map((x) => x.que)
+      .filter((q) => usuarios.includes(q));
+    assert.deepEqual(copiadas, [],
+      'hay descripciones de función tecleadas en la pantalla: son la segunda copia del catálogo');
+  });
+
+  test('el repartidor de funciones dice qué abre cada una', () => {
+    const repartidor = usuarios.slice(
+      usuarios.indexOf('function AjustesDeFunciones'), usuarios.indexOf('// ── El repartidor de alcance'));
+    assert.match(repartidor, /queHace\(f\)/,
+      'quien reparte permisos no tiene por qué saberse de memoria qué abre `hipotesis.editar`');
+  });
+
+  test('«Reemitir enlace» es el PRIMER botón de la fila', () => {
+    // Es el gesto que desatasca a quien se quedó fuera de su propia herramienta:
+    // el enlace caduca y se gasta al primer uso. Enterrado entre «Editar» y
+    // «Reconciliar» costaba una llamada de teléfono.
+    // Sin comentarios: el aviso que explica POR QUÉ va primero nombra a los
+    // demás botones, y buscarlos en el texto crudo daría el orden del comentario
+    // en vez del orden real de la fila.
+    const codigo = sinComentarios(usuarios);
+    const fila = codigo.slice(
+      codigo.indexOf('<div className="usr-fila-acciones">'),
+      codigo.indexOf('Reconciliar'));
+    const orden = ['Reemitir enlace', 'Editar', 'Deshabilitar', 'Reponer contraseña']
+      .map((rotulo) => ({ rotulo, donde: fila.indexOf(`'${rotulo}'`) }))
+      .filter((x) => x.donde >= 0)
+      .sort((a, b) => a.donde - b.donde);
+    assert.ok(orden.length >= 3, 'no se reconocieron los botones de la fila');
+    assert.equal(orden[0].rotulo, 'Reemitir enlace',
+      `el primer botón de la fila es «${orden[0].rotulo}»: reemitir el enlace tiene que ir primero`);
+    assert.ok(!/>\s*Emitir enlace/.test(usuarios),
+      'quedó el rótulo viejo «Emitir enlace»: la fila REEMITE, la primera emisión va en el alta');
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+describe('la limpieza inicial: irreversible, ensayada y sin guardar el secreto', () => {
+  const usuarios = readFileSync(join(RAIZ, 'web/src/componentes/Usuarios.tsx'), 'utf-8');
+  const limpieza = usuarios.slice(usuarios.indexOf('function LimpiezaInicial'));
+  const remoto = readFileSync(join(RAIZ, 'web/src/datos/usuariosRemoto.ts'), 'utf-8');
+
+  test('la sección no se monta sin propietario, y la identidad sale del catálogo', () => {
+    assert.match(usuarios, /permisosDe\(quien\?\.claims\)\.esPropietario && gestiona/,
+      'las dos condiciones, y en el mismo sitio que monta la operación irreversible');
+    // El guardián de «cero comparaciones de rol a mano» ya vigila el resto del
+    // archivo; aquí se comprueba que esta sección concreta tampoco lo haga.
+    const limpio = sinComentarios(limpieza);
+    for (const r of ROLES) {
+      assert.ok(!new RegExp(`['"\`]${r}['"\`]`).test(limpio),
+        `la limpieza compara con la palabra «${r}» en vez de preguntar por la identidad`);
+    }
+  });
+
+  test('primero se ENSAYA: sin lista delante no hay botón de borrar', () => {
+    assert.match(limpieza, /ensayarLimpieza\(\)/);
+    assert.match(limpieza, /Ensayar \(no borra nada\)/);
+    assert.match(limpieza, /\{ensayo && \(/,
+      'la tabla y los campos de confirmación solo existen DESPUÉS del ensayo');
+    assert.match(remoto, /'\/limpieza-inicial\?simular=1'/);
+  });
+
+  test('el POST manda EXACTAMENTE lo que devolvió el ensayo', () => {
+    // Si el padrón cambió entre el ensayo y el borrado, el trabajador rechaza:
+    // por eso viajan el total y los uids del ensayo, no los que la pantalla
+    // recomponga por su cuenta.
+    assert.match(limpieza, /ejecutarLimpieza\(secreto, \{ total: actual\.total, uids: actual\.uids, orgId: actual\.orgId \}\)/,
+      'lo que se manda tiene que ser el cuerpo del ensayo, sin recomponer nada');
+    assert.match(remoto, /confirmacion: 'BORRAR'/);
+    assert.match(limpieza, /confirmacion !== 'BORRAR'/,
+      'hay que teclear BORRAR: un clic no puede bastar para lo irreversible');
+  });
+
+  test('el secreto viaja en cabecera y NO toca ningún almacén del navegador', () => {
+    assert.match(remoto, /'X-Limpieza-Token': secreto/);
+    for (const prohibido of ['localStorage', 'sessionStorage', 'indexedDB', 'document.cookie']) {
+      assert.ok(!limpieza.includes(prohibido), `el secreto de limpieza puede acabar en ${prohibido}`);
+    }
+    assert.match(limpieza, /type="password"/,
+      'el secreto no se teclea a la vista de quien pase por detrás');
+    // Se repite mientras el trabajador conteste que quedan cuentas (202).
+    assert.match(limpieza, /if \(r\.terminado\) break;/,
+      'sin reanudar, a partir de ~12 cuentas la limpieza moría a mitad (límite del plan gratuito)');
+  });
+
+  test('el texto avisa de lo que es: definitivo, con lápida, y revocación inmediata', () => {
+    assert.match(limpieza, /<b>Definitivo\.<\/b>/);
+    assert.match(limpieza, /lápida/);
+    assert.match(limpieza, /REVOCADOS_ANTES_DE/);
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+describe('cambiar la propia contraseña: en el navegador, con la actual delante', () => {
+  const contrasena = readFileSync(join(RAIZ, 'web/src/componentes/Contrasena.tsx'), 'utf-8');
+
+  test('reutiliza el formulario que ya existía en vez de duplicarlo', () => {
+    // Una segunda pantalla de cambio de contraseña es una segunda regla de
+    // validación esperando a divergir de la del catálogo.
+    assert.match(contrasena, /export function CambiarMiContrasena/);
+    assert.match(contrasena, /<Contrasena correo=\{correo\} obligatoria=\{false\} \/>/,
+      'el autoservicio tiene que montar el MISMO formulario, no una copia');
+  });
+
+  test('el botón se ofrece a quien entra con CONTRASEÑA, y el proveedor sale del catálogo', () => {
+    const app = readFileSync(join(RAIZ, 'web/src/App.tsx'), 'utf-8');
+    assert.match(app, /PROVEEDOR_CONTRASENA/,
+      'la palabra «password» no se teclea: el proveedor tiene su constante en `contratos/acceso.ts`');
+    assert.match(app, /proveedor !== null && proveedor !== PROVEEDOR_CONTRASENA/,
+      'solo se esconde cuando se SABE que entró de otra forma');
+    // ⚠️ Con el proveedor ilegible el botón SE SIGUE ENSEÑANDO. Esconderlo por un
+    // token que tardó dejaría a la persona sin poder cambiar su contraseña y no
+    // cerraría ninguna puerta: el formulario exige la actual de todas formas.
+    // Es `35 · L-11`: una capa de comodidad no tiene veto sobre una esencial.
+    assert.ok(!/proveedor === PROVEEDOR_CONTRASENA && <CambiarMiContrasena/.test(app),
+      'con esa forma, un token ilegible escondería el autoservicio sin ganar nada');
+  });
+
+  test('pide la actual y la nueva dos veces, y valida con la regla del catálogo', () => {
+    assert.match(contrasena, /reauthenticateWithCredential/,
+      'sin reautenticar, un portátil abierto una hora cambia la contraseña de su dueño');
+    assert.match(contrasena, /defectosDeContrasena\(/,
+      'sin esto se usaría el mínimo de Firebase (6) y se DEBILITARÍA la contraseña');
+    assert.equal((contrasena.match(/autoComplete="new-password"/g) ?? []).length >= 2, true,
+      'la nueva se teclea dos veces');
+    assert.match(contrasena, /autoComplete="current-password"/,
+      'la actual es un campo aparte: es la que prueba que es usted');
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+describe('los mensajes de acceso no enumeran cuentas (`99 §ADR-100`)', () => {
+  const firebase = readFileSync(join(RAIZ, 'web/src/datos/firebase.ts'), 'utf-8');
+  const motivo = firebase.slice(
+    firebase.indexOf('export function motivoDeFallo'), firebase.indexOf('FRASE_RECUPERACION'));
+
+  test('«no existe» y «contraseña mala» siguen dando la MISMA frase', () => {
+    // Firebase los unifica a propósito. Deshacer esa unificación por ser más
+    // amable convierte el formulario en un buscador de correos dados de alta.
+    assert.match(motivo, /auth\/invalid-credential' \|\| c === 'auth\/wrong-password' \|\| c === 'auth\/user-not-found'/);
+    assert.equal((motivo.match(/Correo o contraseña incorrectos\./g) ?? []).length, 1,
+      'hay más de una frase para el mismo caso: alguna distingue lo que no se debe distinguir');
+    assert.ok(!/esa cuenta no existe|no hay ninguna cuenta/i.test(motivo));
+  });
+
+  test('los dos códigos del corte de acceso tienen su frase', () => {
+    // Una pestaña abierta desde antes del despliegue conserva el botón viejo; y
+    // el registro está cerrado en la consola, así que un alta por la API muere.
+    assert.match(motivo, /auth\/operation-not-allowed/);
+    assert.match(motivo, /El ingreso con Google ya no existe/);
+    assert.match(motivo, /auth\/admin-restricted-operation/);
+    assert.match(motivo, /El registro de cuentas está cerrado/);
+  });
+
+  test('«olvidé mi contraseña» tiene UNA sola frase, y está cableada a la pantalla', () => {
+    assert.match(firebase, /export const FRASE_RECUPERACION = /);
+    const app = readFileSync(join(RAIZ, 'web/src/App.tsx'), 'utf-8');
+    assert.match(app, /pedirEnlaceDeRecuperacion/);
+    assert.match(app, /onRecuperar=\{recuperar\}/,
+      'la función existe pero la pantalla de acceso no la recibe');
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+describe('«Inicializar sistema»: se decide por la SESIÓN, antes de leer una línea', () => {
+  const app = readFileSync(join(RAIZ, 'web/src/App.tsx'), 'utf-8');
+  const ini = readFileSync(join(RAIZ, 'web/src/componentes/Inicializar.tsx'), 'utf-8');
+
+  test('un token sin reclamos cae en la pantalla de arranque, no en la de ERROR de línea', () => {
+    // Lo midió el comité: hoy esa persona veía un «Reintentar» que no lleva a
+    // ninguna parte, porque el fallo no está en la línea sino en su token.
+    assert.match(app, /sesion\.fase === 'autenticado' && sesion\.claims === null/);
+    assert.ok(app.indexOf('<Inicializar />') < app.indexOf('switch (d.fase)'),
+      'la decisión tiene que tomarse ANTES de mirar el estado de los datos');
+  });
+
+  test('tras arrancar se relee el token dos veces, y si sigue vacío se ofrece SALIR', () => {
+    assert.match(ini, /for \(let intento = 0; intento < 2; intento \+= 1\)/,
+      'el token sigue viejo hasta que se renueve: hay que forzar la relectura');
+    assert.match(ini, /recargarSesion\(\)/);
+    assert.match(ini, /Salga y vuelva a entrar/);
+    // Al propietario NUNCA se le manda a pedir acceso: es él.
+    const caminoDeArranque = ini.slice(ini.indexOf('{sinPermisoTrasArrancar'), ini.indexOf('<div className="rca-guardar">'));
+    assert.ok(!/pídaselo a quien lo\s+administra/i.test(caminoDeArranque));
+  });
+
+  test('el 409 NO es un fallo seco: también relee el token (arranque ya hecho)', () => {
+    assert.match(ini, /e\.estado === 409/,
+      'sin esto, repetir el arranque desde una pestaña vieja parecería un error y no una reparación');
+  });
+
+  test('los reclamos escritos se ENSEÑAN antes de dar el paso por bueno', () => {
+    for (const campo of ['resultado.reclamos.rol', 'resultado.reclamos.orgId',
+      'resultado.reclamos.f.join', 'resultado.reclamos.l.join']) {
+      assert.ok(ini.includes(campo), `no se enseña ${campo}: hay que poder verlos antes de seguir`);
+    }
+  });
+
+  test('⚠️ arrancar NO recarga la sesión sola: el panel de reclamos se desharía solo', () => {
+    // `recargarSesion()` mete los reclamos nuevos en el estado, y en ese mismo
+    // instante `App.tsx` deja de pintar esta pantalla —su condición es
+    // `claims === null`—. Encadenarlo al arranque hacía que el rol, la
+    // organización, las funciones y el alcance parpadearan y desaparecieran
+    // antes de que nadie los leyera; el runbook (paso 6) los pide a la vista.
+    // Sobre el CÓDIGO: el aviso que explica por qué no se recarga aquí nombra a
+    // `recargarSesion`, y buscarlo en el texto crudo cazaría el comentario.
+    const codigo = sinComentarios(ini);
+    const arrancar = codigo.slice(codigo.indexOf('const arrancar = async'), codigo.indexOf('const continuar = async'));
+    assert.ok(arrancar.length > 0, 'el arranque y el continuar tienen que ser dos gestos');
+    assert.ok(!/recargarSesion/.test(arrancar),
+      'el arranque recarga la sesión y se lleva por delante el panel que hay que leer');
+    const continuar = codigo.slice(codigo.indexOf('const continuar = async'), codigo.indexOf('const hayQueContinuar'));
+    assert.match(continuar, /recargarSesion\(\)/, 'seguir es lo que pide el token nuevo');
+    assert.match(ini, /Continuar/, 'sin botón, del panel de reclamos no se sale');
+    assert.match(ini, /hayQueContinuar = resultado !== null \|\| fallo\?\.estado === 409/,
+      'el 409 (cerrojo ya echado, reclamos re-estampados) también tiene que poder continuar');
+  });
+
+  test('el otro camino: sistema ya arrancado y esta cuenta sin permisos', () => {
+    assert.match(ini, /estadoDelSistema\(\)/);
+    assert.match(ini, /estado\?\.arrancado === true/);
+    assert.match(ini, /pídaselo a quien lo\s+administra/i);
+  });
+
+  test('tras una negativa se vuelve a preguntar el estado: lo que se creía quedó viejo', () => {
+    // Un 409 dice que el cerrojo ya está echado; un 403, que esta cuenta no es
+    // la configurada. Sin releer, la pantalla seguiría ofreciendo «Inicializar»
+    // y ocultando la única frase que aquí sirve.
+    const codigo = sinComentarios(ini);
+    const arrancar = codigo.slice(codigo.indexOf('const arrancar = async'), codigo.indexOf('const continuar = async'));
+    assert.match(arrancar, /estadoDelSistema\(\)\.then\(setEstado\)/,
+      'tras el fallo hay que releer el estado del sistema');
+    assert.ok(arrancar.indexOf('estadoDelSistema') > arrancar.indexOf('catch'),
+      'la relectura va en el camino del fallo, no antes de intentarlo');
   });
 });

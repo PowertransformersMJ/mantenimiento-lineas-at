@@ -26,7 +26,7 @@
 // ============================================================================
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ACCIONES_AUDITABLES, FUNCIONES_DELEGABLES, FUNCIONES_POR_ROL, ROLES_ASIGNABLES,
+  ACCIONES_AUDITABLES, FUNCIONES, FUNCIONES_DELEGABLES, FUNCIONES_POR_ROL, ROLES_ASIGNABLES,
   ROL_DESCRIPCION, TODAS_LAS_LINEAS, defectosDeContrasena, funcionesEfectivas,
   MIN_CONTRASENA, permisosDe,
   type Funcion, type Linea, type ModoDeAlta, type Rol,
@@ -34,6 +34,7 @@ import {
 import { almacen, useSesion } from '../datos/enlace';
 import { puede, type SesionDePantalla } from '../datos/permisos';
 import { fallosDeBitacora } from '../datos/bitacora';
+import { PAGINA_DE_AUDITORIA } from '../datos/repositorio';
 import type { EntradaLeidaDeAuditoria } from '../datos/repositorio';
 import {
   cambiarEstado, crearPersona, editarPersona, hayTrabajador, listarPersonas, reconciliar,
@@ -55,9 +56,25 @@ const fecha = (v: unknown): string => {
 // ── La tabla ────────────────────────────────────────────────────────────────
 
 /**
+ * QUÉ SIGNIFICA UNA FUNCIÓN, dicho con las palabras del catálogo.
+ *
+ * `usuarios.gestionar` no le dice nada a nadie; «crear personas y asignar roles,
+ * funciones y alcance» sí. La frase la escribe UNA sola vez el catálogo
+ * (`FUNCIONES[f].que`) y aquí se lee: teclearla otra vez sería la segunda copia,
+ * y el día que una función cambie de alcance esta pantalla mentiría.
+ */
+function queHace(f: Funcion): string {
+  return FUNCIONES[f]?.que ?? f;
+}
+
+/**
  * Las funciones de una persona, con lo que se le añadió y lo que se le quitó
  * MARCADO. Una lista plana de funciones efectivas esconde justo lo que hay que
  * revisar en una auditoría: qué se tocó a mano.
+ *
+ * Cada chip lleva encima la DESCRIPCIÓN del catálogo y de dónde le viene. Va en
+ * el `title` y no a la vista porque una fila con doce frases enteras deja de
+ * poder leerse de un vistazo, y esta tabla se mira para comparar personas.
  */
 function Funciones({ p }: { p: PersonaListada }) {
   const efectivas = funcionesEfectivas(p.rol, p.funcionesExtra ?? [], p.funcionesQuitadas ?? []);
@@ -68,12 +85,13 @@ function Funciones({ p }: { p: PersonaListada }) {
     <span className="chips">
       {efectivas.map((f) => (
         <span key={f} className={'chip' + ((p.funcionesExtra ?? []).includes(f) ? ' usr-extra' : '')}
-          title={(p.funcionesExtra ?? []).includes(f) ? 'añadida a mano, no viene de su rol' : 'viene de su rol'}>
+          title={`${queHace(f)} — ${(p.funcionesExtra ?? []).includes(f)
+            ? 'añadida a mano, no viene de su rol' : 'viene de su rol'}`}>
           {f}
         </span>
       ))}
       {quitadas.map((f) => (
-        <span key={f} className="chip usr-quitada" title="su rol la traía y se le quitó a mano">
+        <span key={f} className="chip usr-quitada" title={`${queHace(f)} — su rol la traía y se le quitó a mano`}>
           {f}
         </span>
       ))}
@@ -108,8 +126,11 @@ function AjustesDeFunciones({ rol, ajustes, alCambiar }: {
       {/* ⚠️ La lista sale de FUNCIONES_DELEGABLES, del catálogo. Si mañana se
           añade una función delegable, aparece aquí sola. */}
       {FUNCIONES_DELEGABLES.map((f) => (
-        <label key={f} className="usr-funcion">
+        <label key={f} className="usr-funcion" title={queHace(f)}>
+          {/* El código y lo que SIGNIFICA, los dos: quien reparte permisos no
+              tiene por qué saberse de memoria qué abre `hipotesis.editar`. */}
           <span className="mono">{f}</span>
+          <span className="fine">{queHace(f)}</span>
           <select value={ajustes[f] ?? 'rol'} onChange={(e) => alCambiar(f, e.target.value as Ajuste)}>
             <option value="rol">{deSerie.has(f) ? 'la trae su rol' : 'no la trae su rol'}</option>
             <option value="extra">añadir</option>
@@ -172,7 +193,12 @@ function AjusteDeAlcance({ lineas, todas, elegidas, alCambiarTodas, alElegir }: 
 
 // ── El enlace de un solo uso ────────────────────────────────────────────────
 
-function EnlaceEmitido({ enlace, alCerrar }: { enlace: string; alCerrar: () => void }) {
+function EnlaceEmitido({ enlace, caducidad, alCerrar }: {
+  enlace: string;
+  /** Cuándo caduca, si el trabajador lo dijo. `null` = no lo dijo. */
+  caducidad: string | null;
+  alCerrar: () => void;
+}) {
   const [copiado, setCopiado] = useState(false);
   const copiar = async () => {
     try {
@@ -187,10 +213,21 @@ function EnlaceEmitido({ enlace, alCerrar }: { enlace: string; alCerrar: () => v
   return (
     <div className="usr-enlace" role="alert">
       <p><b>Enlace de un solo uso.</b> Entrégueselo a la persona por el canal que usted controle.</p>
+      {/* ⚠️ LA HORA SALE DEL TRABAJADOR O NO SALE. Calcularla aquí como «ahora
+          + 1 h» sería inventarla: el plazo se sube en la consola (Authentication
+          → Templates → «Expire after») y esta pantalla no puede saber en cuánto
+          quedó. Un reloj inventado que dice «caduca a las 15:40» cuando en
+          realidad dura seis horas es peor que no decir la hora: hace tirar un
+          enlace que servía, y peor aún al revés — creerlo vivo cuando ya murió.
+          Mientras el trabajador no mande la caducidad, se dice el DEFECTO y se
+          dice que es un defecto. */}
       <p className="alerta">
-        <b>Quien vea este enlace entra en esa cuenta.</b> Caduca en <b>una hora</b> por defecto (el
-        plazo se sube en la consola: Authentication → Templates → Password reset → «Expire after»)
-        y se gasta con el primer uso. Si caduca, se reemite otro desde la fila de la persona.
+        <b>Quien vea este enlace entra en esa cuenta.</b>{' '}
+        {caducidad
+          ? <>Caduca a las <b>{fecha(caducidad)}</b> y se gasta con el primer uso.</>
+          : <>Caduca en <b>1 hora por defecto</b> (el plazo se sube en la consola: Authentication →
+            Templates → Password reset → «Expire after») y se gasta con el primer uso.</>}
+        {' '}Si caduca, se reemite otro desde la fila de la persona.
       </p>
       <p className="alerta">
         No se vuelve a ver. En cuanto cierre este aviso, ni usted ni nadie puede recuperarlo: se
@@ -288,7 +325,7 @@ function ReponerContrasena({ persona, alTerminar, alFallar }: {
 function Alta({ lineas, puedeAsignar, alTerminar, alFallar }: {
   lineas: Linea[];
   puedeAsignar: Rol[];
-  alTerminar: (enlace?: string) => void;
+  alTerminar: (credencial?: { enlace: string; caducidad: string | null }) => void;
   alFallar: (m: string) => void;
 }) {
   const roles = rolesOfrecidos(puedeAsignar);
@@ -335,7 +372,7 @@ function Alta({ lineas, puedeAsignar, alTerminar, alFallar }: {
       });
       // La contraseña se borra de la memoria del formulario en cuanto se manda.
       setContrasena(''); setRepetida('');
-      alTerminar(r.enlace);
+      alTerminar(r.enlace ? { enlace: r.enlace, caducidad: r.caducidad ?? null } : undefined);
     } catch (err) {
       alFallar(err instanceof Error ? err.message : 'No se pudo dar de alta.');
     } finally {
@@ -502,24 +539,56 @@ function Bitacora({ personas }: { personas: PersonaListada[] }) {
   const [sujetoUid, setSujeto] = useState('');
   const [filas, setFilas] = useState<EntradaLeidaDeAuditoria[] | null>(null);
   const [fallo, setFallo] = useState<string | null>(null);
+  /** Testigo OPACO de la última página. `null` = ya no queda nada por traer. */
+  const [cursor, setCursor] = useState<unknown | null>(null);
+  const [trayendo, setTrayendo] = useState(false);
 
+  // La primera página, y otra vez cada vez que cambia el filtro: cambiar de
+  // filtro empieza una lectura NUEVA, no continúa la anterior — seguir con el
+  // testigo viejo mezclaría dos consultas y saltaría anotaciones.
   useEffect(() => {
     let vivo = true;
+    setFilas(null); setCursor(null); setFallo(null);
     void (async () => {
       try {
-        const xs = await almacen.bitacoraDeAccesos({
+        const p = await almacen.bitacoraDeAccesos({
           accion: accion || undefined,
           sujetoUid: sujetoUid || undefined,
         });
-        if (vivo) { setFilas(xs); setFallo(null); }
+        if (vivo) { setFilas(p.filas); setCursor(p.cursor); setFallo(null); }
       } catch (e) {
         // «No se pudo leer» y «no hay nada» son cosas distintas: una bitácora
         // vacía por un fallo de lectura se leería como «aquí no pasó nada».
-        if (vivo) { setFilas(null); setFallo(e instanceof Error ? e.message : 'no se pudo leer la bitácora'); }
+        if (vivo) { setFilas(null); setCursor(null); setFallo(e instanceof Error ? e.message : 'no se pudo leer la bitácora'); }
       }
     })();
     return () => { vivo = false; };
   }, [accion, sujetoUid]);
+
+  /**
+   * «Ver más»: la página siguiente, AÑADIDA a lo que ya se ve.
+   *
+   * Nunca sustituye: la bitácora se lee de arriba abajo y hacer desaparecer lo
+   * ya leído al pedir más obligaría a volver a empezar para releerlo.
+   */
+  const verMas = async () => {
+    if (!cursor || trayendo) return;
+    setTrayendo(true);
+    try {
+      const p = await almacen.bitacoraDeAccesos({
+        accion: accion || undefined,
+        sujetoUid: sujetoUid || undefined,
+        desde: cursor,
+      });
+      setFilas((xs) => [...(xs ?? []), ...p.filas]);
+      setCursor(p.cursor);
+      setFallo(null);
+    } catch (e) {
+      setFallo(e instanceof Error ? e.message : 'no se pudo leer la bitácora');
+    } finally {
+      setTrayendo(false);
+    }
+  };
 
   return (
     <section className="tarjeta">
@@ -545,12 +614,20 @@ function Bitacora({ personas }: { personas: PersonaListada[] }) {
         </label>
       </div>
 
+      <p className="fine">
+        Se trae de <b>{PAGINA_DE_AUDITORIA} en {PAGINA_DE_AUDITORIA}</b>, de la más reciente hacia
+        atrás. Los dos filtros se aplican sobre lo <b>ya traído</b>: si una página no trae nada de lo
+        que busca, pulse «Ver más» — no significa que no exista, significa que todavía no se ha
+        leído tan atrás.
+      </p>
+
       {fallo && <p className="alerta">No se pudo leer la bitácora: {fallo}</p>}
       {!fallo && filas === null && <p className="fine">Leyendo…</p>}
       {!fallo && filas?.length === 0 && (
         <p className="fine">
-          No hay ninguna anotación que cumpla el filtro. Es un resultado, no un hueco: la lectura
-          funcionó.
+          {cursor
+            ? 'Ninguna de las anotaciones traídas hasta ahora cumple el filtro. Quedan más atrás: pulse «Ver más».'
+            : 'No hay ninguna anotación que cumpla el filtro. Es un resultado, no un hueco: la lectura funcionó y se leyó la bitácora entera.'}
         </p>
       )}
       {!!filas?.length && (
@@ -573,6 +650,20 @@ function Bitacora({ personas }: { personas: PersonaListada[] }) {
           </table>
         </div>
       )}
+
+      {!fallo && filas !== null && (
+        <div className="usr-acciones">
+          {cursor ? (
+            <button type="button" className="boton chico" disabled={trayendo} onClick={() => void verMas()}>
+              {trayendo ? 'Trayendo…' : 'Ver más'}
+            </button>
+          ) : (
+            <span className="fine">
+              Ya está toda la bitácora a la vista: {filas.length} anotación(es) tras el filtro.
+            </span>
+          )}
+        </div>
+      )}
     </section>
   );
 }
@@ -591,7 +682,11 @@ export function Usuarios() {
   const personas = listado?.usuarios ?? null;
   const [lineas, setLineas] = useState<Linea[]>([]);
   const [fallo, setFallo] = useState<string | null>(null);
-  const [enlace, setEnlace] = useState<string | null>(null);
+  /**
+   * El enlace emitido Y cuándo caduca. Sigue viviendo SOLO aquí: no entra en el
+   * almacén, ni en `localStorage`, ni en la dirección. Es una credencial.
+   */
+  const [enlace, setEnlace] = useState<{ enlace: string; caducidad: string | null } | null>(null);
   const [altaAbierta, setAltaAbierta] = useState(false);
   const [editando, setEditando] = useState<string | null>(null);
   /** A quién se le está reponiendo la contraseña tecleada, si a alguien. */
@@ -693,7 +788,7 @@ export function Usuarios() {
       )}
 
       {fallo && <p className="alerta" role="alert">{fallo}</p>}
-      {enlace && <EnlaceEmitido enlace={enlace} alCerrar={() => setEnlace(null)} />}
+      {enlace && <EnlaceEmitido enlace={enlace.enlace} caducidad={enlace.caducidad} alCerrar={() => setEnlace(null)} />}
 
       <div className="usr-acciones">
         <button type="button" className="boton" onClick={() => setAltaAbierta((x) => !x)}>
@@ -704,13 +799,19 @@ export function Usuarios() {
 
       {altaAbierta && (
         <Alta lineas={lineas} puedeAsignar={listado?.puedeAsignar ?? []} alFallar={setFallo}
-          alTerminar={(e) => { setEnlace(e ?? null); setAltaAbierta(false); void refrescar(); }} />
+          alTerminar={(c) => { setEnlace(c ?? null); setAltaAbierta(false); void refrescar(); }} />
       )}
 
       {/* LA LIMPIEZA INICIAL, solo para el propietario: identidad del que mira,
           derivada del catálogo (`permisosDe().esPropietario`), no una comparación
-          de cadenas. Es la única operación irreversible de esta pantalla. */}
-      {permisosDe(quien?.claims).esPropietario && <LimpiezaInicial alTerminar={() => void refrescar()} />}
+          de cadenas. Es la única operación irreversible de esta pantalla.
+          ⚠️ Las DOS condiciones, escritas: ser el propietario Y traer
+          `usuarios.gestionar`. Hoy la segunda ya está garantizada porque sin ella
+          esta pantalla se sale antes, pero atar una operación irreversible a una
+          guarda que vive a doscientas líneas de distancia es cómo se pierde una
+          barrera el día que alguien mueve el bloque. */}
+      {permisosDe(quien?.claims).esPropietario && gestiona
+        && <LimpiezaInicial alTerminar={() => void refrescar()} />}
 
       {personas === null && !fallo && <p className="fine">Leyendo la lista de personas…</p>}
       {personas?.length === 0 && (
@@ -757,8 +858,11 @@ export function Usuarios() {
                         </span>
                       )}
                     </td>
-                    {/* CON QUÉ ENTRA. Es lo que dice quién sigue dependiendo de
-                        Google, o sea a quién dejaría fuera retirar ese botón. */}
+                    {/* CON QUÉ ENTRA. Existía para saber a quién dejaría fuera
+                        retirar «Entrar con Google»; retirado ya (`99 §ADR-100`),
+                        sigue sirviendo para lo que viene: comprobar que después
+                        de la limpieza inicial no queda ni una cuenta con un
+                        proveedor federado. Se mide, no se supone. */}
                     <td className="mono">{(p.proveedores ?? []).join(', ') || '—'}</td>
                     <td>{fecha(p.ultimoAcceso)}</td>
                     <td>
@@ -779,6 +883,21 @@ export function Usuarios() {
                         </span>
                       ) : (
                         <div className="usr-fila-acciones">
+                          {/* ⚠️ PRIMERO, y a propósito. El enlace de alta caduca
+                              —una hora si nadie subió el plazo en la consola— y
+                              se gasta al primer uso: reemitirlo es el gesto que
+                              más veces se busca en esta fila y el único que
+                              desatasca a alguien que se quedó fuera de su propia
+                              herramienta. Enterrado entre «Editar» y
+                              «Reconciliar» costaba una llamada de teléfono. */}
+                          <button type="button" className="boton chico"
+                            disabled={trabajando === `${p.uid}:enlace`}
+                            onClick={() => void conAviso(p.uid, 'enlace', async () => {
+                              const r = await reponerCredencial(p.uid, { modo: 'enlace' });
+                              setEnlace({ enlace: r.enlace ?? '', caducidad: r.caducidad ?? null });
+                            })}>
+                            {trabajando === `${p.uid}:enlace` ? 'Reemitiendo…' : 'Reemitir enlace'}
+                          </button>
                           <button type="button" className="boton chico"
                             onClick={() => setEditando(editando === p.uid ? null : p.uid)}>
                             {editando === p.uid ? 'Cerrar' : 'Editar'}
@@ -787,14 +906,6 @@ export function Usuarios() {
                             disabled={trabajando === `${p.uid}:estado`}
                             onClick={() => void conAviso(p.uid, 'estado', () => cambiarEstado(p.uid, !p.activo))}>
                             {p.activo ? 'Deshabilitar' : 'Restituir'}
-                          </button>
-                          <button type="button" className="boton chico"
-                            disabled={trabajando === `${p.uid}:enlace`}
-                            onClick={() => void conAviso(p.uid, 'enlace', async () => {
-                              const r = await reponerCredencial(p.uid, { modo: 'enlace' });
-                              setEnlace(r.enlace ?? null);
-                            })}>
-                            Emitir enlace
                           </button>
                           <button type="button" className="boton chico"
                             onClick={() => setReponiendo(reponiendo === p.uid ? null : p.uid)}>

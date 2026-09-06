@@ -19,6 +19,9 @@
 //   iv.  `propietario` no aparece en ninguna escritura del cliente sobre el
 //        perfil — la cuenta de rescate no se acuña desde el navegador;
 //   v.   la bitácora de accesos no la escribe nadie más que el servidor;
+//   v-bis. los dos cerrojos de `config/` quedan EXCLUIDOS de la regla genérica
+//        —que es lo único que impide borrarlos— y las lápidas del perfil solo
+//        las escribe el servidor;
 //   vi.  NO SE VUELVE A ABRIR NADA: cada regla deja hacer, como mucho, lo mismo
 //        que dejaba la jerarquía por rol que había hasta el 2026-09-05;
 //   vii. la pantalla no compara roles a mano.
@@ -31,7 +34,7 @@ import { fileURLToPath } from 'node:url';
 
 import {
   ROLES, FUNCIONES, CODIGOS_FUNCION, FUNCION_POR_CORTO, FUNCIONES_POR_ROL,
-  CAMPOS_PROPIOS_DEL_PERFIL,
+  CAMPOS_PROPIOS_DEL_PERFIL, PerfilDeUsuario, ACCIONES_AUDITABLES,
 } from '../contratos/src/usuarios.ts';
 
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -243,6 +246,120 @@ describe('v · la bitácora de accesos solo la escribe el servidor', () => {
 });
 
 // ════════════════════════════════════════════════════════════════════════════
+describe('v-bis · los dos cerrojos de `config/` y las lápidas del perfil', () => {
+  // ── LOS CERROJOS ──────────────────────────────────────────────────────────
+  // `config/arranque` guarda quién es el propietario y, mientras exista, el
+  // `/bootstrap` es de un solo uso. `config/limpieza` guarda que el borrado
+  // inicial ya se hizo. Los escribe SOLO el trabajador con su cuenta de
+  // servicio, que salta las reglas.
+  //
+  // ⚠️ LO QUE ESTA PRUEBA VIGILA DE VERDAD ES LA EXCLUSIÓN, no el `if false`.
+  // Firestore combina con O las reglas de todos los `match` que encajan con la
+  // ruta, y `false || X` es `X`: el `allow write: if false` del match propio de
+  // cada cerrojo NO impide nada por sí solo. Lo único que impide que un admin
+  // BORRE `config/arranque` desde el navegador —y rearme así la coronación del
+  // propietario— es el `!esCerrojo(docId)` de la regla genérica. Si alguien
+  // «simplifica» quitándolo, esto falla aquí, en la suite normal, sin emulador.
+
+  test('`esCerrojo()` nombra exactamente los dos documentos, ni uno más', () => {
+    const f = REGLAS.match(/function esCerrojo\(docId\)\s*\{([\s\S]*?)\}/);
+    assert.ok(f, 'desapareció `esCerrojo()`: la exclusión ya no se puede escribir');
+    const nombrados = [...f[1].matchAll(/'([^']+)'/g)].map((m) => m[1]).sort();
+    assert.deepEqual(nombrados, ['arranque', 'limpieza']);
+  });
+
+  test('⚠️ la regla GENÉRICA de config/ los excluye en la lectura Y en la escritura', () => {
+    // `write` incluye `delete`. Sin la exclusión en la escritura, un admin borra
+    // el cerrojo; sin ella en la lectura, cualquiera con `lv` —o sea, cualquiera
+    // de la organización— lee quién es el propietario.
+    for (const p of permisosDe(bloqueDe('config'))) {
+      assert.match(p.condicion, /!esCerrojo\(docId\)/,
+        `la regla genérica «${p.operaciones.join(',')}» de config/ dejó de excluir los cerrojos. `
+        + 'Un `match` propio con `allow write: if false` NO los protege: en Firestore los `match` '
+        + 'que se solapan se combinan con O, y `false || X` es `X`.');
+    }
+  });
+
+  test('y cada cerrojo tiene además su propia regla, cerrada a cal y canto', () => {
+    for (const docId of ['arranque', 'limpieza']) {
+      const i = REGLAS.indexOf(`match /config/${docId} {`);
+      assert.notEqual(i, -1, `«config/${docId}» perdió su regla propia`);
+      const bloque = REGLAS.slice(i, REGLAS.indexOf('}', REGLAS.indexOf('allow write', i)));
+      assert.match(bloque, /allow write:\s*if false\s*;/,
+        `«config/${docId}» admite alguna escritura del cliente`);
+      const lectura = permisosDe(bloque + '}').find((x) => x.operaciones.includes('read'));
+      assert.ok(lectura, `«config/${docId}» no se puede leer: el runbook se queda a ciegas`);
+      assert.match(lectura.condicion, /puedeLeerCerrojo\(\)/);
+    }
+  });
+
+  test('quien lee un cerrojo es un ADMINISTRADOR, no cualquiera con `ce`', () => {
+    // La decisión de mínimo privilegio, escrita donde se pueda romper: el
+    // auditor NO entra. Lo que él necesita saber —que hubo un `bootstrap`, que
+    // hubo una `limpieza`, quién y cuándo— vive en `auditoria_accesos`, que sí
+    // lee con `ua`. Si mañana `ce` se volviera delegable, `esAdmin()` sigue
+    // siendo el techo y esta prueba lo sigue exigiendo.
+    const f = REGLAS.match(/function puedeLeerCerrojo\(\)\s*\{([\s\S]*?)\}/);
+    assert.ok(f, 'desapareció `puedeLeerCerrojo()`');
+    assert.match(f[1], /esAdmin\(\)/, 'la lectura del cerrojo dejó de exigir administrador');
+    assert.deepEqual(cortosDe(f[1]), [FUNCIONES['config.editar'].corto]);
+    assert.match(f[1], /deMiOrg/, 'un cerrojo de otra organización sería legible');
+    for (const a of ['bootstrap', 'limpieza']) {
+      assert.ok(ACCIONES_AUDITABLES.includes(a),
+        `la bitácora dejó de registrar «${a}»: entonces negarle el cerrojo al auditor sí le quita `
+        + 'información, y esta decisión hay que rehacerla.');
+    }
+  });
+
+  // ── LAS LÁPIDAS ───────────────────────────────────────────────────────────
+  // Al BORRAR una cuenta de Auth, el espejo `usuarios/{uid}` no se borra: queda
+  // con `activo:false`, `borradoEn` y `borradoPor`. Es lo único que impide que
+  // años de `creadoPor` se queden en códigos sin dueño.
+  test('el molde declara los dos campos de la lápida: sin eso, `zod` los borraría al leer', () => {
+    // Un campo que el molde no declara se escribe en Firestore y DESAPARECE al
+    // leerlo: quedaría en la base y sería invisible para la pantalla. Se
+    // comprueba haciendo pasar una lápida por el molde, no mirando la forma.
+    const lapida = {
+      orgId: 'org-de-prueba', correo: 'quien.fue@ejemplo.invalid', nombre: 'Quien Fue',
+      rol: 'cuadrilla', activo: false,
+      creadoEn: '2026-01-01T00:00:00.000Z', creadoPor: 'uid-servidor',
+      borradoEn: '2026-09-06T03:00:00.000Z', borradoPor: 'uid-propietario',
+    };
+    const leida = PerfilDeUsuario.parse(lapida);
+    assert.equal(leida.borradoEn, lapida.borradoEn, 'la fecha del borrado no sobrevive a la lectura');
+    assert.equal(leida.borradoPor, lapida.borradoPor, 'quién borró no sobrevive a la lectura');
+    assert.equal(leida.correo, lapida.correo, 'sin el correo la lápida no le devuelve el nombre a un `creadoPor`');
+
+    // Y son OPCIONALES: una cuenta viva no los trae y tiene que seguir valiendo.
+    const { borradoEn: _f, borradoPor: _q, ...viva } = lapida;
+    assert.ok(PerfilDeUsuario.safeParse({ ...viva, activo: true }).success,
+      'los campos de la lápida se volvieron obligatorios: ninguna cuenta viva pasaría el molde');
+  });
+
+  test('⚠️ pero el NAVEGADOR no los escribe: la lápida la pone solo el servidor', () => {
+    // Si el cliente pudiera escribirlos, cualquiera fingiría que una cuenta viva
+    // está borrada, o firmaría el borrado con el nombre de otro.
+    for (const campo of ['borradoEn', 'borradoPor', 'activo', 'rol', 'orgId']) {
+      assert.ok(!CAMPOS_PROPIOS_DEL_PERFIL.includes(campo),
+        `«${campo}» entró en la lista blanca del cliente: deja de ser un dato del servidor`);
+    }
+    const escrituras = permisosDe(bloqueDe('usuarios'))
+      .filter((x) => x.operaciones.some((o) => ['create', 'update', 'write'].includes(o)));
+    for (const e of escrituras) {
+      for (const campo of ['borradoEn', 'borradoPor']) {
+        assert.ok(!e.condicion.includes(campo),
+          `la escritura «${e.operaciones.join(',')}» del perfil menciona «${campo}»`);
+      }
+    }
+  });
+
+  test('y el rastro no se puede borrar: `allow delete: if false` es lo que lo sostiene', () => {
+    assert.match(bloqueDe('usuarios'), /allow delete:\s*if false\s*;/,
+      'un cliente que pueda borrar el espejo borra la única prueba de quién fue esa persona');
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
 describe('vi · LA PARIDAD: migrar a funciones no abre ni una puerta', () => {
   /**
    * Lo que dejaba hacer CADA regla antes del 2026-09-05, por rol. Sale de leer
@@ -302,9 +419,9 @@ describe('vi · LA PARIDAD: migrar a funciones no abre ni una puerta', () => {
         assert.ok(cortos.length >= 1, `«${coleccion}.${operacion}» no exige ninguna función`);
 
         // Una regla puede nombrar VARIAS funciones. Si las une con «||» (dos
-        // ramas, como `config`: los cerrojos para `ce`, el resto para `lv`), pasa
-        // quien tenga CUALQUIERA → unión de roles. Si las une con «&&», pasa
-        // quien tenga TODAS → intersección. Lo que no se admite es no saberlo.
+        // ramas, como la lectura del perfil: `ug` o `ua`), pasa quien tenga
+        // CUALQUIERA → unión de roles. Si las une con «&&», pasa quien tenga
+        // TODAS → intersección. Lo que no se admite es no saberlo.
         const conjuntos = cortos.map(rolesDe);
         const union = /\|\|/.test(permiso.condicion);
         const rolesAhora = conjuntos.reduce((acc, r) =>

@@ -1821,9 +1821,19 @@ p.fund-vivo + .sello-calculo { margin-top: 5px; }
 .chip.usr-extra { border-color: var(--acc); color: var(--acc); background: var(--t-ambar); }
 .chip.usr-quitada { border-style: dashed; color: var(--mut); text-decoration: line-through; }
 
-.usr-funciones { display: flex; flex-wrap: wrap; gap: 8px 14px; margin: 10px 0; }
-.usr-funcion { display: flex; align-items: center; gap: 6px; font-size: 11.5px; }
-.usr-funcion select { font: inherit; }
+/* EL REPARTIDOR DE FUNCIONES, en LISTA y no en fila que envuelve.
+   Desde que cada función dice además QUÉ ABRE («aplicar un dato a varios apoyos
+   de una vez»), la fila envolvente dejaba las columnas dentadas y el
+   desplegable saltando de sitio en sitio: para comparar doce permisos hay que
+   poder recorrerlos con la vista por la misma columna. No se esconde nada que
+   antes se viera — se añade la frase y se ordena. */
+.usr-funciones { display: flex; flex-direction: column; gap: 6px; margin: 10px 0; }
+.usr-funcion { display: flex; align-items: center; gap: 10px; font-size: 11.5px; }
+.usr-funcion .mono { min-width: 11.5em; flex: none; }
+/* La frase se lleva el espacio sobrante; `min-width: 0` es lo que le permite
+   encogerse en un móvil en vez de desbordar la tarjeta. */
+.usr-funcion .fine { flex: 1 1 auto; min-width: 0; margin: 0; }
+.usr-funcion select { font: inherit; margin-left: auto; flex: none; }
 
 .usr-alcance { margin: 10px 0; }
 .usr-radio { display: flex; align-items: flex-start; gap: 8px; margin: 5px 0; font-size: 12.5px; line-height: 1.5; }

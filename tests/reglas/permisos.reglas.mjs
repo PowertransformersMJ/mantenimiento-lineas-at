@@ -336,6 +336,59 @@ describe('EL PERFIL Y LA BITÁCORA DE ACCESOS', () => {
     await assertSucceeds(updateDoc(doc(db, 'usuarios', 'yo-mismo'), { ultimoAcceso: serverTimestamp() }));
   });
 
+  // ── LAS LÁPIDAS (`99 §ADR-100`) ──────────────────────────────────────────
+  // Al BORRAR una cuenta de Auth en la limpieza inicial, este documento NO se
+  // borra: el trabajador lo deja con `activo:false`, `borradoEn` y `borradoPor`,
+  // con su `orgId` y su `correo`. Es lo único que impide que años de `creadoPor`
+  // se conviertan en códigos sin dueño. Lo que se mide aquí es que el navegador
+  // no pueda ni fabricarla ni destruirla.
+  test('⚠️ el navegador NO escribe `borradoEn` ni `borradoPor` en su propio perfil', async () => {
+    // Si pudiera, cualquiera fingiría que su cuenta ya está borrada —o firmaría
+    // el borrado con el nombre de otro— sin que nada quedara en la bitácora.
+    const db = como('yo-mismo', claims('cuadrilla'));
+    await assertFails(setDoc(doc(db, 'usuarios', 'yo-mismo'), {
+      contrasenaCambiadaEn: serverTimestamp(), borradoEn: serverTimestamp(),
+    }));
+    await assertFails(setDoc(doc(db, 'usuarios', 'yo-mismo'), {
+      contrasenaCambiadaEn: serverTimestamp(), borradoPor: 'otro',
+    }));
+    await assertFails(setDoc(doc(db, 'usuarios', 'yo-mismo'), {
+      contrasenaCambiadaEn: serverTimestamp(), activo: false,
+    }));
+  });
+
+  test('⚠️ ni la BORRA: el rastro es lo único que le devuelve el nombre a un `creadoPor`', async () => {
+    const { deleteDoc } = await import('firebase/firestore');
+    await entorno.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'usuarios', 'uid-borrado'), {
+        orgId: ORG, correo: 'quien.fue@ejemplo.invalid', nombre: 'Quien Fue', rol: 'cuadrilla',
+        activo: false, borradoEn: '2026-09-06T03:00:00.000Z', borradoPor: 'uid-prop',
+      });
+    });
+    // Ni el propio interesado (si aún tuviera sesión viva) ni quien administra.
+    await assertFails(deleteDoc(doc(como('uid-borrado', claims('cuadrilla')), 'usuarios', 'uid-borrado')));
+    await assertFails(deleteDoc(doc(como('admin-1', claims('admin')), 'usuarios', 'uid-borrado')));
+    // Y tampoco se puede resucitar desde el navegador.
+    await assertFails(updateDoc(doc(como('admin-1', claims('admin')), 'usuarios', 'uid-borrado'), { activo: true }));
+  });
+
+  test('la lápida SÍ se sigue leyendo y sale en la lista de personas: por eso existe', async () => {
+    // El comité midió que borrar el espejo dejaba `creadoPor` sin nombre para
+    // siempre. La lápida lleva `orgId`, así que la consulta de la pantalla
+    // —`where('orgId','==',…)`— la devuelve como una cuenta más, apagada.
+    await entorno.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'usuarios', 'uid-borrado'), {
+        orgId: ORG, correo: 'quien.fue@ejemplo.invalid', nombre: 'Quien Fue', rol: 'cuadrilla',
+        activo: false, borradoEn: '2026-09-06T03:00:00.000Z', borradoPor: 'uid-prop',
+      });
+    });
+    const db = como('admin-1', claims('admin'));
+    await assertSucceeds(getDoc(doc(db, 'usuarios', 'uid-borrado')));
+    const lista = await getDocs(query(collection(db, 'usuarios'), where('orgId', '==', ORG)));
+    assert.ok(lista.docs.some((d) => d.id === 'uid-borrado'),
+      'la lápida no aparece en la lista: la pantalla de personas perdería el nombre de quien fue');
+  });
+
   test('el propio perfil se lee siempre; el ajeno solo con `usuarios.gestionar`', async () => {
     await assertSucceeds(getDoc(doc(como('otra-persona', claims('cuadrilla')), 'usuarios', 'otra-persona')));
     await assertFails(getDoc(doc(como('cuadrilla-1', claims('cuadrilla')), 'usuarios', 'otra-persona')));
@@ -508,6 +561,54 @@ describe('los cerrojos de config/ solo los escribe el servidor', () => {
   test('un admin puede LEER los cerrojos (para el runbook); un editor, no', async () => {
     await assertSucceeds(getDoc(doc(como('uid-admin', claims('admin', ['*'])), 'config', 'arranque')));
     await assertFails(getDoc(doc(como('uid-editor', claims('editor', ['*'])), 'config', 'arranque')));
+  });
+
+  test('el PROPIETARIO también los lee: es el techo, no un rol de adorno', async () => {
+    // Si el dueño del sistema no pudiera leer el cerrojo de su propio arranque,
+    // el runbook del paso 6 se quedaría a ciegas justo cuando importa.
+    await assertSucceeds(getDoc(doc(como('uid-prop', claims('propietario', ['*'])), 'config', 'arranque')));
+    await assertSucceeds(getDoc(doc(como('uid-prop', claims('propietario', ['*'])), 'config', 'limpieza')));
+  });
+
+  test('⚠️ DECISIÓN · el AUDITOR no los lee, y la cuadrilla tampoco', async () => {
+    // Mínimo privilegio, decidido aquí y escrito en `puedeLeerCerrojo()`: lo que
+    // el auditor necesita saber —que hubo un `bootstrap`, que hubo una
+    // `limpieza`, quién y cuándo— está en `auditoria_accesos`, que sí lee con
+    // `ua` (lo comprueba la prueba de más abajo). El cerrojo es una pieza del
+    // runbook de quien administra; darle además el documento sería un permiso
+    // que no le hace falta para hacer su trabajo.
+    //
+    // ⚠️ MEDIDO, y hay que decirlo: hoy al auditor lo para ya `tiene('ce')`
+    // —`config.editar` NO es delegable, así que solo la traen propietario y
+    // admin—, no el `esAdmin()` de `puedeLeerCerrojo()`. Se comprobó quitando
+    // `esAdmin()` a mano: esta prueba seguía pasando. O sea que ESTO mide el
+    // resultado, no la cláusula. Quien vigila la cláusula es la prueba estática
+    // «quien lee un cerrojo es un ADMINISTRADOR» de `usuarios-catalogo.test.js`,
+    // que sí falla al quitarla. Las dos hacen falta: el día que `ce` se volviera
+    // delegable, esta de aquí sería la única que notaría la puerta abierta.
+    for (const rol of ['auditor', 'cuadrilla']) {
+      await assertFails(getDoc(doc(como(`uid-${rol}`, claims(rol, ['*'])), 'config', 'arranque')));
+      await assertFails(getDoc(doc(como(`uid-${rol}`, claims(rol, ['*'])), 'config', 'limpieza')));
+    }
+  });
+
+  test('y un admin de OTRA organización no los lee: el cerrojo lleva `orgId`', async () => {
+    const db = como('ajeno', reclamosDe({ orgId: OTRA_ORG, rol: 'admin' }));
+    await assertFails(getDoc(doc(db, 'config', 'arranque')));
+    await assertFails(getDoc(doc(db, 'config', 'limpieza')));
+  });
+
+  test('⚠️ tampoco los CREA quien los borró primero: no hay rearme por la puerta de atrás', async () => {
+    // El daño concreto: `config/arranque` es el cerrojo de un solo uso del
+    // `/bootstrap`. Quien consiga borrarlo o reescribirlo se corona propietario
+    // en la siguiente llamada. Por eso se prueba también con el documento
+    // AUSENTE, que es el estado en el que un `create` sí tendría sentido.
+    const { deleteDoc } = await import('firebase/firestore');
+    await entorno.withSecurityRulesDisabled(async (ctx) => {
+      await deleteDoc(doc(ctx.firestore(), 'config', 'arranque'));
+    });
+    const db = como('uid-admin', claims('admin', ['*']));
+    await assertFails(setDoc(doc(db, 'config', 'arranque'), { orgId: ORG, propietarioUid: 'uid-admin' }));
   });
 
   test('un token sin f no lee ni escribe nada de config, tampoco los cerrojos', async () => {

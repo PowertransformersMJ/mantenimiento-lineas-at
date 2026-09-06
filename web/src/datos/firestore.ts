@@ -13,7 +13,8 @@ import { EntradaDeAuditoria } from '@lineas/contratos';
 import { cargarFirebase } from './cargar';
 import { anotarFalloDeBitacora } from './bitacora';
 import { alcanza, permisosDeSesion, puede } from './permisos';
-import type { AcuseDeFicha, AcuseDeLote, EntradaLeidaDeAuditoria, EstadoDatos, EstadoSesion, FichaDeFoto, Repositorio, ResultadoCarga, ResultadoFotos } from './repositorio';
+import { PAGINA_DE_AUDITORIA } from './repositorio';
+import type { AcuseDeFicha, AcuseDeLote, EntradaLeidaDeAuditoria, EstadoDatos, EstadoSesion, FichaDeFoto, FiltroDeAuditoria, PaginaDeAuditoria, Repositorio, ResultadoCarga, ResultadoFotos } from './repositorio';
 
 /**
  * La mitad pensante de la ficha —qué campos hay, qué geometría no puede dar
@@ -29,6 +30,7 @@ const fichaPura = () => import('../vistas/fichaEstructural');
 // `cargar.ts`). Este archivo es diminuto y va en el paquete principal: así hay
 // UNA sola frontera de carga, no dos encadenadas.
 const firestore = () => import('firebase/firestore');
+
 
 /**
  * Copia un documento dejando fuera las claves cuyo valor es `undefined`.
@@ -1185,22 +1187,36 @@ export const repositorioFirestore: Repositorio = {
    * Lo que no valide el molde del catálogo **no entra**: una bitácora con
    * entradas de forma libre es un cajón donde nadie encuentra nada.
    */
-  async listarAuditoria(filtro: { accion?: string; sujetoUid?: string; tope?: number } = {}): Promise<EntradaLeidaDeAuditoria[]> {
+  async listarAuditoria(filtro: FiltroDeAuditoria = {}): Promise<PaginaDeAuditoria> {
     const { esperarSesion, credenciales, baseDatos } = await cargarFirebase();
-    const { collection, getDocs, limit, orderBy, query, where } = await firestore();
+    const { collection, getDocs, limit, orderBy, query, startAfter, where } = await firestore();
     const u = await esperarSesion();
-    if (!u) return [];
+    if (!u) return { filas: [], cursor: null };
     const { orgId } = await credenciales(u);
-    if (!orgId) return [];
+    if (!orgId) return { filas: [], cursor: null };
 
+    const cuantas = Math.min(Math.max(filtro.tope ?? PAGINA_DE_AUDITORIA, 1), 200);
     const s = await getDocs(query(
       collection(await baseDatos(), 'auditoria_accesos'),
       where('orgId', '==', orgId),
       orderBy('en', 'desc'),
-      limit(Math.min(Math.max(filtro.tope ?? 200, 1), 500)),
+      // El testigo va DELANTE del tope: es la posición desde la que se cuenta.
+      ...(filtro.desde ? [startAfter(filtro.desde as Parameters<typeof startAfter>[0])] : []),
+      limit(cuantas),
     ));
 
-    return s.docs
+    // ⚠️ EL TESTIGO SALE DE LO LEÍDO, NO DE LO FILTRADO. Los filtros de acción y
+    // de persona se aplican abajo, en el cliente; si el testigo saliera de la
+    // lista ya filtrada, la página siguiente se saltaría todas las anotaciones
+    // que el filtro descartó y la bitácora tendría huecos invisibles.
+    //
+    // Una página CORTA es la única prueba honesta de que no queda nada más:
+    // pedir 50 y recibir 50 puede ser el final justo, y por eso el botón sigue
+    // ofreciéndose una vez más — pulsarlo y no traer nada es barato; esconderlo
+    // con la bitácora a medias, no.
+    const cursor = s.docs.length === cuantas ? (s.docs[s.docs.length - 1] as unknown) : null;
+
+    const filas = s.docs
       .map((d) => {
         const v = validar<EntradaDeAuditoria>(EntradaDeAuditoria, d.data());
         return v ? { ...v, id: d.id } : null;
@@ -1208,6 +1224,8 @@ export const repositorioFirestore: Repositorio = {
       .filter((x): x is EntradaLeidaDeAuditoria => x !== null)
       .filter((x) => !filtro.accion || x.accion === filtro.accion)
       .filter((x) => !filtro.sujetoUid || x.sujetoUid === filtro.sujetoUid);
+
+    return { filas, cursor };
   },
 
   /**
