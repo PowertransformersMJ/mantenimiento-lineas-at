@@ -22,6 +22,7 @@ import { cargarFirebase } from './cargar';
 import { puertaDeAcceso } from '@lineas/contratos';
 import { repositorio, usarRepositorio, type AcuseDeFicha, type AcuseDeLote, type EstadoDatos, type EstadoRca, type EstadoSesion, type FiltroDeAuditoria, type PaginaDeAuditoria, type ResultadoCarga } from './repositorio';
 import { leerRuta, HASH_ATLAS, type ClaveAtlas } from './ruta';
+import { quienDe, type SesionDePantalla } from './permisos';
 import { repositorioFirestore } from './firestore';
 
 /**
@@ -798,6 +799,14 @@ export function useSesion(): EstadoSesion {
 }
 
 /** Si la pantalla de personas está encima. Misma suscripción, otro trozo. */
+/**
+ * QUIÉN ENTRÓ, listo para preguntarle a `puede()`. Es `useSesion()` traducido, y
+ * existe para que ningún componente vuelva a armar esa rebanada a mano.
+ */
+export function useQuien(): SesionDePantalla | undefined {
+  return quienDe(useSesion());
+}
+
 export function usePersonas(): boolean {
   return useSyncExternalStore(almacen.suscribir, almacen.leerPersonas, almacen.leerPersonas);
 }

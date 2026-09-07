@@ -59,6 +59,31 @@ export interface SesionDePantalla extends ConPermiso {
   uid: string;
 }
 
+/**
+ * La sesión del almacén, traducida a la rebanada que consumen las pantallas.
+ *
+ * ⚠️ ESTO ESTABA COPIADO en cada componente que preguntaba por un permiso, y esa
+ * copia es justo lo que el catálogo prohíbe: cinco sitios que construyen el
+ * mismo objeto son cinco sitios donde uno puede quedarse sin `claims` y volver a
+ * decidir por el rol sin que nadie lo note. Se construye aquí y se acabó.
+ *
+ * Cualquier fase que no sea `autenticado` devuelve `undefined`, que `puede()`
+ * trata como mínimo privilegio: mientras la sesión se comprueba, no se puede nada.
+ */
+export function quienDe(sesion: {
+  fase: string; correo?: string | null; rol?: string; orgId?: string; uid?: string; claims?: Reclamos | null;
+}): SesionDePantalla | undefined {
+  return sesion.fase === 'autenticado'
+    ? {
+      correo: sesion.correo ?? null,
+      rol: sesion.rol ?? '',
+      orgId: sesion.orgId ?? '',
+      uid: sesion.uid ?? '',
+      claims: sesion.claims ?? null,
+    }
+    : undefined;
+}
+
 /** Los reclamos de cualquiera de las formas en que llega una sesión. */
 function reclamosDe(s: ConPermiso | null | undefined): Reclamos | null {
   return s && s.claims ? s.claims : null;

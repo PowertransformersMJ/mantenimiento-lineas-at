@@ -855,3 +855,87 @@ describe('la cabecera no enseña instrumento a quien no ha entrado', () => {
       'con la contraseña por cambiar, el muro dejaría de ser un muro');
   });
 });
+
+// ============================================================================
+// AL ESPECTADOR NO SE LE OFRECE LO QUE EL SERVIDOR LE VA A NEGAR
+// ----------------------------------------------------------------------------
+// Lo midió la verificación por capas del 2026-09-06: el rol de solo lectura no
+// puede escribir NADA —eso está probado en el emulador—, pero la pantalla le
+// ofrecía el expediente de causa raíz ENTERO, con sus editores y su «Guardar»,
+// y el servidor le respondía que no al pulsar. Un sistema que ofrece lo que
+// niega parece roto aunque esté perfecto.
+//
+// Lo que estas pruebas NO defienden: la frontera. Ésa son las reglas, y tiene
+// su propio barrido en el emulador. Esto es la mitad visible, y se dice.
+// ============================================================================
+describe('el expediente de causa raíz: se LEE entero, se edita solo con permiso', () => {
+  const rca = readFileSync(join(RAIZ, 'web/src/componentes/Rca.tsx'), 'utf-8');
+  const editores = readFileSync(join(RAIZ, 'web/src/componentes/RcaEditores.tsx'), 'utf-8');
+  const falla = readFileSync(join(RAIZ, 'web/src/componentes/Falla.tsx'), 'utf-8');
+
+  test('el «Guardar» compartido de los editores exige `expedientes.editar`', () => {
+    assert.match(editores, /usePuedeEditarExpediente/,
+      'sin la comprobación, los cuatro editores vuelven a ofrecer Guardar a quien solo lee');
+    const guardar = editores.slice(editores.indexOf('function Guardar('), editores.indexOf('// ── LOS PORQUÉS'));
+    assert.match(guardar, /if \(!usePuedeEditarExpediente\(\)\)/,
+      'el Guardar tiene que decidirse ANTES de pintar el botón');
+    assert.match(guardar, /Solo lectura/, 'se dice por qué no hay botón, no se deja el hueco mudo');
+  });
+
+  test('los mandos que CREAN o QUITAN van detrás de la misma llave', () => {
+    for (const mando of ['+ Nueva cadena', '+ Nueva hipótesis', '+ Otra causa', 'Congelar este sondeo']) {
+      const i = editores.indexOf(mando);
+      assert.ok(i > 0, `el mando «${mando}» ya no está: revisar esta prueba`);
+      const guarda = editores.lastIndexOf('editable', i);
+      assert.ok(guarda > 0 && i - guarda < 900, `«${mando}» se ofrece sin comprobar el permiso`);
+    }
+  });
+
+  test('declarar la causa raíz y guardar los descartes exigen permiso', () => {
+    for (const mando of ['void declarar()', 'void guardar()']) {
+      const i = rca.indexOf(mando);
+      assert.ok(i > 0, `«${mando}» ya no está en Rca.tsx`);
+      const guarda = rca.lastIndexOf('editable', i);
+      assert.ok(guarda > 0 && i - guarda < 700, `«${mando}» se ofrece sin comprobar el permiso`);
+    }
+    assert.match(rca, /const editable = puede\(useQuien\(\), 'expedientes\.editar'\)/);
+  });
+
+  test('«Abrir análisis» CREA un expediente: pide `expedientes.editar`', () => {
+    const i = falla.indexOf('crearRcaDesdeEvento');
+    assert.ok(i > 0);
+    const guarda = falla.lastIndexOf("puede(quien, 'expedientes.editar')", i);
+    assert.ok(guarda > 0 && i - guarda < 500, 'se ofrecía a cualquiera y el servidor lo negaba al pulsar');
+  });
+
+  test('lo que se LEE no se esconde: el expediente sigue pintándose entero', () => {
+    // La regla de la casa es no introducir regresiones de visibilidad. El aviso
+    // de solo lectura va ANTES de los editores, y los editores se siguen
+    // montando: lo que desaparece son los mandos, no el contenido.
+    const abierto = rca.slice(rca.indexOf('function Abierto('), rca.indexOf('function TablaDescartes('));
+    assert.match(abierto, /!editable && \(\s*<p className="aviso"/, 'falta el aviso de solo lectura');
+    for (const ed of ['<EditorPorques', '<EditorArbol', '<EditorHipotesis', '<EditorAusencias', '<EditorAcciones']) {
+      assert.ok(abierto.includes(ed), `${ed} dejó de pintarse: eso es esconder contenido, no quitar un mando`);
+    }
+  });
+
+  test('`informes.generar` deja de ser decorativa: alguien la exige', () => {
+    // El catálogo prohíbe declarar lo que nadie hace cumplir (`99 §ADR-100`), y
+    // esta función no la exigía NADIE: ni una regla, ni un trabajador, ni la
+    // pantalla. Ahora la pide el botón del informe.
+    const i = rca.indexOf('generarInforme(a, acciones, sondeos)');
+    assert.ok(i > 0);
+    const guarda = rca.lastIndexOf("puede(quien, 'informes.generar')", i);
+    assert.ok(guarda > 0 && i - guarda < 700, 'el informe se ofrece sin exigir `informes.generar`');
+  });
+
+  test('la rebanada de sesión se arma en UN sitio, no copiada en cada componente', () => {
+    const permisos = readFileSync(join(RAIZ, 'web/src/datos/permisos.ts'), 'utf-8');
+    assert.match(permisos, /export function quienDe\(/, 'sin dueño único vuelve la copia divergente');
+    for (const f of ['web/src/App.tsx', 'web/src/componentes/Linea.tsx']) {
+      const src = readFileSync(join(RAIZ, f), 'utf-8');
+      assert.ok(!/sesion\.fase === 'autenticado'\s*\n\s*\?\s*\{ correo: sesion\.correo/.test(src),
+        `${f} volvió a construir la rebanada a mano en vez de usar useQuien()`);
+    }
+  });
+});

@@ -7,8 +7,8 @@
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { PROVEEDOR_CONTRASENA, VERSION_CONTRATO } from '@lineas/contratos';
 import { derivarLevantamiento } from '@lineas/exportar/levantamiento';
-import { useAtlas, useDatos, useMotivoDeSalida, usePersonas, useRca, useSesion, almacen } from './datos/enlace';
-import { puede, type SesionDePantalla } from './datos/permisos';
+import { useAtlas, useDatos, useMotivoDeSalida, usePersonas, useQuien, useRca, useSesion, almacen } from './datos/enlace';
+import { puede } from './datos/permisos';
 import { Rca } from './componentes/Rca';
 import { conReintentos } from './datos/cargar';
 // ⚠️ EN DIFERIDO, y no por elegancia: el atlas arrastra MapLibre (cerca de un
@@ -115,10 +115,7 @@ const nf = (v: number, d = 0) =>
  */
 function Cabecera() {
   const d = useDatos();
-  const sesion = useSesion();
-  const quien: SesionDePantalla | undefined = sesion.fase === 'autenticado'
-    ? { correo: sesion.correo, rol: sesion.rol, orgId: sesion.orgId, uid: sesion.uid, claims: sesion.claims }
-    : undefined;
+  const quien = useQuien();
 
   const resumen = useMemo(() => {
     if (d.fase !== 'listo') return null;

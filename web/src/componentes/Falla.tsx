@@ -14,7 +14,8 @@
 // ============================================================================
 import type { Apoyo, Evidencia, Investigacion } from '@lineas/contratos';
 import { Galeria } from './Galeria';
-import { almacen } from '../datos/enlace';
+import { almacen, useQuien } from '../datos/enlace';
+import { puede } from '../datos/permisos';
 import { derivarLevantamiento } from '@lineas/exportar/levantamiento';
 import { useMemo } from 'react';
 import { nf } from '../vistas/formato';
@@ -37,6 +38,7 @@ export function Falla({ investigaciones, apoyos, evidencias = [], noSePudoLeer, 
   { investigaciones: Investigacion[]; apoyos: Apoyo[]; evidencias?: Evidencia[];
     noSePudoLeer?: string; noSePudoLeerFotos?: string }) {
 
+  const quien = useQuien();
   const lev = useMemo(() => derivarLevantamiento(apoyos), [apoyos]);
 
   if (!investigaciones.length) {
@@ -108,6 +110,10 @@ export function Falla({ investigaciones, apoyos, evidencias = [], noSePudoLeer, 
                   fuera de la línea, porque una misma causa puede repetirse en varias.
                 </p>
               </div>
+              {/* Abrir un análisis CREA un expediente: es escritura, y pide
+                  `expedientes.editar`. Antes se le ofrecía a cualquiera que
+                  llegara a la pestaña, y el servidor lo negaba al pulsar. */}
+              {puede(quien, 'expedientes.editar') && (
               <button
                 type="button"
                 className="boton chico"
@@ -120,6 +126,7 @@ export function Falla({ investigaciones, apoyos, evidencias = [], noSePudoLeer, 
               >
                 Abrir análisis
               </button>
+              )}
             </section>
 
             <Galeria evidencias={evidencias.filter((x) => x.investigacionId === ev.id)} noSePudoLeer={noSePudoLeerFotos} />

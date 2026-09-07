@@ -21,8 +21,8 @@ import { COLORES_TRAMO_CSS } from '../vistas/tramoColores';
 import { calcularTramos } from '../vistas/tramos';
 import { textoNucleo } from '../vistas/formato';
 import { conReintentos } from '../datos/cargar';
-import { almacen, useSesion } from '../datos/enlace';
-import { puede, type SesionDePantalla } from '../datos/permisos';
+import { almacen, useQuien } from '../datos/enlace';
+import { puede } from '../datos/permisos';
 import { ejesDeLinea } from '../vistas/ejesLinea';
 import { estadoDeLinea } from '../vistas/estadoLinea';
 import { vanosDeLinea } from '../vistas/vanosLinea';
@@ -647,14 +647,10 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
   const eventosAbiertos = investigaciones.filter((i) => !i.cerrada).length;
 
   // Quién entró y con qué permiso. Solo lo consumen las pestañas que ESCRIBEN.
-  const sesion = useSesion();
-  /**
-   * La rebanada que viaja a los componentes. Lleva `claims` porque es lo que
-   * decide: el `rol` va con ella para poder ENSEÑARLO, no para compararlo.
-   */
-  const quien: SesionDePantalla | undefined = sesion.fase === 'autenticado'
-    ? { correo: sesion.correo, rol: sesion.rol, orgId: sesion.orgId, uid: sesion.uid, claims: sesion.claims }
-    : undefined;
+  // La rebanada la arma `useQuien()` en un solo sitio (`datos/permisos.ts`):
+  // lleva `claims`, que es lo que decide; el `rol` va con ella para poder
+  // ENSEÑARLO, nunca para compararlo.
+  const quien = useQuien();
 
   /**
    * Las pestañas que esta sesión puede ver.

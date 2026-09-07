@@ -375,7 +375,11 @@ describe('LA PANTALLA ESTÁ ENCHUFADA — el motor no puede quedarse sin quien l
     // que hace: `cargar.puntos`. Lo que esta prueba defiende sigue igual: la
     // pestaña se filtra por permiso y se pinta la lista FILTRADA.
     assert.match(LINEA_TSX, /id: 'cargar'[^}]*exige: 'cargar\.puntos'/);
-    assert.match(LINEA_TSX, /useSesion\(\)/, 'el permiso hay que leerlo de la sesión, no suponerlo');
+    // La sesión se lee por `useQuien()` desde el 2026-09-06: la rebanada que
+    // consume `puede()` se arma en UN sitio (`datos/permisos.ts`) en vez de
+    // copiarse en cada componente. Lo que esta línea defiende es lo mismo de
+    // siempre —el permiso se LEE, no se supone—, no el nombre del hook.
+    assert.match(LINEA_TSX, /useQuien\(\)/, 'el permiso hay que leerlo de la sesión, no suponerlo');
     // Y la lista que se pinta es la FILTRADA, no la completa: si se pintara
     // `PESTANAS`, el filtro existiría y no haría nada.
     assert.match(LINEA_TSX, /\{visibles\.map\(\(p\) =>/);

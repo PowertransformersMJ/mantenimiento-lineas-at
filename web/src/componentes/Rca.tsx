@@ -46,7 +46,8 @@ async function generarInforme(a: AnalisisCausa, acciones: AccionCapa[], sondeos:
   });
   descargar(`${a.codigo ?? 'analisis'}_${selloFecha()}.html`, 'text/html', html);
 }
-import { almacen, useRca } from '../datos/enlace';
+import { almacen, useRca, useQuien } from '../datos/enlace';
+import { puede } from '../datos/permisos';
 import { EditorPorques, EditorArbol, EditorHipotesis, EditorAusencias, EditorAcciones, ClimaEvento } from './RcaEditores';
 import { nf } from '../vistas/formato';
 
@@ -137,6 +138,8 @@ function Indice({ analisis, avisoRuta }: { analisis: AnalisisCausa[]; avisoRuta?
 // ── Un análisis abierto ─────────────────────────────────────────────────────
 
 function Abierto({ a, evidencias, acciones, sondeos, fallo, noSePudoLeer }: { a: AnalisisCausa; evidencias: Evidencia[]; acciones: AccionCapa[]; sondeos: SondeoClima[]; fallo?: { mensaje: string; queSeIntentaba: string }; noSePudoLeer?: { evidencias?: string; acciones?: string; sondeos?: string } }) {
+  const quien = useQuien();
+  const editable = puede(quien, 'expedientes.editar');
   const cond = condicionesCausaRaiz(a);
   const respaldo = auditarRespaldo(a);
   const faltan = cond.condiciones.filter((c) => !c.cumple);
@@ -153,9 +156,17 @@ function Abierto({ a, evidencias, acciones, sondeos, fallo, noSePudoLeer }: { a:
             cerrado: durante semanas el estado normal es no tener causa raíz, y
             un avance que no se puede enseñar no sirve para trabajar en equipo.
             El propio documento dice en su portada si es AVANCE o CONCLUSIÓN. */}
-        <button type="button" className="boton chico" onClick={() => void generarInforme(a, acciones, sondeos)}>
-          Informe del análisis
-        </button>
+        {/* ⚠️ AQUÍ se hace cumplir `informes.generar`. Hasta el 2026-09-06 esa
+            función del catálogo no la exigía NADIE —ni una regla, ni un
+            trabajador, ni esta pantalla—, o sea que era decorativa: justo lo que
+            el propio catálogo prohíbe («no existe aquí ningún campo que no se
+            haga cumplir en alguna parte», `99 §ADR-100`). El informe no escribe
+            nada, así que el espectador lo conserva; quien no la traiga, no. */}
+        {puede(quien, 'informes.generar') && (
+          <button type="button" className="boton chico" onClick={() => void generarInforme(a, acciones, sondeos)}>
+            Informe del análisis
+          </button>
+        )}
         <h2 className="linea-titulo">{a.codigo} — {a.titulo}</h2>
       </div>
 
@@ -175,6 +186,15 @@ function Abierto({ a, evidencias, acciones, sondeos, fallo, noSePudoLeer }: { a:
 
       <TablaDescartes a={a} evidencias={evidencias} noSePudoLeer={noSePudoLeer?.evidencias} />
 
+      {/* Se dice UNA vez y arriba, no en cada editor: quien lee tiene que saber
+          desde el principio por qué no ve mandos, en vez de descubrirlo al
+          buscar el botón de guardar. Lo que se LEE no cambia. */}
+      {!editable && (
+        <p className="aviso" role="status">
+          <b>Solo lectura.</b> Este expediente se enseña completo, pero su sesión no puede
+          modificarlo: le falta la función «expedientes.editar».
+        </p>
+      )}
       <EditorPorques a={a} evidencias={evidencias} />
       <EditorArbol a={a} evidencias={evidencias} />
       <EditorHipotesis a={a} evidencias={evidencias} />
@@ -270,6 +290,7 @@ function Abierto({ a, evidencias, acciones, sondeos, fallo, noSePudoLeer }: { a:
  * Las once salen siempre, incluso las que nadie ha tocado.
  */
 function TablaDescartes({ a, evidencias, noSePudoLeer }: { a: AnalisisCausa; evidencias: Evidencia[]; noSePudoLeer?: string }) {
+  const editable = puede(useQuien(), 'expedientes.editar');
   const [borrador, setBorrador] = useState(() => {
     // Se indexa por TEXTO a propósito: mientras se edita, «estado» puede estar
     // vacío —«sin mirar»—, que no es un valor del contrato. Solo lo que tiene
@@ -398,10 +419,12 @@ function TablaDescartes({ a, evidencias, noSePudoLeer }: { a: AnalisisCausa; evi
       </div>
 
       <div className="rca-guardar">
-        <button type="button" className="boton chico" onClick={() => void guardar()}
-          disabled={guardando || sinMotivo > 0}>
-          {guardando ? 'Guardando…' : `Guardar ${conEstado.length} de ${ESPINAS.length}`}
-        </button>
+        {editable && (
+          <button type="button" className="boton chico" onClick={() => void guardar()}
+            disabled={guardando || sinMotivo > 0}>
+            {guardando ? 'Guardando…' : `Guardar ${conEstado.length} de ${ESPINAS.length}`}
+          </button>
+        )}
         {sinMotivo > 0 && (
           <span className="fine">
             {sinMotivo} familia(s) con estado y sin motivo. Un estado que no se puede auditar no vale.
@@ -424,6 +447,7 @@ function TablaDescartes({ a, evidencias, noSePudoLeer }: { a: AnalisisCausa; evi
  * en la memoria de nadie.
  */
 function Declarar({ a }: { a: AnalisisCausa }) {
+  const editable = puede(useQuien(), 'expedientes.editar');
   const [nodoId, setNodoId] = useState('');
   const [enunciado, setEnunciado] = useState('');
   const [tipo, setTipo] = useState<'unica' | 'multiple' | 'contribuyente'>('unica');
@@ -508,10 +532,12 @@ function Declarar({ a }: { a: AnalisisCausa }) {
       <textarea className="rca-motivo" rows={3} value={enunciado}
         placeholder="La causa raíz, con tus palabras. Es lo que se firma."
         onChange={(e) => setEnunciado(e.target.value)} />
-      <button type="button" className="boton chico"
-        disabled={g || !eligeValido || !enunciado.trim()} onClick={() => void declarar()}>
-        {g ? 'Declarando…' : (a.causasRaiz ?? []).length ? 'Añadir otra causa raíz' : 'Declarar la causa raíz'}
-      </button>
+      {editable && (
+        <button type="button" className="boton chico"
+          disabled={g || !eligeValido || !enunciado.trim()} onClick={() => void declarar()}>
+          {g ? 'Declarando…' : (a.causasRaiz ?? []).length ? 'Añadir otra causa raíz' : 'Declarar la causa raíz'}
+        </button>
+      )}
       {declarables > 0 && (
         <p className="fine">
           {declarables} de {candidatos.length} nodos del árbol pueden sostener una causa raíz. Los

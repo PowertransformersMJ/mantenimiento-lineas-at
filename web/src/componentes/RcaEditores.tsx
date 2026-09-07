@@ -17,7 +17,19 @@ import { useState } from 'react';
 import { fuerzaCadena, diagnosticoCadena, validarArbol, resumenBarreras, revisarHipotesis, resumenAcciones, ESPINAS_CON_ROTULO } from '@lineas/nucleo/rca';
 import { Verosimilitud } from '@lineas/contratos';
 import type { AccionCapa, AnalisisCausa, Evidencia, SondeoClima } from '@lineas/contratos';
-import { almacen } from '../datos/enlace';
+import { almacen, useQuien } from '../datos/enlace';
+import { puede } from '../datos/permisos';
+
+/**
+ * ¿Esta sesión puede TRABAJAR el expediente, o solo leerlo?
+ *
+ * La frontera de verdad son las reglas, que exigen `expedientes.editar` para
+ * escribir en `analisis`, `investigaciones` y `acciones_capa`. Esto es la mitad
+ * visible: sin ella, a un espectador se le ofrecían todos los editores y el
+ * servidor le respondía que no al pulsar Guardar — un sistema que parece roto.
+ * Lo que se LEE no se esconde: el análisis se sigue viendo entero.
+ */
+const usePuedeEditarExpediente = (): boolean => puede(useQuien(), 'expedientes.editar');
 
 /**
  * Las familias, tal como se ofrecen en los desplegables.
@@ -93,6 +105,17 @@ function Evidencias({ todas, puestas, alternar }:
 // estado— pero el tipo tiene que dejarlas pasar.
 function Guardar({ onGuardar, aviso }: { onGuardar: () => Promise<unknown>; aviso?: string | null }) {
   const [g, setG] = useState(false);
+  // Solo lectura: se dice por qué, en vez de dejar un botón que el servidor niega.
+  if (!usePuedeEditarExpediente()) {
+    return (
+      <div className="rca-guardar">
+        <span className="fine">
+          Solo lectura: puede leer este expediente, no modificarlo. Para trabajarlo hace falta la
+          función «expedientes.editar».
+        </span>
+      </div>
+    );
+  }
   return (
     <div className="rca-guardar">
       <button type="button" className="boton chico" disabled={g || Boolean(aviso)}
@@ -107,6 +130,7 @@ function Guardar({ onGuardar, aviso }: { onGuardar: () => Promise<unknown>; avis
 // ── LOS PORQUÉS ─────────────────────────────────────────────────────────────
 
 export function EditorPorques({ a, evidencias }: { a: AnalisisCausa; evidencias: Evidencia[] }) {
+  const editable = usePuedeEditarExpediente();
   const [cadenas, setCadenas] = useState<any[]>(() => JSON.parse(JSON.stringify(a.cadenas)));
 
   const nueva = () => setCadenas((c) => [...c, {
@@ -143,8 +167,8 @@ export function EditorPorques({ a, evidencias }: { a: AnalisisCausa; evidencias:
               <span className={f.esAccionable ? 'pill ok' : 'pill av'}>
                 {f.esAccionable ? 'llega a causa accionable' : 'no llega a causa raíz'}
               </span>
-              <button type="button" className="rca-quitar"
-                onClick={() => setCadenas((x) => x.filter((_, k) => k !== i))}>quitar cadena</button>
+              {editable && <button type="button" className="rca-quitar"
+                onClick={() => setCadenas((x) => x.filter((_, k) => k !== i))}>quitar cadena</button>}
             </div>
 
             {c.eslabones.map((e: any, j: number) => (
@@ -164,7 +188,7 @@ export function EditorPorques({ a, evidencias }: { a: AnalisisCausa; evidencias:
                     (e.evidenciaIds ?? []).includes(id)
                       ? e.evidenciaIds.filter((z: string) => z !== id)
                       : [...(e.evidenciaIds ?? []), id])} />
-                {c.eslabones.length > 1 && (
+                {editable && c.eslabones.length > 1 && (
                   <button type="button" className="rca-quitar"
                     onClick={() => cambiar(i, 'eslabones', c.eslabones.filter((_: any, m: number) => m !== j))}>
                     quitar este porqué
@@ -183,7 +207,7 @@ export function EditorPorques({ a, evidencias }: { a: AnalisisCausa; evidencias:
       })}
 
       <div className="rca-guardar">
-        <button type="button" className="boton chico" onClick={nueva}>+ Nueva cadena</button>
+        {editable && <button type="button" className="boton chico" onClick={nueva}>+ Nueva cadena</button>}
       </div>
       <Guardar aviso={vacios ? `${vacios} eslabón(es) sin redactar.` : null}
         onGuardar={() => almacen.guardarParte({ cadenas })} />
@@ -194,6 +218,7 @@ export function EditorPorques({ a, evidencias }: { a: AnalisisCausa; evidencias:
 // ── EL ÁRBOL Y LAS BARRERAS ─────────────────────────────────────────────────
 
 export function EditorArbol({ a, evidencias }: { a: AnalisisCausa; evidencias: Evidencia[] }) {
+  const editable = usePuedeEditarExpediente();
   const [nodos, setNodos] = useState<any[]>(() => JSON.parse(JSON.stringify(a.arbol)));
   const val = validarArbol(nodos);
   const bar = resumenBarreras(nodos);
@@ -242,8 +267,8 @@ export function EditorArbol({ a, evidencias }: { a: AnalisisCausa; evidencias: E
                 <option value="contribuye">contribuye (agrava)</option>
               </select>
             )}
-            <button type="button" className="rca-quitar"
-              onClick={() => setNodos((x) => x.filter((_, k) => k !== i))}>quitar</button>
+            {editable && <button type="button" className="rca-quitar"
+              onClick={() => setNodos((x) => x.filter((_, k) => k !== i))}>quitar</button>}
           </div>
 
           <textarea className="rca-motivo" rows={2} value={n.enunciado} placeholder="Qué ocurrió"
@@ -284,9 +309,11 @@ export function EditorArbol({ a, evidencias }: { a: AnalisisCausa; evidencias: E
       ))}
 
       <div className="rca-guardar">
-        <button type="button" className="boton chico" onClick={nuevo}>
-          {nodos.length ? '+ Otra causa' : '+ Empezar por el efecto observado'}
-        </button>
+        {editable && (
+          <button type="button" className="boton chico" onClick={nuevo}>
+            {nodos.length ? '+ Otra causa' : '+ Empezar por el efecto observado'}
+          </button>
+        )}
       </div>
       <Guardar aviso={vacios ? `${vacios} nodo(s) sin redactar.` : null}
         onGuardar={() => almacen.guardarParte({ arbol: nodos })} />
@@ -297,6 +324,7 @@ export function EditorArbol({ a, evidencias }: { a: AnalisisCausa; evidencias: E
 // ── HIPÓTESIS ───────────────────────────────────────────────────────────────
 
 export function EditorHipotesis({ a, evidencias }: { a: AnalisisCausa; evidencias: Evidencia[] }) {
+  const editable = usePuedeEditarExpediente();
   const [hs, setHs] = useState<any[]>(() => JSON.parse(JSON.stringify(a.hipotesis)));
   const revisadas = revisarHipotesis(hs);
 
@@ -340,8 +368,8 @@ export function EditorHipotesis({ a, evidencias }: { a: AnalisisCausa; evidencia
                 {VEROSIMILITUD_UI.map((v) => <option key={v} value={v}>{v}</option>)}
               </select>
               {r?.topadaPorClima && <span className="pill av">topada en baja</span>}
-              <button type="button" className="rca-quitar"
-                onClick={() => setHs((x) => x.filter((_, k) => k !== i))}>quitar</button>
+              {editable && <button type="button" className="rca-quitar"
+                onClick={() => setHs((x) => x.filter((_, k) => k !== i))}>quitar</button>}
             </div>
 
             <textarea className="rca-motivo" rows={2} value={h.enunciado} placeholder="Qué se propone que pasó"
@@ -395,7 +423,7 @@ export function EditorHipotesis({ a, evidencias }: { a: AnalisisCausa; evidencia
       })}
 
       <div className="rca-guardar">
-        <button type="button" className="boton chico" onClick={nueva}>+ Nueva hipótesis</button>
+        {editable && <button type="button" className="boton chico" onClick={nueva}>+ Nueva hipótesis</button>}
       </div>
       <Guardar aviso={incompletas ? `${incompletas} hipótesis sin enunciado, sustento o refutación.` : null}
         onGuardar={() => almacen.guardarParte({ hipotesis: hs })} />
@@ -406,6 +434,7 @@ export function EditorHipotesis({ a, evidencias }: { a: AnalisisCausa; evidencia
 // ── LO QUE FALTA POR VERIFICAR ──────────────────────────────────────────────
 
 export function EditorAusencias({ a }: { a: AnalisisCausa }) {
+  const editable = usePuedeEditarExpediente();
   const [xs, setXs] = useState<any[]>(() => JSON.parse(JSON.stringify(a.ausencias)));
   const cambiar = (i: number, campo: string, v: unknown) =>
     setXs((h) => h.map((x, k) => (k === i ? { ...x, [campo]: v } : x)));
@@ -429,8 +458,8 @@ export function EditorAusencias({ a }: { a: AnalisisCausa }) {
               <option value="recibido">recibido</option>
               <option value="no_disponible">no disponible</option>
             </select>
-            <button type="button" className="rca-quitar"
-              onClick={() => setXs((z) => z.filter((_, k) => k !== i))}>quitar</button>
+            {editable && <button type="button" className="rca-quitar"
+              onClick={() => setXs((z) => z.filter((_, k) => k !== i))}>quitar</button>}
           </div>
           <input className="rca-motivo" value={x.que} placeholder="Qué no se puede afirmar"
             onChange={(e) => cambiar(i, 'que', e.target.value)} />
@@ -467,6 +496,7 @@ export function EditorAusencias({ a }: { a: AnalisisCausa }) {
  * secundario de mirar una pantalla.
  */
 export function ClimaEvento({ sondeos }: { sondeos: SondeoClima[] }) {
+  const editable = usePuedeEditarExpediente();
   const [lat, setLat] = useState('');
   const [lon, setLon] = useState('');
   const [cuando, setCuando] = useState('');
@@ -568,14 +598,19 @@ export function ClimaEvento({ sondeos }: { sondeos: SondeoClima[] }) {
               que la cifra, o la cifra ya formó la conclusión. */}
           <p className="aviso">{r.nota}</p>
 
-          <div className="rca-guardar">
-            <button type="button" className="boton chico" disabled={guardando} onClick={() => void guardar()}>
-              {guardando ? 'Congelando…' : 'Congelar este sondeo en el expediente'}
-            </button>
-            <span className="fine">
-              Se guarda tal cual llegó, con su fecha. No se podrá editar ni borrar después.
-            </span>
-          </div>
+          {/* Consultar el clima es LEER una fuente pública y no toca la base:
+              eso lo hace cualquiera. Congelarlo en el expediente sí escribe, y
+              por eso el mando —no la consulta— es lo que pide la función. */}
+          {editable && (
+            <div className="rca-guardar">
+              <button type="button" className="boton chico" disabled={guardando} onClick={() => void guardar()}>
+                {guardando ? 'Congelando…' : 'Congelar este sondeo en el expediente'}
+              </button>
+              <span className="fine">
+                Se guarda tal cual llegó, con su fecha. No se podrá editar ni borrar después.
+              </span>
+            </div>
+          )}
 
           {r.series.length > 0 && (
             <div className="tabla-caja">
@@ -624,6 +659,7 @@ export function ClimaEvento({ sondeos }: { sondeos: SondeoClima[] }) {
  *   · No preselecciona barrera ni tipo: nacen vacíos.
  */
 export function EditorAcciones({ acciones, arbol }: { acciones: AccionCapa[]; arbol: AnalisisCausa['arbol'] }) {
+  const editable = usePuedeEditarExpediente();
   const [clase, setClase] = useState<'correctiva' | 'preventiva'>('correctiva');
   const [que, setQue] = useState('');
   const [creando, setCreando] = useState(false);
@@ -671,28 +707,34 @@ export function EditorAcciones({ acciones, arbol }: { acciones: AccionCapa[]; ar
         <FichaAccion key={x.id} x={x} />
       ))}
 
-      <div className="rca-cadena">
-        <div className="rca-cadena-cab">
-          <select className="rca-select rca-select-corto" value={clase}
-            onChange={(e) => setClase(e.target.value as 'correctiva' | 'preventiva')}>
-            <option value="correctiva">correctiva</option>
-            <option value="preventiva">preventiva</option>
-          </select>
+      {/* El formulario ENTERO, no solo su botón: dejar los campos y quitar el
+          botón invita a escribir un texto que no se va a poder guardar. */}
+      {editable && (
+        <div className="rca-cadena">
+          <div className="rca-cadena-cab">
+            <select className="rca-select rca-select-corto" value={clase}
+              onChange={(e) => setClase(e.target.value as 'correctiva' | 'preventiva')}>
+              <option value="correctiva">correctiva</option>
+              <option value="preventiva">preventiva</option>
+            </select>
+          </div>
+          <input className="rca-motivo" value={que} placeholder="Qué se hace, en imperativo y concreto"
+            onChange={(e) => setQue(e.target.value)} />
+          <div className="rca-guardar">
+            <button type="button" className="boton chico" disabled={!que.trim() || creando} onClick={crear}>
+              {creando ? 'Añadiendo…' : '+ Añadir acción'}
+            </button>
+          </div>
         </div>
-        <input className="rca-motivo" value={que} placeholder="Qué se hace, en imperativo y concreto"
-          onChange={(e) => setQue(e.target.value)} />
-        <div className="rca-guardar">
-          <button type="button" className="boton chico" disabled={!que.trim() || creando} onClick={crear}>
-            {creando ? 'Añadiendo…' : '+ Añadir acción'}
-          </button>
-        </div>
-      </div>
+      )}
     </section>
   );
 }
 
 /** Una acción, con sus defectos a la vista y su cierre. */
 function FichaAccion({ x }: { x: AccionCapa & { defectos: string[]; pruebaEs: string | null } }) {
+  // Los campos se SIGUEN VIENDO (no se esconde contenido): se quedan sin escribir.
+  const editable = usePuedeEditarExpediente();
   const [abierto, setAbierto] = useState(false);
   const [g, setG] = useState(false);
 
@@ -729,19 +771,21 @@ function FichaAccion({ x }: { x: AccionCapa & { defectos: string[]; pruebaEs: st
       {abierto && (
         <>
           <input className="rca-motivo" defaultValue={x.responsable ?? ''} placeholder="Responsable"
+            readOnly={!editable}
             onBlur={(e) => guardar({ responsable: e.target.value || undefined })} />
           <input className="rca-motivo" defaultValue={x.plazo ?? ''} placeholder="Plazo (texto libre)"
+            readOnly={!editable}
             onBlur={(e) => guardar({ plazo: e.target.value || undefined })} />
-          <select className="rca-select" value={x.barrera ?? ''} disabled={g}
+          <select className="rca-select" value={x.barrera ?? ''} disabled={g || !editable}
             onChange={(e) => guardar({ barrera: e.target.value || undefined })}>
             <option value="">— sin barrera asignada —</option>
             {BARRERAS_UI.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
           </select>
-          <textarea className="rca-motivo" rows={2} defaultValue={x.comoSeComprobo ?? ''}
+          <textarea className="rca-motivo" rows={2} defaultValue={x.comoSeComprobo ?? ''} readOnly={!editable}
             placeholder="Cómo se comprueba que se hizo (acta, orden de trabajo, informe de cuadrilla)"
             onBlur={(e) => guardar({ comoSeComprobo: e.target.value || undefined })} />
           {x.estado === 'descartada' && (
-            <textarea className="rca-motivo" rows={2} defaultValue={x.motivoDescarte ?? ''}
+            <textarea className="rca-motivo" rows={2} defaultValue={x.motivoDescarte ?? ''} readOnly={!editable}
               placeholder="Por qué se descarta"
               onBlur={(e) => guardar({ motivoDescarte: e.target.value || undefined })} />
           )}
