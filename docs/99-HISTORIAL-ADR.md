@@ -9661,3 +9661,32 @@ cada uno en su documento. Guardar solo el visible le haría perder dos tercios d
   forma del id. Quien la vigila es el molde.
 
 ---
+## ADR-113 · 2026-09-07 · Una lista de archivos es una lista: el rastro de procedencia dejó de ser una cadena pegada
+
+**Deliberación:** apareció al guardar los 15 archivos de `§ADR-112`.
+**Estado:** ✅ en producción, verificado · **NO revisada externamente**.
+
+### Contexto
+
+`nombreArchivo` guardaba **todos los nombres pegados con « + »** y el molde lo capa en 260
+caracteres. Con un archivo, o con tres, cabía. Con los **quince** de los tres estadísticos de un día
+—que es el caso normal desde `§ADR-112`— se pasaba, y el guardado moría entero con un error de
+validación sobre un campo que no tiene nada que ver con la medida.
+
+⚠️ Pero el tope no era el problema: era la **forma**. El rastro existe para contestar «¿de qué
+archivo salió este número?» dentro de seis meses, y una lista de nombres convertida en un texto hay
+que despiezarla para responder eso. Subir el tope habría dejado el defecto puesto y más grande.
+
+### Decisión
+
+`archivos: string[]` guarda los nombres **uno a uno**, y `nombreArchivo` pasa a ser el rótulo corto
+cuando son muchos. Es aditivo: con un solo archivo no cambia nada.
+
+### Consecuencias
+
+- `2.615` pruebas. La nueva comprueba primero que quince nombres pegados **pasan** de 260 —si eso
+  deja de ser cierto, la prueba deja de probar algo— y luego que el rastro conserva los quince.
+- ⚠️ **Tercer fallo del mismo tipo hoy** (`§ADR-109`, `§ADR-111`): un molde que nadie había
+  ejercitado con el caso real. Los tres se cazaron pulsando «Guardar» de verdad, no leyendo código.
+
+---

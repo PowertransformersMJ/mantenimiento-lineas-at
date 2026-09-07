@@ -370,6 +370,17 @@ export const CargaDeCargabilidad = Base.extend({
   /** Qué columna del archivo se leyó como qué campo. Sin esto no se audita nada. */
   mapeo: z.record(z.string(), z.string()),
   /** Qué líneas y qué días tocó. Permite deshacer y saber qué pisó. */
+  /**
+   * LOS ARCHIVOS, uno a uno (`99 §ADR-113`).
+   *
+   * ⚠️ `nombreArchivo` era una CADENA con todos los nombres pegados, y con 15
+   * archivos —los tres estadísticos de un día— se pasaba del tope de 260 y el
+   * guardado moría entero. Pero el problema no era el tope: era la forma. Una
+   * lista de nombres es una lista, y pegarlos con « + » convierte el rastro de
+   * procedencia —«¿de qué archivo salió este número?»— en un texto que hay que
+   * despiezar. Ahora `nombreArchivo` es el rótulo corto y esto es el rastro.
+   */
+  archivos: z.array(z.string().min(1).max(200)).max(100).optional(),
   lineas: z.array(z.string().max(120)).max(500),
   /**
    * Qué estadísticos traía la carga (`99 §ADR-112`).

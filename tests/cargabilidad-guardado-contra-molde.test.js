@@ -86,6 +86,25 @@ describe('LO QUE SE ESCRIBE CABE EN SU MOLDE', () => {
     assert.equal(salida.maxima_pct, undefined);
   });
 
+  test('⚠️ el rastro admite MUCHOS archivos: 15 nombres pegados no caben en el rótulo', () => {
+    // Con los tres estadísticos de un día llegan 15 archivos, y pegar sus
+    // nombres con « + » pasaba de los 260 caracteres del rótulo y tumbaba el
+    // guardado ENTERO. Los nombres van en `archivos`, que es una lista.
+    const nombres = Array.from({ length: 15 }, (_, i) => `MAGNITUD_${i}_max-20260101.csv`);
+    assert.ok(nombres.join(' + ').length > 260, 'si esto deja de ser cierto, la prueba ya no prueba nada');
+    const doc = CargaDeCargabilidad.parse({
+      id: '6f1f5e2e-2a3c-4f8e-9a1d-0b7c2d3e4f50',
+      orgId: ORG, creadoEn: AHORA, creadoPor: UID, revision: 0,
+      nombreArchivo: '15 archivos de SCADA', archivos: nombres,
+      filasDelArchivo: 24, registrosGuardados: 24, filasConError: 0,
+      mapeo: {}, lineas: ['LN-627'], estadisticos: ['maximo', 'promedio'],
+      desde: '2026-01-01', hasta: '2026-01-01',
+      cargadoEn: AHORA, cargadoPor: UID, estado: 'guardada',
+    });
+    assert.equal(doc.archivos.length, 15, 'el rastro conserva CADA archivo');
+    assert.deepEqual(doc.estadisticos, ['maximo', 'promedio']);
+  });
+
   test('el rastro de la carga SÍ lleva UUID: no es una medición, es un acto', () => {
     const doc = CargaDeCargabilidad.parse({
       id: '6f1f5e2e-2a3c-4f8e-9a1d-0b7c2d3e4f50',

@@ -455,7 +455,13 @@ export default function Cargabilidad({
         dias: dias as unknown as Record<string, unknown>[],
         resumenes: resumenes as unknown as Record<string, unknown>[],
         carga: {
-          nombreArchivo: cargado.nombre, hoja: cargado.hoja,
+          // ⚠️ El rótulo se acorta cuando son muchos; los nombres van en
+          // `archivos`, que es donde vive el rastro (`99 §ADR-113`).
+          nombreArchivo: cargado.nombre.length <= 260
+            ? cargado.nombre
+            : `${nf(cargado.porArchivo.length)} archivos de SCADA`,
+          archivos: cargado.porArchivo.map((a) => a.nombre),
+          hoja: cargado.hoja,
           huella: bytes ? await huellaDe(bytes) : undefined,
           filasDelArchivo: lote?.resumen?.filas ?? registros.length,
           registrosGuardados: registros.length,

@@ -71,6 +71,8 @@ export interface LoQueSeGuarda {
     nombreArchivo: string; hoja?: string; huella?: string;
     filasDelArchivo: number; registrosGuardados: number; filasConError: number;
     mapeo: Record<string, string>; lineas: string[];
+    /** Los archivos, uno a uno. El rastro de procedencia (`99 §ADR-113`). */
+    archivos?: string[];
     /** Qué estadísticos traía. Se escribe al crear: la carga es inmutable. */
     estadisticos?: string[];
     desde?: string; hasta?: string;

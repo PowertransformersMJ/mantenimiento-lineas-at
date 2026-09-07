@@ -198,6 +198,7 @@ Guarda `research-archive/` (crudos de deliberación: comités, consejos externos
 | `ADR-110` | 2026-09-07 | El resumen diario negaba el dato que resumía: «0 de 24 · sin medida» sobre un día entero de medidas | — (visto al verificar el primer día) |
 | `ADR-111` | 2026-09-07 | Una reescritura no reescribe la partida de nacimiento: «reemplaza, no duplica» tampoco funcionaba | — (apareció al regenerar el resumen) |
 | `ADR-112` | 2026-09-07 | Máximo, promedio e instantáneo: tres estadísticos de la misma hora, y ninguno se adivina | mapa con 6 agentes · elección del Ingeniero |
+| `ADR-113` | 2026-09-07 | Una lista de archivos es una lista: el rastro de procedencia dejó de ser una cadena pegada | — (apareció al guardar los 15) |
 
 > Toda decisión cara de revertir entra aquí con su ADR y su crudo enlazado. Si hubo comité o consejo
 > externo y el crudo no está archivado, la tarea **no está cerrada** (`CLAUDE.md §G.4`).
