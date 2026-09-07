@@ -114,7 +114,10 @@ describe('los dos trabajadores leen la marca', () => {
     }
     for (const ruta of ['evidencias/wrangler.toml', 'usuarios/wrangler.toml']) {
       const t = readFileSync(fileURLToPath(new URL('../' + ruta, import.meta.url)), 'utf-8');
-      assert.match(t, /REVOCADOS_ANTES_DE = ""/, `${ruta} no declara la marca`);
+      // Vacía antes del corte; desde el 2026-09-07 lleva el instante del corte
+      // (ISO o segundos). Lo que se vigila es que la variable EXISTA en [vars]:
+      // sin ella los tokens viejos entrarían durante una hora.
+      assert.match(t, /REVOCADOS_ANTES_DE = "(|\d{4}-\d{2}-\d{2}T[\d:]+Z|\d{9,})"/, `${ruta} no declara la marca`);
     }
   });
 });

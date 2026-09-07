@@ -71,15 +71,15 @@
 
 | # | Qué | Por qué importa |
 |---|---|---|
-| **TODO-97** 🔴 ⬅️ **EL CORTE DE ACCESO** (`§ADR-100`) | Construido y verde, **sin desplegar**. Runbook en `usuarios/README.md §9`. Pasos 0-8 ✅ (registro CERRADO · Workers · propietario ARRANCADO · web SIN Google · reglas publicadas · **Google INHABILITADO**). Faltan 9-10: sign-up OFF · cuenta de servicio · Add user · apagar Google | Sin el paso 0 nada arranca |
+| **TODO-97** 🔴 ⬅️ **EL CORTE DE ACCESO** (`§ADR-100`) | Construido y verde, **sin desplegar**. Runbook en `usuarios/README.md §9`. Pasos 0-9 ✅ (registro CERRADO · Workers · propietario ARRANCADO · web sin Google · reglas · Google OFF · **3 cuentas viejas BORRADAS con lápida**). Falta 10: sign-up OFF · cuenta de servicio · Add user · apagar Google | Sin el paso 0 nada arranca |
 | **TODO-57** | **La FICHA se ESCRIBE y está EN PRODUCCIÓN** (`99 §ADR-030`). Falta **el DATO**: ¿planos y actas, o hay que levantarlo? Los seis: rotura · altura libre · altura del amarre · capacidad longitudinal · fases amarradas · tipo de apoyo | **EL CUELLO DE BOTELLA REAL.** Al meter el primero saldrán «REVISAR»: no son averías nuevas |
 | **TODO-81** | **Descargar el acta de la carga del 22-08** desde Cargar: único sitio donde queda escrito POR QUÉ se decidió cada cosa | Se pierde al recargar |
 | **TODO-82/83** | **Dos suyas sobre el clima.** ① ¿FASE 2 del pronóstico (`§ADR-057`): franja mañana/tarde y sensación térmica? ② ¿Dato FINO por extremos (`§ADR-064`)? Las capas de 2 km tocan 3 celdas y salen por PROMEDIO | Sensación de **40 °C** con aire a 32,5 |
 | **TODO-88** | **¿Se junta otra vez el eje del tiempo?** El pronóstico está en el atlas con mes, día y hora (`§ADR-086`) pero en su propia FAMILIA. ¿Lo quiere junto a lo medido en **una sola tira**? | Medido y modelo juntos hacían «ganar el hecho» |
 | **TODO-80** | **¿Qué tope de puesta a tierra rige?** El campo existe (`ADR-052`); declararlo basta. Sin decisión suya siguen **10 Ω** | Con 18 Ω medidos, 10 Ω dice «revisar» y 25 Ω «cumple» |
-| **TODO-90** | **La capa de rayos que piden las NORMAS** (rayos/km²/año, RETIE e IEEE 1243). Espera una **cuenta Earthdata gratuita** (`99 §ADR-079`) | La horaria dice CUÁNDO hubo tormenta; ésta entra en el cálculo de salidas por descarga |
+| **TODO-90** | **La capa de rayos que piden las NORMAS** (rayos/km²/año, RETIE e IEEE 1243). Espera una **cuenta Earthdata gratuita** (`99 §ADR-079`) | La horaria dice CUÁNDO hubo tormenta; ésta entra en el cálculo de salidas |
 | **TODO-89** ⬅️ **ORDEN SUYA** | **Encender el despliegue automático.** Hecho y comprobado; faltan los dos secretos de Cloudflare, y las llaves no pasan por el chat (`99 §ADR-077`). ⚠️ Al encenderlo **nadie mirará el mapa antes de publicar** | Último eslabón de «cada 4 h» |
-| **TODO-72** | **¿Autorización del IGAC para sus ortoimágenes?** Cubren esto a **3 m** y **10 cm**, contra los 10 m de Sentinel-2 (`99 §ADR-040`) | Única vía a más resolución real |
+| **TODO-72** | **¿Autorización del IGAC para sus ortoimágenes?** Cubren esto a **3 m** y **10 cm**, contra los 10 m de Sentinel-2 (`99 §ADR-040`) | Única vía a más resolución |
 | **TODO-71** | **¿Se cierran las hipótesis con dato real?** El **viento** (`ADR-035`) y los **1.000 W/m²**. Los cuatro atlas (`ADR-055`) los ACERCAN y NO los cierran: un año de medias horarias no valida un extremo de diseño | De ahí salen los tiros y la capacidad |
 | **TODO-59** | **Qué ficha se le pide a CADA tipología.** La línea mezcla 4 y el molde es de POSTE (`40 §8.3`) | Son 3 o 4 formularios |
 | **TODO-33** | **50 % o 25 % de RTS** como tope de tiro. Ya no hay dos dueños (`§ADR-051`): falta decidir CUÁL rige | Factor 2 sobre un dictamen |
