@@ -1395,11 +1395,15 @@ function GraficasPorFase({ registros }: { registros: Registro[] }) {
   // Los tres tonos son FIJOS y con su rótulo al lado: un color sin leyenda es
   // una raya de adorno, y aquí hay que poder decir cuál fase se salió.
   //
-  // ⚠️ Y TIENEN QUE DISTINGUIRSE ENTRE SÍ. El primer intento usó el acento de la
-  // casa y un segundo marrón: en pantalla, dos de las tres fases eran la misma
-  // raya. Tres familias de color distintas —tierra, verde y azul— y ninguna de
-  // ellas es un rojo, que en este sistema significa «fuera de banda».
-  const TINTA = ['#9a5b1b', '#2f6f4f', '#2a5d8f'];
+  // ⚠️ LOS COLORES LOS FIJÓ EL INGENIERO (2026-09-07): primera fase AZUL,
+  // segunda NARANJA, tercera VERDE — la misma convención de su análisis en
+  // Python, para que una figura de aquí y una de allá se lean sin volver a
+  // mirar la leyenda. Antes eran otros tres, y dos de ellos se parecían.
+  //
+  // Aviso dado y decisión suya: el naranja está cerca del color con el que este
+  // sistema pinta «fuera de banda». Aquí no significa nada de eso — es la fase
+  // B y punto — pero conviene saberlo al mirar dos pantallas seguidas.
+  const TINTA = ['#1f77b4', '#ff7f0e', '#2ca02c'];
 
   const conDato = GRUPOS
     .map((g) => ({ ...g, presentes: g.cols.filter(([, c]) => registros.some((x) => x[c] != null)) }))
