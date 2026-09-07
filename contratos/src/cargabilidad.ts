@@ -253,8 +253,24 @@ export const ResumenDiarioCargabilidad = Base.extend({
   linea: z.string().min(1).max(120),
   lineaId: Id.nullish(),
   fecha: DiaIso,
-  /** Cuántas horas del día traen medida. De 0 a 24; el resto son huecos. */
+  /**
+   * Cuántas horas del día traen **PORCENTAJE**. De 0 a 24; el resto son huecos.
+   *
+   * ⚠️ NO es «horas con dato», aunque el tablero lo rotulara así durante tres
+   * decisiones (`99 §ADR-110`). Es la base con la que se ponderan los promedios
+   * del periodo, y por eso su significado no se toca. Lo que el tablero necesita
+   * está en `horasConDato`.
+   */
   horasConMedida: z.number().int().min(0).max(24),
+  /**
+   * Horas con AL MENOS una magnitud medida — corriente, tensión o potencias.
+   *
+   * ⚠️ **Ausente ≠ 0**: un resumen guardado antes de `§ADR-110` no lo dice, y el
+   * motor se cae a `horasConMedida` en vez de suponer que aquel día vino vacío.
+   */
+  horasConDato: z.number().int().min(0).max(24).optional(),
+  /** De qué está hecho ese dato: horas por cada magnitud agregada. */
+  horasPorMagnitud: z.record(z.string(), z.number().int().min(0).max(24)).optional(),
   maxima_pct: z.number().optional(),
   minima_pct: z.number().optional(),
   promedio_pct: z.number().optional(),

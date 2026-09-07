@@ -9458,3 +9458,118 @@ id (corregir reemplaza, no duplica).
   coordenadas—; están en la bóveda y la ruta va al `.gitignore`.
 
 ---
+## ADR-110 · 2026-09-07 · El resumen diario negaba el dato que resumía: «0 de 24 · sin medida» sobre un día entero de medidas
+
+**Deliberación:** lo vi yo al verificar el primer día guardado, y se lo enseñé antes de tocarlo; él
+dijo que sí. Declarado como pendiente desde `§ADR-106/107`, invisible hasta que hubo un día real.
+**Estado:** ✅ en producción, verificado recargando · **NO revisada externamente**.
+
+### Contexto
+
+El primer día guardado —24 h de corriente, tensión y potencias— salía en el tablero del histórico
+como **«0 de 24 horas con dato · sin medida · 0,0 % de cobertura»**. El dato estaba entero en la
+base: lo que fallaba era el resumen.
+
+`resumirDia` contaba **solo las horas con PORCENTAJE**, y el tablero rotulaba ese recuento «horas con
+dato». Y un porcentaje necesita la capacidad nominal de placa para calcularse — que la exportación
+de SCADA del Ingeniero no trae. Así que la única carga real posible producía, por construcción, un
+resumen que decía «aquí no hay nada» sobre 24 horas de medidas.
+
+⚠️ **Un resumen que niega el dato que resume es peor que no tener resumen**: el tablero existe justo
+para poder mirar un año sin abrir 8.760 lecturas, y estaba entrenando al Ingeniero a no fiarse de él.
+
+### Decisión
+
+**1. `horasConMedida` NO se toca.** Cuenta horas con porcentaje, y es la base con la que se ponderan
+los promedios del periodo: cambiarle el significado movería todas las medias ya guardadas. El
+problema no era ese número, era llamarlo «dato».
+
+**2. Se añade el recuento que faltaba:** `horasPorMagnitud` —seis magnitudes, derivadas del catálogo,
+no de una lista a mano— y `horasConDato`, las horas con AL MENOS una. La capacidad nominal queda
+fuera: es una placa declarada, no algo que la línea estuviera haciendo esa hora.
+
+**3. La cobertura pasa a medirse sobre las horas CON DATO.** Un día entero de corriente y tensión es
+100 % de cobertura, no 0 %.
+
+**4. Se enseña la corriente del pico, que ya se calculaba y se guardaba desde `§ADR-093`… y no se
+pintaba en ninguna parte.** Es la cifra que decide el veredicto de ampacidad. También entra como
+columna en la tabla del histórico.
+
+**5. ⚠️ AUSENTE ≠ CERO, otra vez.** Un resumen guardado antes de esta decisión no cuenta magnitudes:
+se cae a `horasConMedida` en vez de suponerle cero —que lo enseñaría vacío, la misma mentira al
+revés— y el tablero **dice cuántos días no lo declaran**.
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| Redefinir `horasConMedida` como «horas con cualquier dato» | Es la ponderación de los promedios: un día de 24 h de tensión pesaría como uno de 24 h de carga. Hay una prueba que lo fija |
+| Calcular el porcentaje dividiendo por la ampacidad | El porcentaje del archivo es contra la capacidad NOMINAL; mezclarlos daría dos cifras con el mismo nombre y distinto denominador (`§ADR-093`) |
+| Rellenar los resúmenes viejos con ceros | Afirmaría que aquellos días vinieron vacíos. No se sabe, y se dice que no se sabe |
+
+### Supuestos que deben ser ciertos — y la señal que diría que dejaron de serlo
+
+| Supuesto | Señal |
+|---|---|
+| El promedio sigue ponderándose por horas con porcentaje | La prueba que lo fija, en rojo |
+| El recuento sigue saliendo del catálogo | La prueba que compara `Object.keys(horasPorMagnitud)` con `MAGNITUDES` |
+| Un resumen viejo se sigue respetando | La prueba de «ausente ≠ cero» |
+
+### Consecuencias
+
+- Motor `0.16.0`. `2.599` pruebas. Verificado en producción **volviendo a guardar el día y
+  recargando**: `24 de 24`, cobertura `100,0 %`, pico `244 A` a las 22:00.
+- ⚠️ Lo que este arreglo NO hace: sin capacidad nominal en el archivo **sigue sin haber porcentaje**,
+  y las cifras de banda (normal/elevada/atención/sobrecarga) siguen a cero con razón. El veredicto
+  que sí se puede firmar es el de ampacidad, y ése ya se ve.
+
+---
+## ADR-111 · 2026-09-07 · Una reescritura no reescribe la partida de nacimiento: «reemplaza, no duplica» tampoco funcionaba
+
+**Deliberación:** apareció al volver a guardar el mismo día para regenerar su resumen (`§ADR-110`).
+**Estado:** ✅ en producción, verificado · **NO revisada externamente**.
+
+### Contexto
+
+La pantalla promete, con esas palabras, que *«volver a cargar el mismo día lo reemplaza, no lo
+duplica»*. Al hacerlo por primera vez de verdad, el guardado devolvió otra vez *«Missing or
+insufficient permissions»*.
+
+Esta vez la regla tenía razón. `noTocaReservados()` deniega cualquier escritura que cambie `orgId`,
+`creadoPor` o `creadoEn` — **un documento cuyo autor y fecha de alta se pueden pisar no sirve para
+responder «¿de dónde salió esto?»**, que es la pregunta que el módulo entero existe para contestar.
+Quien fallaba era el cliente: `guardarCarga` estampaba `creadoEn: ahora` y `creadoPor` en CADA
+guardado, también en el que reemplaza.
+
+Así que la promesa de la pantalla **nunca se pudo cumplir**. Es el tercer fallo en fila del mismo
+camino (`§ADR-108`, `§ADR-109`), y aparece por la misma razón: nadie lo había recorrido entero.
+
+### Decisión
+
+**1. El documento que ya existe conserva su partida de nacimiento.** Se lee antes de escribir —cosa
+que ya se hacía para contar cuántos días se reemplazaban—, y de él se toman `creadoEn` y `creadoPor`.
+
+**2. La corrección se FIRMA como lo que es:** `actualizadoEn`, `actualizadoPor` y `revision + 1`. El
+molde ya tenía esos campos y nadie los usaba. Ahora un día dice cuántas veces se ha corregido.
+
+**3. También el resumen**, que es el otro documento que se reescribe en cada carga y no se estaba
+ni leyendo.
+
+### Supuestos que deben ser ciertos — y la señal que diría que dejaron de serlo
+
+| Supuesto | Señal |
+|---|---|
+| La regla sigue protegiendo los reservados | La prueba que reescribe con otro `creadoEn` y espera que falle |
+| El cliente sigue conservándolos | La misma prueba, desde el otro lado: la reescritura legítima que debe pasar |
+
+### Consecuencias
+
+- `68` pruebas de reglas. Verificado en producción: *«1 de esos días YA estaban y se han reemplazado
+  con lo que trae este archivo»*.
+- ⚠️ **Y una lección de método que duele más que el fallo** (`30 · L-83`): yo había escrito la prueba
+  «volver a cargar el mismo día lo REEMPLAZA» y la había visto en verde. Pasaba porque reescribía
+  con **el mismo instante**, así que el `diff` de la regla no veía nada que proteger. Una prueba que
+  reescribe con los mismos valores no prueba una reescritura: prueba que escribir dos veces lo mismo
+  no molesta a nadie.
+
+---

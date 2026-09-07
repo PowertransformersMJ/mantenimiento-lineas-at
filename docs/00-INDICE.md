@@ -195,6 +195,8 @@ Guarda `research-archive/` (crudos de deliberación: comités, consejos externos
 | `ADR-107` | 2026-09-07 | Las gráficas dejan de ser solo del porcentaje: una por magnitud, con sus fases, y el eje que no empieza en cero | — (lo vio él en producción) |
 | `ADR-108` | 2026-09-07 | El documento ausente tumbaba la regla: «no tienes permiso» donde la verdad era «no existe», y el guardado no funcionó nunca | — (reproducido en el emulador) |
 | `ADR-109` | 2026-09-07 | El molde contradecía a su propio comentario: identidad determinista y los nulos que el motor escribe a propósito | — (apareció al retirar el §108) |
+| `ADR-110` | 2026-09-07 | El resumen diario negaba el dato que resumía: «0 de 24 · sin medida» sobre un día entero de medidas | — (visto al verificar el primer día) |
+| `ADR-111` | 2026-09-07 | Una reescritura no reescribe la partida de nacimiento: «reemplaza, no duplica» tampoco funcionaba | — (apareció al regenerar el resumen) |
 
 > Toda decisión cara de revertir entra aquí con su ADR y su crudo enlazado. Si hubo comité o consejo
 > externo y el crudo no está archivado, la tarea **no está cerrada** (`CLAUDE.md §G.4`).

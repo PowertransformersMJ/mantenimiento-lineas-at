@@ -17,9 +17,11 @@
    `.xlsx` **o CSV de SCADA tal como sale** —varios a la vez, la red entera dentro—, salen todas las
    magnitudes con sus fases y el veredicto contra **ampacidad**. Sin archivo se enseña la
    ESTRUCTURA — **jamás cifras de muestra**, y **un hueco no es un cero**.
-   ✅ **07-09: PRIMER DÍA GUARDADO** (2026-01-01, 24 h) y **comprobado recargando**. Veredicto vivo:
-   **34,0 % · 244 A ÷ 718 A**, pico a las 22:00. Antes NUNCA guardó (`§ADR-108/109`).
-   **Lo que no sobrevive a un `F5` no está guardado.**
+   ✅ **07-09: PRIMER DÍA GUARDADO** (2026-01-01, 24 h), reemplazable y **comprobado recargando**:
+   `24 de 24` horas, cobertura `100 %`, pico **244 A** a las 22:00 → **34,0 % de la ampacidad**.
+   Antes NUNCA guardó, y eran CUATRO fallos en fila en el mismo camino porque nadie lo había
+   recorrido entero (`§ADR-108..111`). **Lo que no sobrevive a un `F5` no está guardado.**
+   ⚠️ Sin capacidad nominal en el archivo **no hay porcentaje**: las bandas siguen a cero con razón.
    ⚠️ Falta lo SUYO: ratificar los **718 A** (`TODO-93`).
 0b. 🔐 **ACCESO VIVO** (`§ADR-100/101/104`): DOS cuentas —propietario y espectador de solo
    lectura—; las demás se crean desde **Personas**.
@@ -87,7 +89,6 @@
 | **TODO-98** 🔴 **MÍA** | **El recibo de la contraseña se auto-firma:** se escribe en su propia ficha desde la consola y **se salta el muro del cambio obligatorio**. Con ello: `ultimoAcceso` auto-declarado y `/limpieza-inicial` sin freno al rechazar. Crudo: `2026-09-06-espectador-solo-lectura/` | Un muro que se salta no es un muro |
 | **TODO-95** 🔴 ⬅️ **SUYA, URGENTE** | **La FICHA del fabricante del conductor.** Trae de golpe ampacidad, temperatura de operación y módulo elástico (`§ADR-098/099`). **Sin ella la ampacidad se publica pero NO SE FIRMA**, y el 6.300 vs 7.000 del módulo sigue decidiendo un RETIE | 718 A hoy · **611 A** a los 75 °C que dan siete fichas |
 | **TODO-93** ⬅️ **SUYA** | **Ratificar la condición** de ampacidad (hoy ADOPTADA: 718 A) | Sin firma es referencia |
-| **TODO-99** 🔴 **MÍA** | **El resumen diario solo resume el PORCENTAJE:** un día con 24 h de corriente y tensión sale «0 de 24 · sin medida» en el tablero (`§ADR-106/107`, ahora visible) | Miente sobre lo que resume |
 | **TODO-44/34** | Alerta de gasto en Cloudflare · **nada tiene copia**: la bóveda sin remoto **y Firestore sin punto de recuperación** (`§ADR-089`) | Un fallo de disco se lleva la bóveda; un comando, la base |
 | **TODO-61/54/68** | ¿App Check? · ¿linter de frescura? · ¿cazar un ADR repetido? Las dos últimas tocan el KERNEL | Las TRES son TUYAS |
 | **TODO-76** | **¿Se guarda si un apoyo es autosoportado / retenido?** No cabe en el modelo: iría por APOYO (26 declaraciones) | Cierra media incógnita de la capacidad longitudinal |

@@ -724,7 +724,8 @@ function HistoricoGuardado({ sesion, lineaAbierta }: {
           <div className="tabla-scroll">
             <table className="tabla">
               <thead><tr><th>Fecha</th><th>Línea</th><th>Máxima</th><th>Promedio</th>
-                <th>Mínima</th><th>Horas con dato</th><th>Sobrecarga</th></tr></thead>
+                <th>Mínima</th><th>Corriente máx.</th><th>Horas con dato</th>
+                <th>Sobrecarga</th></tr></thead>
               <tbody>
                 {filas.slice(0, 60).map((f, i) => (
                   <tr key={i}>
@@ -735,7 +736,10 @@ function HistoricoGuardado({ sesion, lineaAbierta }: {
                     </td>
                     <td>{f.promedio_pct == null ? '—' : `${nf(f.promedio_pct as number, 1)} %`}</td>
                     <td>{f.minima_pct == null ? '—' : `${nf(f.minima_pct as number, 1)} %`}</td>
-                    <td>{nf(f.horasConMedida as number)} de 24</td>
+                    <td>{f.corrienteMaxima_A == null
+                      ? '—'
+                      : `${nf(f.corrienteMaxima_A as number, 0)} A`}</td>
+                    <td>{nf((f.horasConDato ?? f.horasConMedida) as number)} de 24</td>
                     <td>{nf((f.porBanda as Record<string, number>)?.sobrecarga ?? 0)} h</td>
                   </tr>
                 ))}
@@ -771,6 +775,13 @@ function HistoricoGuardado({ sesion, lineaAbierta }: {
 
 type ResumenDiario = Record<string, unknown>;
 
+/** Cómo se llama cada magnitud en la frase de «de qué está hecho el dato». */
+const MAGNITUDES_ROTULO: [string, string][] = [
+  ['cargabilidad_pct', 'porcentaje'], ['corriente_A', 'corriente'], ['tension_kV', 'tensión'],
+  ['potenciaActiva_MW', 'activa'], ['potenciaReactiva_MVAr', 'reactiva'],
+  ['potenciaAparente_MVA', 'aparente'],
+];
+
 function TableroDelHistorico({ resumenes }: { resumenes: ResumenDiario[] }) {
   const t = useMemo(() => resumenDelHistorico(resumenes as never[]), [resumenes]);
   const cifra = (v: number | null | undefined, u = ' %') => (v == null ? '—' : `${nf(v, 1)}${u}`);
@@ -787,8 +798,18 @@ function TableroDelHistorico({ resumenes }: { resumenes: ResumenDiario[] }) {
           s={t.valle ? `${t.valle.linea} · ${t.valle.fecha}` : undefined} />
         <Kpi v={t.lineaMasCargada?.linea ?? '—'} r="Línea con mayor pico"
           s={t.lineaMasCargada?.maximo != null ? `${nf(t.lineaMasCargada.maximo, 1)} %` : undefined} />
+        {/* ⚠️ EL PICO QUE SÍ EXISTE. Un día de solo corriente y tensión no tiene
+            porcentaje —hace falta la capacidad nominal para calcularlo—, así que
+            las tres primeras cifras salen «—» con razón. Pero la corriente del
+            pico sí está, y es la que decide el veredicto de ampacidad: durante
+            tres decisiones se calculó, se guardó y no se enseñó (`99 §ADR-110`). */}
+        {t.picoDeCorriente && (
+          <Kpi v={`${nf(t.picoDeCorriente.A, 0)} A`} r="Corriente del pico"
+            s={`${t.picoDeCorriente.linea} · ${t.picoDeCorriente.fecha}`
+              + (t.picoDeCorriente.hora ? ` · ${t.picoDeCorriente.hora}:00` : '')} />
+        )}
         <Kpi v={nf(t.dias)} r="Días guardados"
-          s={t.diasConMedida !== t.dias ? `${nf(t.diasConMedida)} con medida` : undefined} />
+          s={t.diasConMedida !== t.dias ? `${nf(t.diasConMedida)} con porcentaje` : undefined} />
         <Kpi v={nf(t.lineas)} r="Líneas en el periodo" />
         <Kpi v={nf(t.diasConSobrecarga)} r="Días con sobrecarga"
           s={t.horasDeSobrecarga > 0 ? `${nf(t.horasDeSobrecarga)} h en total` : '≥ 100 %'}
@@ -824,10 +845,25 @@ function TableroDelHistorico({ resumenes }: { resumenes: ResumenDiario[] }) {
           se han reescrito a propósito — ponerles un sello que nadie estampó sería inventarlo.
         </p>
       )}
+      {/* ⚠️ DE QUÉ ESTÁ HECHO EL «DATO». Sin esto, un periodo con 24 h de
+          corriente y tensión pero sin porcentaje se leía como vacío — el tablero
+          negando el dato que resumía (`99 §ADR-110`). */}
+      {t.horasConDato > 0 && (
+        <p className="fine">
+          Las <b>{nf(t.horasConDato)}</b> horas con dato traen:{' '}
+          {MAGNITUDES_ROTULO.filter(([m]) => (t.porMagnitud[m] ?? 0) > 0)
+            .map(([m, rot]) => `${rot} ${nf(t.porMagnitud[m])} h`).join(' · ') || '—'}.
+          {t.diasSinRecuentoPorMagnitud > 0 && (
+            <> {nf(t.diasSinRecuentoPorMagnitud)} día(s) se guardaron antes de que el resumen
+            contara magnitudes y no dicen de qué eran: no se les supone cero.</>
+          )}
+        </p>
+      )}
       <p className="fine">
         Del <b>{t.desde ?? '—'}</b> al <b>{t.hasta ?? '—'}</b>. La cobertura se mide contra los días
         que HAY guardados, no contra el calendario que usted pidió: tres días completos son 100 %,
-        no «el 10 % de un mes».
+        no «el 10 % de un mes». Y cuenta las horas con <b>cualquier</b> magnitud, no solo las que
+        traen porcentaje.
       </p>
       <Sello />
     </div>

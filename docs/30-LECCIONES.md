@@ -112,6 +112,7 @@
 - `L-47` · Un número de ADR duplicado no lo caza ningún gate, y la historia de decisiones se FUSIONA, nunca se elige
 - `L-51` · «Hecho» es lo que se VE en producción, no lo que está verde en el repositorio
 - `L-52` · Un invariante que la prueba ENUNCIA y la máquina cumple por velocidad no está garantizado
+- `L-83` · Una prueba que reescribe con los MISMOS valores no prueba una reescritura
 - `L-61` · La prudencia que borra la señal no es prudencia: separa el error ABSOLUTO del RELATIVO
 - `L-62` · Una pantalla nueva hereda la doctrina del sitio donde se monta, no solo su aspecto
 - `L-68` · Un guardián que compara contra un fixture NO cruza la frontera: tiene que recorrer la tubería
@@ -439,6 +440,21 @@
   contra `dist/`) y `32 · L-44` (un tercer estado que la pantalla aplana se lee como aprobado).
   Pagada el 17-08-2026 en `TODO-69`; el despliegue que faltaba se hizo el mismo día y producción pasó
   a servir el contrato 0.5.0, verificado en el pie de la página.
+
+### L-83 · Una prueba que reescribe con los MISMOS valores no prueba una reescritura
+- **Síntoma:** escribí `volver a cargar el mismo día lo REEMPLAZA, no lo duplica ni se cae`, la vi en
+  verde, y en producción el segundo guardado del mismo día seguía fallando con *«Missing or
+  insufficient permissions»*. La regla protege `creadoEn`/`creadoPor` con un `diff().affectedKeys()`;
+  mi prueba reescribía con **el mismo instante**, así que el `diff` no veía nada y no había nada que
+  denegar. La prueba pasaba por no ejercitar lo que decía ejercitar.
+- **Causa:** el fixture reusaba un `base()` con la fecha fija —cómodo, legible— mientras el código
+  real estampa `new Date().toISOString()` en cada guardado. La diferencia entre la prueba y
+  producción **era justo el campo bajo prueba**.
+- **Regla:** cuando lo que se prueba es un CAMBIO, el segundo estado tiene que **diferir en el campo
+  que la regla vigila**. Y si el código real deriva ese valor del reloj, la prueba lo cambia a mano:
+  un fixture que no varía lo que producción varía ensaya otro camino (`33 · L-34`, misma familia).
+- **Emparenta con** `L-52` —el invariante que la prueba enuncia y nadie hace cumplir— y con
+  `99 §ADR-111`, donde se cazó.
 
 ### L-52 · Un invariante que la prueba ENUNCIA y la máquina cumple por velocidad no está garantizado
 

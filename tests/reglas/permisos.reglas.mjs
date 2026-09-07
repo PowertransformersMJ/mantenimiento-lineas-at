@@ -803,8 +803,50 @@ describe('GUARDAR UNA CARGA: el camino completo, sobre base vacía', () => {
     await assertSucceeds(setDoc(doc(db, 'cargabilidad_dias', id),
       base({ id, linea: 'LN-627', fecha: '2026-01-01', horas: {}, cargaId: 'c1' })));
     await assertSucceeds(getDoc(doc(db, 'cargabilidad_dias', id)));   // ahora SÍ existe
+    // La corrección conserva la partida de nacimiento y firma la ACTUALIZACIÓN.
+    await assertSucceeds(setDoc(doc(db, 'cargabilidad_dias', id), base({
+      id, linea: 'LN-627', fecha: '2026-01-01', horas: {}, cargaId: 'c2',
+      revision: 1, actualizadoEn: '2026-01-02T10:00:00.000Z', actualizadoPor: UID,
+    })));
+  });
+
+  test('⚠️ y la reescritura NO puede pisar `creadoEn` — el fallo que costó una tarde', async () => {
+    // El repositorio estampaba `creadoEn: ahora` en CADA guardado, así que la
+    // segunda carga del mismo día se denegaba siempre, con el mismo mensaje de
+    // permisos que no dice nada (`99 §ADR-111`). La prueba anterior no lo cazaba
+    // porque reescribía con la MISMA hora: sin un instante distinto, el `diff`
+    // de la regla no ve nada que proteger. Aquí se reescribe con otra.
+    const db = como(UID, claims('propietario'));
+    const id = `${ORG}__ln-627__-__2026-01-02`;
     await assertSucceeds(setDoc(doc(db, 'cargabilidad_dias', id),
-      base({ id, linea: 'LN-627', fecha: '2026-01-01', horas: {}, cargaId: 'c2' })));
+      base({ id, linea: 'LN-627', fecha: '2026-01-02', horas: {}, cargaId: 'c1' })));
+
+    const conOtraFechaDeAlta = {
+      ...base({ id, linea: 'LN-627', fecha: '2026-01-02', horas: {}, cargaId: 'c2' }),
+      creadoEn: '2026-06-30T23:59:59.000Z',
+    };
+    await assertFails(setDoc(doc(db, 'cargabilidad_dias', id), conOtraFechaDeAlta));
+
+    // Ni el autor: quien corrige un día no se convierte en quien lo trajo.
+    await assertFails(setDoc(doc(db, 'cargabilidad_dias', id), {
+      ...base({ id, linea: 'LN-627', fecha: '2026-01-02', horas: {}, cargaId: 'c3' }),
+      creadoPor: 'otro-uid',
+    }));
+  });
+
+  test('lo mismo en el RESUMEN: es el otro documento que se reescribe cada carga', async () => {
+    const db = como(UID, claims('propietario'));
+    const id = `${ORG}__ln-627__2026-01-03`;
+    await assertSucceeds(setDoc(doc(db, 'cargabilidad_resumenes', id),
+      base({ id, linea: 'LN-627', fecha: '2026-01-03' })));
+    await assertFails(setDoc(doc(db, 'cargabilidad_resumenes', id), {
+      ...base({ id, linea: 'LN-627', fecha: '2026-01-03' }),
+      creadoEn: '2026-06-30T23:59:59.000Z',
+    }));
+    await assertSucceeds(setDoc(doc(db, 'cargabilidad_resumenes', id), base({
+      id, linea: 'LN-627', fecha: '2026-01-03', horasConDato: 24,
+      revision: 1, actualizadoEn: '2026-01-04T10:00:00.000Z', actualizadoPor: UID,
+    })));
   });
 
   test('y el editor sigue sin poder guardar: esto lo escribe un administrador', async () => {

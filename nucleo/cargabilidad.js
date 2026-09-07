@@ -132,6 +132,17 @@ export const FASES_DE = Object.entries(CAMPOS).reduce((acc, [campo, d]) => {
   return acc;
 }, {});
 
+/**
+ * LAS MAGNITUDES AGREGADAS — las seis que puede traer una hora, sin sus fases.
+ *
+ * Derivado del catálogo, no escrito: son los campos numéricos que NO son la
+ * fase de otro. `capacidadNominal_A` queda fuera a propósito — es una capacidad
+ * DECLARADA, no algo que la línea estuviera haciendo esa hora, y contarla como
+ * medida haría parecer con dato un día que solo trae la placa del conductor.
+ */
+export const MAGNITUDES = Object.keys(CAMPOS).filter(
+  (c) => CAMPOS[c].tipo === 'numero' && !CAMPOS[c].de && c !== 'capacidadNominal_A');
+
 export const CAMPOS_REQUERIDOS = Object.keys(CAMPOS).filter((k) => CAMPOS[k].requerido);
 
 /**
@@ -1046,10 +1057,28 @@ export function resumirDia(dia) {
   const conAmperios = Object.entries(dia?.horas ?? {})
     .filter(([, v]) => Number.isFinite(v.corriente_A));
 
+  // ⚠️ QUÉ TIENE ESTE DÍA, MAGNITUD POR MAGNITUD (`99 §ADR-110`).
+  //
+  // `horasConMedida` cuenta SOLO las horas con porcentaje, y así se queda: es la
+  // base con la que se ponderan los promedios del periodo, y cambiarle el
+  // significado movería todas las medias guardadas. Pero durante tres
+  // decisiones ése fue el ÚNICO recuento que el resumen llevaba, y el tablero lo
+  // rotulaba «horas con dato». Resultado: un día con 24 horas de corriente y
+  // tensión salía **«0 de 24 · sin medida»** — el resumen negando el dato que
+  // resumía. Se cuenta cada magnitud por separado, y aparte las horas con
+  // CUALQUIERA de ellas, que es lo que la palabra «dato» significa.
+  const todasLasHoras = Object.entries(dia?.horas ?? {});
+  const horasPorMagnitud = {};
+  for (const m of MAGNITUDES) {
+    horasPorMagnitud[m] = todasLasHoras.filter(([, v]) => Number.isFinite(v?.[m])).length;
+  }
   const base = {
     linea: dia?.linea ?? null,
     fecha: dia?.fecha ?? null,
     horasConMedida: horas.length,
+    horasPorMagnitud,
+    /** Horas con AL MENOS una magnitud. Es lo que el tablero debe llamar «dato». */
+    horasConDato: todasLasHoras.filter(([, v]) => MAGNITUDES.some((m) => Number.isFinite(v?.[m]))).length,
     porBanda: bandasVacias(),
     porNaturaleza: { declarada: 0, derivada: 0, sinDeclarar: 0 },
     // Siempre presente, cero incluido: ausente significa «resumen viejo», y
@@ -1234,6 +1263,18 @@ function conMedida(resumenes) {
     .sort((a, b) => String(a.fecha).localeCompare(String(b.fecha)));
 }
 
+/**
+ * HORAS CON DATO de un resumen, con respaldo para los guardados ANTES de que el
+ * resumen contara magnitudes (`99 §ADR-110`).
+ *
+ * ⚠️ Ausente ≠ cero, una vez más: un resumen viejo no dice cuántas horas traían
+ * corriente o tensión, y suponer cero lo enseñaría vacío. Se cae a
+ * `horasConMedida`, que es lo único que ese documento llegó a afirmar.
+ */
+function horasDeDato(s) {
+  return s?.horasConDato == null ? (Number(s?.horasConMedida) || 0) : (Number(s.horasConDato) || 0);
+}
+
 /** Promedio ponderado por horas medidas. `null` si no hay ninguna. */
 function promedioPonderado(filas) {
   let suma = 0; let horas = 0;
@@ -1257,7 +1298,7 @@ function promedioPonderado(filas) {
  * @param {string|null} [linea]
  * @returns {{fecha: string, linea: string, maxima_pct: number|null,
  *            promedio_pct: number|null, minima_pct: number|null,
- *            horasConMedida: number, lineas: number}[]}
+ *            horasConMedida: number, horasConDato: number, lineas: number}[]}
  */
 export function serieDiaria(resumenes, linea = null) {
   const filas = conMedida(resumenes).filter((s) => !linea || String(s.linea) === String(linea));
@@ -1265,7 +1306,7 @@ export function serieDiaria(resumenes, linea = null) {
     return filas.map((s) => ({
       fecha: String(s.fecha), linea: String(s.linea),
       maxima_pct: r(s.maxima_pct), promedio_pct: r(s.promedio_pct), minima_pct: r(s.minima_pct),
-      horasConMedida: Number(s.horasConMedida) || 0, lineas: 1,
+      horasConMedida: Number(s.horasConMedida) || 0, horasConDato: horasDeDato(s), lineas: 1,
     }));
   }
   const porDia = new Map();
@@ -1283,6 +1324,7 @@ export function serieDiaria(resumenes, linea = null) {
       promedio_pct: promedioPonderado(dia),
       minima_pct: minimos.length ? r(Math.min(...minimos)) : null,
       horasConMedida: dia.reduce((a, s) => a + (Number(s.horasConMedida) || 0), 0),
+      horasConDato: dia.reduce((a, s) => a + horasDeDato(s), 0),
       lineas: dia.length,
     };
   });
@@ -1300,7 +1342,8 @@ export function serieDiaria(resumenes, linea = null) {
  *            promedio: number|null,
  *            lineaMasCargada: {linea: string, maximo: number|null}|null,
  *            diasConSobrecarga: number, horasDeSobrecarga: number,
- *            horasConMedida: number, cobertura_pct: number|null,
+ *            horasConMedida: number, horasConDato: number, cobertura_pct: number|null,
+ *            porMagnitud: Record<string, number>, diasSinRecuentoPorMagnitud: number,
  *            porBanda: Record<string, number>,
  *            porNaturaleza: {declarada: number, derivada: number, sinDeclarar: number},
  *            diasSinSello: number, diasSinAmperios: number, diasConCorriente: number,
@@ -1316,7 +1359,9 @@ export function resumenDelHistorico(resumenes) {
     pico: null, valle: null, promedio: null,
     lineaMasCargada: null,
     diasConSobrecarga: 0, horasDeSobrecarga: 0,
-    horasConMedida: 0, cobertura_pct: null,
+    horasConMedida: 0, horasConDato: 0, cobertura_pct: null,
+    porMagnitud: Object.fromEntries(MAGNITUDES.map((m) => [m, 0])),
+    diasSinRecuentoPorMagnitud: 0,
     porBanda: bandasVacias(),
     porNaturaleza: { declarada: 0, derivada: 0, sinDeclarar: 0 },
     diasSinSello: 0,
@@ -1331,6 +1376,11 @@ export function resumenDelHistorico(resumenes) {
 
   for (const s of todas) {
     base.horasConMedida += Number(s.horasConMedida) || 0;
+    base.horasConDato += horasDeDato(s);
+    // De qué está hecho ese «dato». Un resumen viejo no lo dice: se cuenta
+    // aparte en vez de sumarle ceros, que sería afirmar que no traía nada.
+    if (s.horasPorMagnitud == null) base.diasSinRecuentoPorMagnitud += 1;
+    else for (const m of MAGNITUDES) base.porMagnitud[m] += Number(s.horasPorMagnitud[m]) || 0;
     const b = s.porBanda ?? {};
     for (const k of Object.keys(base.porBanda)) base.porBanda[k] += Number(b[k]) || 0;
     if ((Number(b.sobrecarga) || 0) > 0) base.diasConSobrecarga += 1;
@@ -1359,7 +1409,9 @@ export function resumenDelHistorico(resumenes) {
   // ⚠️ La cobertura se mide contra los días QUE HAY, no contra el calendario
   // pedido: un periodo de 30 días con 3 guardados es 3 días al 100 %, no 10 %.
   // Decir lo contrario haría parecer roto un histórico que solo está empezando.
-  base.cobertura_pct = todas.length ? r((base.horasConMedida / (todas.length * 24)) * 100) : null;
+  // ⚠️ Y se mide sobre las horas CON DATO, no sobre las horas con porcentaje
+  // (`§ADR-110`): un día entero de corriente y tensión daba 0 % de cobertura.
+  base.cobertura_pct = todas.length ? r((base.horasConDato / (todas.length * 24)) * 100) : null;
 
   if (!filas.length) return base;
   const alto = filas.reduce((a, b) => (b.maxima_pct > a.maxima_pct ? b : a));
@@ -1382,7 +1434,7 @@ export function resumenDelHistorico(resumenes) {
  * @param {Record<string, any>[]} resumenes
  * @returns {{linea: string, dias: number, diasConMedida: number,
  *            maximo: number|null, promedio: number|null, minimo: number|null,
- *            horasDeSobrecarga: number, horasConMedida: number}[]}
+ *            horasDeSobrecarga: number, horasConMedida: number, horasConDato: number}[]}
  */
 export function porLineaDesdeResumenes(resumenes) {
   const porNombre = new Map();
@@ -1403,6 +1455,7 @@ export function porLineaDesdeResumenes(resumenes) {
       minimo: minimos.length ? r(Math.min(...minimos)) : null,
       horasDeSobrecarga: filas.reduce((a, s) => a + (Number(s.porBanda?.sobrecarga) || 0), 0),
       horasConMedida: filas.reduce((a, s) => a + (Number(s.horasConMedida) || 0), 0),
+      horasConDato: filas.reduce((a, s) => a + horasDeDato(s), 0),
     };
   }).sort((a, b) => (b.maximo ?? -1) - (a.maximo ?? -1));
 }

@@ -373,3 +373,92 @@ describe('lo guardado dice con qué se produjo', () => {
     assert.equal(t.porNaturaleza.declarada, 24);
   });
 });
+
+// ════════════════════════════════════════════════════════════════════════════
+// EL RESUMEN QUE NEGABA EL DATO QUE RESUMÍA (`99 §ADR-110`)
+// ----------------------------------------------------------------------------
+// ⚠️ El Ingeniero guardó su primer día real —24 h de corriente, tensión y
+// potencias— y el tablero del histórico lo enseñó como **«0 de 24 · sin
+// medida»**, con **0,0 % de cobertura**. El dato estaba entero en la base: lo
+// que fallaba era el resumen, que solo contaba las horas con PORCENTAJE y el
+// tablero rotulaba ese recuento «horas con dato». Un porcentaje hace falta la
+// capacidad nominal para calcularlo, y su exportación de SCADA no la trae.
+//
+// `horasConMedida` NO se toca —es la base con la que se ponderan los promedios
+// del periodo—: se añade el recuento que faltaba.
+// ════════════════════════════════════════════════════════════════════════════
+import { MAGNITUDES } from '../nucleo/cargabilidad.js';
+
+/** El día del Ingeniero: corriente, tensión y potencias. Ni un porcentaje. */
+const diaSinPorcentaje = {
+  linea: 'LN-627',
+  fecha: '2026-01-01',
+  horas: Object.fromEntries(Array.from({ length: 24 }, (_, h) => [
+    String(h).padStart(2, '0'),
+    { corriente_A: 160 + h, tension_kV: 69, potenciaActiva_MW: -18, potenciaReactiva_MVAr: -1 },
+  ])),
+};
+
+describe('UN DÍA SIN PORCENTAJE NO ES UN DÍA SIN DATO', () => {
+  test('⚠️ el resumen cuenta 24 horas con dato, y 0 con porcentaje — las dos cosas', () => {
+    const r = resumirDia(diaSinPorcentaje);
+    assert.equal(r.horasConMedida, 0, 'sin capacidad nominal no hay porcentaje: es correcto');
+    assert.equal(r.horasConDato, 24, 'y eso NO significa que el día viniera vacío');
+    assert.equal(r.horasPorMagnitud.corriente_A, 24);
+    assert.equal(r.horasPorMagnitud.tension_kV, 24);
+    assert.equal(r.horasPorMagnitud.potenciaAparente_MVA, 0, 'no vino: no se inventa');
+  });
+
+  test('el recuento sale del CATÁLOGO, no de una lista a mano', () => {
+    const r = resumirDia(diaSinPorcentaje);
+    assert.deepEqual(Object.keys(r.horasPorMagnitud), [...MAGNITUDES]);
+    // La capacidad nominal queda fuera a propósito: es una placa, no una medida.
+    assert.ok(!MAGNITUDES.includes('capacidadNominal_A'));
+  });
+
+  test('⚠️ una hora vacía no cuenta, y un cero SÍ: cero amperios es una medida', () => {
+    const r = resumirDia({
+      linea: 'L', fecha: '2026-01-01',
+      horas: { '00': { corriente_A: 0 }, '01': {}, '02': { corriente_A: 12 } },
+    });
+    assert.equal(r.horasConDato, 2, 'la hora vacía no cuenta; el cero sí');
+    assert.equal(r.horasPorMagnitud.corriente_A, 2);
+  });
+
+  test('el tablero del periodo deja de decir 0 % de cobertura sobre un día entero', () => {
+    const t = resumenDelHistorico([{ ...resumirDia(diaSinPorcentaje), linea: 'LN-627', fecha: '2026-01-01' }]);
+    assert.equal(t.horasConDato, 24);
+    assert.equal(t.cobertura_pct, 100, 'un día completo de medidas es cobertura del 100 %');
+    assert.equal(t.porMagnitud.corriente_A, 24);
+    assert.equal(t.diasConMedida, 0, 'con porcentaje: ninguno, y eso se sigue diciendo');
+  });
+
+  test('⚠️ AUSENTE ≠ CERO: un resumen viejo se cae a horasConMedida, no a 0', () => {
+    // Los resúmenes guardados antes de esta decisión no cuentan magnitudes.
+    // Suponerles cero los enseñaría vacíos, que es la misma mentira al revés.
+    const viejo = {
+      linea: 'LN-627', fecha: '2025-12-31', horasConMedida: 12, maxima_pct: 40,
+      minima_pct: 20, promedio_pct: 30, porBanda: { normal: 12, elevada: 0, atencion: 0, sobrecarga: 0 },
+    };
+    const t = resumenDelHistorico([viejo]);
+    assert.equal(t.horasConDato, 12, 'se respeta lo único que ese documento llegó a afirmar');
+    assert.equal(t.cobertura_pct, 50);
+    assert.equal(t.diasSinRecuentoPorMagnitud, 1, 'y se DICE que no dice de qué eran');
+    assert.equal(t.porMagnitud.corriente_A, 0, 'no se le suman magnitudes que no declaró');
+  });
+
+  test('la serie y el ranking también llevan las horas con dato', () => {
+    const s = { ...resumirDia(diaSinPorcentaje), linea: 'LN-627', fecha: '2026-01-01', maxima_pct: 30 };
+    assert.equal(serieDiaria([s], 'LN-627')[0].horasConDato, 24);
+    assert.equal(porLineaDesdeResumenes([s])[0].horasConDato, 24);
+  });
+
+  test('⚠️ y el promedio del periodo SIGUE ponderándose por las horas con PORCENTAJE', () => {
+    // Si esto cambiara, todas las medias guardadas se moverían sin que nadie lo
+    // pidiera: un día de 24 h de tensión pesaría como uno de 24 h de carga.
+    const a = { linea: 'L', fecha: '2026-01-01', horasConMedida: 2, horasConDato: 24, maxima_pct: 90, minima_pct: 90, promedio_pct: 90, porBanda: { normal: 0, elevada: 0, atencion: 2, sobrecarga: 0 } };
+    const b = { linea: 'L', fecha: '2026-01-02', horasConMedida: 22, horasConDato: 22, maxima_pct: 10, minima_pct: 10, promedio_pct: 10, porBanda: { normal: 22, elevada: 0, atencion: 0, sobrecarga: 0 } };
+    const t = resumenDelHistorico([a, b]);
+    assert.equal(t.promedio, 16.67, 'ponderado por horas con porcentaje: 2 y 22, no 24 y 22');
+  });
+});

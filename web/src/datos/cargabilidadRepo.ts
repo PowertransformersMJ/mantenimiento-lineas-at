@@ -128,27 +128,66 @@ export async function guardarCarga(
   });
   await setDoc(doc(db, CARGAS, cargaId), docCarga);
 
-  // Cuántos días de éstos YA estaban. Se cuenta ANTES de escribir, porque
-  // después es imposible distinguir lo nuevo de lo reemplazado — y el Ingeniero
-  // pidió expresamente poder diferenciarlos.
+  // Cuántos días de éstos YA estaban. Se lee ANTES de escribir por dos razones,
+  // y la segunda costó una tarde:
+  //
+  //   1. el Ingeniero pidió poder distinguir lo NUEVO de lo REEMPLAZADO;
+  //   2. ⚠️ y porque **una reescritura no puede reescribir la partida de
+  //      nacimiento del documento** (`99 §ADR-111`). `creadoEn`, `creadoPor` y
+  //      `orgId` son campos RESERVADOS: `firestore.rules` deniega cualquier
+  //      escritura que los cambie, y con razón —un documento cuyo autor y fecha
+  //      de alta se pueden pisar no sirve para responder «¿de dónde salió
+  //      esto?»—. Este repositorio los estampaba de nuevo en cada guardado, así
+  //      que **la segunda carga del mismo día fallaba SIEMPRE**, con el mismo
+  //      «Missing or insufficient permissions» que no dice nada. Justo lo que la
+  //      pantalla promete que funciona: «volver a cargar el mismo día lo
+  //      reemplaza».
+  //
+  // Lo que sí cambia en una reescritura es `actualizadoEn`/`actualizadoPor` y la
+  // revisión, que es como se sabe que ese día se ha corregido.
   const ids = dias.map((d) => idDelDia(sesion.orgId, String(d.linea), d.circuito as string, String(d.fecha)));
-  const existian = await Promise.all(ids.map(async (id) => (await getDoc(doc(db, DIAS, id))).exists()));
-  const reemplazados = existian.filter(Boolean).length;
+  const idsResumen = resumenes.map(
+    (r) => idDelResumen(sesion.orgId, String(r.linea), String(r.fecha)));
+
+  const previos = new Map<string, Record<string, unknown>>();
+  await Promise.all([
+    ...ids.map(async (id) => {
+      const d = await getDoc(doc(db, DIAS, id));
+      if (d.exists()) previos.set(`${DIAS}/${id}`, d.data() as Record<string, unknown>);
+    }),
+    ...idsResumen.map(async (id) => {
+      const d = await getDoc(doc(db, RESUMENES, id));
+      if (d.exists()) previos.set(`${RESUMENES}/${id}`, d.data() as Record<string, unknown>);
+    }),
+  ]);
+  const reemplazados = ids.filter((id) => previos.has(`${DIAS}/${id}`)).length;
+
+  /** El origen del documento: el suyo si ya existía, éste si nace ahora. */
+  const partida = (col: string, id: string) => {
+    const p = previos.get(`${col}/${id}`);
+    return p
+      ? {
+        creadoEn: p.creadoEn as string, creadoPor: p.creadoPor as string,
+        revision: (Number(p.revision) || 0) + 1,
+        actualizadoEn: ahora, actualizadoPor: sesion.uid,
+      }
+      : { creadoEn: ahora, creadoPor: sesion.uid, revision: 0 };
+  };
 
   const paraEscribir: [string, string, Record<string, unknown>][] = [];
   dias.forEach((d, i) => {
     paraEscribir.push([DIAS, ids[i], DiaDeCargabilidad.parse({
-      id: ids[i], orgId: sesion.orgId, creadoEn: ahora, creadoPor: sesion.uid, revision: 0,
+      id: ids[i], orgId: sesion.orgId, ...partida(DIAS, ids[i]),
       ...d, cargaId, versionMotor: SELLO.versionMotor,
     }) as unknown as Record<string, unknown>]);
   });
-  for (const r of resumenes) {
-    const id = idDelResumen(sesion.orgId, String(r.linea), String(r.fecha));
+  resumenes.forEach((r, i) => {
+    const id = idsResumen[i];
     paraEscribir.push([RESUMENES, id, ResumenDiarioCargabilidad.parse({
-      id, orgId: sesion.orgId, creadoEn: ahora, creadoPor: sesion.uid, revision: 0, ...r,
+      id, orgId: sesion.orgId, ...partida(RESUMENES, id), ...r,
       versionMotor: SELLO.versionMotor,
     }) as unknown as Record<string, unknown>]);
-  }
+  });
 
   for (let i = 0; i < paraEscribir.length; i += POR_LOTE) {
     const lote = writeBatch(db);
