@@ -133,7 +133,11 @@ const salud = { arrancado: Date.now(), operaciones: 0, fallosDeBitacora: 0 };
 const cabecerasCors = (origen, permitido) => ({
   'Access-Control-Allow-Origin': origen === permitido ? origen : (permitido ?? ''),
   'Access-Control-Allow-Methods': 'GET, POST, PATCH, OPTIONS',
-  'Access-Control-Allow-Headers': 'Authorization, Content-Type',
+  // ⚠️ `X-Limpieza-Token` TIENE que estar aquí. Sin él, el navegador rechaza la
+  // limpieza inicial en el preflight —antes de enviarla— y la pantalla solo ve
+  // «no hubo conexión». Pasó en vivo el 2026-09-06, con el servidor intacto:
+  // ninguna prueba sin navegador lo caza, por eso hay una que mira esta lista.
+  'Access-Control-Allow-Headers': 'Authorization, Content-Type, X-Limpieza-Token',
   'Access-Control-Max-Age': '86400',
   Vary: 'Origin',
 });

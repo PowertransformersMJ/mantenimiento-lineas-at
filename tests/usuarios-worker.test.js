@@ -1453,3 +1453,26 @@ describe('/mi-contrasena ya no existe', () => {
     assert.equal(r.status, 404);
   });
 });
+
+// ════════════════════════════════════════════════════════════════════════════
+// EL PREFLIGHT QUE TUMBÓ LA LIMPIEZA EN VIVO (2026-09-06)
+// ────────────────────────────────────────────────────────────────────────────
+// La pantalla manda el secreto de un solo uso en `X-Limpieza-Token`. Una
+// cabecera propia obliga al navegador a preguntar antes (OPTIONS), y si la
+// respuesta no la nombra en Allow-Headers, la petición NUNCA sale: la pantalla
+// dice «no hubo conexión» y el servidor no se entera. Se probó todo lo demás y
+// esto no, porque solo un navegador lo ejerce. Ahora sí hay quien lo mire.
+// ════════════════════════════════════════════════════════════════════════════
+describe('el preflight deja pasar la cabecera del secreto de limpieza', () => {
+  test('OPTIONS declara X-Limpieza-Token entre las cabeceras permitidas', async () => {
+    const trabajador = (await import('../usuarios/src/index.js')).default;
+    const r = await trabajador.fetch(new Request('https://usuarios.invalid/limpieza-inicial', {
+      method: 'OPTIONS',
+      headers: { Origin: 'https://ejemplo.invalid', 'Access-Control-Request-Method': 'POST',
+        'Access-Control-Request-Headers': 'authorization,content-type,x-limpieza-token' },
+    }), { PROYECTO_FIREBASE: 'p', ORIGEN_PERMITIDO: 'https://ejemplo.invalid', ORG_PERMITIDA: 'o' });
+    assert.equal(r.status, 204);
+    assert.match(r.headers.get('Access-Control-Allow-Headers') ?? '', /X-Limpieza-Token/i,
+      'sin esta cabecera en Allow-Headers la limpieza muere en el navegador antes de salir');
+  });
+});
