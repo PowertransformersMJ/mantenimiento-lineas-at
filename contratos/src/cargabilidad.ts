@@ -184,7 +184,25 @@ export const RepartoPorNaturaleza = z.object({
   sinDeclarar: z.number().int().min(0).max(24),
 });
 
+/**
+ * ⚠️ EL `id` DE ESTAS DOS COLECCIONES NO ES UN UUID, y el molde tiene que
+ * decirlo (`99 §ADR-109`). Arriba está escrito por qué —volver a cargar el
+ * mismo día debe ESCRIBIR ENCIMA, no crear un gemelo—, pero el molde seguía
+ * heredando `id: Id` de `Base`, que exige UUID. Resultado: `DiaDeCargabilidad
+ * .parse()` rechazaba TODO día real con «Invalid uuid», y como nadie había
+ * llegado a guardar nunca, nadie lo vio. Un molde que contradice a su propio
+ * comentario es un molde que no se ha ejecutado.
+ *
+ * La forma es la que produce `idDelDia` / `idDelResumen`: trozos unidos por
+ * `__`, ya normalizados por `clave()` — minúsculas, sin tildes, sin espacios.
+ */
+const IdDeterminista = z.string().min(3).max(400).regex(
+  /^[^_\s][^\s]*(__[^\s]*)+$/,
+  'el id de un día o un resumen se deriva de {orgId}__{linea}[__{circuito}]__{fecha}',
+);
+
 export const DiaDeCargabilidad = Base.extend({
+  id: IdDeterminista,
   /** La línea, TAL Y COMO LA NOMBRA EL ARCHIVO. Ver la nota de abajo. */
   linea: z.string().min(1).max(120),
   /**
@@ -197,10 +215,18 @@ export const DiaDeCargabilidad = Base.extend({
    * emparejarlo es un paso posterior y reversible — nunca un requisito de
    * entrada. `null` significa «todavía no se ha emparejado», no «no existe».
    */
-  lineaId: Id.optional(),
-  circuito: z.string().max(60).optional(),
-  subestacionOrigen: z.string().max(120).optional(),
-  subestacionDestino: z.string().max(120).optional(),
+  lineaId: Id.nullish(),
+  /**
+   * ⚠️ `null`, NO `undefined` — y es una decisión, no una tolerancia
+   * (`99 §ADR-109`). `empaquetarPorDia` escribe `null` en estos tres cuando el
+   * archivo no los trae, y significa **«el archivo no lo dijo»**, que es un
+   * hecho que merece guardarse. Con `.optional()` a secas el molde los
+   * rechazaba y no se guardaba NADA; y quitarlos del documento sería peor:
+   * Firestore no acepta `undefined`, así que la alternativa real era mentir.
+   */
+  circuito: z.string().max(60).nullish(),
+  subestacionOrigen: z.string().max(120).nullish(),
+  subestacionDestino: z.string().max(120).nullish(),
   fecha: DiaIso,
   /**
    * Las horas medidas, por su clave. **Solo las que tienen dato**: una hora sin
@@ -223,8 +249,9 @@ export const DiaDeCargabilidad = Base.extend({
  * resume, manda el día.
  */
 export const ResumenDiarioCargabilidad = Base.extend({
+  id: IdDeterminista,
   linea: z.string().min(1).max(120),
-  lineaId: Id.optional(),
+  lineaId: Id.nullish(),
   fecha: DiaIso,
   /** Cuántas horas del día traen medida. De 0 a 24; el resto son huecos. */
   horasConMedida: z.number().int().min(0).max(24),

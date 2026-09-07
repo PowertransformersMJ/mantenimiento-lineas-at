@@ -194,6 +194,7 @@ Guarda `research-archive/` (crudos de deliberación: comités, consejos externos
 | `ADR-106` | 2026-09-07 | «Parámetros eléctricos»: todas las magnitudes, cada una con sus fases, y la fase deja de morir en el camino | — (mapa por seis lentes, en el propio ADR) |
 | `ADR-107` | 2026-09-07 | Las gráficas dejan de ser solo del porcentaje: una por magnitud, con sus fases, y el eje que no empieza en cero | — (lo vio él en producción) |
 | `ADR-108` | 2026-09-07 | El documento ausente tumbaba la regla: «no tienes permiso» donde la verdad era «no existe», y el guardado no funcionó nunca | — (reproducido en el emulador) |
+| `ADR-109` | 2026-09-07 | El molde contradecía a su propio comentario: identidad determinista y los nulos que el motor escribe a propósito | — (apareció al retirar el §108) |
 
 > Toda decisión cara de revertir entra aquí con su ADR y su crudo enlazado. Si hubo comité o consejo
 > externo y el crudo no está archivado, la tarea **no está cerrada** (`CLAUDE.md §G.4`).

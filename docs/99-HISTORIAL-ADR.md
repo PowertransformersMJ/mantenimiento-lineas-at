@@ -9383,3 +9383,78 @@ todo lo que hay. Sin estas tres pruebas, una «simplificación» futura de la re
   (`§ADR-106`, `§ADR-107`).
 
 ---
+## ADR-109 · 2026-09-07 · El molde contradecía a su propio comentario: identidad determinista y los nulos que el motor escribe a propósito
+
+**Deliberación:** apareció al retirar el fallo de `§ADR-108` — el guardado dejó de dar «no tienes
+permiso» y dio, debajo, un fallo de validación que nadie había visto nunca.
+**Estado:** ✅ en producción · **NO revisada externamente**.
+
+### Contexto
+
+Con las reglas arregladas, guardar llegó por fin a la validación del cliente. Y ahí murió otra vez,
+con cuatro errores del molde:
+
+| Campo | Lo que llegaba | Lo que el molde exigía |
+|---|---|---|
+| `id` | `org__ln-627__-__2026-01-01` | un UUID (`Base.id`) |
+| `circuito` | `null` | `string` ausente, no nulo |
+| `subestacionOrigen` | `null` | ídem |
+| `subestacionDestino` | `null` | ídem |
+
+Lo del `id` es lo grave, porque **el propio molde tiene escrito doce líneas más arriba por qué esa
+identidad NO es un UUID**: para que volver a cargar el mismo día escriba encima en vez de crear un
+gemelo. El comentario decía una cosa y el código exigía la contraria. Un molde que se contradice a
+sí mismo es un molde que nunca se ha ejecutado.
+
+⚠️ **Ninguna prueba validaba `DiaDeCargabilidad` ni `ResumenDiarioCargabilidad`.** Se probaba el
+motor por un lado y el molde por otro, y **el punto donde se tocan —que es exactamente donde se
+escribe en la base— no lo miraba nadie**. Es el mismo agujero que `§ADR-108`, un piso más arriba:
+allí faltaba probar la ausencia; aquí, la unión.
+
+### Decisión
+
+**1. `IdDeterminista` para las dos colecciones de medición**, con su forma comprobada. La regla de
+`ADR-001` sigue intacta donde importa: un APOYO —un activo físico que se renumera y se secciona—
+sigue siendo un UUID inmutable. **Una medición no es un activo.** El rastro de la carga sí lleva
+UUID: es un acto, no una medida.
+
+**2. `null` se ACEPTA y se GUARDA en los campos que el archivo puede no traer.** No es tolerancia:
+`empaquetarPorDia` escribe `null` a propósito, y significa **«el archivo no lo dijo»** — un hecho
+que merece constar. Y la alternativa real no era `undefined`: Firestore no lo acepta, así que
+quitarlos del documento habría sido borrar la distinción entre «no vino» y «no se preguntó».
+`lineaId` va igual, porque su propio comentario ya decía que `null` es «todavía no emparejado».
+
+**3. Seis pruebas que recorren el camino ENTERO** —registros → `empaquetarPorDia` → `resumirDia` →
+el objeto que arma `guardarCarga` → `.parse()`—, incluidas dos que fijan lo que NO debe relajarse:
+que el id determinista no admita cualquier cosa, y que dos cargas del mismo día caigan en el mismo
+id (corregir reemplaza, no duplica).
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| Poner un UUID al día y guardar la clave aparte | Rompe lo único que el Ingeniero pidió: recargar un día corregido NO puede duplicar el histórico |
+| Quitar los campos nulos antes de escribir | Firestore no acepta `undefined`, y borrar «el archivo no lo dijo» es perder un hecho |
+| Relajar el `id` a `z.string()` | Deja pasar un id vacío o con espacios, y el molde dejaría de defender la identidad que la regla de la base da por buena |
+
+### Supuestos que deben ser ciertos — y la señal que diría que dejaron de serlo
+
+| Supuesto | Señal |
+|---|---|
+| Lo que el motor produce sigue cabiendo en el molde | Las seis pruebas nuevas, en rojo |
+| Lo que estampa `guardarCarga` no cambia sin avisar | La prueba copia esos campos: si el repositorio añade uno, deja de reflejarlo |
+
+### Consecuencias
+
+- `2.592` pruebas. Verificado en producción **recargando la página**, no mirando la memoria del
+  navegador (`§ADR-108`).
+- ⚠️ **Al retirar el primer fallo apareció el segundo, tapado.** Dos fallos en serie en el mismo
+  camino, y el de arriba escondía al de abajo: mientras las reglas denegaban, la validación del
+  cliente ni se ejecutaba. Un camino que nunca se ha recorrido entero no tiene UN fallo: tiene los
+  que haya, en fila.
+- ⚠️ **Dato de cliente en el repositorio público, la tercera vez** (`33 · L-07`): el Ingeniero dejó
+  `Variables Electricas/Enero/01/` con siete exportaciones de la red entera dentro del repo, y un
+  `git add -A` mío las metió en el índice. **No se subieron** —las paró de rebote el guardián de
+  coordenadas—; están en la bóveda y la ruta va al `.gitignore`.
+
+---

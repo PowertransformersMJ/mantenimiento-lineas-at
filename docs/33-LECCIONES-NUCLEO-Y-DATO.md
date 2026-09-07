@@ -36,6 +36,10 @@
 - **Regla:** coordenadas GPS reales, fotos de campo, informes de cliente y el HTML original **nunca**
   se commitean. Van a `../brain-private/` o a almacenamiento privado. El `.gitignore` los bloquea por
   patrón, pero el `.gitignore` es la segunda línea: la primera es no ponerlos ahí.
+- ⚠️ **Y entra por la CARPETA, no solo por el código.** Dos veces: `LN-627/` (17-08) y
+  `Variables Electricas/` (07-09, siete exportaciones de SCADA de la RED ENTERA). La segunda la
+  frenó de rebote el guardián de COORDENADAS, que no está para eso. **Toda ruta donde él suelte
+  archivos se ignora el día que aparece**, y un `git add -A` aquí se lee antes de confirmarlo.
 
 ### L-23 · Una coordenada real dentro de una PRUEBA es una fuga igual que en el código
 - **Síntoma:** `tests/exportar.test.js` afirmaba `filas[1].includes('10.35••••')` — la latitud real
@@ -237,18 +241,12 @@
   bóveda, junto a los códigos de waypoint de las dos subestaciones del cliente. Nada en el archivo
   desentonaba: el gate de coordenadas de `docs/10` busca `10.xxxx` y `-75.xxxx` y no mira una fecha.
   Lo cazó un auditor adversarial comparando el archivo con la bóveda, con 1.014 pruebas en verde.
-- **Causa:** la cabecera hace el trabajo de la sospecha. Quien escribe se acuerda de inventar
-  **aquello de lo que la regla habla** —la coordenada, que es lo que todos citan— y arrastra lo demás
-  del fixture que tiene delante, porque «total, es una prueba». Y quien revisa lee la promesa del
-  encabezado y da por sintético el archivo entero. Es `L-23` un piso más arriba: allí la fuga era una
-  coordenada dentro de una prueba; aquí es una fuga **dentro de un archivo que ya declaraba no
-  tenerla**.
+- **Causa:** la cabecera hace el trabajo de la sospecha. Quien escribe inventa **aquello de lo que
+  la regla habla** —la coordenada— y arrastra lo demás del fixture que tiene delante; quien revisa
+  lee la promesa del encabezado y da por sintético el archivo entero. Es `L-23` un piso más arriba:
+  una fuga **dentro de un archivo que ya declaraba no tenerla**.
 - **Regla:** en un archivo declarado sintético, **todo campo copiado es sospechoso, no solo la
-  coordenada**. Una hora de captura dice cuándo estuvo la cuadrilla en el sitio; un código de
-  waypoint puede descifrar el nombre de la instalación. La comprobación no es leer la cabecera: es
-  **buscar cada valor literal en la bóveda** (`grep` del valor exacto sobre `fixtures/`) — si aparece,
-  es real, lo diga quien lo diga. Y se hace **antes del commit**: la historia de git es permanente
-  (`L-07`), así que un `git commit` es el punto de no retorno, no el `git push`.
-- **Emparenta con** `L-23` (la coordenada en la prueba), `L-07` (la historia de git no se borra) y
-  `30 · L-33` (escribir la prueba y auditarla son dos trabajos distintos). Cazado y cerrado el
-  16-08-2026 antes del primer commit, en `99 §ADR-027`.
+  coordenada** — una hora de captura dice cuándo estuvo la cuadrilla allí. La comprobación no es leer
+  la cabecera: es **buscar cada valor literal en la bóveda** (`grep` exacto sobre `fixtures/`); si
+  aparece, es real, lo diga quien lo diga. Y **antes del commit**, que es el punto de no retorno.
+- **Emparenta con** `L-23`, `L-07` y `30 · L-33`. Cazado antes del primer commit (`99 §ADR-027`).
