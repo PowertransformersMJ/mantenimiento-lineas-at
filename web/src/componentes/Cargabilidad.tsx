@@ -48,9 +48,9 @@ import {
 } from '../vistas/cargabilidadVista';
 import {
   cerosAlFinal, CRITERIOS_DE_FASE, encontrarEjeDeTiempo, leerSenales, pareceAncho,
-  registrosDesdeAncho, unirAnchas,
+  estadisticoDeNombre, registrosDesdeAncho, unirAnchas,
 } from '@lineas/nucleo/cargabilidadAncho';
-import { empaquetarPorDia, resumirDia } from '@lineas/nucleo/cargabilidad';
+import { empaquetarPorDia, ESTADISTICOS, resumirDia } from '@lineas/nucleo/cargabilidad';
 import { guardarCarga, huellaDe, resumenesEntre, type Acuse } from '../datos/cargabilidadRepo';
 import { nf } from '../vistas/formato';
 import { Sello } from './Sello';
@@ -84,6 +84,16 @@ interface Cargado {
   ancho: boolean;
   cabeceras: string[];
   filas: Record<string, Celda>[];
+  /**
+   * DE QUÉ ARCHIVO Y QUÉ ESTADÍSTICO SALIÓ CADA SEÑAL (`99 §ADR-112`).
+   *
+   * ⚠️ Sin esto, tres archivos del mismo día —máximo, promedio e instantáneo—
+   * dejan tres señales con la MISMA etiqueta y no hay forma de separarlas: el
+   * nombre del archivo es lo único que las distingue, y se pierde al unir.
+   */
+  estadisticoPorFila: Record<number, string | null> | null;
+  porArchivo: { nombre: string; senales: number; estadistico: string | null; porQue: string }[];
+  estadisticos: string[];
 }
 
 /** Bajar un texto como archivo. El navegador ya sabe; solo hay que pedírselo. */
@@ -137,6 +147,16 @@ export default function Cargabilidad({
   const [linea, setLinea] = useState<string>(lineaAbierta ?? '');
   const [criterioFase, setCriterioFase] = useState('maxima');
   const [asignado, setAsignado] = useState<Record<number, string | null>>({});
+  /**
+   * EL ESTADÍSTICO (`99 §ADR-112`). Dos estados, y son cosas distintas:
+   *  · `corregido`  — lo que el Ingeniero declara de un archivo cuyo nombre no
+   *    lo dice, o dice mal. La detección es una PROPUESTA, no un veredicto.
+   *  · `mirado`     — cuál de los presentes se está viendo en pantalla. No
+   *    limita lo que se GUARDA: al guardar se escriben todos, cada uno en su
+   *    documento. Es solo qué mira usted ahora.
+   */
+  const [corregido, setCorregido] = useState<Record<string, string>>({});
+  const [mirado, setMirado] = useState<string | null>(null);
   /** El guardado y su acuse. `null` = todavía no se ha guardado esta carga. */
   const [guardando, setGuardando] = useState(false);
   const [acuse, setAcuse] = useState<Acuse | null>(null);
@@ -174,6 +194,7 @@ export default function Cargabilidad({
 
       const varios = leidos.length > 1;
       const union = varios ? unirAnchas(leidos.map((x) => ({ nombre: x.nombre, matriz: x.matriz }))) : null;
+      // (con un solo archivo no hace falta unir nada: su estadístico sale de su nombre)
       const hojas = [{ nombre: varios ? `${leidos.length} archivos` : leidos[0].hoja,
         matriz: union ? union.matriz : leidos[0].matriz }];
       const archivo = { name: varios ? leidos.map((x) => x.nombre).join(' + ') : leidos[0].nombre };
@@ -224,7 +245,24 @@ export default function Cargabilidad({
           ? `${union.porQue} — ${union.deCada.map((d) => `${d.nombre}: ${d.senales}`).join(' · ')}`
           : (forma.ancho ? forma.porQue : cab.porQue),
         ancho: forma.ancho, cabeceras, filas,
+        // Con varios archivos la anotación la trae `unirAnchas`; con uno solo
+        // se lee de su nombre. El mismo dato por los dos caminos, no dos verdades.
+        estadisticoPorFila: union?.estadisticoPorFila ?? null,
+        porArchivo: union
+          ? union.deCada.map((d) => ({
+            nombre: d.nombre, senales: d.senales, estadistico: d.estadistico, porQue: d.porQueEstadistico,
+          }))
+          : [{
+            nombre: leidos[0].nombre, senales: senalesDelArchivo,
+            estadistico: estadisticoDeNombre(leidos[0].nombre).id,
+            porQue: estadisticoDeNombre(leidos[0].nombre).porQue,
+          }],
+        estadisticos: union
+          ? union.estadisticos
+          : [estadisticoDeNombre(leidos[0].nombre).id].filter(Boolean) as string[],
       });
+      setCorregido({});
+      setMirado(null);
       if (!forma.ancho) setMapeo(detectarMapeo(cabeceras).mapeo);
     } catch (e) {
       setFallo((e as Error).message);
@@ -253,12 +291,41 @@ export default function Cargabilidad({
     setMapeo(detectarMapeo(cabeceras).mapeo);
   };
 
+  // ── El estadístico, resuelto: lo detectado y lo que usted haya corregido ──
+  const porArchivo = useMemo(() => (cargado?.porArchivo ?? []).map((a) => ({
+    ...a, resuelto: corregido[a.nombre] ?? a.estadistico ?? null,
+  })), [cargado, corregido]);
+
+  /** Los presentes de verdad, sin repetir. Si hay más de uno, hay que elegir cuál se MIRA. */
+  const presentes = useMemo(
+    () => [...new Set(porArchivo.map((a) => a.resuelto).filter(Boolean))] as string[],
+    [porArchivo],
+  );
+
+  /** El que se está mirando: el suyo, o el máximo si está, o el primero que haya. */
+  const verAhora = useMemo(() => {
+    if (mirado && presentes.includes(mirado)) return mirado;
+    return presentes.includes('maximo') ? 'maximo' : (presentes[0] ?? null);
+  }, [mirado, presentes]);
+
+  /** De qué estadístico es cada fila de la matriz, con las correcciones aplicadas. */
+  const porFila = useMemo(() => {
+    if (!cargado) return null;
+    if (!cargado.estadisticoPorFila) return null;
+    const deArchivo = new Map(porArchivo.map((a) => [a.estadistico ?? '—', a.resuelto]));
+    return Object.fromEntries(Object.entries(cargado.estadisticoPorFila)
+      .map(([fila, est]) => [fila, deArchivo.get(est ?? '—') ?? est]));
+  }, [cargado, porArchivo]);
+
   // ── Procesar con el mapeo que haya AHORA ──────────────────────────────────
   /** La lectura ANCHA, cuando toca. Se recalcula al cambiar línea, señal o criterio. */
   const ancho = useMemo(() => {
     if (!cargado?.ancho) return null;
-    return registrosDesdeAncho(cargado.matriz, { linea: linea.trim(), asignado, criterioFase });
-  }, [cargado, linea, asignado, criterioFase]);
+    return registrosDesdeAncho(cargado.matriz, {
+      linea: linea.trim(), asignado, criterioFase,
+      estadistico: verAhora, estadisticoPorFila: porFila,
+    });
+  }, [cargado, linea, asignado, criterioFase, verAhora, porFila]);
 
   const lote = useMemo(() => {
     if (!cargado) return null;
@@ -369,7 +436,19 @@ export default function Cargabilidad({
     if (!cargado || !sesion || !registros.length) return;
     setGuardando(true); setFalloGuardar(null);
     try {
-      const { dias } = empaquetarPorDia(registros as never[]);
+      // ⚠️ SE GUARDAN TODOS LOS ESTADÍSTICOS, no solo el que se está mirando
+      // (`99 §ADR-112`). Mirar es una cosa y guardar es otra: si el Ingeniero
+      // suelta los tres archivos del día, los tres son dato suyo y los tres se
+      // escriben, cada uno en SU documento. Guardar solo el visible le haría
+      // perder dos tercios de lo que entregó sin que nada se lo dijera.
+      const todos = cargado?.ancho && presentes.length
+        ? presentes.flatMap((est) => registrosDesdeAncho(cargado.matriz, {
+          linea: linea.trim(), asignado, criterioFase,
+          estadistico: est, estadisticoPorFila: porFila,
+        }).registros)
+        : (registros as never[]);
+
+      const { dias } = empaquetarPorDia(todos as never[]);
       const resumenes = dias.map((d) => resumirDia(d));
       const fechas = [...new Set(dias.map((d) => d.fecha))].sort();
       const a = await guardarCarga({
@@ -383,6 +462,7 @@ export default function Cargabilidad({
           filasConError: lote?.resumen?.conError ?? 0,
           mapeo: cargado.ancho ? {} : mapeo,
           lineas: [...new Set(dias.map((d) => d.linea))],
+          estadisticos: [...new Set(dias.map((d) => d.estadistico).filter(Boolean))] as string[],
           desde: fechas[0], hasta: fechas[fechas.length - 1],
         },
       }, { uid: sesion.uid, orgId: sesion.orgId });
@@ -486,6 +566,9 @@ export default function Cargabilidad({
 
           {cargado.ancho ? (
             <SenalesDelScada cargado={cargado} ancho={ancho} linea={linea} alCambiarLinea={setLinea}
+              porArchivo={porArchivo} presentes={presentes} verAhora={verAhora}
+              alMirar={setMirado}
+              alCorregir={(nombre, v) => setCorregido({ ...corregido, [nombre]: v })}
               lineaAbierta={lineaAbierta} criterioFase={criterioFase} alCambiarCriterio={setCriterioFase}
               asignado={asignado} alAsignar={setAsignado} />
           ) : (
@@ -610,7 +693,26 @@ function HistoricoGuardado({ sesion, lineaAbierta }: {
   const [desde, setDesde] = useState('');
   const [hasta, setHasta] = useState('');
   const [soloEsta, setSoloEsta] = useState(true);
-  const [filas, setFilas] = useState<Record<string, unknown>[] | null>(null);
+  const [todasLasFilas, setFilas] = useState<Record<string, unknown>[] | null>(null);
+  /**
+   * ⚠️ EL TABLERO MIRA UN SOLO ESTADÍSTICO (`99 §ADR-112`). Desde que el mismo
+   * día se puede guardar tres veces —máximo, promedio e instantáneo—, mezclarlos
+   * aquí haría cuatro daños a la vez: contaría 3 días donde hay 1, promediaría
+   * medias de naturalezas distintas, picaría la serie un 5 % en la frontera
+   * entre tramos cargados de un modo y de otro, y dejaría «horas en sobrecarga»
+   * sin significado. Se filtra EN MEMORIA, no en la consulta: filtrar en
+   * Firestore exigiría un índice compuesto nuevo, y el emulador no lo exige —
+   * saldría verde en local y rojo solo en producción.
+   */
+  const [verEstadistico, setVerEstadistico] = useState<string>('maximo');
+  const estadisticosGuardados = useMemo(
+    () => [...new Set((todasLasFilas ?? []).map((f) => (f.estadistico as string) ?? 'maximo'))],
+    [todasLasFilas],
+  );
+  const filas = useMemo(
+    () => (todasLasFilas ?? []).filter((f) => ((f.estadistico as string) ?? 'maximo') === verEstadistico),
+    [todasLasFilas, verEstadistico],
+  );
   const [recortado, setRecortado] = useState(false);
   const [buscando, setBuscando] = useState(false);
   const [fallo, setFallo] = useState<string | null>(null);
@@ -693,10 +795,34 @@ function HistoricoGuardado({ sesion, lineaAbierta }: {
         </p>
       )}
 
+      {/* ⚠️ QUÉ ESTADÍSTICO SE ESTÁ MIRANDO (`99 §ADR-112`). Va ARRIBA y en la
+          propia tarjeta, no escondido en un desplegable: un tablero que mezcla
+          máximos con promedios no enseña ninguna magnitud real, y la diferencia
+          —un 5 % en la corriente— es de las que mueven un veredicto. */}
+      {estadisticosGuardados.length > 1 && (
+        <div className="acciones" role="group" aria-label="Qué estadístico se está mirando">
+          {ESTADISTICOS.filter((e) => estadisticosGuardados.includes(e.id)).map((e) => (
+            <button key={e.id} type="button"
+              className={'boton chico' + (verEstadistico === e.id ? ' activo' : '')}
+              aria-pressed={verEstadistico === e.id}
+              onClick={() => setVerEstadistico(e.id)}>{e.rotulo}</button>
+          ))}
+        </div>
+      )}
+      {todasLasFilas && todasLasFilas.length > 0 && filas.length === 0 && (
+        <p className="advertencia">
+          Hay días guardados en este periodo, pero ninguno con el estadístico{' '}
+          <b>{ESTADISTICOS.find((e) => e.id === verEstadistico)?.rotulo ?? verEstadistico}</b>.
+          Los que hay son: {estadisticosGuardados.map((e) => ESTADISTICOS.find((x) => x.id === e)?.rotulo ?? e).join(' · ')}.
+        </p>
+      )}
+
       {filas && filas.length > 0 && (
         <>
           <p className="mapa-capas-n">
-            <b>{nf(filas.length)} día(s)</b> con dato · pico del periodo{' '}
+            <b>{nf(filas.length)} día(s)</b> con dato ·{' '}
+            <b>{ESTADISTICOS.find((e) => e.id === verEstadistico)?.rotulo ?? verEstadistico}</b>{' '}
+            de cada hora · pico del periodo{' '}
             {pico
               ? <><b style={{ color: tintaDe(pico.maxima_pct as number) }}>
                 {nf(pico.maxima_pct as number, 1)} %</b> el {String(pico.fecha)} en{' '}
@@ -1013,7 +1139,7 @@ const TOPE_AUTOASIGNAR = 12;
 
 function SenalesDelScada({
   cargado, ancho, linea, alCambiarLinea, lineaAbierta, criterioFase, alCambiarCriterio,
-  asignado, alAsignar,
+  asignado, alAsignar, porArchivo, presentes, verAhora, alMirar, alCorregir,
 }: {
   cargado: Cargado;
   ancho: ReturnType<typeof registrosDesdeAncho> | null;
@@ -1021,6 +1147,11 @@ function SenalesDelScada({
   criterioFase: string; alCambiarCriterio: (v: string) => void;
   asignado: Record<number, string | null>;
   alAsignar: (a: Record<number, string | null>) => void;
+  porArchivo: { nombre: string; senales: number; estadistico: string | null; porQue: string; resuelto: string | null }[];
+  presentes: string[];
+  verAhora: string | null;
+  alMirar: (v: string) => void;
+  alCorregir: (nombre: string, v: string) => void;
 }) {
   const senales = ancho?.senales ?? [];
   const ceros = ancho ? cerosAlFinal(ancho.senales, ancho.eje) : null;
@@ -1053,6 +1184,65 @@ function SenalesDelScada({
         No es una tabla: es una <b>matriz transpuesta</b> — {cargado.porQue}. Se lee tal cual, sin
         que usted tenga que reescribirla.
       </p>
+
+      {/* ── 0 · QUÉ ESTADÍSTICO TRAE CADA ARCHIVO (`99 §ADR-112`) ────────────
+          ⚠️ Esto va ANTES que nada, porque es lo que decide QUÉ SE ESCRIBE
+          ENCIMA DE QUÉ. La misma magnitud llega tres veces —máximo, promedio e
+          instantáneo—, con la MISMA etiqueta de señal, y solo el nombre del
+          archivo las distingue. Si un promedio se lee como máximo, se guarda con
+          la identidad del máximo y lo REEMPLAZA: el histórico no tiene borrado y
+          ese número no vuelve. Por eso se enseña lo que se entendió, archivo por
+          archivo, y se puede corregir antes de tocar la base. */}
+      <p className="mapa-capas-t" style={{ marginTop: '1rem' }}>Qué trae cada archivo</p>
+      <div className="tabla-scroll">
+        <table className="tabla">
+          <thead><tr><th>Archivo</th><th>Señales</th><th>Se entendió que trae</th></tr></thead>
+          <tbody>
+            {porArchivo.map((a) => (
+              <tr key={a.nombre}>
+                <td>{a.nombre}</td>
+                <td>{nf(a.senales)}</td>
+                <td>
+                  <select value={a.resuelto ?? ''} onChange={(e) => alCorregir(a.nombre, e.target.value)}
+                    aria-label={`Qué estadístico trae ${a.nombre}`}>
+                    <option value="">— no lo dice: elíjalo —</option>
+                    {ESTADISTICOS.map((e) => (
+                      <option key={e.id} value={e.id}>{e.rotulo}</option>
+                    ))}
+                  </select>
+                  {a.estadistico == null && (
+                    <span className="fine"> · {a.porQue}</span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {porArchivo.some((a) => !a.resuelto) ? (
+        <p className="advertencia">
+          <b>Falta decir qué estadístico trae {nf(porArchivo.filter((a) => !a.resuelto).length)}{' '}
+          archivo(s).</b> No se guardan así: escribir un promedio con la identidad de un máximo lo
+          reemplazaría, y el histórico no se puede deshacer. Dígalo arriba y vuelva a guardar.
+        </p>
+      ) : (
+        <p className="fine">
+          <b>Máximo</b> es el que dictamina —un límite térmico se comprueba contra el pico, no contra
+          la media—; el <b>promedio</b> es el que habilita energía y factor de carga. Al guardar se
+          escriben <b>todos</b> los que haya, cada uno en su día: lo de abajo es solo cuál mira ahora.
+        </p>
+      )}
+      {presentes.length > 1 && (
+        <div className="acciones" role="group" aria-label="Qué estadístico se está mirando">
+          {presentes.map((e) => (
+            <button key={e} type="button"
+              className={`boton chico${e === verAhora ? ' activo' : ''}`}
+              onClick={() => alMirar(e)}>
+              {ESTADISTICOS.find((x) => x.id === e)?.rotulo ?? e}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* ── 1 · DE QUÉ LÍNEA ES ─────────────────────────────────────────── */}
       <label className="mapa-tiempo-dia">

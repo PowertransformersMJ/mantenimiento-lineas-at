@@ -29,7 +29,7 @@
 // incómoda no es un histórico. Las reglas de la base lo niegan además de esto.
 // ============================================================================
 import {
-  CargaDeCargabilidad, DiaDeCargabilidad, idDelDia, idDelResumen,
+  CargaDeCargabilidad, DiaDeCargabilidad, type Estadistico, idDelDia, idDelResumen,
   ResumenDiarioCargabilidad, VERSION_CONTRATO,
 } from '@lineas/contratos';
 import nucleoPkg from '@lineas/nucleo/package.json';
@@ -71,6 +71,8 @@ export interface LoQueSeGuarda {
     nombreArchivo: string; hoja?: string; huella?: string;
     filasDelArchivo: number; registrosGuardados: number; filasConError: number;
     mapeo: Record<string, string>; lineas: string[];
+    /** Qué estadísticos traía. Se escribe al crear: la carga es inmutable. */
+    estadisticos?: string[];
     desde?: string; hasta?: string;
   };
 }
@@ -145,9 +147,25 @@ export async function guardarCarga(
   //
   // Lo que sí cambia en una reescritura es `actualizadoEn`/`actualizadoPor` y la
   // revisión, que es como se sabe que ese día se ha corregido.
-  const ids = dias.map((d) => idDelDia(sesion.orgId, String(d.linea), d.circuito as string, String(d.fecha)));
+  // ⚠️ SIN ESTADÍSTICO NO SE GUARDA, y este `throw` es la pieza más importante
+  // del cambio (`99 §ADR-112`). Caer a «será el máximo» escribiría el promedio
+  // con la identidad del máximo y lo PISARÍA: para las reglas es una corrección
+  // legítima del mismo día, `delete` está prohibido a propósito y el archivo
+  // original no se guarda. Ese número no se recupera de ninguna parte.
+  const sinEst = [...dias, ...resumenes].filter((x) => !x.estadistico);
+  if (sinEst.length) {
+    throw new Error(
+      `${sinEst.length} de estos registros no dicen qué estadístico traen (máximo, promedio o `
+      + 'instantáneo). No se guardan: escribir uno con la identidad de otro lo reemplazaría, y el '
+      + 'histórico no se puede deshacer. Declárelo en la pantalla y vuelva a guardar.',
+    );
+  }
+
+  const est = (x: Record<string, unknown>) => x.estadistico as Estadistico;
+  const ids = dias.map((d) => idDelDia(
+    sesion.orgId, String(d.linea), d.circuito as string, String(d.fecha), est(d)));
   const idsResumen = resumenes.map(
-    (r) => idDelResumen(sesion.orgId, String(r.linea), String(r.fecha)));
+    (r) => idDelResumen(sesion.orgId, String(r.linea), String(r.fecha), est(r)));
 
   const previos = new Map<string, Record<string, unknown>>();
   await Promise.all([

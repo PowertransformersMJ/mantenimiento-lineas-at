@@ -201,6 +201,42 @@ const IdDeterminista = z.string().min(3).max(400).regex(
   'el id de un día o un resumen se deriva de {orgId}__{linea}[__{circuito}]__{fecha}',
 );
 
+/**
+ * QUÉ ESTADÍSTICO DE LA HORA ES ESTA LECTURA (`99 §ADR-112`).
+ *
+ * ⚠️ NO SON LA MISMA MEDIDA, y hasta hoy el módulo no sabía distinguirlas. El
+ * sistema de supervisión del Ingeniero exporta la MISMA magnitud tres veces —un
+ * archivo por estadístico— y los valores difieren de verdad: el 2026-01-01, la
+ * corriente de la fase R llegó a **244 A de máximo** y **233 A de promedio**.
+ * Meterlas en el mismo hueco no daría error: daría un número que nadie midió.
+ *
+ * Cuál sirve para qué, y no es preferencia:
+ *   · `maximo`      — el peor instante de la hora. **Es el que dictamina**: un
+ *                     límite térmico se comprueba contra el pico, no contra la
+ *                     media. Con el promedio, una línea que se pasa media hora
+ *                     por encima de su ampacidad parecería sana.
+ *   · `promedio`    — lo que habilita energía, pérdidas y factor de carga.
+ *   · `instantaneo` — la muestra puntual del momento de la exportación.
+ *
+ * ⚠️ **AUSENTE = `maximo`, y solo por historia.** Los días guardados antes de
+ * esta decisión son máximos —se cargaron de los archivos `_max`— y las reglas
+ * PROHÍBEN borrar (`firestore.rules`), así que renombrarles la identidad
+ * dejaría huérfanos imposibles de retirar. Por eso el máximo conserva el `id`
+ * que ya tenía y son los otros dos los que lo llevan escrito. Todo documento
+ * NUEVO lo declara, venga el que venga.
+ */
+export const ESTADISTICOS = ['maximo', 'promedio', 'instantaneo'] as const;
+export const Estadistico = z.enum(ESTADISTICOS);
+export type Estadistico = z.infer<typeof Estadistico>;
+
+/** El que dictamina, y el que se supone en un documento que no lo declara. */
+export const ESTADISTICO_POR_DEFECTO: Estadistico = 'maximo';
+
+/** Cómo se llama cada uno en pantalla. Aquí, para que no haya dos verdades. */
+export const ROTULO_ESTADISTICO: Record<Estadistico, string> = {
+  maximo: 'máximo', promedio: 'promedio', instantaneo: 'instantáneo',
+};
+
 export const DiaDeCargabilidad = Base.extend({
   id: IdDeterminista,
   /** La línea, TAL Y COMO LA NOMBRA EL ARCHIVO. Ver la nota de abajo. */
@@ -228,6 +264,8 @@ export const DiaDeCargabilidad = Base.extend({
   subestacionOrigen: z.string().max(120).nullish(),
   subestacionDestino: z.string().max(120).nullish(),
   fecha: DiaIso,
+  /** Qué estadístico de la hora trae este día. Ausente = `maximo` (ver arriba). */
+  estadistico: Estadistico.optional(),
   /**
    * Las horas medidas, por su clave. **Solo las que tienen dato**: una hora sin
    * lectura NO aparece. Recorrer de 0 a 23 rellenando huecos es cosa de quien
@@ -253,6 +291,8 @@ export const ResumenDiarioCargabilidad = Base.extend({
   linea: z.string().min(1).max(120),
   lineaId: Id.nullish(),
   fecha: DiaIso,
+  /** Qué estadístico resume. Ausente = `maximo`. */
+  estadistico: Estadistico.optional(),
   /**
    * Cuántas horas del día traen **PORCENTAJE**. De 0 a 24; el resto son huecos.
    *
@@ -331,6 +371,15 @@ export const CargaDeCargabilidad = Base.extend({
   mapeo: z.record(z.string(), z.string()),
   /** Qué líneas y qué días tocó. Permite deshacer y saber qué pisó. */
   lineas: z.array(z.string().max(120)).max(500),
+  /**
+   * Qué estadísticos traía la carga (`99 §ADR-112`).
+   *
+   * ⚠️ Esta colección es INMUTABLE —`update: if false` en las reglas—, así que
+   * esto se escribe al crearla o no se escribe nunca. Las cargas anteriores no
+   * lo traen y se leen como **no declarado**, jamás como «máximo»: rellenarlas
+   * sería fabricar dato en el único registro que existe para auditar.
+   */
+  estadisticos: z.array(Estadistico).max(3).optional(),
   desde: DiaIso.optional(),
   hasta: DiaIso.optional(),
   estado: EstadoCarga,
@@ -358,12 +407,35 @@ export type EstadoCarga = z.infer<typeof EstadoCarga>;
  * normaliza es lo que se GUARDA: el campo `linea` conserva el texto original,
  * que es el que el Ingeniero reconoce.
  */
-export function idDelDia(orgId: string, linea: string, circuito: string | null | undefined, fecha: string): string {
-  return [orgId, clave(linea), circuito ? clave(circuito) : '-', fecha].join('__');
+export function idDelDia(
+  orgId: string, linea: string, circuito: string | null | undefined, fecha: string,
+  estadistico: Estadistico = ESTADISTICO_POR_DEFECTO,
+): string {
+  return [orgId, clave(linea), circuito ? clave(circuito) : '-', fecha, ...sufijo(estadistico)].join('__');
 }
 
-export function idDelResumen(orgId: string, linea: string, fecha: string): string {
-  return [orgId, clave(linea), fecha].join('__');
+export function idDelResumen(
+  orgId: string, linea: string, fecha: string,
+  estadistico: Estadistico = ESTADISTICO_POR_DEFECTO,
+): string {
+  return [orgId, clave(linea), fecha, ...sufijo(estadistico)].join('__');
+}
+
+/**
+ * ⚠️ EL MÁXIMO NO LLEVA SUFIJO, y es una decisión, no un olvido (`§ADR-112`).
+ *
+ * Cuando esto se escribió ya había días guardados —máximos, de los archivos
+ * `_max`— con la identidad corta. `firestore.rules` prohíbe BORRAR un día a
+ * propósito («un histórico del que se puede borrar una hora incómoda no es un
+ * histórico»), así que darles un `id` nuevo no los movería: los duplicaría, y
+ * el viejo quedaría ahí para siempre sin forma de retirarlo.
+ *
+ * Y encaja con lo que significan: el máximo es el que dictamina y el que se
+ * supone cuando un documento no dice nada. Los otros dos son los que hay que
+ * declarar, y lo llevan escrito en el nombre.
+ */
+function sufijo(estadistico: Estadistico): string[] {
+  return estadistico === ESTADISTICO_POR_DEFECTO ? [] : [estadistico];
 }
 
 function clave(s: string): string {

@@ -1,4 +1,4 @@
-import { CAMPOS_GUARDADOS, FASES_DE, completarAparente } from './cargabilidad.js';
+import { CAMPOS_GUARDADOS, FASES_DE, IDS_ESTADISTICO, completarAparente } from './cargabilidad.js';
 
 // ============================================================================
 // nucleo/cargabilidadAncho.js — leer la exportación de SCADA tal como sale
@@ -210,7 +210,7 @@ export function encontrarEjeDeTiempo(matriz, { minimo = 3, mirar = 30 } = {}) {
  * `/MvMoment` son tres celdas y las tres dicen algo — la subestación con su
  * tensión, la bahía con la señal, y qué tipo de valor es.
  */
-export function leerSenales(matriz, eje) {
+export function leerSenales(matriz, eje, { estadistico = null } = {}) {
   if (!eje) return [];
   const out = [];
   (matriz ?? []).forEach((celdas, fila) => {
@@ -226,7 +226,10 @@ export function leerSenales(matriz, eje) {
     });
     // Una fila sin un solo número no es una señal: es una separación o una nota.
     if (!valores.some((v) => v != null)) return;
-    out.push({ fila, etiqueta: etiqueta || `(fila ${fila + 1})`, valores });
+    // ⚠️ El estadístico va en su PROPIA clave, jamás concatenado a la etiqueta:
+    // `campoDeSenal` lee la etiqueta con expresiones regulares y una palabra de
+    // más puede voltear la magnitud propuesta sin que nadie lo vea.
+    out.push({ fila, etiqueta: etiqueta || `(fila ${fila + 1})`, valores, estadistico });
   });
   return out;
 }
@@ -301,6 +304,54 @@ export function campoDeFase(campo, fase) {
 }
 
 /** Cómo se resume lo trifásico en un solo número por hora. */
+/**
+ * QUÉ ESTADÍSTICO TRAE UN ARCHIVO, leído de SU NOMBRE (`99 §ADR-112`).
+ *
+ * ⚠️ DEL NOMBRE, porque no está en ningún otro sitio. La etiqueta de la señal es
+ * IDÉNTICA en los tres archivos —`/Membril /66kV /PROELECT/I R /MvMoment`—, así
+ * que dentro del dato no hay nada que los distinga. Lo único que los separa es
+ * cómo se llama el archivo: `..._max...`, `..._Average...`, `..._Current...`.
+ *
+ * ⚠️ Y SE DEVUELVE `null` ANTES QUE ADIVINAR, en los dos casos que importan:
+ * cuando no hay marca y cuando hay MÁS DE UNA. Un archivo mal nombrado que se
+ * lea como el estadístico equivocado se guarda con la identidad de otro y lo
+ * PISA — y el histórico no tiene borrado, así que eso no se deshace. Aquí
+ * `null` significa «pregúntale al Ingeniero», nunca «será el máximo».
+ *
+ * Las marcas van ANCLADAS entre separadores, así que «Maximiliano» no es un
+ * máximo — un `includes('max')` sí lo cazaría. Aun así esto es una **PROPUESTA,
+ * no un veredicto**, igual que `campoDeSenal`: una línea que se llamara
+ * `LN-MAX-627` daría un falso positivo, y por eso la pantalla ENSEÑA lo que se
+ * entendió de cada archivo y deja corregirlo antes de guardar.
+ *
+ * @param {string} nombre nombre del archivo, con o sin extensión
+ * @returns {{id: string|null, marca: string|null, porQue: string}}
+ */
+export function estadisticoDeNombre(nombre) {
+  const base = String(nombre ?? '').replace(/\.[a-z0-9]+$/i, '');
+  const MARCAS = [
+    { id: 'maximo', re: /(^|[_\-. ])(max|maximo|maximos)([_\-. ]|$)/i },
+    { id: 'promedio', re: /(^|[_\-. ])(average|avg|promedio|prom)([_\-. ]|$)/i },
+    // ⚠️ «Current» aquí es INSTANTÁNEO, no «corriente». Es el vocabulario de
+    // este SCADA, y por eso la magnitud NUNCA se deduce del nombre del archivo
+    // sino de la etiqueta de la señal: son dos preguntas distintas.
+    { id: 'instantaneo', re: /(^|[_\-. ])(current|instantaneo|instant|inst)([_\-. ]|$)/i },
+  ];
+  const casan = MARCAS.filter((m) => m.re.test(base));
+  if (!casan.length) {
+    return { id: null, marca: null, porQue: 'el nombre no dice qué estadístico trae' };
+  }
+  if (casan.length > 1) {
+    return {
+      id: null,
+      marca: null,
+      porQue: `el nombre dice ${casan.map((m) => m.id).join(' y ')} a la vez: no se elige por usted`,
+    };
+  }
+  const [{ id }] = casan;
+  return { id, marca: base.match(MARCAS.find((m) => m.id === id).re)[2], porQue: `el nombre trae «${base.match(MARCAS.find((m) => m.id === id).re)[2]}»` };
+}
+
 export const CRITERIOS_DE_FASE = [
   {
     id: 'maxima',
@@ -323,7 +374,14 @@ export const CRITERIOS_DE_FASE = [
  * @property {string} [linea]         de qué línea es. Lo dice el Ingeniero.
  * @property {string|null} [circuito]
  * @property {Record<number, string|null>} [asignado]  fila de la señal → campo
- * @property {string} [criterioFase]  `maxima` (por defecto) o `promedio`
+ * @property {string} [criterioFase]  `maxima` (por defecto) o `promedio` — cómo se
+ *                    resumen las TRES FASES de un instante. **No confundir con el
+ *                    estadístico**: aquél comparte la palabra «promedio» y no es lo mismo.
+ * @property {string|null} [estadistico]  cuál de los tres se lee: `maximo`,
+ *                    `promedio` o `instantaneo`. Sin él, y si la carga trae más
+ *                    de uno, NO se lee nada: mezclarlos fabricaría un número.
+ * @property {Record<number, string|null>|null} [estadisticoPorFila]  lo que
+ *                    devuelve `unirAnchas`: de qué archivo salió cada fila.
  */
 
 /**
@@ -343,20 +401,45 @@ export const CRITERIOS_DE_FASE = [
  *                  instantes:({fecha:string,hora:number}|null)[], primeraColumna:number}|null,
  *            senales: {fila:number, etiqueta:string, valores:(number|null)[],
  *                      propuesta:{campo:string,fase:string|null,porQue:string}|null,
- *                      campo:string|null, fase:string|null}[],
+ *                      campo:string|null, fase:string|null, estadistico:string|null}[],
+ *            estadisticos?: string[],
  *            porQue: string}}
  */
 export function registrosDesdeAncho(matriz, opciones = {}) {
-  const { linea, circuito = null, asignado = {}, criterioFase = 'maxima' } = opciones;
+  const {
+    linea, circuito = null, asignado = {}, criterioFase = 'maxima',
+    // ⚠️ `estadistico` FILTRA: «de todas estas señales quiero solo las del
+    // máximo». `estadisticoPorFila` es lo que devuelve `unirAnchas`. Ninguno de
+    // los dos tiene valor por defecto, y eso es el punto (`99 §ADR-112`).
+    estadistico = null, estadisticoPorFila = null,
+  } = opciones;
   const eje = encontrarEjeDeTiempo(matriz);
   if (!eje) {
     return { registros: [], eje: null, senales: [], porQue: 'no se encontró una fila de sellos de tiempo' };
   }
-  const senales = leerSenales(matriz, eje).map((s) => {
+  const todas = leerSenales(matriz, eje).map((s) => {
     const propuesta = campoDeSenal(s.etiqueta);
     const campo = asignado[s.fila] !== undefined ? asignado[s.fila] : (propuesta?.campo ?? null);
-    return { ...s, propuesta, campo, fase: propuesta?.fase ?? null };
+    const suEst = estadisticoPorFila?.[s.fila] ?? s.estadistico ?? null;
+    return { ...s, propuesta, campo, fase: propuesta?.fase ?? null, estadistico: suEst };
   });
+
+  // ⚠️ SE FILTRA POR ESTADÍSTICO, Y SI NO, SE PARA (`99 §ADR-112`). Sin esto,
+  // las tres corrientes de la fase R —244 A del máximo, 233 del promedio y 236
+  // del instantáneo— caen en el mismo cubo y `combinar()` devuelve UNA. Con
+  // criterio «la más alta» las otras dos desaparecen sin dejar rastro; con
+  // «promedio» sale un número que no midió nadie. Callar aquí es fabricar dato.
+  const senales = estadistico
+    ? todas.filter((s) => s.estadistico === estadistico || s.estadistico == null)
+    : todas;
+  const presentes = [...new Set(senales.filter((s) => s.campo).map((s) => s.estadistico ?? '—'))];
+  if (!estadistico && presentes.length > 1) {
+    return {
+      registros: [], eje, senales: todas, estadisticos: presentes,
+      porQue: `esta carga trae ${presentes.length} estadísticos a la vez (${presentes.join(', ')}) `
+        + 'y no se pueden mezclar en la misma lectura: elija cuál se guarda',
+    };
+  }
 
   // Por cada instante, se junta lo que aporte cada señal. Las de la misma
   // magnitud y distinta fase se combinan con el criterio; las demás se ponen
@@ -370,6 +453,9 @@ export function registrosDesdeAncho(matriz, opciones = {}) {
       // más que mantener a mano.
       ...Object.fromEntries(CAMPOS_GUARDADOS.map((c) => [c, null])),
       naturaleza: null, criterioFase: null,
+      // Después del spread a propósito: si algún día el estadístico entrara en
+      // el catálogo, el spread lo pisaría a `null` y esto lo sobrevive.
+      estadistico: estadistico ?? presentes.find((p) => p !== '—') ?? null,
     };
     const porCampo = new Map();
     for (const s of senales) {
@@ -402,9 +488,11 @@ export function registrosDesdeAncho(matriz, opciones = {}) {
   return {
     registros,
     eje,
-    senales,
+    senales: todas,
+    estadisticos: presentes,
     porQue: `eje de tiempo en la fila ${eje.fila + 1}, ${eje.columnas.length} instantes; `
-      + `${senales.length} señal(es) debajo`,
+      + `${senales.length} señal(es) debajo`
+      + (estadistico ? ` · estadístico: ${estadistico}` : ''),
   };
 }
 
@@ -428,8 +516,12 @@ export function registrosDesdeAncho(matriz, opciones = {}) {
  * la etiqueta en una sola celda —la misma que `leerSenales` habría compuesto—,
  * así que río abajo no cambia nada.
  *
- * @param {{nombre?: string, matriz: any[][]}[]} entradas
- * @returns {{matriz: any[][], porQue: string, deCada: {nombre: string, senales: number}[]}}
+ * @param {{nombre?: string, matriz: any[][], estadistico?: string|null}[]} entradas
+ * @returns {{matriz: any[][], porQue: string,
+ *            deCada: {nombre: string, senales: number, estadistico: string|null, porQueEstadistico: string}[],
+ *            senales: {fila: number, etiqueta: string, estadistico: string|null, nombre: string}[],
+ *            estadisticoPorFila: Record<number, string|null>,
+ *            estadisticos: string[], sinDeclarar: string[]}}
  */
 export function unirAnchas(entradas) {
   const lista = (entradas ?? []).filter((e) => e && Array.isArray(e.matriz));
@@ -439,7 +531,15 @@ export function unirAnchas(entradas) {
     const nombre = e.nombre ?? `archivo ${i + 1}`;
     const eje = encontrarEjeDeTiempo(e.matriz);
     if (!eje) throw new Error(`«${nombre}» no trae una fila de sellos de tiempo: no se puede unir con los demás`);
-    return { nombre, matriz: e.matriz, eje, senales: leerSenales(e.matriz, eje) };
+    // ⚠️ EL NOMBRE DEL ARCHIVO SOLO EXISTE AQUÍ (`99 §ADR-112`). Diez líneas más
+    // abajo las señales se funden en una matriz y el origen se pierde: con tres
+    // estadísticos las etiquetas quedan idénticas y ya no hay de dónde sacarlo.
+    const declarado = e.estadistico !== undefined ? e.estadistico : estadisticoDeNombre(nombre).id;
+    return {
+      nombre, matriz: e.matriz, eje, estadistico: declarado ?? null,
+      porQueEstadistico: estadisticoDeNombre(nombre).porQue,
+      senales: leerSenales(e.matriz, eje, { estadistico: declarado ?? null }),
+    };
   });
 
   const [base, ...resto] = leidas;
@@ -458,15 +558,32 @@ export function unirAnchas(entradas) {
     }
   }
 
+  // ⚠️ LA MATRIZ NO CAMBIA DE FORMA, y es deliberado. Meter el estadístico como
+  // una columna más correría `primeraColumna` de `encontrarEjeDeTiempo`, y a
+  // partir de ahí TODAS las etiquetas saldrían compuestas y `pareceAncho`
+  // empezaría a ver otra cosa. La anotación viaja aparte, por número de fila.
   const filaEje = ['', ...base.eje.columnas.map((c) => base.matriz[base.eje.fila][c])];
   const matriz = [filaEje];
-  for (const { senales } of leidas) {
-    for (const s of senales) matriz.push([s.etiqueta, ...s.valores]);
+  const anotadas = [];
+  for (const { nombre, estadistico, senales } of leidas) {
+    for (const s of senales) {
+      anotadas.push({ fila: matriz.length, etiqueta: s.etiqueta, estadistico, nombre });
+      matriz.push([s.etiqueta, ...s.valores]);
+    }
   }
-  const deCada = leidas.map(({ nombre, senales }) => ({ nombre, senales: senales.length }));
+  const deCada = leidas.map(({ nombre, senales, estadistico, porQueEstadistico }) => ({
+    nombre, senales: senales.length, estadistico, porQueEstadistico,
+  }));
   return {
     matriz,
     deCada,
+    /** Por número de fila de la matriz emitida: de qué archivo y estadístico salió. */
+    senales: anotadas,
+    estadisticoPorFila: Object.fromEntries(anotadas.map((a) => [a.fila, a.estadistico])),
+    /** Los estadísticos presentes, sin repetir. Más de uno = hay que elegir. */
+    estadisticos: [...new Set(anotadas.map((a) => a.estadistico).filter(Boolean))],
+    /** Archivos cuyo nombre no dice qué estadístico traen. Se PREGUNTA, no se supone. */
+    sinDeclarar: leidas.filter((l) => !l.estadistico).map((l) => l.nombre),
     porQue: leidas.length === 1
       ? `${base.senales.length} señal(es) de «${base.nombre}»`
       : `${matriz.length - 1} señales de ${leidas.length} archivos, sobre los mismos `

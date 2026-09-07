@@ -37,8 +37,8 @@ const UID = 'uid-de-prueba';
 const AHORA = '2026-01-02T00:00:00.000Z';
 
 /** Una hora de tensión por fases, que es lo que trae el archivo del Ingeniero. */
-const hora = (h, rs, st, tr) => ({
-  linea: 'LN-627', fecha: '2026-01-01', hora: h,
+const hora = (h, rs, st, tr, estadistico = 'maximo') => ({
+  linea: 'LN-627', fecha: '2026-01-01', hora: h, estadistico,
   tension_kV: rs, tension_RS_kV: rs, tension_ST_kV: st, tension_TR_kV: tr,
 });
 
@@ -50,7 +50,7 @@ const REGISTROS = [hora(0, 68.4, 68.9, 68.4), hora(1, 68.3, 68.8, 68.3), hora(2,
  * reflejarlo y hay que actualizarla — que es justo el aviso que se quiere.
  */
 const comoLoEscribeElRepositorio = (d) => ({
-  id: idDelDia(ORG, String(d.linea), d.circuito, String(d.fecha)),
+  id: idDelDia(ORG, String(d.linea), d.circuito, String(d.fecha), d.estadistico),
   orgId: ORG, creadoEn: AHORA, creadoPor: UID, revision: 0,
   ...d, cargaId: '6f1f5e2e-2a3c-4f8e-9a1d-0b7c2d3e4f50', versionMotor: '0.15.0',
 });
@@ -76,7 +76,7 @@ describe('LO QUE SE ESCRIBE CABE EN SU MOLDE', () => {
     const { dias } = empaquetarPorDia(REGISTROS);
     const r = resumirDia(dias[0]);
     const doc = {
-      id: idDelResumen(ORG, String(r.linea), String(r.fecha)),
+      id: idDelResumen(ORG, String(r.linea), String(r.fecha), r.estadistico),
       orgId: ORG, creadoEn: AHORA, creadoPor: UID, revision: 0, ...r, versionMotor: '0.15.0',
     };
     const salida = ResumenDiarioCargabilidad.parse(doc);

@@ -143,6 +143,47 @@ export const FASES_DE = Object.entries(CAMPOS).reduce((acc, [campo, d]) => {
 export const MAGNITUDES = Object.keys(CAMPOS).filter(
   (c) => CAMPOS[c].tipo === 'numero' && !CAMPOS[c].de && c !== 'capacidadNominal_A');
 
+/**
+ * LOS TRES ESTADÍSTICOS DE LA HORA (`99 §ADR-112`).
+ *
+ * ⚠️ NO SON LA MISMA MEDIDA. El sistema de supervisión exporta la misma
+ * magnitud tres veces, un archivo por estadístico, y los valores difieren de
+ * verdad: el 2026-01-01 la corriente de la fase R llegó a **244 A de máximo** y
+ * **233 A de promedio**. Meterlas en el mismo hueco no da error: da un número
+ * que nadie midió.
+ *
+ * `maximo` es el que DICTAMINA —un límite térmico se comprueba contra el pico,
+ * no contra la media—, `promedio` es el que habilita energía y factor de carga,
+ * e `instantaneo` es la muestra puntual de la exportación.
+ *
+ * ⚠️ VIVE AQUÍ y no en el molde porque el núcleo no depende de nadie: es el
+ * catálogo quien manda, y `contratos/` lo espeja con una prueba de paridad. Dos
+ * listas escritas a mano se separan solas (misma razón que `CAMPOS_GUARDADOS`).
+ *
+ * ⚠️ Y OJO CON EL CHOQUE DE NOMBRES: `CRITERIOS_DE_FASE` también tiene un
+ * «promedio», y NO es esto. Aquél dice cómo se resumieron las TRES FASES de un
+ * mismo instante; éste dice qué estadístico de la hora trae el archivo. Nunca
+ * comparten variable ni desplegable.
+ */
+export const ESTADISTICOS = Object.freeze([
+  { id: 'maximo', rotulo: 'Máximo', porQue: 'el peor instante de la hora — es el que dictamina' },
+  { id: 'promedio', rotulo: 'Promedio', porQue: 'la media de la hora — energía y factor de carga' },
+  { id: 'instantaneo', rotulo: 'Instantáneo', porQue: 'la muestra puntual del momento de exportar' },
+]);
+
+export const IDS_ESTADISTICO = ESTADISTICOS.map((e) => e.id);
+
+/**
+ * El que se supone en un documento que NO lo declara, y **solo al LEER**.
+ *
+ * ⚠️ JAMÁS al escribir. Los días guardados antes de esta decisión son máximos
+ * —salieron de los archivos `_max`— y por eso se leen así. Pero suponerlo al
+ * GUARDAR sería la peor regresión posible: un promedio escrito con la identidad
+ * del máximo lo pisa con una escritura que las reglas consideran legítima, y el
+ * borrado está prohibido a propósito. No se recupera de ninguna parte.
+ */
+export const ESTADISTICO_AL_LEER = 'maximo';
+
 export const CAMPOS_REQUERIDOS = Object.keys(CAMPOS).filter((k) => CAMPOS[k].requerido);
 
 /**
@@ -976,11 +1017,16 @@ export function empaquetarPorDia(registros) {
 
   for (const reg of registros ?? []) {
     if (reg.hora == null) { sinHora.push(reg); continue; }
-    const k = [reg.linea, reg.circuito ?? '-', reg.fecha].join('|');
+    // ⚠️ EL ESTADÍSTICO ENTRA EN LA CLAVE (`99 §ADR-112`). Sin él, el máximo y
+    // el promedio del mismo día caen en el MISMO documento y el segundo pisa al
+    // primero — que es exactamente el número que no se puede recuperar después.
+    const k = [reg.linea, reg.circuito ?? '-', reg.fecha, reg.estadistico ?? '-'].join('|');
     if (!dias.has(k)) {
       dias.set(k, {
         linea: reg.linea,
         circuito: reg.circuito ?? null,
+        // `null` = el archivo no lo declaró. NO se rellena: quien guarda se niega.
+        estadistico: reg.estadistico ?? null,
         subestacionOrigen: reg.subestacionOrigen ?? null,
         subestacionDestino: reg.subestacionDestino ?? null,
         fecha: reg.fecha,
@@ -1075,6 +1121,8 @@ export function resumirDia(dia) {
   const base = {
     linea: dia?.linea ?? null,
     fecha: dia?.fecha ?? null,
+    /** Qué estadístico resume. `null` = el día no lo declara (día antiguo). */
+    estadistico: dia?.estadistico ?? null,
     horasConMedida: horas.length,
     horasPorMagnitud,
     /** Horas con AL MENOS una magnitud. Es lo que el tablero debe llamar «dato». */

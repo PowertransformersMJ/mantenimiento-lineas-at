@@ -9573,3 +9573,91 @@ ni leyendo.
   no molesta a nadie.
 
 ---
+## ADR-112 · 2026-09-07 · Máximo, promedio e instantáneo: tres estadísticos de la misma hora, y ninguno se adivina
+
+**Deliberación:** `2026-09-07-mapa-estadistico-cargabilidad.json` — el Ingeniero subió la carpeta
+`Variables Electricas` con la misma magnitud exportada tres veces. Le presenté las tres opciones
+medidas y eligió **guardar los tres, cada uno declarado**. Mapa del alcance con ocho agentes.
+**Estado:** ✅ en producción · **NO revisada externamente**.
+
+### Contexto
+
+Hasta hoy el módulo tenía **un hueco por magnitud**. El sistema de supervisión exporta la misma
+magnitud **tres veces** —un archivo por estadístico— y los valores difieren de verdad:
+
+| | máximo | promedio | instantáneo |
+|---|---|---|---|
+| Corriente fase R (pico del día) | **244 A** | 233 A | 236 A |
+
+Los tres archivos traen la **misma etiqueta de señal** —`/Membril /66kV /PROELECT/I R /MvMoment`—,
+así que dentro del dato **no hay nada que los distinga**: lo único que los separa es cómo se llama
+el archivo, y `unirAnchas` tiraba ese nombre al fundir. Cargados juntos, los tres caían en el mismo
+cubo y `combinar()` devolvía uno: con criterio «la más alta», el promedio y el instantáneo
+desaparecían sin dejar rastro.
+
+### Decisión
+
+**1. El estadístico es una lista CERRADA en el catálogo del núcleo**, espejada en el molde con
+prueba de paridad — el núcleo no depende de nadie, y dos listas a mano se separan solas.
+
+**2. Se lee del NOMBRE del archivo, con marcas ANCLADAS**, y es una PROPUESTA que la pantalla
+enseña archivo por archivo y deja corregir. `includes('max')` cazaría «Maximiliano».
+
+**3. ⚠️ NO SE ADIVINA NUNCA, y ésta es la pieza que sostiene todo lo demás.** Si el nombre no lo
+dice —o dice dos cosas— se devuelve `null` y **el guardado se niega**. Un `?? 'maximo'` en cualquier
+punto del camino escribiría el promedio con la identidad del máximo y lo **reemplazaría**: para las
+reglas es una corrección legítima del mismo día, `delete` está prohibido a propósito y el archivo
+original no se guarda. Ese número no se recupera de ninguna parte.
+
+**4. La anotación viaja FUERA de la matriz.** Meter el estadístico como una columna correría
+`primeraColumna` del eje de tiempo, y a partir de ahí todas las etiquetas saldrían compuestas y
+`pareceAncho` vería otra cosa. Va por número de fila, en paralelo.
+
+**5. Un día guardado = un estadístico**, y entra en la identidad del documento… **salvo el máximo,
+que conserva la identidad corta**. Cuando esto se escribió ya había días guardados como máximos, y
+darles un `id` nuevo no los movería: los duplicaría, y el viejo se quedaría ahí para siempre. Encaja
+con lo que significan: el máximo es el que dictamina y el que se supone al LEER un documento que no
+lo declara.
+
+**6. El tablero mira UN estadístico a la vez, y lo dice en la propia tarjeta.** Mezclarlos contaría
+tres días donde hay uno, promediaría medias de naturalezas distintas y picaría la serie un 5 % en la
+frontera. **Se filtra en memoria, no en la consulta**: filtrar en Firestore exigiría un índice
+compuesto nuevo y el emulador no los exige — saldría verde en local y rojo solo en producción.
+
+**7. Mirar y guardar son cosas distintas:** se guardan TODOS los estadísticos que traiga la carga,
+cada uno en su documento. Guardar solo el visible le haría perder dos tercios de lo que entregó.
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| Guardar solo el máximo | Es el que dictamina, pero tira el promedio, y sin él no hay factor de carga ni pérdidas. El Ingeniero eligió los tres |
+| Tres valores por magnitud dentro de la misma hora | Multiplica por tres un modelo que ya tiene 33 campos, y `HoraDeCargabilidad` es un `z.object` sin `passthrough`: lo no declarado se borra en silencio |
+| Poner el estadístico en la etiqueta de la señal | `campoDeSenal` lee la etiqueta con expresiones regulares: una palabra de más puede voltear la magnitud propuesta sin que nadie lo vea |
+| Sufijar también el máximo | Duplicaría a perpetuidad los días ya guardados: las reglas prohíben borrar |
+| Filtrar el tablero por estadístico en la consulta | Exige un índice compuesto que el emulador no pide: verde en local, roto en producción |
+
+### Supuestos que deben ser ciertos — y la señal que diría que dejaron de serlo
+
+| Supuesto | Señal |
+|---|---|
+| SCADA sigue nombrando los archivos con `_max` / `_Average` / `_Current` | Sube la proporción de archivos que llegan sin estadístico detectable — la pantalla los enseña uno a uno |
+| El máximo sigue siendo el que dictamina | La prueba que fija su identidad corta, en rojo |
+| Nadie mete un `?? 'maximo'` en el camino | La prueba «un registro sin estadístico deja el día en null» |
+| El catálogo y el molde siguen diciendo lo mismo | La prueba de paridad |
+
+### Consecuencias
+
+- Motor `0.17.0`. `2.614` pruebas y `68` de reglas. Quince pruebas nuevas solo del estadístico.
+- ⚠️ **En P y Q, que salen negativas, el «máximo» es el momento de MENOS carga**, no el de más: es
+  el máximo algebraico de una magnitud con signo. No afecta al veredicto —que usa la corriente, que
+  siempre es positiva— pero cambia cómo se leen la activa y la reactiva.
+- ⚠️ **Falta `IT_max`** en la exportación del 2026-01-01: hay promedio e instantáneo de la fase T,
+  pero no máximo. El desbalance entre las tres fases solo se puede calcular con los otros dos.
+- Los dos `.xls` de la carpeta (`P_average`, `Q_average`) son BIFF antiguo, que el lector no abre:
+  se convirtieron a CSV al lado de los originales. **Pendiente**: que la pantalla lo diga en vez de
+  fallar de forma oscura.
+- Nada de esto tocó `firestore.rules`: el id con sufijo pasa tal cual porque las reglas no miran la
+  forma del id. Quien la vigila es el molde.
+
+---
