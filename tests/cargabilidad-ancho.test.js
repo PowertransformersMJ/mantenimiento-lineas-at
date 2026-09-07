@@ -29,6 +29,7 @@ import {
   campoDeSenal, cerosAlFinal, CRITERIOS_DE_FASE, encontrarEjeDeTiempo, instanteDeSerial,
   leerSenales, pareceAncho, pareceSelloDeTiempo, registrosDesdeAncho,
   ordenDeFecha, instanteDeTexto, instanteDeSello, unirAnchas,
+  campoDeFase,
 } from '../nucleo/cargabilidadAncho.js';
 
 /** El eje de tiempo de un día completo: 24 sellos, hora a hora. */
@@ -504,5 +505,70 @@ describe('la pantalla no asigna sola un volcado del sistema entero', () => {
 
   test('el tope de lo que se PINTA se anuncia: un tope callado se lee como «esto es todo»', () => {
     assert.match(pantalla, /se enseñan \{TOPE_SENALES\}/);
+  });
+});
+
+// ============================================================================
+// LAS FASES SE GUARDAN, NO SOLO SE COMBINAN (`99 §ADR-106`)
+// ----------------------------------------------------------------------------
+// Se detectaban aquí mismo y se tiraban en la misma función: el registro solo
+// llevaba el agregado. Consecuencia medida: el indicador «desbalance entre
+// fases» de la pantalla no se podía calcular NUNCA — pedía `corrienteR_A`,
+// `corrienteS_A` y `corrienteT_A`, y esos tres nombres no existían en ninguna
+// otra parte del repositorio.
+// ============================================================================
+describe('las fases sobreviven al registro', () => {
+  const eje = ['', '1/01/26 0:00', '1/01/26 1:00', '1/01/26 2:00'];
+
+  test('la tensión: RS, ST y TR se guardan Y se combinan', () => {
+    const m = [eje,
+      ['/Membril /66kV /PROELECT/U RS /MvMoment', 68.8, 68.9, 68.7],
+      ['/Membril /66kV /PROELECT/U ST /MvMoment', 69.3, 69.5, 69.3],
+      ['/Membril /66kV /PROELECT/U TR /MvMoment', 68.9, 69.0, 68.8]];
+    const r = registrosDesdeAncho(m, { linea: 'LN-627', criterioFase: 'maxima' });
+    const h0 = r.registros[0];
+    assert.equal(h0.tensionRS_kV, 68.8);
+    assert.equal(h0.tensionST_kV, 69.3);
+    assert.equal(h0.tensionTR_kV, 68.9);
+    assert.equal(h0.tension_kV, 69.3, 'el agregado sigue saliendo, con el criterio pedido');
+    assert.equal(h0.criterioFase, 'maxima', 'un agregado que no dice cómo se hizo es un número sin procedencia');
+  });
+
+  test('la corriente: R, S y T — las tres que la pantalla lleva pidiendo', () => {
+    const m = [eje,
+      ['/Membril /66kV /PROELECT/I R /MvMoment', 271, 263, 259],
+      ['/Membril /66kV /PROELECT/I S /MvMoment', 268, 260, 257],
+      ['/Membril /66kV /PROELECT/I T /MvMoment', 269, 260, 257]];
+    const h0 = registrosDesdeAncho(m, { linea: 'LN-627' }).registros[0];
+    assert.equal(h0.corrienteR_A, 271);
+    assert.equal(h0.corrienteS_A, 268);
+    assert.equal(h0.corrienteT_A, 269);
+    assert.equal(h0.corriente_A, 271, 'por defecto, la fase más cargada');
+  });
+
+  test('⚠️ la tensión entre fases y la de fase a tierra NO caen en el mismo campo', () => {
+    // Es un factor de 1,73: mezclarlas daría una línea al 58 % o al 173 %.
+    assert.equal(campoDeSenal('/x/U RS /MvMoment').fase, 'RS');
+    assert.equal(campoDeFase('tension_kV', 'RS'), 'tensionRS_kV');
+    assert.equal(campoDeSenal('/x/U R /MvMoment').fase, 'R');
+    assert.equal(campoDeFase('tension_kV', 'R'), 'tensionR_kV');
+    assert.match(campoDeSenal('/x/U RS /MvMoment').porQue, /entre las fases/);
+    assert.match(campoDeSenal('/x/U R /MvMoment').porQue, /a tierra/);
+  });
+
+  test('la potencia aparente se reconoce por MVA, y la «S» suelta NO se adivina', () => {
+    assert.equal(campoDeSenal('/x/MVA /MvMoment').campo, 'potenciaAparente_MVA');
+    assert.equal(campoDeSenal('/x/S R /MvMoment').campo, 'potenciaAparente_MVA');
+    assert.equal(campoDeSenal('/x/S R /MvMoment').fase, 'R');
+    // Sin la barra, una «S» suelta es tan fase como magnitud: se devuelve null y
+    // se asigna a mano. Arriesgar aquí no da error, da una gráfica falsa.
+    assert.equal(campoDeSenal('SUBESTACION S T'), null);
+  });
+
+  test('una sola señal no inventa criterio: no hubo nada que combinar', () => {
+    const m = [eje, ['/x/I R /MvMoment', 271, 263, 259]];
+    const h0 = registrosDesdeAncho(m, { linea: 'LN-627' }).registros[0];
+    assert.equal(h0.corrienteR_A, 271);
+    assert.equal(h0.criterioFase, null, 'declarar un criterio donde no se combinó nada sería ruido');
   });
 });

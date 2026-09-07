@@ -66,11 +66,71 @@ export const CAMPOS = {
   corriente_A: { rotulo: 'Corriente', tipo: 'numero', unidad: 'A', requerido: false },
   potenciaActiva_MW: { rotulo: 'Potencia activa', tipo: 'numero', unidad: 'MW', requerido: false },
   potenciaReactiva_MVAr: { rotulo: 'Potencia reactiva', tipo: 'numero', unidad: 'MVAr', requerido: false },
+  potenciaAparente_MVA: { rotulo: 'Potencia aparente', tipo: 'numero', unidad: 'MVA', requerido: false },
   tension_kV: { rotulo: 'Tensión', tipo: 'numero', unidad: 'kV', requerido: false },
   capacidadNominal_A: { rotulo: 'Capacidad nominal', tipo: 'numero', unidad: 'A', requerido: false },
   estado: { rotulo: 'Estado', tipo: 'texto', requerido: false },
   observaciones: { rotulo: 'Observaciones', tipo: 'texto', requerido: false },
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // LAS FASES (`99 §ADR-106`) — orden del Ingeniero: «todas en sus distintas fases»
+  // ──────────────────────────────────────────────────────────────────────────
+  // Hasta hoy las tres fases se colapsaban en UN número con un criterio («la
+  // más cargada» o «el promedio») y la letra se perdía. Dos consecuencias que
+  // ya estaban pasando: el desbalance entre fases —la pantalla lo pide desde
+  // hace tiempo— no se podía calcular NUNCA, y el número guardado no decía con
+  // qué criterio se había hecho.
+  //
+  // ⚠️ Y LA TENSIÓN LLEVA SU BASE EN EL NOMBRE, que no es pedantería: son dos
+  // magnitudes distintas separadas por un factor de 1,73. `tensionRS_kV` es
+  // entre fases —lo que exporta el SCADA del Ingeniero, y contra lo que se
+  // compara la nominal de la línea—; `tensionR_kV` es de fase a tierra. Un
+  // campo llamado «tensión de la fase R» a secas admitiría las dos y algún día
+  // alguien metería una donde va la otra.
+  tensionRS_kV: { rotulo: 'Tensión RS', tipo: 'numero', unidad: 'kV', requerido: false, fase: 'RS', de: 'tension_kV' },
+  tensionST_kV: { rotulo: 'Tensión ST', tipo: 'numero', unidad: 'kV', requerido: false, fase: 'ST', de: 'tension_kV' },
+  tensionTR_kV: { rotulo: 'Tensión TR', tipo: 'numero', unidad: 'kV', requerido: false, fase: 'TR', de: 'tension_kV' },
+  tensionR_kV: { rotulo: 'Tensión R-tierra', tipo: 'numero', unidad: 'kV', requerido: false, fase: 'R', de: 'tension_kV' },
+  tensionS_kV: { rotulo: 'Tensión S-tierra', tipo: 'numero', unidad: 'kV', requerido: false, fase: 'S', de: 'tension_kV' },
+  tensionT_kV: { rotulo: 'Tensión T-tierra', tipo: 'numero', unidad: 'kV', requerido: false, fase: 'T', de: 'tension_kV' },
+
+  corrienteR_A: { rotulo: 'Corriente R', tipo: 'numero', unidad: 'A', requerido: false, fase: 'R', de: 'corriente_A' },
+  corrienteS_A: { rotulo: 'Corriente S', tipo: 'numero', unidad: 'A', requerido: false, fase: 'S', de: 'corriente_A' },
+  corrienteT_A: { rotulo: 'Corriente T', tipo: 'numero', unidad: 'A', requerido: false, fase: 'T', de: 'corriente_A' },
+
+  potenciaActivaR_MW: { rotulo: 'Activa R', tipo: 'numero', unidad: 'MW', requerido: false, fase: 'R', de: 'potenciaActiva_MW' },
+  potenciaActivaS_MW: { rotulo: 'Activa S', tipo: 'numero', unidad: 'MW', requerido: false, fase: 'S', de: 'potenciaActiva_MW' },
+  potenciaActivaT_MW: { rotulo: 'Activa T', tipo: 'numero', unidad: 'MW', requerido: false, fase: 'T', de: 'potenciaActiva_MW' },
+
+  potenciaReactivaR_MVAr: { rotulo: 'Reactiva R', tipo: 'numero', unidad: 'MVAr', requerido: false, fase: 'R', de: 'potenciaReactiva_MVAr' },
+  potenciaReactivaS_MVAr: { rotulo: 'Reactiva S', tipo: 'numero', unidad: 'MVAr', requerido: false, fase: 'S', de: 'potenciaReactiva_MVAr' },
+  potenciaReactivaT_MVAr: { rotulo: 'Reactiva T', tipo: 'numero', unidad: 'MVAr', requerido: false, fase: 'T', de: 'potenciaReactiva_MVAr' },
+
+  potenciaAparenteR_MVA: { rotulo: 'Aparente R', tipo: 'numero', unidad: 'MVA', requerido: false, fase: 'R', de: 'potenciaAparente_MVA' },
+  potenciaAparenteS_MVA: { rotulo: 'Aparente S', tipo: 'numero', unidad: 'MVA', requerido: false, fase: 'S', de: 'potenciaAparente_MVA' },
+  potenciaAparenteT_MVA: { rotulo: 'Aparente T', tipo: 'numero', unidad: 'MVA', requerido: false, fase: 'T', de: 'potenciaAparente_MVA' },
 };
+
+/** Lo que IDENTIFICA una lectura. El resto es lo que se midió. */
+export const CAMPOS_DE_IDENTIDAD = ['fecha', 'hora', 'linea', 'circuito',
+  'subestacionOrigen', 'subestacionDestino'];
+
+/**
+ * LO QUE SE GUARDA DE CADA HORA — derivado del catálogo, NUNCA a mano.
+ *
+ * ⚠️ Aquí había DOS listas escritas a mano, una al guardar y otra al leer, y
+ * entre las dos silenciaban cualquier campo nuevo: se guardaba vacío, sin error
+ * y sin aviso. Un fallo así compila, pasa las pruebas viejas y pierde datos. Lo
+ * cazó el mapa del 2026-09-07 antes de que costara una carga real.
+ */
+export const CAMPOS_GUARDADOS = Object.keys(CAMPOS).filter((c) => !CAMPOS_DE_IDENTIDAD.includes(c));
+
+/** Las magnitudes que tienen fases, con las suyas. Derivado, no escrito. */
+export const FASES_DE = Object.entries(CAMPOS).reduce((acc, [campo, d]) => {
+  if (!d.de) return acc;
+  (acc[d.de] ??= []).push({ campo, fase: d.fase });
+  return acc;
+}, {});
 
 export const CAMPOS_REQUERIDOS = Object.keys(CAMPOS).filter((k) => CAMPOS[k].requerido);
 
@@ -96,7 +156,29 @@ export const SINONIMOS = {
   corriente_A: ['corriente', 'corriente a', 'amperios', 'amperaje', 'i', 'current'],
   potenciaActiva_MW: ['potencia activa', 'potencia', 'mw', 'p', 'active power'],
   potenciaReactiva_MVAr: ['potencia reactiva', 'mvar', 'q', 'reactive power'],
+  potenciaAparente_MVA: ['potencia aparente', 'aparente', 'mva', 's', 'apparent power'],
   tension_kV: ['tension', 'voltaje', 'kv', 'v', 'voltage'],
+  // Las fases. Se escriben ENTERAS —no se derivan del nombre del campo— porque
+  // cada sistema las rotula a su manera y adivinar es lo que produce columnas
+  // mapeadas mal, que no dan error: dan un número equivocado con cara de bueno.
+  tensionRS_kV: ['tension rs', 'u rs', 'urs', 'v rs', 'vrs', 'tension linea rs'],
+  tensionST_kV: ['tension st', 'u st', 'ust', 'v st', 'vst', 'tension linea st'],
+  tensionTR_kV: ['tension tr', 'u tr', 'utr', 'v tr', 'vtr', 'tension linea tr'],
+  tensionR_kV: ['tension r', 'u r', 'ur', 'v r', 'vr', 'tension fase r', 'tension r tierra'],
+  tensionS_kV: ['tension s', 'u s', 'us', 'v s', 'vs', 'tension fase s', 'tension s tierra'],
+  tensionT_kV: ['tension t', 'u t', 'ut', 'v t', 'vt', 'tension fase t', 'tension t tierra'],
+  corrienteR_A: ['corriente r', 'i r', 'ir', 'corriente fase r', 'amperaje r'],
+  corrienteS_A: ['corriente s', 'i s', 'is', 'corriente fase s', 'amperaje s'],
+  corrienteT_A: ['corriente t', 'i t', 'it', 'corriente fase t', 'amperaje t'],
+  potenciaActivaR_MW: ['potencia activa r', 'activa r', 'p r', 'mw r'],
+  potenciaActivaS_MW: ['potencia activa s', 'activa s', 'p s', 'mw s'],
+  potenciaActivaT_MW: ['potencia activa t', 'activa t', 'p t', 'mw t'],
+  potenciaReactivaR_MVAr: ['potencia reactiva r', 'reactiva r', 'q r', 'mvar r'],
+  potenciaReactivaS_MVAr: ['potencia reactiva s', 'reactiva s', 'q s', 'mvar s'],
+  potenciaReactivaT_MVAr: ['potencia reactiva t', 'reactiva t', 'q t', 'mvar t'],
+  potenciaAparenteR_MVA: ['potencia aparente r', 'aparente r', 's r', 'mva r'],
+  potenciaAparenteS_MVA: ['potencia aparente s', 'aparente s', 's s', 'mva s'],
+  potenciaAparenteT_MVA: ['potencia aparente t', 'aparente t', 's t', 'mva t'],
   capacidadNominal_A: ['capacidad nominal', 'capacidad', 'capacidad nominal de la linea',
     'ampacidad nominal', 'corriente nominal', 'limite', 'capacidad a'],
   estado: ['estado', 'condicion', 'condicion operativa', 'estado operativo', 'status'],
@@ -134,16 +216,22 @@ export function detectarMapeo(cabeceras) {
   const mapeo = {};
   const usadas = new Set();
 
+  // ⚠️ DOS PASADAS COMPLETAS, y el orden importa más que nunca desde que hay
+  // fases. Antes se hacía campo a campo —exacta y luego prefijo para cada uno—,
+  // así que «Corriente R» se la llevaba `corriente_A` por prefijo ANTES de que
+  // `corrienteR_A` llegara a probar su coincidencia exacta: la línea entera
+  // habría quedado medida con una sola fase. Ahora la exacta gana siempre,
+  // venga del campo que venga, y el prefijo solo reparte lo que sobra.
   for (const campo of Object.keys(CAMPOS)) {
     const alias = SINONIMOS[campo] ?? [];
-    // Primero la coincidencia EXACTA; solo si no la hay, la que empieza igual.
-    // Buscar por «contiene» a la primera casaba «corriente» dentro de
-    // «corriente nominal» y se llevaba la capacidad por delante.
-    let hallada = vistas.find((v) => !usadas.has(v.original) && alias.includes(v.norma));
-    if (!hallada) {
-      hallada = vistas.find((v) => !usadas.has(v.original)
-        && alias.some((a) => v.norma === a || v.norma.startsWith(`${a} `)));
-    }
+    const hallada = vistas.find((v) => !usadas.has(v.original) && alias.includes(v.norma));
+    if (hallada) { mapeo[campo] = hallada.original; usadas.add(hallada.original); }
+  }
+  for (const campo of Object.keys(CAMPOS)) {
+    if (mapeo[campo]) continue;
+    const alias = SINONIMOS[campo] ?? [];
+    const hallada = vistas.find((v) => !usadas.has(v.original)
+      && alias.some((a) => v.norma.startsWith(`${a} `)));
     if (hallada) { mapeo[campo] = hallada.original; usadas.add(hallada.original); }
   }
 
@@ -240,6 +328,45 @@ export function aHora(v) {
   return h >= 0 && h <= 23 ? h : null;
 }
 
+/**
+ * LA POTENCIA APARENTE QUE FALTA — derivada, y DICIÉNDOLO (`99 §ADR-106`).
+ *
+ * `S = √(P² + Q²)`. Es aritmética exacta, no una estimación, pero **no es una
+ * medida**: nadie puso un instrumento a leer eso. Y en una pantalla las dos se
+ * parecen mucho. Así que la aparente derivada entra marcada como `derivada`,
+ * por el mismo motivo por el que el porcentaje del archivo entra como
+ * `declarada` y no se sobrescribe con uno recalculado (`§ADR-088`): una
+ * magnitud sin su naturaleza declarada es una magnitud que miente.
+ *
+ * ⚠️ NO se deriva por √3·V·I aunque el sistema sepa hacerlo (`electrica.js`).
+ * Ese camino necesita saber si la tensión es entre fases o a tierra, y mete un
+ * supuesto donde aquí no hace falta ninguno: sin P y Q no hay aparente, y se
+ * dice. Para mirar el instante con todos los supuestos a la vista está
+ * `potenciasDelInstante`, que es OTRA cosa y no se guarda.
+ */
+export function completarAparente(reg) {
+  if (!reg) return reg;
+  if (reg.potenciaAparente_MVA != null) {
+    reg.naturalezaAparente ??= 'medida';
+  } else if (typeof reg.potenciaActiva_MW === 'number' && typeof reg.potenciaReactiva_MVAr === 'number') {
+    reg.potenciaAparente_MVA = Math.round(Math.hypot(reg.potenciaActiva_MW, reg.potenciaReactiva_MVAr) * 100) / 100;
+    reg.naturalezaAparente = 'derivada';
+  }
+  // Fase a fase, con la P y la Q de ESA fase. Nunca cruzando fases: la aparente
+  // de R con la reactiva de S no es ninguna magnitud.
+  for (const { fase, campo } of FASES_DE.potenciaAparente_MVA ?? []) {
+    if (reg[campo] != null) continue;
+    const P = reg[`potenciaActiva${fase}_MW`];
+    const Q = reg[`potenciaReactiva${fase}_MVAr`];
+    if (typeof P === 'number' && typeof Q === 'number') {
+      reg[campo] = Math.round(Math.hypot(P, Q) * 100) / 100;
+      reg.naturalezaAparente ??= 'derivada';
+    }
+  }
+  return reg;
+}
+
+
 // ════════════════════════════════════════════════════════════════════════════
 // 3 · LA FILA → EL REGISTRO, con sus errores dichos
 // ════════════════════════════════════════════════════════════════════════════
@@ -326,6 +453,13 @@ export function normalizarFila(fila, mapeo, { escalaPct = 1, nFila = null } = {}
        * ésa es otra capacidad y se contrasta aparte (`contrasteConLaAmpacidad`).
        */
       naturaleza: cargabilidad_pct != null ? 'declarada' : null,
+      // Las fases y la aparente del catálogo, leídas igual que las demás. Sale
+      // del catálogo y no de una lista escrita aquí: es la misma razón por la
+      // que las listas de guardar y leer se derivan.
+      ...Object.fromEntries(CAMPOS_GUARDADOS
+        .filter((c) => CAMPOS[c].tipo === 'numero' && !(c in { cargabilidad_pct: 1, corriente_A: 1,
+          potenciaActiva_MW: 1, potenciaReactiva_MVAr: 1, tension_kV: 1, capacidadNominal_A: 1 }))
+        .map((c) => [c, aNumero(leer(c))])),
     },
     errores: [],
   };
@@ -353,7 +487,7 @@ export function procesarLote(filas, mapeo) {
   const errores = [];
   filas.forEach((fila, i) => {
     const res = normalizarFila(fila, mapeo, { escalaPct: escala ?? 1, nFila: i + 2 });  // +2: cabecera y base 1
-    if (res.registro) registros.push(derivarPorcentaje(res.registro));
+    if (res.registro) registros.push(completarAparente(derivarPorcentaje(res.registro)));
     else errores.push(...res.errores);
   });
 
@@ -848,14 +982,21 @@ export function empaquetarPorDia(registros) {
     dia.subestacionOrigen ??= reg.subestacionOrigen ?? null;
     dia.subestacionDestino ??= reg.subestacionDestino ?? null;
 
+    // La lista sale del CATÁLOGO: una escrita a mano perdía en silencio cualquier
+    // campo nuevo, y su gemela de `desempaquetarDia` lo remataba al leer.
     const hora = {};
-    for (const campo of ['cargabilidad_pct', 'corriente_A', 'potenciaActiva_MW',
-      'potenciaReactiva_MVAr', 'tension_kV', 'capacidadNominal_A', 'estado', 'observaciones']) {
+    for (const campo of CAMPOS_GUARDADOS) {
       if (reg[campo] != null) hora[campo] = reg[campo];
     }
     // La naturaleza viaja SIEMPRE con el porcentaje, y solo con él: sin ella el
     // molde se niega a guardar, porque no se sabría contra qué se calculó.
     if (hora.cargabilidad_pct != null) hora.naturaleza = reg.naturaleza ?? 'declarada';
+    // Las dos procedencias nuevas viajan con su magnitud, no sueltas: una
+    // aparente sin decir si se midió o se derivó no la acepta el molde, y un
+    // agregado que no dice con qué criterio se resumieron las fases es un
+    // número sin cómo se hizo.
+    if (hora.potenciaAparente_MVA != null) hora.naturalezaAparente = reg.naturalezaAparente ?? 'medida';
+    if (reg.criterioFase) hora.criterioFase = reg.criterioFase;
     // Una hora vacía tampoco se escribe: sería un hueco disfrazado de lectura.
     if (Object.keys(hora).length) dia.horas[claveHora(reg.hora)] = hora;
   }
@@ -876,15 +1017,12 @@ export function desempaquetarDia(dia) {
       subestacionDestino: dia.subestacionDestino ?? null,
       fecha: dia.fecha,
       hora: Number(h),
-      cargabilidad_pct: v.cargabilidad_pct ?? null,
-      corriente_A: v.corriente_A ?? null,
-      potenciaActiva_MW: v.potenciaActiva_MW ?? null,
-      potenciaReactiva_MVAr: v.potenciaReactiva_MVAr ?? null,
-      tension_kV: v.tension_kV ?? null,
-      capacidadNominal_A: v.capacidadNominal_A ?? null,
-      estado: v.estado ?? null,
-      observaciones: v.observaciones ?? null,
+      // Del catálogo, igual que al guardar: si las dos listas no son la MISMA,
+      // vuelven a divergir y el campo nuevo se guarda y no se lee.
+      ...Object.fromEntries(CAMPOS_GUARDADOS.map((c) => [c, v[c] ?? null])),
       naturaleza: v.naturaleza ?? null,
+      naturalezaAparente: v.naturalezaAparente ?? null,
+      criterioFase: v.criterioFase ?? null,
     }))
     .sort((a, b) => a.hora - b.hora);
 }

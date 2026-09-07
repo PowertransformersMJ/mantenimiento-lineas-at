@@ -9139,3 +9139,100 @@ gráfica falsa con cara de buena, que es exactamente contra lo que avisa el prop
 - `2.562` pruebas, con el peligro de la red entera documentado en una que lo REPRODUCE.
 
 ---
+
+## ADR-106 · 2026-09-07 · «Parámetros eléctricos»: todas las magnitudes, cada una con sus fases, y la fase deja de morir en el camino
+
+**Deliberación:** mapa por seis lentes antes de tocar nada (workflow del 2026-09-07).
+**Estado:** ✅ en producción · **NO revisada externamente**.
+
+### Contexto
+
+Orden del Ingeniero: *«cargabilidad ya no se llamará así, ahora se llamará parámetros eléctricos, y
+aquí incluye todas las variables —tensiones, corrientes, potencia activa, potencia reactiva y
+potencia aparente— todas en sus distintas fases»*.
+
+Dos cosas, y la segunda no es un rótulo. **El mapa previo encontró que la fase se detectaba y se
+tiraba en la misma función**: `campoDeSenal` sabía que `/I R` era la fase R, y `registrosDesdeAncho`
+la usaba solo para elegir con qué criterio combinar las tres. La letra no tenía dónde ir. Dos
+consecuencias que ya estaban ocurriendo y nadie había visto:
+
+1. **La pantalla llevaba tiempo pidiendo las fases y recibiendo nada.** Llama a
+   `desbalanceDeFases({R: pico.corrienteR_A, ...})` y esos tres nombres **no existían en ninguna
+   otra parte del repositorio**. El indicador de desbalance no se podía encender NUNCA.
+2. **El número guardado no decía cómo se hizo.** Una corriente de un archivo trifásico era «la fase
+   más cargada» o «el promedio» según una casilla de la pantalla, y el documento no lo registraba.
+
+Y el momento era el correcto por una razón que se midió, no se supuso: **las tres colecciones del
+histórico estaban VACÍAS**. Cero documentos. Cambiar la forma del dato después de la primera carga
+real habría sido una migración; antes, es solo escribirla bien.
+
+### Decisión
+
+**1. El rótulo cambia; el concepto no se borra.** La sección se llama **Parámetros eléctricos** y la
+**cargabilidad queda dentro como uno de ellos** — la corriente frente a la que el conductor puede
+llevar, que es la que enciende el dictamen de ampacidad. Renombrar la pantalla no deroga un término
+del dominio que el propio Ingeniero ya corrigió una vez.
+
+**2. El identificador de la dirección también cambia, y el viejo REDIRIGE.** `#/…/cargabilidad`
+lleva a `#/…/parametros` en vez de caer en Resumen. Una ruta que se renombra sin dejar la vieja
+apuntando al mismo sitio convierte un enlace guardado en una pantalla equivocada, sin decir por qué.
+
+**3. Cada magnitud, con sus fases** — 19 campos nuevos sobre los 13 que había:
+
+| Magnitud | Fases | Nota |
+|---|---|---|
+| Tensión | `RS ST TR` entre fases · `R S T` a tierra | **Son dos magnitudes con un 1,73 en medio.** La base va EN EL NOMBRE: un campo «tensión de la fase R» admitiría las dos y algún día entraría la que no es |
+| Corriente | `R S T` | Los nombres ya estaban elegidos de facto por la pantalla que los pedía |
+| Activa, reactiva y **aparente** | `R S T` | La aparente no existía como campo en ningún sitio del camino del dato |
+
+Y el agregado sigue existiendo, **declarando con qué criterio se resumió** (`criterioFase`).
+
+**4. La potencia aparente, medida o derivada, pero siempre dicha.** Si el archivo no la trae y sí
+trae P y Q, sale de `√(P² + Q²)` marcada `derivada`. Es aritmética exacta y **no es una medida**:
+nadie puso un instrumento a leer eso. El molde se niega a guardarla sin esa marca, igual que ya se
+negaba con el porcentaje. Fase a fase se deriva con la P y la Q **de esa fase**, nunca cruzándolas.
+Y NO se deriva por `√3·V·I` aunque el sistema sepa: ese camino necesita saber si la tensión es entre
+fases o a tierra, y mete un supuesto donde no hace falta ninguno.
+
+**5. Se mata la clase de fallo, no solo el fallo.** Había **dos listas de campos escritas a mano**
+—una al guardar, otra al leer— que silenciaban cualquier campo nuevo: se guardaba vacío, sin error y
+sin aviso. Ahora las dos se derivan del catálogo. Y el molde, que es un `z.object` sin `passthrough`
+y **borra en silencio lo que no conoce**, tiene una prueba de paridad que se pone roja si se separa
+del catálogo.
+
+**6. El choque de sinónimos, cerrado.** «Corriente R» normaliza a `corriente r`, que empieza por
+`corriente `, así que `corriente_A` se la habría quedado por prefijo y **la línea entera habría
+salido medida con una sola fase**. El mapeo pasa a hacer DOS pasadas completas: la exacta gana
+siempre, venga del campo que venga, y el prefijo solo reparte lo que sobra.
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| Guardar las fases anidadas (`corriente: {R, S, T}`) | El molde, el empaquetado, las reglas y las gráficas son planos. Anidar obligaba a tocarlo todo para ganar elegancia y ningún dato |
+| Sustituir el agregado por las fases | Lo consume el dictamen de ampacidad y todas las gráficas. Se conserva, y ahora dice cómo se hizo |
+| Renombrar también las colecciones y las funciones de permiso | Los nombres de colección no los ve nadie, y renombrar el permiso `cargabilidad.ver` obligaría a re-acuñar los reclamos de las cuentas vivas. La regla de la casa es no renombrar sin migración, y aquí la migración no compra nada |
+| Un solo campo «tensión de fase» con la base aparte | Un campo que admite dos magnitudes acaba con las dos dentro. El nombre es la barrera más barata |
+| Derivar la aparente por √3·V·I cuando faltan P y Q | Mete el supuesto de si la tensión es entre fases o a tierra justo donde se quería evitar. Sin P y Q no hay aparente, y se dice |
+
+### Supuestos que deben ser ciertos — y la señal que diría que dejaron de serlo
+
+| Supuesto | Señal |
+|---|---|
+| El catálogo y el molde siguen diciendo lo mismo | La prueba «el molde conoce TODOS los campos del catálogo» en rojo |
+| Las listas de guardar y leer siguen derivándose | Una lista literal de campos de vuelta en `empaquetarPorDia` o `desempaquetarDia`; la prueba lo mira en la fuente |
+| El indicador de desbalance ya se puede encender | Una carga con `I R/S/T` cuya tarjeta siga diciendo «no llega ninguna corriente por fase» |
+| El enlace viejo sigue redirigiendo | `#/LN-627/cargabilidad` que caiga en Resumen |
+| La aparente derivada se distingue de la medida | Una hora con `potenciaAparente_MVA` y sin `naturalezaAparente`: el molde la rechaza |
+
+### Consecuencias
+
+- 33 campos en el catálogo (13 antes), 27 de ellos guardados por hora. Motor **0.15.0**.
+- `2.583` pruebas. Verificado en producción con los tres archivos reales del Ingeniero: la tabla
+  «Las fases, hora a hora» enseña RS, ST y TR de las 24 horas, y declara el criterio del agregado.
+- ⚠️ **Lo que este cambio NO hace, y hay que decirlo:** todas las gráficas y el resumen diario
+  siguen cableados al porcentaje y a la corriente. Una magnitud nueva se guarda y se ve en la tabla
+  de fases, pero **todavía no tiene gráfica propia ni entra en el resumen del histórico**. Es el
+  siguiente paso, y sin él una tensión guardada es invisible en el tablero.
+
+---

@@ -73,15 +73,66 @@ export const HoraDeCargabilidad = z.object({
   corriente_A: z.number().min(0).optional(),
   potenciaActiva_MW: z.number().optional(),
   potenciaReactiva_MVAr: z.number().optional(),
+  potenciaAparente_MVA: z.number().min(0).optional(),
   tension_kV: z.number().min(0).optional(),
   capacidadNominal_A: z.number().positive().optional(),
   estado: z.string().max(120).optional(),
   observaciones: z.string().max(500).optional(),
+
+  // ── LAS FASES (`99 §ADR-106`) ────────────────────────────────────────────
+  // ⚠️ ESTE MOLDE BORRA EN SILENCIO LO QUE NO CONOCE: es un `z.object` sin
+  // `passthrough`, así que un campo que el núcleo produzca y aquí no esté se
+  // guardaría VACÍO, sin error y sin aviso. Por eso la lista de abajo tiene que
+  // ser exactamente el catálogo de `nucleo/cargabilidad.js`, y hay una prueba
+  // de paridad que se pone roja si se separan.
+  //
+  // La tensión lleva su BASE en el nombre —`RS` entre fases, `R` a tierra—
+  // porque son dos magnitudes distintas separadas por un factor de 1,73.
+  tensionRS_kV: z.number().min(0).optional(),
+  tensionST_kV: z.number().min(0).optional(),
+  tensionTR_kV: z.number().min(0).optional(),
+  tensionR_kV: z.number().min(0).optional(),
+  tensionS_kV: z.number().min(0).optional(),
+  tensionT_kV: z.number().min(0).optional(),
+  corrienteR_A: z.number().min(0).optional(),
+  corrienteS_A: z.number().min(0).optional(),
+  corrienteT_A: z.number().min(0).optional(),
+  potenciaActivaR_MW: z.number().optional(),
+  potenciaActivaS_MW: z.number().optional(),
+  potenciaActivaT_MW: z.number().optional(),
+  potenciaReactivaR_MVAr: z.number().optional(),
+  potenciaReactivaS_MVAr: z.number().optional(),
+  potenciaReactivaT_MVAr: z.number().optional(),
+  potenciaAparenteR_MVA: z.number().min(0).optional(),
+  potenciaAparenteS_MVA: z.number().min(0).optional(),
+  potenciaAparenteT_MVA: z.number().min(0).optional(),
+
   /** Obligatoria si hay porcentaje. Lo comprueba el `refine` de abajo. */
   naturaleza: NaturalezaCargabilidad.optional(),
+  /**
+   * DE DÓNDE SALIÓ LA APARENTE, y es obligatoria si la hay.
+   *
+   * El sistema sabe derivarla de la activa y la reactiva, así que puede venir
+   * MEDIDA del archivo o CALCULADA aquí — y son cosas distintas que se parecen
+   * en la pantalla. Es la misma regla que ya rige el porcentaje: una magnitud
+   * sin su naturaleza declarada es una magnitud que miente.
+   */
+  naturalezaAparente: z.enum(['medida', 'derivada']).optional(),
+  /**
+   * CON QUÉ CRITERIO se resumieron las fases en el valor agregado.
+   *
+   * Hasta hoy no se guardaba, y un mismo amperaje podía ser «la fase más
+   * cargada» o «el promedio de las tres» sin que el documento lo dijera. Con
+   * las fases guardadas al lado, el agregado deja de ser un dato suelto y pasa
+   * a ser un resultado: tiene que declarar cómo se hizo.
+   */
+  criterioFase: z.enum(['maxima', 'promedio']).optional(),
 }).refine((h) => h.cargabilidad_pct == null || h.naturaleza != null, {
   message: 'una cargabilidad sin declarar su naturaleza no se guarda: no se sabría contra qué se calculó',
   path: ['naturaleza'],
+}).refine((h) => h.potenciaAparente_MVA == null || h.naturalezaAparente != null, {
+  message: 'una potencia aparente sin declarar si se midió o se derivó no se guarda',
+  path: ['naturalezaAparente'],
 });
 
 /**

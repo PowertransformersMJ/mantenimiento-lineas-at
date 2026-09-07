@@ -1,3 +1,5 @@
+import { CAMPOS_GUARDADOS, FASES_DE, completarAparente } from './cargabilidad.js';
+
 // ============================================================================
 // nucleo/cargabilidadAncho.js — leer la exportación de SCADA tal como sale
 // ----------------------------------------------------------------------------
@@ -242,16 +244,60 @@ export function leerSenales(matriz, eje) {
  */
 export function campoDeSenal(etiqueta) {
   const t = String(etiqueta ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
-  const fase = (t.match(/\bI\s*([RST])\b/) ?? t.match(/\/I\s*([RST])\b/) ?? [])[1] ?? null;
+  const faseDe = (letra) => (t.match(new RegExp(`\\b${letra}\\s*(RS|ST|TR|R|S|T)\\b`))
+    ?? t.match(new RegExp(`\\/${letra}\\s*(RS|ST|TR|R|S|T)\\b`)) ?? [])[1] ?? null;
 
   if (/\bI\s*[RST]\b|\/I\s*[RST]\b|CORRIENTE|AMPER/.test(t)) {
+    const fase = faseDe('I');
     return { campo: 'corriente_A', fase, porQue: fase ? `corriente de la fase ${fase}` : 'corriente' };
   }
-  if (/\bMVAR\b|REACTIV|\bQ\b/.test(t)) return { campo: 'potenciaReactiva_MVAr', fase: null, porQue: 'potencia reactiva' };
-  if (/\bMW\b|ACTIV|\bP\b(?!ROELECT)/.test(t)) return { campo: 'potenciaActiva_MW', fase: null, porQue: 'potencia activa' };
-  if (/\bKV\b|TENSION|VOLTAJ|\bU\b/.test(t)) return { campo: 'tension_kV', fase: null, porQue: 'tensión' };
+  if (/\bMVAR\b|REACTIV|\bQ\b/.test(t)) {
+    const fase = faseDe('Q');
+    return { campo: 'potenciaReactiva_MVAr', fase, porQue: fase ? `potencia reactiva de la fase ${fase}` : 'potencia reactiva' };
+  }
+  // ⚠️ La aparente va ANTES que la activa: `\bS\b` como potencia aparente y
+  // `\bP\b` como activa conviven, pero «MVA» es inequívoco y «MW» también, así
+  // que se prueban los rótulos duros primero y la letra suelta al final.
+  // La `S` suelta es ambigua —es también una letra de fase— así que solo se
+  // acepta con la barra delante, que es como este SCADA rotula la magnitud
+  // (`/I R`, `/U RS`, `/S T`). Sin barra se devuelve null y se asigna a mano:
+  // arriesgar aquí no da error, da una gráfica falsa.
+  if (/\bMVA\b|APARENT|\/S\s*[RST]\b/.test(t)) {
+    const fase = faseDe('S');
+    return { campo: 'potenciaAparente_MVA', fase, porQue: fase ? `potencia aparente de la fase ${fase}` : 'potencia aparente' };
+  }
+  if (/\bMW\b|ACTIV|\bP\b(?!ROELECT)/.test(t)) {
+    const fase = faseDe('P');
+    return { campo: 'potenciaActiva_MW', fase, porQue: fase ? `potencia activa de la fase ${fase}` : 'potencia activa' };
+  }
+  if (/\bKV\b|TENSION|VOLTAJ|\bU\b/.test(t)) {
+    // ⚠️ AQUÍ SE DECIDE UN FACTOR DE 1,73. `U RS` es entre fases; `U R` es de
+    // fase a tierra. Se lee la etiqueta y se DICE cuál se entendió, en vez de
+    // meter las dos en el mismo campo y que alguien las compare entre sí.
+    const fase = faseDe('U') ?? faseDe('V');
+    const entreFases = fase === 'RS' || fase === 'ST' || fase === 'TR';
+    return {
+      campo: 'tension_kV',
+      fase,
+      porQue: fase
+        ? (entreFases ? `tensión entre las fases ${fase}` : `tensión de la fase ${fase} a tierra`)
+        : 'tensión',
+    };
+  }
   if (/CARGABIL|%|CARGA\b/.test(t)) return { campo: 'cargabilidad_pct', fase: null, porQue: 'cargabilidad' };
   return null;
+}
+
+/**
+ * EL CAMPO POR FASE que corresponde a una magnitud y una letra.
+ *
+ * Sale del catálogo (`nucleo/cargabilidad.js`), no de una convención escrita
+ * aquí: si mañana se añade una fase, aparece sola y no hay dos verdades sobre
+ * cómo se llama un campo.
+ */
+export function campoDeFase(campo, fase) {
+  if (!fase) return null;
+  return (FASES_DE[campo] ?? []).find((x) => x.fase === fase)?.campo ?? null;
 }
 
 /** Cómo se resume lo trifásico en un solo número por hora. */
@@ -320,9 +366,10 @@ export function registrosDesdeAncho(matriz, opciones = {}) {
     const reg = {
       linea, circuito, fecha: inst.fecha, hora: inst.hora,
       subestacionOrigen: null, subestacionDestino: null,
-      cargabilidad_pct: null, corriente_A: null, potenciaActiva_MW: null,
-      potenciaReactiva_MVAr: null, tension_kV: null, capacidadNominal_A: null,
-      estado: null, observaciones: null, naturaleza: null,
+      // Del catálogo: así una magnitud nueva aparece sola y no hay una lista
+      // más que mantener a mano.
+      ...Object.fromEntries(CAMPOS_GUARDADOS.map((c) => [c, null])),
+      naturaleza: null, criterioFase: null,
     };
     const porCampo = new Map();
     for (const s of senales) {
@@ -331,18 +378,26 @@ export function registrosDesdeAncho(matriz, opciones = {}) {
       if (v == null) continue;
       if (!porCampo.has(s.campo)) porCampo.set(s.campo, []);
       porCampo.get(s.campo).push(v);
+      // ⚠️ LA FASE SE GUARDA, no solo se usa para combinar (`99 §ADR-106`).
+      // Antes se detectaba aquí mismo y se tiraba: el registro solo tenía el
+      // agregado, así que el desbalance entre fases —que la pantalla lleva
+      // pidiendo desde hace tiempo— no se podía calcular nunca.
+      const suyo = campoDeFase(s.campo, s.fase);
+      if (suyo) reg[suyo] = v;
     }
     for (const [campo, valores] of porCampo) {
       reg[campo] = valores.length === 1 ? valores[0] : combinar(valores, criterioFase);
     }
+    // Con qué criterio se resumieron las fases. Un agregado que no dice cómo se
+    // hizo es un número sin procedencia, y aquí eso no se guarda.
+    if ([...porCampo.values()].some((v) => v.length > 1)) reg.criterioFase = criterioFase;
     if (reg.cargabilidad_pct != null) reg.naturaleza = 'declarada';
-    return reg;
+    return completarAparente(reg);
   }).filter(Boolean)
     // ⚠️ Un instante sin NINGUNA medida no es un registro: es una hora que no se
     // exportó. Guardarlo con todo a `null` llenaría el histórico de horas vacías
     // que luego habría que distinguir de las que sí se midieron y dieron cero.
-    .filter((r) => ['cargabilidad_pct', 'corriente_A', 'potenciaActiva_MW',
-      'potenciaReactiva_MVAr', 'tension_kV'].some((c) => r[c] != null));
+    .filter((r) => CAMPOS_GUARDADOS.some((c) => typeof r[c] === 'number' && r[c] != null));
 
   return {
     registros,

@@ -396,12 +396,15 @@ export default function Cargabilidad({
 
   return (
     <section className="panel">
-      <h2>Cargabilidad eléctrica</h2>
+      <h2>Parámetros eléctricos</h2>
       <p className="saludo">
-        Cuánta corriente circula por la línea frente a la que puede llevar.{' '}
-        <b>Es un dato de OPERACIÓN</b> —viene de SCADA o de un informe— y no se deduce de la
-        geometría ni del conductor. No es la utilización mecánica del apoyo: ésa vive en{' '}
-        <b>Cargas</b> y es otro veredicto.
+        Lo que la línea está haciendo de verdad: <b>tensiones, corrientes y potencias —activa,
+        reactiva y aparente— cada una con sus fases</b>. <b>Es un dato de OPERACIÓN</b> —viene de
+        SCADA o de un informe— y no se deduce de la geometría ni del conductor.{' '}
+        La <b>cargabilidad</b> es uno de estos parámetros, no otro nombre de la pantalla: es la
+        corriente frente a la que el conductor puede llevar, y es la que enciende el dictamen de
+        ampacidad. No es la utilización mecánica del apoyo: ésa vive en <b>Cargas</b> y es otro
+        veredicto.
       </p>
 
       {/* ⚠️ EL AVISO VA ARRIBA Y NO AL FINAL. Mientras esto no guarde, decirlo
@@ -506,6 +509,7 @@ export default function Cargabilidad({
           ) : (
             <>
               <ResumenDeLaCarga lote={lote!} registros={registros} nombre={cargado.nombre} />
+    <FasesDeLaCarga registros={registros} />
               <VistaPrevia registros={registros} />
               {puede(sesion, 'cargabilidad.cargar') && registros.length > 0 && (
                 <div className="tarjeta">
@@ -1282,6 +1286,76 @@ function ResumenDeLaCarga({ lote, registros, nombre }: {
           Campos que el archivo no trajo en ninguna fila:{' '}
           {ausentes.map((c) => CAMPOS[c].rotulo).join(' · ')}. Se declaran vacíos, no se rellenan.
         </p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * LAS FASES, HORA A HORA (`99 §ADR-106`).
+ *
+ * Orden del Ingeniero: «todas en sus distintas fases». Hasta hoy las tres se
+ * resumían en un número con un criterio y la letra se perdía por el camino;
+ * ahora se guardan y aquí se VEN, que es la mitad que faltaba.
+ *
+ * ⚠️ Solo se pinta la magnitud que la carga TRAIGA. Una tabla con seis columnas
+ * de guiones no informa de nada y hace creer que faltó algo: si el archivo no
+ * trae potencias por fase, esa tabla sencillamente no aparece.
+ */
+function FasesDeLaCarga({ registros }: { registros: Registro[] }) {
+  const GRUPOS = [
+    { rotulo: 'Tensión entre fases', unidad: 'kV', dec: 1,
+      cols: [['RS', 'tensionRS_kV'], ['ST', 'tensionST_kV'], ['TR', 'tensionTR_kV']] as const },
+    { rotulo: 'Tensión fase-tierra', unidad: 'kV', dec: 1,
+      cols: [['R', 'tensionR_kV'], ['S', 'tensionS_kV'], ['T', 'tensionT_kV']] as const },
+    { rotulo: 'Corriente', unidad: 'A', dec: 0,
+      cols: [['R', 'corrienteR_A'], ['S', 'corrienteS_A'], ['T', 'corrienteT_A']] as const },
+    { rotulo: 'Potencia activa', unidad: 'MW', dec: 2,
+      cols: [['R', 'potenciaActivaR_MW'], ['S', 'potenciaActivaS_MW'], ['T', 'potenciaActivaT_MW']] as const },
+    { rotulo: 'Potencia reactiva', unidad: 'MVAr', dec: 2,
+      cols: [['R', 'potenciaReactivaR_MVAr'], ['S', 'potenciaReactivaS_MVAr'], ['T', 'potenciaReactivaT_MVAr']] as const },
+    { rotulo: 'Potencia aparente', unidad: 'MVA', dec: 2,
+      cols: [['R', 'potenciaAparenteR_MVA'], ['S', 'potenciaAparenteS_MVA'], ['T', 'potenciaAparenteT_MVA']] as const },
+  ];
+  const conDato = GRUPOS.filter((g) => g.cols.some(([, c]) => registros.some((x) => x[c] != null)));
+  if (!conDato.length) return null;
+  const primeras = registros.slice(0, 12);
+  const criterio = registros.find((x) => x.criterioFase)?.criterioFase;
+
+  return (
+    <div className="tarjeta">
+      <p className="mapa-capas-t">Las fases, hora a hora</p>
+      <p className="fine">
+        Lo que trae la carga, sin resumir. El valor agregado que usa el resto de la pantalla sale de
+        estas tres{criterio ? <> con el criterio <b>{criterio === 'maxima' ? 'la fase más cargada' : 'el promedio de las tres'}</b></> : null}
+        {' '}y se guarda diciendo cuál se usó.
+      </p>
+      {conDato.map((g) => (
+        <div key={g.rotulo} className="tabla-scroll">
+          <table className="tabla">
+            <thead>
+              <tr>
+                <th>{g.rotulo} ({g.unidad})</th>
+                {g.cols.map(([f]) => <th key={f} className="num">{f}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {primeras.map((x, i) => (
+                <tr key={i}>
+                  <td>{x.hora == null ? '—' : `${String(x.hora).padStart(2, '0')}:00`}</td>
+                  {g.cols.map(([f, c]) => (
+                    <td key={f} className="num">
+                      {x[c] == null ? '—' : nf(x[c] as number, g.dec)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ))}
+      {registros.length > primeras.length && (
+        <p className="fine">Se muestran {primeras.length} de {nf(registros.length)} horas.</p>
       )}
     </div>
   );
@@ -2216,7 +2290,7 @@ function procedenciaDelCsv({ nombre, hoja, cuando, lineaAbierta, referencia, ver
   veredicto: { contraste: Record<string, unknown> } | null;
 }): string[] {
   const r = [
-    `Cargabilidad eléctrica${lineaAbierta ? ` · línea ${lineaAbierta}` : ''}`,
+    `Parámetros eléctricos${lineaAbierta ? ` · línea ${lineaAbierta}` : ''}`,
     `Origen: archivo «${nombre}»${hoja ? ` · hoja «${hoja}»` : ''}`
       + ` · leído el ${cuando.toLocaleString('es-CO')}`,
     `Motor de cálculo @lineas/nucleo v${VERSION_DEL_MOTOR}`,

@@ -496,3 +496,47 @@ describe('EL INGENIERO NO LEE EL IDIOMA DE LA MÁQUINA', () => {
     }
   });
 });
+
+// ============================================================================
+// EL RENOMBRE: «Cargabilidad» → «Parámetros eléctricos» (`99 §ADR-106`)
+// ============================================================================
+describe('la sección se llama Parámetros eléctricos, y el enlace viejo sigue llevando al sitio', () => {
+  const linea = readFileSync(join(RAIZ, 'web/src/componentes/Linea.tsx'), 'utf-8');
+  const pantalla = readFileSync(join(RAIZ, 'web/src/componentes/Cargabilidad.tsx'), 'utf-8');
+
+  test('la pestaña lleva el rótulo nuevo', () => {
+    assert.match(linea, /\{ id: 'parametros', rotulo: 'Parámetros eléctricos', lista: true \}/);
+    assert.ok(!/rotulo: 'Cargabilidad'/.test(linea), 'quedó el rótulo viejo en la fila de pestañas');
+  });
+
+  test('⚠️ el enlace viejo REDIRIGE en vez de caer en Resumen', () => {
+    // Cambiar el nombre de una dirección sin dejar el viejo apuntando al mismo
+    // sitio convierte un enlace guardado en una pantalla equivocada, sin decir
+    // por qué. Es lo mismo que se hace con cualquier ruta que se renombra.
+    assert.match(linea, /ALIAS_DE_PESTANA[^=]*= \{ cargabilidad: 'parametros' \}/);
+    assert.match(linea, /ALIAS_DE_PESTANA\[m\[1\]\] \?\? m\[1\]/,
+      'el alias tiene que aplicarse al leer la dirección, no solo estar declarado');
+  });
+
+  test('el encabezado dice lo que la sección es AHORA', () => {
+    assert.match(pantalla, /<h2>Parámetros eléctricos<\/h2>/);
+    assert.match(pantalla, /tensiones, corrientes y potencias/);
+    assert.match(pantalla, /reactiva y aparente/);
+  });
+
+  test('⚠️ la cargabilidad NO desaparece: queda dicha como uno de los parámetros', () => {
+    // Es un término del dominio que el Ingeniero ya corrigió una vez, y es el
+    // que enciende el dictamen de ampacidad. Renombrar la sección no lo borra.
+    assert.match(pantalla, /La <b>cargabilidad<\/b> es uno de estos parámetros/);
+    assert.match(pantalla, /dictamen de\s*\n?\s*ampacidad/);
+  });
+
+  test('las fases se PINTAN, no solo se guardan', () => {
+    assert.match(pantalla, /function FasesDeLaCarga/);
+    assert.match(pantalla, /<FasesDeLaCarga registros=\{registros\} \/>/,
+      'el componente existe y no se monta: las fases se guardarían sin que nadie las viera');
+    // Solo la magnitud que la carga traiga: seis columnas de guiones no informan
+    // de nada y hacen creer que faltó algo.
+    assert.match(pantalla, /const conDato = GRUPOS\.filter/);
+  });
+});

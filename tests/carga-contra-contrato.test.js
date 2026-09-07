@@ -30,6 +30,8 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 import { construirPuntoNuevo } from '../importar/punto.js';
+import { CAMPOS, CAMPOS_GUARDADOS } from '../nucleo/cargabilidad.js';
+import { HoraDeCargabilidad } from '../contratos/src/cargabilidad.ts';
 import { planDeCarga } from '../importar/plan.js';
 import { idEstable, ORG_POR_DEFECTO } from '../herramientas/identidad.mjs';
 import { Apoyo, FuncionEstructural, TipoPunto, FUNCIONES_ANCLA } from '../contratos/src/activos.ts';
@@ -374,5 +376,37 @@ describe('LA PROCEDENCIA DE LA FUNCIÓN: supuesta salvo que él la firme', () =>
     }
     const firmado = construirPuntoNuevo(BASE, decision('LX-001 N1', { funcionConfirmada: true }), OPC).documento;
     assert.equal(firmado.funcionProcedencia, 'confirmado_humano');
+  });
+});
+
+// ============================================================================
+// PARIDAD CATÁLOGO ↔ MOLDE (`99 §ADR-106`)
+// ----------------------------------------------------------------------------
+// El molde es un `z.object` sin `passthrough`: BORRA EN SILENCIO lo que no
+// conoce. Así que un campo que el núcleo produzca y el molde no declare se
+// guardaría vacío, sin error y sin aviso — la peor clase de fallo aquí, porque
+// sale con cara de dato bueno. Esta prueba es la que impide que las dos listas
+// se separen otra vez.
+// ============================================================================
+describe('el molde conoce TODOS los campos del catálogo', () => {
+  test('ni uno del catálogo se pierde al pasar por el molde', () => {
+    const valor = (c) => (CAMPOS[c].tipo === 'numero' ? 1 : 'x');
+    const hora = Object.fromEntries(CAMPOS_GUARDADOS.map((c) => [c, valor(c)]));
+    // Las dos procedencias que el molde exige cuando su magnitud está presente.
+    hora.naturaleza = 'declarada';
+    hora.naturalezaAparente = 'medida';
+    const r = HoraDeCargabilidad.safeParse(hora);
+    assert.ok(r.success, r.success ? '' : r.error.issues.map((i) => `${i.path}: ${i.message}`).join(' · '));
+    const perdidos = CAMPOS_GUARDADOS.filter((c) => r.data[c] === undefined);
+    assert.deepEqual(perdidos, [],
+      `el molde borró en silencio: ${perdidos.join(', ')}. Declárelos en contratos/src/cargabilidad.ts`);
+  });
+
+  test('y exige la procedencia de la aparente, como ya exigía la del porcentaje', () => {
+    assert.equal(HoraDeCargabilidad.safeParse({ potenciaAparente_MVA: 32.1 }).success, false);
+    assert.equal(HoraDeCargabilidad.safeParse({ cargabilidad_pct: 80 }).success, false);
+    assert.equal(HoraDeCargabilidad.safeParse({
+      potenciaAparente_MVA: 32.1, naturalezaAparente: 'derivada',
+    }).success, true);
   });
 });

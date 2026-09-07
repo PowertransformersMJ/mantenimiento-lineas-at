@@ -123,7 +123,7 @@ const PESTANAS = [
   // obligaría a recordar un número de una pestaña para leer otra.
   // ⚠️ NO se llama «Cargas»: aquélla es la carga ESTRUCTURAL sobre el apoyo, en
   // kgf, y es otro veredicto. Confundirlas es el enredo que costó `30 · M-02`.
-  { id: 'cargabilidad', rotulo: 'Cargabilidad', lista: true },
+  { id: 'parametros', rotulo: 'Parámetros eléctricos', lista: true },
   { id: 'viento', rotulo: 'Viento', lista: true },
   // Va DESPUÉS de Viento a propósito: la carga sobre el apoyo se compone con el
   // empuje que la pestaña anterior acaba de caracterizar. Y va aparte de
@@ -677,9 +677,15 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
   // Una dirección que pida una pestaña que esta sesión no puede ver cae en
   // Resumen: es lo mismo que ocurre con una línea que no es suya, y por el mismo
   // motivo — un enlace no otorga permisos.
+  // ⚠️ EL NOMBRE VIEJO SIGUE LLEVANDO AL SITIO. La pestaña «Cargabilidad» pasó
+  // a llamarse «Parámetros eléctricos» el 2026-09-07 (`99 §ADR-106`), y con
+  // ella su identificador en la dirección. Un enlace guardado con el nombre
+  // viejo no puede caer en Resumen sin decir por qué: se redirige, que es lo
+  // que se hace con una dirección que cambia de nombre y no de destino.
+  const ALIAS_DE_PESTANA: Record<string, string> = { cargabilidad: 'parametros' };
   const leerHash = (): IdPestana | null => {
     const m = /^#\/[^/]*\/([a-z]+)$/.exec(location.hash);
-    const id = m?.[1];
+    const id = m?.[1] ? (ALIAS_DE_PESTANA[m[1]] ?? m[1]) : undefined;
     return visibles.some((p) => p.id === id && p.lista) ? (id as IdPestana) : null;
   };
   const [activa, setActiva] = useState<IdPestana>(() => leerHash() ?? 'resumen');
@@ -875,7 +881,7 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
         {activa === 'termica' && <Termica linea={linea} conductor={conductor} hipotesis={hipotesis} />}
         {/* Perezosa a propósito: trae el lector de `.xlsx` y las gráficas, y
             quien no abra la pestaña no baja un byte de eso. */}
-        {activa === 'cargabilidad' && (
+        {activa === 'parametros' && (
           <Suspense fallback={<p className="fine">Preparando el lector de archivos…</p>}>
             {/* ⚠️ El conductor y la hipótesis, como ya se le pasan a Térmica
                 cinco líneas más arriba. Sin ellos la pantalla no puede calcular

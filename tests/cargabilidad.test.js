@@ -35,7 +35,7 @@ import {
   costeDeLectura, desempaquetarDia, elegirHoja, empaquetarPorDia, encontrarCabecera,
   histograma, mapaDeCalor, puntuarCabecera,
   normalizarCabecera, normalizarFila, porLinea, procesarLote, promedioMovil, resumen,
-  resumirDia, separarNuevos, serieTemporal, tendencia,
+  resumirDia, separarNuevos, serieTemporal, tendencia, CAMPOS, CAMPOS_GUARDADOS, FASES_DE, completarAparente,
 } from '../nucleo/cargabilidad.js';
 
 /** Un registro de juguete. Solo lo que mira la pieza bajo prueba. */
@@ -753,5 +753,122 @@ describe('la cabecera se BUSCA, no se supone', () => {
     assert.match(pant, /Se está usando la <b>fila \{cargado\.filaCabecera \+ 1\}/,
       'no se dice de dónde salió la cabecera: si falla, nadie sabe por qué');
     assert.match(pant, /alUsarFila/, 'no hay forma de corregir la fila sin salir a tocar el Excel');
+  });
+});
+
+// ============================================================================
+// PARÁMETROS ELÉCTRICOS: todas las magnitudes, y cada una con sus fases
+// ----------------------------------------------------------------------------
+// Orden del Ingeniero (2026-09-07): «cargabilidad ya no se llamará así, ahora se
+// llamará parámetros eléctricos, y aquí incluye todas las variables —tensiones,
+// corrientes, potencia activa, reactiva y aparente— todas en sus distintas
+// fases» (`99 §ADR-106`).
+//
+// Lo que estas pruebas defienden es lo que el mapa previo señaló como lo que se
+// rompe EN SILENCIO: dos listas escritas a mano que perdían cualquier campo
+// nuevo, un molde que borra lo que no conoce, y un sinónimo que se llevaba
+// «Corriente R» al campo de la corriente total.
+// ============================================================================
+describe('el catálogo de parámetros eléctricos', () => {
+  test('trae la potencia aparente y las fases de las cinco magnitudes', () => {
+    assert.ok(CAMPOS.potenciaAparente_MVA, 'la aparente no existía como campo en ningún sitio');
+    assert.equal(CAMPOS.potenciaAparente_MVA.unidad, 'MVA');
+    for (const [agregado, esperadas] of Object.entries({
+      tension_kV: ['RS', 'ST', 'TR', 'R', 'S', 'T'],
+      corriente_A: ['R', 'S', 'T'],
+      potenciaActiva_MW: ['R', 'S', 'T'],
+      potenciaReactiva_MVAr: ['R', 'S', 'T'],
+      potenciaAparente_MVA: ['R', 'S', 'T'],
+    })) {
+      assert.deepEqual((FASES_DE[agregado] ?? []).map((x) => x.fase), esperadas,
+        `las fases de ${agregado} no son las que dice el encargo`);
+    }
+  });
+
+  test('⚠️ la tensión lleva su BASE en el nombre: son dos magnitudes con un 1,73 en medio', () => {
+    // `tensionRS_kV` es entre fases; `tensionR_kV` es a tierra. Un solo campo
+    // «tensión de la fase R» admitiría las dos y algún día entraría la que no es.
+    assert.ok(CAMPOS.tensionRS_kV && CAMPOS.tensionR_kV);
+    assert.notEqual(CAMPOS.tensionRS_kV.rotulo, CAMPOS.tensionR_kV.rotulo);
+    assert.match(CAMPOS.tensionR_kV.rotulo, /tierra/i, 'el rótulo tiene que decir contra qué se mide');
+  });
+
+  test('lo que se guarda sale del CATÁLOGO, no de una lista escrita a mano', () => {
+    // Había DOS listas literales, una al guardar y otra al leer, y entre las dos
+    // silenciaban cualquier campo nuevo: se guardaba vacío y sin error.
+    const fuente = readFileSync(new URL('../nucleo/cargabilidad.js', import.meta.url), 'utf8');
+    assert.match(fuente, /for \(const campo of CAMPOS_GUARDADOS\)/,
+      'volvió la lista literal al empaquetar: un campo nuevo se perdería sin avisar');
+    assert.match(fuente, /CAMPOS_GUARDADOS\.map\(\(c\) => \[c, v\[c\] \?\? null\]\)/,
+      'volvió la lista literal al desempaquetar');
+    assert.ok(!CAMPOS_GUARDADOS.includes('fecha') && !CAMPOS_GUARDADOS.includes('linea'),
+      'lo que IDENTIFICA la lectura no es una medida y no va en la hora');
+    assert.ok(CAMPOS_GUARDADOS.includes('corrienteR_A') && CAMPOS_GUARDADOS.includes('potenciaAparente_MVA'));
+  });
+
+  test('⚠️ «Corriente R» NO se la lleva la corriente total', () => {
+    // El choque real: tras fallar la exacta se aceptaba el prefijo, y
+    // `corriente_A` va antes en el catálogo, así que se quedaba con la fase R y
+    // la línea entera habría quedado medida con una sola fase.
+    const m = detectarMapeo(['Fecha', 'Linea', 'Corriente', 'Corriente R', 'Corriente S',
+      'Corriente T', 'Corriente nominal']);
+    assert.equal(m.mapeo.corriente_A, 'Corriente');
+    assert.equal(m.mapeo.corrienteR_A, 'Corriente R');
+    assert.equal(m.mapeo.corrienteS_A, 'Corriente S');
+    assert.equal(m.mapeo.corrienteT_A, 'Corriente T');
+    assert.equal(m.mapeo.capacidadNominal_A, 'Corriente nominal', 'la trampa vieja tampoco puede volver');
+    assert.deepEqual(m.sinReconocer, []);
+  });
+
+  test('las fases sobreviven al viaje de ida y vuelta al documento', () => {
+    const reg = [{
+      fecha: '2026-01-01', hora: 0, linea: 'LN-627',
+      tensionRS_kV: 68.8, tensionST_kV: 69.3, tensionTR_kV: 68.9, tension_kV: 69.3,
+      corrienteR_A: 271, corrienteS_A: 268, corrienteT_A: 269,
+      potenciaAparente_MVA: 32.1, naturalezaAparente: 'medida', criterioFase: 'maxima',
+    }];
+    const { dias } = empaquetarPorDia(reg);
+    const guardada = dias[0].horas['00'];
+    assert.equal(guardada.tensionST_kV, 69.3);
+    assert.equal(guardada.corrienteT_A, 269);
+    assert.equal(guardada.naturalezaAparente, 'medida', 'la aparente sin su procedencia no la acepta el molde');
+    assert.equal(guardada.criterioFase, 'maxima', 'un agregado que no dice cómo se hizo es un número sin procedencia');
+    const vuelta = desempaquetarDia(dias[0])[0];
+    assert.equal(vuelta.tensionRS_kV, 68.8);
+    assert.equal(vuelta.corrienteR_A, 271);
+    assert.equal(vuelta.potenciaAparente_MVA, 32.1);
+  });
+});
+
+describe('la potencia aparente: medida o derivada, pero SIEMPRE dicha', () => {
+  test('de P y Q sale exacta, y se marca derivada', () => {
+    const r = completarAparente({ potenciaActiva_MW: 30, potenciaReactiva_MVAr: 10 });
+    assert.equal(r.potenciaAparente_MVA, 31.62);
+    assert.equal(r.naturalezaAparente, 'derivada');
+  });
+
+  test('la que trae el archivo NO se recalcula, y se marca medida', () => {
+    const r = completarAparente({ potenciaAparente_MVA: 32.1, potenciaActiva_MW: 30, potenciaReactiva_MVAr: 10 });
+    assert.equal(r.potenciaAparente_MVA, 32.1, 'lo medido no se sobrescribe con lo calculado');
+    assert.equal(r.naturalezaAparente, 'medida');
+  });
+
+  test('fase a fase, y NUNCA cruzando fases', () => {
+    const r = completarAparente({
+      potenciaActivaR_MW: 10, potenciaReactivaR_MVAr: 3,
+      potenciaActivaS_MW: 12, potenciaReactivaT_MVAr: 4,   // S sin su Q, T sin su P
+    });
+    assert.equal(r.potenciaAparenteR_MVA, 10.44);
+    assert.equal(r.potenciaAparenteS_MVA, undefined, 'la aparente de S con la reactiva de T no es ninguna magnitud');
+    assert.equal(r.potenciaAparenteT_MVA, undefined);
+  });
+
+  test('sin P y sin Q no se inventa: no hay aparente y punto', () => {
+    // Se sabe derivar por √3·V·I, y a propósito NO se hace: ese camino necesita
+    // saber si la tensión es entre fases o a tierra, y mete un supuesto donde
+    // aquí no hace falta ninguno.
+    const r = completarAparente({ corriente_A: 271, tension_kV: 69 });
+    assert.equal(r.potenciaAparente_MVA, undefined);
+    assert.equal(r.naturalezaAparente, undefined);
   });
 });
