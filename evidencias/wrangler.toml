@@ -42,7 +42,7 @@ ORG_PERMITIDA = "transpower"
 # desplegaba SIN corte. Se creía puesta y no lo estaba, que es justo el fallo del
 # que avisa el párrafo de arriba. Medido con `wrangler deploy --dry-run`: antes
 # no salía en la lista de Vars; ahora sí.
-REVOCADOS_ANTES_DE = ""
+REVOCADOS_ANTES_DE = "2026-09-07T00:20:16Z"
 
 # El depósito se enlaza por binding.
 #

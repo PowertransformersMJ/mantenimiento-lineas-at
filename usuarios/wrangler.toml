@@ -75,4 +75,4 @@ APP_CHECK_EXIGIDO = "false"
 # ⚠️ EL CORTE DE REVOCACIÓN (`99 §ADR-100`): todo token emitido ANTES de esta marca
 # se rechaza. Vacía = sin corte. Se pone en la limpieza inicial, aquí y en el
 # portero de fotos a la vez. Una marca ilegible APAGA el trabajador (503).
-REVOCADOS_ANTES_DE = ""
+REVOCADOS_ANTES_DE = "2026-09-07T00:20:16Z"
