@@ -18,6 +18,8 @@
    día + resumen; recargar escribe ENCIMA, no duplica. Sin archivo la pantalla enseña su ESTRUCTURA
    y las gráficas con eje y bandas — **jamás cifras de muestra**, y **un hueco no es un cero**.
    ⚠️ Falta lo SUYO: ratificar los **718 A** y guardar UNA carga con su sesión (`TODO-93/94`).
+0b. 🔐 **ACCESO NUEVO Y VIVO** (`§ADR-100/101`): UNA cuenta, sin Google; las demás desde **Personas**.
+   ⚠️ **SUYO:** «Eliminar datos» del sitio en su Chrome, dominio principal (`35 · L-80`).
 1. **EL CUELLO DE BOTELLA NO ES CÓDIGO: ES EL DATO**: 0 de 26 con veredicto (`TODO-57`).
 2. **EL PATRÓN QUE LO DOMINA TODO:** *«arreglado donde se veía, vivo en la pieza hermana»* —
    `34 · L-65/L-74`, `32 · L-67`, `30 · L-68/M-01`. Mordió el 24-08 (`§ADR-078`), el 26 (`§ADR-087`)
@@ -71,7 +73,6 @@
 
 | # | Qué | Por qué importa |
 |---|---|---|
-| **TODO-97** ✅ **EL CORTE DE ACCESO, hecho** (`§ADR-100/101`) | Pasos 0-10 ✅ en producción: UNA cuenta (el propietario), Google inexistente, 3 viejas borradas con lápida, llave vieja revocada, CSP sin Google. **Suyo:** «Eliminar datos» del sitio en su Chrome (mi incidente, `35 · L-80`) para entrar por el dominio principal. Lo menor que queda, en `§ADR-100 · Consecuencias` | Las demás cuentas se crean desde Personas |
 | **TODO-57** | **La FICHA se ESCRIBE y está EN PRODUCCIÓN** (`99 §ADR-030`). Falta **el DATO**: ¿planos y actas, o hay que levantarlo? Los seis: rotura · altura libre · altura del amarre · capacidad longitudinal · fases amarradas · tipo de apoyo | **EL CUELLO DE BOTELLA REAL.** Al meter el primero saldrán «REVISAR»: no son averías nuevas |
 | **TODO-81** | **Descargar el acta de la carga del 22-08** desde Cargar: único sitio donde queda escrito POR QUÉ se decidió cada cosa | Se pierde al recargar |
 | **TODO-82/83** | **Dos suyas sobre el clima.** ① ¿FASE 2 del pronóstico (`§ADR-057`): franja mañana/tarde y sensación térmica? ② ¿Dato FINO por extremos (`§ADR-064`)? Las capas de 2 km tocan 3 celdas y salen por PROMEDIO | Sensación de **40 °C** con aire a 32,5 |
@@ -83,6 +84,7 @@
 | **TODO-71** | **¿Se cierran las hipótesis con dato real?** El **viento** (`ADR-035`) y los **1.000 W/m²**. Los cuatro atlas (`ADR-055`) los ACERCAN y NO los cierran: un año de medias horarias no valida un extremo de diseño | De ahí salen los tiros y la capacidad |
 | **TODO-59** | **Qué ficha se le pide a CADA tipología.** La línea mezcla 4 y el molde es de POSTE (`40 §8.3`) | Son 3 o 4 formularios |
 | **TODO-33** | **50 % o 25 % de RTS** como tope de tiro. Ya no hay dos dueños (`§ADR-051`): falta decidir CUÁL rige | Factor 2 sobre un dictamen |
+| **TODO-98** 🔴 **MÍA** | **El recibo de la contraseña se auto-firma:** cualquiera lo escribe en su ficha desde la consola y **se salta el muro del cambio obligatorio**. Con ello: `ultimoAcceso` es auto-declarado, y `/limpieza-inicial` escribe en la bitácora al rechazar, sin freno. Crudo: `2026-09-06-espectador-solo-lectura/` | Un muro que se salta no es un muro |
 | **TODO-95** 🔴 ⬅️ **SUYA, URGENTE** | **La FICHA del fabricante del conductor.** Trae de golpe ampacidad, temperatura de operación y módulo elástico (`§ADR-098/099`). **Sin ella la ampacidad se publica pero NO SE FIRMA**, y el 6.300 vs 7.000 del módulo sigue decidiendo un RETIE | 718 A hoy · **611 A** a los 75 °C que dan siete fichas |
 | **TODO-93/94** ⬅️ **DOS SUYAS** | ① **ratificar la condición** de ampacidad (ADOPTADA: 718 A) · ② **cargar su archivo y GUARDARLO**, nunca visto con su sesión (detalle en `0`) | Sin ② no se sabe nada de ese archivo |
 | **TODO-44/34** | Alerta de gasto en Cloudflare · **nada tiene copia**: la bóveda sin remoto **y Firestore sin punto de recuperación** (`§ADR-089`) | Un fallo de disco se lleva la bóveda; un comando, la base |
