@@ -29,7 +29,8 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join, extname } from 'node:path';
 
 import {
-  DURACION_SESION_MIN, FUNCIONES, FUNCIONES_DELEGABLES, FUNCIONES_POR_ROL, ROLES, ROLES_ASIGNABLES,
+  CODIGOS_FUNCION, DURACION_SESION_MIN, FUNCIONES, FUNCIONES_DELEGABLES, FUNCIONES_POR_ROL,
+  ROLES, ROLES_ASIGNABLES, funcionesEfectivas,
   TODAS_LAS_LINEAS,
 } from '../contratos/src/usuarios.ts';
 import { PAGINA_DE_AUDITORIA, repositorioSinSesion } from '../web/src/datos/repositorio.ts';
@@ -175,8 +176,18 @@ describe('la pantalla de personas', () => {
       'el desplegable tiene que pintar la lista derivada, no una tecleada');
     assert.match(usuarios, /puedeAsignar=\{listado\?\.puedeAsignar \?\? \[\]\}/,
       'lo que el trabajador contesta tiene que llegar al formulario');
-    assert.match(usuarios, /FUNCIONES_DELEGABLES\.map/,
-      'el repartidor de funciones tiene que recorrer FUNCIONES_DELEGABLES');
+    // ⚠️ CAMBIÓ EL QUÉ, y por un fallo medido (2026-09-06). Recorría solo
+    // `FUNCIONES_DELEGABLES`, y con eso una función no delegable NO se podía
+    // QUITAR desde la pantalla — aunque el catálogo siempre lo permitió
+    // (`funcionesEfectivas` borra cualquier quitada). Ahora recorre el catálogo
+    // entero y son las OPCIONES las que se separan: «añadir» solo en las
+    // delegables, «quitar» en todas las que el rol traiga.
+    assert.match(usuarios, /CODIGOS_FUNCION\.map/,
+      'el repartidor de funciones tiene que recorrer el catálogo entero');
+    assert.match(usuarios, /\{delegable && <option value="extra">añadir<\/option>\}/,
+      'añadir una función NO delegable es un botón que el trabajador tira con 400');
+    assert.match(usuarios, /\{deSerie\.has\(f\) && <option value="quitada">quitar<\/option>\}/,
+      'quitar tiene que ofrecerse en todas las que el rol traiga: recortar no da poder');
     assert.match(usuarios, /ACCIONES_AUDITABLES\.map/,
       'el filtro de la bitácora tiene que recorrer la lista CERRADA de acciones');
     // Y el corte del propietario también sale del catálogo: «protegido» es
@@ -937,5 +948,63 @@ describe('el expediente de causa raíz: se LEE entero, se edita solo con permiso
       assert.ok(!/sesion\.fase === 'autenticado'\s*\n\s*\?\s*\{ correo: sesion\.correo/.test(src),
         `${f} volvió a construir la rebanada a mano en vez de usar useQuien()`);
     }
+  });
+});
+
+// ============================================================================
+// QUITAR NO ES DELEGAR — el espectador sin bitácoras internas
+// ----------------------------------------------------------------------------
+// Salió creando la primera cuenta de solo lectura (2026-09-06). El Ingeniero
+// pidió un espectador SIN las dos bitácoras internas (`ia.leer` y
+// `usuarios.auditoria`), que el rol `auditor` trae y que NO son delegables.
+//
+// El catálogo siempre lo permitió: `funcionesEfectivas` borra CUALQUIER quitada,
+// delegable o no. Pero la pantalla solo recorría las delegables, así que esa
+// cuenta no se podía crear; y el trabajador, al derivar el perfil desde los
+// reclamos, filtraba `funcionesQuitadas` por `delegable`, de modo que una
+// retirada no delegable DESAPARECÍA al reconciliar: el token seguía sin darla y
+// el espejo decía que sí. La siguiente edición se la habría devuelto en silencio.
+// ============================================================================
+describe('quitar una función NO delegable: el catálogo, el trabajador y la pantalla dicen lo mismo', () => {
+  test('el catálogo borra cualquier quitada, sea delegable o no', () => {
+    const noDelegables = CODIGOS_FUNCION.filter((f) => !FUNCIONES[f].delegable);
+    assert.ok(noDelegables.length > 0, 'sin funciones no delegables esta prueba no vigila nada');
+    for (const rol of ROLES_ASIGNABLES.filter((r) => r !== 'admin')) {
+      for (const f of FUNCIONES_POR_ROL[rol].filter((x) => !FUNCIONES[x].delegable)) {
+        assert.ok(!funcionesEfectivas(rol, [], [f]).includes(f),
+          `el catálogo no supo quitarle «${f}» a ${rol}`);
+      }
+    }
+  });
+
+  test('el espectador que pidió el Ingeniero se puede expresar: auditor sin las dos bitácoras', () => {
+    const efectivas = funcionesEfectivas('auditor', [], ['ia.leer', 'usuarios.auditoria']);
+    assert.deepEqual(efectivas, ['lineas.ver', 'evidencias.ver', 'cargabilidad.ver', 'informes.generar']);
+    for (const f of efectivas) {
+      assert.match(f, /\.ver$|^informes\.generar$/, `«${f}» no es de solo lectura`);
+    }
+  });
+
+  test('añadir una NO delegable se sigue ignorando: recortar no es lo mismo que regalar', () => {
+    const conRegalo = funcionesEfectivas('auditor', ['usuarios.gestionar'], []);
+    assert.ok(!conRegalo.includes('usuarios.gestionar'),
+      'el catálogo dejó colar una función no delegable como extra');
+  });
+
+  test('el trabajador deriva `funcionesQuitadas` SIN filtrar por delegable', () => {
+    const worker = readFileSync(join(RAIZ, 'usuarios/src/index.js'), 'utf-8');
+    const i = worker.indexOf('function perfilDesdeReclamos');
+    assert.ok(i > 0);
+    const cuerpo = worker.slice(i, i + 1400);
+    assert.match(cuerpo, /funcionesQuitadas: base\.filter\(\(f\) => !efectivas\.includes\(f\)\),/,
+      'volvió el filtro `delegable` en las quitadas: una retirada no delegable se pierde al reconciliar');
+    assert.match(cuerpo, /funcionesExtra: efectivas\.filter\(\(f\) => !base\.includes\(f\) && FUNCIONES\[f\]\.delegable\),/,
+      'las EXTRA sí se filtran por delegable: ahí sí se regalaría poder');
+  });
+
+  test('la pantalla manda las quitadas del catálogo entero y las extra solo delegables', () => {
+    const usuarios = readFileSync(join(RAIZ, 'web/src/componentes/Usuarios.tsx'), 'utf-8');
+    assert.match(usuarios, /funcionesQuitadas: CODIGOS_FUNCION\.filter\(\(f\) => ajustes\[f\] === 'quitada'\)/);
+    assert.match(usuarios, /funcionesExtra: CODIGOS_FUNCION\.filter\(\(f\) => FUNCIONES\[f\]\.delegable && ajustes\[f\] === 'extra'\)/);
   });
 });

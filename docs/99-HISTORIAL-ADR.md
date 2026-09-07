@@ -8946,3 +8946,59 @@ dentro (`GC pareado` negativo, como manda la skill).
 `../brain-private/mantenimiento-lineas-at/research-archive/2026-09-06-auditoria-cerebro-nivel2.json`
 
 ---
+
+## ADR-103 · 2026-09-06 · Quitar no es delegar: una función que va con el rol se puede RETIRAR, aunque no se pueda regalar
+
+**Deliberación:** salió creando la primera cuenta de solo lectura, con el Ingeniero delante.
+**Estado:** ✅ corregido y en producción · **NO revisada externamente**.
+
+### Contexto
+
+El encargo fue *«un usuario que solo sea espectador, no puede modificar absolutamente nada»*, y con
+una decisión suya encima: que ese espectador **no viera las dos bitácoras internas** —`ia.leer` y
+`usuarios.auditoria`—, que el rol `auditor` trae y que **no son delegables**.
+
+No se pudo. Y al mirar por qué aparecieron dos piezas que decían cosas distintas:
+
+- **El catálogo siempre lo permitió.** `funcionesEfectivas` filtra por `delegable` al AÑADIR y no al
+  QUITAR: `for (const f of quitadas) base.delete(f)`, sin condición.
+- **La pantalla recorría solo `FUNCIONES_DELEGABLES`**, así que las otras siete funciones no tenían
+  ni desplegable: no había forma de expresar esa cuenta.
+- **El trabajador se olvidaba de la retirada al reconciliar.** `perfilDesdeReclamos` derivaba
+  `funcionesQuitadas` filtrando por `delegable`, o sea que una retirada no delegable **desaparecía
+  del espejo**: el token seguía sin dar la función y la pantalla decía que sí. Y como el formulario
+  de edición se rellena del espejo, **la siguiente edición se la habría devuelto en silencio**.
+
+Lo último es lo grave y es exactamente lo que `§ADR-100` existe para impedir: *la ilusión de control
+es peor que su ausencia, porque quien administra se la cree*.
+
+### Decisión
+
+**Añadir y quitar no son la misma operación, y no llevan la misma condición.**
+
+| | Regla | Por qué |
+|---|---|---|
+| **Añadir** | solo funciones `delegable` | Regalar una función que va con el rol es dar poder que el rol no reparte: crear personas, cargar el trazado, aplicar un dato a varios apoyos. El trabajador responde 400 y lo anota |
+| **Quitar** | cualquiera que el rol traiga | **Recortar nunca da poder.** Negárselo a quien administra no protege de nada: solo impide expresar una cuenta más estrecha, que es justo la que se quiere |
+
+Los tres consumidores dicen ya lo mismo: el catálogo (que no cambió), la pantalla (recorre
+`CODIGOS_FUNCION` y separa las OPCIONES: «añadir» solo en las delegables, «quitar» en las que el rol
+traiga) y el trabajador (`funcionesQuitadas` sin filtro). Cinco pruebas nuevas de paridad, una de
+ellas expresando el caso literal del encargo.
+
+### Supuestos que deben ser ciertos — y la señal que diría que dejaron de serlo
+
+| Supuesto | Señal |
+|---|---|
+| El filtro `delegable` no vuelve a las quitadas | La prueba «el trabajador deriva `funcionesQuitadas` SIN filtrar por delegable» en rojo |
+| Espejo y token siguen diciendo lo mismo tras reconciliar | Una fila de Personas cuyas funciones tachadas no coincidan con las del token (`rescate.mjs auditar`) |
+| Nadie puede AÑADIRSE una función no delegable | El trabajador deja de responder 400 a `funcionesExtra` con `usuarios.gestionar` |
+
+### Consecuencias
+
+- La primera cuenta de solo lectura existe y su token es `f:['lv','ev','cv','ig']`, 151 bytes:
+  ver líneas, ver fotografías, ver el histórico de carga y generar informes. Nada más.
+- `2.536` pruebas. La pantalla enseña tachadas las funciones retiradas, que es lo que ya hacía; la
+  diferencia es que ahora eso es cierto también después de reconciliar.
+
+---

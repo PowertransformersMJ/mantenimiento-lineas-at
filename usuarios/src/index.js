@@ -190,7 +190,14 @@ function perfilDesdeReclamos(cuenta, claims) {
     nombre: cuenta.displayName || cuenta.email || '(sin nombre)',
     rol,
     funcionesExtra: efectivas.filter((f) => !base.includes(f) && FUNCIONES[f].delegable),
-    funcionesQuitadas: base.filter((f) => !efectivas.includes(f) && FUNCIONES[f].delegable),
+    // ⚠️ QUITAR NO ES DELEGAR, y el filtro `delegable` NO va aquí. Lo llevaba, y
+    // con él una función no delegable retirada a mano —`ia.leer`,
+    // `usuarios.auditoria`— desaparecía de `funcionesQuitadas` al reconciliar:
+    // el token seguía sin darla y el espejo decía que sí. Esa es exactamente la
+    // ilusión de control que el catálogo existe para impedir (`99 §ADR-100`), y
+    // peor: la siguiente edición del perfil se la habría devuelto en silencio.
+    // El catálogo nunca lo pidió — `funcionesEfectivas` borra CUALQUIER quitada.
+    funcionesQuitadas: base.filter((f) => !efectivas.includes(f)),
     lineas: Array.isArray(claims.l) && claims.l.length ? [...claims.l] : [TODAS_LAS_LINEAS],
     activo: !cuenta.disabled,
   };

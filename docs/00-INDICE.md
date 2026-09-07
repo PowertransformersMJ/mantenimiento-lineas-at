@@ -188,6 +188,7 @@ Guarda `research-archive/` (crudos de deliberación: comités, consejos externos
 | `ADR-100` | 2026-09-06 | El sistema de personas: roles, funciones y responsabilidades desde la aplicación — y lo viejo, borrado | `research-archive/2026-09-05-sistema-de-usuarios/` |
 | `ADR-101` | 2026-09-06 | Enmiendas: las cuentas viejas SÍ se borran, hay DOS trabajadores, y la bitácora es inviolable «frente a clientes» | `research-archive/2026-09-05-sistema-de-usuarios/` |
 | `ADR-102` | 2026-09-06 | Auditoría Nivel-2: el cerebro entrega, y lo que reincide se cierra con guardián, no con corrección | `research-archive/2026-09-06-auditoria-cerebro-nivel2.json` |
+| `ADR-103` | 2026-09-06 | Quitar no es delegar: una función del rol se puede retirar aunque no se pueda regalar | — (salió creando la primera cuenta de solo lectura) |
 
 > Toda decisión cara de revertir entra aquí con su ADR y su crudo enlazado. Si hubo comité o consejo
 > externo y el crudo no está archivado, la tarea **no está cerrada** (`CLAUDE.md §G.4`).

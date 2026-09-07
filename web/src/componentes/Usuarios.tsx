@@ -26,7 +26,7 @@
 // ============================================================================
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ACCIONES_AUDITABLES, FUNCIONES, FUNCIONES_DELEGABLES, FUNCIONES_POR_ROL, ROLES_ASIGNABLES,
+  ACCIONES_AUDITABLES, CODIGOS_FUNCION, FUNCIONES, FUNCIONES_POR_ROL, ROLES_ASIGNABLES,
   ROL_DESCRIPCION, TODAS_LAS_LINEAS, defectosDeContrasena, funcionesEfectivas,
   MIN_CONTRASENA, permisosDe,
   type Funcion, type Linea, type ModoDeAlta, type Rol,
@@ -123,25 +123,37 @@ function AjustesDeFunciones({ rol, ajustes, alCambiar }: {
   const deSerie = new Set(FUNCIONES_POR_ROL[rol]);
   return (
     <div className="usr-funciones">
-      {/* ⚠️ La lista sale de FUNCIONES_DELEGABLES, del catálogo. Si mañana se
-          añade una función delegable, aparece aquí sola. */}
-      {FUNCIONES_DELEGABLES.map((f) => (
-        <label key={f} className="usr-funcion" title={queHace(f)}>
-          {/* El código y lo que SIGNIFICA, los dos: quien reparte permisos no
-              tiene por qué saberse de memoria qué abre `hipotesis.editar`. */}
-          <span className="mono">{f}</span>
-          <span className="fine">{queHace(f)}</span>
-          <select value={ajustes[f] ?? 'rol'} onChange={(e) => alCambiar(f, e.target.value as Ajuste)}>
-            <option value="rol">{deSerie.has(f) ? 'la trae su rol' : 'no la trae su rol'}</option>
-            <option value="extra">añadir</option>
-            <option value="quitada">quitar</option>
-          </select>
-        </label>
-      ))}
+      {/* ⚠️ La lista sale del catálogo ENTERO, no solo de las delegables, y la
+          razón es que AÑADIR y QUITAR no son la misma operación. Añadir una
+          función no delegable es regalar poder que va con el rol, y el
+          trabajador lo rechaza. QUITARLA es lo contrario: recortar. El catálogo
+          siempre lo permitió —`funcionesEfectivas` borra cualquier quitada— y
+          esta pantalla no lo ofrecía, así que un espectador al que había que
+          dejar sin las bitácoras internas no se podía crear desde aquí. */}
+      {CODIGOS_FUNCION.map((f) => {
+        const delegable = FUNCIONES[f].delegable;
+        return (
+          <label key={f} className="usr-funcion" title={queHace(f)}>
+            {/* El código y lo que SIGNIFICA, los dos: quien reparte permisos no
+                tiene por qué saberse de memoria qué abre `hipotesis.editar`. */}
+            <span className="mono">{f}</span>
+            <span className="fine">{queHace(f)}{delegable ? '' : ' · va con el rol'}</span>
+            <select value={ajustes[f] ?? 'rol'} onChange={(e) => alCambiar(f, e.target.value as Ajuste)}>
+              <option value="rol">{deSerie.has(f) ? 'la trae su rol' : 'no la trae su rol'}</option>
+              {/* Añadir, solo las delegables: ofrecer las otras sería un botón
+                  que el trabajador tira con un 400. */}
+              {delegable && <option value="extra">añadir</option>}
+              {/* Quitar, cualquiera que el rol traiga: no hay nada que regalar. */}
+              {deSerie.has(f) && <option value="quitada">quitar</option>}
+            </select>
+          </label>
+        );
+      })}
       <p className="fine">
-        Solo aparecen las funciones <b>delegables</b>. Las que no lo son —crear personas, cargar el
-        trazado, aplicar un dato a varios apoyos— van con el rol y no se regalan una a una: el
-        trabajador las rechazaría y lo dejaría anotado en la bitácora.
+        <b>Añadir</b> solo se ofrece en las funciones <b>delegables</b>: las demás —crear personas,
+        cargar el trazado, aplicar un dato a varios apoyos— van con el rol y no se regalan una a
+        una; el trabajador lo rechazaría y lo dejaría en la bitácora. <b>Quitar</b> se ofrece en
+        todas las que el rol traiga: recortar nunca da poder.
       </p>
     </div>
   );
@@ -364,8 +376,11 @@ function Alta({ lineas, puedeAsignar, alTerminar, alFallar }: {
         nombre: nombre.trim(),
         correo: correo.trim().toLowerCase(),
         rol,
-        funcionesExtra: FUNCIONES_DELEGABLES.filter((f) => ajustes[f] === 'extra'),
-        funcionesQuitadas: FUNCIONES_DELEGABLES.filter((f) => ajustes[f] === 'quitada'),
+        // Añadir, solo delegables (el trabajador tira las demás con un 400).
+        // Quitar, cualquiera: recortar no regala poder, y el catálogo siempre
+        // borró CUALQUIER quitada — era esta pantalla la que no lo ofrecía.
+        funcionesExtra: CODIGOS_FUNCION.filter((f) => FUNCIONES[f].delegable && ajustes[f] === 'extra'),
+        funcionesQuitadas: CODIGOS_FUNCION.filter((f) => ajustes[f] === 'quitada'),
         lineas: todas ? [TODAS_LAS_LINEAS] : elegidas,
         modo,
         ...(modo === 'contrasena' ? { contrasena } : {}),
@@ -485,8 +500,11 @@ function Editar({ persona, lineas, puedeAsignar, alTerminar, alFallar }: {
       await editarPersona(persona.uid, {
         nombre: nombre.trim(),
         rol,
-        funcionesExtra: FUNCIONES_DELEGABLES.filter((f) => ajustes[f] === 'extra'),
-        funcionesQuitadas: FUNCIONES_DELEGABLES.filter((f) => ajustes[f] === 'quitada'),
+        // Añadir, solo delegables (el trabajador tira las demás con un 400).
+        // Quitar, cualquiera: recortar no regala poder, y el catálogo siempre
+        // borró CUALQUIER quitada — era esta pantalla la que no lo ofrecía.
+        funcionesExtra: CODIGOS_FUNCION.filter((f) => FUNCIONES[f].delegable && ajustes[f] === 'extra'),
+        funcionesQuitadas: CODIGOS_FUNCION.filter((f) => ajustes[f] === 'quitada'),
         lineas: todas ? [TODAS_LAS_LINEAS] : elegidas,
       });
       alTerminar();
