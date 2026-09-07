@@ -127,12 +127,27 @@
 - `L-79` · «Es que no hay datos» es cierto, y es inútil dicho tres veces: la pantalla vacía enseña su ESTRUCTURA *(`32`)*
 - `L-80` · Borrar IndexedDB de Firebase con la página abierta cuelga ese Chrome: «sin red» con el servidor sano *(`35`)*
 - `L-81` · «Sin conexión» con `curl` verde: el preflight CORS rechazó una cabecera propia *(`35`)*
+- `M-03` · Un agente «ancho» no implementa: un archivo, un rango y el texto exacto *(aquí)*
 
 ### M-01 · Una cifra escrita a mano que un guardián puede contar es una cifra que envejece sola
 
 - **Síntoma:** el nodo madre declaraba «66 lecciones — 50 en cinco hijos y 16 de método»; eran **70 · 53 · 17**. La auditoría del 21-08 ya cazó lo mismo (57 por 63) y lo corrigió: **volvió a romperse en cuatro días**, por quien añadió las lecciones siguientes.
 - **Por qué reincide:** es un dato DERIVADO escrito a mano. Cada vez que alguien hace lo correcto —añadir una lección— deja el cerebro mintiendo, y el linter no lo caza: valida que las refs RESUELVAN, no que el resumen sea cierto.
-- **Regla:** un número que un guardián puede contar **no se escribe en prosa** — o lo publica el guardián, o no se publica. Si debe estar escrito, necesita un gate que lo compare con la realidad; «acuérdate de actualizarlo» no es un gate, es una esperanza. Se cerró **quitando la cifra**, no corrigiéndola por tercera vez. Misma familia: «13 pestañas» en `20`, «24 apoyos» en `05`, la versión del molde espejada a mano. **Qué mirar la próxima vez:** todo renglón con un número que también viva en el código, en git o en otro nodo (`99 §ADR-065`). ⚠️ **REINCIDIÓ DOS VECES en 16 ADRs** (24-08, `99 §ADR-083`): el `05` decía «1.937 pruebas» y eran 1.941, y el índice del PARAGUAS decía «77 ADRs» y eran 81 — **ése está FUERA del repo, donde no mira ningún gate**, y es la dimensión nueva: la regla no basta ni siquiera donde hay linter, y menos donde no lo hay. Se cierra igual que la primera vez: **quitando la cifra o poniéndole un guardián**, nunca corrigiéndola otra vez.
+- **Regla:** un número que un guardián puede contar **no se escribe en prosa** — o lo publica el guardián, o no se publica. Si debe estar escrito, necesita un gate que lo compare con la realidad; «acuérdate de actualizarlo» no es un gate, es una esperanza. Se cerró **quitando la cifra**, no corrigiéndola por tercera vez. **Qué mirar la próxima vez:** todo renglón con un número que también viva en el código, en git o en otro nodo (`99 §ADR-065`). ⚠️ **REINCIDIÓ DOS VECES en 16 ADRs** (24-08, `99 §ADR-083`): el `05` decía «1.937 pruebas» y eran 1.941, y el índice del PARAGUAS decía «77 ADRs» y eran 81 — **ése está FUERA del repo, donde no mira ningún gate**, y es la dimensión nueva: la regla no basta ni siquiera donde hay linter, y menos donde no lo hay.
+
+### M-03 · Un agente «ancho» no implementa: hay que darle UN archivo y un rango de líneas
+
+- **Síntoma (2026-09-05/06):** el delta del sistema de personas se intentó con dos subagentes Opus
+  de encargo amplio («implementa el catálogo y el trabajador»). **12 intentos, ~2,2 M tokens, cero
+  líneas escritas.** Cada agente empezaba leyendo archivos enteros para «entender», y el turno
+  moría por tiempo antes de la primera escritura.
+- **Por qué:** leer para orientarse es barato en un archivo y ruinoso en un repositorio. Un encargo
+  ancho no acota la lectura, así que el agente la expande hasta el límite.
+- **Regla:** un agente que ESCRIBE recibe **un archivo, un rango de líneas y el texto exacto que se
+  espera**; el que ANALIZA puede ser ancho. Si el encargo no cabe en esa forma, no es un encargo
+  para un agente: es un encargo para mí, por rebanadas verificadas (`99 §ADR-100`).
+  **Qué mirar la próxima vez:** un subagente que lleva minutos sin una sola herramienta de
+  escritura ya falló — no se espera, se re-parte el trabajo.
 
 ### M-02 · Buscar la PALABRA no es buscar la COSA: que un término no salga en `grep` no dice que el concepto no esté
 

@@ -1,8 +1,8 @@
 # 📝 10 — MEMORIA DE CORTO PLAZO (pizarra viva)
 
-> Se **AUTO-CARGA**. Pizarra, no bitácora (§G.3). **RELEVO 2026-08-26.** Este nodo ES el
-> relevo: léelo entero. Detalle largo → `research-archive/2026-08-26-relevo-cierre.md`. Si algo
-> contradice a `docs/.handoff-auto.md` (foto real de git), manda ese.
+> Se **AUTO-CARGA**. Pizarra, no bitácora (§G.3). Este nodo ES el relevo: léelo entero.
+> Detalle largo → `research-archive/2026-08-26-relevo-cierre.md`. ⚠️ `docs/.handoff-auto.md` es una
+> FOTO FECHADA: manda solo si su fecha es MÁS NUEVA que la de esta pizarra (`§ADR-102`).
 
 ## 🎯 Dónde estamos
 
@@ -88,8 +88,7 @@
 | **TODO-44/34** | Alerta de gasto en Cloudflare · **nada tiene copia**: la bóveda sin remoto **y Firestore sin punto de recuperación** (`§ADR-089`) | Un fallo de disco se lleva la bóveda; un comando, la base |
 | **TODO-61/54/68** | ¿App Check? · ¿linter de frescura? · ¿cazar un ADR repetido? Las dos últimas tocan el KERNEL | Las TRES son TUYAS |
 | **TODO-76** | **¿Se guarda si un apoyo es autosoportado / retenido?** No cabe en el modelo: iría por APOYO (26 declaraciones) | Cierra media incógnita de la capacidad longitudinal |
-| **TODO-92** | **Las dos sondas que faltan de la auditoría** (`§ADR-083`): *retrieval-drill* con agente FRÍO y voz adversarial | Dicen que el almacén está ordenado, no que la memoria funcione |
-| **TODO-78/84** ⬆️⬆️ | **Cerebro LLENO** (`§ADR-065`): el ARRANQUE vive con ~40 caracteres de margen y `20` pasa su tope; `32` se ordenó en `§ADR-090`. **Cada sesión gasta un rato podando texto bueno.** Shard o recalibrar | El freno más caro del día a día |
+| **TODO-78/84** ⬆️⬆️ | **Cerebro LLENO** (`§ADR-065`): el ARRANQUE vive con **14** caracteres de margen; `30` se recalibró (`§ADR-102`) y `20` sigue pasado. **Cada sesión gasta un rato podando texto bueno.** Shard o recalibrar | El freno más caro del día a día |
 
 ## 🔲 Pendientes de CLAUDE — en este orden
 

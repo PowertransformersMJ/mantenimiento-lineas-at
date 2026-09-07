@@ -62,8 +62,9 @@
 #                                   el portero. Si el despliegue le pone otra
 #                                   dirección, hay que cambiarla AQUÍ también.
 #   *.googleapis.com (los cuatro)   entrar, leer Firestore e instalar App Check
-#   apis.google.com / accounts.google.com / <proyecto>.firebaseapp.com
-#                                   la ventana de «Entrar con Google»
+#   (RETIRADOS 2026-09-06, ADR-100)  apis.google.com · accounts.google.com ·
+#                                   <proyecto>.firebaseapp.com servían a «Entrar
+#                                   con Google», que ya no existe.
 #   www.google.com / www.gstatic.com  reCAPTCHA v3, que es lo que usa App Check.
 #                                   Van aunque hoy App Check no esté encendido:
 #                                   el día que se ponga la clave, no puede haber

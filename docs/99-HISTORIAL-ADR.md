@@ -1715,7 +1715,10 @@ tercero. Vive en `NOTAS-OPERATIVAS.md` de la bóveda.)*
    con la credencial y no se puede falsificar desde el cliente.
 4. **La organización existe desde el día 1** (`orgId`), aunque hoy solo haya una. Una columna de
    pertenencia añadida después obliga a migrar todo lo escrito sin ella.
-5. **Las cuentas se DESHABILITAN, nunca se borran.** Borrar un usuario borra el rastro de quién
+5. **Las cuentas se DESHABILITAN, nunca se borran.** ⚠️ **ENMENDADO por `§ADR-101 §1` (2026-09-06):**
+   la limpieza inicial del corte SÍ borró las 3 cuentas viejas, por orden expresa, dejando
+   **lápida** `usuarios/{uid}` para que cada `creadoPor` conserve autor. Para las personas normales
+   sigue mandando esta regla. — Borrar un usuario borra el rastro de quién
    hizo qué, y en un sistema que sostiene firmas eso no se recupera.
 6. **Cada cambio de rol o de contraseña revoca los tokens vivos** (`revokeRefreshTokens`). Sin eso
    `setCustomUserClaims` no surte efecto hasta que el token caduca: **el rol viejo sobrevive hasta
@@ -8627,274 +8630,206 @@ publica pero no se firma.**
 
 ---
 
-## ADR-100 · 2026-09-06 · El sistema de usuarios: roles, funciones y responsabilidades desde la aplicación — y lo viejo, borrado
+## ADR-100 · 2026-09-06 · El sistema de personas: roles, funciones y responsabilidades, administrado desde la aplicación — y lo viejo, borrado
 
-**Estado:** ✅ **Construido y verificado en local** (2.468 pruebas · 47 en el emulador de Firestore ·
-tipos y contrato limpios · los dos trabajadores empaquetan). ⏳ **Despliegue pendiente del runbook**
-(`usuarios/README.md §9`): cinco pasos son de consola y los hace el Ingeniero guiado con pantallazos.
-**Revisión:** comité de 4 lentes Opus con **veto**, cuyos tres fallos fatales se adoptaron; prompt de
-Consejo Externo entregado en el chat (respuesta de Gemini no recibida al cerrar este ADR).
-
-### El encargo, en sus palabras
-
-> «Sistema de ingreso inseguro, arcaico y no efectivo… Se requiere un sistema de usuarios avanzado
-> para gestionar la creación de los mismos y designar roles, funciones y responsabilidades.»
-> Y después: «Todos los usuarios antiguos se revocan, prohibido el ingreso con Google, solo ingreso
-> con usuarios creados; el superadmin es creado desde Firebase, los demás usuarios los crea el
-> superadmin desde el sistema; todo automatizado. Todo lo viejo se borra.»
-
-### Lo que había, medido
-
-Roles planos en el token (4), ~25 comparaciones `rol === 'admin'` a mano, **alta de personas SOLO
-por línea de comandos** con la llave maestra (que además ya no estaba en la Mac), **Google vivo en
-producción** —la vía de alta pública del incidente del 31-07—, sin bitácora de cambios de permiso,
-sin cabeceras de seguridad, sin caducidad de sesión. Y **3 cuentas en Firebase Auth, las 3 por
-Google, sin contraseña — la del Ingeniero incluida** (`firebase auth:export`, 2026-09-05).
-
-### Lo que se buscó antes de decidir
-
-Cinco escaneos Opus (tres CRM ajenos + los dos proyectos locales, 268 KB con archivo:línea) y un
-verificador de viabilidad contra documentación oficial. Lo que se copió y de quién, con su
-contraejemplo, está en la bóveda (`03-diseno.md`). Tres lecciones que gobiernan todo: **un solo
-módulo de catálogo** que consumen reglas, servidor y pantalla (uno de los CRM tenía tres listas que
-ya habían divergido); **no modelar lo que nadie hace cumplir** (otro tenía `zonas[]` y una matriz de
-25 permisos decorativa); **el rol propietario no se acuña ni se toca desde la app** (el tercero
-acabó con una puerta trasera `/admins` que ni se podía enumerar).
-
-**Viabilidad verificada**: un Worker gratuito de Cloudflare firma un JWT RS256 con WebCrypto, canjea
-un token OAuth2 de una cuenta de servicio y llama a Identity Toolkit REST (`accounts:signUp` con
-`targetProjectId`, `accounts:update` para reclamos/`disableUser`/`validSince`, `batchGet`,
-`sendOobCode` con `returnOobLink`, `batchDelete`) y a Firestore REST. **Sin factura.** Lo que NO cabe
-en Spark y se dice: MFA (SMS y TOTP), blocking functions, multi-tenancy — exigen Identity Platform.
-
-### Decisión
-
-**1. Tres ejes en el token, un catálogo** (`contratos/src/usuarios.ts`, contrato **0.15.0**):
-`rol` (5, lista cerrada: `propietario` nuevo) · `f` funciones `<recurso>.<acción>` en código corto
-(16; cada rol trae un conjunto; a una persona se le añaden o quitan las DELEGABLES) · `l` alcance
-por línea (`['*']` o ids). Presupuesto de **900 bytes medido antes de escribir** (Firebase corta en
-1.000): un editor con 15 líneas pesa 679; 30 se rechazan con motivo. **Reclamo ausente = mínimo
-privilegio, sin valor por defecto.** Prueba de paridad estática: ningún código inventado en las
-reglas, ninguna función no delegable decorativa, ninguna comparación de rol a mano en `web/src`, y
-**ninguna regla abre más que la jerarquía vieja** (dos cierres, declarados).
-
-**2. El backend es un Worker** (`usuarios/`), hermano del portero de fotos, con la verificación de
-firma extraída a `comun/token-de-firebase.js` (una definición, dos consumidores). Cuenta de servicio
-DEDICADA como secreto (`roles/firebaseauth.admin` + `roles/datastore.user`; **la bitácora es
-inviolable frente a clientes, no frente a este trabajador** — se dice). La autoridad sale del
-**estado vivo**, no del token: antes de administrar se consulta a Google si la cuenta sigue activa y
-con qué rol. Jerarquía: nadie administra a un igual ni a un superior; la fila de `admin` es del
-propietario; fusible del último administrador (409). Alta en dos modos —`enlace` de un solo uso por
-defecto (credencial aleatoria de 256 bits que nadie ve) y `contrasena` tecleada (ADR-019 §2, se
-conserva)—; deshabilitar toca Auth («un doc no es una credencial»); espejo `usuarios/{uid}` para la
-pantalla, reconciliable **del token al espejo, nunca al revés**; bitácora `auditoria_accesos` con
-`write: if false` y el actor del token, lista cerrada de acciones.
-
-**3. Google fuera del todo, y el cierre de verdad está en la consola.** El comité lo midió: quitar
-el botón no cierra el alta pública — la API deja crear cuentas con la clave web del proyecto. El
-cierre es **Authentication → Settings → User actions → «Enable create» y «Enable delete» apagados**,
-y es el paso 1 del runbook, antes de desplegar nada. Retirados del código `GoogleAuthProvider`,
-popup, redirección, `recogerRedireccion`, el botón y el resolvedor; prueba de grafo a cero.
-
-**4. El propietario nace en la consola y lo reconoce `/bootstrap` UNA vez.** Anclado al **uid**
-(`PROPIETARIO_UID`, secreto), no al correo (publicado en un repo público); exige entrada por
-contraseña y sesión ≤ 5 min; **cerrojo atómico** `config/arranque` con precondición
-`exists=false` (dos llamadas simultáneas: una gana, probado); con el cerrojo puesto responde 409
-para siempre salvo al mismo uid, que solo REPARA; rearmar exige borrar el documento a mano en la
-consola, y **las reglas excluyen `arranque` y `limpieza` de la escritura genérica de `config/`**
-(las reglas de dos `match` se combinan con O y `write` incluye `delete`).
-
-**5. La limpieza inicial, con red.** `GET ?simular=1` ensaya y lista; `POST` exige `X-Limpieza-Token`
-(secreto de un solo uso), el cuerpo idéntico al ensayo, nunca al propietario ni al llamante; por
-cuenta un `accounts:update` (reclamos vacíos + apagado + `validSince`), **lápida + bitácora en UN
-commit ANTES de borrar**, `batchDelete` con `force:false`; lotes de 8 (≈12 de las 50 subpeticiones
-del plan), reanudable, se apaga sola. **Contradice ADR-019 §5 («nunca se borran»)** por orden
-expresa: el rastro queda en la lápida `usuarios/{uid}` (`activo:false, borradoEn, borradoPor,
-correo, nombre`) para que cada `creadoPor` siga teniendo nombre.
-
-**6. La revocación es inmediata en las dos puertas.** `REVOCADOS_ANTES_DE` en los dos Workers:
-todo token con `iat` anterior se rechaza en el mismo sitio donde se verifica la firma. Y el portero
-de fotos decide por FUNCIÓN (`ev` mirar, `ea` subir): un token viejo sin `f` no pasa ni a mirar — y
-el propietario, que no estaba en la lista literal de roles que subían, ya puede subir una foto.
-
-**7. Lo viejo, borrado.** `herramientas/usuarios.mjs` y su bloque de pruebas, `MiContrasena.tsx`
-y `/mi-contrasena` (perdía la reautenticación: el cambio propio vive en el navegador con la actual
-delante), el botón y el proveedor de Google, `ROLES_QUE_SUBEN`. Lo único que sobrevive está **fuera
-del repo**, en la bóveda: `rescate.mjs` (`reponer-propietario`, `auditar`), porque la consola de
-Firebase no sabe escribir reclamos y sin rescate un Worker caído deja a todos sin permisos.
-
-**8. Y la sesión tiene reloj** por rol (`DURACION_SESION_MIN`: admin 8 h / 30 min de inactividad;
-cuadrilla 24 h sin corte), persistencia por defecto de pestaña con casilla «Recordar», índice
-compuesto para la bitácora, `VITE_USUARIOS_URL` puesta y cubierta por `connect-src`, cabeceras de
-seguridad enforzadas y CSP en Report-Only hasta medir el mapa y los atlas con sesión real.
-
-### Alternativas descartadas
-
-| Alternativa | Por qué no |
-|---|---|
-| Cloud Functions / blocking functions | exigen Blaze (`ADR-001`) e Identity Platform |
-| Roles en documento de Firestore (como Transpower y dos CRM) | un `get()` en la regla se factura aunque se deniegue; el portero no puede leer Firestore; el reclamo arregla las dos mitades |
-| Bootstrap por correo | el correo está publicado y, con el alta abierta, lo registra un extraño (fallo fatal del comité) |
-| Retirar el modo `contrasena` | revertía una decisión personal del Ingeniero que su orden no tocaba (arquitecto del comité) |
-| `/mi-contrasena` en el Worker | el servidor solo ve un token válido — también con el portátil abierto una hora |
-| «Olvidé mi contraseña» anónimo en el Worker | enviador de correos abierto a internet sin freno; va por el cliente con respuesta idéntica |
-| Conservar la CLI en el repo como rescate | orden literal: todo lo viejo se borra. El rescate vive en la bóveda |
-| Construir el delta con dos agentes Opus «anchos» | **12 intentos, 2,2 M tokens, cero líneas**: los agentes leían archivos enteros hasta que un turno pasaba de 3 minutos. Se construyó por rebanadas verificadas, a mano |
-
-### Supuestos que deben ser ciertos — y la señal que diría que dejaron de serlo
-
-| Supuesto | Señal de que caducó |
-|---|---|
-| «Enable create» queda apagado en la consola | un alta desde fuera con la clave web NO responde `admin-restricted-operation`. Se prueba en el paso 1 |
-| `accounts:signUp` con cuenta de servicio sigue funcionando con el registro cerrado | la prueba de humo del paso 3 falla. **No verificado todavía en este proyecto** |
-| El uid del propietario es el configurado | `GET /estado` `configurado:true` y el bootstrap responde 200 a ESA cuenta |
-| Nadie borra `config/arranque` desde el navegador | la prueba del emulador «un admin NO escribe ni borra config/arranque» se pone roja |
-| Los 50 subrequests por invocación alcanzan para 8 cuentas | un lote responde 500 a mitad: bajar `LOTE_LIMPIEZA` |
-| La cuenta de servicio es dedicada y se rota | `docs/05` sin fecha de rotación, o una llave con más de 90 días |
-| La CSP en Report-Only no rompe nada | líneas «[Report Only] Refused to…» en la consola de su Chrome al abrir mapa, atlas y galería |
-
-### Consecuencias
-
-- **Nada de esto está en producción todavía.** El orden del corte —lo reversible primero, el
-  borrado al final, cada paso con su prueba de estado y su vuelta atrás— está en
-  `usuarios/README.md §9`; cinco pasos son del Ingeniero en la consola.
-- `CLAUDE.md §1` dejaba de ser cierto («UN Worker y solo uno»): enmendado en este mismo cambio.
-- `TODO-50 2b` («retirar Google, espera la contraseña») queda cerrado en código y abierto en la
-  consola (paso 8). La fila `CLAVE` de `docs/10` (regenerar la llave maestra para la CLI) muere con
-  la CLI: la llave que hace falta es la de la cuenta de servicio dedicada, y va a la bóveda.
-- **Dos hallazgos de paso, cerrados:** el `FUNCIONES` de las tres funciones invocables de IA
-  TAPABA por orden de exportación al `FUNCIONES` del catálogo (renombrado `FUNCIONES_INVOCABLES`);
-  `.wrangler/` no estaba en `.gitignore` de un repo público.
-- 2.468 pruebas · emulador 47/47 · contrato 0.15.0 · motor 0.13.0 · `usuarios/` 200 KiB · `evidencias/` 10 KiB.
-
-### Crudo de respaldo
-
-`../brain-private/mantenimiento-lineas-at/research-archive/2026-09-05-sistema-de-usuarios/`
-(viabilidad · cinco escaneos · diseño y veredicto del comité · comité crudo · construcción cruda)
-
----
-
-## ADR-100 · 2026-09-06 · El sistema de personas: roles, funciones y responsabilidades, administrado desde la aplicación
+**Estado:** ✅ **EN PRODUCCIÓN desde el 2026-09-06** (corte ejecutado, pasos 0-10). Esta es la versión
+**fusionada** de dos redacciones del mismo número (la de construcción, 06-09, y la de cierre, 07-09):
+la auditoría Nivel-2 del 06-09 las encontró duplicadas y aquí se conservan las dos, no se eligió una.
+**Revisión:** comité de 4 lentes Opus con veto (tres fallos fatales adoptados) · **NO revisada
+externamente** (prompt de Consejo Externo entregado; respuesta de Gemini no recibida).
 
 ### Contexto
 
-Orden del Ingeniero (2026-09-05): *«hay implementado un sistema de ingreso inseguro, arcaico y no
-efectivo… se requiere un sistema de usuarios avanzado para gestionar la creación de los mismos y
-designar roles y funciones y responsabilidades»*. Y después, más estricta: *«todos los usuarios
-antiguos se revocan, prohibido el ingreso con Google, solo ingreso con usuarios creados; el
-superadmin es creado desde Firebase, los demás los crea el superadmin desde el sistema; todo
-automatizado; todo lo viejo se borra»*.
+**El encargo, en sus palabras:** *«sistema de ingreso inseguro, arcaico y no efectivo… se requiere un
+sistema de usuarios avanzado para gestionar la creación de los mismos y designar roles, funciones y
+responsabilidades»*. Y después, más estricto: *«todos los usuarios antiguos se revocan, prohibido el
+ingreso con Google, solo ingreso con usuarios creados; el superadmin es creado desde Firebase, los
+demás los crea el superadmin desde el sistema; todo automatizado. Todo lo viejo se borra»*.
 
 **Lo que había, medido** (auditoría Opus + lectura propia): correo+contraseña **y Google vivo en
-producción** —la vía de alta pública del incidente del 31-07 (`§ADR-019`)—; cuatro roles planos en
-el token y ~25 comparaciones `rol === 'admin'` a mano; alta y roles **solo por línea de comandos**
-con la llave maestra, que además seguía en Descargas; sin recuperación, sin bitácora de cambios de
-permiso, sin cabeceras de seguridad, sin caducidad de sesión; y una pantalla que prometía «líneas
-asignadas» que el modelo no tenía. Lo «arcaico» era exacto. Lo «inseguro» era parcial: la frontera
+producción** —la vía de alta pública del incidente del 31-07 (`§ADR-019`)—; **3 cuentas en Firebase
+Auth, las 3 por Google y sin contraseña, la del Ingeniero incluida** (`auth:export`, 05-09); cuatro
+roles planos en el token y ~25 comparaciones `rol === 'admin'` a mano; alta y roles **solo por línea
+de comandos** con la llave maestra (que seguía en Descargas); sin recuperación, sin bitácora de cambios
+de permiso, sin cabeceras de seguridad, sin caducidad de sesión; y una pantalla que prometía «líneas
+asignadas» que el modelo no tenía. Lo «arcaico» era exacto. Lo «inseguro», parcial: la frontera
 (reglas + reclamos) era sólida; los huecos eran Google, cero cabeceras y cero bitácora.
 
-**Lo que se buscó antes de diseñar:** cinco escaneos Opus (tres CRM ajenos —autos, inmobiliaria,
-joyería— y los dos proyectos locales, 268 KB de hallazgos con archivo:línea), un verificador de
-viabilidad contra documentación oficial, y **un comité de cuatro lentes** que tumbó tres piezas de
-mi primer delta. Crudo íntegro: `research-archive/2026-09-05-sistema-de-usuarios/`.
+**Lo que se buscó antes de decidir:** cinco escaneos Opus (tres CRM ajenos —autos, inmobiliaria,
+joyería— y los dos proyectos locales, 268 KB con archivo:línea), un verificador de viabilidad contra
+documentación oficial y un comité de cuatro lentes. Tres lecciones de los CRM gobiernan todo: **un
+solo módulo de catálogo** (uno tenía tres listas ya divergentes); **no modelar lo que nadie hace
+cumplir** (otro tenía `zonas[]` y una matriz de 25 permisos decorativa); **el rol propietario no se
+acuña ni se toca desde la app** (el tercero acabó con una puerta trasera `/admins` no enumerable).
+
+**Viabilidad verificada** (`01-viabilidad-worker-firebase.md`): un Worker gratuito firma un JWT RS256
+con WebCrypto, canjea un token OAuth2 de cuenta de servicio y llama a Identity Toolkit REST
+(`accounts:signUp` con `targetProjectId`, `accounts:update` para reclamos/`disableUser`/`validSince`,
+`batchGet`, `sendOobCode` con `returnOobLink`, `batchDelete`) y a Firestore REST. Sin factura. Lo
+que NO cabe en Spark, dicho: MFA, blocking functions y multi-tenancy exigen Identity Platform.
 
 ### Decisión
 
-**1. Un catálogo, tres consumidores** (`contratos/src/usuarios.ts`). Roles (`propietario · admin ·
-editor · cuadrilla · auditor`, lista cerrada), funciones `<recurso>.<acción>` (16, con código corto
-para el token y marca de delegable), y responsabilidades (alcance por línea, `['*']` o ids). Lo
-consumen las reglas, el trabajador y la pantalla, y **una prueba de paridad se pone roja si una
-capa inventa un código, un rol o una comparación a mano**. Es la lección más repetida de los tres CRM:
-uno tenía el catálogo en tres archivos que ya habían divergido; otro modelaba `zonas[]` y una
-matriz de 25 permisos que ninguna regla consultaba. Regla de la casa: **no existe aquí ningún campo
-que no se haga cumplir en alguna parte.**
+**1. Un catálogo, tres consumidores** (`contratos/src/usuarios.ts`, contrato 0.15.0). Lo consumen
+las reglas, el trabajador y la pantalla, y **una prueba de paridad se pone roja si una capa inventa
+un código, un rol o una comparación a mano** — y si una regla abre más que la jerarquía vieja. Regla
+de la casa: **no existe aquí ningún campo que no se haga cumplir en alguna parte.** El catálogo:
 
-**2. Todo viaja en el token** (`orgId · rol · f · l`), con presupuesto de 900 bytes **medido antes
-de escribir** —nunca truncado—; reclamo ausente = mínimo privilegio. Un editor con 15 líneas pesa
-679 bytes; 30 líneas se rechazan con motivo.
+| Rol | Funciones que trae (código corto en el token) |
+|---|---|
+| `propietario`, `admin` | las 16 |
+| `editor` | `lineas.ver` lv · `lineas.editar` le · `apoyos.editar` ae · `hipotesis.editar` he · `expedientes.editar` xe · `evidencias.ver` ev · `evidencias.aportar` ea · `cargabilidad.ver` cv · `informes.generar` ig |
+| `cuadrilla` | lv · ev · ea |
+| `auditor` | lv · ev · cv · ig · `ia.leer` il · `usuarios.auditoria` ua |
+| solo por delegación o rol alto | `ficha.lote` fl · `cargar.puntos` cp · `cargabilidad.cargar` cc · `config.editar` ce · `usuarios.gestionar` ug |
 
-**3. El backend es un Worker** (`usuarios/`), hermano del portero de fotos: verifica la firma del
-token contra las JWKS de Google (módulo compartido `comun/token-de-firebase.js`), exige rol
-administrador **contra el estado vivo** —no contra el papel del token—, y habla con Identity Toolkit
-y Firestore REST con una **cuenta de servicio dedicada** (`ing-miguel-jimenez@…`, Auth Admin +
-Datastore User) guardada como secreto. Sin Cloud Functions, sin factura: viabilidad verificada
-punto por punto (`01-viabilidad-worker-firebase.md`).
+A `editor`, `cuadrilla` y `auditor` se les añaden funciones **delegables** o se les quitan; a
+`propietario` y `admin` no se les toca el conjunto. El alcance `l` es `['*']` o una lista de líneas.
+
+**2. Todo viaja en el token** (`orgId · rol · f · l`) con presupuesto de **900 bytes medido antes de
+escribir** (Firebase corta en 1.000; el margen es para el sobre del JWT). Reclamo ausente = mínimo
+privilegio, sin valor por defecto. Un editor con 15 líneas pesa 679 bytes; **más de 29 líneas se
+rechazan con motivo, y entonces se le da alcance total (`*`)**: quien necesita 30 líneas de 30 no
+necesita una lista.
+
+**3. El backend es un Worker** (`usuarios/`), hermano del portero de fotos, con la verificación de
+firma extraída a `comun/token-de-firebase.js` (una definición, dos consumidores). Cuenta de servicio
+**dedicada** (`ing-miguel-jimenez@…`, `roles/firebaseauth.admin` + `roles/datastore.user`) como
+secreto. La autoridad sale del **estado vivo**, no del token: antes de administrar se consulta a Google
+si la cuenta sigue activa y con qué rol. Jerarquía: nadie administra a un igual ni a un superior; la
+fila de `admin` es del propietario; fusible del último administrador (409). Deshabilitar toca Auth
+(«un doc no es una credencial»); espejo `usuarios/{uid}` para la pantalla, reconciliable **del token
+al espejo, nunca al revés**; el propietario es inmune a toda operación administrativa, y se audita.
 
 **4. El propietario nace en la consola y la app no puede acuñarlo.** `POST /bootstrap` de un solo
-uso: exige uid == `PROPIETARIO_UID` (secreto, **no correo**: el correo está publicado), proveedor
-contraseña, sesión de menos de cinco minutos, y un cerrojo atómico `config/arranque` creado con
-precondición «no existe». Si existe → 409 para siempre; rearmarlo exige borrarlo a mano. El
-trabajador rechaza y audita toda operación cuyo sujeto sea el propietario.
+uso: uid == `PROPIETARIO_UID` (secreto; **no correo**: el correo está publicado), proveedor
+contraseña, sesión ≤ 5 min, **cerrojo atómico** `config/arranque` con precondición «no existe» (dos
+llamadas a la vez: una gana, probado). Con cerrojo → 409 para siempre salvo al mismo uid, que solo
+REPARA; rearmar exige borrar `config/arranque` a mano en la consola. Las reglas excluyen `arranque` y
+`limpieza` de la escritura genérica de `config/` (dos `match` se combinan con O, y `write` incluye
+`delete`).
 
-**5. La limpieza inicial en dos pasos, con red:** ensayo que solo lista; borrado que exige un
-secreto de un solo uso por cabecera, la lista idéntica al ensayo y la palabra BORRAR; excluye
-siempre al llamante y al propietario; **deja lápida** `usuarios/{uid}` (correo, nombre, fecha) para
-que cada `creadoPor` siga teniendo autor; se apaga sola. Y `REVOCADOS_ANTES_DE` en los **dos**
-trabajadores: la revocación es inmediata en las dos puertas, no «en una hora».
+**5. La limpieza inicial en dos pasos, con red.** `GET ?simular=1` ensaya y lista; `POST` exige
+`X-Limpieza-Token` (secreto de un solo uso), la lista idéntica al ensayo, la palabra BORRAR; nunca al
+propietario ni al llamante. Por cuenta: reclamos vacíos + apagado + `validSince`, **lápida y bitácora
+en UN commit ANTES de borrar**, `batchDelete` con `force:false`; lotes de 8 (≈12 de las 50
+subpeticiones por invocación del plan gratuito), reanudable por `config/limpieza.progreso`, se apaga
+sola (`config/limpieza {hecho:true}`). **La lápida** `usuarios/{uid}` lleva `activo:false, borradoEn,
+borradoPor, correo, nombre`: cada `creadoPor` sigue teniendo autor. Contradice `§ADR-019 §5` por orden
+expresa (enmienda formal en `§ADR-101`).
 
-**6. Dos modos de alta** —enlace de un solo uso (credencial aleatoria que nadie ve; OWASP ASVS
-6.4.1) por defecto, y contraseña tecleada por el administrador como reserva (decisión suya de
-`§ADR-019 §2`, que mi primer delta quitó por exceso y el comité devolvió).
+**6. Google fuera del todo, y el cierre de verdad está en la consola.** Quitar el botón no cierra el
+alta pública: la API deja crear cuentas con la clave web. El cierre es Authentication → Settings → User
+actions → «Enable create» y «Enable delete» apagados (paso 1, antes de desplegar nada). Del código se
+retiraron `GoogleAuthProvider`, popup, redirección, el botón y el resolvedor; prueba de grafo a cero.
 
-**7. Bitácora `auditoria_accesos`** escrita solo por el servidor, actor del token verificado, lista
-cerrada de acciones, `write: if false` para clientes. Y **se dice lo que eso vale**: inviolable
-frente a navegadores, **no frente a quien tenga la llave del trabajador**.
+**7. La revocación es inmediata en las dos puertas.** `REVOCADOS_ANTES_DE` en los dos Workers: todo
+token con `iat` anterior se rechaza donde se verifica la firma. El portero de fotos decide por FUNCIÓN
+(`ev` mirar, `ea` subir): un token viejo sin `f` no pasa ni a mirar.
+
+**8. Dos modos de alta**: enlace de un solo uso por defecto (credencial aleatoria de 256 bits que
+nadie ve; OWASP ASVS 6.4.1) y contraseña tecleada por el administrador como reserva (`§ADR-019 §2`, que
+mi primer delta quitó por exceso y el comité devolvió: «un enlace de 1 h en el Caribe rural con dos
+rayas»). **Bitácora** `auditoria_accesos` solo del servidor, actor del token, lista cerrada de
+acciones, `write: if false` — inviolable frente a navegadores, **no frente a quien tenga la llave del
+trabajador**. Y la sesión tiene reloj por rol (`DURACION_SESION_MIN`: admin 8 h / 30 min de
+inactividad; cuadrilla 24 h sin corte), casilla «Recordar», índice compuesto de la bitácora,
+cabeceras de seguridad enforzadas y CSP en Report-Only.
+
+**9. Lo viejo, borrado.** `herramientas/usuarios.mjs` y sus pruebas, `MiContrasena.tsx` y
+`/mi-contrasena`, el botón y el proveedor de Google, `ROLES_QUE_SUBEN`, la llave maestra y su clave.
+Lo único que sobrevive está **fuera del repo**: `rescate.mjs` en la bóveda, porque la consola de
+Firebase no sabe escribir reclamos y sin rescate un Worker caído deja a todos sin permisos:
+
+```bash
+GOOGLE_APPLICATION_CREDENTIALS=~/Desktop/GitHub-MJ/brain-private/mantenimiento-lineas-at/secretos/cuenta-de-servicio-usuarios.json node ~/Desktop/GitHub-MJ/brain-private/mantenimiento-lineas-at/herramientas/rescate.mjs auditar
+```
+```bash
+GOOGLE_APPLICATION_CREDENTIALS=~/Desktop/GitHub-MJ/brain-private/mantenimiento-lineas-at/secretos/cuenta-de-servicio-usuarios.json node ~/Desktop/GitHub-MJ/brain-private/mantenimiento-lineas-at/herramientas/rescate.mjs reponer-propietario --uid <uid>
+```
 
 ### Lo que el comité tumbó, y por qué tenía razón
 
 | Mi delta | El fallo | Lo que quedó |
 |---|---|---|
-| Quitar el botón de Google cerraba el alta | **No**: `accounts:signUp` con la clave web pública seguía creando cuentas | Interruptor de consola «Enable create (sign-up)» APAGADO — paso 1, verificado: `ADMIN_ONLY_OPERATION` |
-| Bootstrap por correo | El correo está publicado; dos llamadas a la vez acuñaban dos propietarios; variable ausente → `undefined === undefined` | Por **uid**, con cerrojo atómico y fallo cerrado |
-| Limpieza en una llamada | Irreversible, sin ensayo, y muerta a mitad por las 50 subpeticiones del plan gratuito | Dos pasos, lotes de 8, lápidas, un solo uso |
+| Quitar el botón de Google cerraba el alta | `accounts:signUp` con la clave web pública seguía creando cuentas | Interruptor de consola apagado — paso 1, verificado: `ADMIN_ONLY_OPERATION` |
+| Bootstrap por correo | Correo publicado; dos llamadas a la vez acuñaban dos propietarios; variable ausente → `undefined === undefined` | Por **uid**, cerrojo atómico, fallo cerrado |
+| Limpieza en una llamada | Irreversible, sin ensayo, y muerta a mitad por las 50 subpeticiones | Dos pasos, lotes de 8, lápidas, un solo uso |
 | Retirar el modo contraseña | Revertía una decisión personal suya que la orden no tocaba | Los dos modos |
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| Cloud Functions / blocking functions | exigen Blaze (`§ADR-001`) e Identity Platform |
+| Roles en documento de Firestore (Transpower y dos CRM) | un `get()` en la regla cuenta como lectura facturable aunque se deniegue ([reglas: acceso a otros documentos](https://firebase.google.com/docs/firestore/security/rules-conditions#access_other_documents)); el portero no puede leer Firestore; el reclamo arregla las dos mitades |
+| `/mi-contrasena` en el Worker | el servidor solo ve un token válido — también con el portátil abierto una hora |
+| «Olvidé mi contraseña» anónimo en el Worker | enviador de correos abierto a internet sin freno; va por el cliente con respuesta idéntica |
+| Freno de peticiones real (KV) | KV gratuito tiene tope de escrituras diarias; con un solo administrador basta el freno por aislado, y se dice que es «best-effort» |
+| Conservar la CLI en el repo como rescate | orden literal: todo lo viejo se borra; el rescate vive en la bóveda |
+| Construir el delta con dos agentes Opus «anchos» | **12 intentos, 2,2 M tokens, cero líneas**: leían archivos enteros hasta pasar de 3 min por turno. Se construyó por rebanadas verificadas (`30 · M-03`) |
 
 ### El corte, ejecutado (2026-09-06/07, guiado por pantallazos y con la extensión de Chrome)
 
 0 correo del propietario · 1 registro público cerrado (`ADMIN_ONLY_OPERATION`) · 2 cuenta de servicio
-con dos roles, verificada en IAM; clave creada y llevada a la bóveda (600) · 3 los dos trabajadores
-desplegados, secreto cargado desde archivo, rescate ensayado en solo lectura · 4 propietario creado
-en consola (contraseña tecleada por él) · 5 web sin Google servida · 6 arranque: la pantalla enseñó
-los reclamos escritos; `/estado` arrancado · 7 reglas e índices publicados · 8 Google inhabilitado
-en consola · 9 limpieza: 3 cuentas borradas con lápida y bitácora, verificado con Admin SDK · 10
-llave maestra vieja revocada en IAM y borrada del disco; CSP sin orígenes de Google.
+con dos roles, verificada en IAM; clave a la bóveda (600) · 3 los dos trabajadores desplegados,
+secreto cargado desde archivo, rescate ensayado en solo lectura · 4 propietario creado en consola
+(contraseña tecleada por él) · 5 web sin Google servida · 6 arranque: la pantalla enseñó los reclamos;
+`/estado` arrancado · 7 reglas e índices publicados · 8 Google inhabilitado en consola · 9 limpieza: 3
+cuentas borradas con lápida y bitácora, verificado con Admin SDK · 10 llave maestra vieja revocada en
+IAM y borrada del disco; CSP sin orígenes de Google. Runbook y **vuelta atrás de cada paso**:
+`usuarios/README.md §9` (operación diaria: `§6`).
 
-**Dos fallos en vivo que ninguna prueba podía cazar:** (a) el preflight CORS no admitía
-`X-Limpieza-Token` → la limpieza «no tenía conexión» con el servidor intacto; corregido con
-guardián. (b) **Mío:** al cerrar la sesión vieja borré una base IndexedDB de Firebase con la página
-abierta y ese Chrome quedó con la base «heartbeat» colgada: el SDK espera 30 s antes de cada llamada
-y lo reporta como `network-request-failed`; lo salvó la dirección de vista previa (otro sitio para
-Chrome). Los dos van a lecciones.
+**Dos fallos en vivo que ninguna prueba podía cazar** (`35 · L-80/L-81`): el preflight CORS no admitía
+`X-Limpieza-Token` (la limpieza «no tenía conexión» con el servidor intacto; corregido con guardián);
+y, **mío**, borrar una base IndexedDB de Firebase con la página abierta dejó su Chrome colgado 30 s
+por llamada; lo salvó la dirección de vista previa.
 
 ### Supuestos que deben ser ciertos — y la señal que diría que dejaron de serlo
 
-| Supuesto | Señal |
+Se revisan en el **repaso trimestral** (el primero, con la rotación de la clave, antes del 2026-12-05).
+
+| Supuesto | Señal · cómo se mira |
 |---|---|
-| El registro público sigue apagado en la consola | Un `accounts:signUp` con la clave web que devuelva 200. `auditar` del rescate lo enseñaría como «cuenta sin reclamos» |
-| Solo existe UNA llave con poder sobre el proyecto | Una clave nueva en `firebase-adminsdk-fbsvc` o una segunda en `ing-miguel-jimenez` |
-| El token de cada persona lleva `f` y `l` | Una fila «SIN RECONCILIAR» o «reclamos anteriores al catálogo» en Personas |
-| `REVOCADOS_ANTES_DE` está en los dos `wrangler.toml` bajo `[vars]` | La prueba de estructura del TOML en rojo; un `dry-run` que no la liste |
-| El Worker es el único escritor de reclamos | Que reaparezca `usuarios.mjs` en el repo, o un `setCustomUserClaims` fuera de `usuarios/` y del rescate de la bóveda |
+| «Enable create» sigue apagado en la consola | `curl -s -X POST "https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=<clave web>" -d '{}'` devuelve algo distinto de `ADMIN_ONLY_OPERATION` |
+| `accounts:signUp` con cuenta de servicio funciona con el registro cerrado | **NO VERIFICADO aún en este proyecto**: ninguna alta desde Personas después del corte. Se cierra con la primera alta real (la prueba de humo de `README §9 paso 3` no lo cubrió) |
+| El uid del propietario es el configurado | `GET /estado` → `configurado:true, arrancado:true` |
+| Nadie borra `config/arranque` desde el navegador | la prueba del emulador «un admin NO escribe ni borra config/arranque» en rojo |
+| 50 subpeticiones alcanzan para lotes de 8 | un lote responde 500 a mitad → bajar `LOTE_LIMPIEZA` ([límites de Workers](https://developers.cloudflare.com/workers/platform/limits/)) |
+| Solo existe UNA llave con poder sobre el proyecto, y se rota | IAM → cuentas de servicio → Claves: una segunda clave en `ing-miguel-jimenez`, o cualquiera en `firebase-adminsdk-fbsvc`, o `docs/05` sin fecha de rotación |
+| El token de cada persona lleva `f` y `l` | fila «SIN RECONCILIAR» o «reclamos anteriores al catálogo» en Personas |
+| `REVOCADOS_ANTES_DE` está bajo `[vars]` en los DOS `wrangler.toml` | `grep -n REVOCADOS_ANTES_DE usuarios/wrangler.toml evidencias/wrangler.toml` |
+| El Worker es el único escritor de reclamos | `grep -rn "setCustomUserClaims\|customAttributes" --include=*.js --include=*.mjs --include=*.ts . \| grep -v node_modules` solo da `usuarios/src/` |
+| La CSP en Report-Only no rompe nada | líneas «[Report Only] Refused to…» en la consola de su Chrome al abrir mapa, atlas y galería |
 
 ### Consecuencias
 
 - **Hoy en Firebase Auth hay UNA cuenta**: el propietario, con contraseña. Google no existe como
-  proveedor. Las cuentas se crean desde Personas, con enlace o contraseña, y quedan en bitácora.
-- `2.521` pruebas · emulador 54/54 · motor 0.13.0 · contrato 0.15.0 · dos Workers en producción.
-- Queda **suyo**: limpiar los datos del sitio en su Chrome (o usar otro navegador) para el dominio
-  principal; rotación de la clave de la cuenta de servicio a 90 días (recordatorio en `05`).
-- Queda **mío** (no bloquea): App Check sigue en monitor; la CSP sigue en Report-Only; el enlace de
-  alta no devuelve su caducidad; la pantalla «No hay líneas asignadas» no ofrece «Salir» (solo la
-  alcanzan tokens sin alcance); el primer acceso de una cuenta sin perfil registra un fallo de
-  `ultimoAcceso` (inofensivo: el perfil lo escribe el trabajador al alta).
+  proveedor. Las demás se crean desde Personas, con enlace o contraseña, y quedan en bitácora.
+- Cifras: al cerrar la construcción (06-09) 2.468 pruebas · emulador 47/47; tras el corte (07-09)
+  **2.521 · 54/54** · contrato 0.15.0 · motor 0.13.0 · `usuarios/` 200 KiB · `evidencias/` 10 KiB.
+- `CLAUDE.md §1` («UN Worker y solo uno») y `§ADR-019 §5` («nunca se borran»): enmendados en
+  `§ADR-101`. `TODO-50 2b` cerrado en código y en consola. La fila `CLAVE` de `docs/10` (regenerar la
+  llave maestra para la CLI) murió con la CLI: la llave que hace falta es la de la cuenta dedicada.
+- Dos hallazgos de paso, cerrados: el `FUNCIONES` de las tres funciones invocables de IA tapaba por
+  orden de exportación al del catálogo (renombrado `FUNCIONES_INVOCABLES`); `.wrangler/` no estaba en
+  `.gitignore` de un repo público.
+- **Suyo:** «Eliminar datos» del sitio en su Chrome (o usar otro navegador) para el dominio principal;
+  la rotación de la clave (`docs/05`). **Mío, no bloquea:** App Check sigue en monitor (falta medir
+  el mapa y los atlas con reCAPTCHA en su sesión antes de exigirlo); la CSP sigue en Report-Only por
+  lo mismo; el enlace de alta no devuelve su caducidad; la pantalla «No hay líneas asignadas» no
+  ofrece «Salir»; el primer acceso de una cuenta sin perfil registra un fallo de `ultimoAcceso`
+  (inofensivo: el perfil lo escribe el trabajador al alta).
 
 ### Crudo de respaldo
 
 `../brain-private/mantenimiento-lineas-at/research-archive/2026-09-05-sistema-de-usuarios/`
+(viabilidad · cinco escaneos · diseño, veredicto del comité y bitácora del corte · comité crudo ·
+construcción cruda · cuentas antes de la limpieza)
 
 ---
 
-## ADR-101 · 2026-09-07 · Enmiendas: las cuentas viejas SÍ se borran, hay DOS trabajadores, y la bitácora es inviolable «frente a clientes»
+## ADR-101 · 2026-09-06 · Enmiendas: las cuentas viejas SÍ se borran, hay DOS trabajadores, y la bitácora es inviolable «frente a clientes»
 
 ### Contexto
 
@@ -8928,3 +8863,85 @@ solo: hay que enmendar donde estaban escritas.
 
 `CLAUDE.md §1` y `docs/05` reflejan los dos trabajadores; `docs/10` retira la fila CLAVE. Crudo:
 el mismo de `§ADR-100`.
+
+## ADR-102 · 2026-09-06 · Auditoría Nivel-2: el cerebro entrega, y lo que fallaba se cierra con guardián, no con corrección
+
+**Deliberación:** `research-archive/2026-09-06-auditoria-cerebro-nivel2.json` (25 hallazgos con
+evidencia `archivo:línea`) · **Estado:** ✅ cerrada · las OCHO sondas corridas · **NO revisada
+externamente** (es auditoría interna del propio cerebro).
+
+### Contexto
+
+El gate #14 la exigía con 18 ADRs nuevos desde la del 24-08 y la gracia agotada. Se corrieron las
+ocho sondas —**la 3 (retrieval-drill con agente FRÍO) y la 7 (voz adversarial) por primera vez**;
+llevaban abiertas desde el 22-08 como `TODO-92`, y son justo las dos que miden si el cerebro
+ENTREGA en vez de si está ordenado—. Tres subagentes Opus en solo lectura, más verificación directa.
+
+### Lo que dijo, sin adorno
+
+**El cerebro entrega.** Un agente frío, con solo `CLAUDE.md` + `05` + `10`, respondió **5 de 5**
+preguntas canónicas —cómo se da de alta a alguien, por qué la ampacidad no se firma, qué no hacer
+en el navegador del Ingeniero, qué es «cargabilidad» aquí, dónde está la credencial— y **cuatro en
+un solo salto**. Eso es la prueba de función, no el inventario.
+
+**Y falló en dos cosas que ningún linter podía ver:**
+
+1. **Un `ADR-100` DUPLICADO**, dos decisiones distintas bajo el mismo número y la misma fecha: la de
+   construcción («nada de esto está en producción todavía») y la de cierre. Quien citara `§ADR-100`
+   aterrizaba primero en la obsoleta. Se **FUSIONÓ** —jamás se elige entre dos, `30 · L-47`—
+   conservando lo que solo traía cada una.
+2. **La credencial con poder sobre Firebase no se alcanzaba desde el arranque.** El agente frío
+   llegó por deducción, en tres saltos. Y el propio `§ADR-100` decía que la fecha de rotación
+   viviría en `05`: no estaba, o sea que **el detector de su propio riesgo estaba apagado**.
+
+### Decisión: lo que reincide se cierra con guardián
+
+Tres de los ocho hallazgos anteriores **reincidieron**, y los tres son la misma familia (`30 · M-01`:
+una cifra o una fecha escrita a mano que ningún guardián cuenta). Corregirlos otra vez habría sido
+la cuarta. Se corrigen **y** se les pone gate — kernel **v1.10.0**, con la prueba de que se ponen
+rojos al reintroducir el defecto (`30 · L-56`: un guardián que no bloquea es un adorno):
+
+| Gate | Qué caza | Por qué no existía |
+|---|---|---|
+| **3, portado a `ADR-NNN`** | números duplicados · ADR sin fila en el índice · fila sin ADR · huecos (info) | Entendía solo la convención `## NN.` de otro repo: aquí salía **«omitido» en verde** — un gate apagado disfrazado de sano. Se le fusionó el antiguo 5a, que estaba igual |
+| **16, fechas** | toda fecha en el FUTURO (`verificado-vivo` y cabeceras de ADR), medida en la zona del repo | Solo miraba antigüedad: un sello fechado mañana **no caduca nunca**. Escribiendo de noche, UTC ya es el día siguiente — así se coló tres auditorías seguidas |
+
+Y el texto que escribe el relevo automático (`session-handoff.mjs`): la foto de git decía «si
+contradice a `docs/10`, ESTA es la verdad», sin fecha. Una foto de **hace doce días** estaba
+gobernando la pizarra viva. Ahora manda **solo si su fecha es más nueva**.
+
+### Los topes: recalibrar cuando el tope es el equivocado
+
+`docs/30` llevaba semanas sobre su tope de líneas, y cada sesión pagaba un rato de tijera. El
+manifiesto ya decía por qué: **la madre es el ÍNDICE y crece una línea por lección, por diseño**
+—indexaba 64 cuando se fijó el tope y hoy 83—. Un tope que una acción CORRECTA viola siempre no es
+un tope, es un peaje. Se recalibra a 520 líneas / 44.000 caracteres **con su señal escrita**: al
+pasar de 44.000 no se recalibra otra vez, **se shardea** (las lecciones de método a `docs/36`).
+Y el presupuesto que de verdad se cuida no es ése: `30` no es always-on. El que se mira cada sesión
+es el **arranque**, y cerró en **31.230 c** — 256 menos que al empezar, con dos lecciones nuevas
+dentro (`GC pareado` negativo, como manda la skill).
+
+### Supuestos que deben ser ciertos — y la señal que diría que dejaron de serlo
+
+| Supuesto | Señal |
+|---|---|
+| Los gates nuevos siguen vivos y no «omitidos» | `brain:check --full` sin la línea «100 ADR: sin duplicados y todos indexados» |
+| El kernel v1.10.0 llegó a los dos repos del ecosistema | `npm run brain:diff` con un repo en versión anterior |
+| El índice del paraguas se refresca con el comando, no de memoria | `RETOMAR.md` con cifras que no cuadren con `git log` / `npm test` (van tres veces) |
+| Una auditoría parcial no compra la misma ventana que una completa | Hoy **NO es cierto**: el gate 14 no distingue. Queda propuesto `deepAudit.probesRun` |
+
+### Consecuencias
+
+- **21 de 25 hallazgos cerrados en la propia auditoría**, dos de ellos con guardián nuevo.
+- Abiertos con dueño: el **respaldo de la bóveda** (182 MB, único ejemplar de material real de
+  cliente — **lo decide el Ingeniero**, no yo); `docs/20` sobre su tope (`TODO-78/84`); y el
+  disparador de la propia auditoría, que no distingue completa de parcial.
+- `TODO-92` cerrado: las dos sondas que faltaban desde agosto son las que dieron los hallazgos de
+  fondo. Correr la mitad de una auditoría y sellarla entera es lo que las mantuvo dos vueltas sin
+  correr.
+
+### Crudo de respaldo
+
+`../brain-private/mantenimiento-lineas-at/research-archive/2026-09-06-auditoria-cerebro-nivel2.json`
+
+---

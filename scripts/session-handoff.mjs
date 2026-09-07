@@ -103,7 +103,8 @@ try {
   const b = boveda();
   const foto = [
     `# 🕹️ Handoff automático (escrito por hook, no por Claude) — ${new Date().toISOString()}`,
-    `> Foto REAL de git al cierre/compactación. Si contradice a docs/10, ESTA es la verdad.`,
+    `> Foto REAL de git al cierre/compactación — FECHADA ARRIBA. Manda sobre docs/10 SOLO si su`,
+    `> fecha es más nueva: una foto vieja gobernando la pizarra es un relevo de hace semanas.`,
     ``,
     `- Branch: ${git(['branch', '--show-current'])} · HEAD: ${git(['log', '-1', '--format=%h · %s'])}`,
     `- Sucios sin commit: ${git(['status', '--porcelain']) || '(limpio)'}`,

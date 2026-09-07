@@ -57,7 +57,7 @@ Guarda `research-archive/` (crudos de deliberación: comités, consejos externos
 | «¿hubo tormenta eléctrica / rayos?», «¿por qué no consta una descarga atmosférica?» | `99 §ADR-060` + `35 · L-37` |
 | «declaré el dato y el sistema sigue con el valor por defecto» | `30 · L-68` + `99 §ADR-013/052` |
 | «¿qué es el vano ideal de regulación?», «¿de dónde sale esta fórmula?» | `40` |
-| «¿dónde veo la CARGABILIDAD?» — **es ELÉCTRICA, y NO es la utilización del apoyo** (orden suya, 27-08). Dueño: el indicador **«Corriente de operación frente a la ampacidad»** (`nucleo/umbrales.js` §8, `uso_pct = corriente / ampacidad`), pestaña **Mecánico**, última fila. La CAPACIDAD y su derrateo, en **Térmica** | `40 §4.2` + `99 §ADR-052` · hoy **NO EVALUABLE**: falta `corrienteOperacion_A` (`TODO-80`) **y** que alguien le pase `conductor.ampacidad_A` · el porqué del enredo, `30 · M-02` |
+| «¿dónde veo la CARGABILIDAD?» — **es ELÉCTRICA, y NO es la utilización del apoyo** (orden suya, 27-08). Dueño: el indicador **«Corriente de operación frente a la ampacidad»** (`nucleo/umbrales.js` §8, `uso_pct = corriente / ampacidad`), pestaña **Mecánico**, última fila. La CAPACIDAD y su derrateo, en **Térmica** | `40 §4.2` + `99 §ADR-052/088..099` · **el veredicto ya se enciende** (`ADR-093`) con la corriente declarada y la ampacidad de `termica.js`; lo que falta es de FÁBRICA, no de código: la ficha del conductor (`TODO-95`) · el porqué del enredo, `30 · M-02` |
 | «¿por qué se eligió este stack y no el otro?» | `99` |
 | «¿por qué la prueba espera exactamente este número?» | `40 §8` y `tests/nucleo.test.js` |
 | «voy a tomar una decisión cara de revertir» | `CLAUDE.md §G.2` 🛰️ + comité + consejo externo |
@@ -185,8 +185,9 @@ Guarda `research-archive/` (crudos de deliberación: comités, consejos externos
 | `ADR-097` | 2026-09-04 | El entorno entero visible antes de cargar, y la regla que lo hace honesto | `research-archive/` (ver el ADR) |
 | `ADR-098` | 2026-09-05 | La ampacidad la dice el FABRICANTE, y el cálculo pasa a ser el contraste | `research-archive/` (ver el ADR) |
 | `ADR-099` | 2026-09-05 | La temperatura de operación también la dice el fabricante, y la suposición que llevaba su insignia | `research-archive/` (ver el ADR) |
-| `ADR-100` | 2026-09-06 | El sistema de usuarios: roles, funciones y responsabilidades desde la aplicación — y lo viejo, borrado | `research-archive/2026-09-05-sistema-de-usuarios/` |
-| `ADR-101` | 2026-09-07 | Enmiendas: las cuentas viejas SÍ se borran, hay DOS trabajadores, y la bitácora es inviolable «frente a clientes» | `research-archive/2026-09-05-sistema-de-usuarios/` |
+| `ADR-100` | 2026-09-06 | El sistema de personas: roles, funciones y responsabilidades desde la aplicación — y lo viejo, borrado | `research-archive/2026-09-05-sistema-de-usuarios/` |
+| `ADR-101` | 2026-09-06 | Enmiendas: las cuentas viejas SÍ se borran, hay DOS trabajadores, y la bitácora es inviolable «frente a clientes» | `research-archive/2026-09-05-sistema-de-usuarios/` |
+| `ADR-102` | 2026-09-06 | Auditoría Nivel-2: el cerebro entrega, y lo que reincide se cierra con guardián, no con corrección | `research-archive/2026-09-06-auditoria-cerebro-nivel2.json` |
 
 > Toda decisión cara de revertir entra aquí con su ADR y su crudo enlazado. Si hubo comité o consejo
 > externo y el crudo no está archivado, la tarea **no está cerrada** (`CLAUDE.md §G.4`).

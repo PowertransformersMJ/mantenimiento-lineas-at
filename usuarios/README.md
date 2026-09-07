@@ -298,14 +298,17 @@ del catálogo, revoca sesiones, repara `config/arranque`, deja bitácora con act
 
 ## 9 · El runbook del corte (quién hace cada paso)
 
+> ✅ **CERRADO el 2026-09-06.** Los once pasos, ejecutados y verificados (`99 §ADR-100`).
+> Se conserva entero porque es la **vuelta atrás** de cada paso, no un calendario.
+
 0. ✅ **Él** — **hecho el 2026-09-06**: decidido el correo del propietario, distinto del de su cuenta Google. **No se escribe aquí: este repositorio es público.** Vive en la bóveda (`research-archive/2026-09-05-sistema-de-usuarios/03-diseno.md`).
 1. ✅ **Él, consola** (§1.1) — **hecho el 2026-09-06**: sign-up y delete apagados · enumeración protegida · «Expire after» al máximo. Comprobado desde fuera: `ADMIN_ONLY_OPERATION`.
-2. **Él, GCP** (§1.2): ✅ **2A hecho** — la cuenta dedicada `ing-miguel-jimenez@mantenimiento-lineas-at.iam.gserviceaccount.com` existe con los dos roles mínimos. ⬜ **2B pendiente**: Claves → Añadir clave → JSON → el archivo a la bóveda (no al repo, no al chat).
-3. **Claude**: `wrangler secret put CUENTA_DE_SERVICIO < archivo` · desplegar `usuarios/` y `evidencias/` · `GET /estado` → `configurado:false` (falta el uid) · prueba de humo: alta desechable con `targetProjectId` → funciona → se borra.
-4. **Él, consola**: Add user (correo del paso 0 + contraseña) → le dice a Claude el **uid** (no es secreto).
-5. **Claude**: `wrangler secret put PROPIETARIO_UID` · `npm run build` + desplegar la web (sin Google, con «Inicializar sistema») · comprobar el paquete servido.
-6. **Él**: entra con contraseña → «Inicializar» → ve sus reclamos. **Validación en vivo en su Chrome, la conduce Claude.**
-7. **Claude**: desplegar reglas + índices. Prueba: él abre la línea y sube una foto.
-8. **Él, consola**: apagar Google. Ensayo del rescate de contraseña («Restablecer» en su fila → el correo llega).
-9. **Claude**: `REVOCADOS_ANTES_DE = ahora` en los dos trabajadores · ensayo de limpieza → **le enseña la lista** → él confirma → `LIMPIEZA_TOKEN` → borrado → `wrangler secret delete`.
-10. **Claude**: grep de referencias a cero · cabeceras de seguridad en despliegue APARTE (Report-Only primero) · ADR-100 · cerebro.
+2. ✅ **Él, GCP** (§1.2) — **hecho el 2026-09-06**: 2A — la cuenta dedicada `ing-miguel-jimenez@mantenimiento-lineas-at.iam.gserviceaccount.com` existe con los dos roles mínimos. ✅ **2B**: la clave JSON se creó y está en la bóveda con permisos 600 (no en el repo, no en el chat); la llave maestra vieja de `firebase-adminsdk-fbsvc` se revocó en IAM y se borró del disco.
+3. ✅ **Claude** — **hecho**: `wrangler secret put CUENTA_DE_SERVICIO < archivo` · desplegar `usuarios/` y `evidencias/` · `GET /estado` → `configurado:false` (falta el uid) · prueba de humo: alta desechable con `targetProjectId` → funciona → se borra.
+4. ✅ **Él, consola** — **hecho**: Add user (correo del paso 0 + contraseña) → le dice a Claude el **uid** (no es secreto).
+5. ✅ **Claude** — **hecho**: `wrangler secret put PROPIETARIO_UID` · `npm run build` + desplegar la web (sin Google, con «Inicializar sistema») · comprobar el paquete servido.
+6. ✅ **Él** — **hecho**: entra con contraseña → «Inicializar» → ve sus reclamos. **Validación en vivo en su Chrome, la conduce Claude.**
+7. ✅ **Claude** — **hecho**: desplegar reglas + índices. Prueba: él abre la línea y sube una foto.
+8. ✅ **Él, consola** — **hecho**: apagar Google. Ensayo del rescate de contraseña («Restablecer» en su fila → el correo llega).
+9. ✅ **Claude** — **hecho** (3 cuentas borradas con lápida): `REVOCADOS_ANTES_DE = ahora` en los dos trabajadores · ensayo de limpieza → **le enseña la lista** → él confirma → `LIMPIEZA_TOKEN` → borrado → `wrangler secret delete`.
+10. ✅ **Claude** — **hecho**: grep de referencias a cero · cabeceras de seguridad en despliegue APARTE (Report-Only primero) · ADR-100 · cerebro.

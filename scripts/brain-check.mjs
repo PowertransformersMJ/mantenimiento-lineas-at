@@ -189,8 +189,35 @@ else if (indexPaths.length && existsSync(histPath)) {
       warn(`§${sec} → línea ${ln} apunta a OTRO § → offset drift`); desync++;
     }
   }
-  if (!checked) info('índice sin filas § — omitido');
+  if (!checked) info('índice sin filas § (convención numerada) — se prueba la de ADR-NNN');
   else if (!desync) ok(`${checked} entradas del índice apuntan a headers válidos`);
+
+  // ⚠️ CONVENCIÓN `ADR-NNN`. Lo de arriba solo entiende `## NN.` + número de línea;
+  // en un historial con headers `## ADR-101 · fecha · título` NO comprobaba NADA y
+  // salía «omitido» en verde — un gate apagado disfrazado de sano. Con eso vivieron
+  // dos fallos reales sin que nadie los cazara: un ADR con número DUPLICADO (dos
+  // decisiones distintas bajo el mismo `§`, y quien lo cita aterriza en la que no
+  // es) y ADRs sin fila en el índice. Aquí se fusiona además el antiguo 5a.
+  const adrHist = [];
+  for (const l of hist) { const mm = l.match(/^##\s+ADR-(\d{3})\b/); if (mm) adrHist.push(mm[1]); }
+  if (adrHist.length) {
+    const dup = [...new Set(adrHist.filter((n, i2) => adrHist.indexOf(n) !== i2))];
+    const enIndice = new Set();
+    for (const row of indice) { const mm = row.match(/^\|\s*`?ADR-(\d{3})`?\s*\|/); if (mm) enIndice.add(mm[1]); }
+    const setHist = new Set(adrHist);
+    const sinFila = [...setHist].filter((n) => !enIndice.has(n)).sort();
+    const sinAdr = [...enIndice].filter((n) => !setHist.has(n)).sort();
+    const nums = [...setHist].map(Number).sort((a, b) => a - b);
+    const huecos = nums.length
+      ? Array.from({ length: nums[nums.length - 1] - nums[0] + 1 }, (_, k) => nums[0] + k)
+        .filter((n) => !setHist.has(String(n).padStart(3, '0')))
+      : [];
+    if (dup.length) warn(`ADR con número DUPLICADO: ${dup.map((n) => 'ADR-' + n).join(', ')} → se FUSIONAN en uno, nunca se elige`);
+    if (sinFila.length) warn(`ADR en el historial y NO en el índice: ${sinFila.map((n) => 'ADR-' + n).join(', ')}`);
+    if (sinAdr.length) warn(`fila del índice sin ADR en el historial: ${sinAdr.map((n) => 'ADR-' + n).join(', ')}`);
+    if (huecos.length) info(`huecos de numeración ADR (puede ser deliberado): ${huecos.map((n) => 'ADR-' + String(n).padStart(3, '0')).join(', ')}`);
+    if (!dup.length && !sinFila.length && !sinAdr.length) ok(`${adrHist.length} ADR: sin duplicados y todos indexados`);
+  }
 }
 
 // 4) Frescura cache SW ↔ 05 (opcional)
@@ -521,19 +548,34 @@ if (BOOT) head('  ⏭️  omitido en --boot');
 else {
   const vlStaleDays = manifest.verifiedLiveStaleDays || 30;
   const vlScan = manifest.verifiedLiveScan || ['docs/05-ESTADO-GLOBAL.md', 'docs/10-MEMORIA-CORTO-PLAZO.md'];
-  const today = new Date();
-  let total = 0, stale = 0;
+  // ⚠️ LA ZONA HORARIA NO ES UN DETALLE. Escribiendo de noche, `new Date()` en UTC
+  // ya es MAÑANA para quien trabaja en América: así se colaron fechas del día
+  // siguiente en tres auditorías seguidas. Y una fecha en el FUTURO no caducaba
+  // jamás, porque este gate solo miraba la antigüedad — el sello más mentiroso
+  // posible salía en verde. Se mide en la zona del repo (o la de la máquina).
+  const zona = manifest.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  const hoy = new Intl.DateTimeFormat('en-CA', { timeZone: zona, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  const diasDesde = (f) => Math.floor((Date.parse(hoy + 'T00:00:00Z') - Date.parse(f + 'T00:00:00Z')) / 86400000);
+  let total = 0, stale = 0, futuras = 0;
   for (const rel of vlScan) {
     const p = join(ROOT, rel);
     if (!existsSync(p)) continue;
     for (const m of read(p).matchAll(/verificado-vivo:\s*(\d{4}-\d{2}-\d{2})/gi)) {
       total++;
-      const days = Math.floor((today - new Date(m[1])) / 86400000);
-      if (days > vlStaleDays) { info(`claim "verificado-vivo: ${m[1]}" en ${rel} tiene ${days}d (> ${vlStaleDays}) → re-verificar contra realidad o retirar la afirmación`); stale++; }
+      const days = diasDesde(m[1]);
+      if (days < 0) { warn(`claim "verificado-vivo: ${m[1]}" en ${rel} está en el FUTURO (hoy es ${hoy} en ${zona}) → reloj UTC pasada la medianoche`); futuras++; }
+      else if (days > vlStaleDays) { info(`claim "verificado-vivo: ${m[1]}" en ${rel} tiene ${days}d (> ${vlStaleDays}) → re-verificar contra realidad o retirar la afirmación`); stale++; }
     }
   }
-  if (total && !stale) ok(`${total} claim(s) \`verificado-vivo\` vigentes (≤ ${vlStaleDays}d)`);
-  else if (!total) ok('check de fiabilidad activo (sin marcadores `verificado-vivo:` aún — opt-in)');
+  // La misma trampa en los ADR: una decisión fechada mañana desordena la historia.
+  if (existsSync(histPath)) {
+    for (const l of read(histPath).split('\n')) {
+      const mm = l.match(/^##\s+(?:ADR-\d{3}|\d+\.)\s*·?\s*(\d{4}-\d{2}-\d{2})/);
+      if (mm && diasDesde(mm[1]) < 0) { warn(`ADR fechado en el FUTURO: "${l.slice(0, 46)}…" (hoy es ${hoy} en ${zona})`); futuras++; }
+    }
+  }
+  if (total && !stale && !futuras) ok(`${total} claim(s) \`verificado-vivo\` vigentes (≤ ${vlStaleDays}d) · fechas coherentes con ${zona}`);
+  else if (!total && !futuras) ok('check de fiabilidad activo (sin marcadores `verificado-vivo:` aún — opt-in)');
 }
 
 // ---- salida (presupuesto de stdout en --boot) ----

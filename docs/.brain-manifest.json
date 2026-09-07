@@ -1,106 +1,106 @@
 {
- "brainTemplateVersion": "1.1.0",
- "repo": "mantenimiento-lineas-at",
- "_comment": "Config INSTANCE del cerebro (topes/budgets). Los scripts/*.mjs de kernelFiles son KERNEL: NO se editan aqui, se editan en ../brain-private/kernel/ y se reparten con 'npm run brain:pull' (editarlos en el repo = gate #0 'fork prohibido' y pre-commit bloqueado). Estos budgets si son por-repo. chars = unidad real de contexto. NO auto-cargado: solo lo lee el linter.",
- "bootCharsTarget": 31500,
- "alwaysOn": [
-  "CLAUDE.md",
-  "docs/05-ESTADO-GLOBAL.md",
-  "docs/10-MEMORIA-CORTO-PLAZO.md"
- ],
- "caps": {
-  "CLAUDE.md": {
-   "lines": 320,
-   "chars": 25000
-  },
-  "docs/05-ESTADO-GLOBAL.md": {
-   "lines": 25,
-   "chars": 4000
-  },
-  "docs/10-MEMORIA-CORTO-PLAZO.md": {
-   "lines": 110,
-   "chars": 16000
-  },
-  "docs/20-MEMORIA-ESPACIAL.md": {
-   "lines": 280,
-   "chars": 16000
-  },
-  "docs/30-LECCIONES.md": {
-   "lines": 420,
-   "chars": 40000
-  },
-  "docs/31-LECCIONES-PROVEEDORES.md": {
-   "lines": 260,
-   "chars": 20000
-  },
-  "docs/32-LECCIONES-PANTALLA.md": {
-   "lines": 260,
-   "chars": 20000
-  },
-  "docs/33-LECCIONES-NUCLEO-Y-DATO.md": {
-   "lines": 260,
-   "chars": 20000
-  },
-  "docs/34-LECCIONES-MAPA.md": {
-   "lines": 260,
-   "chars": 20000
-  },
-  "docs/35-LECCIONES-ACCESO-Y-PORTALES.md": {
-   "lines": 260,
-   "chars": 20000
-  },
-  "docs/00-INDICE.md": {
-   "lines": 450,
-   "chars": 40000,
-   "_que": "El 00 es un ÍNDICE que crece UNA fila por ADR: un tope de chars fijo lo rompe por diseño —reventó a los 80 ADRs (§ADR-083 · B-03)— y podarlo significaría borrar historia. El guardián útil aquí es el de LÍNEAS (450), que sí acota el crecimiento por fila. Recalibrado, no silenciado: es la mitad «recalibrar» de TODO-84."
-  },
-  "docs/60-WORKFLOWS.md": {
-   "lines": 160,
-   "chars": 14000
-  }
- },
- "_cap30LineasRazon": "El tope de LINEAS de la madre subio de 350 a 420 el 21-08. La madre es el INDICE: crece una linea por leccion, por diseno, y hoy indexa 64 en 5 secciones. Su presupuesto real es el de CARACTERES (31k de 40k), que es la unidad de contexto; el de lineas media otra cosa. No se sube el de chars: ese si vigila el tamano. ",
- "_capsLeccionesRazon": "30 se shardeo en 3 hijas por tema (y en 4 desde el 21-08: 32 se partio en 32+34 al llegar a 118% de su tope, ADR-047) (madre = indice + lecciones de metodo). Cada hija arranca en ~110-130 lineas: el tope de 260L/20000c le deja sitio para ~13 lecciones mas, y el aviso pre-shard (>=90%) salta a las 234 lineas, con margen para partirla sin prisa. Los L-NN NO se renumeran al mover: los cita el codigo fuente, que el linter no mira.",
- "archiveDir": "../brain-private/mantenimiento-lineas-at/research-archive",
- "specsDir": "specs",
- "staleDays": 10,
- "kernelFiles": [
-  "scripts/brain-check.mjs",
-  "scripts/brain-diff.mjs",
-  "scripts/brain-index.mjs",
-  "scripts/session-handoff.mjs",
-  "scripts/boot-gate.mjs",
-  "scripts/brain-archive.mjs"
- ],
- "_kernelFilesRazon": "Los 6 del kernel canonico v1.9.0 (verificado 2026-08-21, en el mismo commit que el brain:pull; se re-verifica cada vez que se corre brain:pull). Declarar de MENOS es la forma silenciosa de quedarse con medio kernel viejo: pull.mjs copia SOLO lo declarado y el gate #0 solo hashea lo declarado.",
- "orphanAllowlist": [
-  ".handoff-auto.md",
-  ".estado-auto.md",
-  ".boot-marker"
- ],
- "_orphanAllowlistRazon": "Sidecars escritos por HOOK (session-handoff.mjs --boot-echo), gitignored, efimeros. Su ruta de lectura es el hook SessionStart, no el grafo de neuronas.",
- "peers": [],
- "_peersRazon": "Vacio A PROPOSITO: la identidad del kernel la garantiza el gate #0 contra el canonico, no los peers (el gate #11 fue retirado en kernel v1.3).",
- "lastOffsiteBackup": "NINGUNA",
- "_lastOffsiteBackupRazon": "Hereda la decision ADR-059 del ecosistema: la boveda ../brain-private es de uso LOCAL, sin repo remoto. El sentinel 'NINGUNA' evita una alarma permanente que nadie atendera.",
- "ssotFacts": [
-  {
-   "regex": "kernel v1\\.\\d+\\.\\d+",
-   "owner": "scripts/.kernel-version.json",
-   "scan": [
+  "brainTemplateVersion": "1.1.0",
+  "repo": "mantenimiento-lineas-at",
+  "_comment": "Config INSTANCE del cerebro (topes/budgets). Los scripts/*.mjs de kernelFiles son KERNEL: NO se editan aqui, se editan en ../brain-private/kernel/ y se reparten con 'npm run brain:pull' (editarlos en el repo = gate #0 'fork prohibido' y pre-commit bloqueado). Estos budgets si son por-repo. chars = unidad real de contexto. NO auto-cargado: solo lo lee el linter.",
+  "bootCharsTarget": 31500,
+  "alwaysOn": [
     "CLAUDE.md",
     "docs/05-ESTADO-GLOBAL.md",
-    "docs/10-MEMORIA-CORTO-PLAZO.md",
-    "docs/20-MEMORIA-ESPACIAL.md"
-   ],
-   "_que": "La version del kernel vive en el stamp que escribe brain:pull. Escribirla a mano en una neurona la convierte en mentira al primer pull. 99 (historia) queda fuera del scan a proposito."
+    "docs/10-MEMORIA-CORTO-PLAZO.md"
+  ],
+  "caps": {
+    "CLAUDE.md": {
+      "lines": 320,
+      "chars": 25000
+    },
+    "docs/05-ESTADO-GLOBAL.md": {
+      "lines": 25,
+      "chars": 4000
+    },
+    "docs/10-MEMORIA-CORTO-PLAZO.md": {
+      "lines": 110,
+      "chars": 16000
+    },
+    "docs/20-MEMORIA-ESPACIAL.md": {
+      "lines": 280,
+      "chars": 16000
+    },
+    "docs/30-LECCIONES.md": {
+      "lines": 520,
+      "chars": 44000
+    },
+    "docs/31-LECCIONES-PROVEEDORES.md": {
+      "lines": 260,
+      "chars": 20000
+    },
+    "docs/32-LECCIONES-PANTALLA.md": {
+      "lines": 260,
+      "chars": 20000
+    },
+    "docs/33-LECCIONES-NUCLEO-Y-DATO.md": {
+      "lines": 260,
+      "chars": 20000
+    },
+    "docs/34-LECCIONES-MAPA.md": {
+      "lines": 260,
+      "chars": 20000
+    },
+    "docs/35-LECCIONES-ACCESO-Y-PORTALES.md": {
+      "lines": 260,
+      "chars": 20000
+    },
+    "docs/00-INDICE.md": {
+      "lines": 450,
+      "chars": 40000,
+      "_que": "El 00 es un ÍNDICE que crece UNA fila por ADR: un tope de chars fijo lo rompe por diseño —reventó a los 80 ADRs (§ADR-083 · B-03)— y podarlo significaría borrar historia. El guardián útil aquí es el de LÍNEAS (450), que sí acota el crecimiento por fila. Recalibrado, no silenciado: es la mitad «recalibrar» de TODO-84."
+    },
+    "docs/60-WORKFLOWS.md": {
+      "lines": 160,
+      "chars": 14000
+    }
+  },
+  "_cap30LineasRazon": "Recalibrado el 2026-09-06 (auditoria Nivel-2, ADR-102): 420L/40000c -> 520L/44000c. La madre es el INDICE y crece UNA LINEA POR LECCION, por diseno: cuando se fijo el tope indexaba 64 y hoy 83 (+19 lineas de indice puro, ninguna de grasa), mas las lecciones de METODO, que son su contenido declarado en CLAUDE.md. Un tope que una accion CORRECTA (anadir una leccion) viola siempre no es un tope: es un peaje. Y el presupuesto que de verdad duele NO es este: 30 no esta en alwaysOn, se carga por trigger, asi que su tamano cuesta contexto solo cuando se consulta una leccion; el que se cuida cada sesion es el BOOT (31500c). SENAL DE QUE ESTE TOPE DEJO DE SERVIR: cuando 30 pase de 44000c, ya no se recalibra otra vez -> se SHARDEA, sacando las lecciones de metodo (## Metodo de trabajo, hoy ~290 lineas) a docs/36, y la madre se queda con el indice y las M-NN. Precedente: ADR-047 (32 se partio en 32+34 al 118% de su tope).",
+  "_capsLeccionesRazon": "30 se shardeo en 3 hijas por tema (y en 4 desde el 21-08: 32 se partio en 32+34 al llegar a 118% de su tope, ADR-047) (madre = indice + lecciones de metodo). Cada hija arranca en ~110-130 lineas: el tope de 260L/20000c le deja sitio para ~13 lecciones mas, y el aviso pre-shard (>=90%) salta a las 234 lineas, con margen para partirla sin prisa. Los L-NN NO se renumeran al mover: los cita el codigo fuente, que el linter no mira.",
+  "archiveDir": "../brain-private/mantenimiento-lineas-at/research-archive",
+  "specsDir": "specs",
+  "staleDays": 10,
+  "kernelFiles": [
+    "scripts/brain-check.mjs",
+    "scripts/brain-diff.mjs",
+    "scripts/brain-index.mjs",
+    "scripts/session-handoff.mjs",
+    "scripts/boot-gate.mjs",
+    "scripts/brain-archive.mjs"
+  ],
+  "_kernelFilesRazon": "Los 6 del kernel canonico v1.9.0 (verificado 2026-08-21, en el mismo commit que el brain:pull; se re-verifica cada vez que se corre brain:pull). Declarar de MENOS es la forma silenciosa de quedarse con medio kernel viejo: pull.mjs copia SOLO lo declarado y el gate #0 solo hashea lo declarado.",
+  "orphanAllowlist": [
+    ".handoff-auto.md",
+    ".estado-auto.md",
+    ".boot-marker"
+  ],
+  "_orphanAllowlistRazon": "Sidecars escritos por HOOK (session-handoff.mjs --boot-echo), gitignored, efimeros. Su ruta de lectura es el hook SessionStart, no el grafo de neuronas.",
+  "peers": [],
+  "_peersRazon": "Vacio A PROPOSITO: la identidad del kernel la garantiza el gate #0 contra el canonico, no los peers (el gate #11 fue retirado en kernel v1.3).",
+  "lastOffsiteBackup": "NINGUNA",
+  "_lastOffsiteBackupRazon": "Hereda la decision ADR-059 del ecosistema: la boveda ../brain-private es de uso LOCAL, sin repo remoto. El sentinel 'NINGUNA' evita una alarma permanente que nadie atendera.",
+  "ssotFacts": [
+    {
+      "regex": "kernel v1\\.\\d+\\.\\d+",
+      "owner": "scripts/.kernel-version.json",
+      "scan": [
+        "CLAUDE.md",
+        "docs/05-ESTADO-GLOBAL.md",
+        "docs/10-MEMORIA-CORTO-PLAZO.md",
+        "docs/20-MEMORIA-ESPACIAL.md"
+      ],
+      "_que": "La version del kernel vive en el stamp que escribe brain:pull. Escribirla a mano en una neurona la convierte en mentira al primer pull. 99 (historia) queda fuera del scan a proposito."
+    }
+  ],
+  "deepAudit": {
+    "last": "2026-09-06",
+    "coveredHeaderCount": 101,
+    "maxAdrGap": 12,
+    "maxDays": 30,
+    "_que": "Auditoria Nivel-2 del cerebro (skill auditoria-cerebro): correrla cuando el linter lo pida (gate #14). La del 2026-09-06 (ADR-102) corrio LAS OCHO sondas por primera vez -> 2026-09-06-auditoria-cerebro-nivel2.json, 25 hallazgos, 21 cerrados. OJO CON EL CERO: brain-check calcula gap = coveredHeaderCount ? headers - coveredHeaderCount : 0, asi que con coveredHeaderCount en 0 el disparador por ADRs NO EXISTE y solo manda maxDays. SEGUNDO MODO DE FALLO, visto el 06-09: este campo se escribe IGUAL si corrieron 8 sondas que si corrieron 6, asi que la auditoria mas floja compra la misma ventana de silencio (30d/12 ADRs) que la mas rigurosa; la del 24-08 sello con las sondas 3 y 7 sin correr y tardaron 15 dias en correrse. Propuesto: deepAudit.probesRun y media ventana si faltan sondas. TERCERO: en --boot el tramo por ADRs va tras un if(!BOOT), o sea que el disparo por ADRs solo aparece corriendo --full a mano."
   }
- ],
- "deepAudit": {
-  "last": "2026-08-24",
-  "coveredHeaderCount": 82,
-  "maxAdrGap": 12,
-  "maxDays": 30,
-  "_que": "Auditoria Nivel-2 del cerebro (skill auditoria-cerebro): correrla cuando el linter lo pida (gate #14). La del 2026-08-21 fueron 6 lentes con refutador por hallazgo -> crudo 2026-08-21-auditoria-cerebro-6-lentes.json en la boveda, 28 confirmados de 43. OJO CON EL CERO: brain-check calcula gap = coveredHeaderCount ? headers - coveredHeaderCount : 0, asi que con coveredHeaderCount en 0 el disparador por ADRs NO EXISTE y solo manda maxDays. Estuvo asi del 28-07 al 21-08, con 32 ADRs nuevos sin auditar y el linter diciendo cerebro sano. El 46 es el numero de cabeceras ## de docs/99 el dia de la auditoria: se sube cada vez que se corre una."
- }
 }
