@@ -29,7 +29,8 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join, extname } from 'node:path';
 
 import {
-  DURACION_SESION_MIN, FUNCIONES, FUNCIONES_DELEGABLES, ROLES, ROLES_ASIGNABLES, TODAS_LAS_LINEAS,
+  DURACION_SESION_MIN, FUNCIONES, FUNCIONES_DELEGABLES, FUNCIONES_POR_ROL, ROLES, ROLES_ASIGNABLES,
+  TODAS_LAS_LINEAS,
 } from '../contratos/src/usuarios.ts';
 import { PAGINA_DE_AUDITORIA, repositorioSinSesion } from '../web/src/datos/repositorio.ts';
 import { puede, alcanza, permisosDeSesion, leerReclamos } from '../web/src/datos/permisos.ts';
@@ -804,5 +805,53 @@ describe('«Inicializar sistema»: se decide por la SESIÓN, antes de leer una l
       'tras el fallo hay que releer el estado del sistema');
     assert.ok(arrancar.indexOf('estadoDelSistema') > arrancar.indexOf('catch'),
       'la relectura va en el camino del fallo, no antes de intentarlo');
+  });
+});
+
+// ============================================================================
+// LA PUERTA NO ES UN TABLERO — `App.tsx`
+// ----------------------------------------------------------------------------
+// Lo vio el Ingeniero el 2026-09-06: en la pantalla de ACCESO, sin haber
+// entrado nadie, se pintaban «Análisis de causa raíz», «Atlas del Caribe» y el
+// sello «Fase 0 · fundación». Colgaban de la cabecera sin condición ninguna.
+// Y no era solo ruido: el botón del atlas llevaba a una pantalla que exige
+// sesión, o sea que devolvía al mismo sitio del que salía.
+//
+// Estas pruebas son de FUENTE, no de navegador (esta suite no tiene DOM), y
+// cazan justo la recaída: que alguien vuelva a colgar un mando de la cabecera
+// sin llave, o que el segmento de causa raíz pierda la guarda de sesión que su
+// pieza hermana —el atlas— sí tenía.
+// ============================================================================
+describe('la cabecera no enseña instrumento a quien no ha entrado', () => {
+  const app = readFileSync(join(RAIZ, 'web/src/App.tsx'), 'utf8');
+  const codigo = sinComentarios(app);
+  const cabecera = codigo.slice(codigo.indexOf('function Cabecera()'), codigo.indexOf('function Pie()'));
+
+  test('causa raíz, atlas y el sello de fase van detrás de `lineas.ver`', () => {
+    assert.ok(cabecera.length > 0, 'sin cabecera que mirar, esta prueba no vigila nada');
+    for (const mando of ['abrirRca()', "abrirAtlas('sol')", 'Fase 0']) {
+      const i = cabecera.indexOf(mando);
+      assert.ok(i > 0, `el mando «${mando}» ya no está en la cabecera: revisar esta prueba`);
+      const guarda = cabecera.lastIndexOf("puede(quien, 'lineas.ver')", i);
+      assert.ok(guarda > 0 && guarda < i,
+        `«${mando}» se pinta sin pedir \`lineas.ver\`: vuelve a salir en la pantalla de acceso`);
+    }
+  });
+
+  test('la llave elegida la tienen los cinco roles: no esconde nada a quien entró', () => {
+    for (const rol of ROLES) {
+      assert.ok(FUNCIONES_POR_ROL[rol].includes('lineas.ver'),
+        `el rol ${rol} no trae \`lineas.ver\` y la cabecera se le quedaría muda`);
+    }
+  });
+
+  test('el segmento de causa raíz exige sesión, igual que el atlas', () => {
+    const contenido = codigo.slice(codigo.indexOf('function Contenido()'), codigo.indexOf('export function App()'));
+    const rca = contenido.slice(contenido.indexOf("rca.fase !== 'cerrado'"));
+    const linea = rca.slice(0, rca.indexOf('<Rca />'));
+    assert.match(linea, /d\.fase !== 'sin_sesion'/,
+      'pegar `#/rca` sin sesión abriría una pantalla real de la aplicación');
+    assert.match(linea, /d\.fase !== 'cambiar_contrasena'/,
+      'con la contraseña por cambiar, el muro dejaría de ser un muro');
   });
 });

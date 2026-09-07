@@ -125,6 +125,8 @@
 - `L-77` · Construir sin integrar primero PUBLICA datos viejos: el despliegue deshace el trabajo del bot *(`35`)*
 - `L-78` · Las fuentes de vida útil y diagnóstico: cuáles son de pago y cuáles se pueden citar *(`31`)*
 - `L-79` · «Es que no hay datos» es cierto, y es inútil dicho tres veces: la pantalla vacía enseña su ESTRUCTURA *(`32`)*
+- `L-80` · Borrar IndexedDB de Firebase con la página abierta cuelga ese Chrome: «sin red» con el servidor sano *(`35`)*
+- `L-81` · «Sin conexión» con `curl` verde: el preflight CORS rechazó una cabecera propia *(`35`)*
 
 ### M-01 · Una cifra escrita a mano que un guardián puede contar es una cifra que envejece sola
 

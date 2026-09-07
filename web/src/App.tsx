@@ -157,20 +157,42 @@ function Cabecera() {
             <b>{nf(resumen.longitud)} m</b> · <b>{nf(resumen.kV)} kV</b>
           </p>
         )}
-        <button type="button" className="boton chico ir-rca" onClick={() => void almacen.abrirRca()}>
-          Análisis de causa raíz
-        </button>
-        {/* Los atlas NO son de esta línea: son del Caribe. Por eso viven en la
-            cabecera, al lado del segmento de causa raíz, y no como pestañas.
-            También se abren desde «Detalle GPS», con la línea marcada dentro.
+        {/* ⚠️ LA BARRA DE INSTRUMENTO NO SE PINTA EN LA PUERTA. Estos mandos
+            colgaban de la cabecera sin condición ninguna, así que aparecían en
+            la PANTALLA DE ACCESO, antes de que nadie hubiera entrado —lo vio el
+            Ingeniero el 2026-09-06—. Y no era solo ruido: «Atlas del Caribe»
+            llevaba a una pantalla que EXIGE sesión (más abajo), o sea un botón
+            que devolvía al mismo sitio del que salía.
 
-            UN SOLO BOTÓN para los cuatro: con uno por atlas la cabecera se
-            llenaba, y para comparar el sol de un día con su viento había que
-            salir y volver a entrar. Se entra por el solar —el primero que
-            existió— y dentro se cambia sin salir. */}
-        <button type="button" className="boton chico" onClick={() => almacen.abrirAtlas('sol')}>
-          Atlas del Caribe
-        </button>
+            `lineas.ver` es la llave correcta y no una elegida por cómoda: la
+            traen los CINCO roles, así que no le esconde nada a nadie que haya
+            entrado; y es exactamente la que piden las reglas para leer análisis
+            (`firestore.rules`, `match /analisis`). Sin reclamos —la cuenta
+            recién creada que va a «Inicializar»— tampoco se pinta, que es lo
+            honesto: ahí todavía no se puede abrir nada.
+
+            Esconderlo sigue siendo COSMÉTICO, como en «Personas»: quien decide
+            de verdad son las reglas y el trabajador, que miran el mismo token
+            del otro lado. Esto quita un estorbo, no pone una frontera. */}
+        {puede(quien, 'lineas.ver') && (
+          <>
+            <button type="button" className="boton chico ir-rca" onClick={() => void almacen.abrirRca()}>
+              Análisis de causa raíz
+            </button>
+            {/* Los atlas NO son de esta línea: son del Caribe. Por eso viven en
+                la cabecera, al lado del segmento de causa raíz, y no como
+                pestañas. También se abren desde «Detalle GPS», con la línea
+                marcada dentro.
+
+                UN SOLO BOTÓN para los cuatro: con uno por atlas la cabecera se
+                llenaba, y para comparar el sol de un día con su viento había que
+                salir y volver a entrar. Se entra por el solar —el primero que
+                existió— y dentro se cambia sin salir. */}
+            <button type="button" className="boton chico" onClick={() => almacen.abrirAtlas('sol')}>
+              Atlas del Caribe
+            </button>
+          </>
+        )}
         {/* PERSONAS es de ORGANIZACIÓN, no de línea: por eso está aquí arriba y
             no entre las pestañas. Tiene que poder abrirse cuando todavía no hay
             ninguna línea cargada — que es justo el día en que hay que dar de
@@ -183,7 +205,10 @@ function Cabecera() {
             Personas
           </button>
         )}
-        <span className="fase">Fase 0 · fundación</span>
+        {/* El sello de fase describe EL SISTEMA POR DENTRO. En la puerta no
+            significa nada para quien todavía no ha entrado, así que se va con
+            el resto de la barra. */}
+        {puede(quien, 'lineas.ver') && <span className="fase">Fase 0 · fundación</span>}
       </div>
     </header>
   );
@@ -240,7 +265,17 @@ function Contenido() {
 
   // El segmento RCA se pinta ENCIMA de la línea, sin destruirla: volver al
   // parque es instantáneo porque la línea nunca se descargó de memoria.
-  if (rca.fase !== 'cerrado') return <Rca />;
+  //
+  // ⚠️ Y EXIGE SESIÓN, por la misma razón que el atlas de aquí abajo — el
+  // guardián se le puso a uno y no al otro, que es el patrón que domina este
+  // repo: «arreglado donde se veía, vivo en la pieza hermana» (`10`). Sin esta
+  // guarda, pegar `#/rca` abría una pantalla real de la aplicación a quien
+  // tuviera la dirección; y con la contraseña por cambiar, el botón de la
+  // cabecera SALTABA ese muro, que por eso dejaba de ser un muro. Las reglas
+  // habrían negado el dato igual: esto cierra la pantalla, no la frontera.
+  if (rca.fase !== 'cerrado' && d.fase !== 'sin_sesion' && d.fase !== 'cambiar_contrasena') {
+    return <Rca />;
+  }
 
   // El atlas solar, igual: encima y sin destruir nada. Va DESPUÉS del RCA porque
   // si los dos estuvieran abiertos manda el que se abrió con la dirección, y el

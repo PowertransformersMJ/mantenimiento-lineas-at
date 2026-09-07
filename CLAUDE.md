@@ -72,7 +72,7 @@ no existe:**
 | Cómputo servidor | **DOS Workers gratuitos**: el portero de fotos y el de personas (`ADR-100`). Nada que facture | ✅ vivo |
 | Mapas | **Protomaps / PMTiles + MapLibre**, recortes por línea | ✅ vivo |
 | CI/CD | **GitHub Actions**, runners `ubuntu-latest` **siempre** | ✅ vivo |
-| Auth | **correo + contraseña**, aprovisionada a mano, **cero registro público**; RBAC por *claims* (ADR-019). Google sigue de reserva hasta que el Ingeniero se ponga contraseña | ⚠️ a medias |
+| Auth | **correo + contraseña**, cero registro público, **Google no existe**; roles·funciones·alcance en el token, altas desde Personas (ADR-019/100) | ✅ vivo |
 
 **Los tres principios que gobiernan la arquitectura** (violarlos es un fallo de diseño, no un bug):
 

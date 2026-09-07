@@ -8771,3 +8771,160 @@ seguridad enforzadas y CSP en Report-Only hasta medir el mapa y los atlas con se
 
 `../brain-private/mantenimiento-lineas-at/research-archive/2026-09-05-sistema-de-usuarios/`
 (viabilidad · cinco escaneos · diseño y veredicto del comité · comité crudo · construcción cruda)
+
+---
+
+## ADR-100 · 2026-09-06 · El sistema de personas: roles, funciones y responsabilidades, administrado desde la aplicación
+
+### Contexto
+
+Orden del Ingeniero (2026-09-05): *«hay implementado un sistema de ingreso inseguro, arcaico y no
+efectivo… se requiere un sistema de usuarios avanzado para gestionar la creación de los mismos y
+designar roles y funciones y responsabilidades»*. Y después, más estricta: *«todos los usuarios
+antiguos se revocan, prohibido el ingreso con Google, solo ingreso con usuarios creados; el
+superadmin es creado desde Firebase, los demás los crea el superadmin desde el sistema; todo
+automatizado; todo lo viejo se borra»*.
+
+**Lo que había, medido** (auditoría Opus + lectura propia): correo+contraseña **y Google vivo en
+producción** —la vía de alta pública del incidente del 31-07 (`§ADR-019`)—; cuatro roles planos en
+el token y ~25 comparaciones `rol === 'admin'` a mano; alta y roles **solo por línea de comandos**
+con la llave maestra, que además seguía en Descargas; sin recuperación, sin bitácora de cambios de
+permiso, sin cabeceras de seguridad, sin caducidad de sesión; y una pantalla que prometía «líneas
+asignadas» que el modelo no tenía. Lo «arcaico» era exacto. Lo «inseguro» era parcial: la frontera
+(reglas + reclamos) era sólida; los huecos eran Google, cero cabeceras y cero bitácora.
+
+**Lo que se buscó antes de diseñar:** cinco escaneos Opus (tres CRM ajenos —autos, inmobiliaria,
+joyería— y los dos proyectos locales, 268 KB de hallazgos con archivo:línea), un verificador de
+viabilidad contra documentación oficial, y **un comité de cuatro lentes** que tumbó tres piezas de
+mi primer delta. Crudo íntegro: `research-archive/2026-09-05-sistema-de-usuarios/`.
+
+### Decisión
+
+**1. Un catálogo, tres consumidores** (`contratos/src/usuarios.ts`). Roles (`propietario · admin ·
+editor · cuadrilla · auditor`, lista cerrada), funciones `<recurso>.<acción>` (16, con código corto
+para el token y marca de delegable), y responsabilidades (alcance por línea, `['*']` o ids). Lo
+consumen las reglas, el trabajador y la pantalla, y **una prueba de paridad se pone roja si una
+capa inventa un código, un rol o una comparación a mano**. Es la lección más repetida de los tres CRM:
+uno tenía el catálogo en tres archivos que ya habían divergido; otro modelaba `zonas[]` y una
+matriz de 25 permisos que ninguna regla consultaba. Regla de la casa: **no existe aquí ningún campo
+que no se haga cumplir en alguna parte.**
+
+**2. Todo viaja en el token** (`orgId · rol · f · l`), con presupuesto de 900 bytes **medido antes
+de escribir** —nunca truncado—; reclamo ausente = mínimo privilegio. Un editor con 15 líneas pesa
+679 bytes; 30 líneas se rechazan con motivo.
+
+**3. El backend es un Worker** (`usuarios/`), hermano del portero de fotos: verifica la firma del
+token contra las JWKS de Google (módulo compartido `comun/token-de-firebase.js`), exige rol
+administrador **contra el estado vivo** —no contra el papel del token—, y habla con Identity Toolkit
+y Firestore REST con una **cuenta de servicio dedicada** (`ing-miguel-jimenez@…`, Auth Admin +
+Datastore User) guardada como secreto. Sin Cloud Functions, sin factura: viabilidad verificada
+punto por punto (`01-viabilidad-worker-firebase.md`).
+
+**4. El propietario nace en la consola y la app no puede acuñarlo.** `POST /bootstrap` de un solo
+uso: exige uid == `PROPIETARIO_UID` (secreto, **no correo**: el correo está publicado), proveedor
+contraseña, sesión de menos de cinco minutos, y un cerrojo atómico `config/arranque` creado con
+precondición «no existe». Si existe → 409 para siempre; rearmarlo exige borrarlo a mano. El
+trabajador rechaza y audita toda operación cuyo sujeto sea el propietario.
+
+**5. La limpieza inicial en dos pasos, con red:** ensayo que solo lista; borrado que exige un
+secreto de un solo uso por cabecera, la lista idéntica al ensayo y la palabra BORRAR; excluye
+siempre al llamante y al propietario; **deja lápida** `usuarios/{uid}` (correo, nombre, fecha) para
+que cada `creadoPor` siga teniendo autor; se apaga sola. Y `REVOCADOS_ANTES_DE` en los **dos**
+trabajadores: la revocación es inmediata en las dos puertas, no «en una hora».
+
+**6. Dos modos de alta** —enlace de un solo uso (credencial aleatoria que nadie ve; OWASP ASVS
+6.4.1) por defecto, y contraseña tecleada por el administrador como reserva (decisión suya de
+`§ADR-019 §2`, que mi primer delta quitó por exceso y el comité devolvió).
+
+**7. Bitácora `auditoria_accesos`** escrita solo por el servidor, actor del token verificado, lista
+cerrada de acciones, `write: if false` para clientes. Y **se dice lo que eso vale**: inviolable
+frente a navegadores, **no frente a quien tenga la llave del trabajador**.
+
+### Lo que el comité tumbó, y por qué tenía razón
+
+| Mi delta | El fallo | Lo que quedó |
+|---|---|---|
+| Quitar el botón de Google cerraba el alta | **No**: `accounts:signUp` con la clave web pública seguía creando cuentas | Interruptor de consola «Enable create (sign-up)» APAGADO — paso 1, verificado: `ADMIN_ONLY_OPERATION` |
+| Bootstrap por correo | El correo está publicado; dos llamadas a la vez acuñaban dos propietarios; variable ausente → `undefined === undefined` | Por **uid**, con cerrojo atómico y fallo cerrado |
+| Limpieza en una llamada | Irreversible, sin ensayo, y muerta a mitad por las 50 subpeticiones del plan gratuito | Dos pasos, lotes de 8, lápidas, un solo uso |
+| Retirar el modo contraseña | Revertía una decisión personal suya que la orden no tocaba | Los dos modos |
+
+### El corte, ejecutado (2026-09-06/07, guiado por pantallazos y con la extensión de Chrome)
+
+0 correo del propietario · 1 registro público cerrado (`ADMIN_ONLY_OPERATION`) · 2 cuenta de servicio
+con dos roles, verificada en IAM; clave creada y llevada a la bóveda (600) · 3 los dos trabajadores
+desplegados, secreto cargado desde archivo, rescate ensayado en solo lectura · 4 propietario creado
+en consola (contraseña tecleada por él) · 5 web sin Google servida · 6 arranque: la pantalla enseñó
+los reclamos escritos; `/estado` arrancado · 7 reglas e índices publicados · 8 Google inhabilitado
+en consola · 9 limpieza: 3 cuentas borradas con lápida y bitácora, verificado con Admin SDK · 10
+llave maestra vieja revocada en IAM y borrada del disco; CSP sin orígenes de Google.
+
+**Dos fallos en vivo que ninguna prueba podía cazar:** (a) el preflight CORS no admitía
+`X-Limpieza-Token` → la limpieza «no tenía conexión» con el servidor intacto; corregido con
+guardián. (b) **Mío:** al cerrar la sesión vieja borré una base IndexedDB de Firebase con la página
+abierta y ese Chrome quedó con la base «heartbeat» colgada: el SDK espera 30 s antes de cada llamada
+y lo reporta como `network-request-failed`; lo salvó la dirección de vista previa (otro sitio para
+Chrome). Los dos van a lecciones.
+
+### Supuestos que deben ser ciertos — y la señal que diría que dejaron de serlo
+
+| Supuesto | Señal |
+|---|---|
+| El registro público sigue apagado en la consola | Un `accounts:signUp` con la clave web que devuelva 200. `auditar` del rescate lo enseñaría como «cuenta sin reclamos» |
+| Solo existe UNA llave con poder sobre el proyecto | Una clave nueva en `firebase-adminsdk-fbsvc` o una segunda en `ing-miguel-jimenez` |
+| El token de cada persona lleva `f` y `l` | Una fila «SIN RECONCILIAR» o «reclamos anteriores al catálogo» en Personas |
+| `REVOCADOS_ANTES_DE` está en los dos `wrangler.toml` bajo `[vars]` | La prueba de estructura del TOML en rojo; un `dry-run` que no la liste |
+| El Worker es el único escritor de reclamos | Que reaparezca `usuarios.mjs` en el repo, o un `setCustomUserClaims` fuera de `usuarios/` y del rescate de la bóveda |
+
+### Consecuencias
+
+- **Hoy en Firebase Auth hay UNA cuenta**: el propietario, con contraseña. Google no existe como
+  proveedor. Las cuentas se crean desde Personas, con enlace o contraseña, y quedan en bitácora.
+- `2.521` pruebas · emulador 54/54 · motor 0.13.0 · contrato 0.15.0 · dos Workers en producción.
+- Queda **suyo**: limpiar los datos del sitio en su Chrome (o usar otro navegador) para el dominio
+  principal; rotación de la clave de la cuenta de servicio a 90 días (recordatorio en `05`).
+- Queda **mío** (no bloquea): App Check sigue en monitor; la CSP sigue en Report-Only; el enlace de
+  alta no devuelve su caducidad; la pantalla «No hay líneas asignadas» no ofrece «Salir» (solo la
+  alcanzan tokens sin alcance); el primer acceso de una cuenta sin perfil registra un fallo de
+  `ultimoAcceso` (inofensivo: el perfil lo escribe el trabajador al alta).
+
+### Crudo de respaldo
+
+`../brain-private/mantenimiento-lineas-at/research-archive/2026-09-05-sistema-de-usuarios/`
+
+---
+
+## ADR-101 · 2026-09-07 · Enmiendas: las cuentas viejas SÍ se borran, hay DOS trabajadores, y la bitácora es inviolable «frente a clientes»
+
+### Contexto
+
+Tres afirmaciones del cerebro dejaron de ser ciertas con `§ADR-100`, y un ADR nuevo no las tacha
+solo: hay que enmendar donde estaban escritas.
+
+### Decisión
+
+1. **`§ADR-019 §5` («las cuentas se deshabilitan, nunca se borran») queda enmendado** por orden
+   expresa del Ingeniero (*«todo lo viejo se borra»*). Lo que protegía —que cada `creadoPor` siga
+   teniendo nombre— se conserva por otro camino: **la lápida** `usuarios/{uid}` con correo, nombre y
+   fecha, que el trabajador escribe ANTES de borrar la cuenta. Para las personas normales, la regla
+   sigue siendo deshabilitar; el borrado existe solo en la limpieza inicial, de un solo uso.
+2. **`CLAUDE.md §1` («UN Worker y solo uno: el portero de fotos»)** queda enmendado: son **dos**,
+   y el segundo guarda una credencial con poder sobre el proyecto. Es un cambio de clase de riesgo
+   y se dice con esas palabras.
+3. **La bitácora es inviolable frente a clientes, no frente al trabajador.** `allow write: if false`
+   protege de navegadores; la cuenta de servicio salta las reglas. Una afirmación más débil, y la
+   verdadera.
+4. **`docs/10 · CLAVE`** («la llave admin ya NO está en Descargas») era falsa: estaba, y se borró hoy
+   tras revocarla en IAM.
+
+### Supuestos que deben ser ciertos — y la señal que diría que dejaron de serlo
+
+| Supuesto | Señal |
+|---|---|
+| Nadie vuelve a borrar cuentas fuera de la limpieza inicial | Una acción `borrado` en la bitácora sin su `limpieza` al lado |
+| La lápida existe para cada uid que aparezca en un `creadoPor` viejo | Un `creadoPor` que Personas no sepa traducir a nombre |
+
+### Consecuencias
+
+`CLAUDE.md §1` y `docs/05` reflejan los dos trabajadores; `docs/10` retira la fila CLAVE. Crudo:
+el mismo de `§ADR-100`.

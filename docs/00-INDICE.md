@@ -181,6 +181,12 @@ Guarda `research-archive/` (crudos de deliberación: comités, consejos externos
 | `ADR-093` | 2026-09-01 | El veredicto eléctrico se enciende: un solo dueño de las condiciones, y la capacidad llega al papel | `research-archive/2026-09-01-cerrar-cargabilidad/` |
 | `ADR-094` | 2026-09-02 | Las variables operativas de la línea, y lo que el sistema se NIEGA a inventar | `research-archive/2026-09-02-variables-operativas/` |
 | `ADR-095` | 2026-09-02 | El cerebro gana un lóbulo de operación, y la norma que el motor no tenía | `research-archive/2026-09-02-fortalecer-el-cerebro/` |
+| `ADR-096` | 2026-09-04 | La pantalla vacía enseña su ESTRUCTURA: un fallo mío repetido tres veces | `research-archive/` (ver el ADR) |
+| `ADR-097` | 2026-09-04 | El entorno entero visible antes de cargar, y la regla que lo hace honesto | `research-archive/` (ver el ADR) |
+| `ADR-098` | 2026-09-05 | La ampacidad la dice el FABRICANTE, y el cálculo pasa a ser el contraste | `research-archive/` (ver el ADR) |
+| `ADR-099` | 2026-09-05 | La temperatura de operación también la dice el fabricante, y la suposición que llevaba su insignia | `research-archive/` (ver el ADR) |
+| `ADR-100` | 2026-09-06 | El sistema de usuarios: roles, funciones y responsabilidades desde la aplicación — y lo viejo, borrado | `research-archive/2026-09-05-sistema-de-usuarios/` |
+| `ADR-101` | 2026-09-07 | Enmiendas: las cuentas viejas SÍ se borran, hay DOS trabajadores, y la bitácora es inviolable «frente a clientes» | `research-archive/2026-09-05-sistema-de-usuarios/` |
 
 > Toda decisión cara de revertir entra aquí con su ADR y su crudo enlazado. Si hubo comité o consejo
 > externo y el crudo no está archivado, la tarea **no está cerrada** (`CLAUDE.md §G.4`).

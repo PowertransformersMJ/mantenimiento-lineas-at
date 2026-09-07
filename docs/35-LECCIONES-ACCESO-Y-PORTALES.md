@@ -178,24 +178,11 @@ Verificado el 2026-08-04 contra `datos.gov.co` (IDEAM), integrando el clima del 
   testigo que no comparte la causa del fallo con el artefacto que se está juzgando.
 
 ### L-36 · ⇢ PUNTERO a `L-22`, aquí al lado — y la recaída, que es lo que hay que leer
-> **El cuerpo de esta lección NO vive aquí.** El dueño es
-> **`35 · L-22` · «Desplegar el código sin desplegar las reglas de Firestore: el dato existe y no
-> llega»**, que lo dice completo y con el remedio de los tres despliegues. El número `L-36` se
-> conserva porque `docs/10` y este nodo lo citan, y los `L-NN` no se renumeran jamás.
-
-- **Qué pasó de verdad el 04-08-2026:** se añadió la colección `analisis`, la pantalla dijo
-  *«Missing or insufficient permissions»*, se perdió la tarde depurando el cliente… y al final se
-  escribió esta lección **sin ver que `L-22` ya existía, escrita días antes por el mismo síntoma**.
-- **Por qué se escapó, que es lo valioso:** el síntoma es de PANTALLA y la causa es de PROVEEDOR.
-  Se buscó en el hijo equivocado. Desde que la familia de lecciones se repartió por tema
-  (`99 §ADR-016`), un gotcha con el síntoma en un tema y la causa en otro **queda invisible** para
-  quien busca por donde le duele.
-- **Regla operativa que sale de esto:** ver `30 · L-39` — antes de escribir un `L-NN` nuevo se busca
-  el mensaje de error literal en los CUATRO archivos, no el tema.
-- **El remedio, por si llegaste aquí con el error delante:**
-  `npx firebase deploy --only firestore:rules --project mantenimiento-lineas-at`. Si una consulta
-  nueva falla con «insufficient permissions» y el código es correcto, la regla no está en
-  producción: no se depura el cliente.
+> El cuerpo vive en **`35 · L-22`** (reglas de Firestore sin desplegar: «Missing or insufficient
+> permissions» con el código correcto). El número se conserva porque `10` lo cita.
+- **La recaída (04-08-2026):** se escribió esta lección sin ver que `L-22` ya existía por el MISMO
+  síntoma: el síntoma es de PANTALLA y la causa de PROVEEDOR. Regla `30 · L-39`: antes de un
+  `L-NN` nuevo, buscar el error LITERAL en los cuatro archivos, no el tema.
 
 ### L-75 · «Success! · Production» de Cloudflare Pages NO quiere decir que la web haya cambiado
 
@@ -256,3 +243,17 @@ despliegue manual es una operación de escritura sobre lo que ese automatismo pr
 integrar no es publicar lo tuyo: es **pisar lo suyo**.
 
 **Cerrada en** `99 §ADR-091`. Emparenta con `L-35` y con `L-75`.
+
+### L-80 · Borrar IndexedDB de Firebase con la página abierta cuelga ese Chrome, y el error dice «sin red» con el servidor sano
+- **Qué pasó (06-09-2026, mío):** al cerrar la sesión vieja del Ingeniero borré por JavaScript
+  `firebase-heartbeat-database`. La base quedó bloqueada: el SDK esperaba 30 s por llamada y fallaba
+  con `auth/network-request-failed`, con CERO peticiones en la red. El cierre real fue «Eliminar
+  datos» del sitio en su Chrome, suyo y a mano (entre tanto sirvió la dirección de vista previa).
+- **Regla:** cerrar sesión con `signOut()` o revocando en el servidor. JAMÁS tocar IndexedDB ni
+  localStorage de Firebase en un navegador que no es de pruebas.
+
+### L-81 · «Sin conexión con el servicio» con el Worker sano y `curl` verde: el preflight CORS rechazó una cabecera propia
+- **Qué pasó (06-09-2026):** la limpieza envía `X-Limpieza-Token`; el OPTIONS no la listaba en
+  `Access-Control-Allow-Headers`; el navegador cortó ANTES de enviar y la pantalla dijo «no hubo
+  conexión», con 2.500 pruebas verdes que nunca hacían el preflight.
+- **Regla:** cada cabecera propia entra en `Allow-Headers` en el MISMO cambio, con guardián (`tests/usuarios-worker.test.js`); un fallo «de red» solo en el navegador, con servidor sano, es CORS.
