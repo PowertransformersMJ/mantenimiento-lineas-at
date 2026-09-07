@@ -1008,3 +1008,38 @@ describe('quitar una función NO delegable: el catálogo, el trabajador y la pan
     assert.match(usuarios, /funcionesExtra: CODIGOS_FUNCION\.filter\(\(f\) => FUNCIONES\[f\]\.delegable && ajustes\[f\] === 'extra'\)/);
   });
 });
+
+// ============================================================================
+// LA CASILLA DE RENUNCIA AL MURO — la pantalla (`99 §ADR-104`)
+// ============================================================================
+describe('la pantalla ofrece renunciar al cambio obligatorio, y nace marcada', () => {
+  const usuarios = readFileSync(join(RAIZ, 'web/src/componentes/Usuarios.tsx'), 'utf-8');
+  const remoto = readFileSync(join(RAIZ, 'web/src/datos/usuariosRemoto.ts'), 'utf-8');
+
+  test('nace MARCADA en los dos formularios: renunciar es un acto, no un descuido', () => {
+    assert.equal((usuarios.match(/useState\(true\)/g) ?? []).length >= 2, true);
+    assert.equal((usuarios.match(/const \[exigirCambio, setExigirCambio\] = useState\(true\)/g) ?? []).length, 2,
+      'el alta y la reposición tienen que tener su propia casilla, y las dos marcadas de salida');
+  });
+
+  test('el valor viaja al servidor en los dos caminos', () => {
+    assert.match(usuarios, /modo,\s*\n\s*exigirCambio,/, 'el alta no lo manda');
+    assert.match(usuarios, /reponerCredencial\(persona\.uid, \{ modo: 'contrasena', contrasena, exigirCambio \}\)/,
+      'la reposición no lo manda');
+    assert.match(remoto, /exigirCambio\?: boolean;/, 'el tipo del transporte no lo declara');
+  });
+
+  test('la casilla dice CUÁNDO tiene sentido desmarcarla, no solo qué hace', () => {
+    // Una opción de seguridad sin su porqué se desmarca «porque estorba».
+    assert.match(usuarios, /solo\s*\n?\s*<b>lectura<\/b>|<b>solo\n\s*lectura<\/b>|<b>solo lectura<\/b>/,
+      'hay que decir que el caso legítimo es una cuenta que no escribe nada');
+    assert.match(usuarios, /no firma nada/);
+  });
+
+  test('el radio de contraseña ya no promete un muro que puede no estar', () => {
+    // Decía «Nace provisional y se le exigirá cambiarla» como un hecho. Con la
+    // casilla, eso pasó a ser lo que ocurre POR DEFECTO, y así se redacta.
+    assert.ok(!/Nace provisional y se le\s*\n?\s*exigirá cambiarla/.test(usuarios),
+      'el texto sigue afirmando como seguro algo que ahora es opcional');
+  });
+});

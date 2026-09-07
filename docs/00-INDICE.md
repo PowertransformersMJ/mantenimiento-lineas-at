@@ -189,6 +189,7 @@ Guarda `research-archive/` (crudos de deliberación: comités, consejos externos
 | `ADR-101` | 2026-09-06 | Enmiendas: las cuentas viejas SÍ se borran, hay DOS trabajadores, y la bitácora es inviolable «frente a clientes» | `research-archive/2026-09-05-sistema-de-usuarios/` |
 | `ADR-102` | 2026-09-06 | Auditoría Nivel-2: el cerebro entrega, y lo que reincide se cierra con guardián, no con corrección | `research-archive/2026-09-06-auditoria-cerebro-nivel2.json` |
 | `ADR-103` | 2026-09-06 | Quitar no es delegar: una función del rol se puede retirar aunque no se pueda regalar | — (salió creando la primera cuenta de solo lectura) |
+| `ADR-104` | 2026-09-06 | La contraseña tecleada puede quedar en firme: el muro protege el no repudio, y quien no escribe no firma | — (decisión del Ingeniero, con la cuenta delante) |
 
 > Toda decisión cara de revertir entra aquí con su ADR y su crudo enlazado. Si hubo comité o consejo
 > externo y el crudo no está archivado, la tarea **no está cerrada** (`CLAUDE.md §G.4`).

@@ -276,6 +276,7 @@ function ReponerContrasena({ persona, alTerminar, alFallar }: {
 }) {
   const [contrasena, setContrasena] = useState('');
   const [repetida, setRepetida] = useState('');
+  const [exigirCambio, setExigirCambio] = useState(true);
   const [trabajando, setTrabajando] = useState(false);
   const [hecho, setHecho] = useState(false);
 
@@ -288,7 +289,7 @@ function ReponerContrasena({ persona, alTerminar, alFallar }: {
     if (!listo) return;
     setTrabajando(true);
     try {
-      await reponerCredencial(persona.uid, { modo: 'contrasena', contrasena });
+      await reponerCredencial(persona.uid, { modo: 'contrasena', contrasena, exigirCambio });
       setContrasena(''); setRepetida('');   // fuera de memoria en cuanto sale
       setHecho(true);
       alTerminar();
@@ -304,8 +305,8 @@ function ReponerContrasena({ persona, alTerminar, alFallar }: {
       <p><b>Reponer la contraseña de {persona.nombre || persona.correo}</b></p>
       <p className="aviso">
         Si la teclea usted, <b>la conocen dos personas</b>: mientras no la cambie, lo que esa persona
-        firme en este sistema no es solo suyo. Nace provisional y se le exigirá cambiarla al entrar.
-        Si puede entregarle un enlace, es mejor vía.
+        firme en este sistema no es solo suyo. Por eso se le exige cambiarla al entrar, salvo que
+        usted lo desmarque abajo a propósito. Si puede entregarle un enlace, es mejor vía.
       </p>
       <div className="calc-fila">
         <label className="calc-campo"><span>Contraseña</span>
@@ -321,6 +322,19 @@ function ReponerContrasena({ persona, alTerminar, alFallar }: {
       </p>
       {defectos.length > 0 && <p className="aviso">La contraseña {defectos.join(' · ')}.</p>}
       {repetida.length > 0 && !coinciden && <p className="aviso">Las dos no coinciden.</p>}
+      {/* Aquí la casilla hace además de INTERRUPTOR: reponer sobre una cuenta
+          que ya estaba provisional y desmarcarla RETIRA el muro que estaba
+          puesto. Es la forma de dejar en firme una contraseña tecleada sin
+          borrar la cuenta y volverla a crear (`99 §ADR-104`). */}
+      <label className="usr-radio">
+        <input type="checkbox" checked={exigirCambio}
+          onChange={(e) => setExigirCambio(e.target.checked)} />
+        <span>
+          <b>Exigirle cambiarla en el primer acceso</b> (recomendado). Desmárquelo para dejar esta
+          contraseña <b>en firme</b>: tiene sentido en una cuenta de <b>solo lectura</b>, que no
+          firma nada. Si la cuenta ya tenía el cambio pendiente, desmarcarlo lo retira.
+        </span>
+      </label>
       {hecho && <p className="ok" role="status">Contraseña repuesta. Comuníquesela por un canal que usted controle.</p>}
       <div className="rca-guardar">
         <button type="submit" className="boton" disabled={!listo}>
@@ -357,6 +371,7 @@ function Alta({ lineas, puedeAsignar, alTerminar, alFallar }: {
    * conozca la contraseña de otro.
    */
   const [modo, setModo] = useState<ModoDeAlta>('enlace');
+  const [exigirCambio, setExigirCambio] = useState(true);
   const [contrasena, setContrasena] = useState('');
   const [repetida, setRepetida] = useState('');
   const [enviando, setEnviando] = useState(false);
@@ -383,6 +398,7 @@ function Alta({ lineas, puedeAsignar, alTerminar, alFallar }: {
         funcionesQuitadas: CODIGOS_FUNCION.filter((f) => ajustes[f] === 'quitada'),
         lineas: todas ? [TODAS_LAS_LINEAS] : elegidas,
         modo,
+        exigirCambio,
         ...(modo === 'contrasena' ? { contrasena } : {}),
       });
       // La contraseña se borra de la memoria del formulario en cuanto se manda.
@@ -433,9 +449,9 @@ function Alta({ lineas, puedeAsignar, alTerminar, alFallar }: {
         <label className="usr-radio">
           <input type="radio" checked={modo === 'contrasena'} onChange={() => setModo('contrasena')} />
           <span>
-            <b>Contraseña que usted teclea</b> — se la comunica usted. Nace provisional y se le
-            exigirá cambiarla en el primer acceso. Mientras no la cambie, <b>lo que esa persona
-            firme no es solo suyo</b>: la conocen dos.
+            <b>Contraseña que usted teclea</b> — se la comunica usted. Mientras la conozcan dos,
+            <b> lo que esa persona firme no es solo suyo</b>, y por eso se le exige cambiarla en el
+            primer acceso.
           </span>
         </label>
       </div>
@@ -456,6 +472,21 @@ function Alta({ lineas, puedeAsignar, alTerminar, alFallar }: {
           </p>
           {defectos.length > 0 && <p className="aviso">La contraseña {defectos.join(' · ')}.</p>}
           {repetida.length > 0 && !coinciden && <p className="aviso">Las dos no coinciden.</p>}
+          {/* ⚠️ RENUNCIAR AL MURO ES UN ACTO EXPLÍCITO, y la casilla nace
+              marcada. El muro protege el NO REPUDIO de lo que se firma; en una
+              cuenta que no escribe nada no hay nada que repudiar, y entonces
+              exigirlo es ceremonia. Se dice cuándo tiene sentido en vez de
+              dejar que cada quien lo adivine (`99 §ADR-104`). */}
+          <label className="usr-radio">
+            <input type="checkbox" checked={exigirCambio}
+              onChange={(e) => setExigirCambio(e.target.checked)} />
+            <span>
+              <b>Exigirle cambiarla en el primer acceso</b> (recomendado). Desmárquelo solo si esa
+              contraseña se queda como está a propósito — tiene sentido en una cuenta de <b>solo
+              lectura</b>, que no firma nada; en una que escribe, la firma deja de ser de una sola
+              persona. Quede como quede, va a la bitácora.
+            </span>
+          </label>
         </>
       )}
 

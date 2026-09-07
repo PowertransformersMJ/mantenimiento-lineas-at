@@ -118,8 +118,17 @@ export interface AltaDePersona {
   /** `['*']` o los identificadores de línea. Nunca vacío. */
   lineas: string[];
   modo: ModoDeAlta;
-  /** Solo con `modo: 'contrasena'`. Viaja por TLS y nace provisional. */
+  /** Solo con `modo: 'contrasena'`. Viaja por TLS. */
   contrasena?: string;
+  /**
+   * ¿Se le exige cambiarla en el primer acceso? Ausente = SÍ.
+   *
+   * El muro existe por no repudio: mientras dos conozcan la contraseña, lo que
+   * esa persona firme no es solo suyo. Ese argumento se apaga en una cuenta que
+   * no escribe nada, y ahí exigirlo es ceremonia. Renunciar es explícito y
+   * queda en la bitácora (`99 §ADR-104`).
+   */
+  exigirCambio?: boolean;
 }
 
 export interface CambioDePersona {
@@ -287,7 +296,7 @@ export async function cambiarEstado(uid: string, activo: boolean): Promise<void>
 
 /** Repone credencial: enlace de un solo uso, o contraseña tecleada por el admin. */
 export async function reponerCredencial(
-  uid: string, datos: { modo: ModoDeAlta; contrasena?: string },
+  uid: string, datos: { modo: ModoDeAlta; contrasena?: string; exigirCambio?: boolean },
 ): Promise<ResultadoDeCredencial> {
   return await pedir<ResultadoDeCredencial>(
     `/usuarios/${encodeURIComponent(uid)}/contrasena`, { metodo: 'POST', cuerpo: datos },

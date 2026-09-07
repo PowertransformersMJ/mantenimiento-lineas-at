@@ -1476,3 +1476,51 @@ describe('el preflight deja pasar la cabecera del secreto de limpieza', () => {
       'sin esta cabecera en Allow-Headers la limpieza muere en el navegador antes de salir');
   });
 });
+
+// ============================================================================
+// EXIGIR EL CAMBIO ES EL DEFECTO, Y RENUNCIAR ES EXPLÍCITO (`99 §ADR-104`)
+// ----------------------------------------------------------------------------
+// Orden del Ingeniero (2026-09-06): que la contraseña que él teclea se quede,
+// sin exigirle a la persona cambiarla. El muro existe por NO REPUDIO —mientras
+// dos la conozcan, lo que esa persona firme no es solo suyo—, y ese argumento
+// se apaga en una cuenta que no escribe nada.
+//
+// Lo que estas pruebas defienden: que la renuncia sea EXPLÍCITA (ausente = se
+// exige), que valga en el alta y en la reposición, y —lo que se escapa fácil—
+// que reponer sin exigir sobre una cuenta que YA estaba provisional RETIRE las
+// dos marcas en vez de arrastrarlas en el `...claims`.
+// ============================================================================
+describe('la renuncia al cambio obligatorio', () => {
+  const fuente = readFileSync(new URL('../usuarios/src/index.js', import.meta.url), 'utf8');
+
+  test('ausente = se exige: el defecto no cambia por añadir la opción', () => {
+    assert.match(fuente, /const exigirCambio = cuerpo\.exigirCambio !== false;/,
+      'la comparación tiene que ser contra `false`: un cuerpo sin el campo exige el cambio');
+    assert.equal((fuente.match(/cuerpo\.exigirCambio !== false/g) ?? []).length, 2,
+      'tiene que estar en los DOS caminos: el alta y la reposición');
+  });
+
+  test('un valor que no es booleano se rechaza en vez de interpretarse', () => {
+    assert.equal((fuente.match(/exigirCambio tiene que ser verdadero o falso/g) ?? []).length, 2,
+      "«'false'» como texto es verdadero en JavaScript: si no se valida, el muro se queda puesto y nadie sabe por qué");
+  });
+
+  test('en el ALTA la marca solo se pone si se exige', () => {
+    assert.match(fuente, /modo === 'contrasena' && exigirCambio\s*\n\s*\? \{ passwordProvisional: true, contrasenaOrdenadaEn: en \}/,
+      'el alta tiene que mirar las dos cosas: que la contraseña la teclee alguien Y que se exija el cambio');
+  });
+
+  test('reponer SIN exigir RETIRA las marcas viejas, no se limita a no ponerlas', () => {
+    // El fallo fácil: `{ ...claims }` arrastra `passwordProvisional` de una
+    // reposición anterior, y el muro sigue en pie con la casilla desmarcada.
+    assert.match(fuente, /: \(\(\{ passwordProvisional, contrasenaOrdenadaEn, \.\.\.resto \}\) => resto\)\(claims\)/,
+      'sin quitar las dos marcas del token viejo, desmarcar la casilla no hace nada');
+  });
+
+  test('la bitácora y la respuesta dicen lo que pasó de verdad, no siempre «true»', () => {
+    assert.match(fuente, /despues: \{ passwordProvisional: exigirCambio \}/,
+      'una bitácora que siempre dice `true` es peor que ninguna: afirma un muro que no está');
+    assert.match(fuente, /passwordProvisional: exigirCambio, sesionesRevocadas: true/,
+      'la respuesta tiene que decirle a la pantalla si el muro quedó puesto');
+  });
+});

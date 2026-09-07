@@ -716,6 +716,10 @@ async function alta(ctx, cuerpo) {
   if (modo !== 'enlace' && modo !== 'contrasena') {
     throw new FalloConCodigo(400, "el modo de alta tiene que ser 'enlace' o 'contrasena'");
   }
+  if (cuerpo.exigirCambio !== undefined && typeof cuerpo.exigirCambio !== 'boolean') {
+    throw new FalloConCodigo(400, 'exigirCambio tiene que ser verdadero o falso');
+  }
+  const exigirCambio = cuerpo.exigirCambio !== false;
 
   const en = new Date(ctx.ahora()).toISOString();
   const propuesta = {
@@ -756,7 +760,15 @@ async function alta(ctx, cuerpo) {
   try {
     reclamos = reclamosDe({
       ...perfil,
-      ...(modo === 'contrasena' ? { passwordProvisional: true, contrasenaOrdenadaEn: en } : {}),
+      // ⚠️ EXIGIR EL CAMBIO ES EL DEFECTO, y se puede renunciar A PROPÓSITO.
+      // El muro existe por NO REPUDIO: mientras dos conozcan la contraseña, lo
+      // que esa persona firme no es solo suyo. Ese argumento se apaga cuando la
+      // cuenta no firma nada —un espectador de solo lectura—, y ahí exigirlo es
+      // ceremonia sin motivo. Lo decide quien da de alta, en la pantalla, y
+      // queda en la bitácora. Ausente = true: renunciar es un acto explícito.
+      ...(modo === 'contrasena' && exigirCambio
+        ? { passwordProvisional: true, contrasenaOrdenadaEn: en }
+        : {}),
     });
   } catch (e) {
     return rechazar(ctx, 400, e.message, sujeto);
@@ -1140,7 +1152,19 @@ async function reponerContrasena(ctx, uid, cuerpo) {
   // Nace PROVISIONAL y con fecha: quien no teclea su propia contraseña tiene que
   // cambiarla al entrar, y la fecha es lo que hace que una reposición NUEVA
   // vuelva a exigirse aunque haya un recibo viejo (`contratos/src/acceso.ts`).
-  const reclamos = { ...claims, passwordProvisional: true, contrasenaOrdenadaEn: en };
+  //
+  // ⚠️ Salvo renuncia EXPLÍCITA (`exigirCambio: false`), por la misma razón que
+  // en el alta: el muro protege el no repudio de lo que se FIRMA, y una cuenta
+  // que no escribe nada no firma nada. Al renunciar se limpian las DOS marcas
+  // —no basta con no ponerlas— porque una reposición sobre una cuenta que ya
+  // estaba provisional las arrastraría en `...claims` y el muro seguiría en pie.
+  if (cuerpo.exigirCambio !== undefined && typeof cuerpo.exigirCambio !== 'boolean') {
+    throw new FalloConCodigo(400, 'exigirCambio tiene que ser verdadero o falso');
+  }
+  const exigirCambio = cuerpo.exigirCambio !== false;
+  const reclamos = exigirCambio
+    ? { ...claims, passwordProvisional: true, contrasenaOrdenadaEn: en }
+    : (({ passwordProvisional, contrasenaOrdenadaEn, ...resto }) => resto)(claims);
   await ctx.google.actualizarCuenta({
     localId: uid,
     password: cuerpo.contrasena,
@@ -1150,11 +1174,11 @@ async function reponerContrasena(ctx, uid, cuerpo) {
 
   const bitacora = await auditar(ctx.google, {
     orgId: ctx.org, accion: 'contrasena_repuesta', actorUid: ctx.actorUid, actorCorreo: ctx.actorCorreo,
-    ...sujeto, despues: { passwordProvisional: true }, ip: ctx.ip, en,
+    ...sujeto, despues: { passwordProvisional: exigirCambio }, ip: ctx.ip, en,
   });
   salud.operaciones += 1;
   // La contraseña NO vuelve en la respuesta: la tecleó quien administra y ya la tiene.
-  return responder({ ok: true, uid, passwordProvisional: true, sesionesRevocadas: true, bitacora }, 200, ctx.cors);
+  return responder({ ok: true, uid, passwordProvisional: exigirCambio, sesionesRevocadas: true, bitacora }, 200, ctx.cors);
 }
 
 // ── POST /usuarios/:uid/reconciliar ─────────────────────────────────────────

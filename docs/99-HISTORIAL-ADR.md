@@ -9002,3 +9002,68 @@ ellas expresando el caso literal del encargo.
   diferencia es que ahora eso es cierto también después de reconciliar.
 
 ---
+
+## ADR-104 · 2026-09-06 · La contraseña tecleada puede quedar EN FIRME: el muro del cambio protege el no repudio, y una cuenta que no escribe no firma
+
+**Deliberación:** decisión del Ingeniero, con la primera cuenta de solo lectura delante.
+**Estado:** ✅ en producción · **NO revisada externamente**.
+
+### Contexto
+
+`§ADR-019 §2` dejó dos vías de alta, y la de contraseña tecleada nace **provisional**: la persona
+está obligada a cambiarla en su primer acceso. El motivo está escrito y es bueno: *mientras dos
+conozcan la contraseña, lo que esa persona firme no es solo suyo* — **no repudio**.
+
+Al crear la primera cuenta de solo lectura el Ingeniero pidió lo contrario: *«me gustaría que esa
+contraseña se mantenga, la que yo designe, no es necesario que le obligue a reemplazarla»*.
+
+**Y para ESE caso el argumento del muro no se sostiene.** El no repudio protege lo que alguien
+**escribe**. Un espectador con `f:['lv','ev','cv','ig']` no escribe nada —está probado en el
+emulador, colección por colección—, así que no hay nada que pueda repudiar. Exigirle cambiar la
+contraseña no protege ninguna firma: es ceremonia. La regla no era falsa; era **más ancha de lo que
+su propio motivo justificaba**.
+
+### Decisión
+
+**Exigir el cambio sigue siendo el defecto, y renunciar es un acto explícito**, disponible en el
+alta y en la reposición (`exigirCambio`, ausente = `true`).
+
+1. **La casilla nace marcada** y dice CUÁNDO tiene sentido desmarcarla —una cuenta de solo lectura,
+   que no firma nada—, en vez de dejar que cada quien lo adivine. Una opción de seguridad sin su
+   porqué se desmarca «porque estorba».
+2. **En la reposición la casilla RETIRA el muro que ya estaba puesto**, no se limita a no ponerlo.
+   Sin eso, `{ ...claims }` habría arrastrado `passwordProvisional` de la creación y desmarcarla no
+   habría hecho nada visible: el peor resultado posible, una casilla que miente.
+3. **La bitácora dice lo que pasó de verdad** (`despues: { passwordProvisional: exigirCambio }`),
+   no `true` siempre. Un registro que afirma un muro que no está es peor que no tenerlo.
+4. **Un `exigirCambio` que no sea booleano se rechaza con 400.** `'false'` como texto es verdadero
+   en JavaScript: sin validarlo, el muro se quedaría puesto y nadie sabría por qué.
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| Quitar el muro para todos | El motivo sigue siendo válido en cualquier cuenta que escriba. Se estrecha la regla, no se deroga |
+| Decidirlo por ROL (los que no escriben, sin muro) | Parece elegante y es frágil: el día que a un `auditor` se le añada una función de escritura, el muro habría desaparecido solo, sin que nadie lo decidiera. Lo decide una persona, por cuenta, y queda en la bitácora |
+| Limpiar la marca de esta cuenta con la llave de administración | Habría dejado el sistema igual de incapaz de expresarlo, y la siguiente cuenta con el mismo problema. Además, sin rastro en la bitácora |
+| Borrar la cuenta y volver a crearla | Perdía el rastro del alta y obligaba a repetir los permisos a mano |
+
+### Supuestos que deben ser ciertos — y la señal que diría que dejaron de serlo
+
+| Supuesto | Señal |
+|---|---|
+| El defecto sigue siendo exigir el cambio | La prueba «ausente = se exige» en rojo, o una casilla que nace desmarcada |
+| Las cuentas sin muro siguen siendo de solo lectura | `rescate.mjs auditar`: una cuenta sin `passwordProvisional` cuyo token traiga una función de escritura. **Hoy no lo comprueba nadie automáticamente** |
+| La bitácora dice la verdad sobre el muro | Una entrada `contrasena_repuesta` con `despues.passwordProvisional: true` en una cuenta que no lo tiene |
+
+### Consecuencias
+
+- La cuenta de solo lectura `mijiguer@gmail.com` conserva la contraseña que el Ingeniero designó.
+  Verificado contra el servidor: reclamos `{orgId, rol:'auditor', f:['lv','ev','cv','ig'], l:['*']}`,
+  sin `passwordProvisional` ni `contrasenaOrdenadaEn`; bitácora con `despues.passwordProvisional: false`.
+- La reposición **revoca las sesiones vivas** igual que antes: renunciar al muro no toca eso.
+- `2.545` pruebas · nueve guardianes nuevos entre trabajador y pantalla.
+- ⚠️ Sigue abierto `TODO-98`: el recibo del cambio se puede auto-firmar desde la consola. Con esta
+  cuenta ya no importa —no hay muro que saltar—, pero en las que sí lo tengan, sigue.
+
+---
