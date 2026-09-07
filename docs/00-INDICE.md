@@ -192,6 +192,7 @@ Guarda `research-archive/` (crudos de deliberación: comités, consejos externos
 | `ADR-104` | 2026-09-06 | La contraseña tecleada puede quedar en firme: el muro protege el no repudio, y quien no escribe no firma | — (decisión del Ingeniero, con la cuenta delante) |
 | `ADR-105` | 2026-09-06 | El histórico se lee como SALE: CSV, fechas escritas, varios archivos y una red entera dentro | `fixtures/scada-tension-2026-01-01/` (bóveda) |
 | `ADR-106` | 2026-09-07 | «Parámetros eléctricos»: todas las magnitudes, cada una con sus fases, y la fase deja de morir en el camino | — (mapa por seis lentes, en el propio ADR) |
+| `ADR-107` | 2026-09-07 | Las gráficas dejan de ser solo del porcentaje: una por magnitud, con sus fases, y el eje que no empieza en cero | — (lo vio él en producción) |
 
 > Toda decisión cara de revertir entra aquí con su ADR y su crudo enlazado. Si hubo comité o consejo
 > externo y el crudo no está archivado, la tarea **no está cerrada** (`CLAUDE.md §G.4`).

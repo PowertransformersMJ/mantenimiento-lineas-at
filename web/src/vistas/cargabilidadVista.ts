@@ -180,7 +180,16 @@ export function marcasX(n: number, maximo = 8): number[] {
   const paso = Math.ceil(n / maximo);
   const out: number[] = [];
   for (let i = 0; i < n; i += paso) out.push(i);
-  if (out[out.length - 1] !== n - 1) out.push(n - 1);
+  // ⚠️ EL ÚLTIMO INSTANTE SE ENSEÑA SIEMPRE, pero sin pisar al anterior. Con 24
+  // horas el paso es 3 y las marcas acaban en 21; añadir el 23 ponía dos
+  // etiquetas a dos posiciones de distancia y se leían encima («21h23h»). Si el
+  // hueco que queda es menor que un paso entero, el último SUSTITUYE al penúltimo
+  // vez de sumarse: la marca del final importa más que la regularidad.
+  const ultimo = n - 1;
+  if (out[out.length - 1] !== ultimo) {
+    if (ultimo - out[out.length - 1] < paso) out[out.length - 1] = ultimo;
+    else out.push(ultimo);
+  }
   return out;
 }
 

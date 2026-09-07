@@ -25,6 +25,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import * as nodeFs from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { marcasX } from '../web/src/vistas/cargabilidadVista.ts';
 
 /** El texto de un archivo del repo. Lo piden los guardianes de color del §10. */
 const leer = (p) => readFileSync(fileURLToPath(new URL('../' + p, import.meta.url)), 'utf-8');
@@ -870,5 +871,34 @@ describe('la potencia aparente: medida o derivada, pero SIEMPRE dicha', () => {
     const r = completarAparente({ corriente_A: 271, tension_kV: 69 });
     assert.equal(r.potenciaAparente_MVA, undefined);
     assert.equal(r.naturalezaAparente, undefined);
+  });
+});
+
+// ============================================================================
+// LAS MARCAS DEL EJE NO SE PISAN (`99 §ADR-107`)
+// ----------------------------------------------------------------------------
+// Con 24 horas el paso sale 3 y las marcas acaban en la 21; añadir la 23 ponía
+// dos etiquetas a dos posiciones y en pantalla se leían pegadas: «21h23h». Lo
+// vio el Ingeniero en la gráfica de tensiones.
+// ============================================================================
+describe('marcas del eje del tiempo', () => {
+  test('el último instante SIEMPRE se enseña', () => {
+    for (const n of [3, 7, 8, 12, 24, 25, 100]) {
+      assert.equal(marcasX(n).at(-1), n - 1, `con ${n} instantes falta la marca del final`);
+    }
+  });
+
+  test('y no se pega a la anterior: 24 horas ya no dan «21h23h»', () => {
+    const m = marcasX(24);
+    assert.ok(!m.includes(21) || !m.includes(23), 'el 21 y el 23 no pueden salir los dos');
+    const paso = Math.ceil(24 / 8);
+    for (let i = 1; i < m.length; i += 1) {
+      assert.ok(m[i] - m[i - 1] >= paso,
+        `las marcas ${m[i - 1]} y ${m[i]} quedan a menos de un paso y se leerían encima`);
+    }
+  });
+
+  test('con pocos instantes se enseñan todos, como antes', () => {
+    assert.deepEqual(marcasX(5), [0, 1, 2, 3, 4]);
   });
 });

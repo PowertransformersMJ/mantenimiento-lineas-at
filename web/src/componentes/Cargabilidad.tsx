@@ -510,6 +510,7 @@ export default function Cargabilidad({
             <>
               <ResumenDeLaCarga lote={lote!} registros={registros} nombre={cargado.nombre} />
     <FasesDeLaCarga registros={registros} />
+    <GraficasPorFase registros={registros} />
               <VistaPrevia registros={registros} />
               {puede(sesion, 'cargabilidad.cargar') && registros.length > 0 && (
                 <div className="tarjeta">
@@ -1358,6 +1359,127 @@ function FasesDeLaCarga({ registros }: { registros: Registro[] }) {
         <p className="fine">Se muestran {primeras.length} de {nf(registros.length)} horas.</p>
       )}
     </div>
+  );
+}
+
+/**
+ * LAS GRÁFICAS DE CADA MAGNITUD, CON SUS FASES (`99 §ADR-107`).
+ *
+ * Las gráficas de este módulo estaban TODAS cableadas al porcentaje de carga:
+ * una carga de tensiones se guardaba entera y la pantalla seguía enseñando sus
+ * tarjetas vacías, «esperando la corriente». El Ingeniero lo dijo mirándolo:
+ * «no veo las gráficas de las tensiones».
+ *
+ * ⚠️ EL EJE NO EMPIEZA EN CERO, Y SE DICE. Una línea de 66 kV se mueve entre
+ * 68,1 y 69,8: dibujada desde cero es una raya plana que no informa de nada, y
+ * dibujada sin decirlo convierte una variación del 2 % en un tobogán que asusta.
+ * Se ajusta al dato, se rotulan los extremos reales y se avisa debajo. Es la
+ * misma regla que ya gobierna las bandas de color: el dibujo no puede sugerir
+ * una conclusión que el número no sostiene.
+ */
+function GraficasPorFase({ registros }: { registros: Registro[] }) {
+  const GRUPOS = [
+    { rotulo: 'Tensión entre fases', unidad: 'kV', dec: 1, agregado: 'tension_kV',
+      cols: [['RS', 'tensionRS_kV'], ['ST', 'tensionST_kV'], ['TR', 'tensionTR_kV']] as const },
+    { rotulo: 'Tensión fase-tierra', unidad: 'kV', dec: 1, agregado: 'tension_kV',
+      cols: [['R', 'tensionR_kV'], ['S', 'tensionS_kV'], ['T', 'tensionT_kV']] as const },
+    { rotulo: 'Corriente', unidad: 'A', dec: 0, agregado: 'corriente_A',
+      cols: [['R', 'corrienteR_A'], ['S', 'corrienteS_A'], ['T', 'corrienteT_A']] as const },
+    { rotulo: 'Potencia activa', unidad: 'MW', dec: 2, agregado: 'potenciaActiva_MW',
+      cols: [['R', 'potenciaActivaR_MW'], ['S', 'potenciaActivaS_MW'], ['T', 'potenciaActivaT_MW']] as const },
+    { rotulo: 'Potencia reactiva', unidad: 'MVAr', dec: 2, agregado: 'potenciaReactiva_MVAr',
+      cols: [['R', 'potenciaReactivaR_MVAr'], ['S', 'potenciaReactivaS_MVAr'], ['T', 'potenciaReactivaT_MVAr']] as const },
+    { rotulo: 'Potencia aparente', unidad: 'MVA', dec: 2, agregado: 'potenciaAparente_MVA',
+      cols: [['R', 'potenciaAparenteR_MVA'], ['S', 'potenciaAparenteS_MVA'], ['T', 'potenciaAparenteT_MVA']] as const },
+  ];
+  // Los tres tonos son FIJOS y con su rótulo al lado: un color sin leyenda es
+  // una raya de adorno, y aquí hay que poder decir cuál fase se salió.
+  //
+  // ⚠️ Y TIENEN QUE DISTINGUIRSE ENTRE SÍ. El primer intento usó el acento de la
+  // casa y un segundo marrón: en pantalla, dos de las tres fases eran la misma
+  // raya. Tres familias de color distintas —tierra, verde y azul— y ninguna de
+  // ellas es un rojo, que en este sistema significa «fuera de banda».
+  const TINTA = ['#9a5b1b', '#2f6f4f', '#2a5d8f'];
+
+  const conDato = GRUPOS
+    .map((g) => ({ ...g, presentes: g.cols.filter(([, c]) => registros.some((x) => x[c] != null)) }))
+    .filter((g) => g.presentes.length > 0);
+  if (!conDato.length) return null;
+
+  return (
+    <>
+      {conDato.map((g) => {
+        const valores = registros.flatMap((x) => g.presentes
+          .map(([, c]) => x[c]).filter((v): v is number => typeof v === 'number'));
+        const min = Math.min(...valores);
+        const max = Math.max(...valores);
+        // Un margen del 8 % del recorrido para que la línea no toque los bordes.
+        // Si todo el día vale lo mismo, se abre a mano: un rango de cero alto
+        // haría una división por cero y una gráfica sin sentido.
+        const holgura = (max - min) || Math.max(Math.abs(max) * 0.02, 0.1);
+        const lo = min - holgura * 0.08;
+        const hi = max + holgura * 0.08;
+        const yEn = (v: number) => LIENZO.alto - LIENZO.margen.b
+          - ((v - lo) / (hi - lo)) * (LIENZO.alto - LIENZO.margen.s - LIENZO.margen.b);
+        const marcas = [lo, lo + (hi - lo) / 2, hi];
+        const idx = marcasX(registros.length);
+
+        return (
+          <div className="tarjeta" key={g.rotulo}>
+            <p className="mapa-capas-t">{g.rotulo} · fase a fase</p>
+            <svg viewBox={`0 0 ${LIENZO.ancho} ${LIENZO.alto}`} className="grafica" role="img"
+              aria-label={`${g.rotulo} por fase, ${registros.length} instantes`}>
+              {marcas.map((v, k) => (
+                <g key={k}>
+                  <line x1={LIENZO.margen.i} x2={LIENZO.ancho - LIENZO.margen.d}
+                    y1={yEn(v)} y2={yEn(v)} stroke="var(--bd-tenue)" strokeWidth={1} />
+                  <text x={LIENZO.margen.i - 6} y={yEn(v) + 4} textAnchor="end"
+                    fontSize={10} fill="var(--tx-tenue, #888)">{nf(v, g.dec)}</text>
+                </g>
+              ))}
+              {g.presentes.map(([fase, campo], k) => {
+                const trazo = registros
+                  .map((x_, i) => (typeof x_[campo] === 'number'
+                    ? `${x(i, registros.length)},${yEn(x_[campo] as number)}` : null))
+                  .filter((v): v is string => v !== null)
+                  .join(' ');
+                return (
+                  <g key={fase}>
+                    <polyline points={trazo} fill="none" stroke={TINTA[k % TINTA.length]}
+                      strokeWidth={1.8} strokeLinejoin="round" strokeLinecap="round" />
+                    {registros.map((x_, i) => (typeof x_[campo] === 'number' ? (
+                      <circle key={i} cx={x(i, registros.length)} cy={yEn(x_[campo] as number)} r={2.2}
+                        fill={TINTA[k % TINTA.length]}>
+                        <title>
+                          {etiquetaInstante(x_ as never)} · {fase} · {nf(x_[campo] as number, g.dec)} {g.unidad}
+                        </title>
+                      </circle>
+                    ) : null))}
+                  </g>
+                );
+              })}
+              {/* La última marca se ancla al final: centrada, se sale del lienzo
+                  y la hora aparece cortada por la mitad. */}
+              {idx.map((i, k) => (
+                <text key={i} x={x(i, registros.length)} y={LIENZO.alto - 10}
+                  textAnchor={k === idx.length - 1 ? 'end' : k === 0 ? 'start' : 'middle'}
+                  fontSize={9} fill="var(--tx-tenue, #888)">{etiquetaInstante(registros[i] as never)}</text>
+              ))}
+            </svg>
+            <p className="fine">
+              {g.presentes.map(([fase], k) => (
+                <span key={fase} style={{ color: TINTA[k % TINTA.length] }}>
+                  <b>{fase}</b>{k < g.presentes.length - 1 ? ' · ' : ''}
+                </span>
+              ))}
+              {' — '}entre <b>{nf(min, g.dec)}</b> y <b>{nf(max, g.dec)} {g.unidad}</b>.
+              {' '}⚠️ <b>El eje no empieza en cero</b>: se ajusta al recorrido del dato. Desde cero,
+              esta variación sería una raya plana; sin decirlo, parecería un tobogán.
+            </p>
+          </div>
+        );
+      })}
+    </>
   );
 }
 

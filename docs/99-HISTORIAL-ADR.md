@@ -9236,3 +9236,63 @@ siempre, venga del campo que venga, y el prefijo solo reparte lo que sobra.
   siguiente paso, y sin él una tensión guardada es invisible en el tablero.
 
 ---
+
+## ADR-107 · 2026-09-07 · Las gráficas dejan de ser solo del porcentaje: una por magnitud, con sus fases, y el eje que no empieza en cero
+
+**Deliberación:** lo vio el Ingeniero en producción — *«no veo las gráficas de las tensiones»*.
+**Estado:** ✅ en producción · **NO revisada externamente**.
+
+### Contexto
+
+`§ADR-106` guardó todas las magnitudes con sus fases, y lo dijo en sus propias consecuencias: *las
+gráficas y el resumen diario siguen cableados al porcentaje*. Con una carga de tensiones el
+resultado era exactamente eso: el dato entraba entero, la tabla de fases lo enseñaba, y **todas las
+tarjetas de análisis seguían en su estado vacío** —«esperando la corriente»— porque cada una empieza
+filtrando por `cargabilidad_pct`. Un histórico más gordo y una pantalla igual de muda.
+
+### Decisión
+
+**1. Una gráfica por magnitud presente, con una línea por fase.** Solo se dibuja lo que la carga
+TRAE: seis gráficas de guiones no informan de nada y hacen creer que faltó algo.
+
+**2. ⚠️ EL EJE NO EMPIEZA EN CERO, Y SE DICE DEBAJO.** Es la decisión de fondo. Una línea de 66 kV
+se mueve entre 68,1 y 69,8: dibujada desde cero es una raya plana que no dice nada, y ajustada al
+dato **sin avisar** convierte una variación del 2 % en un tobogán que asusta. Se ajusta, se rotulan
+los extremos reales y se avisa en la misma tarjeta. Es la regla que ya gobierna las bandas de color:
+el dibujo no puede sugerir una conclusión que el número no sostiene.
+
+**3. Tres colores que se distinguen, con su leyenda.** El primer intento usó el acento de la casa y
+un segundo marrón, y en pantalla dos de las tres fases eran la misma raya — lo vi en la captura
+antes de darlo por bueno. Tierra, verde y azul; **ninguno rojo**, que aquí significa «fuera de banda».
+
+**4. Las marcas del eje del tiempo dejan de pisarse.** Con 24 horas el paso salía 3, las marcas
+acababan en la 21 y luego se añadía la 23: dos etiquetas a dos posiciones que se leían pegadas
+(«21h23h»). Ahora, si el hueco es menor que un paso, la última **sustituye** a la penúltima. El
+arreglo va en la primitiva compartida, así que también mejora la gráfica que ya existía.
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| Reusar la gráfica del porcentaje con un selector de magnitud | Su eje va de 0 a un techo con las bandas de carga pintadas: para una tensión, esas bandas no significan nada y el eje desde cero aplana el dato |
+| Empezar el eje en cero «por honestidad» | La honestidad es DECIR la escala, no elegir una que esconde el dato. Desde cero, las 24 horas de una tensión son una raya |
+| Una sola gráfica con todas las magnitudes | Amperios, kilovoltios y megavatios en un mismo eje no comparten escala ni significado |
+
+### Supuestos que deben ser ciertos — y la señal que diría que dejaron de serlo
+
+| Supuesto | Señal |
+|---|---|
+| El aviso del eje sigue debajo de cada gráfica | Una gráfica de esta tarjeta sin la frase del eje: la prueba de fuente lo mira |
+| Las tres tintas siguen distinguiéndose | Dos fases del mismo color en una captura. No hay guardián automático de esto |
+| Las marcas del eje no vuelven a pisarse | La prueba de `marcasX` con 24 instantes en rojo |
+
+### Consecuencias
+
+- Verificado en producción con los tres archivos del Ingeniero: la tensión entre fases se dibuja en
+  las 24 horas, con RS, ST y TR separadas y el recorrido real rotulado.
+- `2.586` pruebas.
+- ⚠️ **Sigue pendiente** lo que `§ADR-106` ya declaró: el **resumen diario** solo resume el
+  porcentaje y la corriente, así que una tensión guardada **no aparece en el tablero del histórico**
+  sin abrir el día completo. Esta decisión arregla la carga que se está mirando, no el histórico.
+
+---
