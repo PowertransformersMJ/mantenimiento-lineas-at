@@ -13,14 +13,13 @@
 > `§ADR-049/050`—. La fase viva es **la página**.
 
 ## 🛑 LO PRIMERO AL RETOMAR
-0. 🆕 **PARÁMETROS ELÉCTRICOS** (antes «cargabilidad»; `§ADR-088..097` · `105..108`). Se suelta un
-   `.xlsx` **o un CSV de SCADA tal como sale** —varios a la vez, la red entera dentro—, salen todas
-   las magnitudes con sus fases y el veredicto contra **ampacidad**. Sin archivo la pantalla enseña
-   su ESTRUCTURA — **jamás cifras de muestra**, y **un hueco no es un cero**.
-   ⚠️ **GUARDAR ESTUVO ROTO DESDE EL PRIMER DÍA y aquí se decía «SÍ GUARDA»** (`§ADR-108`, `35 ·
-   L-82`): leer un documento que aún no existe deja `resource` nulo y **revienta la regla**;
-   Firestore lo devuelve como «no tienes permiso». Ya arreglado y desplegado. **Lo que no sobrevive
-   a un `F5` no está guardado**: verificar es recargar, no mirar la memoria del navegador.
+0. 🆕 **PARÁMETROS ELÉCTRICOS** (antes «cargabilidad»; `§ADR-088..097` · `105..109`). Se suelta un
+   `.xlsx` **o CSV de SCADA tal como sale** —varios a la vez, la red entera dentro—, salen todas las
+   magnitudes con sus fases y el veredicto contra **ampacidad**. Sin archivo se enseña la
+   ESTRUCTURA — **jamás cifras de muestra**, y **un hueco no es un cero**.
+   ✅ **07-09: PRIMER DÍA GUARDADO** (2026-01-01, 24 h) y **comprobado recargando**. Veredicto vivo:
+   **34,0 % · 244 A ÷ 718 A**, pico a las 22:00. Antes NUNCA guardó (`§ADR-108/109`).
+   **Lo que no sobrevive a un `F5` no está guardado.**
    ⚠️ Falta lo SUYO: ratificar los **718 A** (`TODO-93`).
 0b. 🔐 **ACCESO VIVO** (`§ADR-100/101/104`): DOS cuentas —propietario y espectador de solo
    lectura—; las demás se crean desde **Personas**.
@@ -31,10 +30,10 @@
    cambiar sin dañar lo que ya está bien, y actuar solo sobre lo que él indica o lo que se DETECTA
    midiendo — **nunca sobre una suposición**.
 3. **EL ATLAS: ONCE CAPAS EN 3 FAMILIAS + LAS DOS FINAS DEL CORREDOR** (`§ADR-079/081/086/087`).
-   5 del año (POWER) · 3 del SATÉLITE que se acumulan · **3 de PRONÓSTICO** · y aparte, en el mismo
-   mapa, **radiación y temperatura del corredor a 2 km**. ⏱️ La frescura la manda la FUENTE: MERRA-2
-   4 días, CERES 87, satélite ~15 min, pronóstico 10 días por DELANTE; las del corredor **no tienen
-   fecha: son un PROMEDIO de muchos años**. Tres relojes: 4 h POWER y pronóstico, 1 h satélite.
+   5 del año (POWER) · 3 del SATÉLITE que se acumulan · **3 de PRONÓSTICO** · y aparte **radiación y
+   temperatura del corredor a 2 km**. ⏱️ Manda la FUENTE: MERRA-2 4 días, CERES 87, satélite ~15
+   min, pronóstico 10 días por DELANTE; las del corredor **no tienen fecha: son PROMEDIO de muchos
+   años**. Tres relojes: 4 h POWER y pronóstico, 1 h satélite.
    ⚠️ **CADA CAPA DECLARA QUÉ ES y sin valor por defecto** — `medida` · `pronostico` · `promedio` —
    o no se publica ni se pinta (`§ADR-082/084/086/087`).
    ⚙️ **El vigía FUSIONA SOLO** (`§ADR-085`), con PORTERO. Queda a mano **publicar** (`TODO-89`).
@@ -85,9 +84,10 @@
 | **TODO-71** | **¿Se cierran las hipótesis con dato real?** El **viento** (`ADR-035`) y los **1.000 W/m²**. Los cuatro atlas (`ADR-055`) los ACERCAN y NO los cierran: un año de medias horarias no valida un extremo de diseño | De ahí salen los tiros y la capacidad |
 | **TODO-59** | **Qué ficha se le pide a CADA tipología.** La línea mezcla 4 y el molde es de POSTE (`40 §8.3`) | Son 3 o 4 formularios |
 | **TODO-33** | **50 % o 25 % de RTS** como tope de tiro. Ya no hay dos dueños (`§ADR-051`): falta decidir CUÁL rige | Factor 2 sobre un dictamen |
-| **TODO-98** 🔴 **MÍA** | **El recibo de la contraseña se auto-firma:** cualquiera lo escribe en su ficha desde la consola y **se salta el muro del cambio obligatorio**. Con ello: `ultimoAcceso` es auto-declarado, y `/limpieza-inicial` escribe en la bitácora al rechazar, sin freno. Crudo: `2026-09-06-espectador-solo-lectura/` | Un muro que se salta no es un muro |
+| **TODO-98** 🔴 **MÍA** | **El recibo de la contraseña se auto-firma:** se escribe en su propia ficha desde la consola y **se salta el muro del cambio obligatorio**. Con ello: `ultimoAcceso` auto-declarado y `/limpieza-inicial` sin freno al rechazar. Crudo: `2026-09-06-espectador-solo-lectura/` | Un muro que se salta no es un muro |
 | **TODO-95** 🔴 ⬅️ **SUYA, URGENTE** | **La FICHA del fabricante del conductor.** Trae de golpe ampacidad, temperatura de operación y módulo elástico (`§ADR-098/099`). **Sin ella la ampacidad se publica pero NO SE FIRMA**, y el 6.300 vs 7.000 del módulo sigue decidiendo un RETIE | 718 A hoy · **611 A** a los 75 °C que dan siete fichas |
-| **TODO-93** ⬅️ **SUYA** | **Ratificar la condición** de ampacidad (hoy ADOPTADA: 718 A) | Sin firma es referencia, no dictamen |
+| **TODO-93** ⬅️ **SUYA** | **Ratificar la condición** de ampacidad (hoy ADOPTADA: 718 A) | Sin firma es referencia |
+| **TODO-99** 🔴 **MÍA** | **El resumen diario solo resume el PORCENTAJE:** un día con 24 h de corriente y tensión sale «0 de 24 · sin medida» en el tablero (`§ADR-106/107`, ahora visible) | Miente sobre lo que resume |
 | **TODO-44/34** | Alerta de gasto en Cloudflare · **nada tiene copia**: la bóveda sin remoto **y Firestore sin punto de recuperación** (`§ADR-089`) | Un fallo de disco se lleva la bóveda; un comando, la base |
 | **TODO-61/54/68** | ¿App Check? · ¿linter de frescura? · ¿cazar un ADR repetido? Las dos últimas tocan el KERNEL | Las TRES son TUYAS |
 | **TODO-76** | **¿Se guarda si un apoyo es autosoportado / retenido?** No cabe en el modelo: iría por APOYO (26 declaraciones) | Cierra media incógnita de la capacidad longitudinal |
