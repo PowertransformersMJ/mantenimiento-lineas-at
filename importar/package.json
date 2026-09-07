@@ -12,7 +12,8 @@
     "./gpx": "./gpx.js",
     "./plan": "./plan.js",
     "./package.json": "./package.json",
-    "./xlsx": "./xlsx.js"
+    "./xlsx": "./xlsx.js",
+    "./csv": "./csv.js"
   },
   "dependencies": {
     "@lineas/contratos": "*",

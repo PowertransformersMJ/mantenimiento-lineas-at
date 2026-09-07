@@ -9067,3 +9067,75 @@ alta y en la reposición (`exigirCambio`, ausente = `true`).
   cuenta ya no importa —no hay muro que saltar—, pero en las que sí lo tengan, sigue.
 
 ---
+
+## ADR-105 · 2026-09-06 · El histórico se lee como SALE: CSV, fechas escritas, varios archivos y una red entera dentro
+
+**Deliberación:** medido con los tres archivos reales del Ingeniero (`fixtures/scada-tension-2026-01-01/`).
+**Estado:** ✅ en producción · **NO revisada externamente**.
+
+### Contexto
+
+`§ADR-088` enseñó a leer la exportación transpuesta de SCADA, y lo hizo con la regla correcta:
+*hacerle reescribir la exportación a una plantilla sería trabajo suyo para ahorrarme trabajo a mí —
+el archivo le va a seguir llegando así*. Llegó otro, y el «así» era más ancho de lo que se había visto:
+
+| Lo que traía | Qué pasaba |
+|---|---|
+| **CSV**, no `.xlsx` | El selector solo aceptaba `.xlsx`. El archivo no entraba por la puerta |
+| Fechas **escritas** (`1/01/26 0:00`), no el serial de Excel | Sin eje de tiempo no hay ni una señal. **Medido:** `encontrarEjeDeTiempo` devolvía `null` |
+| **Una magnitud por archivo** (tensión RS, ST y TR en tres) | Las tres son `tension_kV` del mismo día: cargarlas de una en una no las suma, la segunda pisa a la primera |
+| **La red entera**: 2.307 a 2.603 señales por archivo | Le importan **tres** |
+
+Y la cuarta trampa solo apareció al cargarlo de verdad, ya en producción: **como todas las filas
+dicen «U», el reconocedor las acierta TODAS**, así que la propuesta automática habría combinado la
+tensión de 7.302 puntos de media Colombia en un solo número por hora. Eso no da error: da una
+gráfica falsa con cara de buena, que es exactamente contra lo que avisa el propio módulo.
+
+### Decisión
+
+1. **`importar/csv.js`**, puro y sin dependencias, devuelve lo mismo que `leerXlsx`. El separador se
+   **mide** (`,` `;` tabulador `|`) porque un CSV en español trae `;`, y el decimal coma solo se
+   interpreta cuando la coma no es lo que separa columnas. Comillas de RFC 4180 de verdad: una
+   etiqueta con una coma dentro correría todas las columnas de su fila.
+2. **Sellos de tiempo en texto**, con el orden de la fecha decidido por la **evidencia del propio
+   archivo**: si alguna trae un día mayor que 12, queda demostrado; si ninguna lo desempata —y un
+   archivo de un solo día NUNCA lo hace— se lee día/mes, **y se dice que es una suposición**. El año
+   delante exige sus cuatro cifras: lo cazó su propia prueba, porque `31/02/26` colaba como 2031.
+3. **`unirAnchas`**: varios archivos, una sola carga, exigiendo que los instantes sean **exactamente
+   los mismos**. Alinear dos rejillas distintas es interpolar, y una tensión interpolada es una
+   medida que nadie tomó. Si no cuadran se dice cuál y en qué instante, y no se une nada.
+4. **Por encima de 12 señales, ninguna se usa hasta que él la elija.** El umbral no es un gusto: una
+   bahía exporta un puñado —tres corrientes, tres tensiones, P, Q—; miles significa que el archivo
+   es del sistema entero. Con un buscador y un «usar las N que casan», elegir tres entre 7.302 es un
+   gesto. Y el tope de lo que se pinta **se anuncia**: un tope callado se lee como «esto es todo».
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| Convertirle los CSV a `.xlsx` yo, una vez | Resuelve hoy y no mañana: el archivo le seguirá llegando así, y la conversión a mano es justo el trabajo que este sistema existe para quitarle |
+| Filtrar las señales por el nombre de la línea | El archivo **no nombra la línea**: nombra subestación y bahía. Adivinar la correspondencia es la clase de suposición que aquí produce dictámenes falsos |
+| Dejar la propuesta automática y avisar | Un aviso junto a una gráfica ya pintada llega tarde: para cuando se lee, la cifra ya formó la conclusión |
+| Cargar de uno en uno y sumar al guardar | Las tres son la misma magnitud: se pisan igual. Y el criterio de fase necesita las tres a la vez |
+
+### Supuestos que deben ser ciertos — y la señal que diría que dejaron de serlo
+
+| Supuesto | Señal |
+|---|---|
+| El sistema de supervisión sigue exportando una fila por señal y una columna por hora | Un archivo donde `pareceAncho` diga que es una tabla |
+| El orden día/mes es el correcto en los archivos de un solo día | Una carga cuya fecha no cuadre con el nombre del archivo. La pantalla trae de dónde salió |
+| 12 señales siguen distinguiendo «una bahía» de «el sistema entero» | Un archivo legítimo de una sola línea con más de 12 señales, que obligaría a elegirlas a mano sin motivo |
+| Las tres tensiones de línea se resumen con «la fase más cargada» | Es criterio de ingeniería y es SUYO: el desplegable de criterio sigue ahí para cambiarlo |
+
+### Consecuencias
+
+- Los tres archivos del 2026-01-01 se leen juntos en producción: **24 registros**, tensión de
+  **68,6 a 69,8 kV** sobre 66 nominal con el criterio de la fase más cargada.
+- ⚠️ **Son TENSIONES, y la cargabilidad se mide con CORRIENTE.** La pantalla lo dice sola —«sin
+  medida» en cada hora— porque `cargabilidad_pct` y `corriente_A` no vienen en estos archivos. Para
+  el veredicto contra la ampacidad hace falta el export de corrientes (`I R/I S/I T`), que es otro
+  archivo. Esto no es un hueco de esta carga: es lo que esta carga NO es, dicho.
+- El dato real vive en la bóveda (`fixtures/scada-tension-2026-01-01/`), nunca en el repositorio.
+- `2.562` pruebas, con el peligro de la red entera documentado en una que lo REPRODUCE.
+
+---

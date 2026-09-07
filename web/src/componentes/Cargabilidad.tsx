@@ -35,6 +35,7 @@
 // ============================================================================
 import { useMemo, useRef, useState } from 'react';
 import { filasDesde, leerXlsx } from '@lineas/importar/xlsx';
+import { leerCsv } from '@lineas/importar/csv';
 import {
   atipicos, bandaDe, BANDAS, CAMPOS, camposAusentes, detectarMapeo, elegirHoja,
   encontrarCabecera, histograma, mapaDeCalor, porLinea, porLineaDesdeResumenes, procesarLote,
@@ -46,7 +47,8 @@ import {
   tramosDeLinea, x, y, type Direccion,
 } from '../vistas/cargabilidadVista';
 import {
-  cerosAlFinal, CRITERIOS_DE_FASE, pareceAncho, registrosDesdeAncho,
+  cerosAlFinal, CRITERIOS_DE_FASE, encontrarEjeDeTiempo, leerSenales, pareceAncho,
+  registrosDesdeAncho, unirAnchas,
 } from '@lineas/nucleo/cargabilidadAncho';
 import { empaquetarPorDia, resumirDia } from '@lineas/nucleo/cargabilidad';
 import { guardarCarga, huellaDe, resumenesEntre, type Acuse } from '../datos/cargabilidadRepo';
@@ -142,22 +144,45 @@ export default function Cargabilidad({
   const [bytes, setBytes] = useState<ArrayBuffer | null>(null);
 
   // ── Leer el archivo ───────────────────────────────────────────────────────
-  const alElegir = async (archivo: File | null) => {
-    if (!archivo) return;
+  const alElegir = async (elegidos: File[]) => {
+    if (!elegidos.length) return;
     setFallo(null); setLeyendo(true);
     try {
-      const datos = await archivo.arrayBuffer();
-      setBytes(datos);
+      // ⚠️ DOS FORMATOS Y VARIOS ARCHIVOS, y las dos cosas por el mismo motivo
+      // (`99 §ADR-105`): así es como el sistema de supervisión exporta. El
+      // histórico sale en CSV, y sale **una magnitud por archivo** — la tensión
+      // RS en uno, la ST en otro, la TR en un tercero. Cargarlos de uno en uno
+      // NO los suma: los tres son la misma magnitud del mismo día, así que el
+      // segundo pisaría al primero. Se leen juntos o no se leen.
+      const leidos: { nombre: string; datos: ArrayBuffer; matriz: Celda[][]; hoja: string }[] = [];
+      for (const f of elegidos) {
+        const datos = await f.arrayBuffer();
+        const esCsv = /\.csv$/i.test(f.name);
+        const { hojas } = esCsv ? await leerCsv(datos, { nombre: f.name }) : await leerXlsx(datos);
+        if (!hojas.length) throw new Error(`«${f.name}» no trae ninguna hoja`);
+        const cual = esCsv ? 0 : elegirHoja(hojas)!.indice;
+        leidos.push({ nombre: f.name, datos, matriz: hojas[cual].matriz, hoja: hojas[cual].nombre });
+      }
+      // La huella cubre TODO lo que entró, en el orden en que entró: con varios
+      // archivos, la de uno solo sería una procedencia que miente por omisión.
+      const total = leidos.reduce((n, x) => n + x.datos.byteLength, 0);
+      const juntos = new Uint8Array(total);
+      let off = 0;
+      for (const x of leidos) { juntos.set(new Uint8Array(x.datos), off); off += x.datos.byteLength; }
+      setBytes(juntos.buffer);
       setAcuse(null); setFalloGuardar(null);
-      const { hojas } = await leerXlsx(datos);
-      if (!hojas.length) throw new Error('el archivo no trae ninguna hoja');
+
+      const varios = leidos.length > 1;
+      const union = varios ? unirAnchas(leidos.map((x) => ({ nombre: x.nombre, matriz: x.matriz }))) : null;
+      const hojas = [{ nombre: varios ? `${leidos.length} archivos` : leidos[0].hoja,
+        matriz: union ? union.matriz : leidos[0].matriz }];
+      const archivo = { name: varios ? leidos.map((x) => x.nombre).join(' + ') : leidos[0].nombre };
 
       // ⚠️ NI LA PRIMERA HOJA NI LA MÁS GRANDE: la que MÁS CAMPOS RECONOCE
       // (`§ADR-088`). Un libro de operación suele traer portada y notas; abrir
       // por la primera enseña la portada, y abrir por la mayor puede enseñar un
       // registro que no es éste.
-      const elegida = elegirHoja(hojas)!;
-      const hoja = hojas[elegida.indice];
+      const hoja = hojas[0];
       // ⚠️ Y LA CABECERA CASI NUNCA ES LA FILA 1. Con el primer archivo real del
       // Ingeniero, suponerlo dio UNA columna sin nombre y cero campos: su hoja
       // empieza por un título. Se busca la fila que más campos reconoce.
@@ -172,12 +197,32 @@ export default function Cargabilidad({
       const { cabeceras, filas } = filasDesde(hoja.matriz, fila);
       if (!forma.ancho && !filas.length) throw new Error('el archivo no trae ninguna fila con datos');
 
-      setAsignado({});
+      // ⚠️ UN EXPORT DE LA RED ENTERA NO SE ASIGNA SOLO (`99 §ADR-105`).
+      // Estos archivos no traen las señales de UNA línea: traen las de TODAS —
+      // 7.302 entre los tres del 2026-01-01, y de ésas al Ingeniero le importan
+      // tres—. Y como todas dicen «U», el reconocedor las acierta TODAS, así que
+      // la propuesta automática combinaría la tensión de media Colombia en un
+      // solo número por hora. Eso no da error: da una gráfica falsa con cara de
+      // buena, que es justo contra lo que avisa `nucleo/cargabilidadAncho.js`.
+      //
+      // Por encima del umbral se dejan TODAS en «no usar» y se dice por qué. El
+      // umbral no es un gusto: una bahía exporta un puñado de señales —tres
+      // corrientes, tres tensiones, P, Q y poco más—; cientos significa que el
+      // archivo es del sistema entero y hay que elegir.
+      const senalesDelArchivo = forma.ancho
+        ? leerSenales(hoja.matriz, encontrarEjeDeTiempo(hoja.matriz)).length
+        : 0;
+      setAsignado(senalesDelArchivo > TOPE_AUTOASIGNAR
+        ? Object.fromEntries(leerSenales(hoja.matriz, encontrarEjeDeTiempo(hoja.matriz))
+          .map((x) => [x.fila, null]))
+        : {});
       setLinea(lineaAbierta ?? '');
       setCargado({
         nombre: archivo.name, cuando: new Date(), hoja: hoja.nombre,
         matriz: hoja.matriz, filaCabecera: fila,
-        porQue: forma.ancho ? forma.porQue : cab.porQue,
+        porQue: union
+          ? `${union.porQue} — ${union.deCada.map((d) => `${d.nombre}: ${d.senales}`).join(' · ')}`
+          : (forma.ancho ? forma.porQue : cab.porQue),
         ancho: forma.ancho, cabeceras, filas,
       });
       if (!forma.ancho) setMapeo(detectarMapeo(cabeceras).mapeo);
@@ -391,8 +436,8 @@ export default function Cargabilidad({
         {cargado && (
           <button type="button" className="boton chico" onClick={descartar}>Descartar esta carga</button>
         )}
-        <input ref={entrada} type="file" accept=".xlsx" hidden
-          onChange={(e) => void alElegir(e.target.files?.[0] ?? null)} />
+        <input ref={entrada} type="file" accept=".xlsx,.csv" multiple hidden
+          onChange={(e) => void alElegir([...(e.target.files ?? [])])} />
       </div>
 
       {fallo && <p className="advertencia alerta"><b>No se pudo leer el archivo:</b> {fallo}</p>}
@@ -919,6 +964,12 @@ function PorLineaDelHistorico({ resumenes }: { resumenes: ResumenDiario[] }) {
 // Aquí se piden las TRES cosas que el archivo no dice y el sistema no puede
 // deducir sin arriesgarse: de qué línea es, qué señal es qué magnitud, y con qué
 // criterio se juntan las tres fases. Ninguna viene decidida de fábrica.
+/**
+ * Cuántas señales caben en «esto es la bahía de una línea» antes de que el
+ * archivo sea, evidentemente, un volcado del sistema completo.
+ */
+const TOPE_AUTOASIGNAR = 12;
+
 function SenalesDelScada({
   cargado, ancho, linea, alCambiarLinea, lineaAbierta, criterioFase, alCambiarCriterio,
   asignado, alAsignar,
@@ -933,6 +984,26 @@ function SenalesDelScada({
   const senales = ancho?.senales ?? [];
   const ceros = ancho ? cerosAlFinal(ancho.senales, ancho.eje) : null;
   const fases = senales.filter((s) => s.campo === 'corriente_A' && s.fase).length;
+
+  /**
+   * ⚠️ BUSCAR ENTRE LAS SEÑALES, y no es cosmética (`99 §ADR-105`). Una
+   * exportación real del sistema de supervisión no trae tres filas: trae **toda
+   * la red**. Los archivos del 2026-01-01 traen 7.302 señales entre los tres, y
+   * de esas al Ingeniero le importan TRES. Pintarlas todas cuelga la pantalla y,
+   * peor, esconde las suyas en un pajar.
+   *
+   * Se filtra por texto sobre la etiqueta —la subestación, la bahía, la
+   * magnitud— y se DICE cuántas quedan fuera. Un tope que no se anuncia se lee
+   * como «esto es todo lo que hay», que es justo la mentira que no se quiere.
+   */
+  const [busca, setBusca] = useState('');
+  const TOPE_SENALES = 60;
+  const q = busca.trim().toLowerCase();
+  const casan = q
+    ? senales.filter((s) => s.etiqueta.toLowerCase().includes(q))
+    : senales;
+  const visibles = casan.slice(0, TOPE_SENALES);
+  const usadas = senales.filter((s) => s.campo).length;
 
   return (
     <div className="tarjeta">
@@ -964,11 +1035,43 @@ function SenalesDelScada({
 
       {/* ── 2 · QUÉ SEÑAL ES QUÉ ────────────────────────────────────────── */}
       <p className="mapa-capas-t">Qué señal es qué</p>
+      <label className="calc-campo">
+        <span>Buscar la señal</span>
+        <input type="search" value={busca} onChange={(e) => setBusca(e.target.value)}
+          placeholder="subestación, bahía o magnitud" />
+      </label>
+      {q && casan.length > 0 && (
+        <div className="acciones">
+          <button type="button" className="boton chico"
+            onClick={() => alAsignar({
+              ...asignado,
+              ...Object.fromEntries(casan.map((s) => [s.fila, s.propuesta?.campo ?? null])),
+            })}>
+            Usar las {nf(casan.length)} que casan
+          </button>
+          {usadas > 0 && (
+            <button type="button" className="boton chico"
+              onClick={() => alAsignar(Object.fromEntries(senales.map((s) => [s.fila, null])))}>
+              Quitar todas
+            </button>
+          )}
+        </div>
+      )}
+      <p className="fine">
+        {nf(senales.length)} señal(es) en el archivo · <b>{nf(usadas)}</b> en uso
+        {q ? <> · {nf(casan.length)} casan con «{busca.trim()}»</> : null}
+        {casan.length > TOPE_SENALES
+          ? <> · <b>se enseñan {TOPE_SENALES}</b>, afine la búsqueda para ver el resto</>
+          : null}
+        . Una exportación de la red entera trae miles y <b>todas</b> se reconocen: por eso, por
+        encima de {TOPE_AUTOASIGNAR}, ninguna se usa hasta que usted la elija. Combinarlas todas
+        no daría error — daría la tensión de media Colombia en un solo número.
+      </p>
       <div className="tabla-scroll">
         <table className="tabla">
           <thead><tr><th>Señal del archivo</th><th>Se leyó como</th><th>Primeros valores</th></tr></thead>
           <tbody>
-            {senales.map((s) => (
+            {visibles.map((s) => (
               <tr key={s.fila}>
                 <td>{s.etiqueta}</td>
                 <td>

@@ -42,10 +42,111 @@
 export const SERIAL_MINIMO = 20000;   // 1954-10-03
 export const SERIAL_MAXIMO = 60000;   // 2064-04-23
 
+/**
+ * UN SELLO DE TIEMPO EN TEXTO: «1/01/26 0:00», «01/01/2026 00:00:00», «2026-01-01 05:00».
+ *
+ * ⚠️ POR QUÉ HACE FALTA (`99 §ADR-105`). El serial numérico es cosa de Excel.
+ * Cuando el mismo histórico sale en CSV —y sale, es lo que exporta el sistema de
+ * supervisión— la primera fila trae FECHAS ESCRITAS. Sin esto, el eje de tiempo
+ * no se encuentra, y sin eje no hay ni una sola señal: el archivo real no
+ * entraba por la puerta aunque el resto del módulo lo entendiera entero.
+ */
+const RE_SELLO_TEXTO = /^\s*(\d{1,4})[/\-.](\d{1,2})[/\-.](\d{1,4})(?:[ T]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?\s*(?:[ap]\.?\s?m\.?)?\s*$/i;
+
+/** Las tres cifras de la fecha, sin decidir todavía cuál es el día. */
+function trozosDeSelloTexto(v) {
+  if (typeof v === 'number') return null;
+  const m = RE_SELLO_TEXTO.exec(String(v ?? ''));
+  if (!m) return null;
+  const [, a, b, c, hh, mm] = m;
+  const hora = hh == null ? 0 : Number(hh);
+  if (!Number.isFinite(hora) || hora > 23) return null;
+  // ⚠️ `añoDelante` mira las CIFRAS ESCRITAS, no el valor. Lo cazó su propia
+  // prueba: «31/02/26» no es una fecha por ningún lado, pero leído como año
+  // corto daba 2031-02-26 y colaba. Un año que va delante se escribe entero.
+  return {
+    a: Number(a), b: Number(b), c: Number(c), hora, minuto: mm == null ? 0 : Number(mm),
+    añoDelante: a.length === 4,
+  };
+}
+
+/**
+ * ¿DÍA/MES O MES/DÍA? Se decide con la EVIDENCIA del propio archivo.
+ *
+ * `3/01/26` es ambiguo y `13/01/26` no lo es. Así que se mira el conjunto: si
+ * alguna primera cifra pasa de 12, el día va delante; si alguna segunda pasa de
+ * 12, delante va el mes. Cuando NADA lo desempata se toma el orden de aquí
+ * —día primero, que es como se escribe en Colombia— y se dice que es una
+ * suposición, en vez de presentarla como un hecho: un archivo de un solo día
+ * nunca trae la prueba, y con `1/01/26` las dos lecturas caen en la misma fecha.
+ *
+ * Un año delante (`2026-01-01`) no es ambiguo y manda sobre todo lo demás.
+ */
+export function ordenDeFecha(valores) {
+  const trozos = (valores ?? []).map(trozosDeSelloTexto).filter(Boolean);
+  if (!trozos.length) return { orden: 'dmy', seguro: false, porQue: 'no hay fechas escritas que mirar' };
+  if (trozos.some((t) => t.añoDelante)) {
+    return { orden: 'ymd', seguro: true, porQue: 'el año va delante, escrito con sus cuatro cifras' };
+  }
+  if (trozos.some((t) => t.a > 12)) {
+    return { orden: 'dmy', seguro: true, porQue: 'una fecha trae un día mayor que 12 en la primera posición' };
+  }
+  if (trozos.some((t) => t.b > 12)) {
+    return { orden: 'mdy', seguro: true, porQue: 'una fecha trae un día mayor que 12 en la segunda posición' };
+  }
+  return {
+    orden: 'dmy',
+    seguro: false,
+    porQue: 'ninguna fecha del archivo lo desempata: se lee día/mes, que es como se escribe aquí',
+  };
+}
+
+/** El sello escrito → `{fecha, hora}`, con el orden ya decidido. */
+export function instanteDeTexto(v, orden = 'dmy') {
+  const t = trozosDeSelloTexto(v);
+  if (!t) return null;
+  let dia; let mes; let anio;
+  if (orden === 'ymd') {
+    if (!t.añoDelante) return null;   // «31/02/26» no es el año 2031
+    anio = t.a; mes = t.b; dia = t.c;
+  }
+  else if (orden === 'mdy') { mes = t.a; dia = t.b; anio = t.c; }
+  else { dia = t.a; mes = t.b; anio = t.c; }
+  // Dos cifras: el sistema exporta el año corto. 70-99 es el siglo XX; el resto,
+  // el XXI. Es la misma ventana que usan las hojas de cálculo.
+  if (anio < 100) anio += anio >= 70 ? 1900 : 2000;
+  if (mes < 1 || mes > 12 || dia < 1 || dia > 31) return null;
+  const fecha = `${String(anio).padStart(4, '0')}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+  // Se comprueba que la fecha EXISTA: «31/02» pasaría los rangos y no es un día.
+  const d = new Date(`${fecha}T00:00:00Z`);
+  if (Number.isNaN(d.getTime()) || d.getUTCDate() !== dia || d.getUTCMonth() + 1 !== mes) return null;
+  return { fecha, hora: Math.min(23, t.hora) };
+}
+
 export function pareceSelloDeTiempo(v) {
   if (v instanceof Date) return !Number.isNaN(v.getTime());
+  if (typeof v !== 'number' && trozosDeSelloTexto(v)) return instanteDeTexto(v, 'dmy') !== null
+    || instanteDeTexto(v, 'mdy') !== null || instanteDeTexto(v, 'ymd') !== null;
   const n = typeof v === 'number' ? v : Number(String(v ?? '').replace(',', '.'));
   return Number.isFinite(n) && n >= SERIAL_MINIMO && n <= SERIAL_MAXIMO;
+}
+
+/**
+ * EL SELLO, sea serial o escrito → `{fecha, hora}`.
+ *
+ * Es el único sitio donde se elige camino: todo lo demás del módulo trabaja ya
+ * con instantes, así que añadir un formato no vuelve a tocar nada.
+ */
+export function instanteDeSello(v, orden = 'dmy') {
+  if (typeof v !== 'number' && trozosDeSelloTexto(v)) return instanteDeTexto(v, orden);
+  return instanteDeSerial(v);
+}
+
+/** Un número con el que ORDENAR sellos de cualquier forma, para ver si crecen. */
+function ordinalDeSello(v, orden = 'dmy') {
+  const i = instanteDeSello(v, orden);
+  if (!i) return null;
+  return Date.parse(`${i.fecha}T00:00:00Z`) / 3600000 + i.hora;
 }
 
 /** El serial de Excel → `{fecha, hora}` de Colombia. Ver `aFecha` del hermano. */
@@ -76,7 +177,11 @@ export function encontrarEjeDeTiempo(matriz, { minimo = 3, mirar = 30 } = {}) {
     (celdas ?? []).forEach((v, c) => { if (pareceSelloDeTiempo(v)) columnas.push(c); });
     if (columnas.length < minimo) return;
 
-    const valores = columnas.map((c) => Number(celdas[c]));
+    // ⚠️ EL ORDEN DE LA FECHA SE DECIDE POR FILA, no por archivo: es esta fila la
+    // que trae los sellos, y su propia evidencia es la que manda.
+    const cual = ordenDeFecha(columnas.map((c) => celdas[c]));
+    const valores = columnas.map((c) => ordinalDeSello(celdas[c], cual.orden));
+    if (valores.some((v) => v == null)) return;
     const crece = valores.every((v, i) => i === 0 || v > valores[i - 1]);
     if (!crece) return;
 
@@ -84,9 +189,11 @@ export function encontrarEjeDeTiempo(matriz, { minimo = 3, mirar = 30 } = {}) {
       mejor = {
         fila,
         columnas,
-        instantes: columnas.map((c) => instanteDeSerial(celdas[c])),
+        instantes: columnas.map((c) => instanteDeSello(celdas[c], cual.orden)),
         /** Dónde empiezan los datos: todo lo de antes es etiqueta de la señal. */
         primeraColumna: columnas[0],
+        /** Cómo se leyó la fecha y si el archivo lo demostraba. Se ENSEÑA. */
+        ordenDeFecha: cual,
       };
     }
   });
@@ -243,6 +350,72 @@ export function registrosDesdeAncho(matriz, opciones = {}) {
     senales,
     porQue: `eje de tiempo en la fila ${eje.fila + 1}, ${eje.columnas.length} instantes; `
       + `${senales.length} señal(es) debajo`,
+  };
+}
+
+/**
+ * VARIOS ARCHIVOS, UNA SOLA CARGA (`99 §ADR-105`).
+ *
+ * ⚠️ POR QUÉ HACE FALTA, y no es comodidad. El sistema de supervisión exporta
+ * **una magnitud por archivo**: la tensión RS en uno, la ST en otro, la TR en un
+ * tercero. Cargarlos de uno en uno NO los suma: los tres son `tension_kV` del
+ * mismo día y la misma línea, así que el segundo pisa al primero y el tercero a
+ * los dos. Quien quiera «la tensión más alta de las tres fases» —que es el
+ * criterio de ingeniería que ya sabe aplicar `combinar`— necesita que las tres
+ * señales estén EN LA MISMA lectura. De ahí esto.
+ *
+ * QUÉ EXIGE, y por qué es estricto: que todos los archivos tengan eje de tiempo
+ * y que sus instantes sean **exactamente los mismos**. Alinear dos rejillas de
+ * tiempo distintas es interpolar, y una tensión interpolada es una medida que
+ * nadie tomó. Si no cuadran se dice cuál y en qué instante, y no se une nada.
+ *
+ * La matriz que sale está NORMALIZADA: fila 0 el eje, y una fila por señal con
+ * la etiqueta en una sola celda —la misma que `leerSenales` habría compuesto—,
+ * así que río abajo no cambia nada.
+ *
+ * @param {{nombre?: string, matriz: any[][]}[]} entradas
+ * @returns {{matriz: any[][], porQue: string, deCada: {nombre: string, senales: number}[]}}
+ */
+export function unirAnchas(entradas) {
+  const lista = (entradas ?? []).filter((e) => e && Array.isArray(e.matriz));
+  if (!lista.length) throw new Error('no se recibió ningún archivo que unir');
+
+  const leidas = lista.map((e, i) => {
+    const nombre = e.nombre ?? `archivo ${i + 1}`;
+    const eje = encontrarEjeDeTiempo(e.matriz);
+    if (!eje) throw new Error(`«${nombre}» no trae una fila de sellos de tiempo: no se puede unir con los demás`);
+    return { nombre, matriz: e.matriz, eje, senales: leerSenales(e.matriz, eje) };
+  });
+
+  const [base, ...resto] = leidas;
+  const clave = (inst) => (inst ? `${inst.fecha} ${inst.hora}` : '—');
+  const esperado = base.eje.instantes.map(clave);
+  for (const otra of resto) {
+    const suyo = otra.eje.instantes.map(clave);
+    if (suyo.length !== esperado.length) {
+      throw new Error(`«${otra.nombre}» trae ${suyo.length} instantes y «${base.nombre}» ${esperado.length}: `
+        + 'no son el mismo periodo y no se unen');
+    }
+    const i = suyo.findIndex((v, k) => v !== esperado[k]);
+    if (i >= 0) {
+      throw new Error(`«${otra.nombre}» y «${base.nombre}» no coinciden en el instante ${i + 1}: `
+        + `${suyo[i]} frente a ${esperado[i]}. Alinear dos rejillas distintas sería interpolar`);
+    }
+  }
+
+  const filaEje = ['', ...base.eje.columnas.map((c) => base.matriz[base.eje.fila][c])];
+  const matriz = [filaEje];
+  for (const { senales } of leidas) {
+    for (const s of senales) matriz.push([s.etiqueta, ...s.valores]);
+  }
+  const deCada = leidas.map(({ nombre, senales }) => ({ nombre, senales: senales.length }));
+  return {
+    matriz,
+    deCada,
+    porQue: leidas.length === 1
+      ? `${base.senales.length} señal(es) de «${base.nombre}»`
+      : `${matriz.length - 1} señales de ${leidas.length} archivos, sobre los mismos `
+        + `${esperado.length} instantes`,
   };
 }
 
