@@ -8792,7 +8792,7 @@ Se revisan en el **repaso trimestral** (el primero, con la rotación de la clave
 | Supuesto | Señal · cómo se mira |
 |---|---|
 | «Enable create» sigue apagado en la consola | `curl -s -X POST "https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=<clave web>" -d '{}'` devuelve algo distinto de `ADMIN_ONLY_OPERATION` |
-| `accounts:signUp` con cuenta de servicio funciona con el registro cerrado | **NO VERIFICADO aún en este proyecto**: ninguna alta desde Personas después del corte. Se cierra con la primera alta real (la prueba de humo de `README §9 paso 3` no lo cubrió) |
+| `accounts:signUp` con cuenta de servicio funciona con el registro cerrado | ✅ **VERIFICADO el 2026-09-06**: prueba de humo con la cuenta de servicio (crear + borrar una cuenta desechable) → creada sin error con «Enable create» apagado. El interruptor de consola frena la clave WEB, no la credencial administrativa. Señal de que caducó: un alta desde Personas que devuelva `ADMIN_ONLY_OPERATION` |
 | El uid del propietario es el configurado | `GET /estado` → `configurado:true, arrancado:true` |
 | Nadie borra `config/arranque` desde el navegador | la prueba del emulador «un admin NO escribe ni borra config/arranque» en rojo |
 | 50 subpeticiones alcanzan para lotes de 8 | un lote responde 500 a mitad → bajar `LOTE_LIMPIEZA` ([límites de Workers](https://developers.cloudflare.com/workers/platform/limits/)) |
@@ -8806,8 +8806,9 @@ Se revisan en el **repaso trimestral** (el primero, con la rotación de la clave
 
 - **Hoy en Firebase Auth hay UNA cuenta**: el propietario, con contraseña. Google no existe como
   proveedor. Las demás se crean desde Personas, con enlace o contraseña, y quedan en bitácora.
-- Cifras: al cerrar la construcción (06-09) 2.468 pruebas · emulador 47/47; tras el corte (07-09)
-  **2.521 · 54/54** · contrato 0.15.0 · motor 0.13.0 · `usuarios/` 200 KiB · `evidencias/` 10 KiB.
+- Cifras **del momento del corte**, que es lo que fija este ADR: al cerrar la construcción 2.468
+  pruebas · emulador 47/47; al cerrar el corte **2.521 · 54/54**. La cifra VIVA no se copia aquí —
+  vive en `docs/05` (`30 · M-01`) · contrato 0.15.0 · motor 0.13.0.
 - `CLAUDE.md §1` («UN Worker y solo uno») y `§ADR-019 §5` («nunca se borran»): enmendados en
   `§ADR-101`. `TODO-50 2b` cerrado en código y en consola. La fila `CLAVE` de `docs/10` (regenerar la
   llave maestra para la CLI) murió con la CLI: la llave que hace falta es la de la cuenta dedicada.

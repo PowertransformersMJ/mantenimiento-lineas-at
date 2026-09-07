@@ -27,7 +27,7 @@ import { fileURLToPath } from 'node:url';
 
 import { initializeTestEnvironment, assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
 import {
-  doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, serverTimestamp,
+  doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, where, getDocs, serverTimestamp,
 } from 'firebase/firestore';
 
 import { reclamosDe } from '../../contratos/src/usuarios.ts';
@@ -616,5 +616,88 @@ describe('los cerrojos de config/ solo los escribe el servidor', () => {
     await assertFails(getDoc(doc(db, 'config', 'operativa')));
     await assertFails(getDoc(doc(db, 'config', 'arranque')));
     await assertFails(updateDoc(doc(db, 'config', 'operativa'), { valor: 3 }));
+  });
+});
+
+// ============================================================================
+// EL ESPECTADOR — el barrido, porque «no escribe nada» hay que PROBARLO ENTERO
+// ----------------------------------------------------------------------------
+// Ya existía «el auditor lo lee todo y no escribe nada», y probaba DOS
+// escrituras: un apoyo y una evidencia. Para prometerle al Ingeniero que una
+// persona «no puede modificar absolutamente nada», dos no bastan: basta con que
+// una sola de las veintidós colecciones tenga una regla más floja para que la
+// promesa sea falsa, y ninguna lectura de texto lo garantiza.
+//
+// Esto barre TODAS las colecciones que gobiernan las reglas, con el token de
+// solo lectura, e intenta CREAR y BORRAR en cada una. Y se protege del olvido:
+// la primera prueba compara la lista con `firestore.rules`, así que una
+// colección nueva sin cubrir pone la prueba en rojo en vez de pasar en silencio.
+// ============================================================================
+describe('EL ESPECTADOR: un token de solo lectura no escribe en NINGUNA colección', () => {
+  const COLECCIONES = [
+    'lineas', 'apoyos', 'hipotesis', 'inspecciones', 'evidencias', 'investigaciones',
+    'analisis', 'acciones_capa', 'sondeos_clima', 'hallazgos', 'calculos', 'solicitudes_ia',
+    'sugerencias', 'llamadas_ia', 'config', 'usuarios', 'auditoria_accesos',
+    'cargabilidad_dias', 'cargabilidad_resumenes', 'cargabilidad_cargas',
+  ];
+
+  test('el barrido cubre TODAS las colecciones de firestore.rules (si no, esta prueba se cae)', () => {
+    const reglas = readFileSync(join(RAIZ, 'firestore.rules'), 'utf8');
+    // `databases` es el envoltorio `match /databases/{database}/documents`, no una
+    // colección: se descuenta a mano y se dice, para que nadie lo confunda con una
+    // exclusión de conveniencia.
+    const enReglas = [...new Set([...reglas.matchAll(/^\s*match \/([a-z_]+)\/\{/gm)].map((m) => m[1]))]
+      .filter((c) => c !== 'databases');
+    const sinCubrir = enReglas.filter((c) => !COLECCIONES.includes(c));
+    assert.deepEqual(sinCubrir, [],
+      `colecciones con reglas que este barrido NO prueba: ${sinCubrir.join(', ')}`);
+    assert.ok(enReglas.length >= 20, 'se leyeron menos match de los que hay: revisar el patrón');
+  });
+
+  test('CREAR falla en todas, con alcance total y todo', async () => {
+    const db = como('espectador-1', claims('auditor'));
+    for (const c of COLECCIONES) {
+      await assertFails(setDoc(doc(db, c, 'intento-del-espectador'), {
+        orgId: ORG, lineaId: LN, id: 'intento-del-espectador', valor: 1,
+      }));
+    }
+  });
+
+  test('BORRAR falla en todas', async () => {
+    const db = como('espectador-1', claims('auditor'));
+    for (const c of COLECCIONES) await assertFails(deleteDoc(doc(db, c, 'intento-del-espectador')));
+    // Y sobre lo que SÍ existe, que es donde de verdad dolería:
+    await assertFails(deleteDoc(doc(db, 'lineas', LN)));
+    await assertFails(deleteDoc(doc(db, 'apoyos', 'apoyo-1')));
+    await assertFails(deleteDoc(doc(db, 'evidencias', 'evidencia-1')));
+    await assertFails(deleteDoc(doc(db, 'auditoria_accesos', 'entrada-1')));
+    await assertFails(deleteDoc(doc(db, 'cargabilidad_dias', 'dia-1')));
+  });
+
+  test('EDITAR lo que existe falla, incluida la ficha de otra persona', async () => {
+    const db = como('espectador-1', claims('auditor'));
+    await assertFails(updateDoc(doc(db, 'lineas', LN), { nombre: 'renombrada por el espectador' }));
+    await assertFails(updateDoc(doc(db, 'apoyos', 'apoyo-1'), { alturaTotal_m: 99 }));
+    await assertFails(updateDoc(doc(db, 'evidencias', 'evidencia-1'), { subida: 'lista' }));
+    await assertFails(updateDoc(doc(db, 'cargabilidad_dias', 'dia-1'), { pico_A: 1 }));
+    await assertFails(updateDoc(doc(db, 'usuarios', 'otra-persona'), { rol: 'admin' }));
+    await assertFails(updateDoc(doc(db, 'auditoria_accesos', 'entrada-1'), { accion: 'borrada' }));
+  });
+
+  test('⚠️ LA ÚNICA EXCEPCIÓN, y se declara en vez de esconderse: el recibo de su propia entrada', async () => {
+    // El espectador escribe UNA cosa en todo el sistema: la marca de hora de su
+    // propio acceso, en su propia ficha. No es contenido — es lo que permite que
+    // la bitácora diga quién entró y cuándo. Que sea la única se prueba aquí:
+    // cualquier otro campo, en su propia ficha, se cae.
+    const db = como('espectador-1', claims('auditor'));
+    await assertSucceeds(setDoc(doc(db, 'usuarios', 'espectador-1'),
+      { ultimoAcceso: serverTimestamp() }, { merge: true }));
+    await assertFails(setDoc(doc(db, 'usuarios', 'espectador-1'),
+      { rol: 'admin' }, { merge: true }));
+    await assertFails(setDoc(doc(db, 'usuarios', 'espectador-1'),
+      { lineas: ['*'] }, { merge: true }));
+    await assertFails(setDoc(doc(db, 'usuarios', 'espectador-1'),
+      { nombre: 'me cambio el nombre' }, { merge: true }));
+    await assertFails(deleteDoc(doc(db, 'usuarios', 'espectador-1')));
   });
 });
