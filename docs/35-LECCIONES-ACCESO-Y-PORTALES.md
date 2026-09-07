@@ -75,45 +75,6 @@
 - ⚠️ **Volvió a pasar el 04-08-2026** con la colección `analisis`, y se escribió otra lección sin ver
   ésta. La recaída está anotada en `L-36`, aquí mismo, y la regla para no repetirla en `30 · L-39`.
 
-### L-64 · Para una hipótesis INSTANTÁNEA no sirve una serie de MEDIAS HORARIAS
-Verificado el 2026-08-21 llamando a cada fuente, no de memoria.
-
-- **La pregunta:** ¿se pueden tomar de IDEAM o NASA POWER los datos de radiación solar para cerrar
-  los **1.000 W/m² adoptados** de la ampacidad (`TODO-71`)?
-- **Lo que hay, comprobado:**
-
-  | Fuente | Existe | Resolución | Paso |
-  |---|---|---|---|
-  | **IDEAM** (portal abierto) | ❌ **ninguna serie de radiación**; el catálogo no tiene esa categoría | — | — |
-  | **Cardique** (autoridad de Bolívar) | ✅ GHI **medida** + viento, en la zona | estación | **741 filas: solo enero de 2022** |
-  | **NASA POWER** horario | ✅ sin clave, 200 en 0,8 s | **1° ≈ 110 km** | 1 h · **83 días de desfase** |
-  | **NASA POWER** diario | ✅ mismo servicio | 1° | 1 día · **6 días de desfase** |
-  | **Global Solar Atlas** (ya en uso) | ✅ | 250 m mapa · ~1 km TMY | 1 h (año típico) |
-
-- **Y el fallo de fondo, que no es de ninguna de ellas:** el valor adoptado es una irradiancia
-  **INSTANTÁNEA** y todo lo disponible son **MEDIAS HORARIAS** (NASA POWER las publica en `Wh/m²`,
-  que en paso horario ES la media). Una media horaria está siempre POR DEBAJO del pico instantáneo
-  que contiene, y el promediado espacial de una celda de 1° lo rebaja más todavía.
-- **De ahí la regla, y el sentido importa:** en ampacidad, **más sol supuesto = conductor más
-  caliente = menos amperios**, así que subir el valor va al lado seguro y bajarlo al arriesgado.
-  **Bajar los 1.000 apoyándose en medias horarias subiría la ampacidad** sobre una prueba que no dice
-  lo que parece. Ese es el error peligroso.
-- ⚠️ **CORREGIDO el mismo día, y la corrección importa:** con tres días de muestra el máximo horario
-  daba 872 W/m² y se escribió que 1.000 era «el lado conservador». Con **2026 entero** el máximo de
-  medias horarias es **999,75 W/m²** — justo encima del valor adoptado. Como el pico INSTANTÁNEO
-  dentro de esa hora es por fuerza mayor que su media, **1.000 W/m² no es una cota superior holgada
-  de la irradiancia instantánea: es aproximadamente la MEDIA de la hora más soleada del año.** Sirve
-  para no bajarlo; **no** sirve para dormir tranquilo. Muestra de tres días → conclusión de un año:
-  el otro filo de esta misma lección.
-- **Y hay dos desfases, no uno:** el paso HORARIO va 83 días por detrás; el DIARIO, 6. Documentado
-  como «near real time» para los dos. Si la pregunta exige intradía del año en curso, los últimos
-  ~3 meses **no existen**. Además el endpoint `regional` **no admite horario** (404): la región se
-  arma punto a punto, una llamada por celda.
-- **Regla general:** antes de buscar la fuente, escribe qué MAGNITUD exige la hipótesis —instantánea
-  o promediada, y sobre qué ventana—. Media docena de portales pueden tener «radiación solar» y
-  ninguno tener lo que se necesita. Y comprueba el TAMAÑO de la serie antes de celebrarla: la de
-  Cardique tenía las variables exactas y un mes de historia.
-
 ### L-37 · Un portal de datos abierto miente de tres formas distintas, y ninguna da error
 Verificado el 2026-08-04 contra `datos.gov.co` (IDEAM), integrando el clima del segmento RCA.
 
@@ -257,3 +218,30 @@ integrar no es publicar lo tuyo: es **pisar lo suyo**.
   `Access-Control-Allow-Headers`; el navegador cortó ANTES de enviar y la pantalla dijo «no hubo
   conexión», con 2.500 pruebas verdes que nunca hacían el preflight.
 - **Regla:** cada cabecera propia entra en `Allow-Headers` en el MISMO cambio, con guardián (`tests/usuarios-worker.test.js`); un fallo «de red» solo en el navegador, con servidor sano, es CORS.
+
+### L-82 · El documento que NO EXISTE hace fallar la regla entera: Firestore contesta «no puedes» donde la verdad es «no hay»
+- **Síntoma:** el módulo de **parámetros eléctricos** cargaba el archivo, lo leía bien, lo enseñaba
+  en pantalla… y al pulsar «Guardar» devolvía *«Missing or insufficient permissions»* — con el
+  propietario, con las reglas desplegadas y al día, y con la lectura del histórico funcionando en la
+  misma pantalla un segundo antes. El módulo **no había guardado nunca nada**, desde el primer día.
+- **Causa:** en un `get` por identificador de un documento **que todavía no existe**, Firestore deja
+  `resource` en `null`. Entonces `resource.data.orgId` no es «falso»: es un **error de evaluación**
+  que tumba la regla completa y se devuelve como `permission-denied`. `guardarCarga` pregunta
+  «¿este día ya estaba?» sobre el identificador determinista de cada día — así que en la PRIMERA
+  carga, cuando ninguno existe, el guardado moría antes de escribir. Y afectaba a **todas** las
+  colecciones: cada `allow read` pasaba por `puedeVer()`, que mira `resource.data.orgId`.
+- **Por qué ninguna prueba lo cazó:** las 66 pruebas de reglas leían documentos **sembrados en
+  `beforeEach`**. La ausencia no se probó nunca. Un banco de pruebas que solo mide lo que existe no
+  puede ver un fallo que solo aparece cuando no existe nada — que es, además, el estado en el que
+  está el sistema el día que se estrena.
+- **Regla:** toda regla de lectura que toque `resource.data` se escribe a prueba de nulo
+  (`!existe() || …`), y **la suite tiene que leer a propósito identificadores inexistentes en TODAS
+  las colecciones**. Permitirlo no abre nada: la respuesta a un `get` de algo que no existe está
+  vacía se mire como se mire, y solo llega a quien ya trae la función de lectura y su organización.
+- **Lo que lo hizo visible:** medir en vez de deducir. Tres reproducciones en el emulador —crear el
+  rastro, leer el día ausente, escribir el lote— y la segunda cayó sola con la línea exacta:
+  *`evaluation error at L624:24 … Null value error`*. Media hora de lectura de código no lo había
+  encontrado; una sonda de veinte líneas, sí.
+- ⚠️ **Hermana de `L-22`, y por eso duele:** allí el síntoma «no hay datos» escondía «faltan
+  reglas». Aquí el síntoma «no tienes permiso» escondía «no existe». Las dos veces el mensaje del
+  proveedor apuntó al sitio equivocado; la diferencia es que ahora hay pruebas que lo fijan.

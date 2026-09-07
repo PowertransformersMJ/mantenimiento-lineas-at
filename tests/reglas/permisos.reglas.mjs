@@ -28,6 +28,7 @@ import { fileURLToPath } from 'node:url';
 import { initializeTestEnvironment, assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
 import {
   doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, where, getDocs, serverTimestamp,
+  writeBatch,
 } from 'firebase/firestore';
 
 import { reclamosDe } from '../../contratos/src/usuarios.ts';
@@ -699,5 +700,116 @@ describe('EL ESPECTADOR: un token de solo lectura no escribe en NINGUNA colecci�
     await assertFails(setDoc(doc(db, 'usuarios', 'espectador-1'),
       { nombre: 'me cambio el nombre' }, { merge: true }));
     await assertFails(deleteDoc(doc(db, 'usuarios', 'espectador-1')));
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// EL DOCUMENTO QUE NO EXISTE (`99 §ADR-108`)
+// ----------------------------------------------------------------------------
+// ⚠️ ESTO NO ES UN CASO DE BORDE: es el patrón normal de «¿esto ya estaba?»
+// antes de crear, y estuvo apagando el guardado de PARÁMETROS ELÉCTRICOS entero
+// sin que nada lo dijera. En un `get` por identificador de un documento que
+// todavía no está, Firestore deja `resource` en **null**; leer `resource.data`
+// ahí no da «falso», da un ERROR de evaluación que tumba la regla completa y
+// devuelve `permission-denied`. O sea: el sistema contestaba «no tienes
+// permiso» cuando la verdad era «no existe».
+//
+// Por qué las pruebas de antes no lo cazaron: TODAS leían documentos sembrados
+// en `beforeEach`. La ausencia nunca se probó. Por eso este bloque lee a
+// propósito identificadores que no existen, y por eso barre todas las
+// colecciones en vez de arreglar solo la que dolió.
+// ════════════════════════════════════════════════════════════════════════════
+describe('LEER LO QUE NO EXISTE: «no hay nada» no puede contestarse «no puedes»', () => {
+  const COLECCIONES = [
+    'lineas', 'apoyos', 'hipotesis', 'inspecciones', 'evidencias', 'investigaciones',
+    'analisis', 'acciones_capa', 'sondeos_clima', 'hallazgos', 'calculos', 'solicitudes_ia',
+    'sugerencias', 'llamadas_ia', 'config', 'usuarios', 'auditoria_accesos',
+    'cargabilidad_dias', 'cargabilidad_resumenes', 'cargabilidad_cargas',
+  ];
+
+  test('el propietario puede preguntar por un identificador inexistente en CUALQUIER colección', async () => {
+    const db = como('propietario-1', claims('propietario'));
+    for (const c of COLECCIONES) {
+      await assertSucceeds(getDoc(doc(db, c, 'esto-no-existe-en-ninguna-parte')));
+    }
+  });
+
+  test('y también los cerrojos de arranque, que se leen ANTES de que existan', async () => {
+    // La pantalla de arranque pregunta por `config/arranque` justo cuando aún no
+    // se ha arrancado nada: si eso denegara, el sistema no podría arrancar.
+    const db = como('propietario-1', claims('propietario'));
+    await assertSucceeds(getDoc(doc(db, 'config', 'arranque')));
+    await assertSucceeds(getDoc(doc(db, 'config', 'limpieza')));
+  });
+
+  test('⚠️ permitir la ausencia NO abre lo que SÍ existe: la cuadrilla sigue fuera', async () => {
+    // El arreglo toca la rama `resource == null`. Lo que existe se comprueba
+    // igual que siempre, y esto lo fija: si alguien «simplificara» la regla
+    // quitando la comprobación de organización, esta prueba se pone roja.
+    const db = como('cuadrilla-1', claims('cuadrilla'));
+    await assertFails(getDoc(doc(db, 'cargabilidad_dias', 'dia-1')));
+    await assertSucceeds(getDoc(doc(db, 'apoyos', 'apoyo-1')));
+    // Y un token SIN funciones no lee ni la ausencia: mínimo privilegio primero.
+    const pelado = como('sin-nada', { orgId: ORG, rol: 'admin' });
+    await assertFails(getDoc(doc(pelado, 'cargabilidad_dias', 'esto-no-existe')));
+  });
+
+  test('el de OTRA organización tampoco: ni lo que hay ni lo que no', async () => {
+    const ajeno = como('ajeno-1', reclamosDe({ orgId: OTRA_ORG, rol: 'propietario' }));
+    await assertFails(getDoc(doc(ajeno, 'cargabilidad_dias', 'dia-1')));
+    // La ausencia sí se le contesta —no hay dato ajeno que enseñar, porque no
+    // hay dato—, y es la contrapartida honesta de la decisión: lo que se
+    // transmite es «aquí no hay nada», nunca el contenido de otra organización.
+    await assertSucceeds(getDoc(doc(ajeno, 'cargabilidad_dias', 'esto-no-existe')));
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// GUARDAR UNA CARGA DE VERDAD, PASO POR PASO (`99 §ADR-108`)
+// ----------------------------------------------------------------------------
+// Reproduce `web/src/datos/cargabilidadRepo.guardarCarga` en el mismo orden que
+// corre en el navegador: el rastro primero, después la pregunta de «¿ya
+// estaba?» sobre cada día, y por último el lote. Se prueba SOBRE BASE VACÍA —
+// que es la primera carga del Ingeniero, el caso que fallaba.
+// ════════════════════════════════════════════════════════════════════════════
+describe('GUARDAR UNA CARGA: el camino completo, sobre base vacía', () => {
+  const UID = 'propietario-1';
+  const base = (extra) => ({
+    orgId: ORG, creadoEn: '2026-01-01T00:00:00.000Z', creadoPor: UID, revision: 0, ...extra,
+  });
+
+  test('el rastro, la comprobación y el lote — los tres pasos, seguidos', async () => {
+    const db = como(UID, claims('propietario'));
+
+    // 1 · el rastro se escribe PRIMERO, a propósito (ver el repositorio).
+    await assertSucceeds(setDoc(doc(db, 'cargabilidad_cargas', 'carga-1'),
+      base({ id: 'carga-1', lineas: ['LN-627'], estado: 'guardada' })));
+
+    // 2 · ¿ya estaba este día? Sobre base vacía, NO. Aquí es donde moría.
+    await assertSucceeds(getDoc(doc(db, 'cargabilidad_dias', `${ORG}__ln-627__-__2026-01-01`)));
+
+    // 3 · el día y su resumen, en un lote como los escribe el repositorio.
+    const lote = writeBatch(db);
+    lote.set(doc(db, 'cargabilidad_dias', `${ORG}__ln-627__-__2026-01-01`),
+      base({ id: 'x', linea: 'LN-627', fecha: '2026-01-01', horas: {}, cargaId: 'carga-1' }));
+    lote.set(doc(db, 'cargabilidad_resumenes', `${ORG}__ln-627__2026-01-01`),
+      base({ id: 'y', linea: 'LN-627', fecha: '2026-01-01' }));
+    await assertSucceeds(lote.commit());
+  });
+
+  test('volver a cargar el mismo día lo REEMPLAZA, no lo duplica ni se cae', async () => {
+    const db = como(UID, claims('propietario'));
+    const id = `${ORG}__ln-627__-__2026-01-01`;
+    await assertSucceeds(setDoc(doc(db, 'cargabilidad_dias', id),
+      base({ id, linea: 'LN-627', fecha: '2026-01-01', horas: {}, cargaId: 'c1' })));
+    await assertSucceeds(getDoc(doc(db, 'cargabilidad_dias', id)));   // ahora SÍ existe
+    await assertSucceeds(setDoc(doc(db, 'cargabilidad_dias', id),
+      base({ id, linea: 'LN-627', fecha: '2026-01-01', horas: {}, cargaId: 'c2' })));
+  });
+
+  test('y el editor sigue sin poder guardar: esto lo escribe un administrador', async () => {
+    const db = como('editor-total', claims('editor'));
+    await assertFails(setDoc(doc(db, 'cargabilidad_cargas', 'carga-del-editor'),
+      { orgId: ORG, creadoEn: '2026-01-01T00:00:00.000Z', creadoPor: 'editor-total', revision: 0, id: 'z' }));
   });
 });

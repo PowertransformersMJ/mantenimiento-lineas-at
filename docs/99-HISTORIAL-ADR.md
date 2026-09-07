@@ -9296,3 +9296,90 @@ arreglo va en la primitiva compartida, así que también mejora la gráfica que 
   sin abrir el día completo. Esta decisión arregla la carga que se está mirando, no el histórico.
 
 ---
+## ADR-108 · 2026-09-07 · El documento ausente tumbaba la regla: «no tienes permiso» donde la verdad era «no existe», y el guardado no funcionó nunca
+
+**Deliberación:** lo vio el Ingeniero en producción — *«no veo nada en producción»*. Diagnóstico por
+reproducción en el emulador, no por lectura de código.
+**Estado:** ✅ reglas desplegadas · **NO revisada externamente**.
+
+### Contexto
+
+`§ADR-105`, `§ADR-106` y `§ADR-107` construyeron el módulo de parámetros eléctricos entero: leer el
+CSV como sale de SCADA, guardar todas las magnitudes con sus fases, dibujarlas. Las tres se cerraron
+diciendo «verificado en producción», y las tres lo verificaron **en la pantalla**: el archivo entra,
+la tabla lo enseña, la gráfica lo pinta. Ninguna llegó a pulsar «Guardar» con la sesión que puede
+hacerlo. Al pulsarlo, el sistema respondía *«Missing or insufficient permissions»*.
+
+La primera hipótesis —la mía, escrita ayer— fue que faltaba entrar como propietario. **Era falsa.**
+Con el propietario dentro y las reglas al día, fallaba igual. El módulo **no había guardado nunca
+nada**: no era un permiso mal puesto, era una regla que se rompía sola.
+
+### La causa, y por qué no se veía
+
+En un `get` por identificador de un documento **que todavía no existe**, Firestore deja `resource`
+en `null`. Leer `resource.data.orgId` ahí no devuelve «falso»: lanza un **error de evaluación** que
+tumba la regla completa, y el cliente lo recibe como `permission-denied` — el mismo mensaje que si
+al usuario le faltara un permiso de verdad.
+
+`cargabilidadRepo.guardarCarga` pregunta «¿este día ya estaba?» sobre el identificador determinista
+de cada día, **antes** de escribir, porque el Ingeniero pidió poder distinguir lo nuevo de lo
+reemplazado. En la primera carga ninguno existe. Así que el guardado moría en la comprobación, y el
+único módulo que hace esa pregunta es el único que estaba roto.
+
+Y no era solo de cargabilidad: **todas** las lecturas pasaban por `puedeVer()`, que mira
+`resource.data.orgId`. Cualquier `get` por identificador de algo inexistente, en cualquier
+colección, contestaba «no puedes».
+
+⚠️ **Las 66 pruebas de reglas leían documentos sembrados en `beforeEach`.** La ausencia no se probó
+jamás. Un banco que solo mide lo que existe no puede ver un fallo que solo aparece cuando no hay
+nada — que es justo el estado del sistema el día que se estrena.
+
+### Decisión
+
+**1. Toda regla de lectura que toque `resource.data` se escribe a prueba de nulo.** Se añade un
+`existe()` y dos ayudas de alcance (`alcanzaDelDoc()`, `alcanzaSiDeclaraDoc()`), y `puedeVer()`,
+`puedeLeerCerrojo()` y la ficha de `usuarios` pasan a comprobar la organización **solo cuando hay
+documento que comprobar**.
+
+**2. Se arregla en las CUATRO puertas, no solo en la que dolió.** El fallo estaba en el ayudante
+compartido: parchear `cargabilidad_dias` habría dejado la misma mina en las otras diecinueve
+colecciones, esperando a la primera pantalla que preguntara por algo antes de crearlo.
+
+**3. La suite lee a propósito identificadores inexistentes en TODAS las colecciones.** Más los dos
+cerrojos de `config`, que por definición se leen antes de existir — si eso denegara, el sistema no
+podría ni arrancar.
+
+**4. Y se fija que permitir la ausencia NO abre lo que existe:** la cuadrilla sigue sin ver el
+histórico, un token sin funciones no lee ni la ausencia, y el de otra organización sigue fuera de
+todo lo que hay. Sin estas tres pruebas, una «simplificación» futura de la regla pasaría en verde.
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| Envolver el `getDoc` del cliente en un `try/catch` y seguir | Esconde el fallo en vez de arreglarlo, y deja la mina puesta para las otras diecinueve colecciones |
+| Quitar la comprobación de «¿ya estaba?» | Es lo que permite decirle al Ingeniero cuántos días se reemplazaron; lo pidió expresamente |
+| Denegar la ausencia «por seguridad» | No hay nada que proteger: la respuesta está vacía se mire como se mire. Lo único que se consigue es contestar una mentira |
+| Arreglar solo `cargabilidad_dias` | El fallo vive en `puedeVer()`, que usan las veinte colecciones |
+
+### Supuestos que deben ser ciertos — y la señal que diría que dejaron de serlo
+
+| Supuesto | Señal |
+|---|---|
+| Ninguna regla de lectura vuelve a tocar `resource.data` sin guardia | El barrido de «leer lo que no existe» en rojo |
+| Las reglas desplegadas son las del repositorio | `firebase deploy --only firestore:rules` dice «already up to date» cuando no debería |
+| Guardar sigue reservado al administrador | La prueba del editor que no guarda, en rojo |
+
+### Consecuencias
+
+- `72` pruebas de reglas (66 + 6) y `2.586` del resto. Las seis nuevas caen en rojo con las reglas
+  viejas: se comprobó antes de arreglar.
+- ⚠️ **Lección de método, y es la que más cuesta:** «verificado en producción» significaba, en las
+  tres decisiones anteriores, *lo vi en la pantalla*. La pantalla enseñaba el archivo recién leído
+  **desde la memoria del navegador**, no desde la base. Verificar de verdad es **recargar y volver a
+  encontrarlo**. Lo que no sobrevive a un `F5` no está guardado, y decir que sí lo está es lo mismo
+  que decir «terminado» de algo que él no puede ver.
+- Lección `35 · L-82`. Pendiente sin tocar: el resumen diario sigue sin resumir la tensión
+  (`§ADR-106`, `§ADR-107`).
+
+---

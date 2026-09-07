@@ -97,7 +97,8 @@ service cloud.firestore {
      * hacer su trabajo. Si algún día se decide lo contrario, se cambia AQUÍ y en
      * un solo sitio.
      */
-    function puedeLeerCerrojo() { return esAdmin() && tiene('ce') && deMiOrg(resource.data); }
+    function puedeLeerCerrojo() { return esAdmin() && tiene('ce')
+                                     && (!existe() || deMiOrg(resource.data)); }
 
     // ── EJE 2 · LAS FUNCIONES ──────────────────────────────────────────────
     /**
@@ -159,6 +160,36 @@ service cloud.firestore {
       return !('lineaId' in datos) || alcanza(datos.lineaId);
     }
 
+    // ── EJE 4 · EL DOCUMENTO QUE NO EXISTE ─────────────────────────────────
+    /**
+     * ⚠️ LA MISMA TRAMPA DE ARRIBA, UN PISO MÁS ABAJO — y ésta apagó un módulo
+     * entero durante días (`35 · L-24`, `99 §ADR-108`).
+     *
+     * Justo aquí encima está escrito que un CAMPO ausente hace fallar la
+     * expresión y DENIEGA. Pues un DOCUMENTO ausente hace exactamente lo mismo,
+     * y es peor porque no se ve venir: en un `get` por identificador de algo que
+     * todavía no está, Firestore deja `resource` en **null**, y entonces
+     * `resource.data.orgId` no es «falso», es un ERROR de evaluación. La regla
+     * entera muere y el cliente recibe `permission-denied` — la respuesta que
+     * cualquiera lee como «no tienes permiso» cuando lo cierto es «no existe».
+     *
+     * Y no es un caso raro: es el patrón normal de «¿esto ya estaba?» antes de
+     * crear. `cargabilidadRepo.guardarCarga` lo hace con el identificador
+     * determinista de cada día, así que en la PRIMERA carga —cuando ninguno
+     * existe— el guardado no llegaba a escribir nunca. En el emulador no se veía
+     * porque las pruebas leían documentos ya sembrados.
+     *
+     * ⚠️ POR QUÉ PERMITIR NO ABRE NADA. La respuesta a un `get` de un documento
+     * inexistente está vacía se mire como se mire; lo único que se transmite es
+     * «aquí no hay nada», y solo a quien YA trae la función de lectura y una
+     * organización. No hay dato ajeno que enseñar porque no hay dato.
+     */
+    function existe() { return resource != null; }
+
+    /** Alcance de un documento LEÍDO: el que no existe no tiene línea que comparar. */
+    function alcanzaDelDoc()       { return !existe() || alcanza(resource.data.lineaId); }
+    function alcanzaSiDeclaraDoc() { return !existe() || alcanzaSiDeclara(resource.data); }
+
     // ── Lectura ────────────────────────────────────────────────────────────
     /**
      * Lectura: quien trae la función `corto` y es de la organización dueña del
@@ -174,7 +205,7 @@ service cloud.firestore {
      * aquí: las reglas son la última línea y no pueden apoyarse en él.
      */
     function puedeVer(corto)  { return tiene(corto) && miOrg() != ''
-                                     && resource.data.orgId == miOrg(); }
+                                     && (!existe() || resource.data.orgId == miOrg()); }
 
     /** Un documento nuevo no puede nacer en otra organización ni suplantar autor. */
     function altaCoherente() {
@@ -208,7 +239,7 @@ service cloud.firestore {
     }
 
     match /apoyos/{apoyoId} {
-      allow read:   if puedeVer('lv') && alcanza(resource.data.lineaId);
+      allow read:   if puedeVer('lv') && alcanzaDelDoc();
       // CREAR un apoyo es `cargar.puntos` ('cp'), NO `apoyos.editar` ('ae'), y
       // el catálogo lo dice con esas mismas palabras: 'cp' es «cargar el trazado
       // (GPS/KML) que crea puntos». Es también lo único que crea apoyos en la
@@ -236,7 +267,7 @@ service cloud.firestore {
     }
 
     match /hipotesis/{hipotesisId} {
-      allow read:   if puedeVer('lv') && alcanzaSiDeclara(resource.data);
+      allow read:   if puedeVer('lv') && alcanzaSiDeclaraDoc();
       allow create: if tiene('he') && altaCoherente()
                     && alcanzaSiDeclara(request.resource.data);
       // Una hipótesis CONGELADA ya respalda un informe firmado: es intocable.
@@ -250,7 +281,7 @@ service cloud.firestore {
     // Inmutables por naturaleza: una inspección de 2027 no pisa la de 2026.
 
     match /inspecciones/{inspeccionId} {
-      allow read:   if puedeVer('lv') && alcanza(resource.data.lineaId);
+      allow read:   if puedeVer('lv') && alcanzaDelDoc();
       allow create: if tiene('ea') && altaCoherente()
                     && alcanza(request.resource.data.lineaId);
       // Una inspección cerrada no se reabre desde el cliente.
@@ -264,7 +295,7 @@ service cloud.firestore {
       // 'ev' y no 'lv': ver fotografías es su propia función en el catálogo, y
       // hoy la traen exactamente los mismos roles que podían leer aquí. Que sea
       // suya permite quitársela a alguien sin quitarle la línea entera.
-      allow read:   if puedeVer('ev') && alcanza(resource.data.lineaId);
+      allow read:   if puedeVer('ev') && alcanzaDelDoc();
       allow create: if tiene('ea') && altaCoherente()
                     && alcanza(request.resource.data.lineaId);
       // Solo avanza el estado de subida y el pie. El hash y la ruta no se tocan:
@@ -281,7 +312,7 @@ service cloud.firestore {
     // con su verosimilitud, y lo que falta por verificar. Lo escribe el
     // ingeniero que investiga, no el modelo.
     match /investigaciones/{investigacionId} {
-      allow read:   if puedeVer('lv') && alcanza(resource.data.lineaId);
+      allow read:   if puedeVer('lv') && alcanzaDelDoc();
       allow create: if tiene('xe') && altaCoherente()
                     && alcanza(request.resource.data.lineaId);
       // Un expediente CERRADO respalda un informe entregado: ya no se toca.
@@ -370,12 +401,12 @@ service cloud.firestore {
     // Son juicio profesional y dictamen fechado. Ni el cliente ni el modelo
     // escriben aquí: pasan por una función que valida contra el contrato.
     match /hallazgos/{hallazgoId} {
-      allow read:  if puedeVer('lv') && alcanza(resource.data.lineaId);
+      allow read:  if puedeVer('lv') && alcanzaDelDoc();
       allow write: if false;
     }
 
     match /calculos/{calculoId} {
-      allow read:  if puedeVer('lv') && alcanza(resource.data.lineaId);
+      allow read:  if puedeVer('lv') && alcanzaDelDoc();
       allow write: if false;
     }
 
@@ -555,7 +586,8 @@ service cloud.firestore {
       allow read:   if request.auth != null && (
                          request.auth.uid == uid
                          || ((tiene('ug') || tiene('ua'))
-                             && miOrg() != '' && resource.data.orgId == miOrg())
+                             && miOrg() != ''
+                             && (!existe() || resource.data.orgId == miOrg()))
                        );
       allow create: if request.auth != null && request.auth.uid == uid
                     && request.resource.data.keys().hasOnly(['contrasenaCambiadaEn', 'ultimoAcceso'])
@@ -621,7 +653,7 @@ service cloud.firestore {
     }
 
     match /cargabilidad_dias/{diaId} {
-      allow read:   if puedeVer('cv') && alcanzaSiDeclara(resource.data);
+      allow read:   if puedeVer('cv') && alcanzaSiDeclaraDoc();
       allow create: if tiene('cc') && esAdmin() && cargabilidadCoherente()
                     && alcanzaSiDeclara(request.resource.data);
       allow update: if tiene('cc') && esAdmin() && deMiOrg(resource.data) && noTocaReservados()
@@ -633,7 +665,7 @@ service cloud.firestore {
     // día discreparan, manda el día. Se guarda solo para que el tablero no tenga
     // que leer 8.760 lecturas para pintar 365 puntos.
     match /cargabilidad_resumenes/{resumenId} {
-      allow read:   if puedeVer('cv') && alcanzaSiDeclara(resource.data);
+      allow read:   if puedeVer('cv') && alcanzaSiDeclaraDoc();
       allow create: if tiene('cc') && esAdmin() && altaCoherente()
                     && alcanzaSiDeclara(request.resource.data);
       allow update: if tiene('cc') && esAdmin() && deMiOrg(resource.data) && noTocaReservados()

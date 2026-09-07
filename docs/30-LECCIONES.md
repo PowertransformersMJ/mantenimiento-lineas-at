@@ -41,6 +41,7 @@
 - `L-10` · El módulo de campo NO es 100 % offline: el mapa se cae sin señal
 - `L-25` · Un alta «gratuita» puede esconder un formulario de pago, y ahí Claude se detiene
 - `L-60` · Un organismo publica VARIAS licencias: la del dato que buscas no es la del que sale primero
+- `L-64` · Para una hipótesis INSTANTÁNEA no sirve una serie de medias horarias (y mira el tamaño antes de celebrar)
 
 ### `docs/35-LECCIONES-ACCESO-Y-PORTALES.md` — DESPUÉS: el tercero no deja entrar, o contesta 200 y miente
 
@@ -50,7 +51,7 @@
 - `L-22` · Desplegar el código sin desplegar las reglas de Firestore: el dato existe y no llega
 - `L-37` · Un portal de datos abierto miente de tres formas: la consulta que se cuelga, la estación que no mide lo que crees, y el campo con lat/lon intercambiadas
 - `L-38` · Cuando la defensa canónica exige plan de pago, se DETECTA en vez de PREVENIR — y se escribe que es un compromiso, no un descuido
-- `L-64` · Para una hipótesis INSTANTÁNEA no sirve una serie de medias horarias (y mira el tamaño antes de celebrar)
+- `L-82` · El documento que NO EXISTE tumba la regla entera: Firestore contesta «no tienes permiso» donde la verdad es «no hay»
 
 ### `docs/32-LECCIONES-PANTALLA.md` — el cálculo salió bien y el usuario ve otra cosa: despliegue, cachés, mapa, imágenes, cifras
 

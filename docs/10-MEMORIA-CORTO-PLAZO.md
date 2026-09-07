@@ -13,13 +13,17 @@
 > `§ADR-049/050`—. La fase viva es **la página**.
 
 ## 🛑 LO PRIMERO AL RETOMAR
-0. 🆕 **CARGABILIDAD ELÉCTRICA CERRADA por mi parte (`§ADR-088..097`).** Se suelta un `.xlsx`
-   —sin dependencias—, sale el veredicto contra **ampacidad** y **SÍ GUARDA**: un doc por línea y
-   día + resumen; recargar escribe ENCIMA, no duplica. Sin archivo la pantalla enseña su ESTRUCTURA
-   y las gráficas con eje y bandas — **jamás cifras de muestra**, y **un hueco no es un cero**.
-   ⚠️ Falta lo SUYO: ratificar los **718 A** y guardar UNA carga con su sesión (`TODO-93/94`).
-0b. 🔐 **ACCESO NUEVO Y VIVO** (`§ADR-100/101`): UNA cuenta, sin Google; las demás desde **Personas**.
-   ⚠️ **SUYO:** «Eliminar datos» del sitio en su Chrome, dominio principal (`35 · L-80`).
+0. 🆕 **PARÁMETROS ELÉCTRICOS** (antes «cargabilidad»; `§ADR-088..097` · `105..108`). Se suelta un
+   `.xlsx` **o un CSV de SCADA tal como sale** —varios a la vez, la red entera dentro—, salen todas
+   las magnitudes con sus fases y el veredicto contra **ampacidad**. Sin archivo la pantalla enseña
+   su ESTRUCTURA — **jamás cifras de muestra**, y **un hueco no es un cero**.
+   ⚠️ **GUARDAR ESTUVO ROTO DESDE EL PRIMER DÍA y aquí se decía «SÍ GUARDA»** (`§ADR-108`, `35 ·
+   L-82`): leer un documento que aún no existe deja `resource` nulo y **revienta la regla**;
+   Firestore lo devuelve como «no tienes permiso». Ya arreglado y desplegado. **Lo que no sobrevive
+   a un `F5` no está guardado**: verificar es recargar, no mirar la memoria del navegador.
+   ⚠️ Falta lo SUYO: ratificar los **718 A** (`TODO-93`).
+0b. 🔐 **ACCESO VIVO** (`§ADR-100/101/104`): DOS cuentas —propietario y espectador de solo
+   lectura—; las demás se crean desde **Personas**.
 1. **EL CUELLO DE BOTELLA NO ES CÓDIGO: ES EL DATO**: 0 de 26 con veredicto (`TODO-57`).
 2. **EL PATRÓN QUE LO DOMINA TODO:** *«arreglado donde se veía, vivo en la pieza hermana»* —
    `34 · L-65/L-74`, `32 · L-67`, `30 · L-68/M-01`. Mordió el 24-08 (`§ADR-078`), el 26 (`§ADR-087`)
@@ -33,17 +37,14 @@
    fecha: son un PROMEDIO de muchos años**. Tres relojes: 4 h POWER y pronóstico, 1 h satélite.
    ⚠️ **CADA CAPA DECLARA QUÉ ES y sin valor por defecto** — `medida` · `pronostico` · `promedio` —
    o no se publica ni se pinta (`§ADR-082/084/086/087`).
-   ⚙️ **El vigía FUSIONA SOLO** (`§ADR-085`) con un PORTERO que mira el mapa antes. Queda UN eslabón
-   a mano: **publicar** (`TODO-89`).
-4. **LO QUE NO SE PUEDE ROMPER DEL CLIMA (`§ADR-057..086`):** gana el HECHO sobre el modelo · el recorrido se comprueba **punto a punto**, nunca por promedio · el clima vive en el ATLAS y Detalle GPS = solo el recorrido · **«tormenta eléctrica» NO existe en la fuente de nubes**.
+   ⚙️ **El vigía FUSIONA SOLO** (`§ADR-085`), con PORTERO. Queda a mano **publicar** (`TODO-89`).
+4. **LO QUE NO SE PUEDE ROMPER DEL CLIMA (`§ADR-057..086`):** gana el HECHO sobre el modelo · el recorrido se comprueba **punto a punto**, nunca por promedio · el clima vive en el ATLAS y Detalle GPS = solo el recorrido · **«tormenta eléctrica» NO existe en la fuente**.
 5. **CERRADO 23-29/08 (`§ADR-074..088`).** ⚠️ El robot NO dispara el CI · «medida» no se aplica a
-   lo que no se midió ESE día (§086/087) · un despliegue en `Success` no es la web cambiada
-   (`35 · L-75`).
-   ⏳ **ESPERA SU RESPUESTA:** el satelital «tiene huecos»; está al **100 % en z8-z16** → falta
-   **DÓNDE los ve**.
+   lo que no se midió ESE día (§086/087) · `Success` no es la web cambiada (`35 · L-75`).
+   ⏳ **ESPERA SU RESPUESTA:** el satelital «tiene huecos»; al 100 % en z8-z16 → falta DÓNDE.
 6. **⚠️ EL LIENZO NO SE VE EN SEGUNDO PLANO, PERO SE FOTOGRAFÍA** (`34 · L-16/L-58/L-72`):
-   `node herramientas/mirar-los-atlas.mjs <atlas>` lo hace todo y además SUSPENDE si no hay dibujo
-   (`§ADR-085`). **Nunca con tiempo virtual.**
+   `node herramientas/mirar-los-atlas.mjs <atlas>` lo hace y SUSPENDE si no hay dibujo (`§ADR-085`).
+   **Nunca con tiempo virtual.**
 7. **FASE ABIERTA: la página.** No eligió entre ② **se lee** y ③ **no se cae**. ⚠️ `31 · L-60` puede estar MAL.
 8. **SON DE ÉL:** el cuello de botella es `TODO-57`; los demás, en la tabla de abajo.
 9. **Higiene** (`99 §ADR-047/048/083`): el techo es el ARRANQUE; `20` y `32` pasan su tope.
@@ -86,7 +87,7 @@
 | **TODO-33** | **50 % o 25 % de RTS** como tope de tiro. Ya no hay dos dueños (`§ADR-051`): falta decidir CUÁL rige | Factor 2 sobre un dictamen |
 | **TODO-98** 🔴 **MÍA** | **El recibo de la contraseña se auto-firma:** cualquiera lo escribe en su ficha desde la consola y **se salta el muro del cambio obligatorio**. Con ello: `ultimoAcceso` es auto-declarado, y `/limpieza-inicial` escribe en la bitácora al rechazar, sin freno. Crudo: `2026-09-06-espectador-solo-lectura/` | Un muro que se salta no es un muro |
 | **TODO-95** 🔴 ⬅️ **SUYA, URGENTE** | **La FICHA del fabricante del conductor.** Trae de golpe ampacidad, temperatura de operación y módulo elástico (`§ADR-098/099`). **Sin ella la ampacidad se publica pero NO SE FIRMA**, y el 6.300 vs 7.000 del módulo sigue decidiendo un RETIE | 718 A hoy · **611 A** a los 75 °C que dan siete fichas |
-| **TODO-93/94** ⬅️ **DOS SUYAS** | ① **ratificar la condición** de ampacidad (ADOPTADA: 718 A) · ② **cargar su archivo y GUARDARLO**, nunca visto con su sesión (detalle en `0`) | Sin ② no se sabe nada de ese archivo |
+| **TODO-93** ⬅️ **SUYA** | **Ratificar la condición** de ampacidad (hoy ADOPTADA: 718 A) | Sin firma es referencia, no dictamen |
 | **TODO-44/34** | Alerta de gasto en Cloudflare · **nada tiene copia**: la bóveda sin remoto **y Firestore sin punto de recuperación** (`§ADR-089`) | Un fallo de disco se lleva la bóveda; un comando, la base |
 | **TODO-61/54/68** | ¿App Check? · ¿linter de frescura? · ¿cazar un ADR repetido? Las dos últimas tocan el KERNEL | Las TRES son TUYAS |
 | **TODO-76** | **¿Se guarda si un apoyo es autosoportado / retenido?** No cabe en el modelo: iría por APOYO (26 declaraciones) | Cierra media incógnita de la capacidad longitudinal |

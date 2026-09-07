@@ -122,3 +122,42 @@
 - **Regla:** antes de pedir plata por una norma, preguntar por la afiliación (CIGRÉ, ICONTEC) y leer la vista previa oficial: las tablas que deciden suelen estar ahí. Y ante un sensor, exigir el número de cuánto añade sobre lo que ya se obtiene con el dato abierto — casi siempre optimiza lo que no duele (`L-04`).
 
 Consultado todo el 2026-09-02.
+
+### L-64 · Para una hipótesis INSTANTÁNEA no sirve una serie de MEDIAS HORARIAS
+Verificado el 2026-08-21 llamando a cada fuente, no de memoria.
+
+- **La pregunta:** ¿se pueden tomar de IDEAM o NASA POWER los datos de radiación solar para cerrar
+  los **1.000 W/m² adoptados** de la ampacidad (`TODO-71`)?
+- **Lo que hay, comprobado:**
+
+  | Fuente | Existe | Resolución | Paso |
+  |---|---|---|---|
+  | **IDEAM** (portal abierto) | ❌ **ninguna serie de radiación**; el catálogo no tiene esa categoría | — | — |
+  | **Cardique** (autoridad de Bolívar) | ✅ GHI **medida** + viento, en la zona | estación | **741 filas: solo enero de 2022** |
+  | **NASA POWER** horario | ✅ sin clave, 200 en 0,8 s | **1° ≈ 110 km** | 1 h · **83 días de desfase** |
+  | **NASA POWER** diario | ✅ mismo servicio | 1° | 1 día · **6 días de desfase** |
+  | **Global Solar Atlas** (ya en uso) | ✅ | 250 m mapa · ~1 km TMY | 1 h (año típico) |
+
+- **Y el fallo de fondo, que no es de ninguna de ellas:** el valor adoptado es una irradiancia
+  **INSTANTÁNEA** y todo lo disponible son **MEDIAS HORARIAS** (NASA POWER las publica en `Wh/m²`,
+  que en paso horario ES la media). Una media horaria está siempre POR DEBAJO del pico instantáneo
+  que contiene, y el promediado espacial de una celda de 1° lo rebaja más todavía.
+- **De ahí la regla, y el sentido importa:** en ampacidad, **más sol supuesto = conductor más
+  caliente = menos amperios**, así que subir el valor va al lado seguro y bajarlo al arriesgado.
+  **Bajar los 1.000 apoyándose en medias horarias subiría la ampacidad** sobre una prueba que no dice
+  lo que parece. Ese es el error peligroso.
+- ⚠️ **CORREGIDO el mismo día, y la corrección importa:** con tres días de muestra el máximo horario
+  daba 872 W/m² y se escribió que 1.000 era «el lado conservador». Con **2026 entero** el máximo de
+  medias horarias es **999,75 W/m²** — justo encima del valor adoptado. Como el pico INSTANTÁNEO
+  dentro de esa hora es por fuerza mayor que su media, **1.000 W/m² no es una cota superior holgada
+  de la irradiancia instantánea: es aproximadamente la MEDIA de la hora más soleada del año.** Sirve
+  para no bajarlo; **no** sirve para dormir tranquilo. Muestra de tres días → conclusión de un año:
+  el otro filo de esta misma lección.
+- **Y hay dos desfases, no uno:** el paso HORARIO va 83 días por detrás; el DIARIO, 6. Documentado
+  como «near real time» para los dos. Si la pregunta exige intradía del año en curso, los últimos
+  ~3 meses **no existen**. Además el endpoint `regional` **no admite horario** (404): la región se
+  arma punto a punto, una llamada por celda.
+- **Regla general:** antes de buscar la fuente, escribe qué MAGNITUD exige la hipótesis —instantánea
+  o promediada, y sobre qué ventana—. Media docena de portales pueden tener «radiación solar» y
+  ninguno tener lo que se necesita. Y comprueba el TAMAÑO de la serie antes de celebrarla: la de
+  Cardique tenía las variables exactas y un mes de historia.
