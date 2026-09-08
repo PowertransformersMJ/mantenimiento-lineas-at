@@ -33,7 +33,7 @@
 //    ni la medida de las barras: lo que aparece marcado se confirma en vez de
 //    decidirse.
 // ============================================================================
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { filasDesde, leerXlsx } from '@lineas/importar/xlsx';
 import { leerCsv } from '@lineas/importar/csv';
 import {
@@ -51,7 +51,9 @@ import {
   estadisticoDeNombre, registrosDesdeAncho, unirAnchas,
 } from '@lineas/nucleo/cargabilidadAncho';
 import { desempaquetarDia, empaquetarPorDia, ESTADISTICOS, resumirDia } from '@lineas/nucleo/cargabilidad';
-import { diaCompleto, guardarCarga, huellaDe, resumenesEntre, type Acuse } from '../datos/cargabilidadRepo';
+import {
+  diaCompleto, guardarCarga, huellaDe, resumenesEntre, ultimoDiaGuardado, type Acuse,
+} from '../datos/cargabilidadRepo';
 import { nf } from '../vistas/formato';
 import { Sello } from './Sello';
 import nucleoPkg from '@lineas/nucleo/package.json';
@@ -762,8 +764,8 @@ function HistoricoGuardado({ sesion, lineaAbierta }: {
     return { desde: iso(ini), hasta: iso(fin) };
   };
 
-  const consultar = async () => {
-    const r = rango();
+  const consultar = async (forzado?: { desde: string; hasta: string }) => {
+    const r = forzado ?? rango();
     if (!r.desde || !r.hasta) { setFallo('faltan las dos fechas del rango'); return; }
     setBuscando(true); setFallo(null);
     try {
@@ -778,6 +780,55 @@ function HistoricoGuardado({ sesion, lineaAbierta }: {
       setFilas(null);
     } finally { setBuscando(false); }
   };
+
+  /**
+   * ⚠️ AL ABRIR SE ENSEÑA LO QUE HAY (`99 §ADR-116`).
+   *
+   * Esta pantalla abría en «últimos 7 días» y esperaba a que alguien pulsara
+   * «Consultar». El primer dato real del Ingeniero es del **2026-01-01**, ocho
+   * meses atrás: al entrar leía *«No existen registros de cargabilidad para el
+   * periodo seleccionado»* — **teniéndolos**. Estuvo tres días buscando sus
+   * gráficas en una pantalla que le afirmaba que no había nada.
+   *
+   * Así que primero se pregunta de cuándo es el dato más nuevo —UNA lectura— y,
+   * si la ventana por defecto no lo alcanza, se abre el histórico completo y se
+   * DICE por qué. Una ventana que esconde el único dato que hay no es un ajuste
+   * cómodo: es una pantalla que miente.
+   */
+  const [ultimoGuardado, setUltimoGuardado] = useState<string | null | undefined>(undefined);
+  const [ampliado, setAmpliado] = useState(false);
+  const [falloAuto, setFalloAuto] = useState<string | null>(null);
+  useEffect(() => {
+    let vivo = true;
+    (async () => {
+      try {
+        const dia = await ultimoDiaGuardado(
+          { uid: sesion.uid, orgId: sesion.orgId },
+          { linea: soloEsta && lineaAbierta ? lineaAbierta : undefined },
+        );
+        if (!vivo) return;
+        setUltimoGuardado(dia);
+        if (!dia) return;                       // nada guardado: la pantalla ya lo dice
+        const v = rango();
+        if (dia < v.desde || dia > v.hasta) {
+          setPeriodo('todo'); setAmpliado(true);
+          await consultar({ desde: '2000-01-01', hasta: v.hasta });
+        } else {
+          await consultar(v);
+        }
+      } catch (e) {
+        // ⚠️ NO SE TRAGA. La primera versión llevaba un `catch` vacío «por si
+        // acaso», y cuando falló de verdad la pantalla se quedó exactamente
+        // igual que antes: sin dato, sin gráficas y sin motivo. Media hora
+        // buscando en la consola algo que nadie había escrito. Un fallo que no
+        // se dice es un fallo que se investiga dos veces (`§ADR-116`).
+        if (vivo) setFalloAuto((e as Error).message);
+      }
+    })();
+    return () => { vivo = false; };
+    // Solo al abrir y al cambiar de línea: es UNA lectura, no una por tecla.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lineaAbierta, soloEsta]);
 
   const r = rango();
   const conMedida = (filas ?? []).filter((f) => f.maxima_pct != null);
@@ -848,6 +899,19 @@ function HistoricoGuardado({ sesion, lineaAbierta }: {
           Hay días guardados en este periodo, pero ninguno con el estadístico{' '}
           <b>{ESTADISTICOS.find((e) => e.id === verEstadistico)?.rotulo ?? verEstadistico}</b>.
           Los que hay son: {estadisticosGuardados.map((e) => ESTADISTICOS.find((x) => x.id === e)?.rotulo ?? e).join(' · ')}.
+        </p>
+      )}
+
+      {falloAuto && (
+        <p className="advertencia">
+          <b>No se pudo mirar solo qué hay guardado:</b> {falloAuto}. Use los botones de periodo y
+          «Consultar» a mano; el dato no se ha perdido.
+        </p>
+      )}
+      {ampliado && ultimoGuardado && (
+        <p className="fine">
+          Su dato más reciente es del <b>{ultimoGuardado}</b>, así que la ventana de siempre
+          —últimos 7 días— no lo alcanzaba. Se abrió el <b>histórico completo</b> para que lo vea.
         </p>
       )}
 

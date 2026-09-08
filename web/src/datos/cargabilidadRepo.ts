@@ -230,6 +230,33 @@ export async function guardarCarga(
  * sobre una base con años de datos se traería todo de un clic. La pantalla dice
  * cuántos días pidió y cuántos caben, para que nadie crea que vio el total.
  */
+/**
+ * ¿DE CUÁNDO ES EL DATO MÁS RECIENTE QUE HAY GUARDADO? (`99 §ADR-116`)
+ *
+ * ⚠️ POR QUÉ HACE FALTA, y no es comodidad. El histórico abría en «últimos 7
+ * días». El primer dato real del Ingeniero es del **2026-01-01**, ocho meses
+ * atrás: al abrir la pestaña, la pantalla le decía *«No existen registros de
+ * cargabilidad para el periodo seleccionado»* **teniéndolos**. Tres días
+ * seguidos buscando sus gráficas en una pantalla que le afirmaba que no había
+ * nada. Una ventana por defecto que esconde el único dato que hay no es un
+ * ajuste: es una pantalla que miente.
+ *
+ * Cuesta UNA lectura —un documento, el más nuevo— y solo se pide al abrir.
+ */
+export async function ultimoDiaGuardado(
+  sesion: Sesion, { linea }: { linea?: string } = {},
+): Promise<string | null> {
+  const { baseDatos } = await cargarFirebase();
+  const { collection, getDocs, limit, orderBy, query, where } = await firestore();
+  const db = await baseDatos();
+  const partes = [where('orgId', '==', sesion.orgId)];
+  if (linea) partes.push(where('linea', '==', linea));
+  const q = query(collection(db, RESUMENES), ...partes, orderBy('fecha', 'desc'), limit(1));
+  const instantanea = await getDocs(q);
+  const d = instantanea.docs[0]?.data() as Record<string, unknown> | undefined;
+  return d ? String(d.fecha) : null;
+}
+
 export async function resumenesEntre(
   { desde, hasta, lineas = [] }: { desde: string; hasta: string; lineas?: string[] },
   sesion: Sesion,

@@ -9774,3 +9774,46 @@ de enseñar el otro.
   se ve viene de la base o de la memoria. Lo cazó él, no yo.
 
 ---
+## ADR-116 · 2026-09-07 · La ventana por defecto escondía el único dato que había: la pantalla decía «no existen registros» teniéndolos
+
+**Deliberación:** tercera vez que el Ingeniero avisa de lo mismo — *«tienes toda la información de 1
+día en el repo pero sigo sin apreciarla»*. Las dos veces anteriores arreglé cosas ciertas que no
+eran ÉSTA.
+**Estado:** ✅ en producción · **NO revisada externamente**.
+
+### Contexto
+
+El histórico abría en **«últimos 7 días»** y esperaba a que alguien pulsara «Consultar». Su primer
+dato real es del **2026-01-01**, ocho meses atrás. Resultado, al abrir la pestaña:
+
+> *No existen registros de cargabilidad para el periodo seleccionado (2026-09-02 al 2026-09-08).*
+
+**Teniéndolos.** Y yo, las dos veces anteriores, verifiqué **conduciendo la pantalla**: pulsaba
+«histórico completo», pulsaba «Consultar», y veía el dato. Nunca la miré como le queda a él al
+entrar. Arreglé que lo guardado se dibujara (`§ADR-115`) —que hacía falta— sin ver que el camino
+para llegar hasta ahí estaba cerrado.
+
+### Decisión
+
+**1. Al abrir se pregunta de cuándo es el dato más nuevo** —UNA lectura, un documento— y, si la
+ventana por defecto no lo alcanza, **se amplía sola y se DICE por qué**. Ampliar en silencio sería
+otra forma de mentir: tiene que saber que está mirando el histórico entero.
+
+**2. Y consulta sola al entrar.** Esperar un clic para enseñar lo que ya está guardado convierte una
+pantalla llena en una pantalla vacía.
+
+### Consecuencias
+
+- ⚠️ **HIZO FALTA UN ÍNDICE, y el emulador no lo pide.** «El más nuevo primero» no lo sirve el índice
+  ascendente que había: Firestore exige que la dirección coincida. Las 2.621 pruebas seguían en
+  verde y en producción fallaba — el caso exacto que el mapa de `§ADR-112` había avisado. Declarado
+  en `firestore.indexes.json` y desplegado.
+- ⚠️ **Y lo peor lo hice yo:** el primer intento llevaba un `catch` vacío «por si acaso». Cuando falló
+  de verdad, la pantalla quedó **exactamente igual que antes** —sin dato, sin gráficas y sin motivo—
+  y estuve buscando en la consola un error que nadie había escrito. Un fallo que no se dice se
+  investiga dos veces. Ahora se enseña en la propia tarjeta.
+- **Tres avisos suyos para el mismo síntoma**, y cada uno destapó un fallo distinto: que lo guardado
+  no se dibujaba (`§ADR-115`), que la ventana lo escondía (éste), y que yo verificaba conduciendo la
+  pantalla en vez de abrirla. **Verificar es abrirla como la abre él.**
+
+---

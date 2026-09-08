@@ -517,3 +517,37 @@ describe('EL VIAJE DE IDA Y VUELTA: lo que se guarda se vuelve a abrir entero', 
     assert.match(trozo, /idDelDia\([^)]*estadistico/s, 'y pasárselo al identificador');
   });
 });
+
+// ════════════════════════════════════════════════════════════════════════════
+// LA VENTANA POR DEFECTO NO PUEDE ESCONDER EL ÚNICO DATO QUE HAY (`99 §ADR-116`)
+// ----------------------------------------------------------------------------
+// ⚠️ El histórico abría en «últimos 7 días» y esperaba a que alguien pulsara
+// «Consultar». El primer dato real es del 2026-01-01, ocho meses atrás: al
+// entrar, la pantalla decía «No existen registros de cargabilidad para el
+// periodo seleccionado» TENIÉNDOLOS. El Ingeniero estuvo tres días buscando sus
+// gráficas en una pantalla que le afirmaba que no había nada.
+// ════════════════════════════════════════════════════════════════════════════
+describe('AL ABRIR SE ENSEÑA LO QUE HAY, NO UNA VENTANA QUE LO ESCONDE', () => {
+  const PANTALLA = readFileSync(new URL('../web/src/componentes/Cargabilidad.tsx', import.meta.url), 'utf8');
+  const REPOSITORIO = readFileSync(new URL('../web/src/datos/cargabilidadRepo.ts', import.meta.url), 'utf8');
+
+  test('el repositorio sabe decir de cuándo es el dato más nuevo, y cuesta UNA lectura', () => {
+    const i = REPOSITORIO.indexOf('export async function ultimoDiaGuardado');
+    assert.ok(i > 0, 'hace falta poder preguntar de cuándo es el último día guardado');
+    const trozo = REPOSITORIO.slice(i, i + 900);
+    assert.match(trozo, /orderBy\('fecha',\s*'desc'\)/, 'el más nuevo primero');
+    assert.match(trozo, /limit\(1\)/, 'y UNO solo: no se trae el histórico para saber la fecha');
+  });
+
+  test('⚠️ la pantalla lo pregunta AL ABRIR y consulta sola', () => {
+    assert.match(PANTALLA, /ultimoDiaGuardado\(/, 'si no se pregunta, la ventana por defecto manda');
+    assert.match(PANTALLA, /useEffect\(/, 'y se hace al abrir, no esperando un clic');
+  });
+
+  test('⚠️ y si la ventana por defecto no lo alcanza, se AMPLÍA y se DICE', () => {
+    // Ampliar en silencio sería otra forma de mentir: el Ingeniero tiene que
+    // saber que está mirando el histórico entero y por qué.
+    assert.match(PANTALLA, /setPeriodo\('todo'\)/, 'se abre el histórico completo');
+    assert.match(PANTALLA, /Su dato más reciente es del/, 'y se explica en pantalla');
+  });
+});

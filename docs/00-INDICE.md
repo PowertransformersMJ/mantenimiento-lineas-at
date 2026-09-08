@@ -201,6 +201,7 @@ Guarda `research-archive/` (crudos de deliberación: comités, consejos externos
 | `ADR-113` | 2026-09-07 | Una lista de archivos es una lista: el rastro de procedencia dejó de ser una cadena pegada | — (apareció al guardar los 15) |
 | `ADR-114` | 2026-09-07 | El dato de cliente se reconoce por su CONTENIDO: la carpeta va a seguir cambiando de nombre | — (anuncio del Ingeniero) |
 | `ADR-115` | 2026-09-07 | Lo guardado también se dibuja: las gráficas vivían solo en la memoria del navegador | — (lo vio él en producción) |
+| `ADR-116` | 2026-09-07 | La ventana por defecto escondía el único dato que había: «no existen registros» teniéndolos | — (tercer aviso suyo del mismo síntoma) |
 
 > Toda decisión cara de revertir entra aquí con su ADR y su crudo enlazado. Si hubo comité o consejo
 > externo y el crudo no está archivado, la tarea **no está cerrada** (`CLAUDE.md §G.4`).
