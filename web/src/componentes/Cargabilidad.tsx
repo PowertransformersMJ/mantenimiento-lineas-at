@@ -43,7 +43,7 @@ import {
 } from '@lineas/nucleo/cargabilidad';
 import {
   RELLENO_BANDA, TINTA_BANDA, tintaDe, areasDeBanda, csvDeErrores, etiquetaInstante,
-  filtrarPorTexto, LIENZO, marcaDeTiempo, marcasDeTiempo, marcasX, marcasY, ordenarPor, paginar,
+  filtrarPorTexto, LIENZO, marcaDeTiempo, marcasDeRango, marcasDeTiempo, marcasX, marcasY, ordenarPor, paginar,
   REFERENCIAS, aCsv, techoY,
   tramosDeLinea, x, y, type Direccion,
 } from '../vistas/cargabilidadVista';
@@ -1889,7 +1889,10 @@ function GraficasPorFase({ registros }: { registros: Registro[] }) {
       cols: [['RS', 'tensionRS_kV'], ['ST', 'tensionST_kV'], ['TR', 'tensionTR_kV']] as const },
     { rotulo: 'Tensión fase-tierra', unidad: 'kV', dec: 1, agregado: 'tension_kV',
       cols: [['R', 'tensionR_kV'], ['S', 'tensionS_kV'], ['T', 'tensionT_kV']] as const },
-    { rotulo: 'Corriente', unidad: 'A', dec: 0, agregado: 'corriente_A',
+    // ⚠️ MÁS ALTA QUE LAS DEMÁS, y no es estética (`99 §ADR-124`): es la única
+    // que produce un DICTAMEN —corriente contra ampacidad—. Cinco gráficas del
+    // mismo tamaño dicen que las cinco pesan igual, y no es verdad.
+    { rotulo: 'Corriente', unidad: 'A', dec: 0, agregado: 'corriente_A', alto: 340,
       cols: [['R', 'corrienteR_A'], ['S', 'corrienteS_A'], ['T', 'corrienteT_A']] as const },
     { rotulo: 'Potencia activa', unidad: 'MW', dec: 2, agregado: 'potenciaActiva_MW',
       cols: [['R', 'potenciaActivaR_MW'], ['S', 'potenciaActivaS_MW'], ['T', 'potenciaActivaT_MW']] as const },
@@ -1968,9 +1971,11 @@ function GraficasPorFase({ registros }: { registros: Registro[] }) {
         const holgura = (max - min) || Math.max(Math.abs(max) * 0.02, 0.1);
         const lo = min - holgura * 0.08;
         const hi = max + holgura * 0.08;
-        const yEn = (v: number) => LIENZO.alto - LIENZO.margen.b
-          - ((v - lo) / (hi - lo)) * (LIENZO.alto - LIENZO.margen.s - LIENZO.margen.b);
-        const marcas = [lo, lo + (hi - lo) / 2, hi];
+        // Cada magnitud dibuja en SU lienzo: solo cambia el alto.
+        const lz = { ...LIENZO, alto: (g as { alto?: number }).alto ?? LIENZO.alto };
+        const yEn = (v: number) => lz.alto - lz.margen.b
+          - ((v - lo) / (hi - lo)) * (lz.alto - lz.margen.s - lz.margen.b);
+        const marcas = marcasDeRango(lo, hi);
         const { idx, modo } = marcasDeTiempo(registros as never[]);
         // La mayor distancia entre la fase más alta y la más baja en un mismo
         // instante: es lo que explica por qué tres líneas parecen una.
@@ -1998,26 +2003,30 @@ function GraficasPorFase({ registros }: { registros: Registro[] }) {
                 </span>
               ))}
             </div>
-            <svg viewBox={`0 0 ${LIENZO.ancho} ${LIENZO.alto}`} className="grafica" role="img"
+            <svg viewBox={`0 0 ${lz.ancho} ${lz.alto}`} className="grafica" role="img"
               aria-label={`${g.rotulo} por fase, ${registros.length} instantes`}>
-              {marcas.map((v, k) => (
+              {marcas.map(({ v, cero }, k) => (
                 <g key={k}>
-                  <line x1={LIENZO.margen.i} x2={LIENZO.ancho - LIENZO.margen.d}
-                    y1={yEn(v)} y2={yEn(v)} stroke="var(--bd-tenue)" strokeWidth={1} />
-                  <text x={LIENZO.margen.i - 6} y={yEn(v) + 4} textAnchor="end"
-                    fontSize={10} fill="var(--tx-tenue, #888)">{nf(v, g.dec)}</text>
+                  {/* ⚠️ La del CERO se pinta distinta: en una magnitud con signo es
+                      donde se invierte el sentido del flujo, no una cifra más. */}
+                  <line x1={lz.margen.i} x2={lz.ancho - lz.margen.d}
+                    y1={yEn(v)} y2={yEn(v)} stroke={cero ? 'var(--tx-tenue, #888)' : 'var(--bd-tenue)'}
+                    strokeWidth={cero ? 1.4 : 1} strokeDasharray={cero ? '4 3' : undefined} />
+                  <text x={lz.margen.i - 6} y={yEn(v) + 4} textAnchor="end"
+                    fontSize={10} fill="var(--tx-tenue, #888)"
+                    fontWeight={cero ? 700 : undefined}>{nf(v, g.dec)}</text>
                 </g>
               ))}
               {/* ⚠️ LA UNIDAD, ROTULANDO EL EJE (`99 §ADR-122`). Pegada al número
                   —«-27,54 MW»— la etiqueta se salía del margen izquierdo y
                   aparecía cortada: se veía «',54 MW». Va arriba del eje, que es
                   su sitio, y ahí cabe siempre sea cual sea la cifra. */}
-              <text x={LIENZO.margen.i} y={LIENZO.margen.s - 6} textAnchor="start"
+              <text x={lz.margen.i} y={lz.margen.s - 6} textAnchor="start"
                 fontSize={10} fill="var(--tx-tenue, #888)">{g.unidad}</text>
               {g.presentes.map(([fase, campo], k) => {
                 const trazo = registros
                   .map((x_, i) => (typeof x_[campo] === 'number'
-                    ? `${x(i, registros.length)},${yEn(x_[campo] as number)}` : null))
+                    ? `${x(i, registros.length, lz)},${yEn(x_[campo] as number)}` : null))
                   .filter((v): v is string => v !== null)
                   .join(' ');
                 return (
@@ -2029,7 +2038,7 @@ function GraficasPorFase({ registros }: { registros: Registro[] }) {
                         cada uno tapa la línea y cuesta miles de nodos. La línea
                         sigue siendo el dato; el punto era la ayuda para leerlo. */}
                     {registros.length <= PUNTOS_VISIBLES && registros.map((x_, i) => (typeof x_[campo] === 'number' ? (
-                      <circle key={i} cx={x(i, registros.length)} cy={yEn(x_[campo] as number)} r={2.2}
+                      <circle key={i} cx={x(i, registros.length, lz)} cy={yEn(x_[campo] as number)} r={2.2}
                         fill={TINTA[k % TINTA.length]}>
                         <title>
                           {etiquetaInstante(x_ as never)} · {fase} · {nf(x_[campo] as number, g.dec)} {g.unidad}
@@ -2046,7 +2055,7 @@ function GraficasPorFase({ registros }: { registros: Registro[] }) {
                   frontera, que es lo que el ojo busca en una serie horaria.
                   La última se ancla al final o se sale del lienzo. */}
               {idx.map((i, k) => (
-                <text key={i} x={x(i, registros.length)} y={LIENZO.alto - 10}
+                <text key={i} x={x(i, registros.length, lz)} y={lz.alto - 10}
                   textAnchor={k === idx.length - 1 ? 'end' : k === 0 ? 'start' : 'middle'}
                   fontSize={9} fill="var(--tx-tenue, #888)">
                   {marcaDeTiempo(registros[i] as never, modo)}
@@ -2055,7 +2064,7 @@ function GraficasPorFase({ registros }: { registros: Registro[] }) {
               {/* ⚠️ LA FECHA, DENTRO DE LA FIGURA. Va en la cabecera de la tarjeta,
                   pero una captura de la gráfica sola —que es lo que acaba en un
                   informe— se quedaba sin ella. Aquí, discreta y a la derecha. */}
-              <text x={LIENZO.ancho - LIENZO.margen.d} y={LIENZO.margen.s - 6} textAnchor="end"
+              <text x={lz.ancho - lz.margen.d} y={lz.margen.s - 6} textAnchor="end"
                 fontSize={9} fill="var(--tx-tenue, #888)">{periodoDicho}</text>
             </svg>
             <p className="fine">

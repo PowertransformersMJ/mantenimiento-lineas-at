@@ -174,6 +174,37 @@ export function marcasY(techo: number): number[] {
   return marcas;
 }
 
+/**
+ * LAS MARCAS DEL EJE Y DE UNA MAGNITUD LIBRE (`99 §ADR-124`).
+ *
+ * `marcasY` sirve al eje del PORCENTAJE, que va de 0 a un techo conocido. Una
+ * magnitud de operación no tiene techo: la tensión se mueve entre 68 y 70 kV y
+ * la potencia activa entre −44 y −7 MW. Aquí se reparten `n` marcas por el
+ * recorrido real.
+ *
+ * ⚠️ Y SI EL CERO ESTÁ DENTRO DEL RECORRIDO, SE MARCA. En una magnitud con
+ * signo el cero no es una cifra más: es **dónde se invierte el sentido del
+ * flujo**. Una potencia que cruza el cero cambia de importar a exportar, y una
+ * gráfica que no lo señala esconde el único punto que hay que mirar. Cuando el
+ * cero no cae dentro —la corriente va de 69 a 368 A— no se fuerza: el eje no
+ * empieza en cero a propósito, y eso ya se avisa debajo de cada figura.
+ *
+ * @returns `{ v, cero }` por marca, para poder pintar la del cero distinta.
+ */
+export function marcasDeRango(lo: number, hi: number, n = 4): { v: number; cero: boolean }[] {
+  if (!(hi > lo)) return [{ v: lo, cero: lo === 0 }];
+  const out: { v: number; cero: boolean }[] = [];
+  for (let k = 0; k < n; k += 1) out.push({ v: lo + ((hi - lo) * k) / (n - 1), cero: false });
+  if (lo < 0 && hi > 0) {
+    // El cero sustituye a la marca más cercana en vez de sumarse: dos etiquetas
+    // pegadas se leen encima, y de las dos la que importa es el cero.
+    let j = 0;
+    for (let k = 1; k < out.length; k += 1) if (Math.abs(out[k].v) < Math.abs(out[j].v)) j = k;
+    out[j] = { v: 0, cero: true };
+  }
+  return out;
+}
+
 /** Cuántas etiquetas caben en el eje X sin que se pisen. Devuelve los índices. */
 export function marcasX(n: number, maximo = 8): number[] {
   if (n <= maximo) return Array.from({ length: n }, (_, i) => i);

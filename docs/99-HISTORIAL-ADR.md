@@ -10101,3 +10101,36 @@ la misma razón de `§ADR-122`: la figura tiene que explicarse sin su párrafo.
   entero · 24 lecturas · una cada hora».
 
 ---
+## ADR-124 · 2026-09-07 · No todas las gráficas pesan igual, y el cero no es una cifra más
+
+**Deliberación:** dos mejoras que ofrecí al cerrar `§ADR-123`; el Ingeniero dijo «procede».
+**Estado:** ✅ en producción, verificado · **NO revisada externamente**.
+
+### Decisión
+
+**1. La CORRIENTE se dibuja más alta que las demás** (340 frente a 260). No es estética: es la única
+de las cinco que **produce un dictamen** —corriente contra ampacidad—; las otras cuatro describen.
+Cinco figuras del mismo tamaño afirman que las cinco pesan igual, y eso no es cierto. Cada magnitud
+dibuja ahora en su propio lienzo, del que solo cambia el alto.
+
+**2. El eje Y pasa a CUATRO marcas repartidas por el recorrido real**, y **si el cero cae dentro, se
+marca**: línea a trazos y cifra en negrita. En una magnitud con signo el cero es **dónde se invierte
+el sentido del flujo** —de importar a exportar—, no una cifra intermedia. El cero SUSTITUYE a la
+marca vecina en vez de sumarse: dos etiquetas pegadas se leen encima, y de las dos importa el cero.
+
+⚠️ **Y cuando el cero NO cae dentro, no se fuerza.** La corriente va de 69 a 368 A: meter el cero
+aplastaría la curva contra el borde superior, que es justo lo que `§ADR-107` decidió no hacer. El
+aviso de «el eje no empieza en cero» sigue debajo de cada figura.
+
+### Consecuencias
+
+- `2.645` pruebas. La primitiva `marcasDeRango` vive en el módulo puro de vistas, con su prueba de
+  que una magnitud toda negativa **no inventa un cero** y de que un rango degenerado no revienta.
+- Verificado en producción: `Corriente (A)` con `viewBox 0 0 760 340` y las otras cuatro a 260; la
+  línea del cero aparece **solo** en `Potencia reactiva (MVAr)`, que es la única que cruza.
+- ⚠️ **Un fallo mío de método, otra vez:** el `viewBox` seguía citando el lienzo global porque mi
+  sustitución no casó por **un espacio en blanco**, y lo di por hecho sin mirar. Lo cazó la
+  comprobación en producción —`viewBox 0 0 760 260` donde debía decir 340—, no el compilador ni las
+  pruebas: ambos veían código válido. Mismo patrón que todo el día: **lo que no se mira, no está**.
+
+---

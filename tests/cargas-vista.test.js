@@ -729,3 +729,45 @@ describe('las marcas del eje caen donde significan algo', () => {
     assert.deepEqual(marcasDeTiempo([]), { idx: [], modo: 'hora' });
   });
 });
+
+// ════════════════════════════════════════════════════════════════════════════
+// EL CERO SE MARCA CUANDO SIGNIFICA ALGO (`99 §ADR-124`)
+// ----------------------------------------------------------------------------
+// ⚠️ En una magnitud con signo el cero no es una cifra más: es **dónde se
+// invierte el sentido del flujo**. La potencia activa de la línea sale negativa
+// todo enero; el día que cruce el cero, esa gráfica tiene que decirlo. Y cuando
+// el cero NO cae dentro del recorrido —la corriente va de 69 a 368 A— no se
+// fuerza: el eje no empieza en cero a propósito, y eso ya se avisa aparte.
+// ════════════════════════════════════════════════════════════════════════════
+import { marcasDeRango } from '../web/src/vistas/cargabilidadVista.ts';
+
+describe('las marcas del eje Y de una magnitud libre', () => {
+  test('reparten el recorrido real, con los extremos incluidos', () => {
+    const m = marcasDeRango(69, 368);
+    assert.equal(m.length, 4);
+    assert.equal(m[0].v, 69);
+    assert.equal(m[m.length - 1].v, 368);
+    assert.ok(m.every((x) => !x.cero), 'el cero NO se fuerza si no cae dentro');
+  });
+
+  test('⚠️ y si el cero cae dentro, se marca — y sustituye a la vecina', () => {
+    const m = marcasDeRango(-3, 6.35);
+    const ceros = m.filter((x) => x.cero);
+    assert.equal(ceros.length, 1);
+    assert.equal(ceros[0].v, 0);
+    // Sustituye en vez de sumarse: dos etiquetas pegadas se leen encima, y de
+    // las dos la que importa es el cero.
+    assert.equal(m.length, 4);
+  });
+
+  test('una magnitud toda negativa no inventa un cero', () => {
+    const m = marcasDeRango(-44.89, -7.31);
+    assert.ok(m.every((x) => !x.cero));
+    assert.ok(m.every((x) => x.v < 0));
+  });
+
+  test('un rango degenerado no revienta', () => {
+    assert.deepEqual(marcasDeRango(5, 5), [{ v: 5, cero: false }]);
+    assert.deepEqual(marcasDeRango(0, 0), [{ v: 0, cero: true }]);
+  });
+});

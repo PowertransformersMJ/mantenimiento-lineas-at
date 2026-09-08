@@ -617,7 +617,7 @@ describe('la gráfica dice su unidad, su franja y quién es cada línea', () => 
   test('la UNIDAD va en el eje, no solo en el pie', () => {
     // ⚠️ Y ROTULANDO el eje, no pegada al número: «-27,54 MW» se salía del
     // margen y salía cortada como «',54 MW».
-    assert.match(pantalla, /y=\{LIENZO\.margen\.s - 6\}[\s\S]{0,120}\{g\.unidad\}/,
+    assert.match(pantalla, /y=\{lz\.margen\.s - 6\}[\s\S]{0,120}\{g\.unidad\}/,
       'la unidad va arriba del eje, dentro del lienzo');
     assert.match(pantalla, /<p className="mapa-capas-t">\{g\.rotulo\} \(\{g\.unidad\}\)<\/p>/,
       'y el título de la tarjeta también');
@@ -642,5 +642,22 @@ describe('la gráfica dice su unidad, su franja y quién es cada línea', () => 
     assert.match(pantalla, /const separacion = g\.presentes\.length < 2 \? null/);
     assert.match(pantalla, /líneas se superponen<\/b> porque las fases van/);
     assert.match(pantalla, /No es un fallo del dibujo/);
+  });
+});
+
+describe('no todas las gráficas pesan igual (`99 §ADR-124`)', () => {
+  const pantalla = readFileSync(new URL('../web/src/componentes/Cargabilidad.tsx', import.meta.url), 'utf8');
+
+  test('⚠️ la CORRIENTE se dibuja más alta: es la única que produce un dictamen', () => {
+    // Cinco gráficas del mismo tamaño dicen que las cinco pesan igual, y no es
+    // verdad: solo la corriente se compara con la ampacidad y firma un veredicto.
+    assert.match(pantalla, /rotulo: 'Corriente'[\s\S]{0,120}alto: \d+/);
+    assert.match(pantalla, /const lz = \{ \.\.\.LIENZO, alto: /,
+      'cada magnitud dibuja en su propio lienzo');
+  });
+
+  test('y el cero se pinta distinto cuando cae dentro', () => {
+    assert.match(pantalla, /strokeDasharray=\{cero \? '4 3' : undefined\}/);
+    assert.match(pantalla, /fontWeight=\{cero \? 700 : undefined\}/);
   });
 });
