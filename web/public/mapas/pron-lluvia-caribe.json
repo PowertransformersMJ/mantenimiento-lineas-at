@@ -3,7 +3,7 @@
  "titulo": "Lluvia que se espera en el Caribe",
  "naturaleza": "pronostico",
  "caducaEn_h": 8,
- "caduca": "2026-09-08T12:38:59.882Z",
+ "caduca": "2026-09-08T20:53:12.269Z",
  "departamentos": [
   "Bolívar",
   "Córdoba",
@@ -34,7 +34,7 @@
  "valorMaximoRepresentable": 63.5,
  "medido": {
   "min": 0,
-  "max": 9.8
+  "max": 6.5
  },
  "cuadros": {
   "horas": 24,
@@ -48,21 +48,17 @@
    "clave": "09",
    "archivo": "pron-lluvia-caribe-2026-09.png",
    "dias": 30,
-   "horasConDato": 62,
-   "bytes": 512
+   "horasConDato": 60,
+   "bytes": 550
   }
  ],
  "ultimoDiaConHoras": "2026-09-10",
  "ultimoDiaConTotal": "2026-09-17",
- "construido": "2026-09-08T04:38:59.882Z",
+ "construido": "2026-09-08T12:53:12.269Z",
  "resumenDiario": [
   {
-   "d": "2026-09-07",
-   "v": 0
-  },
-  {
    "d": "2026-09-08",
-   "v": 0.1
+   "v": 0
   },
   {
    "d": "2026-09-09",
@@ -70,35 +66,35 @@
   },
   {
    "d": "2026-09-10",
-   "v": 5.6
+   "v": 7.15
   },
   {
    "d": "2026-09-11",
-   "v": 3.7
+   "v": 6.45
   },
   {
    "d": "2026-09-12",
-   "v": 5.2
+   "v": 5.3
   },
   {
    "d": "2026-09-13",
-   "v": 3.25
+   "v": 5.85
   },
   {
    "d": "2026-09-14",
-   "v": 8.75
+   "v": 9.4
   },
   {
    "d": "2026-09-15",
-   "v": 8
+   "v": 4.1
   },
   {
    "d": "2026-09-16",
-   "v": 6.25
+   "v": 3.65
   },
   {
    "d": "2026-09-17",
-   "v": 0.2
+   "v": 1.8
   }
  ],
  "resumenDiarioEtiqueta": "Total que se espera",
