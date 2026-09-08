@@ -225,7 +225,7 @@ const IdDeterminista = z.string().min(3).max(400).regex(
  * que ya tenía y son los otros dos los que lo llevan escrito. Todo documento
  * NUEVO lo declara, venga el que venga.
  */
-export const ESTADISTICOS = ['maximo', 'promedio', 'instantaneo'] as const;
+export const ESTADISTICOS = ['maximo', 'promedio', 'instantaneo', 'minimo'] as const;
 export const Estadistico = z.enum(ESTADISTICOS);
 export type Estadistico = z.infer<typeof Estadistico>;
 
@@ -234,7 +234,7 @@ export const ESTADISTICO_POR_DEFECTO: Estadistico = 'maximo';
 
 /** Cómo se llama cada uno en pantalla. Aquí, para que no haya dos verdades. */
 export const ROTULO_ESTADISTICO: Record<Estadistico, string> = {
-  maximo: 'máximo', promedio: 'promedio', instantaneo: 'instantáneo',
+  maximo: 'máximo', promedio: 'promedio', instantaneo: 'instantáneo', minimo: 'mínimo',
 };
 
 export const DiaDeCargabilidad = Base.extend({
@@ -390,7 +390,7 @@ export const CargaDeCargabilidad = Base.extend({
    * lo traen y se leen como **no declarado**, jamás como «máximo»: rellenarlas
    * sería fabricar dato en el único registro que existe para auditar.
    */
-  estadisticos: z.array(Estadistico).max(3).optional(),
+  estadisticos: z.array(Estadistico).max(8).optional(),
   desde: DiaIso.optional(),
   hasta: DiaIso.optional(),
   estado: EstadoCarga,

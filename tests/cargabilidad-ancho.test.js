@@ -490,11 +490,18 @@ describe('muchas señales de la misma magnitud: el peligro es real y medible', (
 describe('la pantalla no asigna sola un volcado del sistema entero', () => {
   const pantalla = readFileSync(new URL('../web/src/componentes/Cargabilidad.tsx', import.meta.url), 'utf8');
 
-  test('por encima del umbral, todas nacen en «no usar»', () => {
-    assert.match(pantalla, /const TOPE_AUTOASIGNAR = \d+;/,
+  test('más de las tres fases de una magnitud: todas nacen en «no usar»', () => {
+    // ⚠️ El umbral era un TOTAL de señales, y dejaba fuera el caso bueno: un mes
+    // de UNA bahía son ~38 señales —ocho magnitudes por cinco estadísticos— y
+    // ninguna es ambigua (`99 §ADR-117`). Lo que hay que impedir es COMBINAR:
+    // tres señales de la misma magnitud y el mismo estadístico son las tres
+    // fases; una cuarta significa que el archivo trae más de una bahía.
+    assert.match(pantalla, /const FASES_POR_MAGNITUD = 3;/,
       'sin umbral declarado, la decisión vuelve a estar escondida en un `if`');
-    assert.match(pantalla, /senalesDelArchivo > TOPE_AUTOASIGNAR\s*\n?\s*\?\s*Object\.fromEntries/,
-      'el archivo grande tiene que sembrar el mapa de asignaciones en null');
+    assert.match(pantalla, /cubos\.set\(k,/,
+      'se cuenta por magnitud + estadístico, no el total de señales');
+    assert.match(pantalla, /ambiguo\s*\n?\s*\?\s*Object\.fromEntries/,
+      'y el ambiguo tiene que sembrar el mapa de asignaciones en null');
   });
 
   test('y se puede elegir en bloque lo que casa con la búsqueda', () => {

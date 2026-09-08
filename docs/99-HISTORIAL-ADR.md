@@ -9822,3 +9822,83 @@ pantalla llena en una pantalla vacía.
   entre fases y corriente por fases—, sin un solo clic.
 
 ---
+## ADR-117 · 2026-09-07 · Un mes entero en una carga: el mínimo, el sello de calidad, y la fecha la declara el DATO
+
+**Deliberación:** el Ingeniero subió enero completo — 30 carpetas, ~1.000 archivos, **509 MB**.
+**Estado:** ✅ en producción · **NO revisada externamente**.
+
+### Contexto y lo que apareció al medir
+
+**1. Un cuarto estadístico.** Desde el 13 de enero la exportación trae `_min`. No es adorno: en una
+magnitud con signo —la activa sale negativa— **el mínimo es el momento de MÁS carga**.
+
+**2. Un archivo que no es una medida.** `_quality` trae sellos, no números: `Actual` cuando la hora
+se midió de verdad. Tratarlo como estadístico bloqueaba la carga entera —su nombre no declara
+ninguno, y sin estadístico el guardado se niega, que es correcto para una medida y absurdo para un
+sello—. Se reconoce, se aparta y **se lee**: medidas las 3.432 horas de la bahía, **todas `Actual`**.
+
+**3. ⚠️ EL NOMBRE MIENTE, Y EL DATO NO.** De 902 archivos de la bahía, **46 tienen la fecha del
+nombre equivocada**. Una carpeta entera llamada «30Enero» resultó ser el **29 de julio**; un archivo
+llamado `..._20260601` traía el **31 de mayo**. Agrupar por el nombre habría metido julio dentro de
+enero **sin que nada chillara**, y el histórico no se puede borrar. Manda la fila de sellos de
+tiempo, que es lo único que el propio dato afirma sobre cuándo se midió. **Enero tiene 29 días.**
+
+**4. 509 MB no caben por ninguna puerta.** Cada archivo trae la RED ENTERA —~3.000 señales— y a una
+línea le importan ocho. `herramientas/extraer-bahia.mjs` selecciona filas —no transforma nada— y deja
+el mes en **3,5 MB**, byte a byte idénticos. No toca los originales.
+
+### Decisión
+
+**1. `minimo` entra en la lista cerrada**, espejado en el molde con su prueba de paridad.
+**2. El sello de calidad se reconoce, se aparta y se lee**, y una hora que no diga `Actual` se señala.
+**3. `unirPorDia` agrupa por la fecha que declara el eje de tiempo**, con el nombre solo de respaldo.
+La exigencia de `unirAnchas` —misma rejilla— no se relaja: se aplica dentro de cada día.
+**4. Y el tope de auto-asignación pasa a contar POR MAGNITUD Y ESTADÍSTICO.** Contar el total dejaba
+fuera el caso bueno: un mes de una bahía son ~38 señales y ninguna es ambigua. Lo que hay que impedir
+es COMBINAR: tres de la misma magnitud y el mismo estadístico son las tres fases; una cuarta es que
+el archivo trae más de una bahía.
+**5. La tabla hora a hora se pliega**, orden suya: «me interesa que se aprecien más las gráficas».
+
+### Consecuencias
+
+- Motor `0.18.0`. `2.627` pruebas.
+- ⚠️ **Dos archivos quedan sin cargar a la espera de su decisión**: el 31 de mayo y el 28-29 de
+  julio, que aparecieron dentro de carpetas de enero. Son medidas reales con su fecha correcta, pero
+  meterlas es irreversible.
+
+---
+## ADR-118 · 2026-09-07 · La magnitud sin fases no es una magnitud invisible: la activa y la reactiva se guardaban y no se veían
+
+**Deliberación:** lo vio el Ingeniero — *«no veo la potencia activa, la potencia reactiva. Las
+medidas necesito apreciarlas hora a hora»*.
+**Estado:** ✅ en producción, verificado · **NO revisada externamente**.
+
+### Contexto
+
+Las dos piezas que enseñan el detalle —la tabla hora a hora y las gráficas— estaban construidas
+**alrededor de las fases**: recorrían seis grupos y pintaban el que tuviera columnas de fase con
+dato. Su SCADA exporta la activa, la reactiva y la aparente **solo como agregado**: no hay un archivo
+por fase de la potencia. Resultado: **dos gráficas de seis**, y tres magnitudes que se guardaban
+correctamente y no aparecían en ninguna parte de la pantalla.
+
+### Decisión
+
+**1. Una gráfica y una columna por magnitud PRESENTE, tenga fases o no.** Si trae fases, se pintan
+las fases; si solo trae el total, se pinta el total **y se dice que es el total** — no vaya a
+parecer una fase suelta.
+
+**2. «Hora a hora» son TODAS las horas.** La tabla cortaba a 12 de 24 y avisaba debajo: para ver la
+tarde había que exportar el CSV.
+
+### Consecuencias
+
+- `2.628` pruebas. Verificado en producción: **cinco gráficas** —tensión entre fases, corriente,
+  activa, reactiva y aparente— y **cinco tablas de 24 filas**.
+- ⚠️ **Y un defecto que me hice yo al arreglarlo:** «tensión entre fases» y «tensión fase-tierra»
+  comparten el mismo campo agregado, así que al caer al total cayeron LAS DOS — la misma línea
+  pintada dos veces, y una rotulada «fase a tierra» sobre una medida entre fases. Es el factor de
+  1,73 que este módulo lleva cuidando desde el primer día, roto por un atajo de pintado. El agregado
+  lo reclama ahora un solo grupo, y hay prueba.
+- Y el contador del botón decía «Ver las 6 horas» de un día de 24: contaba magnitudes.
+
+---

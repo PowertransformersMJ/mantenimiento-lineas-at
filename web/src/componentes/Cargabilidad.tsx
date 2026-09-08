@@ -48,7 +48,7 @@ import {
 } from '../vistas/cargabilidadVista';
 import {
   cerosAlFinal, CRITERIOS_DE_FASE, encontrarEjeDeTiempo, leerSenales, pareceAncho,
-  estadisticoDeNombre, registrosDesdeAncho, unirAnchas,
+  campoDeSenal, estadisticoDeNombre, registrosDesdeAncho, unirAnchas, unirPorDia,
 } from '@lineas/nucleo/cargabilidadAncho';
 import { desempaquetarDia, empaquetarPorDia, ESTADISTICOS, resumirDia } from '@lineas/nucleo/cargabilidad';
 import {
@@ -96,6 +96,16 @@ interface Cargado {
   estadisticoPorFila: Record<number, string | null> | null;
   porArchivo: { nombre: string; senales: number; estadistico: string | null; porQue: string }[];
   estadisticos: string[];
+  /**
+   * UN GRUPO POR DÍA (`99 §ADR-117`).
+   *
+   * ⚠️ `unirAnchas` exige que todos los archivos compartan EXACTAMENTE los
+   * mismos instantes —alinear dos rejillas es interpolar—, así que dos días no
+   * se unen. Pero el Ingeniero exporta el mes entero: treinta carpetas. Se
+   * agrupan por la fecha de su nombre y cada día se une con los suyos; la
+   * exigencia no se relaja, se aplica donde tiene sentido.
+   */
+  porDia: { fecha: string | null; matriz: Celda[][]; estadisticoPorFila: Record<number, string | null> }[];
 }
 
 /** Bajar un texto como archivo. El navegador ya sabe; solo hay que pedírselo. */
@@ -195,7 +205,12 @@ export default function Cargabilidad({
       setAcuse(null); setFalloGuardar(null);
 
       const varios = leidos.length > 1;
-      const union = varios ? unirAnchas(leidos.map((x) => ({ nombre: x.nombre, matriz: x.matriz }))) : null;
+      const entradas = leidos.map((x) => ({ nombre: x.nombre, matriz: x.matriz }));
+      const dias = varios ? unirPorDia(entradas) : { porDia: [], fechas: [] };
+      // Un solo día —o archivos sin fecha en el nombre— sigue el camino de
+      // siempre; varios se procesan uno a uno y se concatenan.
+      const variosDias = dias.porDia.length > 1;
+      const union = varios ? (variosDias ? dias.porDia[0].union : unirAnchas(entradas)) : null;
       // (con un solo archivo no hace falta unir nada: su estadístico sale de su nombre)
       const hojas = [{ nombre: varios ? `${leidos.length} archivos` : leidos[0].hoja,
         matriz: union ? union.matriz : leidos[0].matriz }];
@@ -232,12 +247,26 @@ export default function Cargabilidad({
       // umbral no es un gusto: una bahía exporta un puñado de señales —tres
       // corrientes, tres tensiones, P, Q y poco más—; cientos significa que el
       // archivo es del sistema entero y hay que elegir.
+      // ⚠️ EL TOPE CUENTA POR MAGNITUD Y ESTADÍSTICO, no señales sueltas
+      // (`99 §ADR-117`). Contar el total dejaba fuera el caso bueno: un mes de
+      // UNA bahía son ~38 señales —ocho magnitudes por cinco estadísticos— y
+      // ninguna es ambigua. Lo que hay que impedir es COMBINAR: tres señales de
+      // la misma magnitud y el mismo estadístico son las tres fases y se
+      // combinan bien; más de tres es que el archivo trae media red.
       const senalesDelArchivo = forma.ancho
-        ? leerSenales(hoja.matriz, encontrarEjeDeTiempo(hoja.matriz)).length
-        : 0;
-      setAsignado(senalesDelArchivo > TOPE_AUTOASIGNAR
-        ? Object.fromEntries(leerSenales(hoja.matriz, encontrarEjeDeTiempo(hoja.matriz))
-          .map((x) => [x.fila, null]))
+        ? leerSenales(hoja.matriz, encontrarEjeDeTiempo(hoja.matriz))
+        : [];
+      const porFilaEst = union?.estadisticoPorFila ?? {};
+      const cubos = new Map<string, number>();
+      for (const x of senalesDelArchivo) {
+        const campo = campoDeSenal(x.etiqueta)?.campo;
+        if (!campo) continue;
+        const k = `${campo}|${porFilaEst[x.fila] ?? '—'}`;
+        cubos.set(k, (cubos.get(k) ?? 0) + 1);
+      }
+      const ambiguo = [...cubos.values()].some((n) => n > FASES_POR_MAGNITUD);
+      setAsignado(ambiguo
+        ? Object.fromEntries(senalesDelArchivo.map((x) => [x.fila, null]))
         : {});
       setLinea(lineaAbierta ?? '');
       setCargado({
@@ -255,13 +284,18 @@ export default function Cargabilidad({
             nombre: d.nombre, senales: d.senales, estadistico: d.estadistico, porQue: d.porQueEstadistico,
           }))
           : [{
-            nombre: leidos[0].nombre, senales: senalesDelArchivo,
+            nombre: leidos[0].nombre, senales: senalesDelArchivo.length,
             estadistico: estadisticoDeNombre(leidos[0].nombre).id,
             porQue: estadisticoDeNombre(leidos[0].nombre).porQue,
           }],
         estadisticos: union
           ? union.estadisticos
           : [estadisticoDeNombre(leidos[0].nombre).id].filter(Boolean) as string[],
+        porDia: variosDias
+          ? dias.porDia.map((d) => ({
+            fecha: d.fecha, matriz: d.union.matriz, estadisticoPorFila: d.union.estadisticoPorFila,
+          }))
+          : [],
       });
       setCorregido({});
       setMirado(null);
@@ -323,10 +357,19 @@ export default function Cargabilidad({
   /** La lectura ANCHA, cuando toca. Se recalcula al cambiar línea, señal o criterio. */
   const ancho = useMemo(() => {
     if (!cargado?.ancho) return null;
-    return registrosDesdeAncho(cargado.matriz, {
+    const uno = registrosDesdeAncho(cargado.matriz, {
       linea: linea.trim(), asignado, criterioFase,
       estadistico: verAhora, estadisticoPorFila: porFila,
     });
+    if (!cargado.porDia.length) return uno;
+    // ⚠️ Con varios días, el resto se lee IGUAL y se concatena. Las señales son
+    // las mismas —misma bahía, mismas etiquetas—, así que la asignación vale
+    // para todos; lo único que cambia son los instantes.
+    const resto = cargado.porDia.slice(1).flatMap((d) => registrosDesdeAncho(d.matriz, {
+      linea: linea.trim(), criterioFase,
+      estadistico: verAhora, estadisticoPorFila: d.estadisticoPorFila,
+    }).registros);
+    return { ...uno, registros: [...uno.registros, ...resto] };
   }, [cargado, linea, asignado, criterioFase, verAhora, porFila]);
 
   const lote = useMemo(() => {
@@ -443,11 +486,14 @@ export default function Cargabilidad({
       // suelta los tres archivos del día, los tres son dato suyo y los tres se
       // escriben, cada uno en SU documento. Guardar solo el visible le haría
       // perder dos tercios de lo que entregó sin que nada se lo dijera.
+      const matrices = cargado?.porDia.length
+        ? cargado.porDia.map((d) => ({ matriz: d.matriz, porFila: d.estadisticoPorFila }))
+        : [{ matriz: cargado?.matriz as Celda[][], porFila }];
       const todos = cargado?.ancho && presentes.length
-        ? presentes.flatMap((est) => registrosDesdeAncho(cargado.matriz, {
+        ? presentes.flatMap((est) => matrices.flatMap((m) => registrosDesdeAncho(m.matriz, {
           linea: linea.trim(), asignado, criterioFase,
-          estadistico: est, estadisticoPorFila: porFila,
-        }).registros)
+          estadistico: est, estadisticoPorFila: m.porFila,
+        }).registros))
         : (registros as never[]);
 
       const { dias } = empaquetarPorDia(todos as never[]);
@@ -1285,7 +1331,13 @@ function PorLineaDelHistorico({ resumenes }: { resumenes: ResumenDiario[] }) {
  * Cuántas señales caben en «esto es la bahía de una línea» antes de que el
  * archivo sea, evidentemente, un volcado del sistema completo.
  */
-const TOPE_AUTOASIGNAR = 12;
+/**
+ * Cuántas señales de la MISMA magnitud y el MISMO estadístico son legítimas:
+ * las tres fases. Una cuarta significa que el archivo trae más de una bahía, y
+ * entonces no se asigna nada solo — combinarlas daría la tensión de media
+ * Colombia en un número (`99 §ADR-105/117`).
+ */
+const FASES_POR_MAGNITUD = 3;
 
 function SenalesDelScada({
   cargado, ancho, linea, alCambiarLinea, lineaAbierta, criterioFase, alCambiarCriterio,
@@ -1445,7 +1497,8 @@ function SenalesDelScada({
           ? <> · <b>se enseñan {TOPE_SENALES}</b>, afine la búsqueda para ver el resto</>
           : null}
         . Una exportación de la red entera trae miles y <b>todas</b> se reconocen: por eso, por
-        encima de {TOPE_AUTOASIGNAR}, ninguna se usa hasta que usted la elija. Combinarlas todas
+        más de {FASES_POR_MAGNITUD} de la misma magnitud y el mismo estadístico —que serían más de
+        las tres fases—, ninguna se usa hasta que usted la elija. Combinarlas todas
         no daría error — daría la tensión de media Colombia en un solo número.
       </p>
       <div className="tabla-scroll">
@@ -1680,47 +1733,91 @@ function ResumenDeLaCarga({ lote, registros, nombre }: {
  * trae potencias por fase, esa tabla sencillamente no aparece.
  */
 function FasesDeLaCarga({ registros }: { registros: Registro[] }) {
+  const [abierto, setAbierto] = useState(false);
   const GRUPOS = [
-    { rotulo: 'Tensión entre fases', unidad: 'kV', dec: 1,
+    { rotulo: 'Tensión entre fases', unidad: 'kV', dec: 1, agregado: 'tension_kV',
       cols: [['RS', 'tensionRS_kV'], ['ST', 'tensionST_kV'], ['TR', 'tensionTR_kV']] as const },
-    { rotulo: 'Tensión fase-tierra', unidad: 'kV', dec: 1,
+    { rotulo: 'Tensión fase-tierra', unidad: 'kV', dec: 1, agregado: 'tension_kV',
       cols: [['R', 'tensionR_kV'], ['S', 'tensionS_kV'], ['T', 'tensionT_kV']] as const },
-    { rotulo: 'Corriente', unidad: 'A', dec: 0,
+    { rotulo: 'Corriente', unidad: 'A', dec: 0, agregado: 'corriente_A',
       cols: [['R', 'corrienteR_A'], ['S', 'corrienteS_A'], ['T', 'corrienteT_A']] as const },
-    { rotulo: 'Potencia activa', unidad: 'MW', dec: 2,
+    { rotulo: 'Potencia activa', unidad: 'MW', dec: 2, agregado: 'potenciaActiva_MW',
       cols: [['R', 'potenciaActivaR_MW'], ['S', 'potenciaActivaS_MW'], ['T', 'potenciaActivaT_MW']] as const },
-    { rotulo: 'Potencia reactiva', unidad: 'MVAr', dec: 2,
+    { rotulo: 'Potencia reactiva', unidad: 'MVAr', dec: 2, agregado: 'potenciaReactiva_MVAr',
       cols: [['R', 'potenciaReactivaR_MVAr'], ['S', 'potenciaReactivaS_MVAr'], ['T', 'potenciaReactivaT_MVAr']] as const },
-    { rotulo: 'Potencia aparente', unidad: 'MVA', dec: 2,
+    { rotulo: 'Potencia aparente', unidad: 'MVA', dec: 2, agregado: 'potenciaAparente_MVA',
       cols: [['R', 'potenciaAparenteR_MVA'], ['S', 'potenciaAparenteS_MVA'], ['T', 'potenciaAparenteT_MVA']] as const },
   ];
-  const conDato = GRUPOS.filter((g) => g.cols.some(([, c]) => registros.some((x) => x[c] != null)));
+  /**
+   * ⚠️ TODAS LAS MAGNITUDES, hora a hora — no solo las que traen fases
+   * (`99 §ADR-118`). «Las medidas necesito apreciarlas hora a hora», y la
+   * activa, la reactiva y la aparente llegan de su SCADA **solo como agregado**:
+   * se guardaban bien y no salían en ninguna tabla ni en ninguna gráfica.
+   * Cuando hay fases se enseñan las fases; si no, el total, rotulado como total.
+   */
+  // ⚠️ EL AGREGADO LO RECLAMA UN SOLO GRUPO. «Tensión entre fases» y «tensión
+  // fase-tierra» comparten el mismo campo agregado, así que caer al total en los
+  // dos pintaba la MISMA línea dos veces, y una de ellas con el rótulo
+  // equivocado —«fase a tierra» sobre una medida entre fases, que es el factor
+  // de 1,73 que este módulo lleva cuidando desde el principio—. Se queda el
+  // primero que lo declara.
+  const reclamado = new Set<string>();
+  const conDato = GRUPOS
+    .map((g) => {
+      const fases = g.cols.filter(([, c]) => registros.some((x) => x[c] != null));
+      if (fases.length) { reclamado.add(g.agregado); return { ...g, presentes: fases, soloAgregado: false }; }
+      const hay = registros.some((x) => x[g.agregado] != null) && !reclamado.has(g.agregado);
+      if (hay) reclamado.add(g.agregado);
+      return hay
+        ? { ...g, presentes: [['total', g.agregado]] as unknown as typeof g.cols, soloAgregado: true }
+        : { ...g, presentes: [] as unknown as typeof g.cols, soloAgregado: false };
+    })
+    .filter((g) => g.presentes.length > 0);
   if (!conDato.length) return null;
-  const primeras = registros.slice(0, 12);
+  // ⚠️ LAS 24, no 12. «Hora a hora» quiere decir las horas que hay: cortar a la
+  // mitad y avisar debajo obligaba a exportar el CSV para ver la tarde.
+  const primeras = registros;
   const criterio = registros.find((x) => x.criterioFase)?.criterioFase;
 
   return (
     <div className="tarjeta">
-      <p className="mapa-capas-t">Las fases, hora a hora</p>
+      {/* ⚠️ PLEGADA POR DEFECTO, orden del Ingeniero (`99 §ADR-117`): «prefiero
+          que sea desplegable, me interesa que se aprecien más las gráficas».
+          Son 24 filas por magnitud y empujaban las gráficas fuera de la
+          pantalla. Se pliega la TABLA, no el dato: el número sigue estando a un
+          clic, y el rótulo dice cuántas horas hay dentro para que plegado no se
+          confunda con vacío. */}
+      <p className="mapa-capas-t">
+        Las fases, hora a hora{' '}
+        <button type="button" className="boton chico" aria-expanded={abierto}
+          onClick={() => setAbierto(!abierto)}>
+          {abierto ? 'Ocultar la tabla' : `Ver las ${nf(registros.length)} horas`}
+        </button>
+      </p>
       <p className="fine">
         Lo que trae la carga, sin resumir. El valor agregado que usa el resto de la pantalla sale de
         estas tres{criterio ? <> con el criterio <b>{criterio === 'maxima' ? 'la fase más cargada' : 'el promedio de las tres'}</b></> : null}
         {' '}y se guarda diciendo cuál se usó.
       </p>
-      {conDato.map((g) => (
+      {!abierto && (
+        <p className="fine">
+          {conDato.map((g) => g.rotulo).join(' · ')} — plegadas para que se vean las gráficas.
+        </p>
+      )}
+      {abierto && conDato.map((g) => (
         <div key={g.rotulo} className="tabla-scroll">
           <table className="tabla">
             <thead>
               <tr>
                 <th>{g.rotulo} ({g.unidad})</th>
-                {g.cols.map(([f]) => <th key={f} className="num">{f}</th>)}
+                {g.presentes.map(([f]) => <th key={f} className="num">{f}</th>)}
               </tr>
             </thead>
             <tbody>
               {primeras.map((x, i) => (
                 <tr key={i}>
                   <td>{x.hora == null ? '—' : `${String(x.hora).padStart(2, '0')}:00`}</td>
-                  {g.cols.map(([f, c]) => (
+                  {g.presentes.map(([f, c]) => (
                     <td key={f} className="num">
                       {x[c] == null ? '—' : nf(x[c] as number, g.dec)}
                     </td>
@@ -1731,7 +1828,7 @@ function FasesDeLaCarga({ registros }: { registros: Registro[] }) {
           </table>
         </div>
       ))}
-      {registros.length > primeras.length && (
+      {abierto && registros.length > primeras.length && (
         <p className="fine">Se muestran {primeras.length} de {nf(registros.length)} horas.</p>
       )}
     </div>
@@ -1781,8 +1878,37 @@ function GraficasPorFase({ registros }: { registros: Registro[] }) {
   // B y punto — pero conviene saberlo al mirar dos pantallas seguidas.
   const TINTA = ['#1f77b4', '#ff7f0e', '#2ca02c'];
 
+  /**
+   * ⚠️ UNA GRÁFICA POR MAGNITUD PRESENTE, tenga fases o no (`99 §ADR-118`).
+   *
+   * Lo vio el Ingeniero: «no veo la potencia activa, la potencia reactiva». Y
+   * era cierto — este componente solo dibujaba magnitudes CON FASES, y su
+   * exportación trae la activa, la reactiva y la aparente **solo como
+   * agregado**: no hay un archivo por fase de la potencia. Resultado: dos
+   * gráficas de seis, y tres magnitudes guardadas que no se veían en ninguna
+   * parte.
+   *
+   * Ahora, si la magnitud trae fases se dibujan sus fases; si solo trae el
+   * agregado, se dibuja el agregado y se DICE que es el agregado —no vaya a
+   * parecer una fase suelta.
+   */
+  // ⚠️ EL AGREGADO LO RECLAMA UN SOLO GRUPO. «Tensión entre fases» y «tensión
+  // fase-tierra» comparten el mismo campo agregado, así que caer al total en los
+  // dos pintaba la MISMA línea dos veces, y una de ellas con el rótulo
+  // equivocado —«fase a tierra» sobre una medida entre fases, que es el factor
+  // de 1,73 que este módulo lleva cuidando desde el principio—. Se queda el
+  // primero que lo declara.
+  const reclamado = new Set<string>();
   const conDato = GRUPOS
-    .map((g) => ({ ...g, presentes: g.cols.filter(([, c]) => registros.some((x) => x[c] != null)) }))
+    .map((g) => {
+      const fases = g.cols.filter(([, c]) => registros.some((x) => x[c] != null));
+      if (fases.length) { reclamado.add(g.agregado); return { ...g, presentes: fases, soloAgregado: false }; }
+      const hay = registros.some((x) => x[g.agregado] != null) && !reclamado.has(g.agregado);
+      if (hay) reclamado.add(g.agregado);
+      return hay
+        ? { ...g, presentes: [['total', g.agregado]] as unknown as typeof g.cols, soloAgregado: true }
+        : { ...g, presentes: [] as unknown as typeof g.cols, soloAgregado: false };
+    })
     .filter((g) => g.presentes.length > 0);
   if (!conDato.length) return null;
 
@@ -1853,6 +1979,10 @@ function GraficasPorFase({ registros }: { registros: Registro[] }) {
                 </span>
               ))}
               {' — '}entre <b>{nf(min, g.dec)}</b> y <b>{nf(max, g.dec)} {g.unidad}</b>.
+              {g.soloAgregado && (
+                <> Su archivo no trae esta magnitud <b>por fases</b>: lo que se dibuja es el
+                total de la bahía, no una fase suelta.</>
+              )}
               {' '}⚠️ <b>El eje no empieza en cero</b>: se ajusta al recorrido del dato. Desde cero,
               esta variación sería una raya plana; sin decirlo, parecería un tobogán.
             </p>

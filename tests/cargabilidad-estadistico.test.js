@@ -164,3 +164,95 @@ describe('UN DÍA GUARDADO = UN ESTADÍSTICO', () => {
     assert.equal(dias[0].estadistico, null, 'suponerlo aquí sería pisar un máximo real');
   });
 });
+
+// ════════════════════════════════════════════════════════════════════════════
+// UN MES ENTERO EN UNA SOLA CARGA (`99 §ADR-117`)
+// ----------------------------------------------------------------------------
+// `unirAnchas` exige que todos los archivos compartan EXACTAMENTE los mismos
+// instantes: alinear dos rejillas de tiempo distintas es interpolar, y una
+// tensión interpolada es una medida que nadie tomó. Así que dos días no se
+// pueden unir — y el Ingeniero exporta el mes entero, treinta carpetas.
+// Se agrupan por la fecha de su nombre y cada día se une con los suyos.
+// ════════════════════════════════════════════════════════════════════════════
+import { esArchivoDeCalidad, fechaDeNombre, leerCalidad, unirPorDia } from '../nucleo/cargabilidadAncho.js';
+
+const diaDe = (dd, v) => [
+  ['', `${dd}/01/26 0:00`, `${dd}/01/26 1:00`, `${dd}/01/26 2:00`],
+  ['/SubA /66kV /BAHIA/I R /MvMoment', ...v],
+];
+
+describe('VARIOS DÍAS EN UNA CARGA', () => {
+  test('la fecha se lee del nombre del archivo', () => {
+    assert.equal(fechaDeNombre('mag_max-20260115.csv'), '2026-01-15');
+    assert.equal(fechaDeNombre('MAG_max-20260101.csv'), '2026-01-01');
+    assert.equal(fechaDeNombre('sin-fecha.csv'), null, 'sin fecha NO se reparte a ciegas');
+  });
+
+  test('⚠️ dos días NO se funden: cada uno se une con los suyos', () => {
+    const { porDia, fechas } = unirPorDia([
+      { nombre: 'mag_max-20260101.csv', matriz: diaDe('01', [244, 240, 238]) },
+      { nombre: 'mag_average-20260101.csv', matriz: diaDe('01', [233, 230, 228]) },
+      { nombre: 'mag_max-20260102.csv', matriz: diaDe('02', [251, 249, 247]) },
+    ]);
+    assert.deepEqual(fechas, ['2026-01-01', '2026-01-02']);
+    assert.equal(porDia.length, 2);
+    assert.equal(porDia[0].union.matriz.length, 3, 'el día 1 trae sus DOS señales');
+    assert.equal(porDia[1].union.matriz.length, 2, 'y el día 2 la suya');
+  });
+
+  test('⚠️ y sigue sin tolerar dos rejillas distintas DENTRO de un día', () => {
+    // La exigencia no se relaja: se aplica donde tiene sentido.
+    assert.throws(() => unirPorDia([
+      { nombre: 'a_max-20260101.csv', matriz: diaDe('01', [1, 2, 3]) },
+      { nombre: 'b_max-20260101.csv', matriz: [
+        ['', '01/01/26 0:00', '01/01/26 1:00', '01/01/26 2:00', '01/01/26 3:00'],
+        ['/SubA /66kV /BAHIA/I S /MvMoment', 9, 8, 7, 6]] },
+    ]), /no son el mismo periodo|no coinciden/);
+  });
+});
+
+describe('EL SELLO DE CALIDAD NO ES UN ESTADÍSTICO', () => {
+  test('se reconoce por el nombre y NO bloquea la carga', () => {
+    assert.equal(esArchivoDeCalidad('mag_quality-20260115.csv'), true);
+    assert.equal(esArchivoDeCalidad('mag_max-20260115.csv'), false);
+    // Sin esto, el nombre no declara estadístico → el guardado se niega, que es
+    // lo correcto para una medida y absurdo para un sello.
+    const u = unirPorDia([
+      { nombre: 'mag_max-20260101.csv', matriz: diaDe('01', [244, 240, 238]) },
+      { nombre: 'mag_quality-20260101.csv', matriz: [
+        ['', '01/01/26 0:00', '01/01/26 1:00', '01/01/26 2:00'],
+        ['/SubA /66kV /BAHIA/I R /MvMoment', 'Actual', 'Actual', 'Actual']] },
+    ]);
+    assert.deepEqual(u.porDia[0].union.sinDeclarar, [], 'el de calidad no cuenta como sin declarar');
+    assert.equal(u.porDia[0].union.calidad.archivos, 1);
+    assert.equal(u.porDia[0].union.calidad.buenas, 3);
+  });
+
+  test('⚠️ y una hora que NO dice «Actual» se señala en vez de tragarse', () => {
+    const r = leerCalidad([
+      ['', '01/01/26 0:00', '01/01/26 1:00', '01/01/26 2:00'],
+      ['/SubA /66kV /BAHIA/I R /MvMoment', 'Actual', 'Estimated', 'Actual'],
+    ]);
+    assert.equal(r.horas, 3);
+    assert.equal(r.buenas, 2);
+    assert.equal(r.dudosas.length, 1);
+    assert.equal(r.dudosas[0].sello, 'Estimated');
+  });
+});
+
+describe('EL NOMBRE MIENTE: manda la fecha que declara el dato (`99 §ADR-117`)', () => {
+  test('⚠️ un archivo mal nombrado va al día que dice SU EJE DE TIEMPO', () => {
+    // Medido en la exportación real: 46 archivos de 902 con el nombre
+    // equivocado, y una carpeta entera de «enero» que traía julio. Agrupar por
+    // el nombre habría metido julio dentro de enero, y el histórico no se borra.
+    const { porDia, fechas } = unirPorDia([
+      { nombre: 'mag_max-20260101.csv', matriz: diaDe('01', [244, 240, 238]) },
+      // el nombre dice enero; el dato dice julio, y el dato manda
+      { nombre: 'mag_max-20260130.csv', matriz: [
+        ['', '29/07/26 0:00', '29/07/26 1:00', '29/07/26 2:00'],
+        ['/SubA /66kV /BAHIA/I R /MvMoment', 300, 305, 310]] },
+    ]);
+    assert.deepEqual(fechas.sort(), ['2026-01-01', '2026-07-29']);
+    assert.equal(porDia.length, 2, 'no se funden: son dos periodos distintos');
+  });
+});

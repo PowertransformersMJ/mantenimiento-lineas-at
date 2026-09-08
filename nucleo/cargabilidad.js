@@ -169,6 +169,11 @@ export const ESTADISTICOS = Object.freeze([
   { id: 'maximo', rotulo: 'Máximo', porQue: 'el peor instante de la hora — es el que dictamina' },
   { id: 'promedio', rotulo: 'Promedio', porQue: 'la media de la hora — energía y factor de carga' },
   { id: 'instantaneo', rotulo: 'Instantáneo', porQue: 'la muestra puntual del momento de exportar' },
+  // ⚠️ Apareció en la exportación a partir del 13 de enero, con el `_min`
+  // (`99 §ADR-117`). No es un adorno: el mínimo de la hora es lo que dice si la
+  // línea llegó a quedarse descargada, y en una magnitud con signo —la potencia
+  // activa sale negativa— es el mínimo, y no el máximo, el momento de MÁS carga.
+  { id: 'minimo', rotulo: 'Mínimo', porQue: 'el instante más bajo de la hora' },
 ]);
 
 export const IDS_ESTADISTICO = ESTADISTICOS.map((e) => e.id);

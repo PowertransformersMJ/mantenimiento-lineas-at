@@ -202,6 +202,8 @@ Guarda `research-archive/` (crudos de deliberación: comités, consejos externos
 | `ADR-114` | 2026-09-07 | El dato de cliente se reconoce por su CONTENIDO: la carpeta va a seguir cambiando de nombre | — (anuncio del Ingeniero) |
 | `ADR-115` | 2026-09-07 | Lo guardado también se dibuja: las gráficas vivían solo en la memoria del navegador | — (lo vio él en producción) |
 | `ADR-116` | 2026-09-07 | La ventana por defecto escondía el único dato que había: «no existen registros» teniéndolos | — (tercer aviso suyo del mismo síntoma) |
+| `ADR-117` | 2026-09-07 | Un mes entero en una carga: el mínimo, el sello de calidad, y la fecha la declara el DATO | — (medido sobre sus 902 archivos) |
+| `ADR-118` | 2026-09-07 | La magnitud sin fases no es una magnitud invisible: la activa y la reactiva se guardaban y no se veían | — (lo vio él en producción) |
 
 > Toda decisión cara de revertir entra aquí con su ADR y su crudo enlazado. Si hubo comité o consejo
 > externo y el crudo no está archivado, la tarea **no está cerrada** (`CLAUDE.md §G.4`).

@@ -537,6 +537,44 @@ describe('la sección se llama Parámetros eléctricos, y el enlace viejo sigue 
       'el componente existe y no se monta: las fases se guardarían sin que nadie las viera');
     // Solo la magnitud que la carga traiga: seis columnas de guiones no informan
     // de nada y hacen creer que faltó algo.
-    assert.match(pantalla, /const conDato = GRUPOS\.filter/);
+    assert.match(pantalla, /\.filter\(\(g\) => g\.presentes\.length > 0\)/,
+      'la magnitud que no vino no se pinta');
+    // ⚠️ Pero la que vino SIN FASES tampoco puede desaparecer (`99 §ADR-118`):
+    // la activa, la reactiva y la aparente llegan solo como agregado, y durante
+    // tres decisiones se guardaron sin salir en ninguna tabla ni gráfica.
+    assert.match(pantalla, /soloAgregado: true/,
+      'una magnitud sin fases se enseña por su total, no se esconde');
+    assert.match(pantalla, /Su archivo no trae esta magnitud <b>por fases<\/b>/,
+      'y se DICE que lo dibujado es el total de la bahía, no una fase suelta');
+  });
+
+  test('⚠️ «hora a hora» son TODAS las horas, no la mitad', () => {
+    // Cortaba a 12 y avisaba debajo: para ver la tarde había que exportar el
+    // CSV. «Las medidas necesito apreciarlas hora a hora» (`99 §ADR-118`).
+    assert.match(pantalla, /const primeras = registros;/);
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// EL AGREGADO NO SE PINTA DOS VECES CON DOS NOMBRES (`99 §ADR-118`)
+// ----------------------------------------------------------------------------
+// ⚠️ «Tensión entre fases» y «tensión fase-tierra» comparten el mismo campo
+// agregado. Al hacer que una magnitud sin fases cayera a su total, las DOS
+// cayeron: la misma línea dibujada dos veces, y una rotulada «fase a tierra»
+// sobre una medida que es entre fases — el factor de 1,73 que este módulo lleva
+// cuidando desde el primer día, roto por un atajo de pintado.
+// ════════════════════════════════════════════════════════════════════════════
+describe('una magnitud sin fases se enseña UNA vez', () => {
+  const pantalla = readFileSync(new URL('../web/src/componentes/Cargabilidad.tsx', import.meta.url), 'utf8');
+
+  test('el agregado lo reclama el primer grupo que lo declara', () => {
+    assert.match(pantalla, /const reclamado = new Set<string>\(\)/,
+      'sin el registro de quién lo reclamó, dos grupos pintan la misma línea');
+    assert.match(pantalla, /!reclamado\.has\(g\.agregado\)/);
+  });
+
+  test('⚠️ y el contador del botón cuenta HORAS, no magnitudes', () => {
+    // Decía «Ver las 6 horas» de un día de 24: contaba los grupos con dato.
+    assert.match(pantalla, /Ver las \$\{nf\(registros\.length\)\} horas/);
   });
 });

@@ -331,6 +331,7 @@ export function estadisticoDeNombre(nombre) {
   const base = String(nombre ?? '').replace(/\.[a-z0-9]+$/i, '');
   const MARCAS = [
     { id: 'maximo', re: /(^|[_\-. ])(max|maximo|maximos)([_\-. ]|$)/i },
+    { id: 'minimo', re: /(^|[_\-. ])(min|minimo|minimos)([_\-. ]|$)/i },
     { id: 'promedio', re: /(^|[_\-. ])(average|avg|promedio|prom)([_\-. ]|$)/i },
     // ⚠️ «Current» aquí es INSTANTÁNEO, no «corriente». Es el vocabulario de
     // este SCADA, y por eso la magnitud NUNCA se deduce del nombre del archivo
@@ -350,6 +351,110 @@ export function estadisticoDeNombre(nombre) {
   }
   const [{ id }] = casan;
   return { id, marca: base.match(MARCAS.find((m) => m.id === id).re)[2], porQue: `el nombre trae «${base.match(MARCAS.find((m) => m.id === id).re)[2]}»` };
+}
+
+/**
+ * ¿ES UN ARCHIVO DE CALIDAD, y no de medida? (`99 §ADR-117`)
+ *
+ * ⚠️ La exportación trae, junto a cada magnitud, un archivo `_quality` cuyas
+ * celdas no son números sino sellos: `Actual` cuando la hora se midió de verdad.
+ * NO es un estadístico —no hay «la calidad de la hora» que dibujar— y tratarlo
+ * como si lo fuera bloqueaba la carga entera: el nombre no dice ningún
+ * estadístico, y sin estadístico el guardado se niega, que es lo correcto para
+ * una medida y absurdo para un sello.
+ *
+ * Se reconoce, se aparta de las señales y **se lee**: si alguna hora no dice
+ * `Actual`, esa hora no es una medida y hay que decirlo. Tirarlo sin mirarlo
+ * sería quedarse justo con el dato que no se puede defender.
+ */
+/**
+ * DE QUÉ DÍA ES UN ARCHIVO, leído de su nombre (`99 §ADR-117`).
+ *
+ * ⚠️ POR QUÉ HACE FALTA. `unirAnchas` exige que todos los archivos compartan
+ * EXACTAMENTE los mismos instantes —alinear dos rejillas distintas es
+ * interpolar—, así que dos días no se pueden unir. Pero el Ingeniero exporta un
+ * mes entero de golpe: treinta carpetas, mil archivos. Obligarle a soltarlos día
+ * a día sería trasladarle a él una limitación nuestra.
+ *
+ * Se agrupan por su fecha ANTES de unir, y cada grupo se une con los suyos. La
+ * exigencia de la rejilla no se relaja: se aplica dentro de cada día, que es
+ * donde tiene sentido.
+ *
+ * `20260115` en el nombre → `2026-01-15`. Sin fecha reconocible devuelve `null`,
+ * y esos archivos se tratan como UN grupo aparte en vez de repartirse a ciegas.
+ */
+export function fechaDeNombre(nombre) {
+  const m = String(nombre ?? '').match(/(20\d{2})[-_.]?(0[1-9]|1[0-2])[-_.]?(0[1-9]|[12]\d|3[01])/);
+  return m ? `${m[1]}-${m[2]}-${m[3]}` : null;
+}
+
+/**
+ * VARIAS FECHAS EN UNA SOLA CARGA. Agrupa por día y une cada grupo por su lado.
+ *
+ * @param {{nombre?: string, matriz: any[][], estadistico?: string|null}[]} entradas
+ * @returns {{porDia: {fecha: string|null,
+ *            union: {matriz: any[][], estadisticoPorFila: Record<number, string|null>,
+ *                    estadisticos: string[], sinDeclarar: string[], porQue: string,
+ *                    calidad: {archivos:number, horas:number, buenas:number, dudosas:any[]},
+ *                    senales: {fila:number, etiqueta:string, estadistico:string|null, nombre:string}[],
+ *                    deCada: {nombre:string, senales:number, estadistico:string|null,
+ *                             porQueEstadistico:string}[]}}[],
+ *            fechas: string[]}}
+ */
+export function unirPorDia(entradas) {
+  const grupos = new Map();
+  for (const e of (entradas ?? []).filter((x) => x && Array.isArray(x.matriz))) {
+    // ⚠️ MANDA LA FECHA QUE DECLARA EL DATO, no la del nombre (`99 §ADR-117`).
+    //
+    // Medido sobre la exportación real de enero: **46 archivos de 902 tienen el
+    // nombre equivocado**. Una carpeta entera llamada «30Enero» resultó traer el
+    // **29 de julio**, y un archivo llamado `..._20260601` traía el 31 de mayo.
+    // Agrupar por el nombre habría metido julio dentro de enero sin que nada
+    // chillara — y el histórico no se puede borrar.
+    //
+    // La fila de sellos de tiempo es lo único que el propio dato afirma sobre
+    // cuándo se midió. El nombre queda de respaldo para el archivo que no traiga
+    // eje reconocible, que de todas formas no se puede unir con nadie.
+    const eje = encontrarEjeDeTiempo(e.matriz);
+    const f = eje?.instantes?.find(Boolean)?.fecha ?? fechaDeNombre(e.nombre ?? '');
+    if (!grupos.has(f)) grupos.set(f, []);
+    grupos.get(f).push(e);
+  }
+  const porDia = [...grupos.entries()]
+    .sort((a, b) => String(a[0]).localeCompare(String(b[0])))
+    .map(([fecha, suyos]) => ({ fecha, union: unirAnchas(suyos) }));
+  return { porDia, fechas: porDia.map((d) => d.fecha).filter(Boolean) };
+}
+
+export function esArchivoDeCalidad(nombre) {
+  return /(^|[_\-. ])(quality|calidad)([_\-. ]|$)/i.test(String(nombre ?? '').replace(/\.[a-z0-9]+$/i, ''));
+}
+
+/** El sello que declara que una hora se midió de verdad. Lo demás se señala. */
+export const CALIDAD_BUENA = 'Actual';
+
+/**
+ * QUÉ DICE UN ARCHIVO DE CALIDAD. Devuelve las horas que NO son medida.
+ *
+ * @param {any[][]} matriz
+ * @returns {{horas: number, buenas: number, dudosas: {senal: string, sello: string}[]}}
+ */
+export function leerCalidad(matriz) {
+  const eje = encontrarEjeDeTiempo(matriz, { minimo: 2 });
+  const out = { horas: 0, buenas: 0, dudosas: [] };
+  if (!eje) return out;
+  for (const celdas of (matriz ?? []).slice(eje.fila + 1)) {
+    const etiqueta = (celdas ?? []).slice(0, eje.primeraColumna)
+      .map((v) => (v == null ? '' : String(v).trim())).filter(Boolean).join(' · ');
+    for (const c of eje.columnas) {
+      const v = celdas?.[c];
+      if (v == null || String(v).trim() === '') continue;
+      out.horas += 1;
+      if (String(v).trim() === CALIDAD_BUENA) out.buenas += 1;
+      else out.dudosas.push({ senal: etiqueta, sello: String(v).trim() });
+    }
+  }
+  return out;
 }
 
 export const CRITERIOS_DE_FASE = [
@@ -524,8 +629,18 @@ export function registrosDesdeAncho(matriz, opciones = {}) {
  *            estadisticos: string[], sinDeclarar: string[]}}
  */
 export function unirAnchas(entradas) {
-  const lista = (entradas ?? []).filter((e) => e && Array.isArray(e.matriz));
-  if (!lista.length) throw new Error('no se recibió ningún archivo que unir');
+  const todas = (entradas ?? []).filter((e) => e && Array.isArray(e.matriz));
+  // Los de calidad no son señales: se apartan ANTES de unir, se leen aparte y
+  // no cuentan como «archivo sin estadístico» (`99 §ADR-117`).
+  const deCalidad = todas.filter((e) => esArchivoDeCalidad(e.nombre ?? ''));
+  const lista = todas.filter((e) => !esArchivoDeCalidad(e.nombre ?? ''));
+  if (!lista.length) throw new Error('no se recibió ningún archivo de medidas que unir');
+  const calidad = deCalidad.reduce((acc, e) => {
+    const r = leerCalidad(e.matriz);
+    acc.archivos += 1; acc.horas += r.horas; acc.buenas += r.buenas;
+    for (const d of r.dudosas) acc.dudosas.push({ ...d, nombre: e.nombre });
+    return acc;
+  }, { archivos: 0, horas: 0, buenas: 0, dudosas: [] });
 
   const leidas = lista.map((e, i) => {
     const nombre = e.nombre ?? `archivo ${i + 1}`;
@@ -584,6 +699,8 @@ export function unirAnchas(entradas) {
     estadisticos: [...new Set(anotadas.map((a) => a.estadistico).filter(Boolean))],
     /** Archivos cuyo nombre no dice qué estadístico traen. Se PREGUNTA, no se supone. */
     sinDeclarar: leidas.filter((l) => !l.estadistico).map((l) => l.nombre),
+    /** Lo que dicen los archivos `_quality`: cuántas horas son medida de verdad. */
+    calidad,
     porQue: leidas.length === 1
       ? `${base.senales.length} señal(es) de «${base.nombre}»`
       : `${matriz.length - 1} señales de ${leidas.length} archivos, sobre los mismos `
