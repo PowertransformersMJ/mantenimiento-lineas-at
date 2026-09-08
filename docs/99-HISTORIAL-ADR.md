@@ -10019,3 +10019,50 @@ entrega. Quedan declaradas, no silenciadas.
   (`feedback-verificar-abriendo-como-el`) y en la línea de deliberación de cada ADR que él destapó.
 
 ---
+## ADR-122 · 2026-09-07 · Una gráfica se tiene que poder leer sola: unidad, franja, paso y quién es cada línea
+
+**Deliberación:** el Ingeniero, mirando la corriente de una semana — *«no se tiene claridad de cuál
+es cada fase, no se aprecian las unidades de corriente, tampoco el rango que está abarcando, si es
+por días, horas o meses»*.
+**Estado:** ✅ en producción, verificado · **NO revisada externamente**.
+
+### Contexto
+
+Las tres observaciones eran ciertas, y las tres tenían la misma raíz: **todo lo que explicaba la
+gráfica estaba en el párrafo de debajo, no en la gráfica**.
+
+- El eje decía `352` a secas: ni amperios, ni kilovoltios, ni megavatios. Con cinco gráficas
+  seguidas hay que poder leer una sin bajar al pie.
+- Las tres fases iban en color pero **sin leyenda dentro de la figura**.
+- Y el eje del tiempo rotulaba `13/01 00h … 20/01 23h`, de donde había que **deducir** si eran horas,
+  días o meses.
+
+⚠️ Una gráfica que necesita el párrafo de debajo para entenderse **no se puede pegar en un informe**,
+que es justamente para lo que existe.
+
+### Decisión
+
+**1. La unidad, en el título y ROTULANDO el eje.** Pegada al número —`-27,54 MW`— la etiqueta se
+salía del margen izquierdo y aparecía cortada como `',54 MW`; va arriba del eje, donde cabe siempre.
+
+**2. La franja y el paso se DICEN:** «del 2026-01-13 al 2026-01-20 · 8 días · 192 lecturas · una
+cada hora». El paso se mira en el dato, no se supone.
+
+**3. Leyenda dentro de la figura**, con el color y el nombre de cada línea — «fase R», «fase S»,
+«fase T», o «total de la bahía» cuando la magnitud no viene por fases.
+
+**4. Y si las líneas se superponen, se dice POR QUÉ, con el número medido.** Ésta es la que importa:
+las tres corrientes parecían una sola raya, y no es un fallo del dibujo — **la mayor separación entre
+fases en ocho días es de 6 A**. La explicación convierte una gráfica confusa en un hallazgo: la carga
+está bien repartida.
+
+### Consecuencias
+
+- `2.635` pruebas, cuatro nuevas que fijan las cuatro cosas.
+- Verificado en producción sobre su misma franja: título `CORRIENTE (A)`, cabecera con los 8 días y
+  las 192 lecturas horarias, leyenda de las tres fases, `368 A` en el eje, y el pie explicando los
+  **6 A** de separación.
+- ⚠️ Con días de meses distintos guardados, la cabecera dice «del 01-01 al 29-07 · **20 días**»: el
+  número de días es el que manda, no la distancia entre extremos.
+
+---

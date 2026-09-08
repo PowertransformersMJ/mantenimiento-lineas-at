@@ -207,6 +207,7 @@ Guarda `research-archive/` (crudos de deliberación: comités, consejos externos
 | `ADR-119` | 2026-09-07 | Enero entero cargado: un archivo por día y estadístico, y el fallo que guardaba solo un tercio | — (orden suya: «cárgalo») |
 | `ADR-120` | 2026-09-07 | El periodo manda: se elige la franja arriba y se ven las variables, sin un clic por día | — (orden suya, cuarto aviso del mismo síntoma) |
 | `ADR-121` | 2026-09-07 | Auditoría Nivel-2 PARCIAL, declarada como tal: dieciocho ADRs en un día agotaron la gracia | `2026-09-07-auditoria-cerebro-nivel2-parcial.json` |
+| `ADR-122` | 2026-09-07 | Una gráfica se tiene que poder leer sola: unidad, franja, paso y quién es cada línea | — (lo vio él en la figura) |
 
 > Toda decisión cara de revertir entra aquí con su ADR y su crudo enlazado. Si hubo comité o consejo
 > externo y el crudo no está archivado, la tarea **no está cerrada** (`CLAUDE.md §G.4`).

@@ -597,3 +597,50 @@ describe('con varios días, los estadísticos salen de TODOS (`99 §ADR-119`)', 
     assert.match(pantalla, /estadisticos: variosDias\s*\n?\s*\?\s*\[\.\.\.new Set\(dias\.porDia\.flatMap/);
   });
 });
+
+// ════════════════════════════════════════════════════════════════════════════
+// UNA GRÁFICA SE TIENE QUE PODER LEER SOLA (`99 §ADR-122`)
+// ----------------------------------------------------------------------------
+// ⚠️ El Ingeniero, mirando la corriente de una semana: «no se tiene claridad de
+// cuál es cada fase, no se aprecian las unidades de corriente, tampoco el rango
+// que está abarcando, si es por días, horas o meses». Las tres son ciertas:
+//   · el eje decía «352» a secas — ni amperios ni nada;
+//   · las tres fases iban en colores pero sin leyenda EN la gráfica;
+//   · y el eje del tiempo rotulaba «13/01 00h … 20/01 23h», de donde había que
+//     DEDUCIR si eran horas, días o meses.
+// Una gráfica que necesita el párrafo de debajo para entenderse no se puede
+// pegar en un informe, que es para lo que existe.
+// ════════════════════════════════════════════════════════════════════════════
+describe('la gráfica dice su unidad, su franja y quién es cada línea', () => {
+  const pantalla = readFileSync(new URL('../web/src/componentes/Cargabilidad.tsx', import.meta.url), 'utf8');
+
+  test('la UNIDAD va en el eje, no solo en el pie', () => {
+    // ⚠️ Y ROTULANDO el eje, no pegada al número: «-27,54 MW» se salía del
+    // margen y salía cortada como «',54 MW».
+    assert.match(pantalla, /y=\{LIENZO\.margen\.s - 6\}[\s\S]{0,120}\{g\.unidad\}/,
+      'la unidad va arriba del eje, dentro del lienzo');
+    assert.match(pantalla, /<p className="mapa-capas-t">\{g\.rotulo\} \(\{g\.unidad\}\)<\/p>/,
+      'y el título de la tarjeta también');
+  });
+
+  test('la FRANJA y el PASO se dicen, no se deducen del eje', () => {
+    assert.match(pantalla, /const periodoDicho =/);
+    assert.match(pantalla, /el día entero/);
+    assert.match(pantalla, /una cada <b>\{paso\}<\/b>/);
+    // El paso sale del dato, no de una suposición sobre el archivo.
+    assert.match(pantalla, /new Set\(registros\.map\(\(x\) => Number\(x\.hora\)\)\)\.size >= 20/);
+  });
+
+  test('hay LEYENDA en la gráfica, con el color de cada fase', () => {
+    assert.match(pantalla, /\{g\.soloAgregado \? 'total de la bahía' : `fase \$\{fase\}`\}/);
+  });
+
+  test('⚠️ y si las líneas se superponen se DICE POR QUÉ, con el número medido', () => {
+    // La razón de que tres líneas parezcan una es física, no del dibujo: las
+    // fases van casi iguales. Decirlo con la separación medida convierte una
+    // gráfica confusa en un hallazgo.
+    assert.match(pantalla, /const separacion = g\.presentes\.length < 2 \? null/);
+    assert.match(pantalla, /líneas se superponen<\/b> porque las fases van/);
+    assert.match(pantalla, /No es un fallo del dibujo/);
+  });
+});

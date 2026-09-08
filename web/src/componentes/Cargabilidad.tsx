@@ -1930,6 +1930,16 @@ function GraficasPorFase({ registros }: { registros: Registro[] }) {
   // equivocado —«fase a tierra» sobre una medida entre fases, que es el factor
   // de 1,73 que este módulo lleva cuidando desde el principio—. Se queda el
   // primero que lo declara.
+  /** De cuándo a cuándo va lo dibujado, dicho en palabras y no en un eje. */
+  const primero = registros[0];
+  const ultimo = registros[registros.length - 1];
+  const cuantosDias = new Set(registros.map((x) => String(x.fecha))).size;
+  const periodoDicho = !primero ? '' : cuantosDias === 1
+    ? `${String(primero.fecha)} · el día entero`
+    : `del ${String(primero.fecha)} al ${String(ultimo.fecha)} · ${cuantosDias} días`;
+  /** Cada cuánto hay una lectura. Se mira el dato, no se supone. */
+  const paso = new Set(registros.map((x) => Number(x.hora))).size >= 20 ? 'hora' : null;
+
   const reclamado = new Set<string>();
   const conDato = GRUPOS
     .map((g) => {
@@ -1961,10 +1971,32 @@ function GraficasPorFase({ registros }: { registros: Registro[] }) {
           - ((v - lo) / (hi - lo)) * (LIENZO.alto - LIENZO.margen.s - LIENZO.margen.b);
         const marcas = [lo, lo + (hi - lo) / 2, hi];
         const idx = marcasX(registros.length);
+        // La mayor distancia entre la fase más alta y la más baja en un mismo
+        // instante: es lo que explica por qué tres líneas parecen una.
+        const separacion = g.presentes.length < 2 ? null : registros.reduce((peor, x_) => {
+          const v = g.presentes.map(([, c]) => x_[c]).filter((z): z is number => typeof z === 'number');
+          return v.length < 2 ? peor : Math.max(peor, Math.max(...v) - Math.min(...v));
+        }, 0);
 
         return (
           <div className="tarjeta" key={g.rotulo}>
-            <p className="mapa-capas-t">{g.rotulo} · fase a fase</p>
+            <p className="mapa-capas-t">{g.rotulo} ({g.unidad})</p>
+            {/* ⚠️ QUÉ FRANJA Y CON QUÉ PASO (`99 §ADR-122`). El eje rotulaba
+                «13/01 00h … 20/01 23h» y había que deducir de ahí si eran horas,
+                días o meses. Se dice: de cuándo a cuándo, cuántas lecturas y cada
+                cuánto. Una gráfica sin su periodo no se puede citar en un informe. */}
+            <p className="fine">
+              {periodoDicho} · <b>{nf(registros.length)}</b> lectura(s)
+              {paso ? <> · una cada <b>{paso}</b></> : null}
+            </p>
+            <div className="bandas-reparto">
+              {g.presentes.map(([fase], k) => (
+                <span key={fase} className="banda-chip">
+                  <i style={{ background: TINTA[k % TINTA.length] }} />{' '}
+                  {g.soloAgregado ? 'total de la bahía' : `fase ${fase}`}
+                </span>
+              ))}
+            </div>
             <svg viewBox={`0 0 ${LIENZO.ancho} ${LIENZO.alto}`} className="grafica" role="img"
               aria-label={`${g.rotulo} por fase, ${registros.length} instantes`}>
               {marcas.map((v, k) => (
@@ -1975,6 +2007,12 @@ function GraficasPorFase({ registros }: { registros: Registro[] }) {
                     fontSize={10} fill="var(--tx-tenue, #888)">{nf(v, g.dec)}</text>
                 </g>
               ))}
+              {/* ⚠️ LA UNIDAD, ROTULANDO EL EJE (`99 §ADR-122`). Pegada al número
+                  —«-27,54 MW»— la etiqueta se salía del margen izquierdo y
+                  aparecía cortada: se veía «',54 MW». Va arriba del eje, que es
+                  su sitio, y ahí cabe siempre sea cual sea la cifra. */}
+              <text x={LIENZO.margen.i} y={LIENZO.margen.s - 6} textAnchor="start"
+                fontSize={10} fill="var(--tx-tenue, #888)">{g.unidad}</text>
               {g.presentes.map(([fase, campo], k) => {
                 const trazo = registros
                   .map((x_, i) => (typeof x_[campo] === 'number'
@@ -2015,6 +2053,14 @@ function GraficasPorFase({ registros }: { registros: Registro[] }) {
                 </span>
               ))}
               {' — '}entre <b>{nf(min, g.dec)}</b> y <b>{nf(max, g.dec)} {g.unidad}</b>.
+              {separacion != null && (
+                separacion < (max - min) * 0.06
+                  ? <> ⚠️ <b>Las {g.presentes.length} líneas se superponen</b> porque las fases van
+                    casi iguales: la mayor separación entre ellas en todo el periodo es de{' '}
+                    <b>{nf(separacion, g.dec)} {g.unidad}</b>. No es un fallo del dibujo — es que la
+                    carga está bien repartida.</>
+                  : <> Mayor separación entre fases: <b>{nf(separacion, g.dec)} {g.unidad}</b>.</>
+              )}
               {g.soloAgregado && (
                 <> Su archivo no trae esta magnitud <b>por fases</b>: lo que se dibuja es el
                 total de la bahía, no una fase suelta.</>
