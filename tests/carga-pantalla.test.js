@@ -548,10 +548,16 @@ describe('la sección se llama Parámetros eléctricos, y el enlace viejo sigue 
       'y se DICE que lo dibujado es el total de la bahía, no una fase suelta');
   });
 
-  test('⚠️ «hora a hora» son TODAS las horas, no la mitad', () => {
-    // Cortaba a 12 y avisaba debajo: para ver la tarde había que exportar el
-    // CSV. «Las medidas necesito apreciarlas hora a hora» (`99 §ADR-118`).
-    assert.match(pantalla, /const primeras = registros;/);
+  test('⚠️ «hora a hora»: un día entero cabe, y un periodo largo se acota Y SE DICE', () => {
+    // Cortaba a 12 de 24 y avisaba debajo: para ver la tarde había que exportar
+    // el CSV (`99 §ADR-118`). Un día entero tiene que caber. Pero desde que el
+    // periodo trae sus horas (`§ADR-120`), un mes son ~700 filas por magnitud:
+    // se acota muy por encima de un día, y se anuncia.
+    assert.match(pantalla, /const FILAS_TABLA = (\d+);/);
+    const tope = Number(pantalla.match(/const FILAS_TABLA = (\d+);/)[1]);
+    assert.ok(tope >= 24, `un día entero son 24 horas y el tope es ${tope}`);
+    assert.match(pantalla, /Se muestran \{primeras\.length\} de \{nf\(registros\.length\)\} horas/,
+      'un tope callado se lee como «esto es todo lo que hay»');
   });
 });
 

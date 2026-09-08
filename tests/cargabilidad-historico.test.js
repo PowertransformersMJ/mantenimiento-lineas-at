@@ -501,19 +501,24 @@ describe('EL VIAJE DE IDA Y VUELTA: lo que se guarda se vuelve a abrir entero', 
 
   test('⚠️ y la PANTALLA las pide: si nadie llama al repositorio, el dato es invisible', () => {
     const pantalla = readFileSync(new URL('../web/src/componentes/Cargabilidad.tsx', import.meta.url), 'utf8');
-    assert.match(pantalla, /diaCompleto\(/, 'la pantalla tiene que leer el día guardado');
-    assert.match(pantalla, /desempaquetarDia\(/, 'y abrirlo');
+    // ⚠️ Del DÍA al PERIODO (`99 §ADR-120`): se pedía un día por clic, y el
+    // Ingeniero no audita documentos de uno en uno — elige una franja arriba.
+    assert.match(pantalla, /diasCompletos\(/, 'la pantalla tiene que leer las horas del PERIODO');
+    assert.match(pantalla, /desempaquetarDia\(/, 'y abrirlas');
+    assert.doesNotMatch(pantalla, /'Abierto' : 'Abrir'/,
+      'el dato no se esconde detrás de un botón por fila');
     // Y dibujarlo con los MISMOS componentes que una carga recién leída, no con
     // una copia: dos caminos que dibujan lo mismo se separan solos.
     const usos = (pantalla.match(/<GraficasPorFase /g) ?? []).length;
     assert.ok(usos >= 2, `GraficasPorFase debe dibujarse también para el día guardado (usos: ${usos})`);
   });
 
-  test('un día abierto del PROMEDIO no es el del máximo: el id lleva el estadístico', () => {
+  test('un periodo del PROMEDIO no es el del máximo: el id lleva el estadístico', () => {
     const repo = readFileSync(new URL('../web/src/datos/cargabilidadRepo.ts', import.meta.url), 'utf8');
-    const i = repo.indexOf('export async function diaCompleto');
-    const trozo = repo.slice(i, i + 700);
-    assert.match(trozo, /estadistico/, 'diaCompleto tiene que saber qué estadístico se le pide');
+    const i = repo.indexOf('export async function diasCompletos');
+    const trozo = repo.slice(i, i + 1400);
+    assert.match(trozo, /estadistico/, 'tiene que saber qué estadístico se le pide');
+    assert.match(trozo, /tope/, 'y traerlo con TOPE: un año son 365 lecturas y el plan es gratuito');
     assert.match(trozo, /idDelDia\([^)]*estadistico/s, 'y pasárselo al identificador');
   });
 });

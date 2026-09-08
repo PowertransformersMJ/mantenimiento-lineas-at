@@ -301,6 +301,43 @@ export async function diaCompleto(
   return d.exists() ? (d.data() as Record<string, unknown>) : null;
 }
 
+/**
+ * LOS DÍAS COMPLETOS DE UN PERIODO, hora a hora (`99 §ADR-120`).
+ *
+ * ⚠️ POR QUÉ EXISTE. El histórico se construyó alrededor del RESUMEN diario —una
+ * lectura por día en vez de 24— y eso sigue siendo lo correcto para el tablero.
+ * Pero el Ingeniero no quiere auditar días de uno en uno: quiere **elegir una
+ * franja de tiempo arriba y ver el comportamiento de cada variable en toda la
+ * franja**. Eso exige las horas, y las horas están en `cargabilidad_dias`.
+ *
+ * ⚠️ CON TOPE, Y SE DICE. Un año son 365 lecturas y el plan es gratuito: se
+ * traen como mucho `tope` días y la pantalla anuncia si se recortó. Un tope que
+ * no se anuncia se lee como «esto es todo lo que hay», que es la mentira que
+ * este módulo lleva evitando desde el principio.
+ */
+export async function diasCompletos(
+  { linea, fechas, estadistico = 'maximo' }: {
+    linea: string; fechas: string[]; estadistico?: Estadistico;
+  },
+  sesion: Sesion,
+  { tope = 62 } = {},
+): Promise<{ dias: Record<string, unknown>[]; recortado: boolean; tope: number }> {
+  const { baseDatos } = await cargarFirebase();
+  const { doc, getDoc } = await firestore();
+  const db = await baseDatos();
+  const pedidas = [...fechas].sort();
+  const traer = pedidas.slice(-tope);            // los más recientes, que es lo que se mira
+  const leidos = await Promise.all(traer.map(async (fecha) => {
+    const d = await getDoc(doc(db, DIAS, idDelDia(sesion.orgId, linea, null, fecha, estadistico)));
+    return d.exists() ? (d.data() as Record<string, unknown>) : null;
+  }));
+  return {
+    dias: leidos.filter(Boolean) as Record<string, unknown>[],
+    recortado: pedidas.length > traer.length,
+    tope,
+  };
+}
+
 /** Las últimas cargas, para poder responder «¿de dónde salió esto?». */
 export async function ultimasCargas(sesion: Sesion, { cuantas = 20 } = {}) {
   const { baseDatos } = await cargarFirebase();

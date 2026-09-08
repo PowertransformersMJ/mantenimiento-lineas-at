@@ -97,8 +97,8 @@
     }
   ],
   "deepAudit": {
-    "last": "2026-09-06",
-    "coveredHeaderCount": 101,
+    "last": "2026-09-07",
+    "coveredHeaderCount": 120,
     "maxAdrGap": 12,
     "maxDays": 30,
     "_que": "Auditoria Nivel-2 del cerebro (skill auditoria-cerebro): correrla cuando el linter lo pida (gate #14). La del 2026-09-06 (ADR-102) corrio LAS OCHO sondas por primera vez -> 2026-09-06-auditoria-cerebro-nivel2.json, 25 hallazgos, 21 cerrados. OJO CON EL CERO: brain-check calcula gap = coveredHeaderCount ? headers - coveredHeaderCount : 0, asi que con coveredHeaderCount en 0 el disparador por ADRs NO EXISTE y solo manda maxDays. SEGUNDO MODO DE FALLO, visto el 06-09: este campo se escribe IGUAL si corrieron 8 sondas que si corrieron 6, asi que la auditoria mas floja compra la misma ventana de silencio (30d/12 ADRs) que la mas rigurosa; la del 24-08 sello con las sondas 3 y 7 sin correr y tardaron 15 dias en correrse. Propuesto: deepAudit.probesRun y media ventana si faltan sondas. TERCERO: en --boot el tramo por ADRs va tras un if(!BOOT), o sea que el disparo por ADRs solo aparece corriendo --full a mano."

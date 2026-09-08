@@ -205,6 +205,8 @@ Guarda `research-archive/` (crudos de deliberación: comités, consejos externos
 | `ADR-117` | 2026-09-07 | Un mes entero en una carga: el mínimo, el sello de calidad, y la fecha la declara el DATO | — (medido sobre sus 902 archivos) |
 | `ADR-118` | 2026-09-07 | La magnitud sin fases no es una magnitud invisible: la activa y la reactiva se guardaban y no se veían | — (lo vio él en producción) |
 | `ADR-119` | 2026-09-07 | Enero entero cargado: un archivo por día y estadístico, y el fallo que guardaba solo un tercio | — (orden suya: «cárgalo») |
+| `ADR-120` | 2026-09-07 | El periodo manda: se elige la franja arriba y se ven las variables, sin un clic por día | — (orden suya, cuarto aviso del mismo síntoma) |
+| `ADR-121` | 2026-09-07 | Auditoría Nivel-2 PARCIAL, declarada como tal: dieciocho ADRs en un día agotaron la gracia | `2026-09-07-auditoria-cerebro-nivel2-parcial.json` |
 
 > Toda decisión cara de revertir entra aquí con su ADR y su crudo enlazado. Si hubo comité o consejo
 > externo y el crudo no está archivado, la tarea **no está cerrada** (`CLAUDE.md §G.4`).

@@ -17,15 +17,17 @@
    `.xlsx` **o CSV de SCADA tal como sale** —varios a la vez, la red entera dentro—, salen todas las
    magnitudes con sus fases y el veredicto contra **ampacidad**. Sin archivo se enseña la
    ESTRUCTURA — **jamás cifras de muestra**, y **un hueco no es un cero**.
-   ✅ **07-09: EL 2026-01-01 GUARDADO EN SUS TRES ESTADÍSTICOS** (`§ADR-108..113`), comprobado
-   recargando: **máx 244 A** (22h) · **prom 233 A** (20h) · **inst 236 A** → 34,0/32,5/32,9 % de la
-   ampacidad. El tablero mira UNO y lo dice. Antes NUNCA guardó: SEIS fallos en fila, porque nadie
-   había recorrido el camino entero. **Lo que no sobrevive a un `F5` no está guardado.**
-   ⚠️ Sin capacidad nominal **no hay porcentaje**. Y en **P y Q, negativas, el «max» es el momento
-   de MENOS carga** (máximo algebraico).
+   ✅ **07-09: ENERO ENTERO EN PRODUCCIÓN** (`§ADR-108..120`): **31 días**, 99 documentos, cuatro
+   estadísticos (máximo · promedio · instantáneo · **mínimo**). Pico del mes **398 A el 27-01 a las
+   16:00 = 55 % de la ampacidad**. Se elige la FRANJA arriba y salen las cinco gráficas —tensión,
+   corriente, activa, reactiva y aparente— sobre todo lo elegido, **sin un clic**.
+   ⚠️ Antes NUNCA guardó ni se veía: **nueve fallos en fila**, cazados por ÉL con cuatro avisos del
+   mismo síntoma. **Verificar es abrir EN FRÍO, no pilotar la pantalla.**
+   ⚠️ Sin capacidad nominal no hay porcentaje. En **P y Q, negativas, el «max» es el de MENOS
+   carga**. Y sus carpetas «30Enero»/«29Enero» traían julio y mayo: mandó la fecha del DATO.
    ⚠️ Falta lo SUYO: ratificar los **718 A** (`TODO-93`).
-0b. 🔐 **ACCESO VIVO** (`§ADR-100/101/104`): DOS cuentas —propietario y espectador de solo
-   lectura—; las demás se crean desde **Personas**.
+0b. 🔐 **ACCESO VIVO** (`§ADR-100/101/104`): dos cuentas —propietario y espectador—; las demás,
+   desde **Personas**.
 1. **EL CUELLO DE BOTELLA NO ES CÓDIGO: ES EL DATO**: 0 de 26 con veredicto (`TODO-57`).
 2. **EL PATRÓN QUE LO DOMINA TODO:** *«arreglado donde se veía, vivo en la pieza hermana»* —
    `34 · L-65/L-74`, `32 · L-67`, `30 · L-68/M-01`. Mordió el 24-08 (`§ADR-078`), el 26 (`§ADR-087`)
@@ -40,9 +42,9 @@
    ⚠️ **CADA CAPA DECLARA QUÉ ES y sin valor por defecto** — `medida` · `pronostico` · `promedio` —
    o no se publica ni se pinta (`§ADR-082/084/086/087`).
    ⚙️ **El vigía FUSIONA SOLO** (`§ADR-085`), con PORTERO. Queda a mano **publicar** (`TODO-89`).
-4. **LO QUE NO SE PUEDE ROMPER DEL CLIMA (`§ADR-057..086`):** gana el HECHO sobre el modelo · el recorrido se comprueba **punto a punto**, nunca por promedio · el clima vive en el ATLAS y Detalle GPS = solo el recorrido · **«tormenta eléctrica» NO existe en la fuente**.
+4. **LO QUE NO SE PUEDE ROMPER DEL CLIMA (`§ADR-057..086`):** gana el HECHO sobre el modelo · el recorrido se comprueba **punto a punto**, nunca por promedio · el clima vive en el ATLAS · **«tormenta eléctrica» NO existe en la fuente**.
 5. **CERRADO 23-29/08 (`§ADR-074..088`).** ⚠️ El robot NO dispara el CI · «medida» no se aplica a
-   lo que no se midió ESE día (§086/087) · `Success` no es la web cambiada (`35 · L-75`).
+   lo que no se midió ESE día · `Success` no es la web cambiada (`35 · L-75`).
    ⏳ **ESPERA SU RESPUESTA:** el satelital «tiene huecos»; al 100 % en z8-z16 → falta DÓNDE.
 6. **⚠️ EL LIENZO NO SE VE EN SEGUNDO PLANO, PERO SE FOTOGRAFÍA** (`34 · L-16/L-58/L-72`):
    `node herramientas/mirar-los-atlas.mjs <atlas>` lo hace y SUSPENDE si no hay dibujo (`§ADR-085`).
@@ -87,9 +89,8 @@
 | **TODO-59** | **Qué ficha se le pide a CADA tipología.** La línea mezcla 4 y el molde es de POSTE (`40 §8.3`) | Son 3 o 4 formularios |
 | **TODO-33** | **50 % o 25 % de RTS** como tope de tiro. Ya no hay dos dueños (`§ADR-051`): falta decidir CUÁL rige | Factor 2 sobre un dictamen |
 | **TODO-98** 🔴 **MÍA** | **El recibo de la contraseña se auto-firma** desde la consola y **se salta el muro del cambio obligatorio**; con ello `ultimoAcceso` auto-declarado. Crudo: `2026-09-06-espectador-solo-lectura/` | Un muro que se salta no es un muro |
-| **TODO-95** 🔴 ⬅️ **SUYA, URGENTE** | **La FICHA del fabricante del conductor.** Trae de golpe ampacidad, temperatura de operación y módulo elástico (`§ADR-098/099`). **Sin ella la ampacidad se publica pero NO SE FIRMA**, y el 6.300 vs 7.000 del módulo sigue decidiendo un RETIE | 718 A hoy · **611 A** a los 75 °C que dan siete fichas |
-| **TODO-93** ⬅️ **SUYA** | **Ratificar la condición** de ampacidad (hoy ADOPTADA: 718 A) | Sin firma es referencia |
-| **TODO-100** 🔴 **MÍA** | Los `.xls` de SCADA son **BIFF antiguo** y el lector no los abre (hoy se convierten a mano). Falta `IT_max` | Fallar oscuro se lee como «dato malo» |
+| **TODO-95/93** 🔴 ⬅️ **SUYA, URGENTE** | **La FICHA del fabricante del conductor** y **ratificar la condición** de ampacidad (hoy ADOPTADA: 718 A). La ficha trae ampacidad, temperatura y módulo elástico (`§ADR-098/099`); sin ella se publica pero **NO SE FIRMA** | 718 A hoy · **611 A** a 75 °C |
+| **TODO-100** 🔴 **MÍA** | Los `.xls` de SCADA no los abre el lector (se convierten a mano) | Fallar oscuro se lee «dato malo» |
 | **TODO-44/34** | Alerta de gasto en Cloudflare · **nada tiene copia**: la bóveda sin remoto **y Firestore sin punto de recuperación** (`§ADR-089`) | Un fallo de disco se lleva la bóveda; un comando, la base |
 | **TODO-61/54/68** | ¿App Check? · ¿linter de frescura? · ¿cazar un ADR repetido? Las dos últimas tocan el KERNEL | Las TRES son TUYAS |
 | **TODO-76** | **¿Se guarda si un apoyo es autosoportado / retenido?** No cabe en el modelo: iría por APOYO (26 declaraciones) | Cierra media incógnita de la capacidad longitudinal |

@@ -52,7 +52,7 @@ import {
 } from '@lineas/nucleo/cargabilidadAncho';
 import { desempaquetarDia, empaquetarPorDia, ESTADISTICOS, resumirDia } from '@lineas/nucleo/cargabilidad';
 import {
-  diaCompleto, guardarCarga, huellaDe, resumenesEntre, ultimoDiaGuardado, type Acuse,
+  diasCompletos, guardarCarga, huellaDe, resumenesEntre, ultimoDiaGuardado, type Acuse,
 } from '../datos/cargabilidadRepo';
 import { nf } from '../vistas/formato';
 import { Sello } from './Sello';
@@ -782,20 +782,37 @@ function HistoricoGuardado({ sesion, lineaAbierta }: {
    * Se lee UN día, y solo cuando se pide: es la consulta cara (24 horas frente a
    * un resumen) y por eso no se hace sola al listar el periodo.
    */
-  const [diaAbierto, setDiaAbierto] = useState<{ fecha: string; linea: string } | null>(null);
-  const [horasDelDia, setHorasDelDia] = useState<Registro[] | null>(null);
+  const [horasDelPeriodo, setHorasDelPeriodo] = useState<Registro[] | null>(null);
   const [abriendo, setAbriendo] = useState(false);
   const [falloAbrir, setFalloAbrir] = useState<string | null>(null);
+  const [recortadoHoras, setRecortadoHoras] = useState<number | null>(null);
 
-  const abrirDia = async (fecha: string, linea: string) => {
-    setAbriendo(true); setFalloAbrir(null); setDiaAbierto({ fecha, linea });
+  /**
+   * ⚠️ EL PERIODO TRAE SUS HORAS (`99 §ADR-120`). Orden del Ingeniero: «no le
+   * veo valor a esta parte, primero hay que darle clic para que se puedan
+   * ilustrar los valores… ahí debes permitirme seleccionar la franja de tiempo
+   * que quiero apreciar para cada una de las variables».
+   *
+   * Antes había una TABLA de días con un botón «Abrir» por fila: la forma de la
+   * base de datos, no la de su pregunta. Él no audita documentos de uno en uno;
+   * mira el comportamiento de la línea en una franja. Así que el selector de
+   * periodo manda y las gráficas se dibujan sobre TODO lo elegido, sin un clic.
+   */
+  const traerHoras = async (fechas: string[], linea: string, est: string) => {
+    if (!fechas.length) { setHorasDelPeriodo(null); return; }
+    setAbriendo(true); setFalloAbrir(null); setRecortadoHoras(null);
     try {
-      const d = await diaCompleto(
-        { linea, fecha, estadistico: verEstadistico as never }, sesion as never,
+      const r = await diasCompletos(
+        { linea, fechas, estadistico: est as never }, sesion as never,
       );
-      setHorasDelDia(d ? (desempaquetarDia(d as never) as unknown as Registro[]) : []);
+      const horas = r.dias
+        .flatMap((d) => desempaquetarDia(d as never) as unknown as Registro[])
+        .sort((a, b) => `${a.fecha} ${String(a.hora).padStart(2, '0')}`
+          .localeCompare(`${b.fecha} ${String(b.hora).padStart(2, '0')}`));
+      setHorasDelPeriodo(horas);
+      if (r.recortado) setRecortadoHoras(r.tope);
     } catch (e) {
-      setFalloAbrir((e as Error).message); setHorasDelDia(null);
+      setFalloAbrir((e as Error).message); setHorasDelPeriodo(null);
     } finally { setAbriendo(false); }
   };
   const estadisticosGuardados = useMemo(
@@ -897,10 +914,11 @@ function HistoricoGuardado({ sesion, lineaAbierta }: {
    * cuesta una lectura de 24 horas.
    */
   useEffect(() => {
-    if (!filas || filas.length !== 1) return;
-    const f = filas[0];
-    if (diaAbierto?.fecha === String(f.fecha) && horasDelDia) return;
-    void abrirDia(String(f.fecha), String(f.linea));
+    if (!filas || !filas.length) { setHorasDelPeriodo(null); return; }
+    const lineas = [...new Set(filas.map((f) => String(f.linea)))];
+    // Con más de una línea no se mezclan series: se pide elegir. Hoy hay una.
+    if (lineas.length !== 1) { setHorasDelPeriodo(null); return; }
+    void traerHoras(filas.map((f) => String(f.fecha)), lineas[0], verEstadistico);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filas, verEstadistico]);
 
@@ -1007,6 +1025,27 @@ function HistoricoGuardado({ sesion, lineaAbierta }: {
               veía una sola gráfica, y el módulo parecía no tenerlas
               (`32 · L-76`). Se pintan de lo que YA está en memoria: estos
               resúmenes diarios, sin una lectura más a la base. */}
+          {/* ⚠️ LAS GRÁFICAS DEL PERIODO, ANTES QUE LA TABLA (`99 §ADR-120`).
+              Es lo que él viene a ver: el comportamiento de cada variable en la
+              franja que eligió arriba. La tabla de días queda debajo como
+              resumen, no como camino al dato. */}
+          {abriendo && <p className="fine">Trayendo las horas del periodo…</p>}
+          {falloAbrir && <p className="advertencia">No se pudieron traer las horas: {falloAbrir}</p>}
+          {horasDelPeriodo && horasDelPeriodo.length > 0 && (
+            <>
+              <p className="mapa-capas-n">
+                <b>{nf(horasDelPeriodo.length)}</b> horas del periodo, leídas de la base —{' '}
+                <b>{ESTADISTICOS.find((e) => e.id === verEstadistico)?.rotulo ?? verEstadistico}</b>{' '}
+                de cada hora. Cambie el estadístico o el periodo arriba y las gráficas se rehacen.
+                {recortadoHoras != null && (
+                  <> ⚠️ <b>Se trajeron los {nf(recortadoHoras)} días más recientes</b> del periodo:
+                  cada día son 24 lecturas y el plan es gratuito. Acote el periodo para ver el resto.</>
+                )}
+              </p>
+              <GraficasPorFase registros={horasDelPeriodo} />
+              <FasesDeLaCarga registros={horasDelPeriodo} />
+            </>
+          )}
           <TableroDelHistorico resumenes={filas} />
           <TendenciaDiaria resumenes={filas} />
           <PorLineaDelHistorico resumenes={filas} />
@@ -1023,7 +1062,7 @@ function HistoricoGuardado({ sesion, lineaAbierta }: {
             <table className="tabla">
               <thead><tr><th>Fecha</th><th>Línea</th><th>Máxima</th><th>Promedio</th>
                 <th>Mínima</th><th>Corriente máx.</th><th>Horas con dato</th>
-                <th>Sobrecarga</th><th>Las 24 horas</th></tr></thead>
+                <th>Sobrecarga</th></tr></thead>
               <tbody>
                 {filas.slice(0, 60).map((f, i) => (
                   <tr key={i}>
@@ -1039,12 +1078,6 @@ function HistoricoGuardado({ sesion, lineaAbierta }: {
                       : `${nf(f.corrienteMaxima_A as number, 0)} A`}</td>
                     <td>{nf((f.horasConDato ?? f.horasConMedida) as number)} de 24</td>
                     <td>{nf((f.porBanda as Record<string, number>)?.sobrecarga ?? 0)} h</td>
-                    <td>
-                      <button type="button" className="boton chico"
-                        onClick={() => void abrirDia(String(f.fecha), String(f.linea))}>
-                        {diaAbierto?.fecha === String(f.fecha) ? 'Abierto' : 'Abrir'}
-                      </button>
-                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -1054,39 +1087,20 @@ function HistoricoGuardado({ sesion, lineaAbierta }: {
             <p className="fine">Se muestran 60 de {nf(filas.length)} días.</p>
           )}
 
-          {/* ⚠️ LAS GRÁFICAS DE LO GUARDADO (`99 §ADR-115`). Son las MISMAS que
-              dibuja una carga recién leída —el mismo componente, no una copia—,
-              porque el dato es el mismo: 24 horas con sus fases. Lo único que
-              cambiaba era de dónde venía. */}
-          {abriendo && <p className="fine">Abriendo el día…</p>}
-          {falloAbrir && <p className="advertencia">No se pudo abrir el día: {falloAbrir}</p>}
-          {diaAbierto && horasDelDia && horasDelDia.length > 0 && (
-            <div className="tarjeta">
-              <p className="mapa-capas-t">
-                {diaAbierto.linea} · {diaAbierto.fecha} ·{' '}
-                {ESTADISTICOS.find((e) => e.id === verEstadistico)?.rotulo ?? verEstadistico}
-              </p>
-              <p className="mapa-capas-n">
-                Las <b>{nf(horasDelDia.length)}</b> horas de ese día, leídas de la base — no de
-                ningún archivo abierto. Cambie el estadístico de arriba y vuelva a abrirlo para ver
-                el mismo día medido de otra forma.
-              </p>
-              <FasesDeLaCarga registros={horasDelDia} />
-              <GraficasPorFase registros={horasDelDia} />
-            </div>
-          )}
-          {diaAbierto && horasDelDia && horasDelDia.length === 0 && !abriendo && (
+          {horasDelPeriodo && horasDelPeriodo.length === 0 && !abriendo && (
             <p className="advertencia">
-              De <b>{diaAbierto.fecha}</b> no hay <b>
+              De este periodo no hay ninguna hora guardada con el estadístico <b>
                 {ESTADISTICOS.find((e) => e.id === verEstadistico)?.rotulo ?? verEstadistico}
-              </b> guardado. El resumen de la tabla sí existe; las 24 horas de ese estadístico, no.
+              </b>. Los resúmenes de la tabla sí existen; las 24 horas de ese estadístico, no.
+              Pruebe con otro estadístico de los de arriba.
             </p>
           )}
         </>
       )}
       <p className="fine">
-        Esta consulta lee <b>resúmenes diarios</b>, no las 24 horas de cada día: un año de diez
-        líneas son 3.650 lecturas así, y 87.600 de la otra forma.
+        La tabla de arriba sale de <b>resúmenes diarios</b> —una lectura por día en vez de 24—, y las
+        gráficas de las <b>horas</b> de esos mismos días. Por eso el periodo se acota: cada día
+        dibujado son 24 lecturas.
       </p>
     </div>
   );
@@ -1349,6 +1363,12 @@ function PorLineaDelHistorico({ resumenes }: { resumenes: ResumenDiario[] }) {
  * Colombia en un número (`99 §ADR-105/117`).
  */
 const FASES_POR_MAGNITUD = 3;
+
+/** Por encima de esto, la gráfica dibuja la línea sin marcar cada instante. */
+const PUNTOS_VISIBLES = 120;
+
+/** Filas de la tabla hora a hora antes de recortar y DECIRLO. */
+const FILAS_TABLA = 200;
 
 function SenalesDelScada({
   cargado, ancho, linea, alCambiarLinea, lineaAbierta, criterioFase, alCambiarCriterio,
@@ -1785,9 +1805,10 @@ function FasesDeLaCarga({ registros }: { registros: Registro[] }) {
     })
     .filter((g) => g.presentes.length > 0);
   if (!conDato.length) return null;
-  // ⚠️ LAS 24, no 12. «Hora a hora» quiere decir las horas que hay: cortar a la
-  // mitad y avisar debajo obligaba a exportar el CSV para ver la tarde.
-  const primeras = registros;
+  // ⚠️ LAS 24 DE UN DÍA, ENTERAS. «Hora a hora» quiere decir las horas que hay:
+  // cortar un día a la mitad obligaba a exportar el CSV para ver la tarde. Un
+  // PERIODO largo sí se acota —un mes son 700 filas por magnitud— y se dice.
+  const primeras = registros.slice(0, FILAS_TABLA);
   const criterio = registros.find((x) => x.criterioFase)?.criterioFase;
 
   return (
@@ -1964,7 +1985,11 @@ function GraficasPorFase({ registros }: { registros: Registro[] }) {
                   <g key={fase}>
                     <polyline points={trazo} fill="none" stroke={TINTA[k % TINTA.length]}
                       strokeWidth={1.8} strokeLinejoin="round" strokeLinecap="round" />
-                    {registros.map((x_, i) => (typeof x_[campo] === 'number' ? (
+                    {/* ⚠️ Los puntos solo cuando se distinguen (`99 §ADR-120`). Un
+                        mes son ~700 instantes por fase: dibujar un círculo por
+                        cada uno tapa la línea y cuesta miles de nodos. La línea
+                        sigue siendo el dato; el punto era la ayuda para leerlo. */}
+                    {registros.length <= PUNTOS_VISIBLES && registros.map((x_, i) => (typeof x_[campo] === 'number' ? (
                       <circle key={i} cx={x(i, registros.length)} cy={yEn(x_[campo] as number)} r={2.2}
                         fill={TINTA[k % TINTA.length]}>
                         <title>

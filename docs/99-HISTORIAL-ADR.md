@@ -9940,3 +9940,82 @@ decía «guardado» y era verdad, solo que de un tercio**.
   enero y entraron con **su fecha verdadera**, no con la de la carpeta.
 
 ---
+## ADR-120 · 2026-09-07 · El periodo manda: se elige la franja arriba y se ven las variables, sin un clic por día
+
+**Deliberación:** orden del Ingeniero — *«no le veo valor a esta parte, primero hay que darle clic
+para que se puedan ilustrar los valores… ahí debes permitirme seleccionar la franja de tiempo que
+quiero apreciar para cada una de las variables»*.
+**Estado:** ✅ en producción, abierto en frío · **NO revisada externamente**.
+
+### Contexto
+
+Con enero cargado, el histórico era **una tabla de 20 filas con un botón «Abrir» en cada una** y
+CERO gráficas al entrar. Comprobado abriendo en frío: 20 botones, 0 gráficas.
+
+⚠️ **Eso es la forma de la BASE DE DATOS, no la de su pregunta.** Él no audita documentos de uno en
+uno: mira el comportamiento de la línea en una franja de tiempo. Yo había construido el camino
+correcto —leer un día guardado y dibujarlo (`§ADR-115`)— y lo había puesto **detrás de un clic por
+fila**, que es donde el dato deja de existir para quien lo necesita.
+
+### Decisión
+
+**1. La unidad de la pantalla es el PERIODO, no el día.** Al consultar una franja se traen las horas
+de todos sus días, se concatenan en una serie continua y se dibuja **una gráfica por variable** sobre
+todo lo elegido. Sin un clic intermedio.
+
+**2. Las gráficas van ANTES de la tabla.** La tabla de días queda debajo, como resumen —el pico de
+corriente de cada día tiene valor— pero deja de ser el camino al dato.
+
+**3. Con tope, y se dice.** Cada día dibujado son 24 lecturas: se traen como mucho 62 días, los más
+recientes, y la pantalla anuncia el recorte. Un tope callado se lee como «esto es todo lo que hay».
+
+**4. Y dos ajustes de escala que sin el mes no se veían:** por encima de 120 instantes la gráfica
+dibuja la línea sin marcar cada punto —700 círculos por fase tapan el dato—, y la tabla hora a hora
+se acota muy por encima de un día entero.
+
+### Consecuencias
+
+- Verificado **abriendo en frío**: cinco gráficas —tensión, corriente, activa, reactiva y aparente—
+  sobre **480 horas** del histórico completo, y **cero** botones «Abrir». Con «entre dos fechas»
+  13→20 de enero: **192 horas** y las cinco gráficas, y el selector de estadístico las rehace.
+- ⚠️ **La lección de método de todo el día, y es del Ingeniero:** cuatro avisos suyos por el mismo
+  síntoma, cuatro fallos reales distintos, y los cuatro los cacé solo cuando dejé de **pilotar** la
+  pantalla. Verificar es **abrirla como la abre él**. Queda en la memoria del harness, no solo aquí.
+
+---
+## ADR-121 · 2026-09-07 · Auditoría Nivel-2 PARCIAL, declarada como tal: dieciocho ADRs en un día agotaron la gracia
+
+**Deliberación:** `2026-09-07-auditoria-cerebro-nivel2-parcial.json`. La disparó el gate #14
+bloqueando un commit, no una decisión mía.
+**Estado:** ✅ cerrada en modo parcial · **NO revisada externamente**.
+
+### Contexto
+
+Dieciocho ADRs en una sola jornada (`§ADR-103..120`). El guardián dejó de avisar y pasó a **bloquear
+el commit**, que es exactamente para lo que está. No se usa `--no-verify`: se corre.
+
+Se corre en el **modo sin-tokens que la propia skill declara** —sondas 0-2 y 6 en directo— y se dice
+cuáles quedan fuera. Una auditoría parcial HONESTA vale más que una completa fingida.
+
+### Hallazgos
+
+| | Qué | Estado |
+|---|---|---|
+| **A-01** | `docs/05` declaraba `2.586` pruebas y `motor v0.15.0`; la realidad era `2.631` y `v0.18.0`. Cuatro subidas de versión del motor en el día sin tocar el nodo de estado | **cerrado** |
+| **A-02** | `docs/10` no citaba **ni un ADR del 110 al 120**: la pizarra reflejaba la primera mitad del día | **cerrado** |
+| **A-03** | ⚠️ **Los nueve fallos del módulo los cazó el Ingeniero**, con cuatro avisos del mismo síntoma. Causa común: yo verificaba **pilotando** la pantalla en vez de abrirla en frío | **abierto como doctrina** |
+| **A-04** | Cuatro neuronas ≥90 % del cap; cada sesión se va un rato podando texto bueno | abierto (`TODO-78/84`) |
+
+**Sondas NO corridas y por qué:** 3 (retrieval con subagente frío), 4 (fidelidad de la captura),
+5 (memoria del harness) y 7 (voz adversarial) — piden subagentes y la sesión estaba en mitad de una
+entrega. Quedan declaradas, no silenciadas.
+
+### Consecuencias
+
+- **GC pareado con delta negativo:** arranque `31.480c → 31.410c`. Se fundieron `TODO-93` y `TODO-95`,
+  que eran la misma decisión suya —la ficha del conductor y la condición que la firma—.
+- ⚠️ **A-03 no tiene guardián automático y no lo va a tener:** ninguna prueba puede comprobar que
+  quien verifica abrió la pantalla en frío. Queda en la memoria del harness
+  (`feedback-verificar-abriendo-como-el`) y en la línea de deliberación de cada ADR que él destapó.
+
+---
