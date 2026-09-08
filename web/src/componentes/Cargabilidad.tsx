@@ -43,7 +43,8 @@ import {
 } from '@lineas/nucleo/cargabilidad';
 import {
   RELLENO_BANDA, TINTA_BANDA, tintaDe, areasDeBanda, csvDeErrores, etiquetaInstante,
-  filtrarPorTexto, LIENZO, marcasX, marcasY, ordenarPor, paginar, REFERENCIAS, aCsv, techoY,
+  filtrarPorTexto, LIENZO, marcaDeTiempo, marcasDeTiempo, marcasX, marcasY, ordenarPor, paginar,
+  REFERENCIAS, aCsv, techoY,
   tramosDeLinea, x, y, type Direccion,
 } from '../vistas/cargabilidadVista';
 import {
@@ -1970,7 +1971,7 @@ function GraficasPorFase({ registros }: { registros: Registro[] }) {
         const yEn = (v: number) => LIENZO.alto - LIENZO.margen.b
           - ((v - lo) / (hi - lo)) * (LIENZO.alto - LIENZO.margen.s - LIENZO.margen.b);
         const marcas = [lo, lo + (hi - lo) / 2, hi];
-        const idx = marcasX(registros.length);
+        const { idx, modo } = marcasDeTiempo(registros as never[]);
         // La mayor distancia entre la fase más alta y la más baja en un mismo
         // instante: es lo que explica por qué tres líneas parecen una.
         const separacion = g.presentes.length < 2 ? null : registros.reduce((peor, x_) => {
@@ -2038,13 +2039,24 @@ function GraficasPorFase({ registros }: { registros: Registro[] }) {
                   </g>
                 );
               })}
-              {/* La última marca se ancla al final: centrada, se sale del lienzo
-                  y la hora aparece cortada por la mitad. */}
+              {/* ⚠️ MARCAS DONDE EMPIEZA CADA DÍA (`99 §ADR-123`). Repartidas cada N
+                  puntos caían a media jornada y cada etiqueta llevaba fecha Y
+                  hora apretadas —«13/01 00h»—. Ahora el eje rotula DÍAS cuando
+                  hay varios y HORAS cuando es uno solo, y la marca cae en la
+                  frontera, que es lo que el ojo busca en una serie horaria.
+                  La última se ancla al final o se sale del lienzo. */}
               {idx.map((i, k) => (
                 <text key={i} x={x(i, registros.length)} y={LIENZO.alto - 10}
                   textAnchor={k === idx.length - 1 ? 'end' : k === 0 ? 'start' : 'middle'}
-                  fontSize={9} fill="var(--tx-tenue, #888)">{etiquetaInstante(registros[i] as never)}</text>
+                  fontSize={9} fill="var(--tx-tenue, #888)">
+                  {marcaDeTiempo(registros[i] as never, modo)}
+                </text>
               ))}
+              {/* ⚠️ LA FECHA, DENTRO DE LA FIGURA. Va en la cabecera de la tarjeta,
+                  pero una captura de la gráfica sola —que es lo que acaba en un
+                  informe— se quedaba sin ella. Aquí, discreta y a la derecha. */}
+              <text x={LIENZO.ancho - LIENZO.margen.d} y={LIENZO.margen.s - 6} textAnchor="end"
+                fontSize={9} fill="var(--tx-tenue, #888)">{periodoDicho}</text>
             </svg>
             <p className="fine">
               {g.presentes.map(([fase], k) => (

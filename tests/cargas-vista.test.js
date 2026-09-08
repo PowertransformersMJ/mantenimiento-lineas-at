@@ -682,3 +682,50 @@ describe('el eje longitudinal en pantalla: el veredicto y su ausencia', () => {
     assert.equal(f.estadoUtilizacion, null);
   });
 });
+
+// ════════════════════════════════════════════════════════════════════════════
+// EL EJE DEL TIEMPO ROTULA HORAS O DÍAS, Y MARCA DONDE CAMBIA (`99 §ADR-123`)
+// ----------------------------------------------------------------------------
+// ⚠️ Orden del Ingeniero: «me gustaría que el eje X se aprecie de mejor manera,
+// que se reflejen las horas o días, la fecha puede apreciarse en otro lugar».
+// `marcasX` reparte cada N puntos: con 192 instantes las marcas caían a media
+// jornada y cada etiqueta llevaba fecha Y hora apretadas («13/01 00h»).
+// ════════════════════════════════════════════════════════════════════════════
+import { marcaDeTiempo, marcasDeTiempo } from '../web/src/vistas/cargabilidadVista.ts';
+
+describe('las marcas del eje caen donde significan algo', () => {
+  const unDia = Array.from({ length: 24 }, (_, h) => ({ fecha: '2026-01-13', hora: h }));
+  const ochoDias = Array.from({ length: 192 }, (_, i) => ({
+    fecha: `2026-01-${String(13 + Math.floor(i / 24)).padStart(2, '0')}`, hora: i % 24,
+  }));
+
+  test('con UN día se rotulan HORAS', () => {
+    const { idx, modo } = marcasDeTiempo(unDia);
+    assert.equal(modo, 'hora');
+    assert.deepEqual(idx.map((i) => marcaDeTiempo(unDia[i], modo)),
+      ['00h', '03h', '06h', '09h', '12h', '15h', '18h', '23h']);
+  });
+
+  test('⚠️ con VARIOS se rotulan DÍAS, y la marca cae al empezar cada uno', () => {
+    const { idx, modo } = marcasDeTiempo(ochoDias);
+    assert.equal(modo, 'dia');
+    assert.deepEqual(idx.map((i) => marcaDeTiempo(ochoDias[i], modo)),
+      ['13/01', '14/01', '15/01', '16/01', '17/01', '18/01', '19/01', '20/01']);
+    // La frontera, no un punto cualquiera: todas a las 00h.
+    assert.ok(idx.every((i) => ochoDias[i].hora === 0), 'una marca a media jornada no separa nada');
+  });
+
+  test('con más días que marcas caben, se toman uno de cada k — nunca a media jornada', () => {
+    const mes = Array.from({ length: 24 * 30 }, (_, i) => ({
+      fecha: `2026-01-${String(1 + Math.floor(i / 24)).padStart(2, '0')}`, hora: i % 24,
+    }));
+    const { idx, modo } = marcasDeTiempo(mes);
+    assert.equal(modo, 'dia');
+    assert.ok(idx.length <= 8, `${idx.length} marcas se leerían encima`);
+    assert.ok(idx.every((i) => mes[i].hora === 0));
+  });
+
+  test('sin puntos no revienta', () => {
+    assert.deepEqual(marcasDeTiempo([]), { idx: [], modo: 'hora' });
+  });
+});

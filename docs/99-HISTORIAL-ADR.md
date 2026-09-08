@@ -10066,3 +10066,38 @@ está bien repartida.
   número de días es el que manda, no la distancia entre extremos.
 
 ---
+## ADR-123 · 2026-09-07 · El eje del tiempo rotula HORAS o DÍAS, y la marca cae donde cambia el día
+
+**Deliberación:** orden del Ingeniero — *«me gustaría que el eje X se aprecie de mejor manera, que se
+reflejen las horas o días, la fecha puede apreciarse en otro lugar en la gráfica»*.
+**Estado:** ✅ en producción, verificado en los dos modos · **NO revisada externamente**.
+
+### Contexto
+
+`marcasX` reparte las marcas **cada N puntos**, que es lo correcto para un eje sin significado. Pero
+un eje de tiempo sí lo tiene: con 192 instantes las marcas caían en el 0, el 27, el 54… —**a media
+jornada**— y cada etiqueta cargaba fecha Y hora apretadas: `13/01 00h`. Ocho etiquetas así compiten
+por el mismo sitio y ninguna se lee.
+
+### Decisión
+
+**1. Las marcas caen donde EMPIEZA cada día.** Es la frontera que el ojo busca en una serie horaria:
+se ve dónde acaba una jornada y empieza la siguiente sin contar puntos. Con más días que marcas
+caben, se toma uno de cada `k` **días** — nunca a media jornada, que es una marca que no separa nada.
+
+**2. El eje rotula lo que el periodo tiene:** `13/01 14/01 15/01…` con varios días, `00h 03h 06h…`
+con uno solo. La hora deja de repetirse ocho veces y el día deja de repetirse veinticuatro.
+
+**3. Y la fecha va DENTRO de la figura**, arriba a la derecha. Estaba en la cabecera de la tarjeta,
+pero **una captura de la gráfica sola —que es lo que acaba en un informe— se quedaba sin ella**. Es
+la misma razón de `§ADR-122`: la figura tiene que explicarse sin su párrafo.
+
+### Consecuencias
+
+- `2.639` pruebas, cuatro nuevas sobre la primitiva —incluida la que exige que **toda marca de día
+  caiga a las 00h**—, en el módulo puro de vistas y no en la pantalla.
+- Verificado en producción **en los dos modos**: del 13 al 20 de enero el eje dice `13/01 … 20/01`
+  con la fecha dentro de la figura; el 27 de enero solo dice `00h 03h … 23h` y la cabecera «el día
+  entero · 24 lecturas · una cada hora».
+
+---

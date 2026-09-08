@@ -193,6 +193,45 @@ export function marcasX(n: number, maximo = 8): number[] {
   return out;
 }
 
+/**
+ * LAS MARCAS DEL EJE DEL TIEMPO, PUESTAS DONDE SIGNIFICAN ALGO (`99 §ADR-123`).
+ *
+ * ⚠️ `marcasX` reparte marcas cada N puntos: con 192 instantes salían en el 0,
+ * el 27, el 54… y cada etiqueta llevaba fecha Y hora —«13/01 00h»— apretadas.
+ * El Ingeniero lo dijo: quiere ver **horas o días**, y la fecha en otro sitio.
+ *
+ * Aquí las marcas caen donde **empieza cada día**, que es la frontera que un
+ * ojo busca en una serie horaria: se ve dónde acaba un día y empieza el
+ * siguiente sin contar puntos. Si hay más días que marcas caben, se toman uno
+ * de cada `k` días — nunca a mitad de un día, que es una marca que no separa nada.
+ *
+ * Con UN solo día se vuelve a repartir por horas, que es la única frontera que
+ * queda dentro de una jornada.
+ *
+ * @returns `{ idx, modo }` — `modo` dice qué rotular: la hora o el día.
+ */
+export function marcasDeTiempo(
+  puntos: { fecha: string; hora: number | null }[], maximo = 8,
+): { idx: number[]; modo: 'hora' | 'dia' } {
+  const n = puntos.length;
+  if (!n) return { idx: [], modo: 'hora' };
+  const dias = [...new Set(puntos.map((p) => p.fecha))];
+  if (dias.length <= 1) return { idx: marcasX(n, maximo), modo: 'hora' };
+
+  // El primer índice de cada día: ahí es donde el eje cambia de jornada.
+  const inicios: number[] = [];
+  let previa = '';
+  puntos.forEach((p, i) => { if (p.fecha !== previa) { inicios.push(i); previa = p.fecha; } });
+  const salto = Math.ceil(inicios.length / maximo);
+  return { idx: inicios.filter((_, k) => k % salto === 0), modo: 'dia' };
+}
+
+/** «2026-04-01» + 13 → «13h» o → «01/04», según lo que el eje esté rotulando. */
+export function marcaDeTiempo(p: { fecha: string; hora: number | null }, modo: 'hora' | 'dia'): string {
+  if (modo === 'dia') { const [, m, d] = p.fecha.split('-'); return `${d}/${m}`; }
+  return p.hora == null ? '' : `${String(p.hora).padStart(2, '0')}h`;
+}
+
 /** «2026-04-01» + 13 → «01/04 13h». Corto, porque va debajo de una gráfica. */
 export function etiquetaInstante(p: { fecha: string; hora: number | null }): string {
   const [, m, d] = p.fecha.split('-');
