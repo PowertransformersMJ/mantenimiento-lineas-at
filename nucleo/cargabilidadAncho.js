@@ -9,7 +9,7 @@ import { CAMPOS_GUARDADOS, FASES_DE, IDS_ESTADISTICO, completarAparente } from '
 //
 //   fila 1     vacía
 //   fila 2     46225 · 46225,0417 · 46225,0833 …   ← los sellos de tiempo
-//   fila 3     /Membri1 /66kV · /PROELECT/I R · /MvMoment · 271 · 263 · 259 …
+//   fila 3     /SubA /66kV · /PROELECT/I R · /MvMoment · 271 · 263 · 259 …
 //   fila 4     …/I S… · 268 · 260 · 257 …
 //   fila 5     …/I T… · 269 · 260 · 257 …
 //
@@ -206,7 +206,7 @@ export function encontrarEjeDeTiempo(matriz, { minimo = 3, mirar = 30 } = {}) {
  * LAS SEÑALES: una por fila, con su etiqueta y sus valores alineados al eje.
  *
  * La etiqueta es TODO lo que hay antes de la primera columna de datos, unido con
- * « · ». No se corta ni se interpreta: `/Membri1 /66kV`, `/PROELECT/I R` y
+ * « · ». No se corta ni se interpreta: `/SubA /66kV`, `/PROELECT/I R` y
  * `/MvMoment` son tres celdas y las tres dicen algo — la subestación con su
  * tensión, la bahía con la señal, y qué tipo de valor es.
  */
@@ -308,7 +308,7 @@ export function campoDeFase(campo, fase) {
  * QUÉ ESTADÍSTICO TRAE UN ARCHIVO, leído de SU NOMBRE (`99 §ADR-112`).
  *
  * ⚠️ DEL NOMBRE, porque no está en ningún otro sitio. La etiqueta de la señal es
- * IDÉNTICA en los tres archivos —`/Membril /66kV /PROELECT/I R /MvMoment`—, así
+ * IDÉNTICA en los tres archivos —`/SubA /66kV /PROELECT/I R /MvMoment`—, así
  * que dentro del dato no hay nada que los distinga. Lo único que los separa es
  * cómo se llama el archivo: `..._max...`, `..._Average...`, `..._Current...`.
  *

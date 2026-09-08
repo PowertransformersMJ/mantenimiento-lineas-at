@@ -15,6 +15,106 @@ PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
 for d in "$HOME"/.nvm/versions/node/*/bin; do [ -d "$d" ] && PATH="$d:$PATH"; done
 
 # ═══════════════════════════════════════════════════════════════
+# 🛰️  EXPORTACIONES DE SCADA — se reconocen por su CONTENIDO, no por su nombre
+# ═══════════════════════════════════════════════════════════════
+# ⚠️ POR QUÉ POR CONTENIDO. El `.gitignore` protege una RUTA —«Variables
+# Electricas/»— y el Ingeniero va a ir dejando ahí los días según los exporte.
+# El día que la carpeta se llame «Datos SCADA», o «Variables Eléctricas» con
+# tilde, o «enero», la protección desaparece **en silencio** y el archivo entra
+# en el commit sin que nada chille. Se probó: con otro nombre, git los ve.
+#
+# El 07-09 esto ya estuvo a punto de pasar: siete exportaciones de la RED ENTERA
+# quedaron en el índice y las paró de rebote el guardián de COORDENADAS, que no
+# está para eso (`33 · L-07`, tercera cara).
+#
+# Lo que se busca es la FIRMA del formato, que no depende del nombre:
+#   · el marcador de valor momentáneo que lleva CADA fila — `/MvMoment`
+#   · la etiqueta de un punto con su nivel de tensión — `/ALGO /66kV /`
+#   · o la fila de sellos de tiempo que abre el archivo — `,1/01/26 0:00,`
+#
+# ⚠️ El primero es el que de verdad muerde: el nivel de tensión NO está en todas
+# las filas —`/ARN302 /Ariguani/R-5049 /I R /MvMoment` no lo trae— y buscarlo
+# solo a él dejaba pasar archivos enteros.
+#
+# Se miran solo los archivos AÑADIDOS o MODIFICADOS, y solo su cabeza.
+scada=""
+# ⚠️ EL SEPARADOR ES EL SALTO DE LÍNEA, NO EL ESPACIO. Su carpeta se llama
+# «Variables Electricas» —con espacio—, así que un `for` con el separador de
+# siempre la partía en dos trozos, ninguno existía como archivo, y el guardián
+# no miraba NADA. Falló contra el único caso para el que se escribió, y se vio
+# porque se probó de verdad en vez de darlo por bueno. `quotepath=false` es lo
+# que evita que una tilde llegue escapada y pase lo mismo.
+IFS_ORIG=$IFS
+IFS='
+'
+for f in $(git -c core.quotepath=false diff --cached --name-only --diff-filter=ACM); do
+  # ⚠️ SOLO ARCHIVOS DE DATOS. El primer intento miraba TODO y se cazó a sí
+  # mismo —este guardián lleva la marca escrita— y al núcleo, que la documenta.
+  # Un guardián que grita sin razón se acaba apagando con `--no-verify`, y eso
+  # apaga todos los demás de golpe (`§ADR-095`). Una exportación siempre llega
+  # como `.csv` o `.xls`: eso es lo que se mira.
+  case "$f" in
+    *.csv|*.CSV|*.tsv|*.TSV|*.txt|*.TXT|*.dat|*.DAT|*.xls|*.XLS|*.xlsx|*.XLSX|*.xlsm) : ;;
+    *) continue ;;
+  esac
+  case "$f" in
+    tests/*) continue ;;                      # el material sintético se revisa aparte
+  esac
+  [ -f "$f" ] || continue
+  if head -c 200000 "$f" 2>/dev/null \
+     | grep -qE '(/MvMoment)|(/[A-Za-z][A-Za-z0-9 ._-]*[[:space:]]*/[0-9]+(\.[0-9]+)?kV[[:space:]]*/)|(^,[0-9]{1,2}/[0-9]{2}/[0-9]{2} [0-9]{1,2}:[0-9]{2},)'; then
+    scada="$scada
+$f"
+  fi
+done
+IFS=$IFS_ORIG
+if [ -n "$scada" ]; then
+  echo ""
+  echo "❌ COMMIT BLOQUEADO: esto parece una EXPORTACIÓN DE SCADA (dato de cliente)."
+  echo "$scada" | sed '/^$/d' | while IFS= read -r f; do echo "   · $f"; done
+  echo ""
+  echo "   Este repositorio es PÚBLICO y la historia de git es permanente (33 · L-07)."
+  echo "   Una exportación trae la red entera: subestaciones, bahías y su carga hora a hora."
+  echo "   Su sitio es ../brain-private/mantenimiento-lineas-at/ — o una carpeta que el"
+  echo "   .gitignore cubra. Este guardián mira el CONTENIDO, así que da igual cómo se llame."
+  exit 1
+fi
+
+# ═══════════════════════════════════════════════════════════════
+# 🏭 NOMBRES REALES DE SUBESTACIÓN — la lista vive en la BÓVEDA
+# ═══════════════════════════════════════════════════════════════
+# Se limpiaron una vez (`d44a602`) y volvieron a entrar solos en tres ADR
+# seguidos al citar una etiqueta de señal de ejemplo. Una etiqueta de ejemplo se
+# INVENTA: `/SubA`, `/SubB`.
+#
+# ⚠️ LA LISTA NO PUEDE ESTAR AQUÍ. El primer intento escribía los nombres en el
+# propio patrón, y este archivo está en el repositorio PÚBLICO: el guardián se
+# bloqueaba a sí mismo y, peor, publicaba justo lo que venía a proteger. El
+# guardián es público —cómo se comprueba no es secreto—; la lista es privada.
+#
+# Si la bóveda no está montada, se AVISA y no se bloquea: un clon sin bóveda no
+# puede quedar inservible, pero tampoco puede creerse protegido.
+lista="$(dirname "$0")/../../brain-private/mantenimiento-lineas-at/nombres-que-no-salen.txt"
+if [ -f "$lista" ]; then
+  patron=$(grep -vE '^\s*(#|$)' "$lista" | paste -sd '|' -)
+  if [ -n "$patron" ]; then
+    sub=$(git diff --cached -U0 | grep -E '^\+' | grep -vE '^\+\+\+' \
+      | grep -niE "$patron" || true)
+    if [ -n "$sub" ]; then
+      echo ""
+      echo "❌ COMMIT BLOQUEADO: nombre REAL de subestación en lo que se va a commitear."
+      echo "$sub" | head -10
+      echo ""
+      echo "   Repositorio PÚBLICO (33 · L-07/L-23). En un ejemplo, el nombre se INVENTA:"
+      echo "   /SubA, /SubB. Ya se limpiaron una vez y volvieron a entrar solos."
+      exit 1
+    fi
+  fi
+else
+  echo "⚠️  bóveda no montada: no se comprobaron los nombres reales (99 §ADR-114)."
+fi
+
+# ═══════════════════════════════════════════════════════════════
 # 🛰️  COORDENADAS REALES — este guardián corre SIEMPRE, no solo con el cerebro
 # ═══════════════════════════════════════════════════════════════
 # Este repositorio es PÚBLICO y la historia de git es permanente (`33 · L-07`).

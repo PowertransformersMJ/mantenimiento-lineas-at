@@ -9589,7 +9589,7 @@ magnitud **tres veces** —un archivo por estadístico— y los valores difieren
 |---|---|---|---|
 | Corriente fase R (pico del día) | **244 A** | 233 A | 236 A |
 
-Los tres archivos traen la **misma etiqueta de señal** —`/Membril /66kV /PROELECT/I R /MvMoment`—,
+Los tres archivos traen la **misma etiqueta de señal** —`/SubA /66kV /PROELECT/I R /MvMoment`—,
 así que dentro del dato **no hay nada que los distinga**: lo único que los separa es cómo se llama
 el archivo, y `unirAnchas` tiraba ese nombre al fundir. Cargados juntos, los tres caían en el mismo
 cubo y `combinar()` devolvía uno: con criterio «la más alta», el promedio y el instantáneo
@@ -9688,5 +9688,45 @@ cuando son muchos. Es aditivo: con un solo archivo no cambia nada.
   deja de ser cierto, la prueba deja de probar algo— y luego que el rastro conserva los quince.
 - ⚠️ **Tercer fallo del mismo tipo hoy** (`§ADR-109`, `§ADR-111`): un molde que nadie había
   ejercitado con el caso real. Los tres se cazaron pulsando «Guardar» de verdad, no leyendo código.
+
+---
+## ADR-114 · 2026-09-07 · El dato de cliente se reconoce por su CONTENIDO: la carpeta va a seguir cambiando de nombre
+
+**Deliberación:** el Ingeniero anunció que irá dejando los días en el repositorio según los exporte.
+**Estado:** ✅ guardián activo y probado · **NO revisada externamente**.
+
+### Contexto
+
+La protección era una ruta en el `.gitignore` —`Variables Electricas/`—. Con un dueño que va a ir
+soltando carpetas nuevas cada semana, eso es una protección que caduca sola: el día que la carpeta
+se llame `Datos SCADA`, `Variables Eléctricas` con tilde o `enero`, **desaparece en silencio**. Se
+probó, y con otro nombre git los ve.
+
+Ya estuvo a punto de costar caro hoy: siete exportaciones de la red entera quedaron en el índice y
+las paró **de rebote el guardián de coordenadas**, que no está para eso (`33 · L-07`).
+
+### Decisión
+
+**1. Se reconoce por la FIRMA del formato, no por el nombre:** `/MvMoment` —el marcador de valor
+momentáneo que lleva cada fila—, la etiqueta con su nivel de tensión, o la fila de sellos de tiempo
+que abre el archivo. Un `.gitignore` sigue estando, pero como comodidad, no como defensa.
+
+**2. Va ANTES que el guardián de coordenadas.** Una exportación trae miles de números que parecen
+latitudes: aquél disparaba primero y mandaba a corregir el archivo equivocado.
+
+**3. Y un guardián para los nombres de subestación**, que se limpiaron una vez (`d44a602`) y
+volvieron a entrar solos en tres ADR seguidos al citar una etiqueta de ejemplo. Una etiqueta de
+ejemplo se INVENTA. La BAHÍA se queda donde el código la necesita —`campoDeSenal` lleva un
+`(?!ROELECT)` para que su P no se lea como potencia activa—; la subestación no la necesita nadie.
+
+### Consecuencias
+
+- ⚠️ **El guardián falló contra el único caso para el que se escribió, y se vio porque se probó.**
+  El bucle separaba por espacios, y la carpeta se llama «Variables **Electricas**» —con espacio—:
+  la ruta se partía en dos trozos, ninguno existía como archivo y no se miraba nada. Arreglado con
+  el salto de línea como separador y `core.quotepath=false` para las tildes. **Un guardián que no se
+  prueba con el caso real es un adorno que además tranquiliza** (`30 · L-56`).
+- Los nombres reales que yo mismo metí en `§ADR-105/106/112`, en `nucleo/cargabilidadAncho.js` y en
+  `tests/cargabilidad-ancho.test.js` quedan sustituidos por `/SubA`.
 
 ---

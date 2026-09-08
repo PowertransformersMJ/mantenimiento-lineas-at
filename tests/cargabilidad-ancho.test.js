@@ -10,7 +10,7 @@
 //
 //   fila 1     vacía
 //   fila 2     46225 · 46225,0417 · …          ← sellos de tiempo, en horizontal
-//   filas 3-5  /Membri1 /66kV · /PROELECT/I R · /MvMoment · 271 · 263 · …
+//   filas 3-5  /SubA /66kV · /PROELECT/I R · /MvMoment · 271 · 263 · …
 //
 // ⚠️ Los VALORES de las tres fases son los suyos y están aquí a propósito: son
 // lo que hace que esta suite pruebe el caso real y no una idealización. No son
@@ -45,9 +45,9 @@ const T = [269, 260, 257, 248, 237, 231, 223, 205, 190, 231, 251, 274, 280, 260,
 const MATRIZ = [
   [],
   [null, null, null, ...EJE],
-  ['/Membri1 /66kV', '/PROELECT/I R', '/MvMoment', ...R],
-  ['/Membri1 /66kV', '/PROELECT/I S', '/MvMoment', ...S],
-  ['/Membri1 /66kV', '/PROELECT/I T', '/MvMoment', ...T],
+  ['/SubA /66kV', '/PROELECT/I R', '/MvMoment', ...R],
+  ['/SubA /66kV', '/PROELECT/I S', '/MvMoment', ...S],
+  ['/SubA /66kV', '/PROELECT/I T', '/MvMoment', ...T],
   [], [], [],
 ];
 
@@ -100,13 +100,13 @@ describe('cada fila es una señal, con su etiqueta entera', () => {
   test('la etiqueta NO se corta: las tres celdas dicen algo', () => {
     const s = leerSenales(MATRIZ, encontrarEjeDeTiempo(MATRIZ));
     assert.equal(s.length, 3, 'las filas vacías del final se colaron como señales');
-    assert.equal(s[0].etiqueta, '/Membri1 /66kV · /PROELECT/I R · /MvMoment');
+    assert.equal(s[0].etiqueta, '/SubA /66kV · /PROELECT/I R · /MvMoment');
     assert.equal(s[0].valores.length, 24);
     assert.equal(s[0].valores[0], 271);
   });
 
   test('reconoce las tres fases de corriente por su nombre de SCADA', () => {
-    assert.deepEqual(campoDeSenal('/Membri1 /66kV · /PROELECT/I R · /MvMoment'),
+    assert.deepEqual(campoDeSenal('/SubA /66kV · /PROELECT/I R · /MvMoment'),
       { campo: 'corriente_A', fase: 'R', porQue: 'corriente de la fase R' });
     assert.equal(campoDeSenal('… /I S …').fase, 'S');
     assert.equal(campoDeSenal('… /I T …').fase, 'T');
@@ -380,7 +380,7 @@ describe('sellos de tiempo ESCRITOS, no seriales de Excel', () => {
   test('el eje de tiempo aparece con las fechas escritas, y trae cómo las leyó', () => {
     const matriz = [
       ['', '1/01/26 0:00', '1/01/26 1:00', '1/01/26 2:00'],
-      ['/Membril /66kV /PROELECT/U RS /MvMoment', 68.8, 68.9, 68.7],
+      ['/SubA /66kV /PROELECT/U RS /MvMoment', 68.8, 68.9, 68.7],
     ];
     const eje = encontrarEjeDeTiempo(matriz);
     assert.ok(eje, 'sin eje no hay ni una señal');
@@ -399,9 +399,9 @@ describe('sellos de tiempo ESCRITOS, no seriales de Excel', () => {
 
 describe('varios archivos, una sola carga', () => {
   const eje = ['', '1/01/26 0:00', '1/01/26 1:00', '1/01/26 2:00'];
-  const rs = [eje, ['/Membril /66kV /PROELECT/U RS /MvMoment', 68.8, 68.9, 68.7]];
-  const st = [eje, ['/Membril /66kV /PROELECT/U ST /MvMoment', 69.3, 69.5, 69.3]];
-  const tr = [eje, ['/Membril /66kV /PROELECT/U TR /MvMoment', 68.9, 69.0, 68.8]];
+  const rs = [eje, ['/SubA /66kV /PROELECT/U RS /MvMoment', 68.8, 68.9, 68.7]];
+  const st = [eje, ['/SubA /66kV /PROELECT/U ST /MvMoment', 69.3, 69.5, 69.3]];
+  const tr = [eje, ['/SubA /66kV /PROELECT/U TR /MvMoment', 68.9, 69.0, 68.8]];
 
   test('las tres tensiones acaban en la MISMA lectura, no pisándose', () => {
     const u = unirAnchas([{ nombre: 'RS', matriz: rs }, { nombre: 'ST', matriz: st }, { nombre: 'TR', matriz: tr }]);
@@ -461,7 +461,7 @@ describe('muchas señales de la misma magnitud: el peligro es real y medible', (
   // Tres instantes: el eje exige un mínimo de tres sellos para no confundir una
   // fila de números cualesquiera con el tiempo.
   const eje = ['', '1/01/26 0:00', '1/01/26 1:00', '1/01/26 2:00'];
-  const suya = ['/Membril /66kV /PROELECT/U RS /MvMoment', 68.8, 68.9, 68.7];
+  const suya = ['/SubA /66kV /PROELECT/U RS /MvMoment', 68.8, 68.9, 68.7];
   const ajena1 = ['/Zaragoc /66kV /Barra1 /U RS /MvMoment', 160.7, 160.7, 160.7];
   const ajena2 = ['/ABA302 /Valdupar/R-11957 /U RS /MvMoment', 12.8, 12.87, 12.79];
   const matriz = [eje, suya, ajena1, ajena2];
@@ -522,9 +522,9 @@ describe('las fases sobreviven al registro', () => {
 
   test('la tensión: RS, ST y TR se guardan Y se combinan', () => {
     const m = [eje,
-      ['/Membril /66kV /PROELECT/U RS /MvMoment', 68.8, 68.9, 68.7],
-      ['/Membril /66kV /PROELECT/U ST /MvMoment', 69.3, 69.5, 69.3],
-      ['/Membril /66kV /PROELECT/U TR /MvMoment', 68.9, 69.0, 68.8]];
+      ['/SubA /66kV /PROELECT/U RS /MvMoment', 68.8, 68.9, 68.7],
+      ['/SubA /66kV /PROELECT/U ST /MvMoment', 69.3, 69.5, 69.3],
+      ['/SubA /66kV /PROELECT/U TR /MvMoment', 68.9, 69.0, 68.8]];
     const r = registrosDesdeAncho(m, { linea: 'LN-627', criterioFase: 'maxima' });
     const h0 = r.registros[0];
     assert.equal(h0.tensionRS_kV, 68.8);
@@ -536,9 +536,9 @@ describe('las fases sobreviven al registro', () => {
 
   test('la corriente: R, S y T — las tres que la pantalla lleva pidiendo', () => {
     const m = [eje,
-      ['/Membril /66kV /PROELECT/I R /MvMoment', 271, 263, 259],
-      ['/Membril /66kV /PROELECT/I S /MvMoment', 268, 260, 257],
-      ['/Membril /66kV /PROELECT/I T /MvMoment', 269, 260, 257]];
+      ['/SubA /66kV /PROELECT/I R /MvMoment', 271, 263, 259],
+      ['/SubA /66kV /PROELECT/I S /MvMoment', 268, 260, 257],
+      ['/SubA /66kV /PROELECT/I T /MvMoment', 269, 260, 257]];
     const h0 = registrosDesdeAncho(m, { linea: 'LN-627' }).registros[0];
     assert.equal(h0.corrienteR_A, 271);
     assert.equal(h0.corrienteS_A, 268);
