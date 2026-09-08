@@ -262,13 +262,15 @@ export async function resumenesEntre(
  * consulta cara, y la que solo hace falta cuando alguien mira un día concreto.
  */
 export async function diaCompleto(
-  { linea, circuito = null, fecha }: { linea: string; circuito?: string | null; fecha: string },
+  { linea, circuito = null, fecha, estadistico = 'maximo' }: {
+    linea: string; circuito?: string | null; fecha: string; estadistico?: Estadistico;
+  },
   sesion: Sesion,
 ): Promise<Record<string, unknown> | null> {
   const { baseDatos } = await cargarFirebase();
   const { doc, getDoc } = await firestore();
   const db = await baseDatos();
-  const d = await getDoc(doc(db, DIAS, idDelDia(sesion.orgId, linea, circuito, fecha)));
+  const d = await getDoc(doc(db, DIAS, idDelDia(sesion.orgId, linea, circuito, fecha, estadistico)));
   return d.exists() ? (d.data() as Record<string, unknown>) : null;
 }
 

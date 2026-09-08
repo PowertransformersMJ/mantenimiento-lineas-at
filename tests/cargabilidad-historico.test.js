@@ -462,3 +462,58 @@ describe('UN DÍA SIN PORCENTAJE NO ES UN DÍA SIN DATO', () => {
     assert.equal(t.promedio, 16.67, 'ponderado por horas con porcentaje: 2 y 22, no 24 y 22');
   });
 });
+
+// ════════════════════════════════════════════════════════════════════════════
+// LO GUARDADO SE TIENE QUE PODER DIBUJAR (`99 §ADR-115`)
+// ----------------------------------------------------------------------------
+// ⚠️ El Ingeniero lo vio antes que yo: «no veo gráficas asociadas a las
+// variables que te entregué». Y era cierto. Las 24 horas estaban en la base,
+// `diaCompleto` sabía traerlas y `desempaquetarDia` sabía abrirlas — pero
+// **ninguna pantalla llamaba a ninguna de las dos**. Las gráficas solo se
+// dibujaban con el archivo recién leído, en la memoria del navegador: al
+// recargar, el dato seguía guardado y la pantalla no lo enseñaba.
+//
+// Es `30 · L-28` otra vez: un módulo construido y probado que ninguna pantalla
+// llama es INVISIBLE. Esta prueba fija el viaje de ida y vuelta —guardar y
+// volver a leer— y que la pantalla lo pide.
+// ════════════════════════════════════════════════════════════════════════════
+import { desempaquetarDia as abrir, empaquetarPorDia as empaquetar } from '../nucleo/cargabilidad.js';
+
+describe('EL VIAJE DE IDA Y VUELTA: lo que se guarda se vuelve a abrir entero', () => {
+  const registros = Array.from({ length: 24 }, (_, h) => ({
+    linea: 'LN-000', fecha: '2026-01-01', hora: h, estadistico: 'maximo',
+    corriente_A: 160 + h, corrienteR_A: 160 + h, corrienteS_A: 155 + h, corrienteT_A: 158 + h,
+    tension_kV: 69, tensionRS_kV: 68.8, tensionST_kV: 69.3, tensionTR_kV: 68.9,
+    potenciaActiva_MW: -18, potenciaReactiva_MVAr: -1,
+  }));
+
+  test('las 24 horas vuelven con sus FASES: es lo que dibujan las gráficas', () => {
+    const { dias } = empaquetar(registros);
+    const vuelta = abrir(dias[0]);
+    assert.equal(vuelta.length, 24);
+    // Sin las fases no hay gráfica «fase a fase», que es justo lo que él echaba en falta.
+    assert.equal(vuelta[0].corrienteR_A, 160);
+    assert.equal(vuelta[0].corrienteS_A, 155);
+    assert.equal(vuelta[0].corrienteT_A, 158);
+    assert.equal(vuelta[0].tensionST_kV, 69.3);
+    assert.equal(vuelta[23].corriente_A, 183);
+  });
+
+  test('⚠️ y la PANTALLA las pide: si nadie llama al repositorio, el dato es invisible', () => {
+    const pantalla = readFileSync(new URL('../web/src/componentes/Cargabilidad.tsx', import.meta.url), 'utf8');
+    assert.match(pantalla, /diaCompleto\(/, 'la pantalla tiene que leer el día guardado');
+    assert.match(pantalla, /desempaquetarDia\(/, 'y abrirlo');
+    // Y dibujarlo con los MISMOS componentes que una carga recién leída, no con
+    // una copia: dos caminos que dibujan lo mismo se separan solos.
+    const usos = (pantalla.match(/<GraficasPorFase /g) ?? []).length;
+    assert.ok(usos >= 2, `GraficasPorFase debe dibujarse también para el día guardado (usos: ${usos})`);
+  });
+
+  test('un día abierto del PROMEDIO no es el del máximo: el id lleva el estadístico', () => {
+    const repo = readFileSync(new URL('../web/src/datos/cargabilidadRepo.ts', import.meta.url), 'utf8');
+    const i = repo.indexOf('export async function diaCompleto');
+    const trozo = repo.slice(i, i + 700);
+    assert.match(trozo, /estadistico/, 'diaCompleto tiene que saber qué estadístico se le pide');
+    assert.match(trozo, /idDelDia\([^)]*estadistico/s, 'y pasárselo al identificador');
+  });
+});

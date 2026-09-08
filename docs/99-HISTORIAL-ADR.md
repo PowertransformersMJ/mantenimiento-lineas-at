@@ -9730,3 +9730,47 @@ ejemplo se INVENTA. La BAHÍA se queda donde el código la necesita —`campoDeS
   `tests/cargabilidad-ancho.test.js` quedan sustituidos por `/SubA`.
 
 ---
+## ADR-115 · 2026-09-07 · Lo guardado también se dibuja: las gráficas vivían solo en la memoria del navegador
+
+**Deliberación:** lo vio el Ingeniero en producción — *«no veo gráficas asociadas a las variables que
+te entregué»*. Tenía razón.
+**Estado:** ✅ en producción, verificado · **NO revisada externamente**.
+
+### Contexto
+
+Las 24 horas del día estaban en la base. `diaCompleto` sabía traerlas. `desempaquetarDia` sabía
+abrirlas. Y **ninguna pantalla llamaba a ninguna de las dos**: las gráficas por magnitud y por fase
+solo se dibujaban con el archivo recién leído, es decir **desde la memoria del navegador**. Al
+recargar, el dato seguía guardado y la pantalla enseñaba únicamente cifras de resumen.
+
+⚠️ Es `30 · L-28` otra vez —*un módulo construido y probado que ninguna pantalla llama es
+INVISIBLE*— y es también la otra cara de `§ADR-108`: allí «verificado» significó *lo vi en la
+pantalla* cuando la pantalla leía de la memoria; aquí el dato estaba guardado y **la pantalla no
+sabía leerlo de vuelta**. El mismo malentendido, en el sentido contrario.
+
+### Decisión
+
+**1. Cada día del histórico se puede ABRIR.** Un botón por fila trae sus 24 horas de la base y las
+dibuja. Se lee de uno en uno a propósito: es la consulta cara —24 horas frente a un resumen— y por
+eso no se hace sola al listar el periodo (`§ADR-088`).
+
+**2. Con los MISMOS componentes que una carga recién leída**, no con una copia. El dato es el mismo
+—24 horas con sus fases— y lo único que cambiaba era de dónde venía; dos caminos que dibujan lo
+mismo se separan solos. Hay una prueba que cuenta los usos y exige que sean dos.
+
+**3. Y respeta el estadístico que se está mirando:** abrir el mismo día en «promedio» trae el
+documento del promedio, no el del máximo. Si de ese día no hay ese estadístico, **se dice** en vez
+de enseñar el otro.
+
+### Consecuencias
+
+- `2.618` pruebas. La nueva fija el viaje de ida y vuelta —guardar y volver a abrir con las fases
+  intactas— y que la pantalla llame de verdad al repositorio.
+- Verificado en producción abriendo el 2026-01-01 después de recargar: salen la tabla hora a hora de
+  RS/ST/TR y de R/S, y las gráficas fase a fase.
+- ⚠️ **Lo que esto enseña sobre mi forma de verificar.** Llevo el día entero diciendo «verificado en
+  producción» de pantallas que estaban leyendo lo que yo acababa de cargar en el navegador. La
+  prueba honesta es **recargar y volver a encontrarlo**, y aun así no basta: hay que mirar si lo que
+  se ve viene de la base o de la memoria. Lo cazó él, no yo.
+
+---

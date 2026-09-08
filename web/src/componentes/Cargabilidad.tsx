@@ -50,8 +50,8 @@ import {
   cerosAlFinal, CRITERIOS_DE_FASE, encontrarEjeDeTiempo, leerSenales, pareceAncho,
   estadisticoDeNombre, registrosDesdeAncho, unirAnchas,
 } from '@lineas/nucleo/cargabilidadAncho';
-import { empaquetarPorDia, ESTADISTICOS, resumirDia } from '@lineas/nucleo/cargabilidad';
-import { guardarCarga, huellaDe, resumenesEntre, type Acuse } from '../datos/cargabilidadRepo';
+import { desempaquetarDia, empaquetarPorDia, ESTADISTICOS, resumirDia } from '@lineas/nucleo/cargabilidad';
+import { diaCompleto, guardarCarga, huellaDe, resumenesEntre, type Acuse } from '../datos/cargabilidadRepo';
 import { nf } from '../vistas/formato';
 import { Sello } from './Sello';
 import nucleoPkg from '@lineas/nucleo/package.json';
@@ -711,6 +711,34 @@ function HistoricoGuardado({ sesion, lineaAbierta }: {
    * saldría verde en local y rojo solo en producción.
    */
   const [verEstadistico, setVerEstadistico] = useState<string>('maximo');
+  /**
+   * EL DÍA ABIERTO — sus 24 horas, leídas de la base (`99 §ADR-115`).
+   *
+   * ⚠️ POR QUÉ FALTABA. `diaCompleto` y `desempaquetarDia` existían, probadas, y
+   * **ninguna pantalla las llamaba**: las gráficas de las magnitudes solo se
+   * dibujaban con el archivo recién leído, en la memoria del navegador. Al
+   * recargar, el dato seguía en la base y la pantalla no lo enseñaba. Es
+   * exactamente `30 · L-28`: un módulo que ninguna pantalla llama es invisible.
+   *
+   * Se lee UN día, y solo cuando se pide: es la consulta cara (24 horas frente a
+   * un resumen) y por eso no se hace sola al listar el periodo.
+   */
+  const [diaAbierto, setDiaAbierto] = useState<{ fecha: string; linea: string } | null>(null);
+  const [horasDelDia, setHorasDelDia] = useState<Registro[] | null>(null);
+  const [abriendo, setAbriendo] = useState(false);
+  const [falloAbrir, setFalloAbrir] = useState<string | null>(null);
+
+  const abrirDia = async (fecha: string, linea: string) => {
+    setAbriendo(true); setFalloAbrir(null); setDiaAbierto({ fecha, linea });
+    try {
+      const d = await diaCompleto(
+        { linea, fecha, estadistico: verEstadistico as never }, sesion as never,
+      );
+      setHorasDelDia(d ? (desempaquetarDia(d as never) as unknown as Registro[]) : []);
+    } catch (e) {
+      setFalloAbrir((e as Error).message); setHorasDelDia(null);
+    } finally { setAbriendo(false); }
+  };
   const estadisticosGuardados = useMemo(
     () => [...new Set((todasLasFilas ?? []).map((f) => (f.estadistico as string) ?? 'maximo'))],
     [todasLasFilas],
@@ -857,7 +885,7 @@ function HistoricoGuardado({ sesion, lineaAbierta }: {
             <table className="tabla">
               <thead><tr><th>Fecha</th><th>Línea</th><th>Máxima</th><th>Promedio</th>
                 <th>Mínima</th><th>Corriente máx.</th><th>Horas con dato</th>
-                <th>Sobrecarga</th></tr></thead>
+                <th>Sobrecarga</th><th>Las 24 horas</th></tr></thead>
               <tbody>
                 {filas.slice(0, 60).map((f, i) => (
                   <tr key={i}>
@@ -873,6 +901,12 @@ function HistoricoGuardado({ sesion, lineaAbierta }: {
                       : `${nf(f.corrienteMaxima_A as number, 0)} A`}</td>
                     <td>{nf((f.horasConDato ?? f.horasConMedida) as number)} de 24</td>
                     <td>{nf((f.porBanda as Record<string, number>)?.sobrecarga ?? 0)} h</td>
+                    <td>
+                      <button type="button" className="boton chico"
+                        onClick={() => void abrirDia(String(f.fecha), String(f.linea))}>
+                        {diaAbierto?.fecha === String(f.fecha) ? 'Abierto' : 'Abrir'}
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -880,6 +914,35 @@ function HistoricoGuardado({ sesion, lineaAbierta }: {
           </div>
           {filas.length > 60 && (
             <p className="fine">Se muestran 60 de {nf(filas.length)} días.</p>
+          )}
+
+          {/* ⚠️ LAS GRÁFICAS DE LO GUARDADO (`99 §ADR-115`). Son las MISMAS que
+              dibuja una carga recién leída —el mismo componente, no una copia—,
+              porque el dato es el mismo: 24 horas con sus fases. Lo único que
+              cambiaba era de dónde venía. */}
+          {abriendo && <p className="fine">Abriendo el día…</p>}
+          {falloAbrir && <p className="advertencia">No se pudo abrir el día: {falloAbrir}</p>}
+          {diaAbierto && horasDelDia && horasDelDia.length > 0 && (
+            <div className="tarjeta">
+              <p className="mapa-capas-t">
+                {diaAbierto.linea} · {diaAbierto.fecha} ·{' '}
+                {ESTADISTICOS.find((e) => e.id === verEstadistico)?.rotulo ?? verEstadistico}
+              </p>
+              <p className="mapa-capas-n">
+                Las <b>{nf(horasDelDia.length)}</b> horas de ese día, leídas de la base — no de
+                ningún archivo abierto. Cambie el estadístico de arriba y vuelva a abrirlo para ver
+                el mismo día medido de otra forma.
+              </p>
+              <FasesDeLaCarga registros={horasDelDia} />
+              <GraficasPorFase registros={horasDelDia} />
+            </div>
+          )}
+          {diaAbierto && horasDelDia && horasDelDia.length === 0 && !abriendo && (
+            <p className="advertencia">
+              De <b>{diaAbierto.fecha}</b> no hay <b>
+                {ESTADISTICOS.find((e) => e.id === verEstadistico)?.rotulo ?? verEstadistico}
+              </b> guardado. El resumen de la tabla sí existe; las 24 horas de ese estadístico, no.
+            </p>
           )}
         </>
       )}
