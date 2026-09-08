@@ -578,3 +578,16 @@ describe('una magnitud sin fases se enseña UNA vez', () => {
     assert.match(pantalla, /Ver las \$\{nf\(registros\.length\)\} horas/);
   });
 });
+
+describe('con varios días, los estadísticos salen de TODOS (`99 §ADR-119`)', () => {
+  const pantalla = readFileSync(new URL('../web/src/componentes/Cargabilidad.tsx', import.meta.url), 'utf8');
+
+  test('⚠️ no del primero: si el primer día no trae mínimos, los demás no se guardan', () => {
+    // Medido: 38 archivos, 20 días de máximo y 18 de mínimo. El día más antiguo
+    // solo traía máximos, así que «presentes» fue ['maximo'] y los 18 días de
+    // mínimo se leyeron, se enseñaron y NO se guardaron. Sin un solo error.
+    assert.match(pantalla, /porArchivo: variosDias\s*\n?\s*\?\s*dias\.porDia\.flatMap/,
+      'el inventario de archivos tiene que recorrer todos los días');
+    assert.match(pantalla, /estadisticos: variosDias\s*\n?\s*\?\s*\[\.\.\.new Set\(dias\.porDia\.flatMap/);
+  });
+});

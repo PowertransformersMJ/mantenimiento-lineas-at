@@ -9902,3 +9902,41 @@ tarde había que exportar el CSV.
 - Y el contador del botón decía «Ver las 6 horas» de un día de 24: contaba magnitudes.
 
 ---
+## ADR-119 · 2026-09-07 · Enero entero cargado: un archivo por día y estadístico, y el fallo que guardaba solo un tercio
+
+**Deliberación:** «cárgalo» — orden del Ingeniero tras enseñarle lo que había en sus carpetas.
+**Estado:** ✅ en producción, verificado recargando · **NO revisada externamente**.
+
+### Contexto
+
+Tras quedarnos con la bahía (`§ADR-117`), el mes eran **902 archivos diminutos**: uno por magnitud,
+estadístico y día. Subirlos era trabajo mecánico de decenas de tandas, y el trabajo mecánico a mano
+es donde se cometen los errores.
+
+`herramientas/juntar-por-dia.mjs` los junta **exactamente como los juntaría el lector** —comparten la
+fila del eje porque son el mismo día— y deja **99 archivos**: uno por día y estadístico. Ni un número
+tocado. El día sale del DATO; el estadístico, del nombre, porque no está en ninguna otra parte.
+
+### ⚠️ El fallo que casi pasa desapercibido
+
+La primera carga de 38 archivos —20 días de máximo y 18 de mínimo— guardó **20 días**. Los 18 de
+mínimo se leyeron, se enseñaron en la tabla de archivos con su rótulo correcto… y **no se
+guardaron**. Sin un solo error.
+
+La causa: `porArchivo` y `estadisticos` se calculaban sobre `union`, que es **el día más antiguo**.
+Ese día solo traía máximos, así que la lista de «estadísticos presentes» —que es lo que decide qué
+se guarda— fue `['maximo']`. Un dato que se ve y no se guarda es peor que uno que falla: **el acuse
+decía «guardado» y era verdad, solo que de un tercio**.
+
+### Consecuencias
+
+- **99 documentos día · 199 escrituras.** Verificado recargando: **31 días guardados**, el selector
+  con los cuatro estadísticos, y el pico del mes en **398 A el 2026-01-27 a las 16:00** — el 55 % de
+  la ampacidad, frente al 34 % que daba el único día que había antes.
+- ⚠️ **Lo que enseña este fallo:** un guardado que escribe MENOS de lo que enseñó no da error en
+  ninguna capa. Ni las reglas, ni el molde, ni las pruebas lo ven — solo se caza contando lo que
+  entró contra lo que salió. `2.631` pruebas, tres de ellas nuevas para fijarlo.
+- **Enero tiene 29 días**, más un día de mayo y uno de julio que estaban dentro de sus carpetas de
+  enero y entraron con **su fecha verdadera**, no con la de la carpeta.
+
+---

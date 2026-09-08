@@ -279,7 +279,16 @@ export default function Cargabilidad({
         // Con varios archivos la anotación la trae `unirAnchas`; con uno solo
         // se lee de su nombre. El mismo dato por los dos caminos, no dos verdades.
         estadisticoPorFila: union?.estadisticoPorFila ?? null,
-        porArchivo: union
+        // ⚠️ DE TODOS LOS DÍAS, no del primero (`99 §ADR-119`). Se calculaba
+        // sobre `union`, que es el día más antiguo, y de ahí salían los
+        // estadísticos «presentes» — que es lo que decide QUÉ SE GUARDA. Con un
+        // primer día que solo traía máximos, los mínimos de los otros veinte
+        // días se cargaron, se enseñaron… y no se guardaron. Sin un solo error.
+        porArchivo: variosDias
+          ? dias.porDia.flatMap((d) => d.union.deCada.map((x) => ({
+            nombre: x.nombre, senales: x.senales, estadistico: x.estadistico, porQue: x.porQueEstadistico,
+          })))
+          : union
           ? union.deCada.map((d) => ({
             nombre: d.nombre, senales: d.senales, estadistico: d.estadistico, porQue: d.porQueEstadistico,
           }))
@@ -288,7 +297,9 @@ export default function Cargabilidad({
             estadistico: estadisticoDeNombre(leidos[0].nombre).id,
             porQue: estadisticoDeNombre(leidos[0].nombre).porQue,
           }],
-        estadisticos: union
+        estadisticos: variosDias
+          ? [...new Set(dias.porDia.flatMap((d) => d.union.estadisticos))]
+          : union
           ? union.estadisticos
           : [estadisticoDeNombre(leidos[0].nombre).id].filter(Boolean) as string[],
         porDia: variosDias
