@@ -9812,8 +9812,13 @@ pantalla llena en una pantalla vacía.
   de verdad, la pantalla quedó **exactamente igual que antes** —sin dato, sin gráficas y sin motivo—
   y estuve buscando en la consola un error que nadie había escrito. Un fallo que no se dice se
   investiga dos veces. Ahora se enseña en la propia tarjeta.
+- **Y con UN solo día, se abre solo.** Dejar las gráficas detrás de un botón cuando no hay nada que
+  elegir es dejarlas escondidas. Con varios días no: abrir el primero por su cuenta sería decidir
+  por él cuál mira, y cada día cuesta una lectura de 24 horas.
 - **Tres avisos suyos para el mismo síntoma**, y cada uno destapó un fallo distinto: que lo guardado
   no se dibujaba (`§ADR-115`), que la ventana lo escondía (éste), y que yo verificaba conduciendo la
   pantalla en vez de abrirla. **Verificar es abrirla como la abre él.**
+- Verificado abriendo la pestaña en frío: sale sola la tabla hora a hora y las dos gráficas —tensión
+  entre fases y corriente por fases—, sin un solo clic.
 
 ---

@@ -830,6 +830,23 @@ function HistoricoGuardado({ sesion, lineaAbierta }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lineaAbierta, soloEsta]);
 
+  /**
+   * ⚠️ CON UN SOLO DÍA, SE ABRE SOLO (`99 §ADR-116`).
+   *
+   * «No veo gráficas de nada» fue el aviso, tres veces. Con la consulta ya
+   * resuelta y UN único día en el periodo, dejar las gráficas detrás de un botón
+   * es dejarlas escondidas: no hay nada que elegir. Se abre. Con varios días no
+   * —abrir el primero por su cuenta sería decidir por él cuál mira, y cada día
+   * cuesta una lectura de 24 horas.
+   */
+  useEffect(() => {
+    if (!filas || filas.length !== 1) return;
+    const f = filas[0];
+    if (diaAbierto?.fecha === String(f.fecha) && horasDelDia) return;
+    void abrirDia(String(f.fecha), String(f.linea));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filas, verEstadistico]);
+
   const r = rango();
   const conMedida = (filas ?? []).filter((f) => f.maxima_pct != null);
   const pico = conMedida.length
