@@ -17,7 +17,7 @@
 ## ⚠️ Flags de riesgo activos
 - **Repo PÚBLICO** → cero bytes de cliente en git, jamás. La historia de git es permanente (`33 · L-07`); ya cazó una fuga real.
 - **El motor puede estar mal y el sistema no fallaría: certificaría.** Riesgo nº 1. Por eso `40 §8` declara qué está verificado y qué no, y **firma el Ingeniero**.
-- 🔴 **App Check NO existe** y `CLAUDE.md §1` lo declara «obligatorio desde el día 1». Mientras falte, el sitio público puede llamar a Firebase sin probar que es él. Cierra en `TODO-50` (`99 §ADR-019`).
+- 🔴 **App Check NO está encendido** y `CLAUDE.md §1` lo declara «obligatorio desde el día 1»: sin él, el sitio público llama a Firebase sin probar que es él. Encenderlo es `TODO-61`, suyo y en una consola (`99 §ADR-019/100`).
 
 ## 🧩 Sub-sistemas
 `nucleo/` ✅ · `exportar/` ✅ (workspace puro, ADR-006/007) · pruebas de oro ✅ · cerebro ✅ · CI ✅ · **pestañas** ✅ · **capas del mapa** ✅ (ADR-034/037/**046**) · **ONCE atlas** ✅ en 3 familias (ADR-045/055/079/081/**086**) · **2 finas del corredor** en esa pantalla (ADR-087) · **parámetros eléctricos** ✅ (ADR-088..125) · **segmento RCA** ✅ (ADR-020, APARCADO por él) · `evidencias/` (portero de fotos) ✅ **en producción** (ADR-010) · generador de línea ⬜ F2 · base local ⬜ F3 · captura en campo ⬜ F4 · nube ⬜ F5 · mapas offline ⬜ F4+

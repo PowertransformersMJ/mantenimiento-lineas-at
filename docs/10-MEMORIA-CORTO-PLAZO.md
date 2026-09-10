@@ -12,10 +12,8 @@ Todo EN PRODUCCIÓN y **verificado en vivo con su sesión**.
 > `§ADR-049/050`—. La fase viva es **la página**: no eligió entre ② **se lee** y ③ **no se cae**.
 
 ## 🛑 LO PRIMERO AL RETOMAR
-0. 🆕 **PARÁMETROS ELÉCTRICOS** (antes «cargabilidad»; `§ADR-088..125`). Se suelta un
-   `.xlsx` **o CSV de SCADA tal como sale** —varios a la vez, la red entera dentro—, salen todas las
-   magnitudes con sus fases y el veredicto contra **ampacidad**. Sin archivo se enseña la
-   ESTRUCTURA — **jamás cifras de muestra**, y **un hueco no es un cero**.
+0. 🆕 **PARÁMETROS ELÉCTRICOS** (antes «cargabilidad»; `§ADR-088..125`). Se suelta el SCADA tal
+   como sale y salen todas las magnitudes con sus fases y el veredicto contra **ampacidad**.
    ✅ **07-09: EN PRODUCCIÓN** (`§ADR-108..125`). **31 días** cargados: **29 de enero (01 al 29)**
    más un 31-05 y un 29-07 que venían mal etiquetados — **enero NO está entero**. 99 documentos y
    cuatro estadísticos (máximo · promedio · instantáneo · **mínimo**). Pico **398 A el 27-01 a las
@@ -27,8 +25,6 @@ Todo EN PRODUCCIÓN y **verificado en vivo con su sesión**.
    y paso dichos · leyenda de cada fase · el tiempo en HORAS o DÍAS según el rango · cuatro marcas
    en el vertical y el cero **solo si cae dentro** · y la corriente más alta que las otras cuatro,
    porque es la ÚNICA que dictamina. Una gráfica que necesita el pie **no se pega en un informe**.
-   ⚠️ Antes NUNCA guardó ni se veía: **nueve fallos en fila**, cazados por ÉL con cuatro avisos del
-   mismo síntoma. **Verificar es abrir EN FRÍO, no pilotar la pantalla.**
    ⚠️ Sin capacidad nominal no hay porcentaje. En **P y Q, negativas, el «max» es el de MENOS
    carga**. Y sus carpetas «30Enero»/«29Enero» traían julio y mayo: mandó la fecha del DATO.
    ⚠️ Falta lo SUYO: ratificar los **718 A** (`TODO-95/93`).
@@ -46,10 +42,7 @@ Todo EN PRODUCCIÓN y **verificado en vivo con su sesión**.
    o no se publica ni se pinta (`§ADR-082/084/086/087`).
    ⚙️ **El vigía FUSIONA SOLO** (`§ADR-085`), con PORTERO. Queda a mano **publicar** (`TODO-89`).
 4. **LO QUE NO SE PUEDE ROMPER DEL CLIMA (`§ADR-057..086`):** gana el HECHO sobre el modelo · el recorrido se comprueba **punto a punto**, nunca por promedio · el clima vive en el ATLAS · **«tormenta eléctrica» NO existe en la fuente**.
-5. **⚠️ EL LIENZO NO SE VE EN SEGUNDO PLANO, PERO SE FOTOGRAFÍA** (`34 · L-16/L-58/L-72`):
-   `node herramientas/mirar-los-atlas.mjs <atlas>` lo hace y SUSPENDE si no hay dibujo (`§ADR-085`).
-   **Nunca con tiempo virtual.**
-6. **Higiene** (`99 §ADR-047/048/083`): el techo es el ARRANQUE; el `20` se recalibró (`§ADR-125`), `32` sigue pasado.
+5. **Higiene** (`99 §ADR-047/048/083`): el techo es el ARRANQUE; `20` y las hijas se recalibraron (`§ADR-125`); `10` sigue pasado de LÍNEAS.
 
 ## 🚫 INVARIANTES — índice; cada uno vive ENTERO en su ADR
 
@@ -63,13 +56,15 @@ Todo EN PRODUCCIÓN y **verificado en vivo con su sesión**.
 · **Señales de la página** `§ADR-051` — banda, pestaña y tope de tiro salen del DATO, con un solo dueño; la versión del motor la ata un gate de `pre-commit`.
 · **El número que se firma** `§ADR-052` — un tope declarado manda en TODAS las piezas, y el molde tiene que admitirlo o la base lo tira en silencio.
 · **Atlas** `§ADR-045/055/079/086` — UN motor y UN escritor de fichas para los ONCE. Viento, rayos y **ningún pronóstico** marcan hipótesis; en el mapa de la línea van como dato del SITIO.
+· **Parámetros eléctricos** `§ADR-088/112/117/119` — **un hueco NO es un cero** y sin archivo, jamás cifras de muestra; el % del archivo no se pisa; el estadístico se supone solo al LEER, nunca al guardar; el máximo DICTA y no se sustituye; manda la fecha del DATO; se cuenta lo escrito contra lo leído; y se verifica abriendo EN FRÍO.
 
 ## 🧭 Cómo retomar
 
 1. **Abrir Claude Code DENTRO del proyecto** (desde el paraguas: `session-handoff.mjs --boot-echo`).
 2. Desplegar: `npm run build && npm run deploy --workspace web`, en ese orden (`35 · L-35`). Repo
    PÚBLICO → **cero bytes de cliente**. Reglas de Firestore por SU canal y ANTES (`35 · L-22`).
-3. **Verificar contra PRODUCCIÓN con su Chrome**, no contra `dist/` (`32 · L-18/35`); el MAPA, con el portero del punto 5.
+3. **Verificar contra PRODUCCIÓN con su Chrome**, no contra `dist/` (`32 · L-18/35`); el MAPA, con `herramientas/mirar-los-atlas.mjs`, que SUSPENDE si no hay dibujo — **nunca con
+   tiempo virtual** (`34 · L-72`).
 4. Antes de CADA push: `npm test` + `contrato:verificar` + `brain:check` (bloquea si el boot se pasa).
 
 ## 🔲 Pendientes del INGENIERO
@@ -90,15 +85,15 @@ Todo EN PRODUCCIÓN y **verificado en vivo con su sesión**.
 | **TODO-95/93 · 101** 🔴 ⬅️ **SUYA, URGENTE** | Tres cosas, todas del mismo veredicto. ① **La FICHA del fabricante del conductor** y ② **ratificar la condición** de ampacidad (hoy ADOPTADA: 718 A); sin ellas se publica pero **NO SE FIRMA** (`§ADR-098/099`). ③ **`TODO-101`: re-exportar del 3 al 12 de enero con el MÁXIMO** — su exportación de esos diez días no lo trae, y es el estadístico que dicta el dictamen térmico | 718 A hoy · **611 A** a 75 °C · y diez días de enero **sin pico** |
 | **TODO-100** 🔴 **MÍA** | Los `.xls` de SCADA no los abre el lector (se convierten a mano) | Fallar oscuro se lee «dato malo» |
 | **TODO-44/34** | Alerta de gasto en Cloudflare · **nada tiene copia**: la bóveda sin remoto **y Firestore sin punto de recuperación** (`§ADR-089`) | Un fallo de disco se lleva la bóveda; un comando, la base |
-| **TODO-61/54/68** | ¿App Check? · ¿linter de frescura? · ¿cazar un ADR repetido? Las dos últimas tocan el KERNEL | Las TRES son TUYAS |
+| **TODO-61/54/68** | ¿App Check? · ¿linter de frescura? · ¿cazar un ADR repetido o citado sin escribir? Las dos últimas tocan el KERNEL | Las TRES son TUYAS |
 | **TODO-76** | **¿Se guarda si un apoyo es autosoportado / retenido?** No cabe en el modelo: iría por APOYO (26 declaraciones) | Cierra media incógnita de la capacidad longitudinal |
-| **TODO-78/84** ⬆️⬆️ | **Cerebro LLENO** (`§ADR-065`): el ARRANQUE vive con **14** caracteres de margen; `30` se recalibró (`§ADR-102`) y `20` sigue pasado. **Cada sesión gasta un rato podando texto bueno.** Shard o recalibrar | El freno más caro del día a día |
+| **TODO-78/84** ⬆️⬆️ | **Cerebro LLENO** (`§ADR-065`): el ARRANQUE vive con **~50** caracteres de margen; `30`, `20` y `32/33/35` se recalibraron (`§ADR-102/125`) y `10` sigue pasado de líneas. **Cada sesión gasta un rato podando texto bueno.** Shard o recalibrar | El freno más caro del día a día |
 
 ## 🔲 Pendientes de CLAUDE — en este orden
 
 | # | Qué | Dónde está el plan |
 |---|---|---|
-| **TODO-102** 🔴 | ① **FEBRERO llegó** (10-09, 28 días): pasos 0·1·2 de `20` y cargar con su sesión · ② las gráficas HERMANAS del módulo y las barras del Atlas siguen con las reglas viejas · ③ `juntar-por-dia` lee fechas sin prueba | `99 §ADR-125` |
+| **TODO-102** 🔴 | ① **FEBRERO llegó** (10-09, 28 días): pasos 0·1·2 de `20` y cargar con su sesión · ② las gráficas HERMANAS del módulo y las barras del Atlas siguen con las reglas viejas · ③ `juntar-por-dia` lee fechas sin prueba · ④ sondas 3·4·7 del cerebro (`§ADR-121`) | `99 §ADR-125` |
 | **TODO-70** | **Cerrar la ola de la ficha.** Queda SOLO ③: el gesto «Confirmo este dato», que exige su propio molde | `99 §ADR-030/032/033/038` |
 | **TODO-66** | **Que una acción pruebe que FUNCIONÓ**, no solo que se hizo: verificación posterior con fecha | `99 §ADR-026` |
 | **TODO-50** | **Blindaje**: ✅ F1 · ✅ F2a · ✅ F3 · **2b Google**: ✅ código · ✅ consola | `99 §ADR-019/024/100` |

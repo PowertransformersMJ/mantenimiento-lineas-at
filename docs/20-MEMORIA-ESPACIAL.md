@@ -203,7 +203,8 @@ mantenimiento-lineas-at/
 │   ├── atlasCaribe.ts           el cuadro de una hora de CUALQUIER atlas (ADR-053/060)
 │   ├── corredor.ts              las capas finas del corredor (ADR-087): la 3ª naturaleza
 │   │                            —`promedio`— y `techoDelCorredor`, que DERIVA el techo de zoom
-│   ├── cargabilidadVista.ts     geometría SVG, orden y CSV de «Parámetros eléctricos» (ADR-088).
+│   ├── cargabilidadVista.ts     geometría SVG, orden y CSV de «Parámetros eléctricos» (ADR-088), y
+│   │                            **cómo se lee CUALQUIER gráfica**: lo que aquí se decida vale para todas.
 │   │                            Dibujo, no cálculo: los números los da el núcleo. Suyas son las
 │   │                            marcas de los DOS ejes (ADR-123/124): el del tiempo rotula HORAS o
 │   │                            DÍAS según el rango y marca el cambio de día; el vertical da cuatro

@@ -9589,7 +9589,9 @@ ni leyendo.
 **Deliberación:** `2026-09-07-mapa-estadistico-cargabilidad.json` — el Ingeniero subió la carpeta
 `Variables Electricas` con la misma magnitud exportada tres veces. Le presenté las tres opciones
 medidas y eligió **guardar los tres, cada uno declarado**. Mapa del alcance con ocho agentes.
-**Estado:** ✅ en producción · **NO revisada externamente**.
+**Estado:** ✅ en producción · **NO revisada externamente**. *(Precisión del 10-09, `§ADR-125`:
+en producción **desde `§ADR-113`** —al escribirse éste, guardar los quince archivos de un día aún
+moría en el molde—.)*
 
 ### Contexto
 
@@ -9841,7 +9843,9 @@ pantalla llena en una pantalla vacía.
 ## ADR-117 · 2026-09-07 · Un mes entero en una carga: el mínimo, el sello de calidad, y la fecha la declara el DATO
 
 **Deliberación:** el Ingeniero subió enero completo — 30 carpetas, ~1.000 archivos, **509 MB**.
-**Estado:** ✅ en producción · **NO revisada externamente**.
+**Estado:** ✅ en producción · **NO revisada externamente**. *(Precisión del 10-09, `§ADR-125`:
+el código, sí; **aquí no se declara cómo se comprobó**. Lo que se abrió en frío fue el mes ya
+cargado, en `§ADR-119/120`.)*
 
 ### Contexto y lo que apareció al medir
 
@@ -10247,6 +10251,30 @@ comprobó a mano antes de escribir una línea (`CLAUDE.md §3.2`), y lo que no s
 - ⚠️ **Lo que queda MÍO:** `TODO-102` —cargar febrero, y llevar los criterios de lectura a las
   gráficas hermanas y a las barras del Atlas—.
 - ⚠️ La sonda 3 de la auditoría del cerebro —una sesión fría con solo el arranque— sigue sin correr.
+
+### Segunda pasada del mismo día — lo que la primera dejó sin cerrar
+
+A la pregunta *«¿quedó todo documentado?»* la respuesta honesta fue **no del todo**: de los 95
+hallazgos quedaban once de severidad media o baja. Se cierran así:
+
+1. **El invariante del módulo, en `10`.** El módulo con más decisiones del repositorio no tenía ni
+   una línea en el índice de invariantes, y el más caro de romper vivía solo en un comentario del
+   motor: el estadístico **se supone solo al LEER** —suponerlo al guardar pisa un día con identidad
+   ajena, y borrar está prohibido—. Entró **canjeando** texto que ya lo duplicaba: el arranque no creció.
+2. **Un solo dueño para App Check** (`TODO-61`, suyo: se enciende en una consola), las cifras de
+   higiene de `10` al día, las sondas 3·4·7 como pendiente (`TODO-102`), y en `TODO-54/68` el gate
+   que faltaba: **nada comprueba que un `§ADR-NNN` citado exista** (hoy el 5a se apaga solo).
+3. **`§ADR-112` y `117` precisan cómo se comprobó** lo que declaraban «en producción».
+4. **Cuatro crudos que ningún nodo citaba** —la auditoría del entorno del 09-08 y tres relevos de
+   sesión— quedan enlazados desde `00` y desde el índice de la bóveda.
+5. **La deuda de FORMATO se declara y NO se rellena.** Medido sobre `§ADR-103..124` (22 decisiones):
+   **8** traen «Alternativas descartadas», **10** traen «Supuestos y su señal» y **0**
+   la sección de crudo. No se retro-rellenan: escribir hoy qué alternativas se consideraron hace tres
+   días sería **inventarlo**, que es justo lo que este cerebro prohíbe. El crudo, cuando lo hay, está
+   en la línea `Deliberación`. Desde `§ADR-125`, el formato va completo.
+6. **Dos cosas que NO se tocan, a propósito.** `CLAUDE.md`, que es router y va a «uno entra, uno
+   sale»: que `LN-627/` —fotos de campo— siga dentro del árbol del repo vive en `20 §1`. Y el guardián
+   automático que barra las gráficas (que ninguna vuelva al eje viejo): es código, va con `TODO-102`.
 
 **Crudo de respaldo:** `research-archive/2026-09-10-auditoria-documental-total/` · y el recuperado de
 `§ADR-106`, `research-archive/2026-09-07-parametros-electricos-mapa/`.

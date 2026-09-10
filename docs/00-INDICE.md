@@ -27,6 +27,9 @@
 **Fuera del repo:** `../brain-private/mantenimiento-lineas-at/` — bóveda privada, uso local.
 Guarda `research-archive/` (crudos de deliberación: comités, consejos externos) y `fixtures/`
 (datos reales de cliente que las pruebas usan pero que **no** se commitean).
+Crudos sin ADR propio que se citan desde aquí para no quedar huérfanos: la **auditoría del entorno
+del 09-08** (`2026-08-09-plan-entorno.md` + `2026-08-09-workflow-auditoria-entorno.json`), cuyo saldo
+vive en `10 · TODO-79`, y los **relevos de sesión** `2026-08-22/24/26-relevo-cierre.md` (`§ADR-125`).
 
 ---
 
