@@ -21,6 +21,12 @@ Su carpeta en la bóveda, `brain-private/mantenimiento-lineas-at/`:
 | `datos-campo/` | lo que el Ingeniero DIJO o midió. Dato real: se cita desde el ADR, nunca se copia |
 | `fixtures/` | datos reales de cliente que usan las pruebas · `entregables/` |
 | `fotos/` | material de campo (207 archivos, versionados) |
+| `Variables Electricas/` | **copia de lo PROCESADO** del SCADA (`_bahia-LN627/`, `_dias-LN627/`) y el primer día crudo |
+
+⚠️ **El dato crudo de SCADA NO vive en la bóveda ni en el repo:** desde el 2026-09-10 está en
+`~/Desktop/GitHub-MJ/Variables Electricas/` —mes a mes, hermana de los proyectos y fuera de todo
+git—, donde el Ingeniero lo va dejando. **Y dentro del árbol del repo sigue `LN-627/` (366 MB de
+fotos de campo)**, ignorada pero presente: ignorado no es ausente (`§ADR-125`).
 
 ---
 
@@ -47,9 +53,16 @@ mantenimiento-lineas-at/
 │   ├── rca.js                   método de causa raíz: espinas, porqués, árbol, hipótesis,
 │   │                            y las 6 condiciones del cierre. NUNCA marca la causa (ADR-020)
 │   ├── clima.js                 sondeo meteorológico de un evento Y sus límites redactados
-│   └── cargabilidad.js          la cargabilidad ELÉCTRICA (ADR-088): valida, deduplica y analiza un
-│                                lote. El % del archivo va `declarada` y NUNCA se pisa: el contraste
-│                                con la ampacidad IEEE 738 va aparte y no corrige nada
+│   ├── cargabilidad.js          los PARÁMETROS ELÉCTRICOS (ADR-088/112/117): valida, deduplica y
+│   │                            analiza un lote. SEIS magnitudes × CUATRO estadísticos (máximo ·
+│   │                            promedio · instantáneo · mínimo), empaquetados por DÍA. El % del
+│   │                            archivo va `declarada` y NUNCA se pisa: el contraste con la
+│   │                            ampacidad IEEE 738 va aparte y no corrige nada
+│   └── cargabilidadAncho.js     el SCADA tal como SALE (ADR-105/114/117): el tiempo en COLUMNAS y
+│                                una magnitud por fila. ⚠️ El día lo declara el EJE DE TIEMPO, no el
+│                                nombre del archivo —46 de 902 lo traen mal—; el estadístico sí sale
+│                                del nombre y, si hay varios y no se elige, NO lee nada. `_quality`
+│                                es un SELLO por hora («Actual»), no un estadístico
 │
 ├── contratos/                   ⭐ WORKSPACE @lineas/contratos — los esquemas Zod que ambos lados
 │                                obedecen. `comunes.ts` es dueño de `VERSION_CONTRATO` (el
@@ -99,6 +112,11 @@ mantenimiento-lineas-at/
 │                                Perfiles POWER: `sol-caribe` (⚠️ ese nombre lo llama el vigía) ·
 │                                `temp` · `viento` · `lluvia` · `nubes`; el `factor` del perfil
 │                                convierte la lluvia de NASA, que es TASA mm/día (÷24)
+│                                ⏱️ **RETRASO Y RELOJ DE CADA FUENTE** (ADR-079/086): MERRA-2 va 4
+│                                días por detrás · CERES 87 · el satélite ~15 min · el pronóstico 10
+│                                días por DELANTE. Dos relojes: 4 h (POWER y pronóstico) y 1 h
+│                                (satélite). Las dos finas del corredor NO tienen fecha: son
+│                                PROMEDIO de muchos años (ADR-087)
 ├── herramientas/rayos-caribe.mjs ⚡ RAYOS (ADR-079): del GLM del GOES-19 (NOAA, sin llave)
 ├── herramientas/abi-caribe.mjs  ☀️☁️ «Sol ahora» y «Nubes ahora» (ADR-081): del ABI del mismo
 │                                satélite, a ~15 min. Hermanas de `sol` y `nubes`, NO sus
@@ -115,6 +133,25 @@ mantenimiento-lineas-at/
 ├── herramientas/pronostico-caribe.mjs 🌦️ 36 celdas a MET Norway → `pron-*` (ADR-086), con `naturaleza` y caducidad
 ├── herramientas/teselas/        construir-raster.py — rehace las capas del mapa (ADR-087: y
 │                             declara su `naturaleza`). ⚠️ ÚNICO Python del repo
+│                                ⚠️ **PASO 0, a mano:** algunos `.xls` de su SCADA son BIFF viejo y
+│                                el lector no los abre. En enero se convirtieron a CSV al lado del
+│                                original ANTES del paso 1. **Contar cuántos había**: uno que no entra
+│                                no da error, se guarda de menos (`33 · L-84`). Cierra en `TODO-100`
+├── herramientas/extraer-bahia.mjs 🛰️ **PASO 1 del SCADA** (ADR-117): de la RED ENTERA se queda con
+│                                las señales de UNA bahía. SELECCIONA FILAS, no transforma: 509 MB
+│                                → 3,5 MB. Exige el patrón de la bahía a propósito —adivinarla
+│                                sería elegir por él de qué línea son los datos— y NO toca sus
+│                                originales. `node herramientas/extraer-bahia.mjs <origen> <destino> <patrón>`
+├── herramientas/juntar-por-dia.mjs 📅 **PASO 2** (ADR-119): un archivo por DÍA y ESTADÍSTICO, 902 →
+│                                99. Los junta como los juntaría el lector; ni un número se toca.
+│                                ⚠️ El día sale del DATO; el estadístico, del nombre, y el que no se
+│                                reconoce se deja aparte y **se dice**. ⚠️ Pero su lectura del eje es
+│                                PROPIA —solo `d/m/aa`— y no la del núcleo: un eje `1/13/26` sale
+│                                `20261301` y uno ISO se descarta. Con SU formato funciona; SIN
+│                                prueba (`TODO-102`)
+├── herramientas/plantilla-cargabilidad.mjs  el Excel MODELO para llenar a mano (ADR-088). La hoja
+│                                de datos va VACÍA, solo cabecera: el ejemplo vive en la hoja de
+│                                INSTRUCCIONES, donde nadie lo confunde con una medición
 ├── herramientas/                sembrar.mjs (línea + expediente) · subir-evidencias.mjs (fotos) ·
 │                                (`usuarios.mjs` retirada en ADR-100; el rescate vive en la bóveda)
 │   ├── semillas-emitidas.json   📗 LIBRO DE IDENTIDAD (ADR-027): quién ES cada punto. Solo crece;
@@ -141,6 +178,11 @@ mantenimiento-lineas-at/
 │                                (+FichaEditor · FichaLote, admin, ADR-038), FichaCriterios,
 │                                Falla + Galeria, Fundamentos, Umbrales, Termica, Viento,
 │                                Cargas (los DOS ejes, ADR-011/017),
+│                                **Cargabilidad** = pestaña «Parámetros eléctricos» (ADR-106/120):
+│                                el PERIODO manda —se elige arriba y salen las cinco magnitudes
+│                                sobre TODO lo elegido, sin un clic por día—; la tabla hora a hora
+│                                va desplegable y la corriente se dibuja más alta porque es la única
+│                                que dictamina (ADR-124),
 │                                Cantidades, Exportar, Sello, Estado · **Cargar** (admin) y **Fotos**
 │                                (ADR-031): las DOS que ESCRIBEN, y cuyo efecto no se deshace ·
 │                                **Rca + RcaEditores: NO son
@@ -161,8 +203,11 @@ mantenimiento-lineas-at/
 │   ├── atlasCaribe.ts           el cuadro de una hora de CUALQUIER atlas (ADR-053/060)
 │   ├── corredor.ts              las capas finas del corredor (ADR-087): la 3ª naturaleza
 │   │                            —`promedio`— y `techoDelCorredor`, que DERIVA el techo de zoom
-│   ├── cargabilidadVista.ts     geometría SVG, orden y CSV de la pestaña Cargabilidad (ADR-088).
-│   │                            Dibujo, no cálculo: los números los da el núcleo
+│   ├── cargabilidadVista.ts     geometría SVG, orden y CSV de «Parámetros eléctricos» (ADR-088).
+│   │                            Dibujo, no cálculo: los números los da el núcleo. Suyas son las
+│   │                            marcas de los DOS ejes (ADR-123/124): el del tiempo rotula HORAS o
+│   │                            DÍAS según el rango y marca el cambio de día; el vertical da cuatro
+│   │                            marcas del recorrido REAL y señala el cero **solo si cae dentro**
 │   ├── radiacion.ts             el recurso solar del corredor (ADR-037/046): rampa ajustada al
 │   │                            recorte y su aviso de escala
 │   ├── temperatura.ts           el AIRE del corredor (ADR-039): media, no extremo.
@@ -188,14 +233,30 @@ mantenimiento-lineas-at/
 │                                él lo pide) · **registroSemillas.ts** y **registroDecisiones.ts**
 │                                (ADR-027/029: la app LEE, no escribe) · **fotos.ts** (ADR-031:
 │                                primero el OBJETO, después la FICHA) · **pronostico.ts** (ADR-035: la
-│                                ÚNICA pieza del mapa que pide internet, y NO guarda nada)
+│                                ÚNICA pieza del mapa que pide internet, y NO guarda nada) ·
+│                                **cargabilidadRepo.ts** (ADR-108/111/116/119: escribe y lee los
+│                                días de SCADA. Identidad DETERMINISTA —línea, circuito, fecha y
+│                                estadístico—, así que recargar el mismo día REEMPLAZA y no duplica;
+│                                conserva la partida de nacimiento del documento; y **cuenta lo
+│                                escrito contra lo enseñado**, porque escribir de menos no da error
+│                                en ninguna capa)
 ├── web/public/mapas/            Callejero y satelital: PMTiles del MISMO bbox (ADR-034). Capas
 │                             de MEDIDA no son imagen: un PNG de valores + su ficha (ADR-036/037).
 │                             Mecánica en `vistas/rejilla.ts`
 │                             ⚠️ DOS recortes que NO se mezclan: `cartagena*` el corredor y
 │                             `caribe*` + las once del atlas (`*-caribe*`) 7 dptos, perezosos
 ├── web/public/basemaps-assets/  fuentes y sprites
-├── githooks/pre-commit          BLOQUEA el commit: coordenadas reales y cerebro roto
+├── githooks/pre-commit          BLOQUEA el commit. SEIS guardianes, en este orden: ① exportación de
+│                                SCADA reconocida por su CONTENIDO —`/MvMoment`, el nivel de tensión
+│                                o la fila de sellos— y ANTES que ③, que si no manda a corregir el
+│                                archivo equivocado (ADR-114) · ② nombres e identificadores REALES
+│                                de su red, con la lista en la BÓVEDA porque este archivo es público
+│                                · ③ coordenadas reales, con la salvedad de los DOI · ④ la versión
+│                                del motor sube en el mismo commit que lo cambia (ADR-051) · ⑤
+│                                `brain:check` · ⑥ el candado del presupuesto de arranque.
+│                                Se ENCIENDE una vez por clon: `git config core.hooksPath githooks`.
+│                                ⚠️ Sin la bóveda montada, ② AVISA y no bloquea: un clon suelto no
+│                                está protegido de los nombres
 ├── .claude/settings.json        hooks de sesión (SÍ se commitea; el resto no)
 ├── .github/workflows/ci.yml     integridad del kernel + suite de pruebas
 └── …/vigia-nasa.yml             LOS ONCE atlas, dos relojes (4 h · 1 h). El portero MIRA el mapa

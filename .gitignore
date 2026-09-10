@@ -85,7 +85,15 @@ fotos-del-portero/
 # archivos de la RED ENTERA (corrientes, potencias y tensiones de decenas de
 # subestaciones). No llegó a subirse: lo paró el guardián de coordenadas, que
 # no está para esto y acertó por los pelos. Ahora se para antes.
-# Viven en `brain-private/mantenimiento-lineas-at/Variables Electricas/`.
+#
+# ⚠️ DÓNDE VIVEN DE VERDAD (`99 §ADR-125`). El 2026-09-10 a las 18:09 el
+# Ingeniero las SACÓ de este árbol: hoy viven en `~/Desktop/GitHub-MJ/Variables
+# Electricas/`, HERMANA del repo y fuera de todo git (Enero, Febrero y lo
+# procesado: 1,1 GB). Hasta esa hora estuvieron AQUÍ DENTRO —513 MB, ignorados
+# pero presentes— y este comentario afirmaba que vivían en la bóveda, que era
+# falso. Las reglas de abajo se quedan: si vuelve a soltar un mes aquí, esta
+# lista es la segunda línea; la primera es el guardián de CONTENIDO del
+# `pre-commit`. La bóveda guarda copia de lo PROCESADO.
 Variables Electricas/
 **/Variables Electricas/
 *_max-2[0-9][0-9][0-9][0-9][0-9][0-9][0-9].csv

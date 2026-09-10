@@ -205,7 +205,7 @@ const IdDeterminista = z.string().min(3).max(400).regex(
  * QUÉ ESTADÍSTICO DE LA HORA ES ESTA LECTURA (`99 §ADR-112`).
  *
  * ⚠️ NO SON LA MISMA MEDIDA, y hasta hoy el módulo no sabía distinguirlas. El
- * sistema de supervisión del Ingeniero exporta la MISMA magnitud tres veces —un
+ * sistema de supervisión del Ingeniero exporta la MISMA magnitud cuatro veces —un
  * archivo por estadístico— y los valores difieren de verdad: el 2026-01-01, la
  * corriente de la fase R llegó a **244 A de máximo** y **233 A de promedio**.
  * Meterlas en el mismo hueco no daría error: daría un número que nadie midió.
@@ -442,8 +442,9 @@ export function idDelResumen(
  * el viejo quedaría ahí para siempre sin forma de retirarlo.
  *
  * Y encaja con lo que significan: el máximo es el que dictamina y el que se
- * supone cuando un documento no dice nada. Los otros dos son los que hay que
- * declarar, y lo llevan escrito en el nombre.
+ * supone cuando un documento no dice nada. Los otros TRES —promedio, instantáneo
+ * y mínimo (`99 §ADR-117`)— son los que hay que declarar, y lo llevan escrito en
+ * el nombre.
  */
 function sufijo(estadistico: Estadistico): string[] {
   return estadistico === ESTADISTICO_POR_DEFECTO ? [] : [estadistico];

@@ -38,6 +38,11 @@ que tiene que sobrevivir a cualquier cambio de tecnología.
 | [`nucleo/geodesia.js`](nucleo/geodesia.js) | Vincenty sobre WGS84, azimuts, deflexiones, progresivas, vano viento, vano ideal de regulación |
 | [`nucleo/mecanica.js`](nucleo/mecanica.js) | catenaria y parábola, carga de viento, ecuación de cambio de estado, tramos de tensión |
 | [`nucleo/termica.js`](nucleo/termica.js) | resistencia en c.c., ampacidad IEEE Std 738, derrateo térmico |
+| [`nucleo/cargas.js`](nucleo/cargas.js) · [`longitudinal.js`](nucleo/longitudinal.js) | los dos ejes del veredicto de un apoyo: carga transversal y longitudinal |
+| [`nucleo/cargabilidad.js`](nucleo/cargabilidad.js) · [`cargabilidadAncho.js`](nucleo/cargabilidadAncho.js) | los parámetros eléctricos medidos: lee la exportación del SCADA tal como sale y contrasta la corriente con la ampacidad |
+| [`nucleo/electrica.js`](nucleo/electrica.js) | las variables operativas de la línea |
+| [`nucleo/umbrales.js`](nucleo/umbrales.js) | los ocho indicadores, cada uno con su semáforo **y su fuente normativa** |
+| [`nucleo/rca.js`](nucleo/rca.js) | método de causa raíz. Ordena la investigación; **nunca marca la causa** |
 
 ### Está verificado, no supuesto
 
@@ -84,10 +89,18 @@ los bloquea por patrón, pero eso es la segunda línea de defensa: la primera es
 
 ## Estado
 
-🌱 **Fase 0 — fundación, cerrada.** Núcleo de cálculo portado y **sin deuda de validación**
-(53 pruebas en verde), cerebro y kernel cableados, arquitectura decidida por comité de expertos ×3
-**y confirmada por revisión externa independiente**. Alcance y presupuesto fijados por el
-responsable. La aplicación aún no existe: es lo siguiente.
+⚡ **En producción.** La aplicación está desplegada y en uso sobre una línea real, con acceso por
+usuario y trazabilidad: catorce pestañas de análisis, tres informes imprimibles, registro
+fotográfico georreferenciado, atlas climático del corredor y **parámetros eléctricos medidos**
+—un mes de exportaciones horarias de SCADA, con la corriente contrastada contra la ampacidad—.
+
+El núcleo de cálculo sigue siendo el activo y sigue **sin deuda de validación** en lo portado; la
+suite completa pasa de **2.600 pruebas**. Lo que falta no es código: es el **dato de campo** de la
+ficha estructural, y la ficha del fabricante del conductor que permite **firmar** —no solo
+publicar— el dictamen térmico.
+
+> Este sistema no certifica nada. Certifica el ingeniero que firma. El trabajo del sistema es hacer
+> barato comprobar que ese ingeniero tiene razón.
 
 Detalle vivo → [`docs/05-ESTADO-GLOBAL.md`](docs/05-ESTADO-GLOBAL.md) ·
 decisiones → [`docs/99-HISTORIAL-ADR.md`](docs/99-HISTORIAL-ADR.md)

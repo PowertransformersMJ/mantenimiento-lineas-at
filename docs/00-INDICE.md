@@ -57,7 +57,12 @@ Guarda `research-archive/` (crudos de deliberación: comités, consejos externos
 | «¿hubo tormenta eléctrica / rayos?», «¿por qué no consta una descarga atmosférica?» | `99 §ADR-060` + `35 · L-37` |
 | «declaré el dato y el sistema sigue con el valor por defecto» | `30 · L-68` + `99 §ADR-013/052` |
 | «¿qué es el vano ideal de regulación?», «¿de dónde sale esta fórmula?» | `40` |
-| «¿dónde veo la CARGABILIDAD?» — **es ELÉCTRICA, y NO es la utilización del apoyo** (orden suya, 27-08). Dueño: el indicador **«Corriente de operación frente a la ampacidad»** (`nucleo/umbrales.js` §8, `uso_pct = corriente / ampacidad`), pestaña **Mecánico**, última fila. La CAPACIDAD y su derrateo, en **Térmica** | `40 §4.2` + `99 §ADR-052/088..099` · **el veredicto ya se enciende** (`ADR-093`) con la corriente declarada y la ampacidad de `termica.js`; lo que falta es de FÁBRICA, no de código: la ficha del conductor (`TODO-95`) · el porqué del enredo, `30 · M-02` |
+| «¿dónde veo la CARGABILIDAD?» — **es ELÉCTRICA, y NO es la utilización del apoyo** (orden suya, 27-08). **El MÓDULO vive en la pestaña «Parámetros eléctricos»** (antes «Cargabilidad», `ADR-106`): ahí se carga el SCADA y salen las gráficas. Dueño del veredicto: el indicador **«Corriente de operación frente a la ampacidad»** (`nucleo/umbrales.js` §8, `uso_pct = corriente / ampacidad`), pestaña **Mecánico**, última fila. La CAPACIDAD y su derrateo, en **Térmica** | `40 §4.2` + `99 §ADR-052/088..099` · **el veredicto ya se enciende** (`ADR-093`) con la corriente declarada y la ampacidad de `termica.js`; lo que falta es de FÁBRICA, no de código: la ficha del conductor (`TODO-95`) · el porqué del enredo, `30 · M-02` |
+| «cargué el mes y la pantalla no enseña NADA», «dice *no existen registros* teniéndolos» | `99 §ADR-115/116` — dos causas distintas: lo guardado no se dibujaba, y la **ventana por defecto** (últimos 7 días) caía fuera del único dato que había |
+| «el acuse dijo *guardado* y solo entró una parte» | `99 §ADR-119` — escribir de menos **no da error en ninguna capa**: se cuenta la entrada contra la salida |
+| «no veo la potencia activa / reactiva», «solo salen las que tienen fases» | `99 §ADR-118` — la magnitud sin fases no es invisible: se dibuja su total de bahía |
+| «¿cómo subo un MES entero de SCADA?» | `20` (`extraer-bahia.mjs` → `juntar-por-dia.mjs`, en ese orden) + `99 §ADR-117/119`. ⚠️ El día lo declara el EJE DE TIEMPO del dato, no el nombre del archivo |
+| «esta gráfica no se entiende: qué fase es cada línea, en qué unidad, qué franja abarca» | `99 §ADR-122/123/124` — una gráfica que necesita el párrafo de debajo **no se puede pegar en un informe** |
 | «¿por qué se eligió este stack y no el otro?» | `99` |
 | «¿por qué la prueba espera exactamente este número?» | `40 §8` y `tests/nucleo.test.js` |
 | «voy a tomar una decisión cara de revertir» | `CLAUDE.md §G.2` 🛰️ + comité + consejo externo |
@@ -191,13 +196,13 @@ Guarda `research-archive/` (crudos de deliberación: comités, consejos externos
 | `ADR-103` | 2026-09-06 | Quitar no es delegar: una función del rol se puede retirar aunque no se pueda regalar | — (salió creando la primera cuenta de solo lectura) |
 | `ADR-104` | 2026-09-06 | La contraseña tecleada puede quedar en firme: el muro protege el no repudio, y quien no escribe no firma | — (decisión del Ingeniero, con la cuenta delante) |
 | `ADR-105` | 2026-09-06 | El histórico se lee como SALE: CSV, fechas escritas, varios archivos y una red entera dentro | `fixtures/scada-tension-2026-01-01/` (bóveda) |
-| `ADR-106` | 2026-09-07 | «Parámetros eléctricos»: todas las magnitudes, cada una con sus fases, y la fase deja de morir en el camino | — (mapa por seis lentes, en el propio ADR) |
+| `ADR-106` | 2026-09-07 | «Parámetros eléctricos»: todas las magnitudes, cada una con sus fases, y la fase deja de morir en el camino | `research-archive/2026-09-07-parametros-electricos-mapa/` (recuperado el 10-09) |
 | `ADR-107` | 2026-09-07 | Las gráficas dejan de ser solo del porcentaje: una por magnitud, con sus fases, y el eje que no empieza en cero | — (lo vio él en producción) |
 | `ADR-108` | 2026-09-07 | El documento ausente tumbaba la regla: «no tienes permiso» donde la verdad era «no existe», y el guardado no funcionó nunca | — (reproducido en el emulador) |
 | `ADR-109` | 2026-09-07 | El molde contradecía a su propio comentario: identidad determinista y los nulos que el motor escribe a propósito | — (apareció al retirar el §108) |
 | `ADR-110` | 2026-09-07 | El resumen diario negaba el dato que resumía: «0 de 24 · sin medida» sobre un día entero de medidas | — (visto al verificar el primer día) |
 | `ADR-111` | 2026-09-07 | Una reescritura no reescribe la partida de nacimiento: «reemplaza, no duplica» tampoco funcionaba | — (apareció al regenerar el resumen) |
-| `ADR-112` | 2026-09-07 | Máximo, promedio e instantáneo: tres estadísticos de la misma hora, y ninguno se adivina | mapa con 6 agentes · elección del Ingeniero |
+| `ADR-112` | 2026-09-07 | Máximo, promedio e instantáneo: tres estadísticos de la misma hora, y ninguno se adivina | `research-archive/2026-09-07-mapa-estadistico-cargabilidad.json` (8 agentes) |
 | `ADR-113` | 2026-09-07 | Una lista de archivos es una lista: el rastro de procedencia dejó de ser una cadena pegada | — (apareció al guardar los 15) |
 | `ADR-114` | 2026-09-07 | El dato de cliente se reconoce por su CONTENIDO: la carpeta va a seguir cambiando de nombre | — (anuncio del Ingeniero) |
 | `ADR-115` | 2026-09-07 | Lo guardado también se dibuja: las gráficas vivían solo en la memoria del navegador | — (lo vio él en producción) |
@@ -210,6 +215,7 @@ Guarda `research-archive/` (crudos de deliberación: comités, consejos externos
 | `ADR-122` | 2026-09-07 | Una gráfica se tiene que poder leer sola: unidad, franja, paso y quién es cada línea | — (lo vio él en la figura) |
 | `ADR-123` | 2026-09-07 | El eje del tiempo rotula HORAS o DÍAS, y la marca cae donde cambia el día | — (orden suya sobre el eje X) |
 | `ADR-124` | 2026-09-07 | No todas las gráficas pesan igual, y el cero no es una cifra más | — («procede») |
+| `ADR-125` | 2026-09-10 | Documentarlo todo: la fuga que vivía en el propio guardián, el máximo que falta diez días, y un cerebro sin sitio | `research-archive/2026-09-10-auditoria-documental-total/` |
 
 > Toda decisión cara de revertir entra aquí con su ADR y su crudo enlazado. Si hubo comité o consejo
 > externo y el crudo no está archivado, la tarea **no está cerrada** (`CLAUDE.md §G.4`).

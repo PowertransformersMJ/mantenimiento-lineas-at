@@ -9142,7 +9142,9 @@ gráfica falsa con cara de buena, que es exactamente contra lo que avisa el prop
 
 ## ADR-106 · 2026-09-07 · «Parámetros eléctricos»: todas las magnitudes, cada una con sus fases, y la fase deja de morir en el camino
 
-**Deliberación:** mapa por seis lentes antes de tocar nada (workflow del 2026-09-07).
+**Deliberación:** mapa por seis lentes antes de tocar nada (workflow del 2026-09-07) →
+`research-archive/2026-09-07-parametros-electricos-mapa/`, **recuperado el 10-09** del historial de
+la sesión: hasta entonces no estaba archivado (`§ADR-125`).
 **Estado:** ✅ en producción · **NO revisada externamente**.
 
 ### Contexto
@@ -9294,6 +9296,14 @@ arreglo va en la primitiva compartida, así que también mejora la gráfica que 
 - ⚠️ **Sigue pendiente** lo que `§ADR-106` ya declaró: el **resumen diario** solo resume el
   porcentaje y la corriente, así que una tensión guardada **no aparece en el tablero del histórico**
   sin abrir el día completo. Esta decisión arregla la carga que se está mirando, no el histórico.
+- ⚠️ **Enmienda del 10-09 (`§ADR-125`) — los colores.** Esa misma noche (00:55, `0355ec4`) los tres
+  tonos pasaron a ser **los que fijó él**: azul `#1f77b4`, naranja `#ff7f0e` y verde `#2ca02c`, la
+  convención de su propio análisis, para que una figura suya y una de aquí se lean igual. El «tierra,
+  verde y azul» de arriba es historia. El naranja no es el rojo de «fuera de banda», pero se le
+  parece, y queda dicho.
+- ⚠️ **Y el guardián del aviso NO existía.** La fila de supuestos dice «la prueba de fuente lo mira»:
+  ninguna prueba afirma la frase «el eje no empieza en cero» —solo está en la pantalla y en dos
+  comentarios— (auditoría del 10-09). Deuda declarada en `§ADR-125`.
 
 ---
 ## ADR-108 · 2026-09-07 · El documento ausente tumbaba la regla: «no tienes permiso» donde la verdad era «no existe», y el guardado no funcionó nunca
@@ -9330,7 +9340,7 @@ Y no era solo de cargabilidad: **todas** las lecturas pasaban por `puedeVer()`, 
 `resource.data.orgId`. Cualquier `get` por identificador de algo inexistente, en cualquier
 colección, contestaba «no puedes».
 
-⚠️ **Las 66 pruebas de reglas leían documentos sembrados en `beforeEach`.** La ausencia no se probó
+⚠️ **Las 59 pruebas de reglas leían documentos sembrados en `beforeEach`.** La ausencia no se probó
 jamás. Un banco que solo mide lo que existe no puede ver un fallo que solo aparece cuando no hay
 nada — que es justo el estado del sistema el día que se estrena.
 
@@ -9372,7 +9382,8 @@ todo lo que hay. Sin estas tres pruebas, una «simplificación» futura de la re
 
 ### Consecuencias
 
-- `72` pruebas de reglas (66 + 6) y `2.586` del resto. Las seis nuevas caen en rojo con las reglas
+- `66` pruebas de reglas (59 + 7) y `2.586` del resto *(corregido el 10-09, `§ADR-125`: decía «72 =
+  66 + 6»; medido en la historia del archivo, 59 antes y 66 después)*. Las siete nuevas caen en rojo con las reglas
   viejas: se comprobó antes de arreglar.
 - ⚠️ **Lección de método, y es la que más cuesta:** «verificado en producción» significaba, en las
   tres decisiones anteriores, *lo vi en la pantalla*. La pantalla enseñaba el archivo recién leído
@@ -9728,6 +9739,8 @@ ejemplo se INVENTA. La BAHÍA se queda donde el código la necesita —`campoDeS
   prueba con el caso real es un adorno que además tranquiliza** (`30 · L-56`).
 - Los nombres reales que yo mismo metí en `§ADR-105/106/112`, en `nucleo/cargabilidadAncho.js` y en
   `tests/cargabilidad-ancho.test.js` quedan sustituidos por `/SubA`.
+- ⚠️ **Y no fueron todos** (`§ADR-125`): un rótulo real —sitio y circuito— siguió tres días en un
+  comentario del PROPIO `pre-commit`, porque no era nombre de subestación y la lista no lo tenía.
 
 ---
 ## ADR-115 · 2026-09-07 · Lo guardado también se dibuja: las gráficas vivían solo en la memoria del navegador
@@ -9750,7 +9763,9 @@ sabía leerlo de vuelta**. El mismo malentendido, en el sentido contrario.
 
 ### Decisión
 
-**1. Cada día del histórico se puede ABRIR.** Un botón por fila trae sus 24 horas de la base y las
+**1. Cada día del histórico se puede ABRIR.** *(⚠️ Superado por `§ADR-120`: el botón por fila
+desapareció —la unidad es el PERIODO—; sobrevive leer de la base y dibujar con los MISMOS
+componentes. Anotado el 10-09, `§ADR-125`.)* Un botón por fila trae sus 24 horas de la base y las
 dibuja. Se lee de uno en uno a propósito: es la consulta cara —24 horas frente a un resumen— y por
 eso no se hace sola al listar el periodo (`§ADR-088`).
 
@@ -9812,7 +9827,8 @@ pantalla llena en una pantalla vacía.
   de verdad, la pantalla quedó **exactamente igual que antes** —sin dato, sin gráficas y sin motivo—
   y estuve buscando en la consola un error que nadie había escrito. Un fallo que no se dice se
   investiga dos veces. Ahora se enseña en la propia tarjeta.
-- **Y con UN solo día, se abre solo.** Dejar las gráficas detrás de un botón cuando no hay nada que
+- **Y con UN solo día, se abre solo.** *(⚠️ Superado por `§ADR-120`: ya no hay nada que abrir; el
+  periodo elegido se dibuja entero.)* Dejar las gráficas detrás de un botón cuando no hay nada que
   elegir es dejarlas escondidas. Con varios días no: abrir el primero por su cuenta sería decidir
   por él cuál mira, y cada día cuesta una lectura de 24 horas.
 - **Tres avisos suyos para el mismo síntoma**, y cada uno destapó un fallo distinto: que lo guardado
@@ -9862,7 +9878,9 @@ el archivo trae más de una bahía.
 ### Consecuencias
 
 - Motor `0.18.0`. `2.627` pruebas.
-- ⚠️ **Dos archivos quedan sin cargar a la espera de su decisión**: el 31 de mayo y el 28-29 de
+- ⚠️ *(Resuelto en `§ADR-119`: entraron con la orden «cárgalo» y su fecha verdadera. Borrar está
+  prohibido a propósito, así que lo que queda es que él lo ratifique sabiendo que están ahí.)*
+  **Dos archivos quedan sin cargar a la espera de su decisión**: el 31 de mayo y el 28-29 de
   julio, que aparecieron dentro de carpetas de enero. Son medidas reales con su fecha correcta, pero
   meterlas es irreversible.
 
@@ -10001,7 +10019,7 @@ cuáles quedan fuera. Una auditoría parcial HONESTA vale más que una completa 
 
 | | Qué | Estado |
 |---|---|---|
-| **A-01** | `docs/05` declaraba `2.586` pruebas y `motor v0.15.0`; la realidad era `2.631` y `v0.18.0`. Cuatro subidas de versión del motor en el día sin tocar el nodo de estado | **cerrado** |
+| **A-01** | `docs/05` declaraba `2.586` pruebas y `motor v0.15.0`; la realidad era `2.631` y `v0.18.0`. Cuatro subidas de versión del motor en el día sin tocar el nodo de estado | **cerrado** — **y reabierto esa tarde**: `§ADR-122..124` subieron a 2.645 y `05` se quedó en 2.631; cerrado de nuevo el 10-09 (`§ADR-125`) |
 | **A-02** | `docs/10` no citaba **ni un ADR del 110 al 120**: la pizarra reflejaba la primera mitad del día | **cerrado** |
 | **A-03** | ⚠️ **Los nueve fallos del módulo los cazó el Ingeniero**, con cuatro avisos del mismo síntoma. Causa común: yo verificaba **pilotando** la pantalla en vez de abrirla en frío | **abierto como doctrina** |
 | **A-04** | Cuatro neuronas ≥90 % del cap; cada sesión se va un rato podando texto bueno | abierto (`TODO-78/84`) |
@@ -10096,6 +10114,9 @@ la misma razón de `§ADR-122`: la figura tiene que explicarse sin su párrafo.
 
 - `2.639` pruebas, cuatro nuevas sobre la primitiva —incluida la que exige que **toda marca de día
   caiga a las 00h**—, en el módulo puro de vistas y no en la pantalla.
+  ⚠️ *(Precisión del 10-09, `§ADR-125`: la marca cae en la PRIMERA hora guardada de cada día. Con
+  un día entero son las 00h —lo que fijan las pruebas—; en un día parcial cae donde arranque el
+  dato, porque una hora vacía no se escribe. Falta la prueba de ese caso.)*
 - Verificado en producción **en los dos modos**: del 13 al 20 de enero el eje dice `13/01 … 20/01`
   con la fecha dentro de la figura; el 27 de enero solo dice `00h 03h … 23h` y la cabecera «el día
   entero · 24 lecturas · una cada hora».
@@ -10132,5 +10153,102 @@ aviso de «el eje no empieza en cero» sigue debajo de cada figura.
   sustitución no casó por **un espacio en blanco**, y lo di por hecho sin mirar. Lo cazó la
   comprobación en producción —`viewBox 0 0 760 260` donde debía decir 340—, no el compilador ni las
   pruebas: ambos veían código válido. Mismo patrón que todo el día: **lo que no se mira, no está**.
+
+---
+## ADR-125 · 2026-09-10 · Documentarlo todo: la fuga que vivía en el propio guardián, el máximo que falta diez días, y un cerebro sin sitio
+
+**Deliberación:** orden del Ingeniero —*«documenta absolutamente todo»*—. Workflow de 12 frentes
+Opus con un escéptico por hallazgo → `research-archive/2026-09-10-auditoria-documental-total/`.
+**Estado:** ✅ cerebro, guardianes y comentarios · **NO revisada externamente** · nada que desplegar:
+ningún cambio altera lo que se ve en pantalla.
+
+### Contexto
+
+Tres días después de la jornada del 07-09 (`§ADR-106..124`), el Ingeniero pidió documentarlo todo.
+La historia estaba bien escrita; lo que no estaba era todo lo DEMÁS: el tablero decía 2.631 pruebas
+con 2.645, la pizarra «enero entero» con 29 días de enero, el mapa no conocía el lector de SCADA ni
+sus herramientas, el diccionario no sabía qué es un estadístico, de nueve fallos solo dos dejaron
+lección, y el README público seguía diciendo que **la aplicación aún no existe**.
+
+Se auditó en doce frentes: **95 hallazgos**. Y aquí el primer tropiezo: **76 de los 107 agentes
+murieron por límite de sesión** durante la verificación, y el workflow terminó «completado» con 7
+confirmados y 88 «descartados», de los que solo 12 eran refutaciones de verdad. Todo lo demás se
+comprobó a mano antes de escribir una línea (`CLAUDE.md §3.2`), y lo que no se pudo medir no se tocó.
+
+### Lo que salió al MEDIR, no al leer
+
+| Hallazgo | Por qué importa |
+|---|---|
+| 🔴 **El MÁXIMO falta del 3 al 12 de enero** en su exportación: 20 días con máximo de 31 cargados. Contado carpeta por carpeta: esos diez días traen cero archivos de máximo. El procesado es fiel | Es el estadístico que DICTA el veredicto térmico: **diez días sin pico**. Los 398 A del 27-01 son el pico de los veinte que lo traen |
+| «Enero entero» era falso: 29 días de enero (01-29) más un 31-05 y un 29-07 mal etiquetados | Lo decía la pizarra que se auto-carga |
+| Un rótulo REAL de su exportación —sitio y circuito— vivía en un comentario del propio `pre-commit`, publicado desde el 07-09 | La lista de la bóveda solo tenía nombres de subestación: el guardián no podía verlo |
+| Tres mensajes de commit del 16 y 17-08 llevan un nombre real y están en `origin/main` | El guardián miraba el `diff`; el mensaje, nadie |
+| 513 MB de SCADA crudo vivían DENTRO del árbol del repo público, ignorados, y el `.gitignore` afirmaba que estaban en la bóveda | Ignorado no es ausente. **Él los sacó esa misma tarde** (18:09) a `~/Desktop/GitHub-MJ/Variables Electricas/`, fuera de todo git, y trajo **febrero** |
+| `juntar-por-dia` lee el eje con una regla PROPIA (`d/m/aa`): `1/13/26` sale `20261301` y un eje ISO se descarta. Sin prueba | Con su formato funciona; si el SCADA cambia, falla en silencio |
+| Las gráficas HERMANAS del módulo («Cómo se comportó en el tiempo», «Día a día») y las barras del día del Atlas siguen con las reglas viejas | El patrón de `10 §2` otra vez: arreglado en la función, no en el proyecto |
+| El `§ADR-107` decía que los colores eran «tierra, verde y azul» y que una prueba vigilaba el aviso del eje | Esa misma noche él fijó azul, naranja y verde (`0355ec4`), sin ADR; y la prueba no existía |
+
+### Decisión
+
+1. **Las fugas, por la raíz.** Etiqueta inventada en el guardián; la lista de la bóveda pasa a
+   cubrir **cualquier identificador real de su red** (probado contra el caso que se coló); y un hook
+   nuevo, `githooks/commit-msg`, con la MISMA lista (probado: bloquea el caso real, deja pasar lo
+   limpio y las líneas de comentario de git). La historia pública **no se reescribe** —nunca fuerza
+   sobre `main`—: se declara en `33 · L-07`, caras 4ª y 5ª. Y la excepción del guardián de SCADA se
+   acota de `tests/*` a `tests/fixtures/*` (medido: ningún sintético casa la firma).
+2. **Cada hecho, a su dueño.** `05` (pruebas, fecha, el módulo entre los subsistemas, la ampacidad
+   que se publica y no se firma) · `10` (lo cargado de verdad; el hueco del máximo, `TODO-101`, suyo;
+   febrero y las piezas hermanas, `TODO-102`, mío) · `20` (lector de SCADA, repositorio, las tres
+   herramientas en su orden y el paso 0 que se hizo a mano, los seis guardianes y cómo se encienden,
+   dónde vive el dato de cliente, el retraso de cada fuente del atlas) · `40 §4.3.2`, nuevo (seis
+   magnitudes, cuatro estadísticos y cuál dicta, el máximo invertido en potencias negativas, el sello
+   de calidad, la fecha que declara el dato; y en `§4.4`, tensión compuesta ≠ fase a tierra) · `00`
+   (cinco síntomas nuevos) · lecciones `L-84` y `L-85` y tres recaídas anotadas (`L-44`, `L-48`,
+   `L-76`) · y el README público.
+3. **La historia se ENMIENDA, no se reescribe.** Notas fechadas en `§ADR-106` (crudo recuperado),
+   `107` (colores y guardián inexistente), `108` (59 + 7, no 66 + 6), `114`, `115/116` (superados por
+   el 120), `117` (resuelto en el 119), `121` (A-01 reabierto) y `123` (la marca cae en la primera
+   hora guardada).
+4. **Los comentarios del código que decían «tres» estadísticos con cuatro**, en el molde y en el
+   motor; el motor sube a **0.18.1** porque el guardián lo exige para cualquier cambio en `nucleo/`
+   —**ningún cálculo cambió**—. Y se retira un comentario huérfano de la pantalla.
+5. **Hacer sitio sin podar texto bueno.** `20` y las hijas `32/33/35` se recalibran con la razón
+   escrita en el manifiesto —son mapas e índices que crecen una entrada por pieza, y no están en el
+   arranque— y con la señal de cuándo partirlas. **En el ARRANQUE no se recalibró nada:** se quitó
+   duplicación real —la ficha contada tres veces, el acceso dos, historia cerrada de agosto— y el
+   detalle de cadencias del atlas se mudó al `20`. Se retira el tope de `docs/60`, un nodo que nunca
+   existió, y el manifiesto declara que la auditoría del 07-09 fue parcial (`probesRun`).
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| Subir el presupuesto de arranque para que cupiera todo | Es SU decisión (`TODO-78/84`, en su tabla). Se hizo sitio quitando duplicación |
+| Mover yo el SCADA crudo fuera del repo | Son SUS archivos y su flujo declarado. Se documentó el riesgo; lo movió él |
+| Reescribir la historia de git para borrar los nombres de los mensajes | Fuerza sobre `main` y rompe cada clon. Se declara y se cierra hacia delante |
+| Creerse el recuento del `§ADR-108` a la primera | Mi primera medición dio 0 por un error mío de shell; no se tocó nada hasta repetirla bien |
+| Arreglar ya las gráficas hermanas | Es pantalla, y se verifica abriéndola en frío con su sesión (`30 · L-51`). Queda en `TODO-102`, con el sitio exacto |
+| Fiarse de los 88 «descartados» | 76 eran verificadores muertos, no refutaciones |
+
+### Supuestos que deben ser ciertos — y la señal que diría que dejaron de serlo
+
+| Supuesto | Señal |
+|---|---|
+| La lista de la bóveda tiene todo identificador real que se haya citado | Un rótulo real que el guardián deja pasar. Cada uno que se cite, se añade |
+| El SCADA sigue exportando el eje como `d/m/aa` | `juntar-por-dia` dice «sin eje de tiempo reconocible», o salen fechas imposibles |
+| Febrero trae el máximo todos los días | Menos archivos de máximo que días al contar, como en enero |
+| Los topes recalibrados siguen frenando | `20` por encima de 26.000 c, o una hija por encima de 24.000 c: se parte, no se recalibra |
+
+### Consecuencias
+
+- `2.645` pruebas en verde, molde verificado, cerebro sano y arranque dentro de presupuesto.
+- ⚠️ **Lo que queda de ÉL:** `TODO-101` —re-exportar del 3 al 12 de enero con el máximo— y ratificar
+  los dos días ajenos a enero, que entraron con su fecha.
+- ⚠️ **Lo que queda MÍO:** `TODO-102` —cargar febrero, y llevar los criterios de lectura a las
+  gráficas hermanas y a las barras del Atlas—.
+- ⚠️ La sonda 3 de la auditoría del cerebro —una sesión fría con solo el arranque— sigue sin correr.
+
+**Crudo de respaldo:** `research-archive/2026-09-10-auditoria-documental-total/` · y el recuperado de
+`§ADR-106`, `research-archive/2026-09-07-parametros-electricos-mapa/`.
 
 ---

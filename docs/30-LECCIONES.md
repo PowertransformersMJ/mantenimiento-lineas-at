@@ -10,15 +10,15 @@
 > en cuatro días y la cuenta exacta la da `npm run brain:check`, que las recorre de verdad. Las de método se quedan porque no son de ninguna pieza: valen para las tres, y
 > son las que más se citan desde otras neuronas. Si el síntoma huele a un tercero, a lo que se ve o
 > se abre, o al número que se firma, el índice te manda directo al hijo: no hay que leerse los
-> cuatro archivos.
+> cinco hijos.
 >
 > **Los identificadores NO se renumeran nunca.** Un `L-NN` citado en otra neurona o en un comentario
-> del código sigue apuntando al mismo gotcha, viva donde viva su cuerpo. Y ojo con la aritmética: los
-> números llegan hasta 67 pero las lecciones son 66 — el 14 se fusionó en `L-13` y no existe.
+> del código sigue apuntando al mismo gotcha, viva donde viva su cuerpo. Y ojo con la aritmética: hay UN
+> hueco —el 14 se fusionó en `L-13` y no existe—, y la cuenta NO se escribe aquí (`M-01`).
 > Se recuenta con `grep -c '^### L-' docs/3?-*.md`, no de memoria: en el 21-08 llevaba seis de
 > retraso y tres lecciones enrutadas al hijo equivocado.
 >
-> ⚠️ **ANTES de escribir una lección nueva, busca el SÍNTOMA en los cuatro archivos.** Desde que la
+> ⚠️ **ANTES de escribir una lección nueva, busca el SÍNTOMA en los cinco hijos (`docs/3?-*.md`).** Desde que la
 > familia se repartió, ninguno se lee entero, y el 04-08-2026 se escribió `L-36` sin ver que `L-22`
 > ya decía lo mismo. La cuenta de arriba es la ÚNICA cifra válida de cuántas lecciones hay: los demás
 > nodos apuntan aquí y no la repiten, porque repetida se pudre (llegó a estar mal en cuatro sitios).
@@ -129,6 +129,8 @@
 - `L-79` · «Es que no hay datos» es cierto, y es inútil dicho tres veces: la pantalla vacía enseña su ESTRUCTURA *(`32`)*
 - `L-80` · Borrar IndexedDB de Firebase con la página abierta cuelga ese Chrome: «sin red» con el servidor sano *(`35`)*
 - `L-81` · «Sin conexión» con `curl` verde: el preflight CORS rechazó una cabecera propia *(`35`)*
+- `L-84` · Un guardado que escribe MENOS de lo que enseñó no da error en ninguna capa *(`33`)*
+- `L-85` · El emulador NO pide los índices que producción SÍ exige *(`35`)*
 - `M-03` · Un agente «ancho» no implementa: un archivo, un rango y el texto exacto *(aquí)*
 
 ### M-01 · Una cifra escrita a mano que un guardián puede contar es una cifra que envejece sola

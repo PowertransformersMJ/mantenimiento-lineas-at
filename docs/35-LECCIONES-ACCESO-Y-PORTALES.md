@@ -245,3 +245,16 @@ integrar no es publicar lo tuyo: es **pisar lo suyo**.
 - ⚠️ **Hermana de `L-22`, y por eso duele:** allí el síntoma «no hay datos» escondía «faltan
   reglas». Aquí el síntoma «no tienes permiso» escondía «no existe». Las dos veces el mensaje del
   proveedor apuntó al sitio equivocado; la diferencia es que ahora hay pruebas que lo fijan.
+
+### L-85 · El emulador NO pide los índices que producción SÍ exige
+- **Síntoma:** 07-09. «El día más nuevo primero» funcionaba en local con 2.621 pruebas verdes; en
+  producción la pantalla decía «no existen registros» teniéndolos.
+- **Causa:** Firestore exige un índice compuesto cuya DIRECCIÓN coincida con la del orden pedido, y
+  el que había era ascendente. El emulador sirve la consulta sin índice y no se queja: el verde local
+  no dice nada de esto. Y un `catch` vacío se tragó el `failed-precondition` que lo habría explicado.
+- **Regla:** toda consulta nueva que ordene o filtre por más de un campo **se declara en
+  `firestore.indexes.json` en el mismo cambio**, se despliega por SU canal antes que el sitio
+  (`L-22`) y se comprueba en producción, no en el emulador. La dirección cuenta: un índice
+  ascendente no sirve un orden descendente (`99 §ADR-116`).
+- **Emparenta con** `L-22` (reglas sin desplegar) y `L-82` (el mensaje del proveedor apunta al sitio
+  equivocado).

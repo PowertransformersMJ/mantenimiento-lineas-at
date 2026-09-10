@@ -1,33 +1,37 @@
 # 📝 10 — MEMORIA DE CORTO PLAZO (pizarra viva)
 
 > Se **AUTO-CARGA**. Pizarra, no bitácora (§G.3). Este nodo ES el relevo: léelo entero.
-> Detalle largo → `research-archive/2026-08-26-relevo-cierre.md`. ⚠️ `docs/.handoff-auto.md` es una
-> FOTO FECHADA: manda solo si su fecha es MÁS NUEVA que la de esta pizarra (`§ADR-102`).
+> ⚠️ `docs/.handoff-auto.md` es una FOTO FECHADA: manda solo si su fecha es MÁS NUEVA (`§ADR-102`).
 
 ## 🎯 Dónde estamos
 
-**Cifras en `05`.** 14 pestañas + RCA + tres informes. Olas cerradas: ADR-018 · 020-024 · 032 ·
-034-042 · 043-045 · **046-056**. Todo EN PRODUCCIÓN y **verificado en vivo con su sesión**.
+**Cifras en `05`.** 15 pestañas + RCA + tres informes; las olas cerradas, en el `00`.
+Todo EN PRODUCCIÓN y **verificado en vivo con su sesión**.
 
 > 🧭 **SE VA POR FASES, orden suya (22-08).** El **módulo RCA sigue APARCADO** —lo cerrado ahí es
-> `§ADR-049/050`—. La fase viva es **la página**.
+> `§ADR-049/050`—. La fase viva es **la página**: no eligió entre ② **se lee** y ③ **no se cae**.
 
 ## 🛑 LO PRIMERO AL RETOMAR
-0. 🆕 **PARÁMETROS ELÉCTRICOS** (antes «cargabilidad»; `§ADR-088..097` · `105..109`). Se suelta un
+0. 🆕 **PARÁMETROS ELÉCTRICOS** (antes «cargabilidad»; `§ADR-088..125`). Se suelta un
    `.xlsx` **o CSV de SCADA tal como sale** —varios a la vez, la red entera dentro—, salen todas las
    magnitudes con sus fases y el veredicto contra **ampacidad**. Sin archivo se enseña la
    ESTRUCTURA — **jamás cifras de muestra**, y **un hueco no es un cero**.
-   ✅ **07-09: ENERO ENTERO EN PRODUCCIÓN** (`§ADR-108..120`): **31 días**, 99 documentos, cuatro
-   estadísticos (máximo · promedio · instantáneo · **mínimo**). Pico del mes **398 A el 27-01 a las
+   ✅ **07-09: EN PRODUCCIÓN** (`§ADR-108..125`). **31 días** cargados: **29 de enero (01 al 29)**
+   más un 31-05 y un 29-07 que venían mal etiquetados — **enero NO está entero**. 99 documentos y
+   cuatro estadísticos (máximo · promedio · instantáneo · **mínimo**). Pico **398 A el 27-01 a las
    16:00 = 55 % de la ampacidad**. Se elige la FRANJA arriba y salen las cinco gráficas —tensión,
    corriente, activa, reactiva y aparente— sobre todo lo elegido, **sin un clic**.
+   🔴 **El MÁXIMO —el que dicta el veredicto térmico— FALTA del 3 al 12 de enero**: 20 días con
+   máximo de 31. El hueco viene de SU exportación, no del procesado (`TODO-101`).
+   📊 **Y una gráfica se lee SOLA** (`§ADR-122/123/124`): unidad rotulando el EJE · franja, lecturas
+   y paso dichos · leyenda de cada fase · el tiempo en HORAS o DÍAS según el rango · cuatro marcas
+   en el vertical y el cero **solo si cae dentro** · y la corriente más alta que las otras cuatro,
+   porque es la ÚNICA que dictamina. Una gráfica que necesita el pie **no se pega en un informe**.
    ⚠️ Antes NUNCA guardó ni se veía: **nueve fallos en fila**, cazados por ÉL con cuatro avisos del
    mismo síntoma. **Verificar es abrir EN FRÍO, no pilotar la pantalla.**
    ⚠️ Sin capacidad nominal no hay porcentaje. En **P y Q, negativas, el «max» es el de MENOS
    carga**. Y sus carpetas «30Enero»/«29Enero» traían julio y mayo: mandó la fecha del DATO.
-   ⚠️ Falta lo SUYO: ratificar los **718 A** (`TODO-93`).
-0b. 🔐 **ACCESO VIVO** (`§ADR-100/101/104`): dos cuentas —propietario y espectador—; las demás,
-   desde **Personas**.
+   ⚠️ Falta lo SUYO: ratificar los **718 A** (`TODO-95/93`).
 1. **EL CUELLO DE BOTELLA NO ES CÓDIGO: ES EL DATO**: 0 de 26 con veredicto (`TODO-57`).
 2. **EL PATRÓN QUE LO DOMINA TODO:** *«arreglado donde se veía, vivo en la pieza hermana»* —
    `34 · L-65/L-74`, `32 · L-67`, `30 · L-68/M-01`. Mordió el 24-08 (`§ADR-078`), el 26 (`§ADR-087`)
@@ -36,22 +40,16 @@
    midiendo — **nunca sobre una suposición**.
 3. **EL ATLAS: ONCE CAPAS EN 3 FAMILIAS + LAS DOS FINAS DEL CORREDOR** (`§ADR-079/081/086/087`).
    5 del año (POWER) · 3 del SATÉLITE que se acumulan · **3 de PRONÓSTICO** · y aparte **radiación y
-   temperatura del corredor a 2 km**. ⏱️ Manda la FUENTE: MERRA-2 4 días, CERES 87, satélite ~15
-   min, pronóstico 10 días por DELANTE; las del corredor **no tienen fecha: son PROMEDIO de muchos
-   años**. Tres relojes: 4 h POWER y pronóstico, 1 h satélite.
+   temperatura del corredor a 2 km**. ⏱️ Manda la FUENTE, y cada una trae su retraso y su reloj: la
+   tabla está en `20`.
    ⚠️ **CADA CAPA DECLARA QUÉ ES y sin valor por defecto** — `medida` · `pronostico` · `promedio` —
    o no se publica ni se pinta (`§ADR-082/084/086/087`).
    ⚙️ **El vigía FUSIONA SOLO** (`§ADR-085`), con PORTERO. Queda a mano **publicar** (`TODO-89`).
 4. **LO QUE NO SE PUEDE ROMPER DEL CLIMA (`§ADR-057..086`):** gana el HECHO sobre el modelo · el recorrido se comprueba **punto a punto**, nunca por promedio · el clima vive en el ATLAS · **«tormenta eléctrica» NO existe en la fuente**.
-5. **CERRADO 23-29/08 (`§ADR-074..088`).** ⚠️ El robot NO dispara el CI · «medida» no se aplica a
-   lo que no se midió ESE día · `Success` no es la web cambiada (`35 · L-75`).
-   ⏳ **ESPERA SU RESPUESTA:** el satelital «tiene huecos»; al 100 % en z8-z16 → falta DÓNDE.
-6. **⚠️ EL LIENZO NO SE VE EN SEGUNDO PLANO, PERO SE FOTOGRAFÍA** (`34 · L-16/L-58/L-72`):
+5. **⚠️ EL LIENZO NO SE VE EN SEGUNDO PLANO, PERO SE FOTOGRAFÍA** (`34 · L-16/L-58/L-72`):
    `node herramientas/mirar-los-atlas.mjs <atlas>` lo hace y SUSPENDE si no hay dibujo (`§ADR-085`).
    **Nunca con tiempo virtual.**
-7. **FASE ABIERTA: la página.** No eligió entre ② **se lee** y ③ **no se cae**. ⚠️ `31 · L-60` puede estar MAL.
-8. **SON DE ÉL:** el cuello de botella es `TODO-57`; los demás, en la tabla de abajo.
-9. **Higiene** (`99 §ADR-047/048/083`): el techo es el ARRANQUE; `20` y `32` pasan su tope.
+6. **Higiene** (`99 §ADR-047/048/083`): el techo es el ARRANQUE; el `20` se recalibró (`§ADR-125`), `32` sigue pasado.
 
 ## 🚫 INVARIANTES — índice; cada uno vive ENTERO en su ADR
 
@@ -59,7 +57,7 @@
 · **Puntos nuevos** `§ADR-027/054` — identidad por NOMBRE, anotada ANTES; se biseca y el origen entra con `mínimo − 1`: nunca se renumera.
 · **RCA** `§ADR-020/026` — prohibido rankear hipótesis, causa raíz por IA y % de confianza; las causas las lee `causasDeclaradas()`.
 · **Acceso** `§ADR-024` — la contraseña es HIGIENE, la frontera son las reglas. · **Fotos** `§ADR-031` — el portero NO borra ni lista.
-· **Capas del mapa** `§ADR-034/046/086` — viajan CON el sitio; byte 0 = SIN DATO; **cada capa DECLARA si es medida o pronóstico** y el motor no publica sin eso (el pronóstico SÍ se guarda desde el 26-08, con caducidad); toda capa trae encuadre Y escala, las dos o ninguna.
+· **Capas del mapa** `§ADR-034/046/086` — viajan CON el sitio; byte 0 = SIN DATO; **cada capa DECLARA si es medida o pronóstico** y el motor no publica sin eso; toda capa trae encuadre Y escala, las dos o ninguna.
 · **Ficha y lote** `§ADR-030/038` — el lote rellena huecos, solo los 3 del MODELO. · **Recordar ≠ proponer** `§ADR-029` — sin decisión suya, campo VACÍO.
 · **Verosimilitud** `§ADR-050` — la escala son TRES y se LEE del molde; una rival se cierra diciendo qué se hizo, no con etiqueta.
 · **Señales de la página** `§ADR-051` — banda, pestaña y tope de tiro salen del DATO, con un solo dueño; la versión del motor la ata un gate de `pre-commit`.
@@ -71,15 +69,15 @@
 1. **Abrir Claude Code DENTRO del proyecto** (desde el paraguas: `session-handoff.mjs --boot-echo`).
 2. Desplegar: `npm run build && npm run deploy --workspace web`, en ese orden (`35 · L-35`). Repo
    PÚBLICO → **cero bytes de cliente**. Reglas de Firestore por SU canal y ANTES (`35 · L-22`).
-3. **Verificar contra PRODUCCIÓN con su Chrome**, no contra `dist/` (`32 · L-18/35`); el MAPA, con el portero del punto 6.
+3. **Verificar contra PRODUCCIÓN con su Chrome**, no contra `dist/` (`32 · L-18/35`); el MAPA, con el portero del punto 5.
 4. Antes de CADA push: `npm test` + `contrato:verificar` + `brain:check` (bloquea si el boot se pasa).
 
 ## 🔲 Pendientes del INGENIERO
 
 | # | Qué | Por qué importa |
 |---|---|---|
-| **TODO-57** | **La FICHA se ESCRIBE y está EN PRODUCCIÓN** (`99 §ADR-030`). Falta **el DATO**: ¿planos y actas, o hay que levantarlo? Los seis: rotura · altura libre · altura del amarre · capacidad longitudinal · fases amarradas · tipo de apoyo | **EL CUELLO DE BOTELLA REAL.** Al meter el primero saldrán «REVISAR»: no son averías nuevas |
-| **TODO-82/83** | **Dos suyas sobre el clima.** ① ¿FASE 2 del pronóstico (`§ADR-057`): franja mañana/tarde y sensación térmica? ② ¿Dato FINO por extremos (`§ADR-064`)? Las capas de 2 km tocan 3 celdas y salen por PROMEDIO | Sensación de **40 °C** con aire a 32,5 |
+| **TODO-57** | **La FICHA se ESCRIBE y está EN PRODUCCIÓN** (`99 §ADR-030`). Falta **el DATO** de sus seis campos —los nombra el `§ADR-030`—: ¿planos y actas, o hay que levantarlo? | **EL CUELLO DE BOTELLA REAL.** Al meter el primero saldrán «REVISAR»: no son averías nuevas |
+| **TODO-82/83** | **Dos suyas sobre el clima.** ① ¿FASE 2 del pronóstico (`§ADR-057`): franja mañana/tarde y sensación térmica? ② ¿Dato FINO por extremos (`§ADR-064`)? ③ El satelital «tiene huecos»: al 100 % en z8-z16, falta DÓNDE | Sensación de **40 °C** con aire a 32,5 |
 | **TODO-88** | **¿Se junta otra vez el eje del tiempo?** El pronóstico está en el atlas con mes, día y hora (`§ADR-086`) pero en su propia FAMILIA. ¿Lo quiere junto a lo medido en **una sola tira**? | Medido y modelo juntos hacían «ganar el hecho» |
 | **TODO-80** | **¿Qué tope de puesta a tierra rige?** El campo existe (`ADR-052`); declararlo basta. Sin decisión suya siguen **10 Ω** | Con 18 Ω medidos, 10 Ω dice «revisar» y 25 Ω «cumple» |
 | **TODO-90** | **La capa de rayos que piden las NORMAS** (rayos/km²/año, RETIE e IEEE 1243). Espera una **cuenta Earthdata gratuita** (`99 §ADR-079`) | La horaria dice CUÁNDO hubo tormenta; ésta entra en el cálculo de salidas |
@@ -89,7 +87,7 @@
 | **TODO-59** | **Qué ficha se le pide a CADA tipología.** La línea mezcla 4 y el molde es de POSTE (`40 §8.3`) | Son 3 o 4 formularios |
 | **TODO-33** | **50 % o 25 % de RTS** como tope de tiro. Ya no hay dos dueños (`§ADR-051`): falta decidir CUÁL rige | Factor 2 sobre un dictamen |
 | **TODO-98** 🔴 **MÍA** | **El recibo de la contraseña se auto-firma** desde la consola y **se salta el muro del cambio obligatorio**; con ello `ultimoAcceso` auto-declarado. Crudo: `2026-09-06-espectador-solo-lectura/` | Un muro que se salta no es un muro |
-| **TODO-95/93** 🔴 ⬅️ **SUYA, URGENTE** | **La FICHA del fabricante del conductor** y **ratificar la condición** de ampacidad (hoy ADOPTADA: 718 A). La ficha trae ampacidad, temperatura y módulo elástico (`§ADR-098/099`); sin ella se publica pero **NO SE FIRMA** | 718 A hoy · **611 A** a 75 °C |
+| **TODO-95/93 · 101** 🔴 ⬅️ **SUYA, URGENTE** | Tres cosas, todas del mismo veredicto. ① **La FICHA del fabricante del conductor** y ② **ratificar la condición** de ampacidad (hoy ADOPTADA: 718 A); sin ellas se publica pero **NO SE FIRMA** (`§ADR-098/099`). ③ **`TODO-101`: re-exportar del 3 al 12 de enero con el MÁXIMO** — su exportación de esos diez días no lo trae, y es el estadístico que dicta el dictamen térmico | 718 A hoy · **611 A** a 75 °C · y diez días de enero **sin pico** |
 | **TODO-100** 🔴 **MÍA** | Los `.xls` de SCADA no los abre el lector (se convierten a mano) | Fallar oscuro se lee «dato malo» |
 | **TODO-44/34** | Alerta de gasto en Cloudflare · **nada tiene copia**: la bóveda sin remoto **y Firestore sin punto de recuperación** (`§ADR-089`) | Un fallo de disco se lleva la bóveda; un comando, la base |
 | **TODO-61/54/68** | ¿App Check? · ¿linter de frescura? · ¿cazar un ADR repetido? Las dos últimas tocan el KERNEL | Las TRES son TUYAS |
@@ -100,6 +98,7 @@
 
 | # | Qué | Dónde está el plan |
 |---|---|---|
+| **TODO-102** 🔴 | ① **FEBRERO llegó** (10-09, 28 días): pasos 0·1·2 de `20` y cargar con su sesión · ② las gráficas HERMANAS del módulo y las barras del Atlas siguen con las reglas viejas · ③ `juntar-por-dia` lee fechas sin prueba | `99 §ADR-125` |
 | **TODO-70** | **Cerrar la ola de la ficha.** Queda SOLO ③: el gesto «Confirmo este dato», que exige su propio molde | `99 §ADR-030/032/033/038` |
 | **TODO-66** | **Que una acción pruebe que FUNCIONÓ**, no solo que se hizo: verificación posterior con fecha | `99 §ADR-026` |
 | **TODO-50** | **Blindaje**: ✅ F1 · ✅ F2a · ✅ F3 · **2b Google**: ✅ código · ✅ consola | `99 §ADR-019/024/100` |
@@ -109,5 +108,5 @@
 
 ## ✅ Consolidado — el detalle vive en su dueño
 
-La línea → `40 §10`, `99 §ADR-013/017` · las 205 fotos → `§ADR-031` · IDEAM (sin rayos) →
-`35 · L-37` · callejones → `30`, y el que más se repite: **«verde no prueba nada»** (`30 · L-33/56`).
+La línea → `40 §10` · las 205 fotos → `§ADR-031` · IDEAM (sin rayos) → `35 · L-37` · y el que más
+se repite: **«verde no prueba nada»** (`30 · L-33/56`).

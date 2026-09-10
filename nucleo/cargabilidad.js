@@ -144,17 +144,18 @@ export const MAGNITUDES = Object.keys(CAMPOS).filter(
   (c) => CAMPOS[c].tipo === 'numero' && !CAMPOS[c].de && c !== 'capacidadNominal_A');
 
 /**
- * LOS TRES ESTADÍSTICOS DE LA HORA (`99 §ADR-112`).
+ * LOS CUATRO ESTADÍSTICOS DE LA HORA (`99 §ADR-112/117`).
  *
  * ⚠️ NO SON LA MISMA MEDIDA. El sistema de supervisión exporta la misma
- * magnitud tres veces, un archivo por estadístico, y los valores difieren de
+ * magnitud cuatro veces, un archivo por estadístico, y los valores difieren de
  * verdad: el 2026-01-01 la corriente de la fase R llegó a **244 A de máximo** y
  * **233 A de promedio**. Meterlas en el mismo hueco no da error: da un número
  * que nadie midió.
  *
  * `maximo` es el que DICTAMINA —un límite térmico se comprueba contra el pico,
  * no contra la media—, `promedio` es el que habilita energía y factor de carga,
- * e `instantaneo` es la muestra puntual de la exportación.
+ * `instantaneo` es la muestra puntual de la exportación, y `minimo` el valle de
+ * la hora (`99 §ADR-117`).
  *
  * ⚠️ VIVE AQUÍ y no en el molde porque el núcleo no depende de nadie: es el
  * catálogo quien manda, y `contratos/` lo espeja con una prueba de paridad. Dos

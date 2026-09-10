@@ -40,6 +40,14 @@
   `Variables Electricas/` (07-09, siete exportaciones de SCADA de la RED ENTERA). La segunda la
   frenó de rebote el guardián de COORDENADAS, que no está para eso. **Toda ruta donde él suelte
   archivos se ignora el día que aparece**, y un `git add -A` aquí se lee antes de confirmarlo.
+- ⚠️ **Y entra por un COMENTARIO de ejemplo** (4ª cara). El 07-09 un rótulo real de su exportación
+  —sitio y circuito— se citó dentro del propio guardián de `pre-commit` y aguantó **tres días
+  publicado**: la lista de la bóveda solo tenía nombres de subestación. Desde el 10-09 cubre
+  **cualquier identificador real de su red**, y un ejemplo se INVENTA (`/SubA`, `/PT007`).
+- ⚠️ **Y por el MENSAJE del commit** (5ª). Tres commits del 16 y 17-08 llevan un nombre real en el
+  mensaje y están en `origin/main`: el guardián miraba el `diff`, no el mensaje. La historia pública
+  **no se reescribe** —nunca fuerza sobre `main`—: se declara aquí y se cierra hacia delante con
+  `githooks/commit-msg`, que usa la MISMA lista (`99 §ADR-125`).
 
 ### L-23 · Una coordenada real dentro de una PRUEBA es una fuga igual que en el código
 - **Síntoma:** `tests/exportar.test.js` afirmaba `filas[1].includes('10.35••••')` — la latitud real
@@ -250,3 +258,15 @@
   la cabecera: es **buscar cada valor literal en la bóveda** (`grep` exacto sobre `fixtures/`); si
   aparece, es real, lo diga quien lo diga. Y **antes del commit**, que es el punto de no retorno.
 - **Emparenta con** `L-23`, `L-07` y `30 · L-33`. Cazado antes del primer commit (`99 §ADR-027`).
+
+### L-84 · Un guardado que escribe MENOS de lo que enseñó no da error en ninguna capa
+- **Síntoma:** 07-09. Se leyeron 38 archivos —20 días de máximo y 18 de mínimo—, la tabla los enseñó
+  todos con su rótulo, y en la base entraron 20. Sin un error y con el acuse en verde: «guardado» era
+  verdad, de un tercio.
+- **Causa:** la lista que decide QUÉ se guarda se calculó sobre UN solo día, el más antiguo, que solo
+  traía máximos. El resto se leyó, se pintó y se quedó en la memoria del navegador.
+- **Regla:** ni las reglas de la base, ni el molde, ni las pruebas ven un guardado PARCIAL: todas
+  miran que lo escrito sea válido, no que esté todo. **Se cuenta la entrada contra la salida** —días
+  leídos, días escritos— y el acuse dice los dos números. Vale igual para el paso 0 del SCADA: un
+  `.xls` que el lector no abre no falla, **falta** (`99 §ADR-119`; los pasos, en `20`).
+- **Emparenta con** `32 · L-76` (lo que se ve no es lo guardado) y `30 · L-83` (la prueba que no prueba).

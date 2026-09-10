@@ -33,8 +33,10 @@ for d in "$HOME"/.nvm/versions/node/*/bin; do [ -d "$d" ] && PATH="$d:$PATH"; do
 #   · o la fila de sellos de tiempo que abre el archivo — `,1/01/26 0:00,`
 #
 # ⚠️ El primero es el que de verdad muerde: el nivel de tensión NO está en todas
-# las filas —`/ARN302 /Ariguani/R-5049 /I R /MvMoment` no lo trae— y buscarlo
-# solo a él dejaba pasar archivos enteros.
+# las filas —`/PT007 /SubB/R-0000 /I R /MvMoment` no lo trae— y buscarlo solo a
+# él dejaba pasar archivos enteros. (Etiqueta INVENTADA: aquí entró un rótulo
+# REAL de su exportación y sobrevivió tres días, porque no era el nombre de una
+# subestación y la lista de la bóveda solo miraba esos — `33 · L-07`, 4ª cara.)
 #
 # Se miran solo los archivos AÑADIDOS o MODIFICADOS, y solo su cabeza.
 scada=""
@@ -58,7 +60,7 @@ for f in $(git -c core.quotepath=false diff --cached --name-only --diff-filter=A
     *) continue ;;
   esac
   case "$f" in
-    tests/*) continue ;;                      # el material sintético se revisa aparte
+    tests/fixtures/*) continue ;;             # el sintético vive AQUÍ, y ninguno casa la firma (medido 10-09)
   esac
   [ -f "$f" ] || continue
   if head -c 200000 "$f" 2>/dev/null \

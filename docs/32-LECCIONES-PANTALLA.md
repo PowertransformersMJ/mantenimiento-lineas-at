@@ -147,6 +147,10 @@
   no se han mirado.
 - **Hermana de `L-40`** (deducir el hecho de otra cosa) y de la falta que `99 §ADR-018` cerró en el
   horizonte con los dos ejes: la misma familia, distinto sujeto.
+- ⚠️ **Y el hueco entra también por el `catch`.** Un `catch` vacío convierte «falló» en «no hay» y
+  deja la pantalla idéntica. **Recayó el 07-09** en parámetros eléctricos (`99 §ADR-116`): media hora
+  buscando en la consola un error que nadie había escrito. **Todo `catch` deja el motivo en el estado,
+  y la pantalla lo dice en su propia tarjeta.**
 
 ### L-48 · Silenciar `stderr` convirtió un guion que reventó en un guion que "funcionó"
 
@@ -167,6 +171,10 @@
   y no leerla es peor que cerrarla** (`'ignore'` deja salir el mensaje; `'pipe'` sin lector lo
   pierde y parece capturado). **Y antes de creerse una causa, mírese si el resto de casos la
   desmiente:** los otros CINCO habían abierto Chrome en esa misma corrida.
+- **Y REINCIDIÓ el 07-09** (`99 §ADR-124`): una sustitución no casó **por un espacio en blanco** y la
+  di por hecha sin releer. El compilador y las 2.645 pruebas la dejaron pasar —el código seguía
+  siendo válido, solo decía lo viejo— y la cazó mirar producción. La regla de arriba es literal: se
+  comprueba que el texto viejo está ANTES, y se relee DESPUÉS.
 
 ### L-49 · Volver a guardar un `.pptx` clonado con python-pptx lo deja inservible
 
@@ -242,7 +250,10 @@
   desde la fuente NUEVA. El estado por defecto es aquel en que el usuario ABRE, no aquel en que el
   programador probaba.
 - **Emparenta con** `L-59`. No hubo regresión: la visibilidad **nunca llegó** por ese camino.
-  Cerrada en `99 §ADR-090`. **Y no bastó — sigue en `L-79`.**
+  Cerrada en `99 §ADR-090`. **Y no bastó — sigue en `L-79`**, y **RECAYÓ el 07-09** (`§ADR-115`): las
+  gráficas NUEVAS, por magnitud y por fase, nacieron otra vez dentro del archivo recién leído. La
+  regla no falló: no se leyó. **Una pantalla que gana una fuente de dato se recorre entera desde la
+  fuente nueva, aunque la lección ya esté escrita.**
 
 ### L-79 · «Es que no hay datos» es cierto, y es una respuesta inútil dicha tres veces
 

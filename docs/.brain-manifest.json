@@ -22,8 +22,9 @@
       "chars": 16000
     },
     "docs/20-MEMORIA-ESPACIAL.md": {
-      "lines": 280,
-      "chars": 16000
+      "lines": 340,
+      "chars": 26000,
+      "_que": "Recalibrado el 2026-09-10 (§ADR-125): 280L/16000c -> 340L/26000c. El 20 es un MAPA y crece UNA ENTRADA POR ARTEFACTO, por diseno: mientras el repositorio gane piezas, anadirlas aqui es la accion CORRECTA, y llevaba en 'leve exceso' desde el 21-08 sin que nadie lo cerrara. Un tope que una accion correcta viola siempre no es un tope: es un peaje que se paga podando texto bueno cada sesion (TODO-78/84). Y NO toca el presupuesto que de verdad duele: el 20 no esta en alwaysOn, asi que su tamano cuesta contexto solo cuando alguien se desorienta y lo consulta; el BOOT sigue en 31500c con sus tres nodos. El freno real aqui son las LINEAS (una por artefacto), no los chars: la misma razon ya aceptada para el 00. SENAL DE QUE ESTE TOPE DEJO DE SERVIR: cuando pase de 26000c se SHARDEA, sacando el §2 'mapa del repositorio' a docs/21 y dejando en el 20 el ecosistema, las fronteras y donde empieza cada cosa. Precedente: ADR-047 (32 se partio al 118%) y ADR-102 (30 se recalibro)."
     },
     "docs/30-LECCIONES.md": {
       "lines": 520,
@@ -34,33 +35,29 @@
       "chars": 20000
     },
     "docs/32-LECCIONES-PANTALLA.md": {
-      "lines": 260,
-      "chars": 20000
+      "lines": 300,
+      "chars": 24000
     },
     "docs/33-LECCIONES-NUCLEO-Y-DATO.md": {
-      "lines": 260,
-      "chars": 20000
+      "lines": 300,
+      "chars": 24000
     },
     "docs/34-LECCIONES-MAPA.md": {
       "lines": 260,
       "chars": 20000
     },
     "docs/35-LECCIONES-ACCESO-Y-PORTALES.md": {
-      "lines": 260,
-      "chars": 20000
+      "lines": 300,
+      "chars": 24000
     },
     "docs/00-INDICE.md": {
       "lines": 450,
       "chars": 40000,
       "_que": "El 00 es un ÍNDICE que crece UNA fila por ADR: un tope de chars fijo lo rompe por diseño —reventó a los 80 ADRs (§ADR-083 · B-03)— y podarlo significaría borrar historia. El guardián útil aquí es el de LÍNEAS (450), que sí acota el crecimiento por fila. Recalibrado, no silenciado: es la mitad «recalibrar» de TODO-84."
-    },
-    "docs/60-WORKFLOWS.md": {
-      "lines": 160,
-      "chars": 14000
     }
   },
   "_cap30LineasRazon": "Recalibrado el 2026-09-06 (auditoria Nivel-2, ADR-102): 420L/40000c -> 520L/44000c. La madre es el INDICE y crece UNA LINEA POR LECCION, por diseno: cuando se fijo el tope indexaba 64 y hoy 83 (+19 lineas de indice puro, ninguna de grasa), mas las lecciones de METODO, que son su contenido declarado en CLAUDE.md. Un tope que una accion CORRECTA (anadir una leccion) viola siempre no es un tope: es un peaje. Y el presupuesto que de verdad duele NO es este: 30 no esta en alwaysOn, se carga por trigger, asi que su tamano cuesta contexto solo cuando se consulta una leccion; el que se cuida cada sesion es el BOOT (31500c). SENAL DE QUE ESTE TOPE DEJO DE SERVIR: cuando 30 pase de 44000c, ya no se recalibra otra vez -> se SHARDEA, sacando las lecciones de metodo (## Metodo de trabajo, hoy ~290 lineas) a docs/36, y la madre se queda con el indice y las M-NN. Precedente: ADR-047 (32 se partio en 32+34 al 118% de su tope).",
-  "_capsLeccionesRazon": "30 se shardeo en 3 hijas por tema (y en 4 desde el 21-08: 32 se partio en 32+34 al llegar a 118% de su tope, ADR-047) (madre = indice + lecciones de metodo). Cada hija arranca en ~110-130 lineas: el tope de 260L/20000c le deja sitio para ~13 lecciones mas, y el aviso pre-shard (>=90%) salta a las 234 lineas, con margen para partirla sin prisa. Los L-NN NO se renumeran al mover: los cita el codigo fuente, que el linter no mira.",
+  "_capsLeccionesRazon": "30 se shardeo en 3 hijas por tema (y en 4 desde el 21-08: 32 se partio en 32+34 al llegar a 118% de su tope, ADR-047) (madre = indice + lecciones de metodo). Cada hija arranca en ~110-130 lineas: el tope de 260L/20000c le deja sitio para ~13 lecciones mas, y el aviso pre-shard (>=90%) salta a las 234 lineas, con margen para partirla sin prisa. Los L-NN NO se renumeran al mover: los cita el codigo fuente, que el linter no mira. RECALIBRADO el 2026-09-10 (§ADR-125) para 32, 33 y 35: 260L/20000c -> 300L/24000c. Documentar la jornada del 07-09 exigia dos lecciones nuevas y tres recaidas en hijas que ya estaban al 99-101%: el tope obligaba a podar lecciones BUENAS para escribir las nuevas, que es el peaje de TODO-78/84. Mismo argumento que la madre (ADR-102): no estan en el arranque, cuestan contexto solo cuando se consultan. SENAL DE QUE YA NO SIRVE: una hija que pase de 24000c se PARTE por tema, como 32->32+34 (ADR-047), no se recalibra otra vez.",
   "archiveDir": "../brain-private/mantenimiento-lineas-at/research-archive",
   "specsDir": "specs",
   "staleDays": 10,
@@ -101,6 +98,8 @@
     "coveredHeaderCount": 120,
     "maxAdrGap": 12,
     "maxDays": 30,
-    "_que": "Auditoria Nivel-2 del cerebro (skill auditoria-cerebro): correrla cuando el linter lo pida (gate #14). La del 2026-09-06 (ADR-102) corrio LAS OCHO sondas por primera vez -> 2026-09-06-auditoria-cerebro-nivel2.json, 25 hallazgos, 21 cerrados. OJO CON EL CERO: brain-check calcula gap = coveredHeaderCount ? headers - coveredHeaderCount : 0, asi que con coveredHeaderCount en 0 el disparador por ADRs NO EXISTE y solo manda maxDays. SEGUNDO MODO DE FALLO, visto el 06-09: este campo se escribe IGUAL si corrieron 8 sondas que si corrieron 6, asi que la auditoria mas floja compra la misma ventana de silencio (30d/12 ADRs) que la mas rigurosa; la del 24-08 sello con las sondas 3 y 7 sin correr y tardaron 15 dias en correrse. Propuesto: deepAudit.probesRun y media ventana si faltan sondas. TERCERO: en --boot el tramo por ADRs va tras un if(!BOOT), o sea que el disparo por ADRs solo aparece corriendo --full a mano."
-  }
+    "_que": "Auditoria Nivel-2 del cerebro (skill auditoria-cerebro): correrla cuando el linter lo pida (gate #14). La del 2026-09-06 (ADR-102) corrio LAS OCHO sondas por primera vez -> 2026-09-06-auditoria-cerebro-nivel2.json, 25 hallazgos, 21 cerrados. OJO CON EL CERO: brain-check calcula gap = coveredHeaderCount ? headers - coveredHeaderCount : 0, asi que con coveredHeaderCount en 0 el disparador por ADRs NO EXISTE y solo manda maxDays. SEGUNDO MODO DE FALLO, visto el 06-09: este campo se escribe IGUAL si corrieron 8 sondas que si corrieron 6, asi que la auditoria mas floja compra la misma ventana de silencio (30d/12 ADRs) que la mas rigurosa; la del 24-08 sello con las sondas 3 y 7 sin correr y tardaron 15 dias en correrse. Propuesto: deepAudit.probesRun y media ventana si faltan sondas. TERCERO: en --boot el tramo por ADRs va tras un if(!BOOT), o sea que el disparo por ADRs solo aparece corriendo --full a mano.",
+    "probesRun": "0-2 y 6 de 8 (PARCIAL, ADR-121, 2026-09-07). Las sondas 3, 4, 5 y 7 no corrieron. Se escribe aqui porque 'last' se sella IGUAL para una auditoria completa que para una parcial (ver _que, segundo modo de fallo). El 10-09 una auditoria documental de 12 frentes (ADR-125) cubrio de facto las sondas 1, 2, 5 y 6, y NO la 3 (retrieval-drill) ni la 7."
+  },
+  "_caps60Retirado": "2026-09-10 (§ADR-125): se retiro el tope de docs/60-WORKFLOWS.md. Ese nodo NO ha existido nunca en este proyecto —vino heredado de la plantilla— y el linter lo saltaba en silencio: un guardian sobre un archivo inexistente tranquiliza sin vigilar nada."
 }

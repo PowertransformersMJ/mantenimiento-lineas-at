@@ -516,6 +516,53 @@ El regulador federal de EE. UU. (FERC, Orden 881, 16-12-2021) hizo **obligatorio
 
 Fuentes: DOE, «Dynamic Line Rating — Report to Congress», jun. 2019 — https://www.energy.gov/oe/articles/dynamic-line-rating-report-congress-june-2019 · FERC Orden 881 (texto original no leído; fechas por 4 secundarias coincidentes) — https://www.federalregister.gov/documents/2022/05/25/2022-11233/managing-transmission-line-ratings · ERA5 resolución 0,25° — https://docs.meteoblue.com/en/meteo/data-sources/era5 · NASA POWER horaria, probada en vivo lat 10,9/lon −74,8 — https://power.larc.nasa.gov/docs/services/api/temporal/hourly/ · Haasnoot, Warren, Kwakkel, DAPP, cap. 4 de «Decision Making under Deep Uncertainty», Springer 2019, CC BY 4.0 — https://research-portal.uu.nl/ws/portalfiles/portal/237168501/978-3-030-05252-2_4.pdf · IEEE 738 — https://standards.ieee.org/ieee/738/10207/ . Consultados 2026-09-02.
 
+### 4.3.2 Cómo llega el dato medido: seis magnitudes, cuatro estadísticos y un sello
+
+> Escrito el 2026-09-10 tras cargar el primer mes real (`99 §ADR-105/112/117/119/125`). Hasta ese
+> día el diccionario explicaba el COCIENTE y no explicaba **el dato con el que se calcula**.
+
+**Lo que se lee de una exportación de SCADA son seis magnitudes**, y ninguna se deduce de otra:
+
+| Magnitud | Unidad | Viene por | Para qué sirve aquí |
+|---|---|---|---|
+| Tensión compuesta | kV | tres pares de fases (RS · ST · TR) | contexto, y desviación respecto a la nominal |
+| Corriente de fase | A | tres fases (R · S · T) | **el veredicto**: contra la ampacidad |
+| Potencia activa | MW | total de bahía | energía que de verdad se transporta |
+| Potencia reactiva | MVAr | total de bahía | la que ocupa conductor sin transportar (`§4.4`) |
+| Potencia aparente | MVA | total de bahía | la suma vectorial de las dos anteriores |
+| Cargabilidad | % | la trae el archivo **si** la trae | se guarda como `declarada` y **nunca se pisa**; el contraste con la ampacidad va aparte (`§4.3`) |
+
+⚠️ **La capacidad nominal NO es una de ellas**: no viene en la exportación. Sin ella no hay
+porcentaje contra placa, y el sistema lo dice en vez de inventarlo.
+
+**Y de cada magnitud, cada hora trae CUATRO estadísticos** —el SCADA los exporta por separado, en
+archivos distintos—. No son cuatro versiones del mismo número: son cuatro preguntas:
+
+| Estadístico | Qué contesta de esa hora | Peso |
+|---|---|---|
+| **Máximo** | el peor instante | **es el que DICTA el veredicto térmico**: el conductor se calienta con el pico, no con la media |
+| **Promedio** | cómo transcurrió | describe la operación; suaviza y esconde el pico |
+| **Instantáneo** | la foto del muestreo | útil para cuadrar contra el SCADA, no para dictaminar |
+| **Mínimo** | el valle | dice cuánto respira la línea |
+
+⚠️ **En las potencias, que son NEGATIVAS en esta línea, el «máximo» es el momento de MENOS carga.**
+El signo indica el sentido del flujo: con P negativa toda la hora, el número mayor es el más cercano
+a cero. Leerlo como «el peor momento» invierte el dictamen. En corriente y tensión, que no cambian
+de signo, el máximo sí es el peor caso.
+
+⚠️ **Un estadístico que falta no se sustituye por otro.** Si un día no trae el máximo, ese día
+**no tiene veredicto térmico** — no se rellena con el promedio, que siempre sería más benévolo.
+Medido en la carga de enero: **diez días (3 al 12) llegaron sin máximo**, y son diez días sin pico.
+
+**El sello de calidad.** Cada hora viene acompañada de una marca —`Actual`— que dice si el valor es
+una **medida de verdad** o un relleno del historiador. No es un quinto estadístico: es la firma de
+que esa hora se midió. En el mes cargado, las 3.432 horas de la bahía dicen `Actual`.
+
+**Y la fecha la declara el DATO, no el nombre del archivo.** Medido sobre la exportación real:
+**46 de 902 archivos traen en el nombre una fecha que no es la suya** —una carpeta rotulada «30 de
+enero» resultó ser el 29 de julio—. La fila de sellos de tiempo que abre el archivo es lo único que
+el propio dato afirma sobre cuándo se midió, y es la que manda.
+
 ### 4.4 Las variables operativas, y cuál de ellas decide
 
 **El veredicto lo decide LA FASE MÁS CARGADA, nunca el promedio.** El conductor que primero llega a
@@ -537,8 +584,14 @@ sin obra:
 corriente gastada en reactiva:  I_Q = Q ÷ (√3 · V)
 ```
 
-Medido en LN-627 con su pico de 502 A a 66 kV (S = 57,4 MVA): con factor de potencia **0,90 son
+Medido en LN-627 con un pico de 502 A a 66 kV (S = 57,4 MVA): con factor de potencia **0,90 son
 219 A —el 44 %— que no transportan energía**. Compensar hasta 0,98 liberaría unos 119 A.
+
+⚠️ **De dónde sale ese 502 A, y qué dice el histórico medido.** Los 502 A son el pico que se usó el
+2026-09-01 para dimensionar el módulo (`99 §ADR-093`), anteriores a que existiera historia horaria.
+Con el primer mes ya cargado (enero de 2026), el **pico horario medido es de 398 A —el 27-01 a las
+16:00, un 55 % de los 718 A**— sobre los veinte días que traen máximo. Las cuentas de arriba se
+mantienen como ejercicio con su cifra original; el número vivo es el del histórico.
 
 **Pérdidas por efecto Joule**, `3 · I² · R · longitud`. Con el Darien AAAC en los 3,03 km de LN-627 y
 502 A: **282 kW a 32 °C · 299 a 50 °C · 337 a 90 °C**. La resistencia sube con la temperatura, así
@@ -551,6 +604,12 @@ empiezan a morder en decenas y centenas de kilómetros. Por eso la cargabilidad 
 ampacidad. Pero la tensión entra por otra puerta: **con la misma potencia, si la tensión baja la
 corriente sube**, y es la corriente la que calienta. Un hueco de tensión no relaja el veredicto: lo
 empeora.
+
+⚠️ **La tensión que llega del SCADA es COMPUESTA (entre fases), no de fase a tierra.** Las tres
+señales son RS, ST y TR: pares de fases. La tensión de cada fase contra tierra vale **√3 = 1,73
+veces menos** (66 kV compuestos ↔ 38,1 kV a tierra). Rotular una como la otra cambia el número en
+un 73 %, y ya se coló una vez en una gráfica (`99 §ADR-118`). Aquí «fase A/B/C» es una comodidad de
+rótulo: lo que se mide es un PAR.
 
 ⚠️ **La banda admisible de tensión NO está declarada** en este sistema, y no se cita de memoria
 (`30 · L-09`). La pantalla publica la desviación respecto a la nominal y deja el veredicto sin
@@ -693,7 +752,8 @@ sin referencia externa, y **quien firma es el Ingeniero, no el software**.
 ## §8.2 — La estructura real de LN-627, derivada de la geometría
 
 El módulo de campo **no guarda ninguna ficha**: nacen vacías, con solo la tensión (66 kV) y el
-conductor (**AAAC Darien** · 559,5 MCM · 19 hilos · Ø 21,79 mm · 283,5 mm² · 545 A). Falta `p_func`
+conductor (**AAAC Darien** · 559,5 MCM · 19 hilos · Ø 21,79 mm · 283,5 mm² · 545 A *del módulo
+original, sin condición declarada: NO es la ampacidad del sistema, que es 718 A ADOPTADA — `§4.2.1`*). Falta `p_func`
 en los 26 apoyos, y sin ella no hay tramos de tensión ni cálculo mecánico.
 
 Se dedujo por **deflexión**, con el mismo criterio del módulo original (<3° suspensión · <15°

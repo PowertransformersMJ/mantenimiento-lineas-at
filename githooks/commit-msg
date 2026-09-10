@@ -1,0 +1,25 @@
+#!/bin/sh
+# ===========================================================
+# 🏭 commit-msg — los nombres REALES tampoco entran por el MENSAJE
+# ===========================================================
+# El pre-commit mira lo que se va a commitear; el MENSAJE no lo miraba nadie, y
+# tres commits del 16 y 17-08 llevan un nombre real de subestación en el suyo,
+# publicados en `origin/main` (`33 · L-07`, 5ª cara · `99 §ADR-125`). La historia
+# pública no se reescribe —nunca fuerza sobre `main`—: esto la cierra hacia
+# delante. Misma lista que el pre-commit, en la BÓVEDA: el guardián es público,
+# la lista no. Sin bóveda montada AVISA y no bloquea, igual que su hermano.
+lista="$(dirname "$0")/../../brain-private/mantenimiento-lineas-at/nombres-que-no-salen.txt"
+if [ ! -f "$lista" ]; then
+  echo "⚠️  bóveda no montada: no se comprobó el MENSAJE del commit (99 §ADR-125)."
+  exit 0
+fi
+patron=$(grep -vE '^\s*(#|$)' "$lista" | paste -sd '|' -)
+[ -n "$patron" ] || exit 0
+if grep -vE '^#' "$1" | grep -qiE "$patron"; then
+  echo ""
+  echo "❌ COMMIT BLOQUEADO: el MENSAJE lleva un nombre o identificador REAL de su red."
+  echo "   Repositorio PÚBLICO: el mensaje queda en la historia para siempre (33 · L-07)."
+  echo "   Reescríbelo con un nombre inventado (/SubA) o sin el nombre."
+  exit 1
+fi
+exit 0

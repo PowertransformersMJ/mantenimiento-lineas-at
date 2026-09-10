@@ -1354,10 +1354,6 @@ function PorLineaDelHistorico({ resumenes }: { resumenes: ResumenDiario[] }) {
 // deducir sin arriesgarse: de qué línea es, qué señal es qué magnitud, y con qué
 // criterio se juntan las tres fases. Ninguna viene decidida de fábrica.
 /**
- * Cuántas señales caben en «esto es la bahía de una línea» antes de que el
- * archivo sea, evidentemente, un volcado del sistema completo.
- */
-/**
  * Cuántas señales de la MISMA magnitud y el MISMO estadístico son legítimas:
  * las tres fases. Una cuarta significa que el archivo trae más de una bahía, y
  * entonces no se asigna nada solo — combinarlas daría la tensión de media
