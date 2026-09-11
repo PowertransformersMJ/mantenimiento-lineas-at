@@ -10642,8 +10642,11 @@ maqueta LOCAL con su dato; decisiones suyas sobre ella: al pulsar un día, *«to
 pantalla sin las tres tablas simulada en su propio Chrome, *«procede»*. Auditoría previa de tres Opus y
 workflow de tres —uno arregla las gráficas hermanas, dos revisan dibujando con su enero real— →
 `research-archive/2026-09-11-eje-de-dias/`.
-**Estado:** ✅ desplegado (`index-CV5i9eHi.js` + `Cargabilidad-CHAPbKAz.js`, servido == construido) ·
-⏳ **verificación EN FRÍO con su sesión pendiente**: se cerró · **NO revisada externamente**.
+**Estado:** ✅ desplegado (`index-CV5i9eHi.js` + `Cargabilidad-CHAPbKAz.js`, servido == construido) y
+**verificado EN FRÍO con su sesión y su dato**: histórico completo = 74 días en el eje, 62 con dato, en dos
+filas, con el 12/08 y el 01/09–11/09 rayados y dichos; pulsar el 05/08 lleva las cinco gráficas a sus 24
+horas —pico de 588 A de la fase S a las 15—; en enero, 31 días, del 03 al 12 y el 30–31 en blanco y
+ninguna línea une el 2 con el 13; las tres tablas, fuera · **NO revisada externamente**.
 
 ### Contexto
 
