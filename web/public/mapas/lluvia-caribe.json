@@ -32,7 +32,7 @@
  "valorMaximoRepresentable": 63.5,
  "medido": {
   "min": 0,
-  "max": 42.38
+  "max": 1.77
  },
  "cuadros": {
   "horas": 24,
@@ -47,61 +47,68 @@
    "archivo": "lluvia-caribe-2026-01.png",
    "dias": 31,
    "horasConDato": 744,
-   "bytes": 2259
+   "bytes": 293
   },
   {
    "clave": "02",
    "archivo": "lluvia-caribe-2026-02.png",
    "dias": 28,
    "horasConDato": 672,
-   "bytes": 3232
+   "bytes": 404
   },
   {
    "clave": "03",
    "archivo": "lluvia-caribe-2026-03.png",
    "dias": 31,
    "horasConDato": 744,
-   "bytes": 1578
+   "bytes": 192
   },
   {
    "clave": "04",
    "archivo": "lluvia-caribe-2026-04.png",
    "dias": 30,
    "horasConDato": 720,
-   "bytes": 3704
+   "bytes": 390
   },
   {
    "clave": "05",
    "archivo": "lluvia-caribe-2026-05.png",
    "dias": 31,
    "horasConDato": 744,
-   "bytes": 2651
+   "bytes": 282
   },
   {
    "clave": "06",
    "archivo": "lluvia-caribe-2026-06.png",
    "dias": 30,
    "horasConDato": 720,
-   "bytes": 3772
+   "bytes": 354
   },
   {
    "clave": "07",
    "archivo": "lluvia-caribe-2026-07.png",
    "dias": 31,
    "horasConDato": 744,
-   "bytes": 2957
+   "bytes": 309
   },
   {
    "clave": "08",
    "archivo": "lluvia-caribe-2026-08.png",
    "dias": 31,
-   "horasConDato": 720,
-   "bytes": 4888
+   "horasConDato": 744,
+   "bytes": 260
+  },
+  {
+   "clave": "09",
+   "archivo": "lluvia-caribe-2026-09.png",
+   "dias": 30,
+   "horasConDato": 192,
+   "bytes": 150
   }
  ],
- "ultimoDiaConHoras": "2026-08-30",
- "ultimoDiaConTotal": "2026-08-30",
- "construido": "2026-09-02T12:47:21.845Z",
+ "ultimoDiaConHoras": "2026-09-08",
+ "ultimoDiaConTotal": "2026-09-08",
+ "construido": "2026-09-11T12:50:12.644Z",
  "resumenDiario": [
   {
    "d": "2026-01-01",
@@ -1070,6 +1077,42 @@
   {
    "d": "2026-08-30",
    "v": 4.23
+  },
+  {
+   "d": "2026-08-31",
+   "v": 4.45
+  },
+  {
+   "d": "2026-09-01",
+   "v": 5.06
+  },
+  {
+   "d": "2026-09-02",
+   "v": 5.62
+  },
+  {
+   "d": "2026-09-03",
+   "v": 4.42
+  },
+  {
+   "d": "2026-09-04",
+   "v": 3.62
+  },
+  {
+   "d": "2026-09-05",
+   "v": 3.46
+  },
+  {
+   "d": "2026-09-06",
+   "v": 3.16
+  },
+  {
+   "d": "2026-09-07",
+   "v": 2.21
+  },
+  {
+   "d": "2026-09-08",
+   "v": 2.15
   }
  ],
  "resumenDiarioEtiqueta": "Total del día",
