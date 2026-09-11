@@ -95,13 +95,20 @@
    "clave": "08",
    "archivo": "viento-caribe-2026-08.png",
    "dias": 31,
-   "horasConDato": 720,
-   "bytes": 20804
+   "horasConDato": 744,
+   "bytes": 21460
+  },
+  {
+   "clave": "09",
+   "archivo": "viento-caribe-2026-09.png",
+   "dias": 30,
+   "horasConDato": 192,
+   "bytes": 5609
   }
  ],
- "ultimoDiaConHoras": "2026-08-30",
- "ultimoDiaConTotal": "2026-08-30",
- "construido": "2026-09-02T12:47:25.700Z",
+ "ultimoDiaConHoras": "2026-09-08",
+ "ultimoDiaConTotal": "2026-09-08",
+ "construido": "2026-09-11T12:50:11.665Z",
  "resumenDiario": [
   {
    "d": "2026-01-01",
@@ -1070,6 +1077,42 @@
   {
    "d": "2026-08-30",
    "v": 12.67
+  },
+  {
+   "d": "2026-08-31",
+   "v": 10.4
+  },
+  {
+   "d": "2026-09-01",
+   "v": 11.45
+  },
+  {
+   "d": "2026-09-02",
+   "v": 10.4
+  },
+  {
+   "d": "2026-09-03",
+   "v": 11.27
+  },
+  {
+   "d": "2026-09-04",
+   "v": 11.41
+  },
+  {
+   "d": "2026-09-05",
+   "v": 11.23
+  },
+  {
+   "d": "2026-09-06",
+   "v": 12.6
+  },
+  {
+   "d": "2026-09-07",
+   "v": 9.97
+  },
+  {
+   "d": "2026-09-08",
+   "v": 16.09
   }
  ],
  "resumenDiarioEtiqueta": "Máxima del día",
