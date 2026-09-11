@@ -142,9 +142,10 @@ mantenimiento-lineas-at/
 │                                → 3,5 MB. Exige el patrón de la bahía a propósito —adivinarla
 │                                sería elegir por él de qué línea son los datos— y NO toca sus
 │                                originales. `node herramientas/extraer-bahia.mjs <origen> <destino> <patrón>`
-├── herramientas/juntar-por-dia.mjs 📅 **PASO 2** (ADR-119/126): un archivo por DÍA y ESTADÍSTICO
+├── herramientas/juntar-por-dia.mjs 📅 **PASO 2** (ADR-119/126/127): un archivo por DÍA y ESTADÍSTICO
 │                                (enero 902 → 99 · febrero 1.060 → 108). Ni un número se toca. El día
-│                                sale del EJE, leído con la MISMA regla que la pantalla; el
+│                                sale del EJE, leído con la MISMA regla que la pantalla —y el orden de
+│                                la fecha de TODA la carga, con `ordenDeLaCarga` del núcleo—; el
 │                                estadístico, del nombre. Los «(1)» idénticos se escriben UNA vez; la
 │                                misma señal con valores distintos, o un archivo apartado, se NOMBRA y
 │                                sale con error. Exige destino VACÍO: no borra nada. Prueba:

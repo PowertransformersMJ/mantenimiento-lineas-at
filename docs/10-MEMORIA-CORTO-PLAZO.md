@@ -93,7 +93,7 @@ Todo EN PRODUCCIÓN y **verificado en vivo con su sesión**.
 
 | # | Qué | Dónde está el plan |
 |---|---|---|
-| **TODO-102** 🔴 | ① **FEBRERO procesado** (27 días, 108 archivos): falta CARGARLO con su sesión · ② las gráficas HERMANAS del módulo y las barras del Atlas siguen con las reglas viejas · ④ sondas 3·4·7 del cerebro (`§ADR-121`) | `99 §ADR-125/126` |
+| **TODO-102** 🔴 | ① **FEBRERO**: la pantalla lo lee limpio (10-09); falta GUARDARLO con su sesión · ② gráficas HERMANAS y barras del Atlas, con las reglas viejas · ④ sondas 3·4·7 (`§ADR-121`) · ⑤ los ceros al final miran solo el día 1 | `99 §ADR-125/126/127` |
 | **TODO-70** | **Cerrar la ola de la ficha.** Queda SOLO ③: el gesto «Confirmo este dato», que exige su propio molde | `99 §ADR-030/032/033/038` |
 | **TODO-66** | **Que una acción pruebe que FUNCIONÓ**, no solo que se hizo: verificación posterior con fecha | `99 §ADR-026` |
 | **TODO-50** | **Blindaje**: ✅ F1 · ✅ F2a · ✅ F3 · **2b Google**: ✅ código · ✅ consola | `99 §ADR-019/024/100` |

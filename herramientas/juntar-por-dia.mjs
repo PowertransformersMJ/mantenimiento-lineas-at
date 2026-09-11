@@ -54,7 +54,7 @@ import { readdirSync, readFileSync, writeFileSync, mkdirSync, statSync, existsSy
 import { join, basename } from 'node:path';
 import { celdasDeCsv, separadorDe } from '../importar/csv.js';
 import {
-  encontrarEjeDeTiempo, estadisticoDeNombre, esArchivoDeCalidad,
+  encontrarEjeDeTiempo, estadisticoDeNombre, esArchivoDeCalidad, ordenDeLaCarga,
 } from '../nucleo/cargabilidadAncho.js';
 
 const [origen, destino] = process.argv.slice(2);
@@ -135,7 +135,7 @@ for (const p of archivos(origen)) {
   // ⚠️ Si el eje no es el MISMO, no se juntan: alinear dos rejillas es
   // interpolar, y una medida interpolada no la tomó nadie.
   if (g.eje !== lineas[0]) { apartar(`su eje de tiempo no es idéntico al de «${g.primero}»`); continue; }
-  ordenes.push({ nombre, orden: eje.orden.orden, seguro: eje.orden.seguro });
+  ordenes.push({ nombre, orden: eje.orden });
   for (const fila of lineas.slice(1)) {
     g.leidas += 1;
     const et = etiquetaDe(fila, eje.primeraColumna, separador) || '(sin etiqueta)';
@@ -147,13 +147,17 @@ for (const p of archivos(origen)) {
 }
 
 // ── ¿Día/mes o mes/día? Lo que DEMUESTRA un archivo vale para todo el mes ─────
-const demostrado = new Set(ordenes.filter((o) => o.seguro).map((o) => o.orden));
-const supuestos = ordenes.filter((o) => !o.seguro);
-if (demostrado.size > 1 || (supuestos.length && [...demostrado].some((o) => o !== 'dmy'))) {
+// ⚠️ La regla es del NÚCLEO (`99 §ADR-127`): `ordenDeLaCarga` decide aquí y en la
+// pantalla, así que lo que el paso 2 rechaza, la pantalla también lo rechaza.
+// Hasta el 10-09 vivía escrita aquí, y la pantalla aceptaba lo que esto negaba.
+const carga = ordenDeLaCarga(ordenes);
+const demostrado = carga.demostrados;
+const supuestos = carga.sinPrueba;
+if (carga.mezcla) {
   console.log(`❌ NO SE ESCRIBE NADA: el orden de la fecha no es el mismo en todos los archivos.`);
-  console.log(`   Lo demuestran: ${[...demostrado].join(' y ')}. Y ${supuestos.length} archivo(s) no traen `
+  console.log(`   Lo demuestran: ${demostrado.join(' y ')}. Y ${supuestos.length} archivo(s) no traen `
     + 'prueba y se leerían día/mes, como los lee la pantalla: alguno quedaría fechado al revés.');
-  for (const o of ordenes.filter((x) => x.seguro && x.orden !== 'dmy').slice(0, 5)) {
+  for (const o of carga.conPrueba.filter((x) => x.orden !== 'dmy').slice(0, 5)) {
     console.log(`   · «${o.nombre}» demuestra ${o.orden}`);
   }
   process.exit(1);
@@ -176,8 +180,8 @@ console.log(`${dias.size} día(s) distintos, según lo que declara el DATO`);
 const porEst = new Map();
 for (const k of escritos) { const [e] = k.split('-'); porEst.set(e, (porEst.get(e) ?? 0) + 1); }
 console.log(`   ${[...porEst].sort().map(([e, n]) => `${e}: ${n} día(s)`).join(' · ')}`);
-const nSeguros = ordenes.filter((o) => o.seguro).length;
-console.log(`   fecha: ${nSeguros} archivo(s) demuestran ${[...demostrado].join('/') || '—'}; `
+const nSeguros = carga.conPrueba.length;
+console.log(`   fecha: ${nSeguros} archivo(s) demuestran ${demostrado.join('/') || '—'}; `
   + `${supuestos.length} sin prueba, leídos día/mes como la pantalla`);
 
 console.log(`\n${leidas} fila(s) de señal leídas = ${escritas} escritas + ${repetidas} repetida(s) idéntica(s)`

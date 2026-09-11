@@ -496,10 +496,14 @@ describe('la pantalla no asigna sola un volcado del sistema entero', () => {
     // ninguna es ambigua (`99 §ADR-117`). Lo que hay que impedir es COMBINAR:
     // tres señales de la misma magnitud y el mismo estadístico son las tres
     // fases; una cuarta significa que el archivo trae más de una bahía.
-    assert.match(pantalla, /const FASES_POR_MAGNITUD = 3;/,
+    // ⚠️ Desde el `§ADR-127` el umbral y la cuenta viven en el NÚCLEO, con prueba
+    // de oro: en la pantalla se contaban solo sobre el primer día.
+    const nucleo = readFileSync(new URL('../nucleo/cargabilidadAncho.js', import.meta.url), 'utf8');
+    assert.match(nucleo, /export const FASES_POR_MAGNITUD = 3;/,
       'sin umbral declarado, la decisión vuelve a estar escondida en un `if`');
-    assert.match(pantalla, /cubos\.set\(k,/,
+    assert.match(nucleo, /cubos\.set\(k,/,
       'se cuenta por magnitud + estadístico, no el total de señales');
+    assert.match(pantalla, /revisarFasesPorDia\(/, 'y la pantalla se lo pregunta al núcleo');
     assert.match(pantalla, /ambiguo\s*\n?\s*\?\s*Object\.fromEntries/,
       'y el ambiguo tiene que sembrar el mapa de asignaciones en null');
   });
@@ -577,5 +581,258 @@ describe('las fases sobreviven al registro', () => {
     const h0 = registrosDesdeAncho(m, { linea: 'LN-627' }).registros[0];
     assert.equal(h0.corrienteR_A, 271);
     assert.equal(h0.criterioFase, null, 'declarar un criterio donde no se combinó nada sería ruido');
+  });
+});
+
+// ============================================================================
+// UNA CARGA DE VARIOS DÍAS SE REVISA, SE ASIGNA Y SE FECHA ENTERA (`99 §ADR-127`)
+// ----------------------------------------------------------------------------
+// La revisión del `§ADR-126` dejó tres fallos latentes en la pantalla, y la
+// reescritura destapó un cuarto. Los cuatro tienen la misma forma: una decisión
+// tomada mirando SOLO el primer día —o SOLO un archivo— y aplicada después a
+// todos. Ninguno da error: dan un día mal fechado, una señal cambiada por otra o
+// un estadístico metido en otro. Cada uno lleva aquí el caso que lo demuestra,
+// en los dos sentidos: el fallo como era y el arreglo (`30 · L-68`).
+// Etiquetas INVENTADAS: este repositorio es público (`33 · L-07`).
+// ============================================================================
+import {
+  estadisticoPorFilaCorregido, FASES_POR_MAGNITUD, ordenDeLaCarga, registrosDeVariosDias,
+  revisarFasesPorDia, unirPorDia,
+} from '../nucleo/cargabilidadAncho.js';
+
+const HORAS = (dia) => ['', `${dia} 0:00`, `${dia} 1:00`, `${dia} 2:00`];
+const SEN = (senal, v) => [`/SubX /BAHIA-9/${senal} /Momento`, ...v];
+
+describe('① el tope de «tres fases por magnitud» se mira en TODOS los días', () => {
+  const dia2 = { fecha: '2026-02-02', matriz: [HORAS('2/02/26'),
+    SEN('I R', [100, 101, 102]), SEN('I S', [110, 111, 112]), SEN('I T', [120, 121, 122])],
+  estadisticoPorFila: { 1: 'maximo', 2: 'maximo', 3: 'maximo' } };
+  // El día 3 trae la fase R DOS veces: el archivo «(1)» de `33 · L-86`.
+  const dia3 = { fecha: '2026-02-03', matriz: [HORAS('3/02/26'),
+    SEN('I R', [200, 201, 202]), SEN('I S', [210, 211, 212]), SEN('I T', [220, 221, 222]),
+    SEN('I R', [200, 201, 202])],
+  estadisticoPorFila: { 1: 'maximo', 2: 'maximo', 3: 'maximo', 4: 'maximo' } };
+
+  test('el umbral son las tres fases, y lo declara el núcleo: no un `if` de la pantalla', () => {
+    assert.equal(FASES_POR_MAGNITUD, 3);
+  });
+
+  test('⚠️ el primer día, solo, está limpio — por eso mirar solo el primero era el fallo', () => {
+    assert.equal(revisarFasesPorDia([dia2]).ambiguo, false);
+  });
+
+  test('con todos los días, la cuarta corriente del día 3 se ve y se nombra', () => {
+    const r = revisarFasesPorDia([dia2, dia3]);
+    assert.equal(r.ambiguo, true);
+    assert.equal(r.excesos.length, 1);
+    assert.equal(r.excesos[0].fecha, '2026-02-03');
+    assert.equal(r.excesos[0].campo, 'corriente_A');
+    assert.equal(r.excesos[0].estadistico, 'maximo');
+    assert.equal(r.excesos[0].senales, 4);
+    assert.match(r.excesos[0].porQue, /2026-02-03/);
+  });
+
+  test('⚠️ y una fase REPETIDA se ve aunque falte otra: tres señales no bastan para estar tranquilos', () => {
+    // Febrero trae días a los que les falta una fase (`§ADR-126`). Si uno de ésos
+    // trae además un «(1)», son TRES corrientes —pasan el tope— y dos son la R.
+    const cojo = { fecha: '2026-02-06', matriz: [HORAS('6/02/26'),
+      SEN('I R', [300, 301, 302]), SEN('I S', [310, 311, 312]), SEN('I R', [300, 301, 302])],
+    estadisticoPorFila: { 1: 'maximo', 2: 'maximo', 3: 'maximo' } };
+    const r = revisarFasesPorDia([dia2, cojo]);
+    assert.equal(r.ambiguo, true);
+    assert.equal(r.excesos[0].fase, 'R');
+    assert.match(r.excesos[0].porQue, /fase R/);
+  });
+
+  test('el mismo sensor en DOS estadísticos no es una fase de más', () => {
+    const conPromedio = { ...dia2,
+      matriz: [...dia2.matriz, SEN('I R', [90, 91, 92]), SEN('I S', [95, 96, 97]), SEN('I T', [98, 99, 97])],
+      estadisticoPorFila: { 1: 'maximo', 2: 'maximo', 3: 'maximo', 4: 'promedio', 5: 'promedio', 6: 'promedio' } };
+    assert.equal(revisarFasesPorDia([conPromedio]).ambiguo, false);
+  });
+
+  test('las etiquetas salen de TODOS los días: la que solo trae el día 3 también se siembra', () => {
+    const conActiva = { ...dia3, matriz: [HORAS('3/02/26'), SEN('I R', [1, 2, 3]), SEN('MW', [5, 6, 7])],
+      estadisticoPorFila: { 1: 'maximo', 2: 'maximo' } };
+    const { etiquetas } = revisarFasesPorDia([dia2, conActiva]);
+    assert.ok(etiquetas.includes('/SubX /BAHIA-9/MW /Momento'));
+  });
+});
+
+describe('② la asignación a mano viaja por ETIQUETA, no por número de fila', () => {
+  // El mismo par de días con las filas en OTRO orden: así llegan de verdad,
+  // porque cada día se une en el orden en que se leyeron sus archivos.
+  const d2 = { fecha: '2026-02-02', matriz: [HORAS('2/02/26'),
+    SEN('I R', [100, 101, 102]), SEN('I S', [110, 111, 112]), SEN('I T', [120, 121, 122])] };
+  const d3 = { fecha: '2026-02-03', matriz: [HORAS('3/02/26'),
+    SEN('I T', [220, 221, 222]), SEN('I R', [200, 201, 202]), SEN('I S', [210, 211, 212])] };
+
+  test('⚠️ el fallo: la fila del día 2 aplicada al día 3 quita OTRA señal, sin un error', () => {
+    // «No usar» sobre la S del día 2, que es su fila 2. En el día 3 la fila 2 es la R.
+    const h = registrosDesdeAncho(d3.matriz, { linea: 'LN-X', asignado: { 2: null } }).registros[0];
+    assert.equal(h.corrienteR_A, null, 'quitó la R');
+    assert.equal(h.corrienteS_A, 210, 'y dejó la S que se quería quitar');
+  });
+
+  test('por etiqueta, la S sale de los DOS días y el resto se queda', () => {
+    const r = registrosDeVariosDias([d2, d3], {
+      linea: 'LN-X', asignadoPorEtiqueta: { '/SubX /BAHIA-9/I S /Momento': null },
+    });
+    assert.equal(r.registros.length, 6);
+    const h2 = r.registros[0]; const h3 = r.registros[3];
+    assert.equal(h2.fecha, '2026-02-02');
+    assert.equal(h3.fecha, '2026-02-03');
+    for (const h of [h2, h3]) assert.equal(h.corrienteS_A, null);
+    assert.equal(h2.corrienteR_A, 100);
+    assert.equal(h2.corrienteT_A, 120);
+    assert.equal(h3.corrienteR_A, 200);
+    assert.equal(h3.corrienteT_A, 220);
+    assert.equal(h3.corriente_A, 220, 'la más cargada de las que quedan');
+  });
+
+  test('la asignación por fila NO se acepta con varios días: se niega en vez de aplicarse mal', () => {
+    assert.throws(() => registrosDeVariosDias([d2, d3], { linea: 'LN-X', asignado: { 2: null } }),
+      /número de fila/);
+  });
+
+  test('la lista de señales es la de la carga ENTERA, no la del primer día', () => {
+    const d4 = { fecha: '2026-02-04', matriz: [HORAS('4/02/26'), SEN('I R', [1, 2, 3]), SEN('MW', [5, 6, 7])] };
+    const r = registrosDeVariosDias([d2, d4], { linea: 'LN-X' });
+    const etiquetas = r.senalesDeLaCarga.map((s) => s.etiqueta);
+    assert.ok(etiquetas.includes('/SubX /BAHIA-9/MW /Momento'),
+      'una señal que solo trae el día 4 se tiene que poder ver y quitar');
+    assert.equal(etiquetas.filter((e) => e.includes('/I R ')).length, 1,
+      'y la que traen los dos días sale UNA vez');
+    assert.deepEqual(r.senalesDeLaCarga.find((s) => s.etiqueta.includes('/I R ')).fechas,
+      ['2026-02-02', '2026-02-04']);
+  });
+});
+
+describe('③ día/mes o mes/día se decide en la CARGA ENTERA', () => {
+  const archivo = (nombre, dia) => ({ nombre, matriz: [HORAS(dia), SEN('I R', [1, 2, 3])] });
+
+  test('⚠️ el fallo: cada archivo, solo, se lee «bien», y juntos doce días caen en otro mes', () => {
+    assert.equal(encontrarEjeDeTiempo(archivo('a', '1/05/26').matriz).instantes[0].fecha, '2026-05-01',
+      'solo, el 1/05 es el 1 de mayo');
+    assert.equal(encontrarEjeDeTiempo(archivo('b', '1/13/26').matriz).instantes[0].fecha, '2026-01-13',
+      'y el 1/13 de la misma carga demuestra mes/día');
+  });
+
+  test('la carga mezclada se NIEGA, y dice qué archivo lo demuestra', () => {
+    assert.throws(() => unirPorDia([archivo('max-a.csv', '1/05/26'), archivo('max-b.csv', '1/13/26')]),
+      /«max-b\.csv» demuestra mes\/día/);
+  });
+
+  test('dos archivos que demuestran órdenes OPUESTOS también se niegan', () => {
+    assert.throws(() => unirPorDia([archivo('a.csv', '13/01/26'), archivo('b.csv', '1/13/26')]),
+      /día\/mes y otros mes\/día/);
+  });
+
+  test('un mes día/mes con días sin prueba se carga, y dice que lo DEMUESTRA', () => {
+    const u = unirPorDia([archivo('a.csv', '5/02/26'), archivo('b.csv', '15/02/26')]);
+    assert.deepEqual(u.fechas, ['2026-02-05', '2026-02-15']);
+    assert.equal(u.ordenDeFecha.orden, 'dmy');
+    assert.equal(u.ordenDeFecha.seguro, true);
+    assert.equal(u.ordenDeFecha.mezcla, false);
+  });
+
+  test('sin ninguna prueba se lee día/mes, y se dice que es una SUPOSICIÓN', () => {
+    const u = unirPorDia([archivo('a.csv', '5/02/26'), archivo('b.csv', '6/02/26')]);
+    assert.equal(u.ordenDeFecha.seguro, false);
+    assert.match(u.ordenDeFecha.porQue, /suposición/);
+  });
+
+  test('un tramo entero mes/día, sin días ambiguos, se lee mes/día', () => {
+    const u = unirPorDia([archivo('a.csv', '1/13/26'), archivo('b.csv', '1/14/26')]);
+    assert.deepEqual(u.fechas, ['2026-01-13', '2026-01-14']);
+  });
+
+  test('el serial de Excel no es ambiguo: no cuenta como archivo «sin prueba»', () => {
+    const r = ordenDeLaCarga([
+      { nombre: 'serial.xlsx', orden: ordenDeFecha([46225, 46225.04]) },
+      { nombre: 'b.csv', orden: ordenDeFecha(['1/13/26 0:00']) },
+    ]);
+    assert.equal(r.mezcla, false);
+    assert.deepEqual(r.sinPrueba, []);
+  });
+});
+
+describe('④ el estadístico corregido a mano vale para SU archivo, en todos los días', () => {
+  // Un archivo cuyo nombre no dice qué estadístico trae se corrige en pantalla.
+  // La corrección se aplicaba SOLO al día 1 —y dentro de él a todo archivo con
+  // el mismo estadístico DETECTADO—; los demás días seguían sin estadístico, y
+  // una señal sin estadístico entra en TODOS los que se guardan.
+  const d = unirPorDia([
+    { nombre: 'ir_max-a.csv', matriz: [HORAS('2/02/26'), SEN('I R', [100, 101, 102])] },
+    { nombre: 'ir-a.csv', matriz: [HORAS('2/02/26'), SEN('I R', [60, 61, 62])] },
+    { nombre: 'ir_max-b.csv', matriz: [HORAS('3/02/26'), SEN('I R', [200, 201, 202])] },
+    { nombre: 'ir-b.csv', matriz: [HORAS('3/02/26'), SEN('I R', [70, 71, 72])] },
+  ]);
+  const corregido = { 'ir-a.csv': 'minimo', 'ir-b.csv': 'minimo' };
+  const dias = d.porDia.map((x) => ({
+    fecha: x.fecha, matriz: x.union.matriz,
+    estadisticoPorFila: estadisticoPorFilaCorregido(x.union.senales, corregido),
+  }));
+
+  test('⚠️ el fallo: sin la corrección, el archivo sin marca entra también en el MÁXIMO', () => {
+    const crudo = d.porDia.map((x) => ({
+      fecha: x.fecha, matriz: x.union.matriz, estadisticoPorFila: x.union.estadisticoPorFila,
+    }));
+    const r = registrosDeVariosDias(crudo, { linea: 'LN-X', estadistico: 'maximo' });
+    assert.equal(r.registros[3].criterioFase, 'maxima',
+      'el día 3: dos «fases R» combinadas — el mínimo metido dentro del máximo');
+  });
+
+  test('corregido archivo a archivo, el máximo es solo el máximo, los dos días', () => {
+    const r = registrosDeVariosDias(dias, { linea: 'LN-X', estadistico: 'maximo' });
+    assert.deepEqual(r.registros.map((h) => h.corrienteR_A), [100, 101, 102, 200, 201, 202]);
+    assert.ok(r.registros.every((h) => h.criterioFase == null), 'una sola señal: nada combinado');
+    const m = registrosDeVariosDias(dias, { linea: 'LN-X', estadistico: 'minimo' });
+    assert.deepEqual(m.registros.map((h) => h.corrienteR_A), [60, 61, 62, 70, 71, 72]);
+  });
+
+  test('⚠️ dos archivos sin marca corregidos a estadísticos DISTINTOS no se confunden', () => {
+    const u = unirAnchas([
+      { nombre: 'x.csv', matriz: [HORAS('2/02/26'), SEN('I R', [1, 2, 3])] },
+      { nombre: 'y.csv', matriz: [HORAS('2/02/26'), SEN('I S', [4, 5, 6])] },
+    ]);
+    const porFila = estadisticoPorFilaCorregido(u.senales, { 'x.csv': 'maximo', 'y.csv': 'promedio' });
+    assert.deepEqual(Object.values(porFila), ['maximo', 'promedio'],
+      'el mapa iba por estadístico DETECTADO: los dos «sin marca» caían en el mismo');
+  });
+
+  test('«no lo dice» elegido a mano deja el archivo SIN estadístico, como lo cuenta la pantalla', () => {
+    const porFila = estadisticoPorFilaCorregido(d.porDia[0].union.senales, { 'ir_max-a.csv': '' });
+    assert.equal(porFila[1], null);
+  });
+});
+
+// ── Y la PANTALLA, que es quien las llama (`30 · L-28`: lo que nadie llama no existe)
+describe('la pantalla lee la carga ENTERA, no el primer día (`99 §ADR-127`)', () => {
+  const pantalla = readFileSync(new URL('../web/src/componentes/Cargabilidad.tsx', import.meta.url), 'utf8');
+
+  test('① la revisión de fases recibe TODOS los días', () => {
+    assert.match(pantalla, /const revision = revisarFasesPorDia\(diasARevisar\)/);
+    assert.match(pantalla, /const diasARevisar = [\s\S]{0,200}dias\.porDia\.map/,
+      'el conteo sobre `dias.porDia[0]` era el fallo');
+    assert.doesNotMatch(pantalla, /porFilaEst\[/, 'la cuenta vieja, en la pantalla, no vuelve');
+  });
+
+  test('② ninguna lectura aplica la asignación por fila: todas van por etiqueta', () => {
+    assert.doesNotMatch(pantalla, /registrosDesdeAncho\(/,
+      'toda lectura de la carga pasa por registrosDeVariosDias');
+    assert.equal((pantalla.match(/asignadoPorEtiqueta: asignado/g) ?? []).length, 2,
+      'lo que se MIRA y lo que se GUARDA, con la misma asignación');
+    assert.match(pantalla, /\[s\.etiqueta\]: e\.target\.value \|\| null/);
+  });
+
+  test('③ cómo se leyó la fecha se ENSEÑA', () => {
+    assert.match(pantalla, /cargado\.ordenDeFecha/);
+  });
+
+  test('④ el estadístico corregido va por archivo en todos los días, y sin él no se guarda', () => {
+    assert.match(pantalla, /estadisticoPorFilaCorregido\(d\.anotadas, corregido\)/);
+    assert.match(pantalla, /if \(cargado\.ancho && sinResolver\.length\)/,
+      '«No se guardan así» era una promesa que nadie cumplía');
   });
 });

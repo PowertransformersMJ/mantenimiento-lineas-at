@@ -48,8 +48,9 @@ import {
   tramosDeLinea, x, y, type Direccion,
 } from '../vistas/cargabilidadVista';
 import {
-  cerosAlFinal, CRITERIOS_DE_FASE, encontrarEjeDeTiempo, leerSenales, pareceAncho,
-  campoDeSenal, estadisticoDeNombre, registrosDesdeAncho, unirAnchas, unirPorDia,
+  cerosAlFinal, CRITERIOS_DE_FASE, encontrarEjeDeTiempo, estadisticoDeNombre, estadisticoPorFilaCorregido,
+  FASES_POR_MAGNITUD, leerSenales, ordenDeLaCarga, pareceAncho, registrosDeVariosDias, revisarFasesPorDia,
+  unirAnchas, unirPorDia,
 } from '@lineas/nucleo/cargabilidadAncho';
 import { desempaquetarDia, empaquetarPorDia, ESTADISTICOS, resumirDia } from '@lineas/nucleo/cargabilidad';
 import {
@@ -106,8 +107,25 @@ interface Cargado {
    * agrupan por la fecha de su nombre y cada día se une con los suyos; la
    * exigencia no se relaja, se aplica donde tiene sentido.
    */
-  porDia: { fecha: string | null; matriz: Celda[][]; estadisticoPorFila: Record<number, string | null> }[];
+  porDia: {
+    fecha: string | null; matriz: Celda[][]; estadisticoPorFila: Record<number, string | null>;
+    /** De qué ARCHIVO salió cada fila: la corrección del estadístico va por archivo (`99 §ADR-127`). */
+    anotadas: Anotada[];
+  }[];
+  /** Lo mismo para la carga de UN día con varios archivos; `null` con un archivo solo. */
+  anotadas: Anotada[] | null;
+  /**
+   * CÓMO SE LEYÓ LA FECHA, en la carga entera (`99 §ADR-127`). Se ENSEÑA: un
+   * archivo de un día del 1 al 12 no demuestra nada, y leerlo día/mes es una
+   * suposición que hay que decir, no un hecho.
+   */
+  ordenDeFecha: ReturnType<typeof ordenDeLaCarga> | null;
+  /** Qué días traen más señales de las que caben en una magnitud. Se NOMBRAN. */
+  revision: ReturnType<typeof revisarFasesPorDia>;
 }
+
+/** Una fila de la matriz unida: de qué archivo salió y qué estadístico dice su nombre. */
+type Anotada = { fila: number; nombre: string; estadistico: string | null };
 
 /** Bajar un texto como archivo. El navegador ya sabe; solo hay que pedírselo. */
 function descargar(nombre: string, texto: string) {
@@ -159,7 +177,12 @@ export default function Cargabilidad({
   /** Lo que hace falta cuando el archivo viene TRANSPUESTO, de SCADA. */
   const [linea, setLinea] = useState<string>(lineaAbierta ?? '');
   const [criterioFase, setCriterioFase] = useState('maxima');
-  const [asignado, setAsignado] = useState<Record<number, string | null>>({});
+  /**
+   * QUÉ SEÑAL ES QUÉ, por ETIQUETA (`99 §ADR-127`). Iba por número de fila del
+   * primer día y se aplicaba a todos: cada día trae sus filas en otro orden, así
+   * que quitar la fase S del día 1 quitaba, en otro día, la R.
+   */
+  const [asignado, setAsignado] = useState<Record<string, string | null>>({});
   /**
    * EL ESTADÍSTICO (`99 §ADR-112`). Dos estados, y son cosas distintas:
    *  · `corregido`  — lo que el Ingeniero declara de un archivo cuyo nombre no
@@ -207,7 +230,10 @@ export default function Cargabilidad({
 
       const varios = leidos.length > 1;
       const entradas = leidos.map((x) => ({ nombre: x.nombre, matriz: x.matriz }));
-      const dias = varios ? unirPorDia(entradas) : { porDia: [], fechas: [] };
+      // ⚠️ `unirPorDia` mira además el orden de la fecha en la carga ENTERA y, si
+      // un archivo demuestra mes/día y otros se leerían día/mes, se NIEGA con sus
+      // nombres: esa negativa llega aquí como `fallo` y no se carga nada (`99 §ADR-127`).
+      const dias = varios ? unirPorDia(entradas) : { porDia: [], fechas: [], ordenDeFecha: null };
       // Un solo día —o archivos sin fecha en el nombre— sigue el camino de
       // siempre; varios se procesan uno a uno y se concatenan.
       const variosDias = dias.porDia.length > 1;
@@ -254,20 +280,23 @@ export default function Cargabilidad({
       // ninguna es ambigua. Lo que hay que impedir es COMBINAR: tres señales de
       // la misma magnitud y el mismo estadístico son las tres fases y se
       // combinan bien; más de tres es que el archivo trae media red.
-      const senalesDelArchivo = forma.ancho
-        ? leerSenales(hoja.matriz, encontrarEjeDeTiempo(hoja.matriz))
-        : [];
-      const porFilaEst = union?.estadisticoPorFila ?? {};
-      const cubos = new Map<string, number>();
-      for (const x of senalesDelArchivo) {
-        const campo = campoDeSenal(x.etiqueta)?.campo;
-        if (!campo) continue;
-        const k = `${campo}|${porFilaEst[x.fila] ?? '—'}`;
-        cubos.set(k, (cubos.get(k) ?? 0) + 1);
-      }
-      const ambiguo = [...cubos.values()].some((n) => n > FASES_POR_MAGNITUD);
-      setAsignado(ambiguo
-        ? Object.fromEntries(senalesDelArchivo.map((x) => [x.fila, null]))
+      const ejeDelArchivo = forma.ancho ? encontrarEjeDeTiempo(hoja.matriz) : null;
+      const senalesDelArchivo = ejeDelArchivo ? leerSenales(hoja.matriz, ejeDelArchivo) : [];
+      // ⚠️ LA REVISIÓN MIRA TODOS LOS DÍAS (`99 §ADR-127`). Se contaba sobre
+      // `dias.porDia[0]`, el día más antiguo: un «(1)» del día 14 —una cuarta
+      // corriente— pasaba sin que nadie lo mirara. Medido sobre los archivos de
+      // enero: cuatro días con una fase repetida, y ninguno era el primero. La
+      // cuenta vive en el núcleo, con prueba de oro; aquí solo se pregunta.
+      // Y «no usar» se siembra con las etiquetas de TODA la carga: sembrar solo
+      // las del día 1 dejaba fuera las señales que ese día no traía.
+      const diasARevisar = !forma.ancho ? [] : variosDias
+        ? dias.porDia.map((d) => ({
+          fecha: d.fecha, matriz: d.union.matriz, estadisticoPorFila: d.union.estadisticoPorFila,
+        }))
+        : [{ fecha: null, matriz: hoja.matriz, estadisticoPorFila: union?.estadisticoPorFila ?? null }];
+      const revision = revisarFasesPorDia(diasARevisar);
+      setAsignado(revision.ambiguo
+        ? Object.fromEntries(revision.etiquetas.map((e) => [e, null]))
         : {});
       setLinea(lineaAbierta ?? '');
       setCargado({
@@ -280,6 +309,12 @@ export default function Cargabilidad({
         // Con varios archivos la anotación la trae `unirAnchas`; con uno solo
         // se lee de su nombre. El mismo dato por los dos caminos, no dos verdades.
         estadisticoPorFila: union?.estadisticoPorFila ?? null,
+        anotadas: union?.senales ?? null,
+        // Con un archivo solo, su propio eje; con varios, la carga entera.
+        ordenDeFecha: dias.ordenDeFecha ?? (ejeDelArchivo
+          ? ordenDeLaCarga([{ nombre: leidos[0].nombre, orden: ejeDelArchivo.ordenDeFecha }])
+          : null),
+        revision,
         // ⚠️ DE TODOS LOS DÍAS, no del primero (`99 §ADR-119`). Se calculaba
         // sobre `union`, que es el día más antiguo, y de ahí salían los
         // estadísticos «presentes» — que es lo que decide QUÉ SE GUARDA. Con un
@@ -306,6 +341,7 @@ export default function Cargabilidad({
         porDia: variosDias
           ? dias.porDia.map((d) => ({
             fecha: d.fecha, matriz: d.union.matriz, estadisticoPorFila: d.union.estadisticoPorFila,
+            anotadas: d.union.senales,
           }))
           : [],
       });
@@ -356,33 +392,44 @@ export default function Cargabilidad({
     return presentes.includes('maximo') ? 'maximo' : (presentes[0] ?? null);
   }, [mirado, presentes]);
 
-  /** De qué estadístico es cada fila de la matriz, con las correcciones aplicadas. */
-  const porFila = useMemo(() => {
-    if (!cargado) return null;
-    if (!cargado.estadisticoPorFila) return null;
-    const deArchivo = new Map(porArchivo.map((a) => [a.estadistico ?? '—', a.resuelto]));
-    return Object.fromEntries(Object.entries(cargado.estadisticoPorFila)
-      .map(([fila, est]) => [fila, deArchivo.get(est ?? '—') ?? est]));
-  }, [cargado, porArchivo]);
+  /**
+   * LOS DÍAS DE LA CARGA, con el estadístico que usted haya corregido aplicado
+   * ARCHIVO POR ARCHIVO y en TODOS los días (`99 §ADR-127`).
+   *
+   * ⚠️ Antes se traducía «estadístico detectado → corregido» y solo en el primer
+   * día: dos archivos sin marca corregidos distinto caían en el mismo, y en los
+   * demás días la fila seguía sin estadístico — que es entrar en TODOS los que
+   * se guardan. Es la misma lista para mirar y para guardar: no dos verdades.
+   */
+  const diasDeLaCarga = useMemo(() => {
+    if (!cargado?.ancho) return [];
+    if (cargado.porDia.length) {
+      return cargado.porDia.map((d) => ({
+        fecha: d.fecha, matriz: d.matriz,
+        estadisticoPorFila: estadisticoPorFilaCorregido(d.anotadas, corregido),
+      }));
+    }
+    return [{
+      fecha: null, matriz: cargado.matriz,
+      estadisticoPorFila: cargado.anotadas ? estadisticoPorFilaCorregido(cargado.anotadas, corregido) : null,
+    }];
+  }, [cargado, corregido]);
 
   // ── Procesar con el mapeo que haya AHORA ──────────────────────────────────
-  /** La lectura ANCHA, cuando toca. Se recalcula al cambiar línea, señal o criterio. */
+  /**
+   * La lectura ANCHA, cuando toca. Se recalcula al cambiar línea, señal o criterio.
+   *
+   * ⚠️ TODOS los días con la MISMA asignación, y por ETIQUETA (`99 §ADR-127`).
+   * Antes el día 1 llevaba la asignación y los demás ninguna —se leían con la
+   * propuesta—, mientras el guardado la aplicaba por número de fila a todos: lo
+   * que se miraba y lo que se guardaba no eran la misma cosa.
+   */
   const ancho = useMemo(() => {
     if (!cargado?.ancho) return null;
-    const uno = registrosDesdeAncho(cargado.matriz, {
-      linea: linea.trim(), asignado, criterioFase,
-      estadistico: verAhora, estadisticoPorFila: porFila,
+    return registrosDeVariosDias(diasDeLaCarga, {
+      linea: linea.trim(), asignadoPorEtiqueta: asignado, criterioFase, estadistico: verAhora,
     });
-    if (!cargado.porDia.length) return uno;
-    // ⚠️ Con varios días, el resto se lee IGUAL y se concatena. Las señales son
-    // las mismas —misma bahía, mismas etiquetas—, así que la asignación vale
-    // para todos; lo único que cambia son los instantes.
-    const resto = cargado.porDia.slice(1).flatMap((d) => registrosDesdeAncho(d.matriz, {
-      linea: linea.trim(), criterioFase,
-      estadistico: verAhora, estadisticoPorFila: d.estadisticoPorFila,
-    }).registros);
-    return { ...uno, registros: [...uno.registros, ...resto] };
-  }, [cargado, linea, asignado, criterioFase, verAhora, porFila]);
+  }, [cargado, diasDeLaCarga, linea, asignado, criterioFase, verAhora]);
 
   const lote = useMemo(() => {
     if (!cargado) return null;
@@ -498,14 +545,23 @@ export default function Cargabilidad({
       // suelta los tres archivos del día, los tres son dato suyo y los tres se
       // escriben, cada uno en SU documento. Guardar solo el visible le haría
       // perder dos tercios de lo que entregó sin que nada se lo dijera.
-      const matrices = cargado?.porDia.length
-        ? cargado.porDia.map((d) => ({ matriz: d.matriz, porFila: d.estadisticoPorFila }))
-        : [{ matriz: cargado?.matriz as Celda[][], porFila }];
-      const todos = cargado?.ancho && presentes.length
-        ? presentes.flatMap((est) => matrices.flatMap((m) => registrosDesdeAncho(m.matriz, {
-          linea: linea.trim(), asignado, criterioFase,
-          estadistico: est, estadisticoPorFila: m.porFila,
-        }).registros))
+      // ⚠️ «NO SE GUARDAN ASÍ» TIENE QUE SER VERDAD (`99 §ADR-127`). La pantalla
+      // lo promete de un archivo sin estadístico. Con un archivo solo ya lo
+      // cumplía el repositorio —sus registros llegan sin estadístico y los
+      // rechaza—, pero con varios no: las señales sin estadístico entran en TODOS
+      // los que se leen, así que llegaban con la identidad del máximo, del
+      // mínimo y del instantáneo a la vez, y el repositorio no tenía qué rechazar.
+      const sinResolver = porArchivo.filter((a) => !a.resuelto);
+      if (cargado.ancho && sinResolver.length) {
+        throw new Error(`${nf(sinResolver.length)} archivo(s) sin decir qué estadístico traen (`
+          + `${sinResolver.slice(0, 3).map((a) => `«${a.nombre}»`).join(', ')}${sinResolver.length > 3 ? '…' : ''}). `
+          + 'Dígalo arriba, en «Qué trae cada archivo», y vuelva a guardar');
+      }
+      // Los mismos días y la misma asignación que se están mirando: no otra lectura.
+      const todos = cargado.ancho && presentes.length
+        ? presentes.flatMap((est) => registrosDeVariosDias(diasDeLaCarga, {
+          linea: linea.trim(), asignadoPorEtiqueta: asignado, criterioFase, estadistico: est,
+        }).registros)
         : (registros as never[]);
 
       const { dias } = empaquetarPorDia(todos as never[]);
@@ -1353,13 +1409,9 @@ function PorLineaDelHistorico({ resumenes }: { resumenes: ResumenDiario[] }) {
 // Aquí se piden las TRES cosas que el archivo no dice y el sistema no puede
 // deducir sin arriesgarse: de qué línea es, qué señal es qué magnitud, y con qué
 // criterio se juntan las tres fases. Ninguna viene decidida de fábrica.
-/**
- * Cuántas señales de la MISMA magnitud y el MISMO estadístico son legítimas:
- * las tres fases. Una cuarta significa que el archivo trae más de una bahía, y
- * entonces no se asigna nada solo — combinarlas daría la tensión de media
- * Colombia en un número (`99 §ADR-105/117`).
- */
-const FASES_POR_MAGNITUD = 3;
+// El umbral de las tres fases —`FASES_POR_MAGNITUD`— y su cuenta viven en el
+// NÚCLEO desde el `§ADR-127`, con prueba de oro: aquí se contaban solo sobre el
+// primer día de la carga (`99 §ADR-105/117/127`).
 
 /** Por encima de esto, la gráfica dibuja la línea sin marcar cada instante. */
 const PUNTOS_VISIBLES = 120;
@@ -1372,20 +1424,26 @@ function SenalesDelScada({
   asignado, alAsignar, porArchivo, presentes, verAhora, alMirar, alCorregir,
 }: {
   cargado: Cargado;
-  ancho: ReturnType<typeof registrosDesdeAncho> | null;
+  ancho: ReturnType<typeof registrosDeVariosDias> | null;
   linea: string; alCambiarLinea: (v: string) => void; lineaAbierta?: string;
   criterioFase: string; alCambiarCriterio: (v: string) => void;
-  asignado: Record<number, string | null>;
-  alAsignar: (a: Record<number, string | null>) => void;
+  asignado: Record<string, string | null>;
+  alAsignar: (a: Record<string, string | null>) => void;
   porArchivo: { nombre: string; senales: number; estadistico: string | null; porQue: string; resuelto: string | null }[];
   presentes: string[];
   verAhora: string | null;
   alMirar: (v: string) => void;
   alCorregir: (nombre: string, v: string) => void;
 }) {
-  const senales = ancho?.senales ?? [];
+  // ⚠️ LAS SEÑALES DE LA CARGA ENTERA, no las del primer día (`99 §ADR-127`).
+  // Medido sobre enero: el primer día trae 23 y la carga 32 —el mínimo no empieza
+  // hasta el 13—. Las que faltaban no se podían ver, ni volver a usar si la
+  // carga nacía en «no usar».
+  const senales = ancho?.senalesDeLaCarga ?? [];
   const ceros = ancho ? cerosAlFinal(ancho.senales, ancho.eje) : null;
-  const fases = senales.filter((s) => s.campo === 'corriente_A' && s.fase).length;
+  // Fases DISTINTAS: la lista trae cada señal una vez por estadístico, y contar
+  // señales diría «las 12 fases» con cuatro estadísticos de tres corrientes.
+  const fases = new Set(senales.filter((s) => s.campo === 'corriente_A' && s.fase).map((s) => s.fase)).size;
 
   /**
    * ⚠️ BUSCAR ENTRE LAS SEÑALES, y no es cosmética (`99 §ADR-105`). Una
@@ -1414,6 +1472,15 @@ function SenalesDelScada({
         No es una tabla: es una <b>matriz transpuesta</b> — {cargado.porQue}. Se lee tal cual, sin
         que usted tenga que reescribirla.
       </p>
+      {/* ⚠️ CÓMO SE LEYÓ LA FECHA, dicho (`99 §ADR-127`). El núcleo lo apuntaba
+          —«se ENSEÑA», dice su comentario— y la pantalla no lo enseñaba: una
+          carga de días del 1 al 12 se leía día/mes sin decir que eso era una
+          suposición. Si la carga lo contradice, ni llega aquí: se niega arriba. */}
+      {cargado.ordenDeFecha?.aplica && (
+        <p className={cargado.ordenDeFecha.seguro ? 'fine' : 'advertencia'}>
+          <b>Cómo se leyó la fecha:</b> {cargado.ordenDeFecha.porQue}.
+        </p>
+      )}
 
       {/* ── 0 · QUÉ ESTADÍSTICO TRAE CADA ARCHIVO (`99 §ADR-112`) ────────────
           ⚠️ Esto va ANTES que nada, porque es lo que decide QUÉ SE ESCRIBE
@@ -1496,6 +1563,19 @@ function SenalesDelScada({
 
       {/* ── 2 · QUÉ SEÑAL ES QUÉ ────────────────────────────────────────── */}
       <p className="mapa-capas-t">Qué señal es qué</p>
+      {/* ⚠️ QUÉ DÍA, Y POR QUÉ (`99 §ADR-127`). La revisión mira todos los días,
+          así que el aviso tiene que decir CUÁL: «hay más de tres» a secas, en
+          un mes de 27 días, obliga a buscarlo a ojo. */}
+      {cargado.revision.ambiguo && (
+        <p className="advertencia">
+          <b>Ninguna señal se usa hasta que usted elija.</b>{' '}
+          {nf(new Set(cargado.revision.excesos.map((x) => x.fecha)).size)} día(s) traen más señales
+          de las que caben en una magnitud: {cargado.revision.excesos.slice(0, 5).map((x) => x.porQue).join(' · ')}
+          {cargado.revision.excesos.length > 5 ? ' · …' : ''}. Si es otra bahía, elija abajo la suya. Si es el
+          mismo archivo bajado dos veces —un «(1)»—, quítelo o páselo por el paso 2: dos señales con la
+          misma etiqueta no se pueden separar aquí, y juntas pesan doble en el promedio.
+        </p>
+      )}
       <label className="calc-campo">
         <span>Buscar la señal</span>
         <input type="search" value={busca} onChange={(e) => setBusca(e.target.value)}
@@ -1506,20 +1586,20 @@ function SenalesDelScada({
           <button type="button" className="boton chico"
             onClick={() => alAsignar({
               ...asignado,
-              ...Object.fromEntries(casan.map((s) => [s.fila, s.propuesta?.campo ?? null])),
+              ...Object.fromEntries(casan.map((s) => [s.etiqueta, s.propuesta?.campo ?? null])),
             })}>
             Usar las {nf(casan.length)} que casan
           </button>
           {usadas > 0 && (
             <button type="button" className="boton chico"
-              onClick={() => alAsignar(Object.fromEntries(senales.map((s) => [s.fila, null])))}>
+              onClick={() => alAsignar(Object.fromEntries(senales.map((s) => [s.etiqueta, null])))}>
               Quitar todas
             </button>
           )}
         </div>
       )}
       <p className="fine">
-        {nf(senales.length)} señal(es) en el archivo · <b>{nf(usadas)}</b> en uso
+        {nf(senales.length)} señal(es) en la carga · <b>{nf(usadas)}</b> en uso
         {q ? <> · {nf(casan.length)} casan con «{busca.trim()}»</> : null}
         {casan.length > TOPE_SENALES
           ? <> · <b>se enseñan {TOPE_SENALES}</b>, afine la búsqueda para ver el resto</>
@@ -1534,11 +1614,20 @@ function SenalesDelScada({
           <thead><tr><th>Señal del archivo</th><th>Se leyó como</th><th>Primeros valores</th></tr></thead>
           <tbody>
             {visibles.map((s) => (
-              <tr key={s.fila}>
-                <td>{s.etiqueta}</td>
+              <tr key={`${s.estadistico ?? '—'} ${s.etiqueta}`}>
                 <td>
+                  {s.etiqueta}
+                  {/* En cuántos días viene: febrero trae días sin una fase, y eso
+                      se lee aquí antes que en una gráfica con un hueco. */}
+                  {cargado.porDia.length > 0 && (
+                    <span className="fine"> · en {nf(s.fechas.length)} de {nf(cargado.porDia.length)} día(s)</span>
+                  )}
+                </td>
+                <td>
+                  {/* ⚠️ POR ETIQUETA (`99 §ADR-127`): lo que se elige aquí vale para
+                      esta señal en TODOS los días, y en todos sus estadísticos. */}
                   <select value={s.campo ?? ''}
-                    onChange={(e) => alAsignar({ ...asignado, [s.fila]: e.target.value || null })}>
+                    onChange={(e) => alAsignar({ ...asignado, [s.etiqueta]: e.target.value || null })}>
                     <option value="">— no usar —</option>
                     {Object.keys(CAMPOS).filter((c) => CAMPOS[c].tipo === 'numero')
                       .map((c) => (
@@ -1547,7 +1636,7 @@ function SenalesDelScada({
                         </option>
                       ))}
                   </select>
-                  {s.propuesta && asignado[s.fila] === undefined && (
+                  {s.propuesta && !Object.hasOwn(asignado, s.etiqueta) && (
                     <span className="fine"> · {s.propuesta.porQue}</span>
                   )}
                 </td>

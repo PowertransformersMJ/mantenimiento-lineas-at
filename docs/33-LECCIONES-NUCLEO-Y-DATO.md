@@ -270,6 +270,11 @@
   leídos, días escritos— y el acuse dice los dos números. Vale igual para el paso 0 del SCADA: un
   `.xls` que el lector no abre no falla, **falta** (`99 §ADR-119`; los pasos, en `20`).
 - **Emparenta con** `32 · L-76` (lo que se ve no es lo guardado) y `30 · L-83` (la prueba que no prueba).
+- **Recaída, 10-09 (`99 §ADR-127`), en TRES piezas hermanas de la misma pantalla:** el tope de las tres
+  fases, la asignación a mano y el estadístico corregido también se decidían sobre el primer día, y el
+  orden de la fecha sobre cada archivo solo. Medido: cuatro días de enero con una fase repetida que
+  nadie miraba. La regla se amplía: **toda decisión sobre una carga se toma sobre la carga ENTERA**, en
+  el núcleo y con prueba; el primer día es un día más, no la muestra.
 
 ### L-86 · El mismo dato bajado dos veces no es una repetición: es una fase de más
 - **Síntoma:** 10-09, febrero. 108 archivos «(1)» —el navegador renombra la segunda descarga de un

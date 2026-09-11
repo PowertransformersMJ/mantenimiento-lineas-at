@@ -220,6 +220,7 @@ vive en `10 · TODO-79`, y los **relevos de sesión** `2026-08-22/24/26-relevo-c
 | `ADR-124` | 2026-09-07 | No todas las gráficas pesan igual, y el cero no es una cifra más | — («procede») |
 | `ADR-125` | 2026-09-10 | Documentarlo todo: la fuga que vivía en el propio guardián, el máximo que falta diez días, y un cerebro sin sitio | `research-archive/2026-09-10-auditoria-documental-total/` |
 | `ADR-126` | 2026-09-10 | Febrero: el paso 2 lee la fecha como la pantalla, escribe una vez lo bajado dos veces y nombra lo que aparta | `research-archive/2026-09-10-febrero-scada/` |
+| `ADR-127` | 2026-09-10 | El cargador de SCADA decide sobre la carga ENTERA: fases de más en cualquier día, asignación por etiqueta, la fecha del mes y el estadístico por archivo | `research-archive/2026-09-10-cargador-carga-entera/` |
 
 > Toda decisión cara de revertir entra aquí con su ADR y su crudo enlazado. Si hubo comité o consejo
 > externo y el crudo no está archivado, la tarea **no está cerrada** (`CLAUDE.md §G.4`).

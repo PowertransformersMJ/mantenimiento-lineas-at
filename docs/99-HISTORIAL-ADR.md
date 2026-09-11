@@ -10353,3 +10353,94 @@ Febrero llegó el 10-09: 28 carpetas, 1.194 CSV, 577 MB, fuera de todo git. Los 
 scripts del recuento, el análisis de la bahía y el ensayo de la carga).
 
 ---
+## ADR-127 · 2026-09-10 · El cargador de SCADA decide sobre la carga ENTERA: fases de más en cualquier día, asignación por etiqueta, la fecha del mes y el estadístico por archivo
+
+**Deliberación:** tarea encargada tras la revisión del `§ADR-126`, que dejó tres fallos latentes en la
+pantalla («Queda vivo EN LA PANTALLA»). Sin comité ni consejo: **NO revisada externamente**. Medición
+sobre el dato real y verificación en producción → `research-archive/2026-09-10-cargador-carga-entera/`.
+**Estado:** ✅ código · ✅ desplegado (`index-DhnH3Qau.js`: servido == construido) · ✅ **verificado EN
+FRÍO en producción, con su sesión y su dato real, sin guardar nada** · motor **0.19.0**.
+
+### Contexto
+
+Los tres fallos —y un cuarto que salió al reescribir— tienen la misma forma: **una decisión tomada
+mirando SOLO el primer día, o SOLO un archivo, aplicada después a todos**. Es la causa de `33 · L-84`
+(`§ADR-119`), viva en tres piezas hermanas de la misma pantalla. Ninguno da error:
+
+1. **El tope de «más de tres señales por magnitud·estadístico»** se contaba sobre `dias.porDia[0]`. Un
+   «(1)» de otro día —una cuarta fase— no lo miraba nadie, y `combinar()` lo juntaba.
+2. **La asignación a mano iba por NÚMERO DE FILA** del primer día y el guardado la aplicaba a todos. Cada
+   día trae sus filas en otro orden: quitar la S del día 1 quitaba, en otro día, la R.
+3. **Día/mes o mes/día se decidía archivo a archivo.** En un mes mes/día, del 1 al 12 no hay prueba y se
+   leen día/mes —el 1/05/26 sería el 1 de MAYO— mientras el 1/13/26 de la misma carga lo contradice. El
+   paso 2 se negaba (`§ADR-126`); la pantalla lo aceptaba.
+4. **El estadístico corregido a mano** se traducía «detectado → corregido» y solo en el día 1: dos
+   archivos sin marca corregidos distinto caían en el mismo, y en los demás días seguían sin estadístico
+   —que es entrar en TODOS los que se guardan—. El aviso «No se guardan así» no lo cumplía nadie con
+   varios archivos: el repositorio solo rechaza lo que llega sin estadístico, y esto llegaba con cuatro.
+
+### Lo que salió al MEDIR (script en el crudo; solo recuentos, ninguna etiqueta)
+
+| Hallazgo | Por qué importa |
+|---|---|
+| **Enero —los 99 archivos cargados el 07-09— tiene CUATRO días señalados**: 06-01 corriente del instantáneo (fase S dos veces), 10-01 tensión del promedio (TR dos veces), 15-01 tensión del mínimo (4 señales), 29-01 corriente del máximo (4). Ninguno es el primer día | Son las filas repetidas que el `§ADR-126` encontró a mano. Con el conteo viejo, ninguna se veía |
+| **Dos de esos cuatro días traen TRES señales**: a la magnitud le falta una fase y otra viene dos veces | «Más de tres» no las veía ni en el primer día: por eso la revisión mira también la **fase repetida** |
+| **Febrero: cero días señalados**; la fecha, 64 archivos que demuestran día/mes y 44 sin prueba | Lo que ya pasó por el paso 2 entra limpio: no hay falso positivo |
+| La lista para asignar: **23 señales** el primer día de enero (24 en febrero) contra **32** en la carga | El mínimo de enero empieza el 13: sus señales no se podían ver, ni volver a usar si la carga nacía en «no usar» |
+| Sin asignación a mano, lo que se guarda **antes y ahora es IDÉNTICO**, registro a registro, en los cuatro estadísticos de los dos meses (2.376 y 2.592 registros) | El cambio no mueve un solo número de lo que ya funcionaba |
+| Lo que se MIRABA y lo que se GUARDABA no usaban la misma asignación: el día 1 con ella, el resto con la propuesta, y el guardado por fila a todos | Una gráfica que no es lo que se guarda |
+
+### Decisión
+
+1. **`revisarFasesPorDia`** (núcleo): cuenta por día, magnitud y estadístico, en TODOS los días, y señala
+   más de `FASES_POR_MAGNITUD` señales **o una fase repetida**. Nombra día, magnitud y estadístico, y
+   devuelve las etiquetas de toda la carga para sembrar «no usar». `FASES_POR_MAGNITUD` pasa al núcleo.
+2. **La asignación va por ETIQUETA**: `registrosDesdeAncho` acepta `asignadoPorEtiqueta` (aditivo: la de
+   fila sigue igual) y `registrosDeVariosDias` lee todos los días con la misma, y **niega** la de fila.
+   Lo que se mira y lo que se guarda pasan por la MISMA lectura. La tabla enseña las señales de la carga
+   entera y en cuántos días viene cada una. Consecuencia buscada: lo que se elige en una fila vale para
+   esa señal en todos sus estadísticos —qué magnitud es una señal no depende del estadístico—.
+3. **`ordenDeLaCarga`** (núcleo): la regla del paso 2 pasa a ser de los dos —la herramienta la usa y
+   su salida no cambia—. `unirPorDia` se niega con los nombres, y la pantalla ENSEÑA cómo leyó la fecha:
+   `fine` si la carga lo demuestra, `advertencia` si es suposición. `ordenDeFecha` gana `escritas`
+   (aditivo) para que el serial de Excel no cuente como «sin prueba».
+4. **`estadisticoPorFilaCorregido`**: la corrección va por ARCHIVO y en todos los días. Y el guardado se
+   niega mientras un archivo no diga su estadístico, que es lo que la pantalla ya prometía.
+5. `encontrarEjeDeTiempo` declara su tipo de retorno (TypeScript lo daba por `null`). Motor **0.18.1 →
+   0.19.0**: funciones nuevas y un `unirPorDia` que se niega; **ningún cálculo cambió** (regresión idéntica).
+6. **25 pruebas nuevas** en `tests/cargabilidad-ancho.test.js`, cada fallo en los dos sentidos —el fallo
+   como era y el arreglo (`30 · L-68`)—, más cuatro guardianes de la pantalla (`30 · L-28`).
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| Leer el mes entero en el orden que demuestra un archivo | Es decidir por él, y esa negativa es la señal de que la exportación cambió (`§ADR-126`, supuestos) |
+| Quitar en la pantalla las repetidas idénticas, como el paso 2 | Cambia `unirAnchas`, que no es aditivo. El paso 2 ya las escribe una vez; la pantalla avisa con el día |
+| Asignar por estadístico + etiqueta | Corregir un estadístico movería la asignación, y en una carga ambigua devolvería a la propuesta lo que él dejó en «no usar» |
+| Seguir contando solo «más de tres» | Medido: dos de los cuatro días de enero traen tres señales |
+| Arreglar ya el aviso de ceros al final, que también mira solo el día 1 | Es un aviso, no un dato; mismo patrón. Queda en `TODO-102` con su sitio |
+
+### Supuestos que deben ser ciertos — y la señal que diría que dejaron de serlo
+
+| Supuesto | Señal |
+|---|---|
+| Los archivos de una carga son UNA exportación, con un solo orden de fecha | La pantalla se niega: «unos archivos demuestran día/mes y otros mes/día» |
+| La etiqueta identifica la señal en todos los días | Dos señales distintas con la misma etiqueta: la revisión la marca como fase repetida |
+| Un «(1)» solo llega a la pantalla si se salta el paso 2 | Un aviso de fase repetida en un mes que sí pasó por el paso 2 |
+
+### Consecuencias
+
+- `2.687` pruebas en verde (antes 2.662), molde verificado, cerebro sano, build limpio.
+- **Enero NO se recarga**: está guardado y sus números no cambian (`§ADR-126`). Si algún día se
+  recargara, desde el paso 2 re-corrido: con los 99 viejos, la pantalla ahora avisa de los cuatro días.
+- **Febrero**, en producción: 108 archivos, 27 días, sin avisos, 32 de 32 señales en uso, «Guardar 648
+  registro(s)» del máximo —2.592 con los cuatro—. **No se pulsó**: guardarlo es suyo (`TODO-102 ①`), y
+  el pico del 24-02 (550 A, `§ADR-126`) sigue esperando su lectura.
+- ⚠️ Un mes exportado mes/día **no se puede cargar entero** hasta que él decida cómo declararlo: hoy se
+  niega, como el paso 2.
+
+**Crudo de respaldo:** `research-archive/2026-09-10-cargador-carga-entera/` (el script de medición, su
+salida y la verificación en producción).
+
+---

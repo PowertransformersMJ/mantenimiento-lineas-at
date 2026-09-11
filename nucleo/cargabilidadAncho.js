@@ -1,4 +1,6 @@
-import { CAMPOS_GUARDADOS, FASES_DE, IDS_ESTADISTICO, completarAparente } from './cargabilidad.js';
+import {
+  CAMPOS, CAMPOS_GUARDADOS, ESTADISTICOS, FASES_DE, IDS_ESTADISTICO, completarAparente,
+} from './cargabilidad.js';
 
 // ============================================================================
 // nucleo/cargabilidadAncho.js — leer la exportación de SCADA tal como sale
@@ -86,19 +88,24 @@ function trozosDeSelloTexto(v) {
  */
 export function ordenDeFecha(valores) {
   const trozos = (valores ?? []).map(trozosDeSelloTexto).filter(Boolean);
-  if (!trozos.length) return { orden: 'dmy', seguro: false, porQue: 'no hay fechas escritas que mirar' };
+  // `escritas` dice cuántas fechas ESCRITAS se miraron (`99 §ADR-127`). Sin
+  // ellas —un serial de Excel— no hay orden que decidir, y `ordenDeLaCarga` no
+  // puede contar ese archivo como «sin prueba»: no es ambiguo, es otra cosa.
+  const escritas = trozos.length;
+  if (!trozos.length) return { orden: 'dmy', seguro: false, escritas, porQue: 'no hay fechas escritas que mirar' };
   if (trozos.some((t) => t.añoDelante)) {
-    return { orden: 'ymd', seguro: true, porQue: 'el año va delante, escrito con sus cuatro cifras' };
+    return { orden: 'ymd', seguro: true, escritas, porQue: 'el año va delante, escrito con sus cuatro cifras' };
   }
   if (trozos.some((t) => t.a > 12)) {
-    return { orden: 'dmy', seguro: true, porQue: 'una fecha trae un día mayor que 12 en la primera posición' };
+    return { orden: 'dmy', seguro: true, escritas, porQue: 'una fecha trae un día mayor que 12 en la primera posición' };
   }
   if (trozos.some((t) => t.b > 12)) {
-    return { orden: 'mdy', seguro: true, porQue: 'una fecha trae un día mayor que 12 en la segunda posición' };
+    return { orden: 'mdy', seguro: true, escritas, porQue: 'una fecha trae un día mayor que 12 en la segunda posición' };
   }
   return {
     orden: 'dmy',
     seguro: false,
+    escritas,
     porQue: 'ninguna fecha del archivo lo desempata: se lee día/mes, que es como se escribe aquí',
   };
 }
@@ -171,6 +178,13 @@ export function instanteDeSerial(v) {
  * Gana la fila con MÁS sellos consecutivos y crecientes. «Creciente» es lo que
  * separa un eje de tiempo de una fila de números cualquiera: una hoja de
  * amperajes tiene valores en ese rango solo por casualidad, y no ordenados.
+ *
+ * (El tipo de retorno va DECLARADO desde el `§ADR-127`: `mejor` se asigna dentro
+ * de un `forEach` y, sin esto, TypeScript lo daba por `null` siempre.)
+ *
+ * @returns {{fila: number, columnas: number[],
+ *            instantes: ({fecha: string, hora: number}|null)[], primeraColumna: number,
+ *            ordenDeFecha: {orden: string, seguro: boolean, escritas: number, porQue: string}}|null}
  */
 export function encontrarEjeDeTiempo(matriz, { minimo = 3, mirar = 30 } = {}) {
   let mejor = null;
@@ -399,10 +413,11 @@ export function fechaDeNombre(nombre) {
  *                    senales: {fila:number, etiqueta:string, estadistico:string|null, nombre:string}[],
  *                    deCada: {nombre:string, senales:number, estadistico:string|null,
  *                             porQueEstadistico:string}[]}}[],
- *            fechas: string[]}}
+ *            fechas: string[], ordenDeFecha: OrdenDeLaCarga}}
  */
 export function unirPorDia(entradas) {
   const grupos = new Map();
+  const ordenes = [];
   for (const e of (entradas ?? []).filter((x) => x && Array.isArray(x.matriz))) {
     // ⚠️ MANDA LA FECHA QUE DECLARA EL DATO, no la del nombre (`99 §ADR-117`).
     //
@@ -416,14 +431,28 @@ export function unirPorDia(entradas) {
     // cuándo se midió. El nombre queda de respaldo para el archivo que no traiga
     // eje reconocible, que de todas formas no se puede unir con nadie.
     const eje = encontrarEjeDeTiempo(e.matriz);
+    if (eje) ordenes.push({ nombre: e.nombre ?? '(sin nombre)', orden: eje.ordenDeFecha });
     const f = eje?.instantes?.find(Boolean)?.fecha ?? fechaDeNombre(e.nombre ?? '');
     if (!grupos.has(f)) grupos.set(f, []);
     grupos.get(f).push(e);
   }
+  // ⚠️ EL ORDEN DE LA FECHA SE MIRA EN LA CARGA ENTERA, ANTES DE AGRUPAR (`99 §ADR-127`).
+  //
+  // `encontrarEjeDeTiempo` decide archivo por archivo, y en un mes exportado
+  // mes/día eso falla justo donde no se ve: del 1 al 12 ningún archivo trae la
+  // prueba y se leen día/mes —el 1/05/26 sería el 1 de MAYO—, mientras el
+  // 1/13/26 de la misma carga demuestra lo contrario. Cada archivo, solo, está
+  // bien leído; juntos, doce días caen en otro mes. El paso 2 ya se negaba y la
+  // pantalla lo aceptaba: ahora las dos preguntan a la misma función.
+  const laFecha = ordenDeLaCarga(ordenes);
+  if (laFecha.mezcla) {
+    throw new Error(`${laFecha.porQue}. No se carga nada: un día fechado al revés entra en el `
+      + 'histórico con la identidad de otro, y el histórico no se borra');
+  }
   const porDia = [...grupos.entries()]
     .sort((a, b) => String(a[0]).localeCompare(String(b[0])))
     .map(([fecha, suyos]) => ({ fecha, union: unirAnchas(suyos) }));
-  return { porDia, fechas: porDia.map((d) => d.fecha).filter(Boolean) };
+  return { porDia, fechas: porDia.map((d) => d.fecha).filter(Boolean), ordenDeFecha: laFecha };
 }
 
 export function esArchivoDeCalidad(nombre) {
@@ -478,7 +507,11 @@ export const CRITERIOS_DE_FASE = [
  * @typedef {Object} OpcionesAncho
  * @property {string} [linea]         de qué línea es. Lo dice el Ingeniero.
  * @property {string|null} [circuito]
- * @property {Record<number, string|null>} [asignado]  fila de la señal → campo
+ * @property {Record<number, string|null>} [asignado]  fila de la señal → campo.
+ *                    Solo vale dentro de UNA matriz; con varios días, la de abajo.
+ * @property {Record<string, string|null>|null} [asignadoPorEtiqueta]  etiqueta de
+ *                    la señal → campo (`99 §ADR-127`). La etiqueta es la identidad
+ *                    de la señal en todos los días; el número de fila, no.
  * @property {string} [criterioFase]  `maxima` (por defecto) o `promedio` — cómo se
  *                    resumen las TRES FASES de un instante. **No confundir con el
  *                    estadístico**: aquél comparte la palabra «promedio» y no es lo mismo.
@@ -517,6 +550,12 @@ export function registrosDesdeAncho(matriz, opciones = {}) {
     // máximo». `estadisticoPorFila` es lo que devuelve `unirAnchas`. Ninguno de
     // los dos tiene valor por defecto, y eso es el punto (`99 §ADR-112`).
     estadistico = null, estadisticoPorFila = null,
+    // ⚠️ LA ASIGNACIÓN POR ETIQUETA (`99 §ADR-127`). `asignado` va por NÚMERO DE
+    // FILA, y eso solo vale dentro de UNA matriz: cada día de un mes trae sus
+    // señales en otro orden, así que la fila 3 del día 1 es la corriente S y la
+    // del día 5 puede ser la T. Qué magnitud es una señal es cosa de la SEÑAL, y
+    // la señal se reconoce por su etiqueta. Si las dos llegan, manda la de fila.
+    asignadoPorEtiqueta = null,
   } = opciones;
   const eje = encontrarEjeDeTiempo(matriz);
   if (!eje) {
@@ -524,7 +563,11 @@ export function registrosDesdeAncho(matriz, opciones = {}) {
   }
   const todas = leerSenales(matriz, eje).map((s) => {
     const propuesta = campoDeSenal(s.etiqueta);
-    const campo = asignado[s.fila] !== undefined ? asignado[s.fila] : (propuesta?.campo ?? null);
+    // `hasOwn` y no `in`: una etiqueta como «constructor» no puede leer el prototipo.
+    const porEtiqueta = asignadoPorEtiqueta && Object.hasOwn(asignadoPorEtiqueta, s.etiqueta)
+      ? asignadoPorEtiqueta[s.etiqueta] : undefined;
+    const campo = asignado[s.fila] !== undefined ? asignado[s.fila]
+      : porEtiqueta !== undefined ? porEtiqueta : (propuesta?.campo ?? null);
     const suEst = estadisticoPorFila?.[s.fila] ?? s.estadistico ?? null;
     return { ...s, propuesta, campo, fase: propuesta?.fase ?? null, estadistico: suEst };
   });
@@ -705,6 +748,225 @@ export function unirAnchas(entradas) {
       ? `${base.senales.length} señal(es) de «${base.nombre}»`
       : `${matriz.length - 1} señales de ${leidas.length} archivos, sobre los mismos `
         + `${esperado.length} instantes`,
+  };
+}
+
+// ============================================================================
+// UNA CARGA DE VARIOS DÍAS SE LEE ENTERA (`99 §ADR-127`)
+// ----------------------------------------------------------------------------
+// La revisión del `§ADR-126` dejó tres fallos en la pantalla con la misma forma:
+// una decisión tomada mirando SOLO el primer día —o SOLO un archivo— y aplicada
+// después a todos. Las cuatro funciones de abajo son esas decisiones, tomadas
+// sobre la carga entera y en el núcleo, donde tienen prueba de oro.
+// ============================================================================
+
+/**
+ * Cómo se leyó la fecha de una CARGA entera.
+ * @typedef {Object} OrdenDeLaCarga
+ * @property {boolean} aplica      `false` si ningún archivo trae fechas ESCRITAS
+ *                                 (serial de Excel): no hay orden que decidir
+ * @property {boolean} mezcla      `true` = la carga NO se puede leer
+ * @property {string} orden        `dmy`, `mdy` o `ymd`: el que manda si no hay mezcla
+ * @property {boolean} seguro      algún archivo lo DEMUESTRA; si no, es suposición
+ * @property {string[]} demostrados  los órdenes demostrados, sin repetir
+ * @property {{nombre: string, orden: string}[]} conPrueba
+ * @property {string[]} sinPrueba  los archivos que no traen prueba
+ * @property {string} porQue
+ */
+
+const ROTULO_ORDEN = { dmy: 'día/mes', mdy: 'mes/día', ymd: 'año-mes-día' };
+
+/**
+ * ¿DÍA/MES O MES/DÍA, PARA LA CARGA ENTERA?
+ *
+ * `ordenDeFecha` mira UN archivo, y el archivo de un día del 1 al 12 nunca trae
+ * la prueba. Pero una carga es UNA exportación: lo que demuestra un archivo vale
+ * para sus hermanos. La regla es la del paso 2 (`§ADR-126`), que vivía escrita
+ * en la herramienta y la pantalla no tenía:
+ *   · dos archivos que demuestran órdenes DISTINTOS → no se lee nada;
+ *   · uno demuestra un orden que no es día/mes y otros no traen prueba → no se
+ *     lee nada: ésos se leerían día/mes por defecto y quedarían al revés;
+ *   · todo lo demostrado es día/mes → los que no traen prueba se leen igual;
+ *   · nada lo demuestra → día/mes, y se DICE que es una suposición.
+ *
+ * ⚠️ En el caso mezclado NO se elige el orden por él, aunque la evidencia apunte
+ * a uno: esa negativa es la señal de que la exportación cambió de formato
+ * (`§ADR-126`, supuestos), y leer un mes entero en otro orden es una decisión
+ * suya. Un archivo sin fechas escritas —el serial de Excel— no es ambiguo y no
+ * cuenta.
+ *
+ * @param {{nombre: string, orden: {orden: string, seguro: boolean, escritas?: number}}[]} archivos
+ * @returns {OrdenDeLaCarga}
+ */
+export function ordenDeLaCarga(archivos) {
+  const conFecha = (archivos ?? []).filter((a) => a?.orden && (a.orden.escritas ?? 1) > 0);
+  const conPrueba = conFecha.filter((a) => a.orden.seguro)
+    .map((a) => ({ nombre: a.nombre, orden: a.orden.orden }));
+  const sinPrueba = conFecha.filter((a) => !a.orden.seguro).map((a) => a.nombre);
+  const demostrados = [...new Set(conPrueba.map((a) => a.orden))];
+  const dicho = (o) => ROTULO_ORDEN[o] ?? o;
+  const quien = (o) => conPrueba.find((a) => a.orden === o)?.nombre;
+  const base = { aplica: conFecha.length > 0, demostrados, conPrueba, sinPrueba };
+  const [unico] = demostrados;
+
+  if (demostrados.length > 1) {
+    return { ...base, mezcla: true, orden: unico, seguro: false,
+      porQue: `unos archivos demuestran ${dicho(demostrados[0])} y otros ${dicho(demostrados[1])} `
+        + `(«${quien(demostrados[0])}» y «${quien(demostrados[1])}»): la misma carga no se lee de dos maneras` };
+  }
+  if (unico && unico !== 'dmy' && sinPrueba.length) {
+    const muestra = sinPrueba.slice(0, 3).map((n) => `«${n}»`).join(', ') + (sinPrueba.length > 3 ? '…' : '');
+    return { ...base, mezcla: true, orden: unico, seguro: false,
+      porQue: `«${quien(unico)}» demuestra ${dicho(unico)}, y ${sinPrueba.length} archivo(s) no traen prueba `
+        + `(${muestra}): leídos día/mes, como se leen por defecto, quedarían fechados al revés`
+        + (unico === 'mdy' ? ' —el 1/05 sería el 1 de mayo, no el 5 de enero—' : '') };
+  }
+  if (!conFecha.length) {
+    return { ...base, mezcla: false, orden: 'dmy', seguro: false,
+      porQue: 'las fechas no vienen escritas (serial de Excel): no hay orden que decidir' };
+  }
+  if (unico) {
+    return { ...base, mezcla: false, orden: unico, seguro: true,
+      porQue: `${conPrueba.length} archivo(s) demuestran ${dicho(unico)}`
+        + (sinPrueba.length ? `; los ${sinPrueba.length} sin prueba se leen igual: son la misma exportación` : '') };
+  }
+  return { ...base, mezcla: false, orden: 'dmy', seguro: false,
+    porQue: 'ningún archivo lo desempata —ninguno trae un día mayor que 12—: se lee día/mes, que es como '
+      + 'se escribe aquí. Es una suposición, no un hecho' };
+}
+
+/**
+ * Cuántas señales de la MISMA magnitud y el MISMO estadístico caben en un día:
+ * las tres fases. Una cuarta —o una fase que aparece dos veces— es otra bahía o
+ * el mismo dato bajado dos veces, y combinarlo no da error: da un número que no
+ * midió nadie (`99 §ADR-105/117/127`).
+ */
+export const FASES_POR_MAGNITUD = 3;
+
+/**
+ * ¿ALGÚN DÍA TRAE MÁS SEÑALES DE LAS QUE CABEN EN UNA MAGNITUD?
+ *
+ * ⚠️ EN TODOS LOS DÍAS, no en el primero. La pantalla lo contaba sobre el día
+ * más antiguo de la carga, así que un «(1)» del día 14 —una cuarta corriente—
+ * pasaba sin que nadie lo mirara, y `combinar()` lo juntaba con las otras tres.
+ *
+ * Se cuenta por día, magnitud y estadístico —el máximo y el promedio de la fase
+ * R son dos señales legítimas— y se señala en dos casos:
+ *   · más de `tope` señales: más que las tres fases;
+ *   · la MISMA fase dos veces, aunque sean tres o menos: febrero trae días a los
+ *     que les falta una fase, y uno de ésos con un «(1)» pasaría el tope con dos
+ *     erres dentro.
+ *
+ * Devuelve además TODAS las etiquetas de la carga, para que quien siembre «no
+ * usar» siembre también las que el primer día no trae.
+ *
+ * @param {{fecha?: string|null, matriz: any[][], estadisticoPorFila?: Record<number, string|null>|null}[]} dias
+ * @param {{tope?: number}} [opciones]
+ * @returns {{ambiguo: boolean,
+ *            excesos: {fecha: string|null, campo: string, estadistico: string|null,
+ *                      senales: number, fase: string|null, porQue: string}[],
+ *            etiquetas: string[]}}
+ */
+export function revisarFasesPorDia(dias, { tope = FASES_POR_MAGNITUD } = {}) {
+  const excesos = [];
+  const etiquetas = new Set();
+  for (const d of (dias ?? []).filter((x) => x && Array.isArray(x.matriz))) {
+    const eje = encontrarEjeDeTiempo(d.matriz);
+    if (!eje) continue;
+    const cubos = new Map();
+    for (const s of leerSenales(d.matriz, eje)) {
+      etiquetas.add(s.etiqueta);
+      const propuesta = campoDeSenal(s.etiqueta);
+      if (!propuesta) continue;
+      const estadistico = d.estadisticoPorFila?.[s.fila] ?? null;
+      const k = `${propuesta.campo}|${estadistico ?? '—'}`;
+      if (!cubos.has(k)) cubos.set(k, { campo: propuesta.campo, estadistico, fases: [] });
+      cubos.get(k).fases.push(propuesta.fase);
+    }
+    for (const c of cubos.values()) {
+      const conFase = c.fases.filter(Boolean);
+      const fase = conFase.find((f, i) => conFase.indexOf(f) !== i) ?? null;
+      if (c.fases.length <= tope && !fase) continue;
+      const que = `${CAMPOS[c.campo]?.rotulo ?? c.campo}`
+        + (c.estadistico ? ` del ${ESTADISTICOS.find((e) => e.id === c.estadistico)?.rotulo ?? c.estadistico}` : '');
+      const cuando = d.fecha ?? 'el archivo';
+      excesos.push({
+        fecha: d.fecha ?? null, campo: c.campo, estadistico: c.estadistico, senales: c.fases.length, fase,
+        porQue: c.fases.length > tope
+          ? `${cuando} · ${que}: ${c.fases.length} señales, más que las ${tope} fases`
+          : `${cuando} · ${que}: la fase ${fase} viene ${conFase.filter((f) => f === fase).length} veces`,
+      });
+    }
+  }
+  return { ambiguo: excesos.length > 0, excesos, etiquetas: [...etiquetas] };
+}
+
+/**
+ * DE QUÉ ESTADÍSTICO ES CADA FILA, con lo que el Ingeniero haya corregido.
+ *
+ * ⚠️ POR ARCHIVO, y en TODOS los días. La corrección se hace sobre un archivo
+ * cuyo nombre no lo dice —o lo dice mal—, y la pantalla la aplicaba traduciendo
+ * «estadístico DETECTADO → corregido» y SOLO en el primer día: dos archivos sin
+ * marca corregidos distinto caían en el mismo, y en los demás días seguían sin
+ * estadístico, que es entrar en TODOS los que se guardan.
+ *
+ * Una corrección vacía («no lo dice») deja la fila sin estadístico, igual que la
+ * cuenta la pantalla: lo que se enseña y lo que se lee no pueden discrepar.
+ *
+ * @param {{fila: number, nombre: string, estadistico: string|null}[]|null} senales  las de `unirAnchas`
+ * @param {Record<string, string>} [corregido]  nombre del archivo → estadístico
+ * @returns {Record<number, string|null>}
+ */
+export function estadisticoPorFilaCorregido(senales, corregido = {}) {
+  return Object.fromEntries((senales ?? []).map((a) => [a.fila,
+    corregido && Object.hasOwn(corregido, a.nombre) ? (corregido[a.nombre] || null) : (a.estadistico ?? null)]));
+}
+
+/**
+ * VARIOS DÍAS, UNA SOLA LECTURA.
+ *
+ * Cada día se lee con `registrosDesdeAncho` —su matriz, su eje— y con las MISMAS
+ * decisiones: línea, criterio, estadístico y asignación. La asignación va POR
+ * ETIQUETA: la de fila solo vale dentro de una matriz, así que aquí se NIEGA en
+ * vez de aplicarse, callada, a la señal equivocada de otro día.
+ *
+ * Devuelve lo del primer día —su eje y sus señales, que es lo que ya miraban los
+ * avisos— más `registros` de TODOS y `senalesDeLaCarga`: cada señal una vez por
+ * estadístico, venga del día que venga, con los días en que aparece. Ésa es la
+ * lista para asignar: una señal que el primer día no trae también se tiene que
+ * poder ver y quitar.
+ *
+ * @param {{fecha?: string|null, matriz: any[][], estadisticoPorFila?: Record<number, string|null>|null}[]} dias
+ * @param {OpcionesAncho} [opciones]
+ */
+export function registrosDeVariosDias(dias, opciones = {}) {
+  const { asignado, ...resto } = opciones;
+  if (asignado && Object.keys(asignado).length) {
+    throw new Error('la asignación por número de fila no vale entre días —cada día trae sus señales en '
+      + 'otro orden—: se pasa por etiqueta, en `asignadoPorEtiqueta`');
+  }
+  const lista = (dias ?? []).filter((d) => d && Array.isArray(d.matriz));
+  const leidos = lista.map((d) => registrosDesdeAncho(d.matriz, {
+    ...resto, estadisticoPorFila: d.estadisticoPorFila ?? null,
+  }));
+  /** @type {Map<string, ReturnType<typeof registrosDesdeAncho>['senales'][number] & {fechas: (string|null)[]}>} */
+  const vistas = new Map();
+  leidos.forEach((r, i) => {
+    const fecha = lista[i].fecha ?? null;
+    for (const s of r.senales) {
+      const k = `${s.estadistico ?? '—'} ${s.etiqueta}`;
+      if (!vistas.has(k)) vistas.set(k, { ...s, fechas: [] });
+      const suyas = vistas.get(k).fechas;
+      if (suyas[suyas.length - 1] !== fecha) suyas.push(fecha);
+    }
+  });
+  const primero = leidos[0] ?? registrosDesdeAncho([], {});
+  return {
+    ...primero,
+    registros: leidos.flatMap((r) => r.registros),
+    estadisticos: [...new Set(leidos.flatMap((r) => r.estadisticos ?? []))],
+    senalesDeLaCarga: [...vistas.values()],
+    porQue: leidos.length > 1 ? `${leidos.length} días; el primero: ${primero.porQue}` : primero.porQue,
   };
 }
 
