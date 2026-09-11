@@ -270,3 +270,18 @@
   leídos, días escritos— y el acuse dice los dos números. Vale igual para el paso 0 del SCADA: un
   `.xls` que el lector no abre no falla, **falta** (`99 §ADR-119`; los pasos, en `20`).
 - **Emparenta con** `32 · L-76` (lo que se ve no es lo guardado) y `30 · L-83` (la prueba que no prueba).
+
+### L-86 · El mismo dato bajado dos veces no es una repetición: es una fase de más
+- **Síntoma:** 10-09, febrero. 108 archivos «(1)» —el navegador renombra la segunda descarga de un
+  nombre que ya existe— y 70 filas de la bahía que venían dos veces, idénticas byte a byte. Apiladas
+  por el paso 2, el primer día quedaba con CUATRO corrientes instantáneas, y la pantalla, con más de
+  tres señales de una magnitud, las deja TODAS sin usar: la carga habría salido vacía o a medias, sin
+  un error. Enero ya había entrado con seis así; eran idénticas y el criterio es «la fase más
+  cargada», así que ningún número guardado cambió.
+- **Causa:** la herramienta juntaba filas sin preguntar si la señal ya estaba en el día. Y su primer
+  recuento de control sumaba cada fila a exactamente una salida: **cuadraba siempre**. Un revisor
+  adversario lo demostró con seis escenarios que perdían o duplicaban dato con código 0.
+- **Regla:** dentro de un día y un estadístico **la etiqueta es la identidad**: repetida idéntica →
+  una, y se dice; misma etiqueta con valores distintos → no se escribe y sale con error. Y un recuento
+  de control solo vale si lo que se aparta también entra en él, con nombre y con error (`99 §ADR-126`).
+- **Emparenta con** `L-84` (lo escrito contra lo leído) y `30 · L-83` (la prueba que no prueba).

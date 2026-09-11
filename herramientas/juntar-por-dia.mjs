@@ -15,33 +15,86 @@
 // «30Enero» resultó ser el 29 de julio. La fila de sellos de tiempo es lo único
 // que el propio dato afirma sobre cuándo se midió.
 //
-// ⚠️ Y EL ESTADÍSTICO SÍ SALE DEL NOMBRE, porque no está en ninguna otra parte:
+// ⚠️ Y SE LEE CON LA REGLA DEL LECTOR, no con una propia (`99 §ADR-126`). Hasta
+// el 10-09 esto traía su propia expresión —solo `d/m/aa`—: un eje `1/13/26`
+// salía `20261301` y uno ISO se descartaba. Ahora la fecha la decide
+// `encontrarEjeDeTiempo` del núcleo, la misma función que usa la pantalla.
+// Y como esa regla decide archivo por archivo, aquí se mira además el MES
+// entero: si un archivo DEMUESTRA mes/día y otro se leyó día/mes por defecto,
+// no se escribe nada — uno de los dos está fechado al revés.
+//
+// ⚠️ EL ESTADÍSTICO SÍ SALE DEL NOMBRE, porque no está en ninguna otra parte:
 // el archivo resultante se llama `<estadistico>-<fecha>.csv` para que el lector
-// lo siga reconociendo. Un archivo cuyo estadístico no se reconoce NO se junta
-// con nadie: se deja aparte y se dice.
+// lo siga reconociendo.
+//
+// ⚠️ LA MISMA SEÑAL DOS VECES EN UN DÍA (`99 §ADR-126`). Su exportación de
+// febrero trae 108 archivos «(1)»: el navegador renombra la segunda descarga de
+// un nombre que ya existía. Muchos son el MISMO dato bajado dos veces —70 filas
+// de la bahía, idénticas byte a byte—. Apilarlas daba al día una CUARTA fase, y
+// la pantalla, con más de tres señales de una magnitud, entiende que el archivo
+// trae media red y las deja todas sin usar. Por eso:
+//   · repetida IDÉNTICA → se escribe una vez, y se cuenta y se dice;
+//   · misma señal con valores DISTINTOS → ese día·estadístico NO se escribe, se
+//     dice cuál y la herramienta sale con error. Elegir una sería decidir por él
+//     qué medida es la buena.
+//
+// ⚠️ LO QUE NO ENTRA SE DICE CON NOMBRE Y SALE CON ERROR (`33 · L-84`). Un
+// archivo de medidas que se aparta —sin estadístico, sin eje, eje distinto del
+// de su grupo, eje de más de un día— no falla: FALTA. Por eso se nombra, sus
+// filas entran en el recuento y la salida es 1. Solo el sello de calidad se
+// aparta sin error: no es una medida, la pantalla lo lee aparte.
+//
+// ⚠️ DESTINO VACÍO, SIEMPRE. La herramienta no borra nada, así que en una
+// carpeta con restos un día que ahora NO se escribe —por un choque— seguiría
+// ahí con la versión anterior, y se cargaría. Si el destino trae CSV, se niega.
 //
 //   node herramientas/juntar-por-dia.mjs <carpeta-origen> <carpeta-destino>
 // ============================================================================
-import { readdirSync, readFileSync, writeFileSync, mkdirSync, statSync } from 'node:fs';
+import { readdirSync, readFileSync, writeFileSync, mkdirSync, statSync, existsSync } from 'node:fs';
 import { join, basename } from 'node:path';
-import { estadisticoDeNombre, esArchivoDeCalidad } from '../nucleo/cargabilidadAncho.js';
+import { celdasDeCsv, separadorDe } from '../importar/csv.js';
+import {
+  encontrarEjeDeTiempo, estadisticoDeNombre, esArchivoDeCalidad,
+} from '../nucleo/cargabilidadAncho.js';
 
 const [origen, destino] = process.argv.slice(2);
 if (!origen || !destino) {
   console.error('uso: node herramientas/juntar-por-dia.mjs <origen> <destino>');
   process.exit(2);
 }
+if (existsSync(destino) && readdirSync(destino).some((n) => /\.csv$/i.test(n))) {
+  console.error(`❌ «${destino}» ya tiene archivos .csv. Esta herramienta no borra nada, y un resto de `
+    + 'otra corrida se cargaría como si fuera de ésta. Use una carpeta nueva.');
+  process.exit(2);
+}
 mkdirSync(destino, { recursive: true });
 
-/** La fecha que declara la fila del eje: `15/01/26 0:00` → `20260115`. */
-function fechaDelEje(cabecera) {
-  const m = cabecera.match(/(\d{1,2})\/(\d{2})\/(\d{2})[ ,]/);
-  return m ? `20${m[3]}${m[2]}${String(m[1]).padStart(2, '0')}` : null;
+/** El eje, leído por el NÚCLEO: los días que declara, dónde empiezan los datos y cómo se leyó la fecha. */
+function ejeDe(linea, separador) {
+  const eje = encontrarEjeDeTiempo(celdasDeCsv(linea, { separador }));
+  if (!eje) return null;
+  return {
+    fechas: [...new Set(eje.instantes.filter(Boolean).map((i) => i.fecha))],
+    primeraColumna: eje.primeraColumna,
+    orden: eje.ordenDeFecha,
+  };
+}
+
+/**
+ * La etiqueta de una fila, compuesta como la compone `leerSenales`.
+ * ⚠️ Con el separador DEL ARCHIVO, no con el que adivine una fila suelta: en
+ * «…I R /Mom;100,5;101,5» hay tantas comas como puntos y coma, y adivinando por
+ * fila la etiqueta se llevaba un trozo del primer valor.
+ */
+function etiquetaDe(linea, primeraColumna, separador) {
+  const celdas = celdasDeCsv(linea, { separador })[0] ?? [];
+  return celdas.slice(0, primeraColumna)
+    .map((v) => (v == null ? '' : String(v).trim())).filter((t) => t !== '').join(' · ');
 }
 
 function archivos(raiz) {
   const out = [];
-  for (const n of readdirSync(raiz).filter((x) => !x.startsWith('.'))) {
+  for (const n of readdirSync(raiz).filter((x) => !x.startsWith('.')).sort()) {
     const p = join(raiz, n);
     if (statSync(p).isDirectory()) out.push(...archivos(p));
     else if (/\.csv$/i.test(n)) out.push(p);
@@ -50,34 +103,108 @@ function archivos(raiz) {
 }
 
 const grupos = new Map();
-const sueltos = [];
+const apartados = [];
+const ordenes = [];
+let deCalidad = 0;
+let leidas = 0;
 for (const p of archivos(origen)) {
   const nombre = basename(p);
-  if (esArchivoDeCalidad(nombre)) { sueltos.push([nombre, 'sello de calidad']); continue; }
+  if (esArchivoDeCalidad(nombre)) { deCalidad += 1; continue; }
+  // La marca de orden de bytes se quita como la quita el lector: no es dato, y
+  // con ella el eje de un archivo dejaba de ser idéntico al de sus hermanos.
+  const lineas = readFileSync(p, 'utf8').replace(/^﻿/, '')
+    .split(/\r?\n/).filter((l) => l.trim() !== '');
+  const filas = Math.max(0, lineas.length - 1);
+  leidas += filas;
+  const apartar = (porQue) => apartados.push({ nombre, porQue, filas });
+
   const est = estadisticoDeNombre(nombre).id;
-  if (!est) { sueltos.push([nombre, 'el nombre no dice qué estadístico trae']); continue; }
-  const lineas = readFileSync(p, 'utf8').split(/\r?\n/).filter((l) => l.trim() !== '');
-  if (lineas.length < 2) { sueltos.push([nombre, 'sin filas de señal']); continue; }
-  const fecha = fechaDelEje(lineas[0]);
-  if (!fecha) { sueltos.push([nombre, 'sin eje de tiempo reconocible']); continue; }
-  const k = `${est}-${fecha}`;
-  if (!grupos.has(k)) grupos.set(k, { eje: lineas[0], filas: [] });
+  if (!est) { apartar('el nombre no dice qué estadístico trae'); continue; }
+  if (!filas) { apartar('sin filas de señal'); continue; }
+  const separador = separadorDe(lineas[0]);
+  const eje = ejeDe(lineas[0], separador);
+  if (!eje) { apartar('la primera fila no es un eje de tiempo reconocible'); continue; }
+  if (eje.fechas.length !== 1) {
+    apartar(`su eje cubre ${eje.fechas.length} días: no se sabe a qué día va cada hora`); continue;
+  }
+  const k = `${est}-${eje.fechas[0].replaceAll('-', '')}`;
+  if (!grupos.has(k)) {
+    grupos.set(k, { eje: lineas[0], primero: nombre, filas: new Map(), repetidas: [], choques: [], leidas: 0 });
+  }
   const g = grupos.get(k);
   // ⚠️ Si el eje no es el MISMO, no se juntan: alinear dos rejillas es
   // interpolar, y una medida interpolada no la tomó nadie.
-  if (g.eje !== lineas[0]) { sueltos.push([nombre, 'su eje de tiempo no coincide con el del grupo']); continue; }
-  g.filas.push(...lineas.slice(1));
+  if (g.eje !== lineas[0]) { apartar(`su eje de tiempo no es idéntico al de «${g.primero}»`); continue; }
+  ordenes.push({ nombre, orden: eje.orden.orden, seguro: eje.orden.seguro });
+  for (const fila of lineas.slice(1)) {
+    g.leidas += 1;
+    const et = etiquetaDe(fila, eje.primeraColumna, separador) || '(sin etiqueta)';
+    const ya = g.filas.get(et);
+    if (!ya) { g.filas.set(et, { fila, nombre }); continue; }
+    if (ya.fila === fila) { g.repetidas.push({ nombre, igualA: ya.nombre }); continue; }
+    g.choques.push({ etiqueta: et, nombres: [ya.nombre, nombre] });
+  }
 }
 
+// ── ¿Día/mes o mes/día? Lo que DEMUESTRA un archivo vale para todo el mes ─────
+const demostrado = new Set(ordenes.filter((o) => o.seguro).map((o) => o.orden));
+const supuestos = ordenes.filter((o) => !o.seguro);
+if (demostrado.size > 1 || (supuestos.length && [...demostrado].some((o) => o !== 'dmy'))) {
+  console.log(`❌ NO SE ESCRIBE NADA: el orden de la fecha no es el mismo en todos los archivos.`);
+  console.log(`   Lo demuestran: ${[...demostrado].join(' y ')}. Y ${supuestos.length} archivo(s) no traen `
+    + 'prueba y se leerían día/mes, como los lee la pantalla: alguno quedaría fechado al revés.');
+  for (const o of ordenes.filter((x) => x.seguro && x.orden !== 'dmy').slice(0, 5)) {
+    console.log(`   · «${o.nombre}» demuestra ${o.orden}`);
+  }
+  process.exit(1);
+}
+
+let escritas = 0; let repetidas = 0; let deChoque = 0;
+const conChoque = [];
 for (const [k, g] of [...grupos].sort()) {
-  writeFileSync(join(destino, `${k}.csv`), [g.eje, ...g.filas].join('\n') + '\n');
+  repetidas += g.repetidas.length;
+  if (g.choques.length) { conChoque.push([k, g]); deChoque += g.leidas - g.repetidas.length; continue; }
+  writeFileSync(join(destino, `${k}.csv`), [g.eje, ...[...g.filas.values()].map((x) => x.fila)].join('\n') + '\n');
+  escritas += g.filas.size;
 }
-console.log(`${grupos.size} archivo(s) escritos — uno por día y estadístico`);
-const dias = new Set([...grupos.keys()].map((k) => k.split('-')[1]));
+const filasApartadas = apartados.reduce((n, a) => n + a.filas, 0);
+
+const escritos = [...grupos.keys()].filter((k) => !conChoque.some(([c]) => c === k));
+console.log(`${escritos.length} archivo(s) escritos — uno por día y estadístico`);
+const dias = new Set(escritos.map((k) => k.split('-')[1]));
 console.log(`${dias.size} día(s) distintos, según lo que declara el DATO`);
-if (sueltos.length) {
-  console.log(`\n${sueltos.length} archivo(s) NO se juntaron:`);
-  const porQue = new Map();
-  for (const [n, r] of sueltos) porQue.set(r, (porQue.get(r) ?? 0) + 1);
-  for (const [r, n] of porQue) console.log(`   ${n} · ${r}`);
+const porEst = new Map();
+for (const k of escritos) { const [e] = k.split('-'); porEst.set(e, (porEst.get(e) ?? 0) + 1); }
+console.log(`   ${[...porEst].sort().map(([e, n]) => `${e}: ${n} día(s)`).join(' · ')}`);
+const nSeguros = ordenes.filter((o) => o.seguro).length;
+console.log(`   fecha: ${nSeguros} archivo(s) demuestran ${[...demostrado].join('/') || '—'}; `
+  + `${supuestos.length} sin prueba, leídos día/mes como la pantalla`);
+
+console.log(`\n${leidas} fila(s) de señal leídas = ${escritas} escritas + ${repetidas} repetida(s) idéntica(s)`
+  + ` + ${deChoque} de un día·estadístico con choque + ${filasApartadas} de archivos apartados`);
+if (repetidas) {
+  console.log(`\n${repetidas} fila(s) repetidas IDÉNTICAS —la misma señal, el mismo día, los mismos valores—: se escribe una.`);
+  for (const [k, g] of [...grupos].sort()) {
+    for (const r of g.repetidas) console.log(`   ${k} · «${r.nombre}» = «${r.igualA}»`);
+  }
 }
+if (conChoque.length) {
+  console.log(`\n❌ ${conChoque.length} día·estadístico NO se escribieron: traen la MISMA señal con valores DISTINTOS.`);
+  console.log('   Elegir una sería decidir por usted qué medida es la buena. Revise estos archivos:');
+  for (const [k, g] of conChoque) {
+    for (const c of g.choques) console.log(`   ${k} · ${c.etiqueta} · «${c.nombres[0]}» ≠ «${c.nombres[1]}»`);
+  }
+  process.exitCode = 1;
+}
+if (apartados.length) {
+  const conFilas = apartados.filter((a) => a.filas > 0);
+  console.log(`\n${conFilas.length ? '❌ ' : ''}${apartados.length} archivo(s) de medidas APARTADOS${conFilas.length
+    ? ` — ${filasApartadas} fila(s) que NO van a la carga` : ''}:`);
+  for (const a of apartados) console.log(`   «${a.nombre}» · ${a.porQue}`);
+  if (conFilas.length) process.exitCode = 1;
+}
+if (leidas !== escritas + repetidas + deChoque + filasApartadas) {
+  console.log('\n❌ EL RECUENTO NO CUADRA: alguna fila se ha perdido por el camino. No cargue esto.');
+  process.exitCode = 1;
+}
+if (deCalidad) console.log(`\n${deCalidad} sello(s) de calidad apartados: no son medidas (la pantalla los lee aparte).`);

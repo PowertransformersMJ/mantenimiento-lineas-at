@@ -131,6 +131,7 @@
 - `L-81` · «Sin conexión» con `curl` verde: el preflight CORS rechazó una cabecera propia *(`35`)*
 - `L-84` · Un guardado que escribe MENOS de lo que enseñó no da error en ninguna capa *(`33`)*
 - `L-85` · El emulador NO pide los índices que producción SÍ exige *(`35`)*
+- `L-86` · El mismo dato bajado dos veces no es una repetición: es una fase de más *(`33`)*
 - `M-03` · Un agente «ancho» no implementa: un archivo, un rango y el texto exacto *(aquí)*
 
 ### M-01 · Una cifra escrita a mano que un guardián puede contar es una cifra que envejece sola

@@ -142,13 +142,13 @@ mantenimiento-lineas-at/
 │                                → 3,5 MB. Exige el patrón de la bahía a propósito —adivinarla
 │                                sería elegir por él de qué línea son los datos— y NO toca sus
 │                                originales. `node herramientas/extraer-bahia.mjs <origen> <destino> <patrón>`
-├── herramientas/juntar-por-dia.mjs 📅 **PASO 2** (ADR-119): un archivo por DÍA y ESTADÍSTICO, 902 →
-│                                99. Los junta como los juntaría el lector; ni un número se toca.
-│                                ⚠️ El día sale del DATO; el estadístico, del nombre, y el que no se
-│                                reconoce se deja aparte y **se dice**. ⚠️ Pero su lectura del eje es
-│                                PROPIA —solo `d/m/aa`— y no la del núcleo: un eje `1/13/26` sale
-│                                `20261301` y uno ISO se descarta. Con SU formato funciona; SIN
-│                                prueba (`TODO-102`)
+├── herramientas/juntar-por-dia.mjs 📅 **PASO 2** (ADR-119/126): un archivo por DÍA y ESTADÍSTICO
+│                                (enero 902 → 99 · febrero 1.060 → 108). Ni un número se toca. El día
+│                                sale del EJE, leído con la MISMA regla que la pantalla; el
+│                                estadístico, del nombre. Los «(1)» idénticos se escriben UNA vez; la
+│                                misma señal con valores distintos, o un archivo apartado, se NOMBRA y
+│                                sale con error. Exige destino VACÍO: no borra nada. Prueba:
+│                                `tests/juntar-por-dia.test.js` · salidas en `_dias-LN627/<Mes>/`
 ├── herramientas/plantilla-cargabilidad.mjs  el Excel MODELO para llenar a mano (ADR-088). La hoja
 │                                de datos va VACÍA, solo cabecera: el ejemplo vive en la hoja de
 │                                INSTRUCCIONES, donde nadie lo confunde con una medición

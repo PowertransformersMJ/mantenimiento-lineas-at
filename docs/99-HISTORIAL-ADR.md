@@ -10280,3 +10280,76 @@ hallazgos quedaban once de severidad media o baja. Se cierran así:
 `§ADR-106`, `research-archive/2026-09-07-parametros-electricos-mapa/`.
 
 ---
+## ADR-126 · 2026-09-10 · Febrero: el paso 2 lee la fecha como la pantalla, escribe una vez lo bajado dos veces y nombra lo que aparta
+
+**Deliberación:** orden del Ingeniero —*«procésalo con los pasos 0, 1 y 2 del mapa y cárgalo. Antes de
+cargar, cuenta cuántos días traen el máximo»*—. Tres verificadores Opus independientes: recuento desde
+el crudo, fidelidad byte a byte y revisión adversaria del cambio → `research-archive/2026-09-10-febrero-scada/`.
+**Estado:** ✅ herramienta y prueba · ⏳ **la CARGA espera su sesión** (se cerró por inactividad, y la
+contraseña no la escribe Claude) · **NO revisada externamente**.
+
+### Contexto
+
+Febrero llegó el 10-09: 28 carpetas, 1.194 CSV, 577 MB, fuera de todo git. Los tres pasos del mapa
+(`20`): 0 —convertir los `.xls` viejos—, 1 —`extraer-bahia`—, 2 —`juntar-por-dia`—.
+
+### Lo que salió al MEDIR
+
+| Hallazgo | Por qué importa |
+|---|---|
+| **27 días, no 28**: la carpeta del 1 de febrero viene VACÍA, y un sello de calidad suelto ya es del 1 de marzo | Febrero no está entero, y no por el procesado |
+| Paso 0: **ningún `.xls`**, los 1.194 son CSV | Nada que convertir; se contó, no se supuso (`33 · L-84`) |
+| **El MÁXIMO está los 27 días** (enero: 20 de 31). La corriente —la que dicta— trae **las tres fases en 22**: el 06, 10, 14 y 20 falta una, el 22 solo trae la S. Las 8 señales completas, en 13 | Un día sin una fase dictamina sobre las otras: el pico pudo estar en la que falta |
+| **108 archivos «(1)»**: la segunda descarga de un nombre que ya existía. **70 filas** de la bahía idénticas byte a byte | Apiladas, un día tenía una cuarta corriente, y la pantalla, al ver más de tres, las deja TODAS sin usar (`33 · L-86`) |
+| Enero ya entró con **6** filas así, en 5 días, todas idénticas | Con «la fase más cargada» ningún número guardado cambió. Dos venían de un archivo cuyo NOMBRE mentía sobre la magnitud: al instantáneo del 06-01 le falta la fase T, y al promedio del 10-01, la tensión ST |
+| En el crudo hay **otra bahía con el mismo nombre, en otra subestación** | El paso 1 tomó la de enero, que la bóveda fija como punto de medida de LN-627 (`analisis/tension-LN-627/`). La otra no entra |
+| **Pico del máximo: 550 A el 24-02 a las 13:00 = 77 % de 718 A** | Forma de EVENTO, no de carga: R 550, S 393, T 233, y el promedio de esa hora BAJA a 199 A. Sin él, el mes llega a 371 A (16-02). Es su dato: el máximo dicta y no se sustituye (`§ADR-112`); se le pregunta qué pasó |
+
+### Decisión
+
+1. **La fecha, con la regla de la pantalla.** `juntar-por-dia` lee el eje con `encontrarEjeDeTiempo`
+   del núcleo. Como esa regla decide archivo a archivo, además mira el MES: si un archivo demuestra
+   mes/día y otro se leería día/mes por defecto, no escribe nada. Cierra `TODO-102 ③`.
+2. **Dentro de un día y un estadístico, la etiqueta es la identidad.** Repetida idéntica → una, y se
+   dice cuál sobraba. Misma señal con valores distintos → ese día·estadístico no se escribe y sale 1.
+3. **Lo que se aparta se nombra, entra en el recuento y sale con error.** Solo el sello de calidad se
+   aparta sin error. Un revisor demostró que el primer recuento **cuadraba siempre**: ahora lo
+   apartado es un sumando propio.
+4. **Lo demás del revisor, con su caso:** separador decidido por ARCHIVO y no por fila, la marca de
+   orden de bytes se quita como la quita el lector, un eje de más de un día se aparta, y el destino
+   tiene que estar VACÍO —la herramienta no borra, y un resto se cargaría—.
+5. **`tests/juntar-por-dia.test.js`, 17 casos**, cada uno con el escenario con que se demostró el fallo.
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| Quitar a mano los «(1)» antes del paso 2 | Paso manual fuera del mapa: así se perdió el paso 0 de enero (`§ADR-125`). Y el nombre miente: el día que un «(1)» sea el único que trae su día, se perdería |
+| Quedarse con la primera de dos filas distintas | Es elegir por él qué medida es la buena |
+| Arreglar ya la pantalla (ver Consecuencias) | Es pantalla: se verifica en frío con su sesión y se despliega. Va en su propia tarea |
+| Recortar el pico del 24-02 | Prohibido: el máximo dicta y no se sustituye |
+
+### Supuestos que deben ser ciertos — y la señal que diría que dejaron de serlo
+
+| Supuesto | Señal |
+|---|---|
+| El SCADA exporta un día por archivo, de 0:00 a 23:00 | La herramienta aparta un archivo «su eje cubre N días» |
+| La bahía de LN-627 es la de enero | Él nombra otra: enero y febrero estarían en la equivocada |
+| Un «(1)» idéntico es la misma medida bajada dos veces | Dos lecturas distintas de una señal: la herramienta se niega y lo dice |
+
+### Consecuencias
+
+- Motor sin cambios. `2.662` pruebas en verde, molde verificado.
+- Enero re-corrido con la herramienta nueva: cambian SOLO los 5 días con filas repetidas, y solo en que
+  la repetida sale una vez. No se recarga: los números guardados son los mismos.
+- Febrero: 1.060 archivos de la bahía → **108** (27 días × 4 estadísticos); 840 filas leídas = 770
+  escritas + 70 repetidas. Ensayo local de lo que hará la pantalla: 108 días, 108 resúmenes, **217
+  escrituras**, cero días que dejaría sin usar.
+- ⚠️ **Queda vivo EN LA PANTALLA** (tarea aparte): el tope de «más de tres señales» se mira solo en el
+  primer día; la asignación corregida a mano se aplica por número de fila a TODOS los días; y un mes
+  exportado mes/día fecharía al revés los días 1 a 12. Con febrero no se dispara ninguno: medido.
+
+**Crudo de respaldo:** `research-archive/2026-09-10-febrero-scada/` (los tres verificadores y los
+scripts del recuento, el análisis de la bahía y el ensayo de la carga).
+
+---
