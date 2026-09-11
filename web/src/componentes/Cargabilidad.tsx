@@ -45,7 +45,7 @@ import {
   RELLENO_BANDA, TINTA_BANDA, tintaDe, areasDeBanda, csvDeErrores, etiquetaInstante,
   filtrarPorTexto, LIENZO, marcaDeTiempo, marcasDeRango, marcasDeTiempo, marcasX, marcasY, ordenarPor, paginar,
   REFERENCIAS, aCsv, techoY,
-  tramosDeLinea, x, y, type Direccion,
+  tramosDeLinea, x, y, type Direccion, HORAS_DEL_DIA, rotuloDeHora, xDeHora, diaEnElReloj,
 } from '../vistas/cargabilidadVista';
 import {
   cerosAlFinal, CRITERIOS_DE_FASE, encontrarEjeDeTiempo, estadisticoDeNombre, estadisticoPorFilaCorregido,
@@ -2348,7 +2348,16 @@ function GraficasPorFase({ registros, porEstadistico, disponibles, cargando, alP
    * (`99 §ADR-129`): un año son 8.760 puntos por fase, y rehacer los trazos al
    * pasar el cursor haría que la cajita del valor llegara tarde.
    */
-  const modeloDe = (g: Magnitud, registros: Registro[]) => {
+  const modeloDe = (g: Magnitud, entrada: Registro[]) => {
+    // ⚠️ UN DÍA SE LEE EN EL RELOJ (`99 §ADR-130`): cada lectura sobre SU hora
+    // —0 a 23—, no sobre su puesto en la lista, y las horas EN ORDEN: una tabla
+    // que llegaba de la 23 a la 0 se partía en 24 puntos sueltos. `diaEnElReloj`
+    // dice si se puede —un día, cada hora una sola vez— y devuelve el día
+    // ordenado; si no, queda la colocación de siempre. El modelo guarda ESE
+    // orden, para que el ratón y la cajita lean los mismos índices que la línea.
+    const enElReloj = diaEnElReloj(entrada);
+    const unDia = enElReloj != null;
+    const registros = enElReloj ?? entrada;
     /** De cuándo a cuándo va lo dibujado, dicho en palabras y no en un eje. */
     const primero = registros[0];
     const ultimo = registros[registros.length - 1];
@@ -2373,6 +2382,10 @@ function GraficasPorFase({ registros, porEstadistico, disponibles, cargando, alP
     const lz = { ...LIENZO, alto: (g as { alto?: number }).alto ?? LIENZO.alto };
     const yEn = (v: number) => lz.alto - lz.margen.b
       - ((v - lo) / (hi - lo)) * (lz.alto - lz.margen.s - lz.margen.b);
+    // Con un día en el reloj, la x de cada lectura es la de SU hora: si falta una,
+    // queda su hueco y el rótulo de debajo sigue siendo la hora del dato.
+    const horasDe = registros.map((r) => Number(r.hora));
+    const xEn = (i: number) => (unDia ? xDeHora(horasDe[i], lz) : x(i, registros.length, lz));
     const marcas = marcasDeRango(lo, hi);
     const { idx, modo } = marcasDeTiempo(registros as never[]);
     // La mayor distancia entre la fase más alta y la más baja en un mismo
@@ -2390,7 +2403,9 @@ function GraficasPorFase({ registros, porEstadistico, disponibles, cargando, alP
       const tramos: [number, number][][] = [];
       let tramo: [number, number][] = [];
       registros.forEach((x_, i) => {
-        if (typeof x_[campo] === 'number') tramo.push([x(i, registros.length, lz), yEn(x_[campo] as number)]);
+        // En el reloj, una hora que no llegó también corta: las 06 y las 08 no se unen.
+        if (unDia && i > 0 && horasDe[i] - horasDe[i - 1] !== 1 && tramo.length) { tramos.push(tramo); tramo = []; }
+        if (typeof x_[campo] === 'number') tramo.push([xEn(i), yEn(x_[campo] as number)]);
         else if (tramo.length) { tramos.push(tramo); tramo = []; }
       });
       if (tramo.length) tramos.push(tramo);
@@ -2407,7 +2422,7 @@ function GraficasPorFase({ registros, porEstadistico, disponibles, cargando, alP
       : orden.length % 2 ? orden[mitad] : (orden[mitad - 1] + orden[mitad]) / 2;
     return {
       g, registros, periodoDicho, paso, min, max, lo, hi, lz, yEn, marcas, idx, modo, separacion, trazos, mediana,
-      lecturas,
+      lecturas, unDia, xEn,
     };
   };
   type Modelo = ReturnType<typeof modeloDe>;
@@ -2522,7 +2537,7 @@ function GraficasPorFase({ registros, porEstadistico, disponibles, cargando, alP
 
   /** La gráfica de UNA magnitud: subtítulo, leyenda, lienzo, cajita y pie. */
   const cuerpo = (m: Modelo, clave: string, est: string | null) => {
-    const { g, registros, periodoDicho, paso, min, max, lo, hi, lz, yEn, marcas, idx, modo, separacion, trazos } = m;
+    const { g, registros, periodoDicho, paso, min, max, lo, hi, lz, yEn, marcas, idx, modo, separacion, trazos, unDia, xEn } = m;
     const n = registros.length;
     const rot = rotuloDe(est);
     const i = raton && raton.clave === clave && raton.i < n ? raton.i : null;
@@ -2530,9 +2545,9 @@ function GraficasPorFase({ registros, porEstadistico, disponibles, cargando, alP
     // rango que cruce de año, «05/08 15h» no dice de qué agosto es.
     const fechaHora = (r: Registro) => {
       const f = String(r.fecha ?? '');
-      return `${f.slice(8, 10)}/${f.slice(5, 7)}/${f.slice(2, 4)}${r.hora == null ? '' : ` ${Number(r.hora)}:00`}`;
+      return `${f.slice(8, 10)}/${f.slice(5, 7)}/${f.slice(2, 4)}${r.hora == null ? '' : ` ${String(Number(r.hora)).padStart(2, '0')}:00`}`;
     };
-    const xi = i == null ? 0 : x(i, n, lz);
+    const xi = i == null ? 0 : xEn(i);
     const pct = (xi / lz.ancho) * 100;
     // ⚠️ AVISO DE SIGNO (`99 §ADR-129`). La activa y la reactiva salen
     // NEGATIVAS en una bahía que exporta: ahí su «máximo» de la hora es el
@@ -2561,7 +2576,8 @@ function GraficasPorFase({ registros, porEstadistico, disponibles, cargando, alP
           ))}
         </div>
         {/* ⚠️ EL VALOR, AL PASAR EL RATÓN (`99 §ADR-129`). Se busca el instante
-            más cercano con la MISMA escala con que se dibujó —`x(i, n, lz)`—:
+            más cercano con la MISMA escala con que se dibujó —`xEn(i)`: la
+            hora del reloj con un día (`§ADR-130`), el puesto con varios—:
             una cajita que leyera otra escala enseñaría la cifra de la hora de
             al lado. La caja se posiciona sobre el lienzo, fuera del SVG, para
             que el texto no se escale con la figura. */}
@@ -2575,8 +2591,14 @@ function GraficasPorFase({ registros, porEstadistico, disponibles, cargando, alP
               const util = lz.ancho - lz.margen.i - lz.margen.d;
               let cerca = n <= 1 ? 0 : Math.round(((vx - lz.margen.i) / util) * (n - 1));
               cerca = Math.max(0, Math.min(n - 1, cerca));
-              for (const c of [cerca - 1, cerca + 1]) {
-                if (c >= 0 && c < n && Math.abs(x(c, n, lz) - vx) < Math.abs(x(cerca, n, lz) - vx)) cerca = c;
+              if (unDia) {
+                // En el reloj la posición no es el puesto en la lista: se busca la
+                // lectura más cercana entre todas, que son 24 como mucho.
+                for (let c = 0; c < n; c += 1) if (Math.abs(xEn(c) - vx) < Math.abs(xEn(cerca) - vx)) cerca = c;
+              } else {
+                for (const c of [cerca - 1, cerca + 1]) {
+                  if (c >= 0 && c < n && Math.abs(x(c, n, lz) - vx) < Math.abs(x(cerca, n, lz) - vx)) cerca = c;
+                }
               }
               setRaton((r) => (r && r.clave === clave && r.i === cerca ? r : { clave, i: cerca }));
             }}
@@ -2599,6 +2621,12 @@ function GraficasPorFase({ registros, porEstadistico, disponibles, cargando, alP
                 su sitio, y ahí cabe siempre sea cual sea la cifra. */}
             <text x={lz.margen.i} y={lz.margen.s - 6} textAnchor="start"
               fontSize={10} fill="var(--tx-tenue, #888)">{g.unidad}</text>
+            {/* Una raya tenue por hora, DEBAJO de las líneas: se cuenta la hora sin
+                contar puntos (`99 §ADR-130`). */}
+            {unDia && HORAS_DEL_DIA.map((h) => (
+              <line key={`rh${h}`} x1={xDeHora(h, lz)} x2={xDeHora(h, lz)} y1={lz.margen.s}
+                y2={lz.alto - lz.margen.b + 3} stroke="var(--bd-tenue)" strokeWidth={0.6} />
+            ))}
             {g.presentes.map(([fase, campo], k) => (
               <g key={fase}>
                 {trazos[k].map((tramo, s) => (tramo.length > 1 ? (
@@ -2613,7 +2641,7 @@ function GraficasPorFase({ registros, porEstadistico, disponibles, cargando, alP
                     cada uno tapa la línea y cuesta miles de nodos. La línea
                     sigue siendo el dato; el punto era la ayuda para leerlo. */}
                 {registros.length <= PUNTOS_VISIBLES && registros.map((x_, j) => (typeof x_[campo] === 'number' ? (
-                  <circle key={j} cx={x(j, registros.length, lz)} cy={yEn(x_[campo] as number)} r={2.2}
+                  <circle key={j} cx={xEn(j)} cy={yEn(x_[campo] as number)} r={2.2}
                     fill={TINTA[k % TINTA.length]}>
                     <title>
                       {etiquetaInstante(x_ as never)} · {fase} · {nf(x_[campo] as number, g.dec)} {g.unidad}
@@ -2628,7 +2656,12 @@ function GraficasPorFase({ registros, porEstadistico, disponibles, cargando, alP
                 hay varios y HORAS cuando es uno solo, y la marca cae en la
                 frontera, que es lo que el ojo busca en una serie horaria.
                 La última se ancla al final o se sale del lienzo. */}
-            {idx.map((j, k) => (
+            {/* ⚠️ UN DÍA, HORA A HORA (`99 §ADR-130`): las 24, una a una —00, 01,
+                02… 23— y en su sitio del reloj, haya o no lectura en esa hora. */}
+            {unDia ? HORAS_DEL_DIA.map((h) => (
+              <text key={`h${h}`} x={xDeHora(h, lz)} y={lz.alto - 10} textAnchor="middle"
+                fontSize={9} fill="var(--tx-tenue, #888)">{rotuloDeHora(h)}</text>
+            )) : idx.map((j, k) => (
               <text key={j} x={x(j, registros.length, lz)} y={lz.alto - 10}
                 textAnchor={k === idx.length - 1 ? 'end' : k === 0 ? 'start' : 'middle'}
                 fontSize={9} fill="var(--tx-tenue, #888)">

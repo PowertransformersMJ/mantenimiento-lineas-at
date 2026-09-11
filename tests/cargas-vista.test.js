@@ -731,6 +731,69 @@ describe('las marcas del eje caen donde significan algo', () => {
 });
 
 // ════════════════════════════════════════════════════════════════════════════
+// UN DÍA, HORA A HORA Y SOBRE EL RELOJ (`99 §ADR-130`)
+// ----------------------------------------------------------------------------
+// ⚠️ Orden del Ingeniero (2026-09-11): «necesito que se vea hora a hora, es
+// decir, 00, 01, 02, 03… hasta completar las 24 horas». Salían 00, 03, 06…
+// ════════════════════════════════════════════════════════════════════════════
+import {
+  HORAS_DEL_DIA, rotuloDeHora, xDeHora, x as xPorPosicion, LIENZO as LIENZO_DEL_DIA, diaEnElReloj,
+} from '../web/src/vistas/cargabilidadVista.ts';
+
+describe('un día se rotula hora a hora, sobre el reloj', () => {
+  test('las 24 horas, una a una: 00, 01 … 23', () => {
+    assert.deepEqual(HORAS_DEL_DIA.map(rotuloDeHora),
+      Array.from({ length: 24 }, (_, h) => String(h).padStart(2, '0')));
+  });
+
+  test('cada hora cae en su sitio: la 00 al borde izquierdo, la 23 al derecho, a pasos iguales', () => {
+    const L = LIENZO_DEL_DIA;
+    assert.equal(xDeHora(0), L.margen.i);
+    assert.equal(xDeHora(23), L.ancho - L.margen.d);
+    const paso = xDeHora(1) - xDeHora(0);
+    for (let h = 1; h < 24; h += 1) assert.ok(Math.abs(xDeHora(h) - xDeHora(h - 1) - paso) < 1e-9);
+  });
+
+  test('⚠️ con el día COMPLETO da la x de siempre; si falta una hora, la de siempre se corre', () => {
+    for (let h = 0; h < 24; h += 1) assert.ok(Math.abs(xDeHora(h) - xPorPosicion(h, 24)) < 1e-9);
+    // Sin la hora 7, la lectura de las 15:00 es la 15.ª de 23: por posición caía
+    // 11 px a la izquierda de su hora, a medio camino hacia el rótulo «14».
+    assert.ok(Math.abs(xPorPosicion(14, 23) - xDeHora(15)) > 10, 'por posición, la hora se corre');
+  });
+
+  // Lo cazaron los dos revisores, cada uno por su lado: una tabla de un día que
+  // llegaba de la 23 a la 0 se partía en 24 puntos sueltos.
+  const unDiaDe = (horas, fecha = '2026-01-15') => horas.map((h) => ({ fecha, hora: h }));
+  const horasDeLista = (r) => r.map((p) => Number(p.hora));
+  const completo = Array.from({ length: 24 }, (_, h) => h);
+
+  test('⚠️ un día llega al reloj EN ORDEN de hora, venga como venga la tabla', () => {
+    assert.deepEqual(horasDeLista(diaEnElReloj(unDiaDe(completo))), completo);
+    assert.deepEqual(horasDeLista(diaEnElReloj(unDiaDe([...completo].reverse()))), completo, 'de la 23 a la 0');
+    assert.deepEqual(horasDeLista(diaEnElReloj(unDiaDe([5, 0, 12, 3, 23, 7]))), [0, 3, 5, 7, 12, 23], 'barajado');
+    const sinLa7 = completo.filter((h) => h !== 7);
+    assert.deepEqual(horasDeLista(diaEnElReloj(unDiaDe([...sinLa7].reverse()))), sinLa7, 'el hueco de la 7 se queda');
+  });
+
+  test('horas en texto valen; vacías, nulas, fuera de 0..23, partidas o repetidas, no', () => {
+    assert.deepEqual(horasDeLista(diaEnElReloj(unDiaDe(['07', '06']))), [6, 7]);
+    assert.equal(diaEnElReloj(unDiaDe([0, 1, null])), null);
+    assert.equal(diaEnElReloj(unDiaDe([0, ''])), null, 'una hora vacía no es la 00');
+    assert.equal(diaEnElReloj(unDiaDe([0, 24])), null);
+    assert.equal(diaEnElReloj(unDiaDe([0, 0.5])), null);
+    assert.equal(diaEnElReloj(unDiaDe([0, 1, 1])), null, 'dos líneas a la misma hora se apilarían');
+  });
+
+  test('varios días, o ninguno, no van al reloj; y lo recibido no se toca', () => {
+    assert.equal(diaEnElReloj([...unDiaDe([0, 1]), ...unDiaDe([2], '2026-01-16')]), null);
+    assert.equal(diaEnElReloj([]), null);
+    const entrada = unDiaDe([3, 1, 2]);
+    diaEnElReloj(entrada);
+    assert.deepEqual(horasDeLista(entrada), [3, 1, 2]);
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
 // EL CERO SE MARCA CUANDO SIGNIFICA ALGO (`99 §ADR-124`)
 // ----------------------------------------------------------------------------
 // ⚠️ En una magnitud con signo el cero no es una cifra más: es **dónde se

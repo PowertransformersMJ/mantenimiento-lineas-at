@@ -104,6 +104,54 @@ export function x(i: number, n: number, l: Lienzo = LIENZO): number {
   return l.margen.i + (n <= 1 ? util / 2 : (i / (n - 1)) * util);
 }
 
+/**
+ * COORDENADA X DE UNA HORA DEL DÍA, de 0 a 23 (`99 §ADR-130`).
+ *
+ * ⚠️ Con UN solo día el eje es el RELOJ, no la lista. Colocada por su posición,
+ * a un día sin la hora 7 se le corrían las de la tarde una casilla a la
+ * izquierda, y el rótulo de debajo decía otra hora que la del dato. Con un día
+ * completo, las dos maneras dan la misma x.
+ */
+export function xDeHora(hora: number, l: Lienzo = LIENZO): number {
+  const util = l.ancho - l.margen.i - l.margen.d;
+  return l.margen.i + (Math.max(0, Math.min(23, hora)) / 23) * util;
+}
+
+/**
+ * Las 24 horas del eje de un día, UNA A UNA (`99 §ADR-130`). Orden del
+ * Ingeniero (2026-09-11): «que se vea hora a hora, es decir, 00, 01, 02, 03…
+ * hasta completar las 24 horas». Antes salían solo 00, 03, 06…
+ */
+export const HORAS_DEL_DIA: readonly number[] = Array.from({ length: 24 }, (_, h) => h);
+
+/** 7 → «07». Sin la «h»: así lo escribió él, y el subtítulo ya dice «una cada hora». */
+export function rotuloDeHora(h: number): string {
+  return String(h).padStart(2, '0');
+}
+
+/**
+ * ¿SE PUEDE LEER EN EL RELOJ? Y, SI SÍ, EN ORDEN DE HORA (`99 §ADR-130`).
+ *
+ * Solo si es UN día y cada hora 0..23 sale una sola vez: dos líneas a la misma
+ * hora se apilarían en la misma x. Una hora nula, vacía o fuera de 0..23 lo
+ * impide —una vacía NO es la 00—.
+ *
+ * ⚠️ Devuelve el día ORDENADO por hora, sin tocar lo que recibe. Una tabla que
+ * llegaba de la 23 a la 0 partía la línea en 24 puntos sueltos: el corte por
+ * «hora que no llegó» mira la hora anterior, y eso solo tiene sentido en orden.
+ *
+ * @returns el día ordenado, o `null` si se queda la colocación de siempre.
+ */
+export function diaEnElReloj<T extends { fecha?: unknown; hora?: unknown }>(puntos: T[]): T[] | null {
+  if (!puntos.length) return null;
+  const fecha = String(puntos[0].fecha);
+  const horas = puntos.map((p) => (p.hora == null || p.hora === '' ? NaN : Number(p.hora)));
+  if (!puntos.every((p) => String(p.fecha) === fecha)) return null;
+  if (!horas.every((h) => Number.isInteger(h) && h >= 0 && h <= 23)) return null;
+  if (new Set(horas).size !== puntos.length) return null;
+  return puntos.map((p, i) => ({ p, h: horas[i] })).sort((a, b) => a.h - b.h).map(({ p }) => p);
+}
+
 /** Coordenada Y de un porcentaje. Crece hacia arriba, que es como se lee. */
 export function y(pct: number, techo: number, l: Lienzo = LIENZO): number {
   const util = l.alto - l.margen.s - l.margen.b;

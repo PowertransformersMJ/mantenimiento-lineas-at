@@ -628,4 +628,26 @@ describe('§ADR-129 · el histórico: un filtro por gráfica, indicadores sobre 
     assert.match(GRAF, /fallos\?\.\[est\]/);
     assert.match(HIST, /fallos=\{/);
   });
+
+  // ── §ADR-130 · un día, hora a hora ─────────────────────────────────────────
+  // Orden del Ingeniero (2026-09-11): «00, 01, 02, 03… hasta completar las 24».
+  test('§ADR-130 · con un solo día el eje rotula las 24 horas, una a una, y cada lectura va en su hora', () => {
+    assert.match(GRAF, /unDia \? HORAS_DEL_DIA\.map/, 'las 24 rotuladas, no una de cada tres');
+    assert.match(GRAF, /rotuloDeHora\(h\)/);
+    assert.match(GRAF, /xDeHora\(horasDe\[i\], lz\)/, 'en su hora del reloj, no en su puesto de la lista');
+    assert.match(GRAF, /cx=\{xEn\(j\)\}/, 'los puntos, con la misma escala que la línea');
+    assert.match(GRAF, /const xi = i == null \? 0 : xEn\(i\)/, 'y la raya del ratón, también');
+  });
+
+  test('§ADR-130 · una hora que no llegó corta la línea, y el ratón busca la lectura más cercana', () => {
+    assert.match(GRAF, /horasDe\[i\] - horasDe\[i - 1\] !== 1/);
+    assert.match(GRAF, /if \(unDia\) \{/);
+  });
+
+  test('§ADR-130 · ⚠️ el día entra al reloj ORDENADO por hora, y el modelo guarda ese orden', () => {
+    assert.match(GRAF, /const enElReloj = diaEnElReloj\(entrada\)/);
+    assert.match(GRAF, /const registros = enElReloj \?\? entrada/,
+      'el ratón y la cajita leen los mismos índices que la línea');
+    assert.match(GRAF, /: idx\.map\(\(j, k\) =>/, 'con varios días, las marcas de siempre');
+  });
 });

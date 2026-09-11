@@ -10579,3 +10579,58 @@ salían en «—».
 aprobada y su generador, los scripts de los revisores y el parche de la revisión).
 
 ---
+## ADR-130 · 2026-09-11 · Un día se lee hora a hora: las 24 rotuladas y cada lectura sobre su hora
+
+**Deliberación:** orden del Ingeniero, con captura de un solo día —*«necesito que se vea hora a hora
+es decir, 00, 01, 02, 03... hasta completar las 24 horas»*—. Cambio pequeño y dicho entero por él:
+sin maqueta aparte (la del eje de días, que espera su visto bueno, ya dibuja así el día). Revisión
+adversaria de dos Opus → `research-archive/2026-09-11-eje-de-dias/`.
+**Estado:** ✅ desplegado (`index-Ckeq4ufK.js`, servido == construido) y **verificado EN FRÍO con su
+sesión**: el 05-08, las cinco gráficas rotulan «00 … 23» con 24 rayas · **NO revisada externamente**.
+
+### Contexto
+
+Con un solo día el eje rotulaba 00h, 03h, 06h… (`marcasX`, ocho marcas) y colocaba cada lectura por
+su PUESTO en la lista, no por su hora: a un día sin la hora 7 se le corrían las de la tarde una
+casilla, y el rótulo quedaba bajo otra hora que la del dato.
+
+### Decisión
+
+1. **Con UN día, el eje rotula las 24 horas, una a una** —«00, 01 … 23», sin «h», como lo escribió
+   él—, con una raya tenue por hora DEBAJO de las líneas.
+2. **Cada lectura va sobre SU hora** (`xDeHora`), no sobre su puesto: una hora que no llegó deja su
+   hueco y corta la línea. Los puntos, la raya del ratón y la cajita usan la misma escala. **Y en
+   ORDEN de hora** (`diaEnElReloj`): una tabla de un día que llegara de la 23 a la 0, o barajada, se
+   partía en puntos sueltos —lo cazaron los dos revisores, dibujándola—. La cajita dice «07:00», como el eje.
+3. **Solo si cada hora sale una vez.** Con horas repetidas —dos líneas del mismo día en un archivo—
+   o con varios días, queda lo de siempre.
+4. En los dos caminos: el histórico de un día y un archivo recién cargado de un día.
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| Rotular las 24 y seguir colocando por puesto | Con una hora de menos, cada rótulo desde ahí señala la lectura de la hora siguiente |
+| «00h, 01h…» | Él lo escribió sin la «h», y el subtítulo ya dice «una cada hora» |
+| Esperar a la maqueta del eje de días | Lo pidió concreto y no depende de ella |
+
+### Supuestos que deben ser ciertos — y la señal que diría que dejaron de serlo
+
+| Supuesto | Señal |
+|---|---|
+| En un día, cada hora sale una vez | Un archivo con dos líneas del mismo día: vuelve lo de siempre (lo vigila una prueba) |
+| Veinticuatro rótulos se leen | En el teléfono la figura se encoge: si él dice que no se leen, se alternan |
+
+### Consecuencias
+
+- Pruebas: 6 de la vista —días en orden, al revés, barajados, con hueco, con horas repetidas o
+  vacías— y 3 de la pantalla; `2.729` en verde. Dos Opus lo dibujaron con registros sintéticos contra
+  la versión anterior: con varios días, dos líneas o una hora nula, el dibujo es IDÉNTICO al de antes.
+- ⚠️ **Sigue igual, y es de su visto bueno**: con VARIOS días el eje coloca por puesto y los días sin
+  dato se PEGAN —en enero la línea une el 2 con el 13—. Medido y archivado; la maqueta del eje de
+  días lo corrige.
+
+**Crudo de respaldo:** `research-archive/2026-09-11-eje-de-dias/` (la auditoría de las gráficas que
+pegan huecos, la maqueta del eje de días y sus capturas, y la revisión de este cambio).
+
+---
