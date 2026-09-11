@@ -394,6 +394,65 @@ export function comportamientoEnElTiempo(registros, { minimo = 6 } = {}) {
   };
 }
 
+/**
+ * HORAS SOBRE 80 · 90 · 100 % — CONTADAS CONTRA LA AMPACIDAD (PROPUESTA).
+ *
+ * ⚠️ POR QUÉ EXISTE, si `comportamientoEnElTiempo` ya cuenta horas por banda.
+ * Aquella las cuenta sobre `cargabilidad_pct`, el porcentaje que trae el ARCHIVO.
+ * Con SCADA ese porcentaje no llega: solo llega la corriente. Así que en el
+ * histórico guardado sus «horas sobre 100 %» salen **siempre 0 de 0** — un cero
+ * que no es un cero, es un hueco (y un hueco NO es un cero). Contar la corriente
+ * de cada hora contra la AMPACIDAD de la línea es la PROPUESTA que el Ingeniero
+ * aprobó en la maqueta del histórico (`99 §ADR-129`); la pantalla la rotula como
+ * propuesta, no como el porcentaje del archivo.
+ *
+ * ⚠️ SIN AMPACIDAD NO SE CUENTA. Si no llega un número mayor que cero, los tres
+ * contadores salen `null` y `motivo` lo dice: no se supone una ampacidad «típica».
+ *
+ * ⚠️ LOS UMBRALES SON ACUMULADOS, no bandas: una hora al 95 % cuenta en `sobre80`
+ * Y en `sobre90`. Es lo que se lee como «horas ≥ 80 %», y es distinto de
+ * `horasPorBanda`, donde cada hora cae en una sola banda.
+ *
+ * ⚠️ EL UMBRAL ES EXACTO: 80 % cuenta en `sobre80`; 79,9 % no. El porcentaje se
+ * redondea a 1e-9 antes de comparar solo para quitar el ruido de la coma
+ * flotante (699,3 A contra 777 A es un 90 % exacto, pero en binario da
+ * 89,99999999999999 y sin el redondeo esa hora se caería de `sobre90`), nunca
+ * para regalar décimas.
+ *
+ * Función PURA: no muta `registros` ni lee nada de fuera.
+ *
+ * @param {{corriente_A?: number|null}[]} registros  las horas guardadas del estadístico elegido
+ * @param {number|null|undefined} ampacidad_A
+ * @returns {{n: number, ampacidad_A: number|null, sobre80: number|null,
+ *            sobre90: number|null, sobre100: number|null, motivo: string|null}}
+ */
+export function horasContraAmpacidad(registros, ampacidad_A) {
+  // Un hueco (corriente null o no numérica) no es una hora a 0 A: no entra en n.
+  const corrientes = (registros ?? [])
+    .map((x) => x?.corriente_A)
+    .filter((c) => Number.isFinite(c));
+  const n = corrientes.length;
+
+  if (!(Number.isFinite(ampacidad_A) && ampacidad_A > 0)) {
+    return {
+      n, ampacidad_A: null, sobre80: null, sobre90: null, sobre100: null,
+      motivo: 'no hay ampacidad (un número mayor que cero): sin ella no se cuenta contra la ampacidad, y no se supone una',
+    };
+  }
+  if (n === 0) {
+    return { n: 0, ampacidad_A, sobre80: 0, sobre90: 0, sobre100: 0, motivo: 'no hay lecturas con corriente' };
+  }
+
+  let sobre80 = 0; let sobre90 = 0; let sobre100 = 0;
+  for (const c of corrientes) {
+    const pct = Math.round((c / ampacidad_A) * 100 * 1e9) / 1e9;
+    if (pct >= 80) sobre80 += 1;
+    if (pct >= 90) sobre90 += 1;
+    if (pct >= 100) sobre100 += 1;
+  }
+  return { n, ampacidad_A, sobre80, sobre90, sobre100, motivo: null };
+}
+
 // ════════════════════════════════════════════════════════════════════════════
 // 6 · QUÉ TRAE EL ARCHIVO — la pieza que impide suponer
 // ════════════════════════════════════════════════════════════════════════════

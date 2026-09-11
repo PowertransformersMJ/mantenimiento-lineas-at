@@ -223,6 +223,7 @@ vive en `10 · TODO-79`, y los **relevos de sesión** `2026-08-22/24/26-relevo-c
 | `ADR-126` | 2026-09-10 | Febrero: el paso 2 lee la fecha como la pantalla, escribe una vez lo bajado dos veces y nombra lo que aparta | `research-archive/2026-09-10-febrero-scada/` |
 | `ADR-127` | 2026-09-10 | El cargador de SCADA decide sobre la carga ENTERA: fases de más en cualquier día, asignación por etiqueta, la fecha del mes y el estadístico por archivo | `research-archive/2026-09-10-cargador-carga-entera/` |
 | `ADR-128` | 2026-09-11 | Enero a agosto en producción: el paso 0 se vuelve herramienta, 100 archivos por carga y lo que no es medida se aparta | `research-archive/2026-09-10-ene-ago-scada/` |
+| `ADR-129` | 2026-09-11 | El histórico se lee en gráficas: un filtro por gráfica, los indicadores sobre lo guardado y sin tablas | `research-archive/2026-09-11-historico-filtros/` |
 
 > Toda decisión cara de revertir entra aquí con su ADR y su crudo enlazado. Si hubo comité o consejo
 > externo y el crudo no está archivado, la tarea **no está cerrada** (`CLAUDE.md §G.4`).

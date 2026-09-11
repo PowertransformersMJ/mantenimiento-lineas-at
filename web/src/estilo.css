@@ -1854,3 +1854,50 @@ p.fund-vivo + .sello-calculo { margin-top: 5px; }
   border: 1px solid var(--bd); border-radius: 6px; padding: 8px; background: var(--pnl);
   color: var(--tx); resize: vertical;
 }
+
+/* ── Gráficas por fase: filtro propio y valor al pasar el ratón ─────────────
+   `99 §ADR-129`. En el histórico cada gráfica trae su grupo de estadístico
+   (Máximo · Mínimo · Promedio · Instantáneo) en la cabecera, al lado del
+   título: el filtro va donde está lo que filtra, no arriba de la página.
+   Y la cifra que antes daba la tabla de días se lee en una cajita sobre el
+   instante más cercano al ratón. Solo tokens: el tema oscuro la repinta sola. */
+.grafica-cabecera {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  gap: 6px 12px;
+}
+.acciones.grafica-estadisticos { margin: 0; gap: 6px; }
+.grafica-estadisticos .boton.chico { padding: 5px 10px; font-size: 11.5px; }
+/* El lienzo es el ancla de la cajita: sin posición propia, se iría a la tarjeta. */
+.grafica-lienzo { position: relative; }
+.grafica-lienzo .grafica { cursor: crosshair; }
+.grafica-cursor { stroke: var(--tx3); stroke-width: 1; stroke-dasharray: 3 3; pointer-events: none; }
+.grafica-cursor-punto { stroke: var(--pnl); stroke-width: 1.5; pointer-events: none; }
+/* ⚠️ `pointer-events: none`: si la cajita atrapara el ratón, al pasar por
+   encima de ella la gráfica perdería el movimiento y la cajita parpadearía. */
+.grafica-cajita {
+  position: absolute; top: 6px; z-index: 3; pointer-events: none;
+  display: flex; flex-direction: column; gap: 2px;
+  min-width: 9.5em; max-width: 17em; padding: 7px 10px;
+  background: var(--pnl-alto); border: 1px solid var(--bd); border-radius: 6px;
+  box-shadow: var(--sombra-2); color: var(--tx); font-size: 11.5px; line-height: 1.45;
+  font-variant-numeric: tabular-nums;
+}
+.grafica-cajita > b { color: var(--tx); }
+.grafica-cajita-est { color: var(--tx3); font-size: 10.5px; }
+.grafica-cajita-fila { display: flex; align-items: center; gap: 6px; white-space: nowrap; color: var(--tx2); }
+.grafica-cajita-fila i { width: 9px; height: 9px; border-radius: 2px; display: inline-block; flex: none; }
+.grafica-cajita-fila b { margin-left: auto; padding-left: 8px; color: var(--tx); }
+/* Un hueco se escribe en el tono de «no evaluable», no se disfraza de cifra. */
+.grafica-cajita-fila em { margin-left: auto; padding-left: 8px; font-style: normal; color: var(--tx-pendiente); }
+
+/* ── Indicador PROPUESTA — borde punteado ───────────────────────────────────
+   `99 §ADR-129`. En el histórico, «Cómo se comportó en el tiempo» cuenta las
+   horas ≥ 80 · 90 · 100 % CONTRA LA AMPACIDAD, porque su SCADA no trae el %
+   del archivo. Es una PROPUESTA aprobada en la maqueta, no el criterio que la
+   pantalla aplicaba hasta hoy, y tiene que VERSE distinta: borde discontinuo
+   en el acento y fondo ámbar claro, sin el degradado azul del indicador de
+   siempre. ⚠️ Solo tokens: si la paleta cambia, la propuesta cambia con ella. */
+.kpi.propuesta {
+  background: var(--t-ambar);
+  border: 1.5px dashed var(--acc);
+}

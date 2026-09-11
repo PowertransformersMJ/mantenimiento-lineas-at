@@ -183,7 +183,10 @@ mantenimiento-lineas-at/
 │                                (+FichaEditor · FichaLote, admin, ADR-038), FichaCriterios,
 │                                Falla + Galeria, Fundamentos, Umbrales, Termica, Viento,
 │                                Cargas (los DOS ejes, ADR-011/017),
-│                                **Cargabilidad** = pestaña «Parámetros eléctricos» (ADR-106/120):
+│                                **Cargabilidad** = pestaña «Parámetros eléctricos» (ADR-106/120/129):
+│                                en el HISTÓRICO cada gráfica trae su filtro de estadístico, los
+│                                indicadores salen de las horas guardadas con UN filtro, y no hay
+│                                tablas (ADR-129);
 │                                el PERIODO manda —se elige arriba y salen las cinco magnitudes
 │                                sobre TODO lo elegido, sin un clic por día—; la tabla hora a hora
 │                                va desplegable y la corriente se dibuja más alta porque es la única

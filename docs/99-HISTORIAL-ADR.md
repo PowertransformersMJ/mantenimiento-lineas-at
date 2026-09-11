@@ -10510,3 +10510,72 @@ nueva): **208 días** —máximo 197 · promedio 207 · instantáneo 208 · mín
 normalizador validado, el ensayo con molde, lo que cambiaba frente a lo cargado y el barrido de ceros).
 
 ---
+## ADR-129 · 2026-09-11 · El histórico se lee en gráficas: un filtro de estadístico por gráfica, los indicadores sobre lo guardado y sin tablas
+
+**Deliberación:** órdenes del Ingeniero —*«necesito que en cada gráfica me permita filtrar por máximo
+mínimo promedio instantaneo. las tablas no generan valor, aqui solo necesito graficas y los
+indicadores, dame preview antes de implementar»*, *«tambien incluye estos»* (los cuatro bloques del
+entorno) y *«esta perfecto, vamos con workflow»*—. Maqueta LOCAL con su dato real (fuera de todo git),
+aprobada; workflow de 7 Opus —cuatro implementan por tramos, tres revisan— →
+`research-archive/2026-09-11-historico-filtros/`.
+**Estado:** ✅ desplegado (`index-D3SEnFrw.js`, servido == construido) · ⏳ **verificación EN FRÍO con su
+sesión pendiente**: se cerró por inactividad · **NO revisada externamente**.
+
+### Contexto
+
+Con 208 días guardados, el histórico tenía un selector de estadístico GLOBAL, una tabla de días y
+«Las fases, hora a hora». Y los cuatro bloques de indicadores —veredicto, qué transporta, lo que
+cuesta, cómo se comportó— solo se calculaban con un archivo recién cargado: con todo el año en la base,
+salían en «—».
+
+### Decisión
+
+1. **Cada gráfica del histórico trae su filtro** Máximo · Mínimo · Promedio · Instantáneo (abre en
+   Máximo); se va el selector global. Las horas se piden PEREZOSAS por estadístico —≤62 días cada
+   una, así que como mucho 4 × 62 lecturas por vista—, solo cuando una gráfica o los indicadores las piden.
+2. **Los indicadores, con UN filtro propio** y calculados sobre las HORAS GUARDADAS con las mismas
+   funciones del motor que la carga: «de un vistazo», `VeredictoDelHistorico` (cargabilidad contra la
+   ampacidad, pico con fecha, hora y fase, ampacidad, margen), «Qué transporta» —con la corriente
+   residual y la nota de que con Máximo o Mínimo **no es una foto**—, «Lo que cuesta» y «Cómo se comportó».
+3. **Horas ≥ 80 / 90 / 100 % contra la ampacidad, como PROPUESTA** (`horasContraAmpacidad`, motor
+   0.20.0). Las «horas sobre 100 %» de siempre solo cuentan con el % del archivo, que su SCADA no trae:
+   sin %, la tarjeta dice «—» con su motivo, no «0».
+4. **Salen del histórico** la tabla de días y «Las fases, hora a hora». Lo que decía la tabla se lee
+   con el puntero —ratón, dedo o lápiz—: fecha CON año, hora y valor de cada fase.
+5. **El entorno vacío esconde sus cuatro bloques SOLO cuando el histórico los enseña con número**
+   (`30 · «migrar, no duplicar»`): en un periodo sin datos, con varias líneas o con las horas en camino, siguen.
+6. **De la revisión, en los dos caminos** (histórico y archivo recién cargado): la línea **se corta en
+   cada hueco** —antes pasaba en recta por horas sin lectura—; la aparente dice «de P y Q medidas» cuando
+   sale de ahí —antes rotulaba «√3·V·I» bajo una cifra que no salía de ahí, un factor de dos—; el aviso
+   «el eje no empieza en cero» solo cuando el cero queda fuera (`§ADR-124`); un fallo de lectura se dice
+   en la tarjeta, no como «Trayendo…»; y las lecturas se cuentan por magnitud.
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| Traer siempre los cuatro estadísticos | Cuatro veces las lecturas sin que nadie las pida |
+| Un filtro por cada bloque de indicadores | La maqueta aprobada lleva uno para todos |
+| Quitar también las tablas del entorno vacío y de la carga | No estaban en lo aprobado: se retira lo señalado, no más |
+| Sustituir las «horas sobre 100 %» del % por las de la ampacidad | Es decisión suya: se enseñan las dos, la nueva como propuesta |
+
+### Supuestos que deben ser ciertos — y la señal que diría que dejaron de serlo
+
+| Supuesto | Señal |
+|---|---|
+| Mirar los 62 días más recientes basta | Él pide ver el año entero de un vistazo: toca agregar por día |
+| Pedir por estadístico mantiene las lecturas bajas | El uso de lecturas de Firestore sube de forma visible |
+| La ampacidad es la adoptada (718 A, no dictamen) | Llega la ficha del fabricante (`TODO-95`) |
+
+### Consecuencias
+
+- `2.720` pruebas en verde (17 del motor, 9 de pantalla), molde verificado, motor `0.20.0`.
+- ⚠️ **Visto en la revisión y NO tocado**: producción rotula el conductor como «ficha del conductor ·
+  catalogo_fabricante», pero la semilla lo marca `supuesto` desde el 05-09 (`§ADR-099`) —con ella el
+  motor dice «no es dictamen»—; y el token `--tx-tenue` que usan los ejes no existe en `estilo.css`
+  (viene de antes). Los dos, en `TODO-102`.
+
+**Crudo de respaldo:** `research-archive/2026-09-11-historico-filtros/` (el workflow entero, la maqueta
+aprobada y su generador, los scripts de los revisores y el parche de la revisión).
+
+---

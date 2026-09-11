@@ -62,7 +62,7 @@ import nucleoPkg from '@lineas/nucleo/package.json';
 import { ampacidadDeLinea, resistenciaDC } from '@lineas/nucleo/termica';
 import {
   comportamientoEnElTiempo, desbalanceDeFases, disponibilidadDeVariables,
-  desviacionDeTension, perdidasJoule, potenciasDelInstante,
+  desviacionDeTension, horasContraAmpacidad, perdidasJoule, potenciasDelInstante,
 } from '@lineas/nucleo/electrica';
 import { contrasteConLaAmpacidad } from '@lineas/nucleo/cargabilidad';
 import { puede, type SesionDePantalla } from '../datos/permisos';
@@ -464,6 +464,14 @@ export default function Cargabilidad({
     () => ampacidadDeLinea({ conductor, hipotesis }), [conductor, hipotesis]);
 
   /**
+   * ⚠️ SI HAY HISTÓRICO GUARDADO (`99 §ADR-129`). Lo dice el propio histórico
+   * cuando lo sabe. Con él, el veredicto, qué transporta, lo que cuesta y cómo
+   * se comportó salen ARRIBA con número, y el entorno vacío deja de repetirlos
+   * con «—»: se migran, no se duplican. Hasta saberlo, se enseña entero.
+   */
+  const [hayHistorico, setHayHistorico] = useState(false);
+
+  /**
    * EL VEREDICTO SOBRE EL PICO DEL LOTE.
    *
    * ⚠️ Se hace sobre el PICO y no sobre cada fila a propósito: el veredicto de
@@ -649,7 +657,14 @@ export default function Cargabilidad({
 
       {/* El histórico se consulta SIN cargar nada: es lo que se mira el día que
           no hay archivo nuevo, que son casi todos. */}
-      {sesion && <HistoricoGuardado sesion={sesion} lineaAbierta={lineaAbierta} />}
+      {/* ⚠️ `99 §ADR-129`: recibe lo mismo que esta pantalla para calcular el
+          veredicto igual —conductor, hipótesis, tensión nominal y longitud—. */}
+      {sesion && (
+        <HistoricoGuardado sesion={sesion} lineaAbierta={lineaAbierta}
+          conductor={conductor} hipotesis={hipotesis}
+          tensionNominal_kV={tensionNominal_kV} longitud_m={longitud_m}
+          alSaberSiHay={setHayHistorico} />
+      )}
 
       {/* ⚠️ EL VACÍO SE DICE. Orden del Ingeniero (2026-08-29): «no coloques
           información basura en el módulo de cargabilidad, ahí solo se deben
@@ -675,7 +690,7 @@ export default function Cargabilidad({
               hay lectura: un hueco no es un cero, y confundirlos es justo lo que
               este módulo existe para impedir (`99 §ADR-097`). */}
           <ElEntorno referencia={referencia} disponible={disponible}
-            enElTiempo={enElTiempo} />
+            enElTiempo={enElTiempo} soloEstructura={hayHistorico} />
         </>
       )}
 
@@ -807,9 +822,56 @@ const PERIODOS = [
 
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 
-function HistoricoGuardado({ sesion, lineaAbierta }: {
+/**
+ * El orden en que se OFRECEN los estadísticos en el histórico (`99 §ADR-129`):
+ * el de la maqueta aprobada, el mismo que usan los botones de cada gráfica.
+ * El mínimo va segundo porque, en una magnitud con signo, es la otra cara del
+ * máximo — no un estadístico más.
+ */
+const ORDEN_DEL_HISTORICO = ['maximo', 'minimo', 'promedio', 'instantaneo'] as const;
+
+/** Qué estadístico dice un resumen diario. Los viejos, sin marca, eran máximos (`99 §ADR-112`). */
+const estadisticoDeFila = (f: Record<string, unknown>) => (f.estadistico as string) ?? 'maximo';
+
+/** El rótulo de un estadístico, tal como lo escribe el catálogo del núcleo. */
+const rotuloDelEstadistico = (est: string | null) =>
+  ESTADISTICOS.find((e) => e.id === est)?.rotulo ?? (est ?? '');
+
+/**
+ * Las horas de UN estadístico del periodo, tal como se trajeron de la base.
+ * `horas: undefined` = aún no han llegado (o fallaron: lo dice `fallo`);
+ * `[]` = se pidieron y el periodo no tiene ninguna hora guardada con él.
+ */
+type HorasDeUnEstadistico = {
+  horas: Registro[] | undefined;
+  /** Si la lectura se recortó: cuántos días (los más recientes) se trajeron. */
+  recortado: number | null;
+  cargando: boolean;
+  fallo: string | null;
+};
+
+/** La caché vacía, siempre el MISMO objeto: así no rehace nada en cada dibujo. */
+const SIN_HORAS: Partial<Record<string, HorasDeUnEstadistico>> = {};
+
+function HistoricoGuardado({
+  sesion, lineaAbierta, conductor, hipotesis, tensionNominal_kV, longitud_m, alSaberSiHay }: {
   sesion: Omit<SesionDePantalla, 'correo'>;
   lineaAbierta?: string;
+  /**
+   * `99 §ADR-129` — lo mismo que recibe la pantalla principal, y para lo mismo:
+   * el veredicto del histórico sale de la MISMA ampacidad, las mismas potencias
+   * y las mismas pérdidas que el de un archivo recién cargado. Dos caminos que
+   * calculan el mismo dictamen con piezas distintas acaban discrepando.
+   */
+  conductor?: Record<string, unknown> | null;
+  hipotesis?: Record<string, unknown> | null;
+  tensionNominal_kV?: number | null;
+  longitud_m?: number | null;
+  /**
+   * Avisa al padre de si hay algo guardado (`99 §ADR-129`): con histórico, las
+   * cuatro tarjetas de indicadores vacías del entorno se MIGRAN aquí, con número.
+   */
+  alSaberSiHay?: (hay: boolean) => void;
 }) {
   const [periodo, setPeriodo] = useState<string>('7');
   const [desde, setDesde] = useState('');
@@ -817,32 +879,87 @@ function HistoricoGuardado({ sesion, lineaAbierta }: {
   const [soloEsta, setSoloEsta] = useState(true);
   const [todasLasFilas, setFilas] = useState<Record<string, unknown>[] | null>(null);
   /**
-   * ⚠️ EL TABLERO MIRA UN SOLO ESTADÍSTICO (`99 §ADR-112`). Desde que el mismo
-   * día se puede guardar tres veces —máximo, promedio e instantáneo—, mezclarlos
-   * aquí haría cuatro daños a la vez: contaría 3 días donde hay 1, promediaría
-   * medias de naturalezas distintas, picaría la serie un 5 % en la frontera
-   * entre tramos cargados de un modo y de otro, y dejaría «horas en sobrecarga»
-   * sin significado. Se filtra EN MEMORIA, no en la consulta: filtrar en
-   * Firestore exigiría un índice compuesto nuevo, y el emulador no lo exige —
-   * saldría verde en local y rojo solo en producción.
+   * ⚠️ LOS INDICADORES MIRAN UN SOLO ESTADÍSTICO (`99 §ADR-112`, `§ADR-129`).
+   * Desde que el mismo día se puede guardar varias veces —máximo, mínimo,
+   * promedio e instantáneo—, mezclarlos haría cuatro daños a la vez: contaría
+   * 3 días donde hay 1, promediaría medias de naturalezas distintas, picaría la
+   * serie un 5 % en la frontera entre tramos cargados de un modo y de otro, y
+   * dejaría «horas en sobrecarga» sin significado. Se filtra EN MEMORIA, no en
+   * la consulta: filtrar en Firestore exigiría un índice compuesto nuevo, y el
+   * emulador no lo exige — saldría verde en local y rojo solo en producción.
+   *
+   * ⚠️ Y YA NO HAY UN SELECTOR GLOBAL (`99 §ADR-129`). La maqueta aprobada por
+   * el Ingeniero («está perfecto») da a CADA gráfica su propio filtro y a los
+   * indicadores otro, uno solo para todos ellos. Uno global obligaba a mirar la
+   * corriente y la activa con el mismo estadístico, y en una magnitud con signo
+   * la hora de más carga de una es el máximo y de la otra el mínimo.
    */
-  const [verEstadistico, setVerEstadistico] = useState<string>('maximo');
+  const [estIndicadores, setEstIndicadores] = useState<string>('maximo');
   /**
-   * EL DÍA ABIERTO — sus 24 horas, leídas de la base (`99 §ADR-115`).
+   * LAS HORAS DEL PERIODO, POR ESTADÍSTICO — leídas de la base (`99 §ADR-115`,
+   * `§ADR-120`, `§ADR-129`).
    *
-   * ⚠️ POR QUÉ FALTABA. `diaCompleto` y `desempaquetarDia` existían, probadas, y
+   * ⚠️ POR QUÉ EXISTE. `diaCompleto` y `desempaquetarDia` existían, probadas, y
    * **ninguna pantalla las llamaba**: las gráficas de las magnitudes solo se
-   * dibujaban con el archivo recién leído, en la memoria del navegador. Al
-   * recargar, el dato seguía en la base y la pantalla no lo enseñaba. Es
-   * exactamente `30 · L-28`: un módulo que ninguna pantalla llama es invisible.
+   * dibujaban con el archivo recién leído. Es `30 · L-28`: un módulo que
+   * ninguna pantalla llama es invisible.
    *
-   * Se lee UN día, y solo cuando se pide: es la consulta cara (24 horas frente a
-   * un resumen) y por eso no se hace sola al listar el periodo.
+   * ⚠️ SE PIDE PEREZOSA, UN ESTADÍSTICO CADA VEZ. Son la lectura cara —24
+   * horas por día frente a un resumen—, así que solo se trae el estadístico que
+   * una gráfica o los indicadores tienen elegido, y una sola vez: si las seis
+   * gráficas miran el máximo, el máximo se lee UNA vez. Cada lectura va con el
+   * tope de `diasCompletos` (62 días): el plan es gratuito.
+   *
+   * ⚠️ LA CACHÉ ES DE UNA CONSULTA. Lleva pegada la lista de resúmenes de la
+   * que salió (`de`): si la consulta cambia, lo guardado deja de valer sin que
+   * haga falta un efecto que la vacíe —y sin un instante en que se vean horas
+   * del periodo viejo bajo el rótulo del nuevo—.
    */
-  const [horasDelPeriodo, setHorasDelPeriodo] = useState<Registro[] | null>(null);
-  const [abriendo, setAbriendo] = useState(false);
-  const [falloAbrir, setFalloAbrir] = useState<string | null>(null);
-  const [recortadoHoras, setRecortadoHoras] = useState<number | null>(null);
+  const [cache, setCache] = useState<{
+    de: Record<string, unknown>[] | null;
+    porEst: Partial<Record<string, HorasDeUnEstadistico>>;
+  }>({ de: null, porEst: {} });
+  /**
+   * Lo que ya se pidió en esta consulta, para no pedirlo dos veces. Va en una
+   * referencia y no en el estado porque las gráficas y los indicadores lo piden
+   * en el mismo instante —y, en desarrollo, dos veces—, antes de que el estado
+   * alcance a cambiar. Un fallo se recuerda: no se reintenta solo, en bucle,
+   * contra una base que está diciendo que no.
+   */
+  const pedidos = useRef<{ de: Record<string, unknown>[] | null; est: Record<string, 'pedido' | 'fallo'> }>(
+    { de: null, est: {} });
+
+  const estadisticosGuardados = useMemo(
+    () => {
+      const hay = new Set((todasLasFilas ?? []).map(estadisticoDeFila));
+      // Primero los del catálogo, en el orden de la maqueta; después, si
+      // apareciera alguno que el catálogo no conoce, también — no se esconde.
+      return [...ORDEN_DEL_HISTORICO.filter((e) => hay.has(e)),
+        ...[...hay].filter((e) => !(ORDEN_DEL_HISTORICO as readonly string[]).includes(e))];
+    },
+    [todasLasFilas],
+  );
+  /**
+   * El estadístico que miran los indicadores DE VERDAD: el elegido si el
+   * periodo lo tiene guardado; si no, el primero que tenga. Nunca un tablero
+   * vacío por mirar un estadístico que este periodo no trae.
+   */
+  const estInd = estadisticosGuardados.includes(estIndicadores)
+    ? estIndicadores : (estadisticosGuardados[0] ?? null);
+  const filas = useMemo(
+    () => (todasLasFilas ?? []).filter((f) => estadisticoDeFila(f) === estInd),
+    [todasLasFilas, estInd],
+  );
+  /**
+   * ⚠️ UNA SOLA LÍNEA (`99 §ADR-120`): con más de una no se mezclan series —la
+   * corriente de dos líneas en la misma gráfica no es la de ninguna—. Se pide
+   * elegir, y se DICE.
+   */
+  const lineasDeLaConsulta = useMemo(
+    () => [...new Set((todasLasFilas ?? []).map((f) => String(f.linea)))],
+    [todasLasFilas],
+  );
+  const lineaUnica = lineasDeLaConsulta.length === 1 ? lineasDeLaConsulta[0] : null;
 
   /**
    * ⚠️ EL PERIODO TRAE SUS HORAS (`99 §ADR-120`). Orden del Ingeniero: «no le
@@ -850,35 +967,56 @@ function HistoricoGuardado({ sesion, lineaAbierta }: {
    * ilustrar los valores… ahí debes permitirme seleccionar la franja de tiempo
    * que quiero apreciar para cada una de las variables».
    *
-   * Antes había una TABLA de días con un botón «Abrir» por fila: la forma de la
-   * base de datos, no la de su pregunta. Él no audita documentos de uno en uno;
-   * mira el comportamiento de la línea en una franja. Así que el selector de
-   * periodo manda y las gráficas se dibujan sobre TODO lo elegido, sin un clic.
+   * Pide las horas de UN estadístico: las fechas son las de SUS resúmenes en la
+   * consulta, no las de otro —un día puede tener el máximo guardado y el
+   * mínimo no, y pedir un documento que no existe es pagar por nada—.
    */
-  const traerHoras = async (fechas: string[], linea: string, est: string) => {
-    if (!fechas.length) { setHorasDelPeriodo(null); return; }
-    setAbriendo(true); setFalloAbrir(null); setRecortadoHoras(null);
-    try {
-      const r = await diasCompletos(
-        { linea, fechas, estadistico: est as never }, sesion as never,
-      );
-      const horas = r.dias
-        .flatMap((d) => desempaquetarDia(d as never) as unknown as Registro[])
-        .sort((a, b) => `${a.fecha} ${String(a.hora).padStart(2, '0')}`
-          .localeCompare(`${b.fecha} ${String(b.hora).padStart(2, '0')}`));
-      setHorasDelPeriodo(horas);
-      if (r.recortado) setRecortadoHoras(r.tope);
-    } catch (e) {
-      setFalloAbrir((e as Error).message); setHorasDelPeriodo(null);
-    } finally { setAbriendo(false); }
+  const pedir = (est: string, reintento = false) => {
+    const de = todasLasFilas;
+    if (!de || !lineaUnica) return;
+    if (pedidos.current.de !== de) pedidos.current = { de, est: {} };
+    const ya = pedidos.current.est[est];
+    if (ya === 'pedido' || (ya === 'fallo' && !reintento)) return;
+    pedidos.current.est[est] = 'pedido';
+    // Solo escribe si la consulta sigue siendo la misma: una respuesta que
+    // llega tarde, de un periodo que ya no se mira, se descarta. ⚠️ La consulta
+    // vigente se lee de `pedidos`, que se pone al día AQUÍ, al pedir, y no de un
+    // efecto: React puede calcular esta actualización en el acto, antes de que
+    // corra ningún efecto, y con una referencia atrasada tiraría la primera.
+    const poner = (v: HorasDeUnEstadistico) => setCache((c) => (
+      c.de === de ? { de, porEst: { ...c.porEst, [est]: v } }
+        : de === pedidos.current.de ? { de, porEst: { [est]: v } } : c));
+    const fechas = [...new Set(de.filter((f) => estadisticoDeFila(f) === est).map((f) => String(f.fecha)))];
+    if (!fechas.length) {
+      poner({ horas: [], recortado: null, cargando: false, fallo: null });
+      return;
+    }
+    poner({ horas: undefined, recortado: null, cargando: true, fallo: null });
+    void (async () => {
+      try {
+        const r = await diasCompletos(
+          { linea: lineaUnica, fechas, estadistico: est as never }, sesion as never,
+        );
+        const horas = r.dias
+          .flatMap((d) => desempaquetarDia(d as never) as unknown as Registro[])
+          .sort((a, b) => `${a.fecha} ${String(a.hora).padStart(2, '0')}`
+            .localeCompare(`${b.fecha} ${String(b.hora).padStart(2, '0')}`));
+        poner({ horas, recortado: r.recortado ? r.tope : null, cargando: false, fallo: null });
+      } catch (e) {
+        if (pedidos.current.de === de) pedidos.current.est[est] = 'fallo';
+        poner({ horas: undefined, recortado: null, cargando: false, fallo: (e as Error).message });
+      }
+    })();
   };
-  const estadisticosGuardados = useMemo(
-    () => [...new Set((todasLasFilas ?? []).map((f) => (f.estadistico as string) ?? 'maximo'))],
-    [todasLasFilas],
+  /** Lo que la caché tiene de ESTA consulta. La de otra no cuenta. */
+  const porEst = cache.de === todasLasFilas ? cache.porEst : SIN_HORAS;
+  const porEstadistico = useMemo(
+    () => Object.fromEntries(Object.entries(porEst).map(([e, v]) => [e, v?.horas])),
+    [porEst],
   );
-  const filas = useMemo(
-    () => (todasLasFilas ?? []).filter((f) => ((f.estadistico as string) ?? 'maximo') === verEstadistico),
-    [todasLasFilas, verEstadistico],
+  const cargandoPorEst = useMemo(
+    () => Object.fromEntries(Object.entries(porEst).map(([e, v]) => [e, !!v?.cargando])),
+    [porEst],
   );
   const [recortado, setRecortado] = useState(false);
   const [buscando, setBuscando] = useState(false);
@@ -962,28 +1100,122 @@ function HistoricoGuardado({ sesion, lineaAbierta }: {
   }, [lineaAbierta, soloEsta]);
 
   /**
-   * ⚠️ CON UN SOLO DÍA, SE ABRE SOLO (`99 §ADR-116`).
+   * ⚠️ AL LLEGAR LOS RESÚMENES SE PIDE UN ESTADÍSTICO, NO CUATRO (`99 §ADR-129`).
+   * El de los indicadores —el máximo, o el primero que haya—, que es también el
+   * que abren las gráficas: una sola lectura de horas. Los demás, solo si
+   * alguien pulsa su botón.
    *
-   * «No veo gráficas de nada» fue el aviso, tres veces. Con la consulta ya
-   * resuelta y UN único día en el periodo, dejar las gráficas detrás de un botón
-   * es dejarlas escondidas: no hay nada que elegir. Se abre. Con varios días no
-   * —abrir el primero por su cuenta sería decidir por él cuál mira, y cada día
-   * cuesta una lectura de 24 horas.
+   * ⚠️ Y LO QUE ANTES ERA «CON UN SOLO DÍA, SE ABRE SOLO» (`99 §ADR-116`) se
+   * cumple de sobra: el periodo entero se dibuja sin un clic, sea un día o
+   * sesenta.
    */
   useEffect(() => {
-    if (!filas || !filas.length) { setHorasDelPeriodo(null); return; }
-    const lineas = [...new Set(filas.map((f) => String(f.linea)))];
-    // Con más de una línea no se mezclan series: se pide elegir. Hoy hay una.
-    if (lineas.length !== 1) { setHorasDelPeriodo(null); return; }
-    void traerHoras(filas.map((f) => String(f.fecha)), lineas[0], verEstadistico);
+    if (estInd) pedir(estInd);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filas, verEstadistico]);
+  }, [todasLasFilas, estInd, lineaUnica]);
+
+  /**
+   * LA AMPACIDAD DE LA LÍNEA — el denominador del veredicto del histórico.
+   *
+   * ⚠️ La MISMA llamada que la pantalla principal (`99 §ADR-129`): el dueño
+   * único, con la hipótesis que el Ingeniero haya declarado o, si no hay, la de
+   * referencia marcada como ADOPTADA. Aquí no se elige ningún clima.
+   */
+  const referencia = useMemo(
+    () => ampacidadDeLinea({ conductor, hipotesis }), [conductor, hipotesis]);
+
+  /** Las horas del estadístico de los indicadores, si ya llegaron. */
+  const indicadoresDe = estInd ? porEst[estInd] : undefined;
+  const horasInd = indicadoresDe?.horas;
+  /**
+   * ⚠️ SE AVISA AL PADRE DE SI ESTA VISTA ENSEÑA LOS INDICADORES (`99 §ADR-129`).
+   * Cuando aquí salen con número —veredicto, qué transporta, lo que cuesta y
+   * cómo se comportó—, el entorno vacío de abajo deja de repetirlos con «—».
+   * Pero SOLO entonces: avisar con «hay algo guardado» los escondía también en
+   * un periodo sin datos, con varias líneas o con las horas aún en camino, y no
+   * salían en ninguna parte. Mientras se traen (`undefined`) no se cambia nada:
+   * callar no es afirmar.
+   */
+  const muestraIndicadores = ultimoGuardado === null ? false
+    : todasLasFilas != null && !lineaUnica ? false
+    : horasInd === undefined ? undefined : horasInd.length > 0;
+  useEffect(() => {
+    if (muestraIndicadores !== undefined) alSaberSiHay?.(muestraIndicadores);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [muestraIndicadores]);
+  /**
+   * ⚠️ EL PICO ES LA HORA DE MAYOR CORRIENTE, como en la pantalla principal:
+   * el veredicto de una línea lo decide el momento en que más cargó. Una hora
+   * sin corriente no compite —un hueco no es un cero—.
+   */
+  const picoInd = useMemo(() => {
+    const conA = (horasInd ?? []).filter((h) => Number.isFinite(h.corriente_A as number));
+    return conA.length
+      ? conA.reduce((a, b) => ((b.corriente_A as number) > (a.corriente_A as number) ? b : a))
+      : null;
+  }, [horasInd]);
+  /**
+   * Qué transportaba la línea en ese pico, y qué se perdía por el camino.
+   *
+   * ⚠️ EXACTAMENTE como la pantalla principal (`99 §ADR-129`): las mismas
+   * funciones del núcleo, la misma tensión nominal de respaldo y la misma
+   * temperatura —la del conductor con la que se calculó la ampacidad, el peor
+   * caso—. Si el histórico calculara distinto, el mismo día daría dos
+   * dictámenes según por dónde se entrara.
+   */
+  const operacionInd = useMemo(() => {
+    const pico = picoInd;
+    if (!pico) return null;
+    return {
+      potencias: potenciasDelInstante({
+        tension_kV: pico.tension_kV as number | null,
+        tensionNominal_kV: tensionNominal_kV ?? null,
+        corriente_A: pico.corriente_A as number | null,
+        potenciaActiva_MW: pico.potenciaActiva_MW as number | null,
+        potenciaReactiva_MVAr: pico.potenciaReactiva_MVAr as number | null,
+      }),
+      perdidas: perdidasJoule({
+        conductor: conductor as never,
+        corriente_A: pico.corriente_A as number | null,
+        longitud_m: longitud_m ?? null,
+        temperaturaConductor_C: referencia.temperatura.valor_C,
+        resistenciaDC,
+      }),
+      tension: desviacionDeTension(pico.tension_kV as number, tensionNominal_kV as number),
+    };
+  }, [picoInd, conductor, longitud_m, tensionNominal_kV, referencia]);
+  /** Cómo se comportó el periodo, sobre las horas guardadas del estadístico elegido. */
+  const enElTiempoInd = useMemo(
+    () => (horasInd && horasInd.length ? comportamientoEnElTiempo(horasInd as never[]) : null),
+    [horasInd]);
+  /**
+   * ⚠️ LAS HORAS CONTRA LA AMPACIDAD SON UNA PROPUESTA (`99 §ADR-129`): el SCADA
+   * no trae porcentaje, así que se cuentan contra la ampacidad del conductor —la
+   * VIGENTE, el mismo denominador del veredicto (`§ADR-098`)—, y la tarjeta las
+   * marca como lo que son.
+   */
+  const contraAmpacidadInd = useMemo(
+    () => (horasInd && horasInd.length
+      ? horasContraAmpacidad(horasInd as never[], referencia.vigente_A ?? referencia.ampacidad_A)
+      : null),
+    [horasInd, referencia]);
+
+  /** Cuántos días hay de CADA estadístico guardado, en el orden de los botones. */
+  const diasPorEstadistico = estadisticosGuardados.map((e) => ({
+    est: e,
+    dias: new Set((todasLasFilas ?? []).filter((f) => estadisticoDeFila(f) === e)
+      .map((f) => String(f.fecha))).size,
+  }));
+  /** Los estadísticos cuya lectura de horas se recortó al tope. */
+  const recortados = estadisticosGuardados
+    .filter((e) => porEst[e]?.recortado != null)
+    .map((e) => ({ est: e, tope: porEst[e]!.recortado as number }));
+  /** Los que fallaron: se DICEN, con su motivo y un botón para reintentar. */
+  const fallos = estadisticosGuardados
+    .filter((e) => porEst[e]?.fallo)
+    .map((e) => ({ est: e, fallo: porEst[e]!.fallo as string }));
 
   const r = rango();
-  const conMedida = (filas ?? []).filter((f) => f.maxima_pct != null);
-  const pico = conMedida.length
-    ? conMedida.reduce((a, b) => ((b.maxima_pct as number) > (a.maxima_pct as number) ? b : a))
-    : null;
 
   return (
     <div className="tarjeta">
@@ -1029,27 +1261,10 @@ function HistoricoGuardado({ sesion, lineaAbierta }: {
         </p>
       )}
 
-      {/* ⚠️ QUÉ ESTADÍSTICO SE ESTÁ MIRANDO (`99 §ADR-112`). Va ARRIBA y en la
-          propia tarjeta, no escondido en un desplegable: un tablero que mezcla
-          máximos con promedios no enseña ninguna magnitud real, y la diferencia
-          —un 5 % en la corriente— es de las que mueven un veredicto. */}
-      {estadisticosGuardados.length > 1 && (
-        <div className="acciones" role="group" aria-label="Qué estadístico se está mirando">
-          {ESTADISTICOS.filter((e) => estadisticosGuardados.includes(e.id)).map((e) => (
-            <button key={e.id} type="button"
-              className={'boton chico' + (verEstadistico === e.id ? ' activo' : '')}
-              aria-pressed={verEstadistico === e.id}
-              onClick={() => setVerEstadistico(e.id)}>{e.rotulo}</button>
-          ))}
-        </div>
-      )}
-      {todasLasFilas && todasLasFilas.length > 0 && filas.length === 0 && (
-        <p className="advertencia">
-          Hay días guardados en este periodo, pero ninguno con el estadístico{' '}
-          <b>{ESTADISTICOS.find((e) => e.id === verEstadistico)?.rotulo ?? verEstadistico}</b>.
-          Los que hay son: {estadisticosGuardados.map((e) => ESTADISTICOS.find((x) => x.id === e)?.rotulo ?? e).join(' · ')}.
-        </p>
-      )}
+      {/* ⚠️ YA NO HAY SELECTOR GLOBAL DE ESTADÍSTICO (`99 §ADR-129`). La maqueta
+          aprobada da a cada gráfica el suyo y a los indicadores otro. Sigue
+          valiendo lo de `§ADR-112` —nada mezcla máximos con promedios—, pero
+          ahora cada bloque dice, junto a sus cifras, cuál está mirando. */}
 
       {falloAuto && (
         <p className="advertencia">
@@ -1066,44 +1281,128 @@ function HistoricoGuardado({ sesion, lineaAbierta }: {
 
       {filas && filas.length > 0 && (
         <>
+          {/* ⚠️ `99 §ADR-129`: sin selector global, la línea de cabecera dice
+              cuántos días hay de CADA estadístico guardado — que es lo que
+              decide qué botón tiene algo detrás, en las gráficas y en los
+              indicadores. */}
           <p className="mapa-capas-n">
-            <b>{nf(filas.length)} día(s)</b> con dato ·{' '}
-            <b>{ESTADISTICOS.find((e) => e.id === verEstadistico)?.rotulo ?? verEstadistico}</b>{' '}
-            de cada hora · pico del periodo{' '}
-            {pico
-              ? <><b style={{ color: tintaDe(pico.maxima_pct as number) }}>
-                {nf(pico.maxima_pct as number, 1)} %</b> el {String(pico.fecha)} en{' '}
-                {String(pico.linea)}</>
-              : <b>sin medida</b>}
+            Guardado en este periodo:{' '}
+            {diasPorEstadistico.map(({ est, dias }, i) => (
+              <span key={est}>{i > 0 && ' · '}<b>{rotuloDelEstadistico(est)}</b>{' '}
+                {nf(dias)} día(s)</span>
+            ))}
+            {lineaUnica && <> · línea <b>{lineaUnica}</b></>}
           </p>
+
           {/* ⚠️ LAS GRÁFICAS VAN AQUÍ, no solo en la carga recién leída. Durante
               una versión entera el histórico solo tuvo tabla: quien abría la
               pantalla sin cargar un archivo —que son casi todos los días— no
               veía una sola gráfica, y el módulo parecía no tenerlas
-              (`32 · L-76`). Se pintan de lo que YA está en memoria: estos
-              resúmenes diarios, sin una lectura más a la base. */}
-          {/* ⚠️ LAS GRÁFICAS DEL PERIODO, ANTES QUE LA TABLA (`99 §ADR-120`).
-              Es lo que él viene a ver: el comportamiento de cada variable en la
-              franja que eligió arriba. La tabla de días queda debajo como
-              resumen, no como camino al dato. */}
-          {abriendo && <p className="fine">Trayendo las horas del periodo…</p>}
-          {falloAbrir && <p className="advertencia">No se pudieron traer las horas: {falloAbrir}</p>}
-          {horasDelPeriodo && horasDelPeriodo.length > 0 && (
+              (`32 · L-76`).
+              ⚠️ Y SIN TABLA DE DÍAS NI «LAS FASES, HORA A HORA» (`99 §ADR-129`).
+              Lo pidió el Ingeniero sobre la maqueta aprobada: lo que decía la
+              tabla —fecha, línea, máxima, promedio, mínima, corriente— se lee
+              pasando el ratón por la gráfica, con la fecha, la hora y el valor de
+              cada fase. Cada gráfica trae SU filtro de estadístico, y abre en el
+              máximo. */}
+          {!lineaUnica ? (
+            <p className="advertencia">
+              La consulta trae <b>{nf(lineasDeLaConsulta.length)} líneas</b>, y las horas de dos
+              líneas no se mezclan en una gráfica: la corriente de las dos juntas no es la de
+              ninguna. {lineaAbierta
+                ? <>Marque «Solo <b>{lineaAbierta}</b>» arriba</>
+                : 'Acote la consulta a una sola línea'} para ver las gráficas y el veredicto de sus
+              horas. Los indicadores de los resúmenes diarios, abajo, sí salen.
+            </p>
+          ) : (
             <>
               <p className="mapa-capas-n">
-                <b>{nf(horasDelPeriodo.length)}</b> horas del periodo, leídas de la base —{' '}
-                <b>{ESTADISTICOS.find((e) => e.id === verEstadistico)?.rotulo ?? verEstadistico}</b>{' '}
-                de cada hora. Cambie el estadístico o el periodo arriba y las gráficas se rehacen.
-                {recortadoHoras != null && (
-                  <> ⚠️ <b>Se trajeron los {nf(recortadoHoras)} días más recientes</b> del periodo:
-                  cada día son 24 lecturas y el plan es gratuito. Acote el periodo para ver el resto.</>
+                Las horas del periodo, leídas de la base. <b>Cada gráfica elige su estadístico</b>{' '}
+                con sus propios botones, y pasando el ratón por encima se lee la fecha, la hora y el
+                valor de cada fase.
+                {/* ⚠️ Si se recortó, se dice: sesenta y dos días dibujados de
+                    noventa, sin avisar, harían creer que se vio el periodo entero. */}
+                {recortados.length > 0 && (
+                  <> ⚠️ <b>Se trajeron los {nf(recortados[0].tope)} días más recientes</b> del periodo
+                  ({recortados.map((x) => rotuloDelEstadistico(x.est)).join(' · ')}): cada día son
+                  24 lecturas y el plan es gratuito. Acote el periodo para ver el resto.</>
                 )}
               </p>
-              <GraficasPorFase registros={horasDelPeriodo} />
-              <FasesDeLaCarga registros={horasDelPeriodo} />
+              {/* ⚠️ UN FALLO SE DICE, y no se reintenta solo (`99 §ADR-116`): un
+                  bucle de lecturas contra una base que dice que no es factura.
+                  La gráfica que mira ese estadístico se queda esperando hasta
+                  que alguien pulse «Reintentar». */}
+              {fallos.map(({ est, fallo }) => (
+                <p key={est} className="advertencia">
+                  <b>No se pudieron traer las horas del {rotuloDelEstadistico(est)}:</b> {fallo}. Las
+                  gráficas que miran ese estadístico lo dicen en su tarjeta.{' '}
+                  <button type="button" className="boton chico" onClick={() => pedir(est, true)}>
+                    Reintentar
+                  </button>
+                </p>
+              ))}
+              <GraficasPorFase porEstadistico={porEstadistico} disponibles={estadisticosGuardados}
+                cargando={cargandoPorEst} alPedir={pedir}
+                fallos={Object.fromEntries(fallos.map((f) => [f.est, f.fallo]))} />
             </>
           )}
+
+          {/* ⚠️ LOS INDICADORES SE QUEDAN TODOS, con UN filtro propio para
+              todos ellos (`99 §ADR-129`). «De un vistazo», la tendencia y el
+              reparto por línea salen de los resúmenes diarios de ese
+              estadístico; el veredicto, qué transporta, lo que cuesta y cómo se
+              comportó, de sus HORAS guardadas — antes solo existían para un
+              archivo recién cargado, y el día sin archivo, que son casi todos,
+              no se veían. */}
+          <p className="mapa-capas-t">Los indicadores</p>
+          <div className="acciones" role="group" aria-label="Estadístico de los indicadores">
+            {estadisticosGuardados.map((e) => (
+              <button key={e} type="button"
+                className={'boton chico' + (estInd === e ? ' activo' : '')}
+                aria-pressed={estInd === e}
+                onClick={() => { setEstIndicadores(e); pedir(e); }}>{rotuloDelEstadistico(e)}</button>
+            ))}
+          </div>
+          <p className="fine">
+            Todo calculado sobre el <b>{rotuloDelEstadistico(estInd)}</b> de cada hora, con las
+            mismas funciones del motor que el veredicto de un archivo recién cargado. Un solo filtro
+            para todos los indicadores.
+          </p>
           <TableroDelHistorico resumenes={filas} />
+          {lineaUnica && (horasInd === undefined ? (
+            indicadoresDe?.fallo ? (
+              <p className="advertencia">
+                <b>No se pudieron traer las horas del {rotuloDelEstadistico(estInd)}:</b>{' '}
+                {indicadoresDe.fallo}. El veredicto, qué transporta, lo que cuesta y cómo se
+                comportó salen de esas horas, así que no se enseñan.{' '}
+                <button type="button" className="boton chico" onClick={() => estInd && pedir(estInd, true)}>
+                  Reintentar
+                </button>
+              </p>
+            ) : (
+              <p className="fine">
+                Trayendo las horas del <b>{rotuloDelEstadistico(estInd)}</b>… de ellas salen el
+                veredicto, qué transporta, lo que cuesta y cómo se comportó.
+              </p>
+            )
+          ) : horasInd.length === 0 ? (
+            <p className="advertencia">
+              De este periodo no hay ninguna hora guardada con el estadístico{' '}
+              <b>{rotuloDelEstadistico(estInd)}</b>. Los resúmenes diarios sí existen; las 24 horas
+              de ese estadístico, no. Pruebe con otro estadístico de los de arriba.
+            </p>
+          ) : (
+            <>
+              <VeredictoDelHistorico pico={picoInd} referencia={referencia} />
+              {operacionInd && picoInd && (
+                <QueTransporta o={operacionInd} pico={picoInd} estadistico={estInd ?? undefined} />
+              )}
+              {operacionInd && <LoQueCuesta p={operacionInd.perdidas} />}
+              {enElTiempoInd && (
+                <EnElTiempo c={enElTiempoInd} contraAmpacidad={contraAmpacidadInd ?? undefined} />
+              )}
+            </>
+          ))}
           <TendenciaDiaria resumenes={filas} />
           <PorLineaDelHistorico resumenes={filas} />
 
@@ -1115,49 +1414,15 @@ function HistoricoGuardado({ sesion, lineaAbierta }: {
               los primeros. Acote el periodo o filtre por una línea para verlo entero.
             </p>
           )}
-          <div className="tabla-scroll">
-            <table className="tabla">
-              <thead><tr><th>Fecha</th><th>Línea</th><th>Máxima</th><th>Promedio</th>
-                <th>Mínima</th><th>Corriente máx.</th><th>Horas con dato</th>
-                <th>Sobrecarga</th></tr></thead>
-              <tbody>
-                {filas.slice(0, 60).map((f, i) => (
-                  <tr key={i}>
-                    <td>{String(f.fecha)}</td>
-                    <td>{String(f.linea)}</td>
-                    <td style={{ color: tintaDe(f.maxima_pct as number ?? null) }}>
-                      {f.maxima_pct == null ? 'sin medida' : `${nf(f.maxima_pct as number, 1)} %`}
-                    </td>
-                    <td>{f.promedio_pct == null ? '—' : `${nf(f.promedio_pct as number, 1)} %`}</td>
-                    <td>{f.minima_pct == null ? '—' : `${nf(f.minima_pct as number, 1)} %`}</td>
-                    <td>{f.corrienteMaxima_A == null
-                      ? '—'
-                      : `${nf(f.corrienteMaxima_A as number, 0)} A`}</td>
-                    <td>{nf((f.horasConDato ?? f.horasConMedida) as number)} de 24</td>
-                    <td>{nf((f.porBanda as Record<string, number>)?.sobrecarga ?? 0)} h</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {filas.length > 60 && (
-            <p className="fine">Se muestran 60 de {nf(filas.length)} días.</p>
-          )}
-
-          {horasDelPeriodo && horasDelPeriodo.length === 0 && !abriendo && (
-            <p className="advertencia">
-              De este periodo no hay ninguna hora guardada con el estadístico <b>
-                {ESTADISTICOS.find((e) => e.id === verEstadistico)?.rotulo ?? verEstadistico}
-              </b>. Los resúmenes de la tabla sí existen; las 24 horas de ese estadístico, no.
-              Pruebe con otro estadístico de los de arriba.
-            </p>
-          )}
         </>
       )}
+      {/* ⚠️ `99 §ADR-129`: esta frase hablaba de «la tabla de arriba», y la
+          tabla de días ya no existe. Se dice de qué sale cada cosa. */}
       <p className="fine">
-        La tabla de arriba sale de <b>resúmenes diarios</b> —una lectura por día en vez de 24—, y las
-        gráficas de las <b>horas</b> de esos mismos días. Por eso el periodo se acota: cada día
-        dibujado son 24 lecturas.
+        «El periodo guardado, de un vistazo», la tendencia y el reparto por línea salen de{' '}
+        <b>resúmenes diarios</b> —una lectura por día en vez de 24—; las gráficas y el veredicto, de
+        las <b>horas</b> de esos mismos días, que solo se leen cuando un estadístico se mira. Por eso
+        el periodo se acota: cada día dibujado son 24 lecturas.
       </p>
     </div>
   );
@@ -1967,8 +2232,45 @@ function FasesDeLaCarga({ registros }: { registros: Registro[] }) {
  * Se ajusta al dato, se rotulan los extremos reales y se avisa debajo. Es la
  * misma regla que ya gobierna las bandas de color: el dibujo no puede sugerir
  * una conclusión que el número no sostiene.
+ *
+ * ⚠️ Y SOLO CUANDO ES VERDAD (`99 §ADR-124/129`). Si el recorrido cruza el
+ * cero, el eje SÍ lo contiene —y se pinta su raya discontinua—: avisar entonces
+ * de que «no empieza en cero» era falso, y un aviso que sale siempre enseña a
+ * no leerlo. Sale solo cuando el cero queda FUERA de lo dibujado.
+ *
+ * EN EL HISTÓRICO, CADA GRÁFICA ELIGE SU ESTADÍSTICO (`99 §ADR-129`). Aprobado
+ * por el Ingeniero sobre la maqueta: el selector global obligaba a mirar las
+ * seis magnitudes con el mismo estadístico, y la potencia activa —que sale
+ * negativa— se lee al revés que la corriente. Cada tarjeta trae su grupo
+ * Máximo · Mínimo · Promedio · Instantáneo, abre en Máximo y pide al padre
+ * (`alPedir`) las horas del que aún no tenga. El camino de un archivo recién
+ * leído —que solo pasa `registros`— no cambia: sin `porEstadistico` no hay
+ * botones. (⚠️ No se escribe aquí la etiqueta del componente: una prueba
+ * cuenta sus usos por texto, y un comentario la inflaría.)
+ *
+ * EL VALOR SE LEE PASANDO EL RATÓN (`99 §ADR-129`). Lo que antes decía la tabla
+ * de días —fecha, hora y cifra de cada fase— sale en una cajita sobre el punto
+ * más cercano. En los dos modos: también le sirve a un archivo recién leído.
  */
-function GraficasPorFase({ registros }: { registros: Registro[] }) {
+function GraficasPorFase({ registros, porEstadistico, disponibles, cargando, alPedir, fallos }: {
+  /** Las horas a dibujar: el camino de un archivo recién leído. */
+  registros?: Registro[];
+  /**
+   * ⚠️ MODO HISTÓRICO (`99 §ADR-129`): si llega, cada gráfica dibuja las horas
+   * guardadas del estadístico que tenga elegido. `undefined` = aún no se ha
+   * traído; `null` o `[]` = se pidió y no volvió ninguna hora, y se DICE así
+   * —un hueco no es un cero—.
+   */
+  porEstadistico?: Partial<Record<string, Registro[] | null | undefined>>;
+  /** Los estadísticos que el periodo tiene guardados: solo ésos se ofrecen. */
+  disponibles?: string[];
+  /** Los que el padre está trayendo ahora mismo: no se piden dos veces. */
+  cargando?: Partial<Record<string, boolean>>;
+  /** Pide al padre las horas de un estadístico que esta pantalla aún no tiene. */
+  alPedir?: (est: string) => void;
+  /** Los que el padre no pudo traer, con su motivo: la tarjeta lo dice en vez de «Trayendo…». */
+  fallos?: Partial<Record<string, string>>;
+}) {
   const GRUPOS = [
     { rotulo: 'Tensión entre fases', unidad: 'kV', dec: 1, agregado: 'tension_kV',
       cols: [['RS', 'tensionRS_kV'], ['ST', 'tensionST_kV'], ['TR', 'tensionTR_kV']] as const },
@@ -2019,161 +2321,436 @@ function GraficasPorFase({ registros }: { registros: Registro[] }) {
   // equivocado —«fase a tierra» sobre una medida entre fases, que es el factor
   // de 1,73 que este módulo lleva cuidando desde el principio—. Se queda el
   // primero que lo declara.
-  /** De cuándo a cuándo va lo dibujado, dicho en palabras y no en un eje. */
-  const primero = registros[0];
-  const ultimo = registros[registros.length - 1];
-  const cuantosDias = new Set(registros.map((x) => String(x.fecha))).size;
-  const periodoDicho = !primero ? '' : cuantosDias === 1
-    ? `${String(primero.fecha)} · el día entero`
-    : `del ${String(primero.fecha)} al ${String(ultimo.fecha)} · ${cuantosDias} días`;
-  /** Cada cuánto hay una lectura. Se mira el dato, no se supone. */
-  const paso = new Set(registros.map((x) => Number(x.hora))).size >= 20 ? 'hora' : null;
+  //
+  // ⚠️ Y SE CUENTA POR JUEGO DE HORAS (`99 §ADR-129`): en el histórico cada
+  // tarjeta puede estar mirando un estadístico distinto, y el mínimo de un
+  // periodo no tiene por qué traer las mismas magnitudes que su máximo.
+  const magnitudesDe = (registros: Registro[]) => {
+    const reclamado = new Set<string>();
+    return GRUPOS
+      .map((g) => {
+        const fases = g.cols.filter(([, c]) => registros.some((x) => x[c] != null));
+        if (fases.length) { reclamado.add(g.agregado); return { ...g, presentes: fases, soloAgregado: false }; }
+        const hay = registros.some((x) => x[g.agregado] != null) && !reclamado.has(g.agregado);
+        if (hay) reclamado.add(g.agregado);
+        return hay
+          ? { ...g, presentes: [['total', g.agregado]] as unknown as typeof g.cols, soloAgregado: true }
+          : { ...g, presentes: [] as unknown as typeof g.cols, soloAgregado: false };
+      })
+      .filter((g) => g.presentes.length > 0);
+  };
+  type Magnitud = ReturnType<typeof magnitudesDe>[number];
 
-  const reclamado = new Set<string>();
-  const conDato = GRUPOS
-    .map((g) => {
-      const fases = g.cols.filter(([, c]) => registros.some((x) => x[c] != null));
-      if (fases.length) { reclamado.add(g.agregado); return { ...g, presentes: fases, soloAgregado: false }; }
-      const hay = registros.some((x) => x[g.agregado] != null) && !reclamado.has(g.agregado);
-      if (hay) reclamado.add(g.agregado);
-      return hay
-        ? { ...g, presentes: [['total', g.agregado]] as unknown as typeof g.cols, soloAgregado: true }
-        : { ...g, presentes: [] as unknown as typeof g.cols, soloAgregado: false };
-    })
-    .filter((g) => g.presentes.length > 0);
-  if (!conDato.length) return null;
+  /**
+   * Todo lo que se dibuja de UNA magnitud con UN juego de horas.
+   *
+   * ⚠️ Se calcula una vez por juego de horas y NO en cada movimiento del ratón
+   * (`99 §ADR-129`): un año son 8.760 puntos por fase, y rehacer los trazos al
+   * pasar el cursor haría que la cajita del valor llegara tarde.
+   */
+  const modeloDe = (g: Magnitud, registros: Registro[]) => {
+    /** De cuándo a cuándo va lo dibujado, dicho en palabras y no en un eje. */
+    const primero = registros[0];
+    const ultimo = registros[registros.length - 1];
+    const cuantosDias = new Set(registros.map((x) => String(x.fecha))).size;
+    const periodoDicho = !primero ? '' : cuantosDias === 1
+      ? `${String(primero.fecha)} · el día entero`
+      : `del ${String(primero.fecha)} al ${String(ultimo.fecha)} · ${cuantosDias} días`;
+    /** Cada cuánto hay una lectura. Se mira el dato, no se supone. */
+    const paso = new Set(registros.map((x) => Number(x.hora))).size >= 20 ? 'hora' : null;
+
+    const valores = registros.flatMap((x) => g.presentes
+      .map(([, c]) => x[c]).filter((v): v is number => typeof v === 'number'));
+    const min = Math.min(...valores);
+    const max = Math.max(...valores);
+    // Un margen del 8 % del recorrido para que la línea no toque los bordes.
+    // Si todo el día vale lo mismo, se abre a mano: un rango de cero alto
+    // haría una división por cero y una gráfica sin sentido.
+    const holgura = (max - min) || Math.max(Math.abs(max) * 0.02, 0.1);
+    const lo = min - holgura * 0.08;
+    const hi = max + holgura * 0.08;
+    // Cada magnitud dibuja en SU lienzo: solo cambia el alto.
+    const lz = { ...LIENZO, alto: (g as { alto?: number }).alto ?? LIENZO.alto };
+    const yEn = (v: number) => lz.alto - lz.margen.b
+      - ((v - lo) / (hi - lo)) * (lz.alto - lz.margen.s - lz.margen.b);
+    const marcas = marcasDeRango(lo, hi);
+    const { idx, modo } = marcasDeTiempo(registros as never[]);
+    // La mayor distancia entre la fase más alta y la más baja en un mismo
+    // instante: es lo que explica por qué tres líneas parecen una.
+    const separacion = g.presentes.length < 2 ? null : registros.reduce((peor, x_) => {
+      const v = g.presentes.map(([, c]) => x_[c]).filter((z): z is number => typeof z === 'number');
+      return v.length < 2 ? peor : Math.max(peor, Math.max(...v) - Math.min(...v));
+    }, 0);
+    // ⚠️ LA LÍNEA SE CORTA EN CADA HUECO (`99 §ADR-129`). Unir las horas con
+    // lectura saltando las que no la tienen dibujaba una recta por donde nadie
+    // midió —y la cajita del ratón decía «sin lectura» justo encima de ella—.
+    // Un hueco no es un cero, pero tampoco una interpolación. Un tramo de una
+    // sola hora, entre dos huecos, se pinta como un punto: si no, desaparecería.
+    const trazos = g.presentes.map(([, campo]) => {
+      const tramos: [number, number][][] = [];
+      let tramo: [number, number][] = [];
+      registros.forEach((x_, i) => {
+        if (typeof x_[campo] === 'number') tramo.push([x(i, registros.length, lz), yEn(x_[campo] as number)]);
+        else if (tramo.length) { tramos.push(tramo); tramo = []; }
+      });
+      if (tramo.length) tramos.push(tramo);
+      return tramos;
+    });
+    /** Las horas en que ESTA magnitud trae número: lo que de verdad se dibujó. */
+    const lecturas = registros
+      .filter((x_) => g.presentes.some(([, c]) => typeof x_[c] === 'number')).length;
+    // La MEDIANA de lo dibujado dice de qué lado del cero vive la magnitud sin
+    // que un par de horas raras la arrastren (`99 §ADR-129`).
+    const orden = [...valores].sort((a, b) => a - b);
+    const mitad = Math.floor(orden.length / 2);
+    const mediana = !orden.length ? null
+      : orden.length % 2 ? orden[mitad] : (orden[mitad - 1] + orden[mitad]) / 2;
+    return {
+      g, registros, periodoDicho, paso, min, max, lo, hi, lz, yEn, marcas, idx, modo, separacion, trazos, mediana,
+      lecturas,
+    };
+  };
+  type Modelo = ReturnType<typeof modeloDe>;
+
+  // ── El filtro de cada gráfica, en el histórico (`99 §ADR-129`) ──────────────
+  const historico = porEstadistico != null;
+  /** La tarjeta de espera, cuando aún no hay ninguna magnitud que enseñar. */
+  const CLAVE_PERIODO = 'Gráficas del periodo';
+  // ⚠️ EL ORDEN LO FIJÓ LA MAQUETA APROBADA: Máximo · Mínimo · Promedio ·
+  // Instantáneo. El del catálogo es otro, y el mínimo va segundo porque en una
+  // magnitud con signo es la otra cara del máximo, no un estadístico más.
+  const ofrecidos = ['maximo', 'minimo', 'promedio', 'instantaneo']
+    .map((id) => ESTADISTICOS.find((e) => e.id === id))
+    .filter((e): e is (typeof ESTADISTICOS)[number] => e != null
+      && (disponibles ?? Object.keys(porEstadistico ?? {})).includes(e.id));
+  const defecto = ofrecidos.some((e) => e.id === 'maximo') ? 'maximo' : (ofrecidos[0]?.id ?? null);
+  /** Lo que eligió cada tarjeta, por su rótulo. Lo no elegido abre en el defecto. */
+  const [elegido, setElegido] = useState<Record<string, string>>({});
+  /** Dónde está el ratón: qué tarjeta y qué instante. Uno solo a la vez. */
+  const [raton, setRaton] = useState<{ clave: string; i: number } | null>(null);
+  const valido = (e: string | undefined) => (e && ofrecidos.some((o) => o.id === e) ? e : null);
+  // Una tarjeta que aún no se ha tocado hereda lo que se eligió en la de espera:
+  // si el periodo no tenía máximos y se pidió el promedio, las gráficas que
+  // aparecen no vuelven a abrir en un máximo vacío.
+  const estDe = (clave: string) => valido(elegido[clave]) ?? valido(elegido[CLAVE_PERIODO]) ?? defecto;
+  const rotuloDe = (est: string | null) => ESTADISTICOS.find((e) => e.id === est)?.rotulo ?? '';
+
+  type Tarjeta = {
+    clave: string; rotulo: string; unidad: string; est: string | null;
+    datos: Registro[] | null | undefined; m: Modelo | null;
+  };
+  const tarjetas = useMemo<Tarjeta[]>(() => {
+    if (!historico) {
+      const horas = registros ?? [];
+      return magnitudesDe(horas).map((g) => ({
+        clave: g.rotulo, rotulo: g.rotulo, unidad: g.unidad, est: null, datos: horas, m: modeloDe(g, horas),
+      }));
+    }
+    // Las tarjetas son las magnitudes que trae ALGUNO de los estadísticos ya
+    // traídos: una tarjeta que mira un estadístico aún en camino no desaparece
+    // mientras llega — dice que lo está trayendo.
+    const llenos = ofrecidos.map((e) => porEstadistico?.[e.id])
+      .filter((r): r is Registro[] => Array.isArray(r) && r.length > 0);
+    const hay = new Set(llenos.flatMap((r) => magnitudesDe(r).map((g) => g.rotulo)));
+    return GRUPOS.filter((G) => hay.has(G.rotulo)).map((G) => {
+      const est = estDe(G.rotulo);
+      const datos = est ? porEstadistico?.[est] : undefined;
+      const g = Array.isArray(datos) && datos.length
+        ? magnitudesDe(datos).find((mg) => mg.rotulo === G.rotulo) : undefined;
+      return {
+        clave: G.rotulo, rotulo: G.rotulo, unidad: G.unidad, est, datos,
+        m: g && Array.isArray(datos) ? modeloDe(g, datos) : null,
+      };
+    });
+    // ⚠️ Sin `raton` en la lista: moverlo no rehace ni un trazo.
+  }, [historico, registros, porEstadistico, disponibles, elegido]);
+
+  // ⚠️ SE PIDE LO QUE SE ENSEÑA, y solo eso (`99 §ADR-129`): el estadístico
+  // elegido en cada tarjeta que aún no ha llegado ni se está trayendo. La lista
+  // se reduce a un texto para que el efecto solo corra cuando cambia de verdad
+  // — no en cada render, que con un padre que no marque `cargando` pediría lo
+  // mismo en bucle.
+  const claves = !historico ? [] : tarjetas.length ? tarjetas.map((t) => t.clave) : [CLAVE_PERIODO];
+  const faltan = [...new Set(claves.map(estDe))]
+    .filter((e): e is string => e != null && porEstadistico?.[e] === undefined && !cargando?.[e])
+    .sort()
+    .join('|');
+  useEffect(() => {
+    if (faltan && alPedir) faltan.split('|').forEach((e) => alPedir(e));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [faltan]);
+
+  if (historico ? !ofrecidos.length : !tarjetas.length) return null;
+
+  /** Los botones de estadístico de UNA tarjeta. */
+  const botones = (clave: string, est: string | null, nombre: string) => (
+    <div className="acciones grafica-estadisticos" role="group" aria-label={`Estadístico de ${nombre}`}>
+      {ofrecidos.map((e) => (
+        <button key={e.id} type="button"
+          className={'boton chico' + (est === e.id ? ' activo' : '')}
+          aria-pressed={est === e.id}
+          onClick={() => { setRaton(null); setElegido((antes) => ({ ...antes, [clave]: e.id })); }}>
+          {e.rotulo}
+        </button>
+      ))}
+    </div>
+  );
+
+  /** Lo que se dice mientras una tarjeta no tiene qué dibujar. Nunca un cero. */
+  const espera = (est: string | null, datos: Registro[] | null | undefined, falta: string) => {
+    const rot = rotuloDe(est);
+    if (datos === undefined) {
+      // ⚠️ Un fallo NO es una espera (`99 §ADR-129`): «Trayendo…» para siempre
+      // haría creer que el dato está en camino cuando la lectura ya se rindió.
+      if (est && fallos?.[est]) {
+        return (
+          <p className="advertencia">
+            No se pudieron traer las horas del <b>{rot.toLowerCase()}</b>: {fallos[est]}. Vea el
+            aviso de arriba para reintentar.
+          </p>
+        );
+      }
+      return (est && cargando?.[est]) || alPedir
+        ? <p className="fine">Trayendo el <b>{rot.toLowerCase()}</b> de cada hora…</p>
+        : <p className="fine">El <b>{rot.toLowerCase()}</b> de cada hora no está cargado en esta pantalla.</p>;
+    }
+    if (!datos || !datos.length) {
+      return <p className="fine"><b>{rot}</b>: este periodo no tiene horas guardadas con ese estadístico.</p>;
+    }
+    return <p className="fine"><b>{rot}</b>: las horas guardadas con ese estadístico no traen {falta}.</p>;
+  };
+
+  /** La gráfica de UNA magnitud: subtítulo, leyenda, lienzo, cajita y pie. */
+  const cuerpo = (m: Modelo, clave: string, est: string | null) => {
+    const { g, registros, periodoDicho, paso, min, max, lo, hi, lz, yEn, marcas, idx, modo, separacion, trazos } = m;
+    const n = registros.length;
+    const rot = rotuloDe(est);
+    const i = raton && raton.clave === clave && raton.i < n ? raton.i : null;
+    // ⚠️ La cajita lleva el AÑO (`99 §ADR-129`): con «histórico completo» o un
+    // rango que cruce de año, «05/08 15h» no dice de qué agosto es.
+    const fechaHora = (r: Registro) => {
+      const f = String(r.fecha ?? '');
+      return `${f.slice(8, 10)}/${f.slice(5, 7)}/${f.slice(2, 4)}${r.hora == null ? '' : ` ${Number(r.hora)}:00`}`;
+    };
+    const xi = i == null ? 0 : x(i, n, lz);
+    const pct = (xi / lz.ancho) * 100;
+    // ⚠️ AVISO DE SIGNO (`99 §ADR-129`). La activa y la reactiva salen
+    // NEGATIVAS en una bahía que exporta: ahí su «máximo» de la hora es el
+    // número más cercano a cero, o sea la hora de MENOS carga. Sin decirlo, el
+    // Ingeniero leería el máximo como el pico, que es justo lo contrario.
+    const conSigno = est != null && m.mediana != null && m.mediana < 0
+      && (g.agregado === 'potenciaActiva_MW' || g.agregado === 'potenciaReactiva_MVAr');
+    return (
+      <>
+        {/* ⚠️ QUÉ FRANJA Y CON QUÉ PASO (`99 §ADR-122`). El eje rotulaba
+            «13/01 00h … 20/01 23h» y había que deducir de ahí si eran horas,
+            días o meses. Se dice: de cuándo a cuándo, cuántas lecturas y cada
+            cuánto. Una gráfica sin su periodo no se puede citar en un informe.
+            Y en el histórico, QUÉ estadístico de la hora es (`99 §ADR-129`). */}
+        <p className="fine">
+          {periodoDicho} · <b>{nf(m.lecturas)}</b> lectura(s)
+          {paso ? <> · una cada <b>{paso}</b></> : null}
+          {est ? <> · <b>{rot}</b> de cada hora</> : null}
+        </p>
+        <div className="bandas-reparto">
+          {g.presentes.map(([fase], k) => (
+            <span key={fase} className="banda-chip">
+              <i style={{ background: TINTA[k % TINTA.length] }} />{' '}
+              {g.soloAgregado ? 'total de la bahía' : `fase ${fase}`}
+            </span>
+          ))}
+        </div>
+        {/* ⚠️ EL VALOR, AL PASAR EL RATÓN (`99 §ADR-129`). Se busca el instante
+            más cercano con la MISMA escala con que se dibujó —`x(i, n, lz)`—:
+            una cajita que leyera otra escala enseñaría la cifra de la hora de
+            al lado. La caja se posiciona sobre el lienzo, fuera del SVG, para
+            que el texto no se escale con la figura. */}
+        <div className="grafica-lienzo">
+          <svg viewBox={`0 0 ${lz.ancho} ${lz.alto}`} className="grafica" role="img"
+            aria-label={`${g.rotulo} por fase, ${registros.length} instantes${est ? `, ${rot} de cada hora` : ''}`}
+            onPointerMove={(ev) => {
+              const caja = ev.currentTarget.getBoundingClientRect();
+              if (!caja.width || !n) return;
+              const vx = ((ev.clientX - caja.left) / caja.width) * lz.ancho;
+              const util = lz.ancho - lz.margen.i - lz.margen.d;
+              let cerca = n <= 1 ? 0 : Math.round(((vx - lz.margen.i) / util) * (n - 1));
+              cerca = Math.max(0, Math.min(n - 1, cerca));
+              for (const c of [cerca - 1, cerca + 1]) {
+                if (c >= 0 && c < n && Math.abs(x(c, n, lz) - vx) < Math.abs(x(cerca, n, lz) - vx)) cerca = c;
+              }
+              setRaton((r) => (r && r.clave === clave && r.i === cerca ? r : { clave, i: cerca }));
+            }}
+            onPointerLeave={() => setRaton(null)}>
+            {marcas.map(({ v, cero }, k) => (
+              <g key={k}>
+                {/* ⚠️ La del CERO se pinta distinta: en una magnitud con signo es
+                    donde se invierte el sentido del flujo, no una cifra más. */}
+                <line x1={lz.margen.i} x2={lz.ancho - lz.margen.d}
+                  y1={yEn(v)} y2={yEn(v)} stroke={cero ? 'var(--tx-tenue, #888)' : 'var(--bd-tenue)'}
+                  strokeWidth={cero ? 1.4 : 1} strokeDasharray={cero ? '4 3' : undefined} />
+                <text x={lz.margen.i - 6} y={yEn(v) + 4} textAnchor="end"
+                  fontSize={10} fill="var(--tx-tenue, #888)"
+                  fontWeight={cero ? 700 : undefined}>{nf(v, g.dec)}</text>
+              </g>
+            ))}
+            {/* ⚠️ LA UNIDAD, ROTULANDO EL EJE (`99 §ADR-122`). Pegada al número
+                —«-27,54 MW»— la etiqueta se salía del margen izquierdo y
+                aparecía cortada: se veía «',54 MW». Va arriba del eje, que es
+                su sitio, y ahí cabe siempre sea cual sea la cifra. */}
+            <text x={lz.margen.i} y={lz.margen.s - 6} textAnchor="start"
+              fontSize={10} fill="var(--tx-tenue, #888)">{g.unidad}</text>
+            {g.presentes.map(([fase, campo], k) => (
+              <g key={fase}>
+                {trazos[k].map((tramo, s) => (tramo.length > 1 ? (
+                  <polyline key={`t${s}`} points={tramo.map(([px, py]) => `${px},${py}`).join(' ')}
+                    fill="none" stroke={TINTA[k % TINTA.length]}
+                    strokeWidth={1.8} strokeLinejoin="round" strokeLinecap="round" />
+                ) : (
+                  <circle key={`t${s}`} cx={tramo[0][0]} cy={tramo[0][1]} r={1.8} fill={TINTA[k % TINTA.length]} />
+                )))}
+                {/* ⚠️ Los puntos solo cuando se distinguen (`99 §ADR-120`). Un
+                    mes son ~700 instantes por fase: dibujar un círculo por
+                    cada uno tapa la línea y cuesta miles de nodos. La línea
+                    sigue siendo el dato; el punto era la ayuda para leerlo. */}
+                {registros.length <= PUNTOS_VISIBLES && registros.map((x_, j) => (typeof x_[campo] === 'number' ? (
+                  <circle key={j} cx={x(j, registros.length, lz)} cy={yEn(x_[campo] as number)} r={2.2}
+                    fill={TINTA[k % TINTA.length]}>
+                    <title>
+                      {etiquetaInstante(x_ as never)} · {fase} · {nf(x_[campo] as number, g.dec)} {g.unidad}
+                    </title>
+                  </circle>
+                ) : null))}
+              </g>
+            ))}
+            {/* ⚠️ MARCAS DONDE EMPIEZA CADA DÍA (`99 §ADR-123`). Repartidas cada N
+                puntos caían a media jornada y cada etiqueta llevaba fecha Y
+                hora apretadas —«13/01 00h»—. Ahora el eje rotula DÍAS cuando
+                hay varios y HORAS cuando es uno solo, y la marca cae en la
+                frontera, que es lo que el ojo busca en una serie horaria.
+                La última se ancla al final o se sale del lienzo. */}
+            {idx.map((j, k) => (
+              <text key={j} x={x(j, registros.length, lz)} y={lz.alto - 10}
+                textAnchor={k === idx.length - 1 ? 'end' : k === 0 ? 'start' : 'middle'}
+                fontSize={9} fill="var(--tx-tenue, #888)">
+                {marcaDeTiempo(registros[j] as never, modo)}
+              </text>
+            ))}
+            {/* ⚠️ LA FECHA, DENTRO DE LA FIGURA. Va en la cabecera de la tarjeta,
+                pero una captura de la gráfica sola —que es lo que acaba en un
+                informe— se quedaba sin ella. Aquí, discreta y a la derecha. */}
+            <text x={lz.ancho - lz.margen.d} y={lz.margen.s - 6} textAnchor="end"
+              fontSize={9} fill="var(--tx-tenue, #888)">{periodoDicho}</text>
+            {/* La raya del instante señalado y un punto sobre cada fase: el ojo
+                tiene que ver QUÉ hora está leyendo la cajita. */}
+            {i != null && (
+              <g>
+                <line className="grafica-cursor" x1={xi} x2={xi} y1={lz.margen.s} y2={lz.alto - lz.margen.b} />
+                {g.presentes.map(([fase, campo], k) => {
+                  const v = registros[i][campo];
+                  return typeof v === 'number' ? (
+                    <circle key={fase} className="grafica-cursor-punto" cx={xi} cy={yEn(v)} r={3.6}
+                      fill={TINTA[k % TINTA.length]} />
+                  ) : null;
+                })}
+              </g>
+            )}
+          </svg>
+          {i != null && (
+            <div className="grafica-cajita"
+              style={{ left: `${pct}%`, transform: pct > 55 ? 'translateX(calc(-100% - 10px))' : 'translateX(10px)' }}>
+              <b>{fechaHora(registros[i])}</b>
+              {est ? <span className="grafica-cajita-est">{rot} de la hora</span> : null}
+              {g.presentes.map(([fase, campo], k) => {
+                const v = registros[i][campo];
+                return (
+                  <span key={fase} className="grafica-cajita-fila">
+                    <i style={{ background: TINTA[k % TINTA.length] }} />
+                    {g.soloAgregado ? 'total' : `fase ${fase}`}
+                    {/* ⚠️ Un hueco se dice: una hora sin lectura NO es un cero. */}
+                    {typeof v === 'number' ? <b>{nf(v, g.dec)} {g.unidad}</b> : <em>sin lectura</em>}
+                  </span>
+                );
+              })}
+            </div>
+          )}
+        </div>
+        <p className="fine">
+          {g.presentes.map(([fase], k) => (
+            <span key={fase} style={{ color: TINTA[k % TINTA.length] }}>
+              <b>{fase}</b>{k < g.presentes.length - 1 ? ' · ' : ''}
+            </span>
+          ))}
+          {' — '}entre <b>{nf(min, g.dec)}</b> y <b>{nf(max, g.dec)} {g.unidad}</b>.
+          {separacion != null && (
+            separacion < (max - min) * 0.06
+              ? <> ⚠️ <b>Las {g.presentes.length} líneas se superponen</b> porque las fases van
+                casi iguales: la mayor separación entre ellas en todo el periodo es de{' '}
+                <b>{nf(separacion, g.dec)} {g.unidad}</b>. No es un fallo del dibujo — es que la
+                carga está bien repartida.</>
+              : <> Mayor separación entre fases: <b>{nf(separacion, g.dec)} {g.unidad}</b>.</>
+          )}
+          {g.soloAgregado && (
+            <> Su archivo no trae esta magnitud <b>por fases</b>: lo que se dibuja es el
+            total de la bahía, no una fase suelta.</>
+          )}
+          {/* Las dos notas de la maqueta aprobada (`99 §ADR-129`). La de la aparente,
+              solo si las horas dicen que es derivada: de un archivo que la mida no se afirma. */}
+          {g.agregado === 'corriente_A' && (
+            <> Es la <b>única que dictamina</b>: se compara con la ampacidad. Por eso va más alta
+            que las demás.</>
+          )}
+          {g.agregado === 'potenciaAparente_MVA' && g.soloAgregado
+            && registros.some((x_) => x_.naturalezaAparente === 'derivada') && (
+            <> La aparente <b>no viene en el archivo</b>: sale de la activa y la reactiva de cada
+            hora.</>
+          )}
+          {/* ⚠️ Solo si el cero queda FUERA de lo dibujado (`99 §ADR-124/129`):
+              si cae dentro, el eje lo contiene y se pinta su raya. */}
+          {(lo > 0 || hi < 0) && (
+            <>{' '}⚠️ <b>El eje no empieza en cero</b>: se ajusta al recorrido del dato. Desde cero,
+              esta variación sería una raya plana; sin decirlo, parecería un tobogán.</>
+          )}
+        </p>
+        {conSigno && est === 'maximo' && (
+          <p className="aviso">
+            ⚠️ <b>La {g.rotulo.toLowerCase()} sale NEGATIVA en esta bahía</b>: su máximo es la hora de MENOS
+            carga; la de más carga es el mínimo.
+          </p>
+        )}
+        {conSigno && est === 'minimo' && (
+          <p className="aviso">
+            La {g.rotulo.toLowerCase()} sale negativa: el mínimo es la hora de MÁS carga.
+          </p>
+        )}
+      </>
+    );
+  };
+
+  // La tarjeta de espera: el histórico está elegido pero aún no ha llegado
+  // ninguna magnitud que dibujar. Se dice qué se trae, y se puede pedir otro.
+  if (historico && !tarjetas.length) {
+    const est = estDe(CLAVE_PERIODO);
+    return (
+      <div className="tarjeta">
+        <div className="grafica-cabecera">
+          <p className="mapa-capas-t">{CLAVE_PERIODO}</p>
+          {botones(CLAVE_PERIODO, est, 'las gráficas del periodo')}
+        </div>
+        {espera(est, est ? porEstadistico?.[est] : undefined, 'ninguna magnitud que dibujar')}
+      </div>
+    );
+  }
 
   return (
     <>
-      {conDato.map((g) => {
-        const valores = registros.flatMap((x) => g.presentes
-          .map(([, c]) => x[c]).filter((v): v is number => typeof v === 'number'));
-        const min = Math.min(...valores);
-        const max = Math.max(...valores);
-        // Un margen del 8 % del recorrido para que la línea no toque los bordes.
-        // Si todo el día vale lo mismo, se abre a mano: un rango de cero alto
-        // haría una división por cero y una gráfica sin sentido.
-        const holgura = (max - min) || Math.max(Math.abs(max) * 0.02, 0.1);
-        const lo = min - holgura * 0.08;
-        const hi = max + holgura * 0.08;
-        // Cada magnitud dibuja en SU lienzo: solo cambia el alto.
-        const lz = { ...LIENZO, alto: (g as { alto?: number }).alto ?? LIENZO.alto };
-        const yEn = (v: number) => lz.alto - lz.margen.b
-          - ((v - lo) / (hi - lo)) * (lz.alto - lz.margen.s - lz.margen.b);
-        const marcas = marcasDeRango(lo, hi);
-        const { idx, modo } = marcasDeTiempo(registros as never[]);
-        // La mayor distancia entre la fase más alta y la más baja en un mismo
-        // instante: es lo que explica por qué tres líneas parecen una.
-        const separacion = g.presentes.length < 2 ? null : registros.reduce((peor, x_) => {
-          const v = g.presentes.map(([, c]) => x_[c]).filter((z): z is number => typeof z === 'number');
-          return v.length < 2 ? peor : Math.max(peor, Math.max(...v) - Math.min(...v));
-        }, 0);
-
+      {tarjetas.map((g) => {
+        const titulo = <p className="mapa-capas-t">{g.rotulo} ({g.unidad})</p>;
         return (
-          <div className="tarjeta" key={g.rotulo}>
-            <p className="mapa-capas-t">{g.rotulo} ({g.unidad})</p>
-            {/* ⚠️ QUÉ FRANJA Y CON QUÉ PASO (`99 §ADR-122`). El eje rotulaba
-                «13/01 00h … 20/01 23h» y había que deducir de ahí si eran horas,
-                días o meses. Se dice: de cuándo a cuándo, cuántas lecturas y cada
-                cuánto. Una gráfica sin su periodo no se puede citar en un informe. */}
-            <p className="fine">
-              {periodoDicho} · <b>{nf(registros.length)}</b> lectura(s)
-              {paso ? <> · una cada <b>{paso}</b></> : null}
-            </p>
-            <div className="bandas-reparto">
-              {g.presentes.map(([fase], k) => (
-                <span key={fase} className="banda-chip">
-                  <i style={{ background: TINTA[k % TINTA.length] }} />{' '}
-                  {g.soloAgregado ? 'total de la bahía' : `fase ${fase}`}
-                </span>
-              ))}
-            </div>
-            <svg viewBox={`0 0 ${lz.ancho} ${lz.alto}`} className="grafica" role="img"
-              aria-label={`${g.rotulo} por fase, ${registros.length} instantes`}>
-              {marcas.map(({ v, cero }, k) => (
-                <g key={k}>
-                  {/* ⚠️ La del CERO se pinta distinta: en una magnitud con signo es
-                      donde se invierte el sentido del flujo, no una cifra más. */}
-                  <line x1={lz.margen.i} x2={lz.ancho - lz.margen.d}
-                    y1={yEn(v)} y2={yEn(v)} stroke={cero ? 'var(--tx-tenue, #888)' : 'var(--bd-tenue)'}
-                    strokeWidth={cero ? 1.4 : 1} strokeDasharray={cero ? '4 3' : undefined} />
-                  <text x={lz.margen.i - 6} y={yEn(v) + 4} textAnchor="end"
-                    fontSize={10} fill="var(--tx-tenue, #888)"
-                    fontWeight={cero ? 700 : undefined}>{nf(v, g.dec)}</text>
-                </g>
-              ))}
-              {/* ⚠️ LA UNIDAD, ROTULANDO EL EJE (`99 §ADR-122`). Pegada al número
-                  —«-27,54 MW»— la etiqueta se salía del margen izquierdo y
-                  aparecía cortada: se veía «',54 MW». Va arriba del eje, que es
-                  su sitio, y ahí cabe siempre sea cual sea la cifra. */}
-              <text x={lz.margen.i} y={lz.margen.s - 6} textAnchor="start"
-                fontSize={10} fill="var(--tx-tenue, #888)">{g.unidad}</text>
-              {g.presentes.map(([fase, campo], k) => {
-                const trazo = registros
-                  .map((x_, i) => (typeof x_[campo] === 'number'
-                    ? `${x(i, registros.length, lz)},${yEn(x_[campo] as number)}` : null))
-                  .filter((v): v is string => v !== null)
-                  .join(' ');
-                return (
-                  <g key={fase}>
-                    <polyline points={trazo} fill="none" stroke={TINTA[k % TINTA.length]}
-                      strokeWidth={1.8} strokeLinejoin="round" strokeLinecap="round" />
-                    {/* ⚠️ Los puntos solo cuando se distinguen (`99 §ADR-120`). Un
-                        mes son ~700 instantes por fase: dibujar un círculo por
-                        cada uno tapa la línea y cuesta miles de nodos. La línea
-                        sigue siendo el dato; el punto era la ayuda para leerlo. */}
-                    {registros.length <= PUNTOS_VISIBLES && registros.map((x_, i) => (typeof x_[campo] === 'number' ? (
-                      <circle key={i} cx={x(i, registros.length, lz)} cy={yEn(x_[campo] as number)} r={2.2}
-                        fill={TINTA[k % TINTA.length]}>
-                        <title>
-                          {etiquetaInstante(x_ as never)} · {fase} · {nf(x_[campo] as number, g.dec)} {g.unidad}
-                        </title>
-                      </circle>
-                    ) : null))}
-                  </g>
-                );
-              })}
-              {/* ⚠️ MARCAS DONDE EMPIEZA CADA DÍA (`99 §ADR-123`). Repartidas cada N
-                  puntos caían a media jornada y cada etiqueta llevaba fecha Y
-                  hora apretadas —«13/01 00h»—. Ahora el eje rotula DÍAS cuando
-                  hay varios y HORAS cuando es uno solo, y la marca cae en la
-                  frontera, que es lo que el ojo busca en una serie horaria.
-                  La última se ancla al final o se sale del lienzo. */}
-              {idx.map((i, k) => (
-                <text key={i} x={x(i, registros.length, lz)} y={lz.alto - 10}
-                  textAnchor={k === idx.length - 1 ? 'end' : k === 0 ? 'start' : 'middle'}
-                  fontSize={9} fill="var(--tx-tenue, #888)">
-                  {marcaDeTiempo(registros[i] as never, modo)}
-                </text>
-              ))}
-              {/* ⚠️ LA FECHA, DENTRO DE LA FIGURA. Va en la cabecera de la tarjeta,
-                  pero una captura de la gráfica sola —que es lo que acaba en un
-                  informe— se quedaba sin ella. Aquí, discreta y a la derecha. */}
-              <text x={lz.ancho - lz.margen.d} y={lz.margen.s - 6} textAnchor="end"
-                fontSize={9} fill="var(--tx-tenue, #888)">{periodoDicho}</text>
-            </svg>
-            <p className="fine">
-              {g.presentes.map(([fase], k) => (
-                <span key={fase} style={{ color: TINTA[k % TINTA.length] }}>
-                  <b>{fase}</b>{k < g.presentes.length - 1 ? ' · ' : ''}
-                </span>
-              ))}
-              {' — '}entre <b>{nf(min, g.dec)}</b> y <b>{nf(max, g.dec)} {g.unidad}</b>.
-              {separacion != null && (
-                separacion < (max - min) * 0.06
-                  ? <> ⚠️ <b>Las {g.presentes.length} líneas se superponen</b> porque las fases van
-                    casi iguales: la mayor separación entre ellas en todo el periodo es de{' '}
-                    <b>{nf(separacion, g.dec)} {g.unidad}</b>. No es un fallo del dibujo — es que la
-                    carga está bien repartida.</>
-                  : <> Mayor separación entre fases: <b>{nf(separacion, g.dec)} {g.unidad}</b>.</>
-              )}
-              {g.soloAgregado && (
-                <> Su archivo no trae esta magnitud <b>por fases</b>: lo que se dibuja es el
-                total de la bahía, no una fase suelta.</>
-              )}
-              {' '}⚠️ <b>El eje no empieza en cero</b>: se ajusta al recorrido del dato. Desde cero,
-              esta variación sería una raya plana; sin decirlo, parecería un tobogán.
-            </p>
+          <div className="tarjeta" key={g.clave}>
+            {historico
+              ? <div className="grafica-cabecera">{titulo}{botones(g.clave, g.est, g.rotulo.toLowerCase())}</div>
+              : titulo}
+            {g.m ? cuerpo(g.m, g.clave, g.est) : espera(g.est, g.datos, 'esta magnitud')}
           </div>
         );
       })}
@@ -2360,6 +2937,117 @@ function ElVeredicto({ v, referencia }: {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
+// EL VEREDICTO DEL HISTÓRICO — el mismo juicio, sobre las HORAS GUARDADAS
+// ────────────────────────────────────────────────────────────────────────────
+// `99 §ADR-129`. En la maqueta que el Ingeniero aprobó («está perfecto») los
+// indicadores del histórico dejan de ser solo «el periodo, de un vistazo»: sale
+// también el veredicto, calculado sobre las horas guardadas del estadístico que
+// se elija en su filtro. Quien elige el pico es el padre; aquí solo se juzga.
+//
+// ⚠️ POR QUÉ NO SE REUSA `ElVeredicto`. Aquel pone el «% del ARCHIVO» al lado
+// del «contra la ampacidad», y el SCADA que alimenta el histórico no trae
+// porcentaje: estrenaría una cifra muda. Y aquel, sin pico, no se monta — éste
+// sí, y como `ElEntorno`: sin pico o sin ampacidad, cada indicador dice POR
+// QUÉ no hay dato. Nunca un «—» mudo, y nunca un «0 %» por un hueco.
+//
+// ⚠️ EL DENOMINADOR ES LA VIGENTE (`99 §ADR-098`), no la de registro: es la
+// misma división que hace `ElVeredicto`, para que las dos tarjetas no
+// discrepen el día que se miren juntas.
+// ════════════════════════════════════════════════════════════════════════════
+
+// Se exporta con nombre (es un componente: el refresco en caliente no se
+// resiente) para que exista antes de que el histórico lo monte.
+export function VeredictoDelHistorico({ pico, referencia }: {
+  pico: Registro | null;
+  referencia: ReturnType<typeof ampacidadDeLinea>;
+}) {
+  const vigente = referencia.vigente_A ?? referencia.ampacidad_A;
+  const corriente = pico && typeof pico.corriente_A === 'number' && Number.isFinite(pico.corriente_A)
+    ? pico.corriente_A : null;
+  const c = (pico && corriente != null
+    ? contrasteConLaAmpacidad(pico as never, vigente) : null) as Record<string, unknown> | null;
+  const pct = c?.comparable ? c.contraAmpacidad_pct as number : null;
+
+  // ⚠️ La fase del pico es la que IGUALA la corriente del registro, no «la más
+  // parecida»: si ninguna la iguala, no se le atribuye a ninguna. La tolerancia
+  // es solo el ruido de la coma flotante.
+  let fase: string | null = null;
+  if (pico && corriente != null) {
+    for (const f of ['R', 'S', 'T']) {
+      const v = pico[`corriente${f}_A`];
+      if (typeof v === 'number' && Math.abs(v - corriente) < 1e-9) { fase = f; break; }
+    }
+  }
+  const cuando = pico && corriente != null
+    ? [
+      pico.linea == null ? '' : String(pico.linea),
+      pico.fecha == null ? '' : String(pico.fecha),
+      pico.hora == null ? '' : `${String(pico.hora).padStart(2, '0')}:00`,
+      fase ? `fase ${fase}` : '',
+    ].filter(Boolean).join(' · ')
+    : null;
+
+  // El margen, con signo: si la corriente pasó la ampacidad, se dice así —
+  // un margen negativo escrito como «libre» sería mentir por el lado peligroso.
+  const margen_A = pct != null && vigente != null && corriente != null ? vigente - corriente : null;
+
+  const sinPico = 'este periodo no tiene horas guardadas con corriente en ese estadístico';
+  const sinAmp = referencia.motivo ?? 'la línea no tiene ampacidad: sin denominador no hay veredicto';
+
+  return (
+    <div className="tarjeta">
+      <p className="mapa-capas-t">Veredicto eléctrico — el pico del periodo</p>
+      <div className="kpis">
+        <Dato v={pct == null ? null : `${nf(pct, 1)} %`} r="Cargabilidad"
+          s={pct == null ? null
+            : `${nf(c!.corriente_A as number)} A ÷ ${nf(c!.ampacidad_A as number)} A · contra la ampacidad`}
+          color={pct == null ? undefined : tintaDe(pct)}
+          falta={corriente == null ? sinPico
+            : vigente == null ? `falta el denominador: ${sinAmp}`
+              : String(c?.porQue ?? 'no se pudo contrastar con la ampacidad')} />
+        <Dato v={corriente == null ? null : `${nf(corriente)} A`} r="Corriente del pico"
+          s={cuando} falta={sinPico} />
+        <Dato v={vigente == null ? null : `${nf(vigente)} A`} r="Ampacidad"
+          s="del conductor, no del archivo" color="var(--acc)" falta={sinAmp} />
+        <Dato v={margen_A == null ? null : `${nf(margen_A)} A`} r="Margen disponible"
+          s={margen_A == null || pct == null ? null
+            : margen_A < 0 ? `la corriente pasa la ampacidad en ${nf(pct - 100, 1)} %`
+              : `${nf(100 - pct, 1)} % de la ampacidad libre`}
+          color={margen_A != null && margen_A < 0 ? 'var(--tx-alerta)' : undefined}
+          falta={corriente == null
+            ? 'saldrá de restar la corriente del pico a la ampacidad, y este periodo no la tiene'
+            : sinAmp} />
+      </div>
+
+      {c?.comparable && c.aviso ? <p className="advertencia alerta">⚠️ {String(c.aviso)}</p> : null}
+
+      {/* ⚠️ El MISMO aviso de `ElVeredicto` (orden del Ingeniero, 2026-09-05):
+          sin temperatura del fabricante, este amperaje se enseña pero no se
+          presenta como dictamen — y se dice antes de la letra pequeña. */}
+      {referencia.esDictamen === false && (
+        <p className="advertencia alerta">
+          ⚠️ <b>Este amperaje NO es un dictamen.</b> La temperatura de operación del conductor no la
+          ha declarado ningún fabricante: {referencia.temperatura.rotulo}. Siete fichas públicas dan
+          <b> 75 °C</b> para este conductor y aquí se están usando <b>90 °C</b> — son <b>17 % de
+          capacidad de más</b>, por el lado que hace que una línea sobrecargada parezca sana.
+        </p>
+      )}
+
+      <p className="fine">
+        {referencia.rotulo}
+        {/* Si la vigente no es la de registro, se dice cuál divide y por qué. */}
+        {referencia.vigente_A != null && referencia.ampacidad_A != null
+          && Math.round(referencia.vigente_A) !== Math.round(referencia.ampacidad_A)
+          ? <> · <b>divide la vigente:</b> {referencia.vigenteRotulo}</> : null}
+      </p>
+      {/* La condición adoptada se confiesa en la propia tarjeta, como en `ElVeredicto`. */}
+      {referencia.avisos.map((a, i) => <p key={i} className="advertencia">{a}</p>)}
+      <Sello />
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
 // LO QUE SALDRÁ — la pantalla vacía enseña su ESTRUCTURA, no datos
 // ────────────────────────────────────────────────────────────────────────────
 // ⚠️ POR QUÉ EXISTE ESTE BLOQUE, y es un fallo mío corregido. El Ingeniero pidió
@@ -2491,16 +3179,26 @@ function LienzoVacio({ techo, etiqueta }: { techo: number; etiqueta: string }) {
   );
 }
 
-function ElEntorno({ referencia, disponible, enElTiempo }: {
+function ElEntorno({ referencia, disponible, enElTiempo, soloEstructura }: {
   referencia: ReturnType<typeof ampacidadDeLinea>;
   disponible: ReturnType<typeof disponibilidadDeVariables>;
   enElTiempo: ReturnType<typeof comportamientoEnElTiempo>;
+  /** Cuando hay histórico guardado: sin las cuatro tarjetas de indicadores vacíos. */
+  soloEstructura?: boolean;
 }) {
   const amp = referencia.ampacidad_A;
   const sinLectura = 'ninguna lectura cargada todavía';
 
   return (
     <>
+      {/* ⚠️ `99 §ADR-129`: con histórico guardado, estas cuatro tarjetas —el
+          veredicto, qué transporta, lo que cuesta y cómo se comportó— ya salen
+          CON NÚMERO en el histórico, calculadas sobre sus horas guardadas. Se
+          MIGRAN, no se duplican: repetirlas aquí con «—» pondría en la misma
+          pantalla la cifra y su hueco, y el hueco parecería el dato. Todo lo
+          demás del entorno (las gráficas vacías, el mapa de calor, las
+          variables) se queda. Sin la prop, idéntico a como estaba. */}
+      {!soloEstructura && (<>
       {/* ── El veredicto, con su denominador ya puesto ─────────────────── */}
       <div className="tarjeta">
         <p className="mapa-capas-t">Veredicto eléctrico — esperando la corriente</p>
@@ -2556,6 +3254,7 @@ function ElEntorno({ referencia, disponible, enElTiempo }: {
           <b> medidas</b> de al lado van a «—» porque no existen, que no es lo mismo.
         </p>
       </div>
+      </>)}
 
       {/* ── LAS GRÁFICAS, con su escala y sus bandas ────────────────────── */}
       <div className="tarjeta">
@@ -2632,11 +3331,13 @@ function ElEntorno({ referencia, disponible, enElTiempo }: {
 // ════════════════════════════════════════════════════════════════════════════
 
 /** Un indicador que, cuando no tiene dato, dice por qué. */
-function Dato({ v, r, s, color, falta }: {
+function Dato({ v, r, s, color, falta, propuesta }: {
   v: string | null; r: string; s?: string | null; color?: string; falta?: string | null;
+  /** `99 §ADR-129`: criterio PROPUESTO, no el vigente — se pinta con borde punteado. */
+  propuesta?: boolean;
 }) {
   return (
-    <div className="kpi">
+    <div className={propuesta ? 'kpi propuesta' : 'kpi'}>
       <div className="kpi-v" style={v == null ? { color: 'var(--tx3)' } : color ? { color } : undefined}>
         {v ?? '—'}
       </div>
@@ -2648,12 +3349,22 @@ function Dato({ v, r, s, color, falta }: {
   );
 }
 
-function QueTransporta({ o, pico }: {
+function QueTransporta({ o, pico, estadistico }: {
   o: { potencias: ReturnType<typeof potenciasDelInstante>;
        tension: ReturnType<typeof desviacionDeTension> };
   pico: Registro;
+  /** `99 §ADR-129`: solo desde el histórico — de qué estadístico salen las cifras. */
+  estadistico?: string;
 }) {
   const p = o.potencias;
+  // ⚠️ `99 §ADR-129` — SI ESTAS CIFRAS SON UNA FOTO O NO. Con Máximo o Mínimo
+  // cada magnitud trae SU extremo dentro de la hora: la corriente máxima y la
+  // activa máxima pueden ser de minutos distintos, así que el factor de
+  // potencia y la corriente en reactiva que salen de juntarlas no ocurrieron
+  // nunca a la vez. Con Promedio son medias: una aproximación. Solo el
+  // Instantáneo es una foto. Se dice debajo de las cifras, no se supone.
+  const rotuloEst = estadistico
+    ? ESTADISTICOS.find((e) => e.id === estadistico)?.rotulo ?? null : null;
   const fases = desbalanceDeFases({
     R: pico.corrienteR_A as number, S: pico.corrienteS_A as number, T: pico.corrienteT_A as number,
   });
@@ -2663,7 +3374,11 @@ function QueTransporta({ o, pico }: {
       <p className="mapa-capas-t">Qué transporta la línea en ese pico</p>
       <div className="kpis">
         <Dato v={p.aparente_MVA == null ? null : `${nf(p.aparente_MVA, 1)} MVA`} r="Potencia aparente"
-          s={p.tensionUsada.de === 'nominal'
+          s={(p as { origenAparente?: string }).origenAparente?.startsWith('de P y Q')
+            // ⚠️ Si salió de P y Q, se dice ESO (`99 §ADR-129`): el rótulo «√3·V·I»
+            // debajo de una cifra que no salió de ahí no cuadraba, por un factor de dos.
+            ? 'de P y Q medidas'
+            : p.tensionUsada.de === 'nominal'
             ? `√3 · ${nf(p.tensionUsada.kV!, 0)} kV NOMINALES · ${nf(pico.corriente_A as number)} A`
             : `√3 · ${nf(p.tensionUsada.kV!, 1)} kV medidos · ${nf(pico.corriente_A as number)} A`}
           falta={p.motivo} />
@@ -2687,7 +3402,32 @@ function QueTransporta({ o, pico }: {
           r="Desbalance entre fases"
           s={fases.faseMaxima ? `peor fase: ${fases.faseMaxima}` : undefined}
           falta={fases.motivo} />
+        {/* La residual no se calcula con magnitudes: se dice por qué, no se esconde. */}
+        {estadistico && (
+          <Dato v={null} r="Corriente residual" falta="exige los ángulos, no solo las magnitudes" />
+        )}
       </div>
+
+      {estadistico === 'instantaneo' && (
+        <p className="fine">
+          Con el <b>Instantáneo</b> estas cifras son <b>una foto de verdad</b>: todas se leyeron en el
+          mismo momento.
+        </p>
+      )}
+      {estadistico === 'promedio' && (
+        <p className="advertencia">
+          ⚠️ Con <b>{rotuloEst}</b>, cada magnitud trae SU media dentro de la hora, y no tienen por
+          qué ser del mismo instante: juntas son <b>una aproximación</b>. La foto de verdad es
+          el <b>Instantáneo</b>.
+        </p>
+      )}
+      {(estadistico === 'maximo' || estadistico === 'minimo') && (
+        <p className="advertencia alerta">
+          ⚠️ Con <b>{rotuloEst}</b>, cada magnitud trae SU extremo dentro de la hora, y no tienen
+          por qué ser del mismo instante: juntas <b>NO son una foto</b>. La foto de verdad es
+          el <b>Instantáneo</b>.
+        </p>
+      )}
 
       {/* ⚠️ EL HALLAZGO. Sin este párrafo, la corriente reactiva es un número
           más; con él, es la única palanca que devuelve capacidad sin obra. */}
@@ -2740,9 +3480,79 @@ function LoQueCuesta({ p }: { p: ReturnType<typeof perdidasJoule> }) {
   );
 }
 
-function EnElTiempo({ c }: { c: ReturnType<typeof comportamientoEnElTiempo> }) {
+function EnElTiempo({ c, contraAmpacidad }: {
+  c: ReturnType<typeof comportamientoEnElTiempo>;
+  /** `99 §ADR-129`: solo desde el histórico — las horas contadas contra la ampacidad. */
+  contraAmpacidad?: ReturnType<typeof horasContraAmpacidad>;
+}) {
   const horas = Object.values(c.horasPorBanda).reduce((a, b) => a + b, 0);
-  if (!horas && !c.suficiente) return null;
+  // ⚠️ La regla de siempre se respeta: sin horas con % y sin lecturas
+  // suficientes, la tarjeta no sale. La única excepción es que la PROPUESTA
+  // tenga horas con corriente que contar: esconderlas porque son menos de seis
+  // sería esconder un dato que sí existe.
+  if (!horas && !c.suficiente && !(contraAmpacidad && contraAmpacidad.n > 0)) return null;
+
+  if (contraAmpacidad) {
+    // ══════════════════════════════════════════════════════════════════════
+    // EL HISTÓRICO — `99 §ADR-129`
+    // ──────────────────────────────────────────────────────────────────────
+    // Su SCADA trae la corriente y NO el porcentaje, así que las horas
+    // «sobre 100 %» del motor de siempre salen de 0 con porcentaje: un cero
+    // que es un hueco. Se enseña igual —en gris y diciendo por qué— para que
+    // se vea qué da hoy la pantalla, y al lado va la PROPUESTA aprobada en la
+    // maqueta: las horas contadas contra la AMPACIDAD, con borde punteado.
+    //
+    // ⚠️ Sin ampacidad (o sin lecturas) la propuesta no escribe ceros: dice su
+    // motivo. Un contador a 0 en verde sobre cero lecturas gritaría «todo
+    // bien» justo donde no se sabe nada.
+    // ══════════════════════════════════════════════════════════════════════
+    const h = contraAmpacidad;
+    const cuenta = (x: number | null) => (h.motivo != null || x == null ? null : nf(x));
+    const hayPct = horas > 0;
+    return (
+      <div className="tarjeta">
+        <p className="mapa-capas-t">Cómo se comportó en el tiempo</p>
+        <div className="kpis">
+          <Dato v={nf(c.n)} r="Lecturas con corriente" s="horas del periodo con corriente" />
+          <Dato v={c.factorDeCarga == null ? null : nf(c.factorDeCarga, 2)} r="Factor de carga"
+            s={c.promedio_A != null && c.pico_A != null
+              ? `promedio ÷ pico · ${nf(c.promedio_A)} A ÷ ${nf(c.pico_A)} A` : 'promedio ÷ pico'}
+            falta={c.porQue} />
+          <Dato v={c.rampaMaxima_A_h == null ? null : `${nf(c.rampaMaxima_A_h)} A/h`}
+            r="Rampa máxima" s="entre horas consecutivas del mismo día"
+            falta={c.porQue ?? 'no hay dos horas seguidas del mismo día'} />
+          {/* ⚠️ Sin porcentaje es un HUECO, no un cero (`99 §ADR-129`): «0» al lado
+              de «sale vacío» se contradecía en la misma tarjeta. */}
+          <Dato v={hayPct ? nf(c.horasPorBanda.sobrecarga) : null} r="Horas sobre 100 % (hoy)"
+            color={c.horasPorBanda.sobrecarga > 0 ? 'var(--tx-alerta)' : 'var(--tx-ok)'}
+            s={`de ${nf(horas)} con porcentaje`}
+            falta="el SCADA no trae %: hoy no se pueden contar (0 horas con porcentaje)" />
+          <Dato propuesta v={cuenta(h.sobre100)} r="Horas ≥ 100 % de la ampacidad"
+            s={`de ${nf(h.n)} con corriente · PROPUESTA`}
+            color={(h.sobre100 ?? 0) > 0 ? 'var(--tx-alerta)' : 'var(--tx-ok)'}
+            falta={`${h.motivo ?? 'sin dato'} · PROPUESTA`} />
+          <Dato propuesta v={cuenta(h.sobre90)} r="Horas ≥ 90 %"
+            s="condición de atención · PROPUESTA"
+            falta={`${h.motivo ?? 'sin dato'} · PROPUESTA`} />
+          <Dato propuesta v={cuenta(h.sobre80)} r="Horas ≥ 80 %"
+            s="cargabilidad elevada · PROPUESTA"
+            falta={`${h.motivo ?? 'sin dato'} · PROPUESTA`} />
+        </div>
+        <p className="fine">
+          Las de borde punteado son <b>propuesta</b>: cuentan las horas contra la ampacidad
+          {h.ampacidad_A != null ? <> (<b>{nf(h.ampacidad_A)} A</b>)</> : ' (que esta línea aún no tiene)'},
+          no contra un % que su SCADA no trae. Los umbrales se acumulan: una hora al 95 % cuenta
+          en «≥ 80 %» y en «≥ 90 %».
+        </p>
+        <p className="fine">
+          <b>Un pico de un minuto y uno de seis horas piden decisiones distintas.</b> El conductor
+          tiene inercia térmica y responde a lo segundo: por eso las horas sobre umbral dicen más del
+          riesgo real que el instante más alto.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="tarjeta">
       <p className="mapa-capas-t">Cómo se comportó en el tiempo</p>

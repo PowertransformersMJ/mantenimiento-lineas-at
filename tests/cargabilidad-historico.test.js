@@ -556,3 +556,76 @@ describe('AL ABRIR SE ENSEÑA LO QUE HAY, NO UNA VENTANA QUE LO ESCONDE', () => 
     assert.match(PANTALLA, /Su dato más reciente es del/, 'y se explica en pantalla');
   });
 });
+
+// ════════════════════════════════════════════════════════════════════════════
+// §ADR-129 — la maqueta que el Ingeniero aprobó («está perfecto»), vigilada
+// ────────────────────────────────────────────────────────────────────────────
+// Un filtro de estadístico por gráfica, los indicadores calculados sobre las
+// horas GUARDADAS con un filtro propio, y sin tablas en el histórico. Estas
+// pruebas leen el código de la pantalla —como las de arriba— porque la pantalla
+// exige sesión y no se puede montar aquí sin dato de cliente.
+// ════════════════════════════════════════════════════════════════════════════
+describe('§ADR-129 · el histórico: un filtro por gráfica, indicadores sobre lo guardado y sin tablas', () => {
+  const P = leer('web/src/componentes/Cargabilidad.tsx');
+  const cuerpo = (nombre) => {
+    const i = P.indexOf(`function ${nombre}`);
+    assert.ok(i >= 0, `falta function ${nombre}`);
+    const j = P.indexOf('\nfunction ', i + 10);
+    return P.slice(i, j > i ? j : undefined);
+  };
+  const HIST = cuerpo('HistoricoGuardado');
+  const GRAF = cuerpo('GraficasPorFase');
+
+  test('ya no hay selector GLOBAL de estadístico en el histórico', () => {
+    assert.doesNotMatch(HIST, /Qué estadístico se está mirando/, 'cada gráfica elige el suyo');
+    assert.doesNotMatch(HIST, /verEstadistico/);
+  });
+
+  test('ni la tabla de días', () => {
+    assert.doesNotMatch(HIST, /<th>Corriente máx\.<\/th>/, 'la tabla de días salió: su dato se lee en la gráfica');
+    assert.doesNotMatch(HIST, /Se muestran 60 de/);
+  });
+
+  test('«Las fases, hora a hora» solo queda en el camino de un archivo recién cargado', () => {
+    assert.doesNotMatch(HIST, /<FasesDeLaCarga/);
+    assert.equal((P.match(/<FasesDeLaCarga /g) ?? []).length, 1, 'un solo uso: el de la carga');
+  });
+
+  test('cada gráfica trae su propio filtro, en el orden de la maqueta, y el histórico se lo da', () => {
+    assert.match(GRAF, /aria-label=\{`Estadístico de \$\{nombre\}`\}/);
+    assert.match(GRAF, /\['maximo', 'minimo', 'promedio', 'instantaneo'\]/);
+    assert.match(HIST, /<GraficasPorFase porEstadistico=/);
+  });
+
+  test('el valor se lee al pasar el puntero, con el año, y un hueco no es un cero ni una recta', () => {
+    assert.match(GRAF, /onPointerMove=/, 'ratón, dedo y lápiz');
+    assert.match(GRAF, /sin lectura/);
+    assert.match(GRAF, /tramos\.push/, 'la línea se corta en cada hueco');
+    assert.match(GRAF, /slice\(2, 4\)/, 'la cajita lleva el año');
+  });
+
+  test('los indicadores tienen UN filtro y salen de las horas guardadas, con las funciones del motor', () => {
+    assert.match(HIST, /aria-label="Estadístico de los indicadores"/);
+    assert.match(HIST, /<VeredictoDelHistorico /);
+    assert.match(HIST, /horasContraAmpacidad\(/);
+    assert.match(HIST, /<QueTransporta[\s\S]{0,200}estadistico=/, 'con la nota de «no es una foto»');
+    assert.match(P, /NO son una foto/);
+    assert.match(P, /PROPUESTA/);
+  });
+
+  test('el entorno vacío solo se esconde cuando el histórico SÍ enseña los indicadores', () => {
+    assert.match(P, /soloEstructura=\{hayHistorico\}/);
+    assert.match(HIST, /horasInd\.length > 0/, 'avisar por «hay algo guardado» los dejaba sin salir en ninguna parte');
+    assert.doesNotMatch(HIST, /alSaberSiHay\?\.\(ultimoGuardado != null\)/);
+  });
+
+  test('«hoy» sin porcentaje es un hueco, y la aparente dice de dónde sale', () => {
+    assert.match(P, /hayPct \? nf\(c\.horasPorBanda\.sobrecarga\) : null/);
+    assert.match(P, /'de P y Q medidas'/);
+  });
+
+  test('un fallo de lectura se dice en la tarjeta de la gráfica, no como espera', () => {
+    assert.match(GRAF, /fallos\?\.\[est\]/);
+    assert.match(HIST, /fallos=\{/);
+  });
+});
