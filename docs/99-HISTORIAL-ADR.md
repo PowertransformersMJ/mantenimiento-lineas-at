@@ -10634,3 +10634,75 @@ casilla, y el rótulo quedaba bajo otra hora que la del dato.
 pegan huecos, la maqueta del eje de días y sus capturas, y la revisión de este cambio).
 
 ---
+## ADR-131 · 2026-09-11 · El eje del histórico es el calendario: cada día uno a uno, los huecos se ven y un día abre sus 24 horas en todas las gráficas
+
+**Deliberación:** órdenes del Ingeniero con su captura de enero —*«necesito que el rango en el eje x se
+aprecie cada dia uno a uno, y cuando seleccione un dia se aprecien las 24 horas, hora a hora»*—;
+maqueta LOCAL con su dato; decisiones suyas sobre ella: al pulsar un día, *«todas»*; y, vista la
+pantalla sin las tres tablas simulada en su propio Chrome, *«procede»*. Auditoría previa de tres Opus y
+workflow de tres —uno arregla las gráficas hermanas, dos revisan dibujando con su enero real— →
+`research-archive/2026-09-11-eje-de-dias/`.
+**Estado:** ✅ desplegado (`index-CV5i9eHi.js` + `Cargabilidad-CHAPbKAz.js`, servido == construido) ·
+⏳ **verificación EN FRÍO con su sesión pendiente**: se cerró · **NO revisada externamente**.
+
+### Contexto
+
+La gráfica del histórico colocaba cada hora por su PUESTO en la lista, y un día sin documento no llega a
+la lista: se pegaba. Con el máximo, 45 días escondidos en cuatro uniones —mayo entero, del 30-04 al
+01-06—; en su captura la línea unía el 2 con el 13 de enero y el eje saltaba del 01/01 al 14/01. Lo que
+faltaba al principio o al final desaparecía sin aviso, y el subtítulo contaba solo los días con dato.
+
+### Decisión
+
+1. **Varios días van al CALENDARIO**: cada día una casilla del mismo ancho, la hora en el centro de su
+   parte. El eje lleva el número de CADA día —en una fila si caben; en dos alternas si no; solo con más
+   de cien días, uno de cada k y el 1 de cada mes— y el mes debajo, solo si cabe.
+2. **Lo que falta se VE y se DICE**: el día sin dato en blanco rayado, la línea cortada, y debajo
+   «Sin dato de máximo: 03/01–12/01 · 30/01–31/01».
+3. **El eje sigue el periodo CONSULTADO** —no los botones sin consultar—, sin pasar de HOY (fecha de
+   Colombia) ni empezar antes del primer día guardado; si la lectura se recortó a 62 días, desde el
+   primero leído. Un estadístico con un solo día, en un periodo largo, va en su casilla del calendario.
+4. **Pulsar un día lleva TODAS las gráficas a sus 24 horas** (el reloj del `§ADR-130`), con una barra
+   fija —◀ ▶ y «Volver al periodo»—. Cada gráfica conserva su filtro; la que no tiene ese día lo dice y
+   dice qué estadístico sí lo tiene. Al pasar el ratón se resalta la columna del día que abriría el clic.
+5. **Con histórico guardado, sin las tres tablas**: la de bloques de «Lo que saldrá» y su texto, el
+   mapa de calor vacío y la de variables. **Sin nada guardado siguen**: las pidió él el 04-09 para el
+   entorno vacío (`§ADR-097`).
+6. **Las tres gráficas HERMANAS, al mismo calendario**: la de cada día, «Cómo se comportó en el tiempo»
+   —ahora una traza por línea— y el mapa de calor «por fecha». Hoy no se dibujan —su SCADA no trae %—,
+   pero el día que lo traiga habrían pegado los huecos igual.
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| Rotular los días con dato y seguir colocando por puesto | El fallo no era el rótulo: era la POSICIÓN |
+| Al pulsar, solo esa gráfica | Decisión suya: «todas» —un evento se lee en corriente, tensión y potencia a la vez— |
+| Quitar las tablas también sin histórico | Él las pidió para el entorno vacío: se retira lo señalado |
+| Encoger la letra hasta que quepan 74 números | Medido: se montaban igual —«10111213»—; dos filas alternas sí caben |
+| Subir el tope de 62 días para dibujar el año | Lecturas del plan gratuito; el recorte ya se avisa |
+
+### Supuestos que deben ser ciertos — y la señal que diría que dejaron de serlo
+
+| Supuesto | Señal |
+|---|---|
+| La fecha y la hora del dato son las del SCADA, en hora de Colombia (`§ADR-127`) | Un archivo en hora de Greenwich correría cinco horas |
+| Dos filas de números se leen en su pantalla | Él dice que no: pasar a uno de cada dos |
+| Menos de 400 días en un eje | «Histórico completo» pasa del año: dibuja los 400 más recientes y lo dice |
+
+### Consecuencias
+
+- `2.762` pruebas en verde —cálculo del calendario con días reales y un barrido de 20 a 300 días que
+  prueba que ningún número pisa al de al lado—.
+- **La revisión, dibujando con su enero real, cazó SIETE defectos antes de publicar**, todos corregidos:
+  sobre un día en blanco se resaltaba el de al lado y el clic abría otro; con 61 a 78 días los números
+  se montaban; «hoy» era la fecha de Greenwich —desde las 19:00 pintaba mañana como «sin dato»—; otro
+  archivo del mismo tamaño dejaba puesto el día elegido; un estadístico de un solo día escondía el
+  periodo; ◀ ▶ se bloqueaban con un día fuera de su lista; y con más de 400 días volvía a pegar.
+- Corrige lo que el `§ADR-129` afirmó de más: «la línea se corta en cada hueco» solo era cierto para
+  horas sueltas, no para días enteros.
+
+**Crudo de respaldo:** `research-archive/2026-09-11-eje-de-dias/` (`auditoria/`, `maqueta/`,
+`revision-130/` e `implementacion-131/`: el workflow, los arneses de los revisores y sus capturas).
+
+---

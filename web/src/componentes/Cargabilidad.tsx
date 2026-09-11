@@ -43,9 +43,14 @@ import {
 } from '@lineas/nucleo/cargabilidad';
 import {
   RELLENO_BANDA, TINTA_BANDA, tintaDe, areasDeBanda, csvDeErrores, etiquetaInstante,
-  filtrarPorTexto, LIENZO, marcaDeTiempo, marcasDeRango, marcasDeTiempo, marcasX, marcasY, ordenarPor, paginar,
+  filtrarPorTexto, LIENZO, marcaDeTiempo, marcasDeRango, marcasDeTiempo, marcasY, ordenarPor, paginar,
   REFERENCIAS, aCsv, techoY,
   tramosDeLinea, x, y, type Direccion, HORAS_DEL_DIA, rotuloDeHora, xDeHora, diaEnElReloj,
+  diasDelCalendario, horasEnElCalendario, xDeDia, xDeInstante, tramosSinDato, rotulosDeMes,
+  rotulosDeDias, filasDeRotulos, LETRA_DEL_DIA,
+  diaDeLaSemana, fechaCorta, fechaLarga,
+  calendarioDeFechas, serieEnElCalendario, franjaDeDias, trazosEnElCalendario, celdasPorDia, tramosDichos,
+  type Lienzo,
 } from '../vistas/cargabilidadVista';
 import {
   cerosAlFinal, CRITERIOS_DE_FASE, encontrarEjeDeTiempo, estadisticoDeNombre, estadisticoPorFilaCorregido,
@@ -680,7 +685,7 @@ export default function Cargabilidad({
             ejemplo ni de demostración: todo lo que aparezca sale de lo que usted entregue, y por eso
             cada cifra se puede rastrear hasta su fila del Excel.
           </p>
-          <LoQueSaldra referencia={referencia} />
+          <LoQueSaldra referencia={referencia} sinTabla={hayHistorico} />
           {/* ⚠️ Y EL ENTORNO ENTERO, VACÍO. Orden del Ingeniero (2026-09-04):
               «dame todo el entorno y los valores en 0 hasta que yo vaya cargando
               los archivos, pero necesito ver las gráficas, los parámetros y las
@@ -820,7 +825,13 @@ const PERIODOS = [
   { id: 'todo', rotulo: 'Histórico completo', dias: null },
 ] as const;
 
-const iso = (d: Date) => d.toISOString().slice(0, 10);
+/**
+ * «AAAA-MM-DD» de la fecha LOCAL (`99 §ADR-131`). Era `toISOString`, que da la
+ * de Greenwich: desde las 19:00 de Colombia «hoy» ya era mañana, y el eje pintaba
+ * como «sin dato» un día que aún no había empezado (lo cazó la revisión).
+ */
+const iso = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 /**
  * El orden en que se OFRECEN los estadísticos en el histórico (`99 §ADR-129`):
@@ -1020,6 +1031,12 @@ function HistoricoGuardado({
   );
   const [recortado, setRecortado] = useState(false);
   const [buscando, setBuscando] = useState(false);
+  /**
+   * El periodo que se CONSULTÓ de verdad (`99 §ADR-131`): el eje del calendario
+   * sale de aquí y no de los botones —elegir otro periodo sin pulsar «Consultar»
+   * no puede mover el eje de unas horas que son del periodo anterior—.
+   */
+  const [consultado, setConsultado] = useState<{ desde: string; hasta: string } | null>(null);
   const [fallo, setFallo] = useState<string | null>(null);
 
   const rango = () => {
@@ -1030,7 +1047,9 @@ function HistoricoGuardado({
     // el año 2000, que es antes de que exista un solo dato de este sistema.
     const ini = p.dias == null ? new Date('2000-01-01')
       : new Date(fin.getTime() - (p.dias - 1) * 86400000);
-    return { desde: iso(ini), hasta: iso(fin) };
+    // El año 2000 se escribe tal cual: leído en hora local, su medianoche de
+    // Greenwich cae el 31 de diciembre de 1999.
+    return { desde: p.dias == null ? '2000-01-01' : iso(ini), hasta: iso(fin) };
   };
 
   const consultar = async (forzado?: { desde: string; hasta: string }) => {
@@ -1044,6 +1063,7 @@ function HistoricoGuardado({
       );
       setFilas(res.resumenes);
       setRecortado(res.recortado);
+      setConsultado(r);
     } catch (e) {
       setFallo((e as Error).message);
       setFilas(null);
@@ -1215,6 +1235,40 @@ function HistoricoGuardado({
     .filter((e) => porEst[e]?.fallo)
     .map((e) => ({ est: e, fallo: porEst[e]!.fallo as string }));
 
+  // ── Lo que necesita el eje del calendario de las gráficas (`99 §ADR-131`) ──
+  /**
+   * De cuándo a cuándo va el eje: el periodo CONSULTADO, sin pasar de hoy ni
+   * empezar antes del primer día guardado —«histórico completo» se pide desde el
+   * año 2000, y eso no son veintiséis años de casillas vacías—. Lo que falte
+   * dentro, al principio o al final, se ve en blanco.
+   */
+  const calendarioDelEje = useMemo(() => {
+    if (!consultado || !lineaUnica) return undefined;
+    const fechas = (todasLasFilas ?? []).filter((f) => String(f.linea) === lineaUnica)
+      .map((f) => String(f.fecha)).sort();
+    if (!fechas.length) return undefined;
+    const hoy = iso(new Date());
+    return {
+      desde: consultado.desde > fechas[0] ? consultado.desde : fechas[0],
+      hasta: consultado.hasta < hoy ? consultado.hasta : hoy,
+    };
+  }, [consultado, todasLasFilas, lineaUnica]);
+  /** Qué días tiene guardados cada estadístico: para decir, en un día sin él, cuál sí lo tiene. */
+  const fechasPorEstadistico = useMemo(() => {
+    const out: Record<string, string[]> = {};
+    for (const f of todasLasFilas ?? []) {
+      if (lineaUnica && String(f.linea) !== lineaUnica) continue;
+      (out[String(estadisticoDeFila(f))] ??= []).push(String(f.fecha));
+    }
+    return out;
+  }, [todasLasFilas, lineaUnica]);
+  // Una sola identidad mientras no cambie: las gráficas rehacen sus trazos cuando cambia.
+  const firmaDeRecortes = recortados.map((x) => `${x.est}:${x.tope}`).join('|');
+  const recortadosPorEst = useMemo(
+    () => Object.fromEntries(recortados.map((x) => [x.est, x.tope])) as Partial<Record<string, number>>,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [firmaDeRecortes]);
+
   const r = rango();
 
   return (
@@ -1343,7 +1397,9 @@ function HistoricoGuardado({
               ))}
               <GraficasPorFase porEstadistico={porEstadistico} disponibles={estadisticosGuardados}
                 cargando={cargandoPorEst} alPedir={pedir}
-                fallos={Object.fromEntries(fallos.map((f) => [f.est, f.fallo]))} />
+                fallos={Object.fromEntries(fallos.map((f) => [f.est, f.fallo]))}
+                calendario={calendarioDelEje} recortados={recortadosPorEst}
+                fechasPorEstadistico={fechasPorEstadistico} />
             </>
           )}
 
@@ -1403,7 +1459,9 @@ function HistoricoGuardado({
               )}
             </>
           ))}
-          <TendenciaDiaria resumenes={filas} />
+          {/* El periodo CONSULTADO: el eje de la tendencia diaria es su calendario,
+              no la lista de días con dato (`99 §ADR-131`). */}
+          <TendenciaDiaria resumenes={filas} periodo={consultado} />
           <PorLineaDelHistorico resumenes={filas} />
 
           {/* ⚠️ Si se recortó, se dice. Enseñar 1.200 de 3.000 días sin avisar
@@ -1539,21 +1597,62 @@ function TableroDelHistorico({ resumenes }: { resumenes: ResumenDiario[] }) {
   );
 }
 
-function TendenciaDiaria({ resumenes }: { resumenes: ResumenDiario[] }) {
+/**
+ * El lienzo de las gráficas que van sobre el calendario fuera de las de por fase:
+ * una fila más abajo, para el mes (`99 §ADR-131`).
+ */
+const LIENZO_DEL_CALENDARIO: Lienzo = {
+  ...LIENZO, alto: LIENZO.alto + 14, margen: { ...LIENZO.margen, b: LIENZO.margen.b + 14 },
+};
+
+/** Con los números del día en dos filas alternas, once unidades más abajo (`99 §ADR-131`). */
+const lienzoDelCalendario = (dias: string[]): Lienzo => (filasDeRotulos(dias) === 2
+  ? { ...LIENZO_DEL_CALENDARIO, alto: LIENZO_DEL_CALENDARIO.alto + 11,
+    margen: { ...LIENZO_DEL_CALENDARIO.margen, b: LIENZO_DEL_CALENDARIO.margen.b + 11 } }
+  : LIENZO_DEL_CALENDARIO);
+
+/** Hasta cuántos días dibuja la tendencia diaria: más de dos años, una casilla por día. */
+const DIAS_DE_LA_TENDENCIA = 800;
+
+function TendenciaDiaria({ resumenes, periodo }: {
+  resumenes: ResumenDiario[];
+  /**
+   * El periodo CONSULTADO (`99 §ADR-131`): el eje llega hasta su final —sin pasar
+   * de hoy—, para que los días sin resumen del final también se vean.
+   */
+  periodo?: { desde: string; hasta: string } | null;
+}) {
   const lineas = useMemo(
     () => [...new Set(resumenes.map((s) => String(s.linea)))].sort(), [resumenes]);
   const [cual, setCual] = useState<string>('');
   const serie = useMemo(
     () => serieDiaria(resumenes as never[], cual || null), [resumenes, cual]);
 
-  const techo = techoY(serie.map((p) => p.maxima_pct ?? 0));
-  const franjas = areasDeBanda(
-    serie.map((p) => ({ alto: p.maxima_pct, bajo: p.minima_pct })), techo);
-  const deMaxima = tramosDeLinea(serie.map((p) => ({ pct: p.maxima_pct })), techo);
-  const dePromedio = tramosDeLinea(serie.map((p) => ({ pct: p.promedio_pct })), techo);
-  const idx = marcasX(serie.length);
+  // ⚠️ UN PUNTO POR DÍA DEL CALENDARIO, NO POR PUESTO (`99 §ADR-131`). La serie
+  // del motor trae solo los días con máxima y se colocaba por su índice: el día
+  // que faltaba no dejaba hueco, la línea unía el 2 con el 13 y el pie decía «un
+  // día sin medir parte la línea» sin que fuera verdad. Ahora cada día del
+  // periodo es una casilla —la misma elija la línea que elija— y el que no tiene
+  // resumen va como `null`: `tramosDeLinea` y `areasDeBanda` cortan solas.
+  const hoy = iso(new Date());
+  const hasta = periodo?.hasta ? (periodo.hasta < hoy ? periodo.hasta : hoy) : null;
+  const { dias, recortado } = useMemo(
+    () => calendarioDeFechas(resumenes.map((s) => s.fecha), hasta, DIAS_DE_LA_TENDENCIA),
+    [resumenes, hasta]);
+  const enDias = useMemo(
+    () => serieEnElCalendario(serie, dias, (p) => p.maxima_pct), [serie, dias]);
+  const lz = lienzoDelCalendario(dias);
+  const n = dias.length;
+  const conDato = new Set(enDias.flatMap((p) => (p?.maxima_pct != null ? [p.fecha] : [])));
+  const sinDato = tramosSinDato(dias, conDato);
 
-  if (!serie.length) return null;
+  const techo = techoY(enDias.flatMap((p) => (p?.maxima_pct != null ? [p.maxima_pct] : [])));
+  const franjas = areasDeBanda(
+    enDias.map((p) => ({ alto: p?.maxima_pct ?? null, bajo: p?.minima_pct ?? null })), techo, lz);
+  const deMaxima = tramosDeLinea(enDias.map((p) => ({ pct: p?.maxima_pct ?? null })), techo, lz);
+  const dePromedio = tramosDeLinea(enDias.map((p) => ({ pct: p?.promedio_pct ?? null })), techo, lz);
+
+  if (!conDato.size) return null;
 
   return (
     <div className="tarjeta">
@@ -1566,16 +1665,37 @@ function TendenciaDiaria({ resumenes }: { resumenes: ResumenDiario[] }) {
         </select>
       </label>
 
-      <svg viewBox={`0 0 ${LIENZO.ancho} ${LIENZO.alto}`} className="grafica" role="img"
-        aria-label={`Cargabilidad día a día${cual ? ` de ${cual}` : ''}`}>
+      <svg viewBox={`0 0 ${lz.ancho} ${lz.alto}`} className="grafica" role="img"
+        aria-label={`Cargabilidad día a día${cual ? ` de ${cual}` : ''}, ${n} días en el eje`}>
         {marcasY(techo).map((v) => (
           <g key={v}>
-            <line x1={LIENZO.margen.i} x2={LIENZO.ancho - LIENZO.margen.d}
-              y1={y(v, techo)} y2={y(v, techo)} stroke="var(--bd-tenue)" strokeWidth={1} />
-            <text x={LIENZO.margen.i - 6} y={y(v, techo) + 4} textAnchor="end"
+            <line x1={lz.margen.i} x2={lz.ancho - lz.margen.d}
+              y1={y(v, techo, lz)} y2={y(v, techo, lz)} stroke="var(--bd-tenue)" strokeWidth={1} />
+            <text x={lz.margen.i - 6} y={y(v, techo, lz) + 4} textAnchor="end"
               fontSize={10} fill="var(--tx-tenue, #888)">{v}</text>
           </g>
         ))}
+        {/* ⚠️ EL DÍA SIN RESUMEN, EN BLANCO RAYADO Y DEBAJO DE TODO (`99 §ADR-131`):
+            un hueco no es un cero, ni se une con una recta. */}
+        <defs>
+          <pattern id="raya-tendencia-diaria" width={6} height={6} patternUnits="userSpaceOnUse"
+            patternTransform="rotate(45)">
+            <line x1={0} y1={0} x2={0} y2={6} stroke="var(--bd-tenue)" strokeWidth={2} />
+          </pattern>
+        </defs>
+        {sinDato.map(([a, b]) => {
+          const [x0, x1] = franjaDeDias(a, b, n, lz);
+          return (
+            <g key={`sd${a}`}>
+              <rect x={x0} y={lz.margen.s} width={x1 - x0} height={lz.alto - lz.margen.s - lz.margen.b}
+                fill="url(#raya-tendencia-diaria)" opacity={0.8} />
+              {x1 - x0 >= 60 && (
+                <text x={(x0 + x1) / 2} y={(lz.margen.s + lz.alto - lz.margen.b) / 2} textAnchor="middle"
+                  fontSize={10} fill="var(--tx-tenue, #888)">sin dato</text>
+              )}
+            </g>
+          );
+        })}
         {/* La franja es el RECORRIDO del día: sin ella, un punto al 60 % se lee
             igual viniendo de un día plano que de uno que osciló de 20 a 104. */}
         {franjas.map((puntos, i) => (
@@ -1583,10 +1703,10 @@ function TendenciaDiaria({ resumenes }: { resumenes: ResumenDiario[] }) {
         ))}
         {REFERENCIAS.filter((v) => v <= techo).map((v) => (
           <g key={`r${v}`}>
-            <line x1={LIENZO.margen.i} x2={LIENZO.ancho - LIENZO.margen.d}
-              y1={y(v, techo)} y2={y(v, techo)} strokeDasharray="5 3" strokeWidth={1.4}
+            <line x1={lz.margen.i} x2={lz.ancho - lz.margen.d}
+              y1={y(v, techo, lz)} y2={y(v, techo, lz)} strokeDasharray="5 3" strokeWidth={1.4}
               stroke={TINTA_BANDA[bandaDe(v)!.clave]} />
-            <text x={LIENZO.ancho - LIENZO.margen.d} y={y(v, techo) - 4} textAnchor="end"
+            <text x={lz.ancho - lz.margen.d} y={y(v, techo, lz) - 4} textAnchor="end"
               fontSize={10} fill={TINTA_BANDA[bandaDe(v)!.clave]}>{v} %</text>
           </g>
         ))}
@@ -1598,32 +1718,64 @@ function TendenciaDiaria({ resumenes }: { resumenes: ResumenDiario[] }) {
           <polyline key={`m${i}`} points={puntos} fill="none" stroke="var(--acc)"
             strokeWidth={1.8} strokeLinejoin="round" strokeLinecap="round" />
         ))}
-        {serie.map((p, i) => (
-          <circle key={i} cx={x(i, serie.length)} cy={y(p.maxima_pct ?? 0, techo)} r={2.6}
+        {/* Un punto por día CON resumen, en su casilla: el día sin él no lleva
+            punto —un punto en el cero diría que se midió un cero—. */}
+        {enDias.map((p, i) => (p?.maxima_pct != null ? (
+          <circle key={i} cx={x(i, n, lz)} cy={y(p.maxima_pct, techo, lz)} r={2.6}
             fill={tintaDe(p.maxima_pct)}>
             <title>
               {etiquetaInstante({ fecha: p.fecha, hora: null })} · {p.linea} · máxima{' '}
-              {nf(p.maxima_pct ?? 0, 1)} %{p.promedio_pct != null
+              {nf(p.maxima_pct, 1)} %{p.promedio_pct != null
                 ? ` · promedio ${nf(p.promedio_pct, 1)} %` : ''}
               {p.minima_pct != null ? ` · mínima ${nf(p.minima_pct, 1)} %` : ''}
               {' '}· {nf(p.horasConMedida)} h medidas
             </title>
           </circle>
-        ))}
-        {idx.map((i) => (
-          <text key={i} x={x(i, serie.length)} y={LIENZO.alto - 10} textAnchor="middle"
-            fontSize={9} fill="var(--tx-tenue, #888)">
-            {etiquetaInstante({ fecha: serie[i].fecha, hora: null })}
+        ) : null))}
+        {/* ⚠️ CADA DÍA, UNO A UNO (`99 §ADR-131`): el número del día bajo su punto
+            —tenue si no trae resumen— y, debajo, el mes donde empieza, con una
+            raya en la frontera entre meses. */}
+        {rotulosDeDias(dias, lz).map(({ dia: d, fila }) => (
+          <text key={`dn${d}`} x={x(d, n, lz)} y={lz.alto - lz.margen.b + 14 + fila * 11} textAnchor="middle"
+            fontSize={LETRA_DEL_DIA}
+            fill={conDato.has(dias[d]) ? 'var(--tx-tenue, #888)' : 'var(--bd-tenue)'}>
+            {Number(dias[d].slice(8, 10))}
           </text>
         ))}
+        {rotulosDeMes(dias, lz).map(({ dia, texto }) => {
+          const borde = franjaDeDias(dia, dia, n, lz)[0];
+          return (
+            <g key={`mes${dia}`}>
+              {dia > 0 && (
+                <line x1={borde} x2={borde} y1={lz.margen.s} y2={lz.alto - 6}
+                  stroke="var(--tx-tenue, #888)" strokeWidth={0.8} />
+              )}
+              <text x={borde + 2} y={lz.alto - 6} fontSize={10} fontWeight={700}
+                fill="var(--tx-tenue, #888)">{texto}</text>
+            </g>
+          );
+        })}
       </svg>
 
+      {/* ⚠️ LO QUE NO SE MIDIÓ SE DICE, no solo se raya (`99 §ADR-131`). */}
+      {sinDato.length > 0 && (
+        <p className="aviso">
+          Sin dato{cual ? <> de <b>{cual}</b></> : null}: <b>{tramosDichos(dias, sinDato)}</b>. Esos
+          días quedan en blanco rayado y la línea se corta: un hueco no es un cero, ni se une con
+          una recta.
+        </p>
+      )}
       <p className="fine">
-        <b>{nf(serie.length)} día(s)</b> · la línea llena es la <b>máxima</b> de cada día, la
-        punteada su <b>promedio</b>, y la franja el recorrido entre mínima y máxima. Sin línea
-        elegida, cada día muestra <b>la línea más cargada de ese día</b> — no el promedio de todas,
-        que escondería justo el día que hay que mirar. Un día sin medir parte la línea: no se une
-        con una recta que nadie midió.
+        <b>{nf(conDato.size)} día(s) con medida</b> de {nf(n)} en el eje, del {fechaLarga(dias[0])} al{' '}
+        {fechaLarga(dias[n - 1])}: cada día es una casilla del calendario, tenga dato o no. La línea
+        llena es la <b>máxima</b> de cada día, la punteada su <b>promedio</b>, y la franja el
+        recorrido entre mínima y máxima. Sin línea elegida, cada día muestra <b>la línea más cargada
+        de ese día</b> — no el promedio de todas, que escondería justo el día que hay que mirar. Un
+        día sin medir parte la línea y queda en blanco: no se une con una recta que nadie midió.
+        {recortado && (
+          <> ⚠️ El periodo pasa de {nf(DIAS_DE_LA_TENDENCIA)} días: se dibujan los{' '}
+            <b>{nf(n)} más recientes</b>.</>
+        )}
       </p>
     </div>
   );
@@ -2252,7 +2404,9 @@ function FasesDeLaCarga({ registros }: { registros: Registro[] }) {
  * de días —fecha, hora y cifra de cada fase— sale en una cajita sobre el punto
  * más cercano. En los dos modos: también le sirve a un archivo recién leído.
  */
-function GraficasPorFase({ registros, porEstadistico, disponibles, cargando, alPedir, fallos }: {
+function GraficasPorFase({
+  registros, porEstadistico, disponibles, cargando, alPedir, fallos, calendario, recortados, fechasPorEstadistico,
+}: {
   /** Las horas a dibujar: el camino de un archivo recién leído. */
   registros?: Registro[];
   /**
@@ -2270,6 +2424,15 @@ function GraficasPorFase({ registros, porEstadistico, disponibles, cargando, alP
   alPedir?: (est: string) => void;
   /** Los que el padre no pudo traer, con su motivo: la tarjeta lo dice en vez de «Trayendo…». */
   fallos?: Partial<Record<string, string>>;
+  /**
+   * El periodo CONSULTADO, para el eje del calendario (`99 §ADR-131`). Sin él
+   * —un archivo recién leído—, el eje va del primer día con dato al último.
+   */
+  calendario?: { desde: string; hasta: string };
+  /** Los estadísticos cuya lectura se recortó al tope: su eje empieza en el primer día LEÍDO. */
+  recortados?: Partial<Record<string, number>>;
+  /** Qué días guarda cada estadístico: para decir, en un día sin el elegido, cuál sí lo tiene. */
+  fechasPorEstadistico?: Partial<Record<string, string[]>>;
 }) {
   const GRUPOS = [
     { rotulo: 'Tensión entre fases', unidad: 'kV', dec: 1, agregado: 'tension_kV',
@@ -2348,23 +2511,54 @@ function GraficasPorFase({ registros, porEstadistico, disponibles, cargando, alP
    * (`99 §ADR-129`): un año son 8.760 puntos por fase, y rehacer los trazos al
    * pasar el cursor haría que la cajita del valor llegara tarde.
    */
-  const modeloDe = (g: Magnitud, entrada: Registro[]) => {
+  const modeloDe = (g: Magnitud, entrada: Registro[], recortado = false, delDia = false) => {
     // ⚠️ UN DÍA SE LEE EN EL RELOJ (`99 §ADR-130`): cada lectura sobre SU hora
     // —0 a 23—, no sobre su puesto en la lista, y las horas EN ORDEN: una tabla
     // que llegaba de la 23 a la 0 se partía en 24 puntos sueltos. `diaEnElReloj`
     // dice si se puede —un día, cada hora una sola vez— y devuelve el día
     // ordenado; si no, queda la colocación de siempre. El modelo guarda ESE
     // orden, para que el ratón y la cajita lean los mismos índices que la línea.
-    const enElReloj = diaEnElReloj(entrada);
+    // Manda en el día elegido, en un archivo de un solo día y en un periodo de un
+    // día. Con un periodo CONSULTADO más largo, un estadístico que solo guarda un
+    // día va en el calendario del periodo: el reloj escondía los otros treinta
+    // (lo cazó la revisión).
+    const periodoLargo = !delDia && calendario != null && calendario.desde < calendario.hasta;
+    const enElReloj = periodoLargo ? null : diaEnElReloj(entrada);
     const unDia = enElReloj != null;
-    const registros = enElReloj ?? entrada;
+    // ⚠️ Y VARIOS DÍAS, SOBRE EL CALENDARIO (`99 §ADR-131`). Orden del Ingeniero:
+    // «que el rango en el eje x se aprecie cada día uno a uno». Colocadas por su
+    // puesto en la lista, las horas de un día sin dato no dejaban hueco: en su
+    // enero la línea unía el 2 con el 13 y el eje saltaba del 01/01 al 14/01.
+    // Ahora cada día es una casilla del calendario, tenga dato o no.
+    const enCalendario = unDia ? null : horasEnElCalendario(entrada, periodoLargo);
+    const ordenadas = enElReloj ?? enCalendario ?? entrada;
+    // Los días del eje: del principio del periodo PEDIDO a su final, para que lo
+    // que falta al principio y al final también se vea. Si la lectura se recortó
+    // al tope, desde el primer día LEÍDO: antes no falta nada, no se trajo.
+    const desdeLeido = String(ordenadas[0]?.fecha ?? '');
+    const hastaLeido = String(ordenadas[ordenadas.length - 1]?.fecha ?? '');
+    const dias = !enCalendario ? [] : diasDelCalendario(
+      calendario && !recortado && calendario.desde < desdeLeido ? calendario.desde : desdeLeido,
+      calendario && calendario.hasta > hastaLeido ? calendario.hasta : hastaLeido,
+    );
+    const posDia = new Map(dias.map((f, k) => [f, k]));
+    // Con más de 400 días, el eje se queda con los MÁS RECIENTES y lo dice; lo de
+    // antes no se pega a nada: no se dibuja.
+    const registros = enCalendario ? ordenadas.filter((r) => posDia.has(String(r.fecha))) : ordenadas;
+    const fueraDelEje = ordenadas.length - registros.length;
+    const porCalendario = enCalendario != null && registros.length > 0;
     /** De cuándo a cuándo va lo dibujado, dicho en palabras y no en un eje. */
     const primero = registros[0];
     const ultimo = registros[registros.length - 1];
-    const cuantosDias = new Set(registros.map((x) => String(x.fecha))).size;
-    const periodoDicho = !primero ? '' : cuantosDias === 1
-      ? `${String(primero.fecha)} · el día entero`
-      : `del ${String(primero.fecha)} al ${String(ultimo.fecha)} · ${cuantosDias} días`;
+    const conDato = new Set(registros.map((x) => String(x.fecha)));
+    const sinDato = porCalendario ? tramosSinDato(dias, conDato) : [];
+    const cuantosDias = conDato.size;
+    const periodoDicho = !primero ? '' : porCalendario
+      ? `del ${dias[0]} al ${dias[dias.length - 1]} · ${dias.length} días en el eje, ${cuantosDias} con dato`
+        + (fueraDelEje ? ' (los más recientes)' : '')
+      : cuantosDias === 1
+        ? `${String(primero.fecha)} · el día entero`
+        : `del ${String(primero.fecha)} al ${String(ultimo.fecha)} · ${cuantosDias} días`;
     /** Cada cuánto hay una lectura. Se mira el dato, no se supone. */
     const paso = new Set(registros.map((x) => Number(x.hora))).size >= 20 ? 'hora' : null;
 
@@ -2378,14 +2572,25 @@ function GraficasPorFase({ registros, porEstadistico, disponibles, cargando, alP
     const holgura = (max - min) || Math.max(Math.abs(max) * 0.02, 0.1);
     const lo = min - holgura * 0.08;
     const hi = max + holgura * 0.08;
-    // Cada magnitud dibuja en SU lienzo: solo cambia el alto.
-    const lz = { ...LIENZO, alto: (g as { alto?: number }).alto ?? LIENZO.alto };
+    // Cada magnitud dibuja en SU lienzo: solo cambia el alto. En el calendario,
+    // una fila más abajo, para el mes.
+    const filaDelMes = porCalendario ? 14 + (filasDeRotulos(dias) === 2 ? 11 : 0) : 0;
+    const lz = { ...LIENZO, alto: ((g as { alto?: number }).alto ?? LIENZO.alto) + filaDelMes,
+      margen: { ...LIENZO.margen, b: LIENZO.margen.b + filaDelMes } };
     const yEn = (v: number) => lz.alto - lz.margen.b
       - ((v - lo) / (hi - lo)) * (lz.alto - lz.margen.s - lz.margen.b);
     // Con un día en el reloj, la x de cada lectura es la de SU hora: si falta una,
     // queda su hueco y el rótulo de debajo sigue siendo la hora del dato.
     const horasDe = registros.map((r) => Number(r.hora));
-    const xEn = (i: number) => (unDia ? xDeHora(horasDe[i], lz) : x(i, registros.length, lz));
+    // En el calendario, la de su hora DENTRO de su día (`§ADR-131`).
+    const xEn = (i: number) => (unDia ? xDeHora(horasDe[i], lz)
+      : porCalendario ? xDeInstante(posDia.get(String(registros[i].fecha)) as number, horasDe[i], dias.length, lz)
+        : x(i, registros.length, lz));
+    const xs = registros.map((_, i) => xEn(i));
+    // La hora ABSOLUTA de cada lectura —día del eje × 24 + hora—: dos seguidas que
+    // no se llevan justo una hora tienen un hueco en medio, y ahí se corta.
+    const absDe = unDia ? horasDe
+      : porCalendario ? registros.map((r, i) => (posDia.get(String(r.fecha)) as number) * 24 + horasDe[i]) : null;
     const marcas = marcasDeRango(lo, hi);
     const { idx, modo } = marcasDeTiempo(registros as never[]);
     // La mayor distancia entre la fase más alta y la más baja en un mismo
@@ -2403,9 +2608,10 @@ function GraficasPorFase({ registros, porEstadistico, disponibles, cargando, alP
       const tramos: [number, number][][] = [];
       let tramo: [number, number][] = [];
       registros.forEach((x_, i) => {
-        // En el reloj, una hora que no llegó también corta: las 06 y las 08 no se unen.
-        if (unDia && i > 0 && horasDe[i] - horasDe[i - 1] !== 1 && tramo.length) { tramos.push(tramo); tramo = []; }
-        if (typeof x_[campo] === 'number') tramo.push([xEn(i), yEn(x_[campo] as number)]);
+        // En el reloj, una hora que no llegó también corta: las 06 y las 08 no se
+        // unen. Y en el calendario, un día que no llegó: el 2 y el 13 tampoco.
+        if (absDe && i > 0 && absDe[i] - absDe[i - 1] !== 1 && tramo.length) { tramos.push(tramo); tramo = []; }
+        if (typeof x_[campo] === 'number') tramo.push([xs[i], yEn(x_[campo] as number)]);
         else if (tramo.length) { tramos.push(tramo); tramo = []; }
       });
       if (tramo.length) tramos.push(tramo);
@@ -2422,7 +2628,7 @@ function GraficasPorFase({ registros, porEstadistico, disponibles, cargando, alP
       : orden.length % 2 ? orden[mitad] : (orden[mitad - 1] + orden[mitad]) / 2;
     return {
       g, registros, periodoDicho, paso, min, max, lo, hi, lz, yEn, marcas, idx, modo, separacion, trazos, mediana,
-      lecturas, unDia, xEn,
+      lecturas, unDia, xEn, xs, porCalendario, dias, posDia, conDato, sinDato,
     };
   };
   type Modelo = ReturnType<typeof modeloDe>;
@@ -2442,7 +2648,20 @@ function GraficasPorFase({ registros, porEstadistico, disponibles, cargando, alP
   /** Lo que eligió cada tarjeta, por su rótulo. Lo no elegido abre en el defecto. */
   const [elegido, setElegido] = useState<Record<string, string>>({});
   /** Dónde está el ratón: qué tarjeta y qué instante. Uno solo a la vez. */
-  const [raton, setRaton] = useState<{ clave: string; i: number } | null>(null);
+  const [raton, setRaton] = useState<{ clave: string; i: number; dia?: string } | null>(null);
+  /**
+   * ⚠️ EL DÍA ELEGIDO ES DE TODAS LAS GRÁFICAS (`99 §ADR-131`). Decisión del
+   * Ingeniero sobre la maqueta —«todas»—: pulsar un día en cualquier gráfica
+   * lleva todas a sus 24 horas, para leer un evento entero de una vez: la
+   * corriente, la tensión y la potencia de esas mismas horas. `null` = el periodo.
+   */
+  const [diaElegido, setDiaElegido] = useState<string | null>(null);
+  // Otro periodo, u otro archivo, vuelve al periodo: el día elegido era del anterior.
+  // La firma lleva el tamaño Y la fecha del primero y del último: dos archivos de
+  // siete días tienen las mismas 168 filas (lo cazó la revisión).
+  const firmaDelPeriodo = [calendario?.desde, calendario?.hasta, registros?.length,
+    registros?.[0]?.fecha, registros?.[registros.length - 1]?.fecha, registros?.[0]?.linea].map(String).join('|');
+  useEffect(() => { setDiaElegido(null); }, [firmaDelPeriodo]);
   const valido = (e: string | undefined) => (e && ofrecidos.some((o) => o.id === e) ? e : null);
   // Una tarjeta que aún no se ha tocado hereda lo que se eligió en la de espera:
   // si el periodo no tenía máximos y se pidió el promedio, las gráficas que
@@ -2455,10 +2674,19 @@ function GraficasPorFase({ registros, porEstadistico, disponibles, cargando, alP
     datos: Registro[] | null | undefined; m: Modelo | null;
   };
   const tarjetas = useMemo<Tarjeta[]>(() => {
+    // Con un día elegido, cada tarjeta dibuja SOLO ese día, en el reloj
+    // (`§ADR-130/131`). Si ese día no trae la magnitud, no hay modelo: la tarjeta
+    // lo dice —y dice qué estadístico sí lo tiene—.
+    const modeloPara = (g: Magnitud, datos: Registro[], est: string | null) => {
+      if (!diaElegido) return modeloDe(g, datos, est != null && recortados?.[est] != null);
+      const delDia = datos.filter((r) => String(r.fecha) === diaElegido);
+      return delDia.some((r) => g.presentes.some(([, c]) => typeof r[c] === 'number'))
+        ? modeloDe(g, delDia, false, true) : null;
+    };
     if (!historico) {
       const horas = registros ?? [];
       return magnitudesDe(horas).map((g) => ({
-        clave: g.rotulo, rotulo: g.rotulo, unidad: g.unidad, est: null, datos: horas, m: modeloDe(g, horas),
+        clave: g.rotulo, rotulo: g.rotulo, unidad: g.unidad, est: null, datos: horas, m: modeloPara(g, horas, null),
       }));
     }
     // Las tarjetas son las magnitudes que trae ALGUNO de los estadísticos ya
@@ -2474,11 +2702,45 @@ function GraficasPorFase({ registros, porEstadistico, disponibles, cargando, alP
         ? magnitudesDe(datos).find((mg) => mg.rotulo === G.rotulo) : undefined;
       return {
         clave: G.rotulo, rotulo: G.rotulo, unidad: G.unidad, est, datos,
-        m: g && Array.isArray(datos) ? modeloDe(g, datos) : null,
+        m: g && Array.isArray(datos) ? modeloPara(g, datos, est) : null,
       };
     });
     // ⚠️ Sin `raton` en la lista: moverlo no rehace ni un trazo.
-  }, [historico, registros, porEstadistico, disponibles, elegido]);
+  }, [historico, registros, porEstadistico, disponibles, elegido, diaElegido, calendario, recortados]);
+
+  /**
+   * Por qué días se pasa con ◀ ▶ (`99 §ADR-131`): los del periodo, del primero
+   * al último —con o sin dato—; si alguna lectura se recortó al tope, desde el
+   * primer día LEÍDO, que antes no hay horas que enseñar.
+   */
+  const diasDeNavegacion = useMemo(() => {
+    const cargados = historico
+      ? ofrecidos.map((e) => porEstadistico?.[e.id]).filter((r): r is Registro[] => Array.isArray(r) && r.length > 0)
+      : registros?.length ? [registros] : [];
+    let ini = ''; let fin = '';
+    for (const r of cargados) {
+      for (const x_ of r) {
+        const f = String(x_.fecha);
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(f)) continue;
+        if (!ini || f < ini) ini = f;
+        if (!fin || f > fin) fin = f;
+      }
+    }
+    if (!ini) return [];
+    // Desde el primer día LEÍDO solo si TODOS los estadísticos traídos se
+    // recortaron: si alguno no, su tarjeta pinta desde el principio del periodo y
+    // ◀ ▶ tienen que poder llegar ahí (lo cazó la revisión).
+    const traidos = historico
+      ? ofrecidos.filter((e) => Array.isArray(porEstadistico?.[e.id]) && (porEstadistico?.[e.id] as Registro[]).length > 0)
+        .map((e) => e.id)
+      : [];
+    const alTope = traidos.length > 0 && traidos.every((e) => recortados?.[e] != null);
+    return diasDelCalendario(
+      calendario && !alTope && calendario.desde < ini ? calendario.desde : ini,
+      calendario && calendario.hasta > fin ? calendario.hasta : fin,
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [historico, registros, porEstadistico, disponibles, calendario, recortados]);
 
   // ⚠️ SE PIDE LO QUE SE ENSEÑA, y solo eso (`99 §ADR-129`): el estadístico
   // elegido en cada tarjeta que aún no ha llegado ni se está trayendo. La lista
@@ -2535,12 +2797,70 @@ function GraficasPorFase({ registros, porEstadistico, disponibles, cargando, alP
     return <p className="fine"><b>{rot}</b>: las horas guardadas con ese estadístico no traen {falta}.</p>;
   };
 
+  /**
+   * Un día elegido que ESTA tarjeta no puede dibujar (`99 §ADR-131`): se dice
+   * por qué y, si otro estadístico sí tiene ese día, cuál. Nunca un cero.
+   */
+  const sinElDia = (est: string | null, datos: Registro[], nombre: string) => {
+    const dia = diaElegido as string;
+    const rot = rotuloDe(est);
+    const traido = datos.some((r) => String(r.fecha) === dia);
+    const guardado = est != null && (fechasPorEstadistico?.[est] ?? []).includes(dia);
+    const otros = ofrecidos
+      .filter((e) => e.id !== est && (fechasPorEstadistico?.[e.id] ?? []).includes(dia)).map((e) => e.rotulo);
+    return (
+      <p className="fine">
+        {traido
+          ? <>El <b>{fechaLarga(dia)}</b>{est ? <>, el <b>{rot.toLowerCase()}</b></> : null} no trae {nombre.toLowerCase()}.</>
+          : guardado
+            ? <>El <b>{fechaLarga(dia)}</b> está guardado, pero no entre las horas que se trajeron: acote el
+              periodo para leerlo.</>
+            : <>El <b>{fechaLarga(dia)}</b> no tiene {est ? <><b>{rot.toLowerCase()}</b> guardado</> : 'lecturas'}.</>}
+        {otros.length > 0 && <> Sí tiene <b>{otros.join(', ')}</b>: cámbielo con los botones de esta gráfica.</>}
+        {!traido && !guardado && !otros.length && fechasPorEstadistico && <> Ese día no hay ningún estadístico guardado.</>}
+      </p>
+    );
+  };
+
+  /**
+   * LA BARRA DEL DÍA ELEGIDO (`99 §ADR-131`): fija arriba mientras se baja por
+   * las gráficas, con el día anterior, el siguiente y la vuelta al periodo.
+   */
+  const barra = (() => {
+    if (!diaElegido) return null;
+    // Por FECHA, no por puesto: un día elegido fuera de la lista no bloquea ◀ ▶.
+    const antes = [...diasDeNavegacion].reverse().find((f) => f < diaElegido) ?? null;
+    const despues = diasDeNavegacion.find((f) => f > diaElegido) ?? null;
+    return (
+      <div className="grafica-dia-barra" role="group" aria-label="Día elegido en todas las gráficas">
+        <button type="button" className="boton chico" disabled={!antes}
+          onClick={() => { if (antes) { setRaton(null); setDiaElegido(antes); } }}>
+          ◀ {antes ? fechaCorta(antes) : ''}
+        </button>
+        <span>{diaDeLaSemana(diaElegido)} <b>{fechaLarga(diaElegido)}</b> · todas las gráficas, sus 24 horas</span>
+        <button type="button" className="boton chico" disabled={!despues}
+          onClick={() => { if (despues) { setRaton(null); setDiaElegido(despues); } }}>
+          {despues ? fechaCorta(despues) : ''} ▶
+        </button>
+        <button type="button" className="boton chico activo volver"
+          onClick={() => { setRaton(null); setDiaElegido(null); }}>↩ Volver al periodo</button>
+      </div>
+    );
+  })();
+
   /** La gráfica de UNA magnitud: subtítulo, leyenda, lienzo, cajita y pie. */
   const cuerpo = (m: Modelo, clave: string, est: string | null) => {
-    const { g, registros, periodoDicho, paso, min, max, lo, hi, lz, yEn, marcas, idx, modo, separacion, trazos, unDia, xEn } = m;
+    const {
+      g, registros, periodoDicho, paso, min, max, lo, hi, lz, yEn, marcas, idx, modo, separacion, trazos, unDia, xEn,
+      xs, porCalendario, dias, posDia, conDato, sinDato,
+    } = m;
+    // El rayado de los días sin dato: un patrón por tarjeta, con nombre propio.
+    const idRaya = `raya-${clave.normalize('NFD').replace(/[^A-Za-z0-9]/g, '')}`;
     const n = registros.length;
     const rot = rotuloDe(est);
-    const i = raton && raton.clave === clave && raton.i < n ? raton.i : null;
+    const i = raton && raton.clave === clave && raton.i >= 0 && raton.i < n ? raton.i : null;
+    // En el calendario, el día bajo el puntero: el MISMO que se abriría al pulsar.
+    const diaSobre = raton && raton.clave === clave ? raton.dia : undefined;
     // ⚠️ La cajita lleva el AÑO (`99 §ADR-129`): con «histórico completo» o un
     // rango que cruce de año, «05/08 15h» no dice de qué agosto es.
     const fechaHora = (r: Registro) => {
@@ -2574,6 +2894,7 @@ function GraficasPorFase({ registros, porEstadistico, disponibles, cargando, alP
               {g.soloAgregado ? 'total de la bahía' : `fase ${fase}`}
             </span>
           ))}
+          {porCalendario && <span className="grafica-pista">👆 Pulse un día: todas las gráficas pasan a sus 24 horas</span>}
         </div>
         {/* ⚠️ EL VALOR, AL PASAR EL RATÓN (`99 §ADR-129`). Se busca el instante
             más cercano con la MISMA escala con que se dibujó —`xEn(i)`: la
@@ -2591,10 +2912,27 @@ function GraficasPorFase({ registros, porEstadistico, disponibles, cargando, alP
               const util = lz.ancho - lz.margen.i - lz.margen.d;
               let cerca = n <= 1 ? 0 : Math.round(((vx - lz.margen.i) / util) * (n - 1));
               cerca = Math.max(0, Math.min(n - 1, cerca));
-              if (unDia) {
-                // En el reloj la posición no es el puesto en la lista: se busca la
-                // lectura más cercana entre todas, que son 24 como mucho.
-                for (let c = 0; c < n; c += 1) if (Math.abs(xEn(c) - vx) < Math.abs(xEn(cerca) - vx)) cerca = c;
+              if (unDia || porCalendario) {
+                // En el reloj o en el calendario la posición no es el puesto en la
+                // lista: se busca la lectura más cercana en `xs`, que va en orden.
+                let a = 0; let b = n - 1;
+                while (b - a > 1) { const c = (a + b) >> 1; if (xs[c] < vx) a = c; else b = c; }
+                cerca = Math.abs(xs[a] - vx) <= Math.abs(xs[b] - vx) ? a : b;
+                if (porCalendario) {
+                  // ⚠️ EL DÍA BAJO EL PUNTERO, con la MISMA cuenta que el clic: el
+                  // resaltado y el clic señalaban días distintos sobre un día en
+                  // blanco (lo cazaron los dos revisores). La cajita lee una lectura
+                  // de ESE día; si no tiene ninguna, dice «sin dato», no la del de al lado.
+                  const d = Math.max(0, Math.min(dias.length - 1,
+                    Math.floor(((vx - lz.margen.i) / util) * dias.length)));
+                  const dia = dias[d];
+                  if (String(registros[cerca].fecha) !== dia) {
+                    const otro = String(registros[cerca].fecha) < dia ? cerca + 1 : cerca - 1;
+                    cerca = otro >= 0 && otro < n && String(registros[otro].fecha) === dia ? otro : -1;
+                  }
+                  setRaton((r) => (r && r.clave === clave && r.i === cerca && r.dia === dia ? r : { clave, i: cerca, dia }));
+                  return;
+                }
               } else {
                 for (const c of [cerca - 1, cerca + 1]) {
                   if (c >= 0 && c < n && Math.abs(x(c, n, lz) - vx) < Math.abs(x(cerca, n, lz) - vx)) cerca = c;
@@ -2602,7 +2940,16 @@ function GraficasPorFase({ registros, porEstadistico, disponibles, cargando, alP
               }
               setRaton((r) => (r && r.clave === clave && r.i === cerca ? r : { clave, i: cerca }));
             }}
-            onPointerLeave={() => setRaton(null)}>
+            onPointerLeave={() => setRaton(null)}
+            onClick={porCalendario ? (ev) => {
+              const caja = ev.currentTarget.getBoundingClientRect();
+              if (!caja.width) return;
+              const vx = ((ev.clientX - caja.left) / caja.width) * lz.ancho;
+              const d = Math.max(0, Math.min(dias.length - 1,
+                Math.floor(((vx - lz.margen.i) / (lz.ancho - lz.margen.i - lz.margen.d)) * dias.length)));
+              setRaton(null); setDiaElegido(dias[d]);
+            } : undefined}
+            style={porCalendario ? { cursor: 'pointer' } : undefined}>
             {marcas.map(({ v, cero }, k) => (
               <g key={k}>
                 {/* ⚠️ La del CERO se pinta distinta: en una magnitud con signo es
@@ -2627,6 +2974,46 @@ function GraficasPorFase({ registros, porEstadistico, disponibles, cargando, alP
               <line key={`rh${h}`} x1={xDeHora(h, lz)} x2={xDeHora(h, lz)} y1={lz.margen.s}
                 y2={lz.alto - lz.margen.b + 3} stroke="var(--bd-tenue)" strokeWidth={0.6} />
             ))}
+            {/* ⚠️ EL CALENDARIO, DEBAJO DE LAS LÍNEAS (`99 §ADR-131`): los días sin
+                dato en blanco RAYADO —un hueco no es un cero, ni se une con una
+                recta—, una raya tenue en cada frontera de día y, bajo el ratón,
+                la columna del día que se abriría al pulsar. */}
+            {porCalendario && (
+              <g>
+                <defs>
+                  <pattern id={idRaya} width={6} height={6} patternUnits="userSpaceOnUse"
+                    patternTransform="rotate(45)">
+                    <line x1={0} y1={0} x2={0} y2={6} stroke="var(--bd-tenue)" strokeWidth={2} />
+                  </pattern>
+                </defs>
+                {sinDato.map(([a, b]) => {
+                  const x0 = xDeDia(a, dias.length, lz);
+                  const x1 = xDeDia(b + 1, dias.length, lz);
+                  return (
+                    <g key={`sd${a}`}>
+                      <rect x={x0} y={lz.margen.s} width={x1 - x0} height={lz.alto - lz.margen.s - lz.margen.b}
+                        fill={`url(#${idRaya})`} opacity={0.8} />
+                      {x1 - x0 >= 60 && (
+                        <text x={(x0 + x1) / 2} y={(lz.margen.s + lz.alto - lz.margen.b) / 2} textAnchor="middle"
+                          fontSize={10} fill="var(--tx-tenue, #888)">sin dato</text>
+                      )}
+                    </g>
+                  );
+                })}
+                {dias.map((_, d) => (
+                  <line key={`rd${d}`} x1={xDeDia(d, dias.length, lz)} x2={xDeDia(d, dias.length, lz)}
+                    y1={lz.margen.s} y2={lz.alto - lz.margen.b + 3} stroke="var(--bd-tenue)" strokeWidth={0.5} />
+                ))}
+                {diaSobre != null && posDia.has(diaSobre) && (() => {
+                  const d = posDia.get(diaSobre) as number;
+                  return (
+                    <rect className="grafica-dia-sobre" x={xDeDia(d, dias.length, lz)} y={lz.margen.s}
+                      width={xDeDia(d + 1, dias.length, lz) - xDeDia(d, dias.length, lz)}
+                      height={lz.alto - lz.margen.s - lz.margen.b} />
+                  );
+                })()}
+              </g>
+            )}
             {g.presentes.map(([fase, campo], k) => (
               <g key={fase}>
                 {trazos[k].map((tramo, s) => (tramo.length > 1 ? (
@@ -2661,7 +3048,30 @@ function GraficasPorFase({ registros, porEstadistico, disponibles, cargando, alP
             {unDia ? HORAS_DEL_DIA.map((h) => (
               <text key={`h${h}`} x={xDeHora(h, lz)} y={lz.alto - 10} textAnchor="middle"
                 fontSize={9} fill="var(--tx-tenue, #888)">{rotuloDeHora(h)}</text>
-            )) : idx.map((j, k) => (
+            )) : porCalendario ? (
+              // ⚠️ CADA DÍA, UNO A UNO (`99 §ADR-131`): el número del día bajo su
+              // casilla —tenue si no trae dato— y, debajo, el mes donde empieza,
+              // con una raya más fuerte en la frontera entre meses.
+              <g>
+                {rotulosDeDias(dias, lz).map(({ dia: d, fila }) => (
+                  <text key={`dn${d}`} x={xDeDia(d + 0.5, dias.length, lz)} y={lz.alto - lz.margen.b + 14 + fila * 11}
+                    textAnchor="middle" fontSize={LETRA_DEL_DIA}
+                    fill={conDato.has(dias[d]) ? 'var(--tx-tenue, #888)' : 'var(--bd-tenue)'}>
+                    {Number(dias[d].slice(8, 10))}
+                  </text>
+                ))}
+                {rotulosDeMes(dias, lz).map(({ dia, texto }) => (
+                  <g key={`mes${dia}`}>
+                    {dia > 0 && (
+                      <line x1={xDeDia(dia, dias.length, lz)} x2={xDeDia(dia, dias.length, lz)} y1={lz.margen.s}
+                        y2={lz.alto - 6} stroke="var(--tx-tenue, #888)" strokeWidth={0.8} />
+                    )}
+                    <text x={xDeDia(dia, dias.length, lz) + 2} y={lz.alto - 6} fontSize={10} fontWeight={700}
+                      fill="var(--tx-tenue, #888)">{texto}</text>
+                  </g>
+                ))}
+              </g>
+            ) : idx.map((j, k) => (
               <text key={j} x={x(j, registros.length, lz)} y={lz.alto - 10}
                 textAnchor={k === idx.length - 1 ? 'end' : k === 0 ? 'start' : 'middle'}
                 fontSize={9} fill="var(--tx-tenue, #888)">
@@ -2706,6 +3116,18 @@ function GraficasPorFase({ registros, porEstadistico, disponibles, cargando, alP
               })}
             </div>
           )}
+          {/* Sobre un día sin dato, la cajita lo DICE (`99 §ADR-131`): antes enseñaba
+              la última hora del día de al lado. */}
+          {i == null && porCalendario && diaSobre != null && !conDato.has(diaSobre) && posDia.has(diaSobre) && (() => {
+            const pctSobre = (xDeDia((posDia.get(diaSobre) as number) + 0.5, dias.length, lz) / lz.ancho) * 100;
+            return (
+              <div className="grafica-cajita"
+                style={{ left: `${pctSobre}%`, transform: pctSobre > 55 ? 'translateX(calc(-100% - 10px))' : 'translateX(10px)' }}>
+                <b>{fechaLarga(diaSobre)}</b>
+                <span className="grafica-cajita-est">sin dato{est ? ` de ${rot.toLowerCase()}` : ''}</span>
+              </div>
+            );
+          })()}
         </div>
         <p className="fine">
           {g.presentes.map(([fase], k) => (
@@ -2744,6 +3166,15 @@ function GraficasPorFase({ registros, porEstadistico, disponibles, cargando, alP
               esta variación sería una raya plana; sin decirlo, parecería un tobogán.</>
           )}
         </p>
+        {/* ⚠️ LO QUE NO SE MIDIÓ SE DICE, no solo se raya (`99 §ADR-131`). */}
+        {sinDato.length > 0 && (
+          <p className="aviso">
+            Sin dato{est ? <> de <b>{rot.toLowerCase()}</b></> : null}:{' '}
+            <b>{sinDato.map(([a, b]) => (a === b ? fechaCorta(dias[a])
+              : `${fechaCorta(dias[a])}–${fechaCorta(dias[b])}`)).join(' · ')}</b>. Esos días quedan en
+            blanco rayado y la línea se corta: un hueco no es un cero, ni se une con una recta.
+          </p>
+        )}
         {conSigno && est === 'maximo' && (
           <p className="aviso">
             ⚠️ <b>La {g.rotulo.toLowerCase()} sale NEGATIVA en esta bahía</b>: su máximo es la hora de MENOS
@@ -2776,6 +3207,7 @@ function GraficasPorFase({ registros, porEstadistico, disponibles, cargando, alP
 
   return (
     <>
+      {barra}
       {tarjetas.map((g) => {
         const titulo = <p className="mapa-capas-t">{g.rotulo} ({g.unidad})</p>;
         return (
@@ -2783,7 +3215,9 @@ function GraficasPorFase({ registros, porEstadistico, disponibles, cargando, alP
             {historico
               ? <div className="grafica-cabecera">{titulo}{botones(g.clave, g.est, g.rotulo.toLowerCase())}</div>
               : titulo}
-            {g.m ? cuerpo(g.m, g.clave, g.est) : espera(g.est, g.datos, 'esta magnitud')}
+            {g.m ? cuerpo(g.m, g.clave, g.est)
+              : diaElegido && Array.isArray(g.datos) && g.datos.length ? sinElDia(g.est, g.datos, g.rotulo)
+                : espera(g.est, g.datos, 'esta magnitud')}
           </div>
         );
       })}
@@ -3111,10 +3545,19 @@ const LO_QUE_SALDRA = [
     con: 'se llena solo, mirando lo que llegó' },
 ];
 
-function LoQueSaldra({ referencia }: { referencia: ReturnType<typeof ampacidadDeLinea> }) {
+function LoQueSaldra({ referencia, sinTabla }: {
+  referencia: ReturnType<typeof ampacidadDeLinea>;
+  /**
+   * ⚠️ Con histórico guardado, SIN su tabla ni el texto que la presenta. Orden
+   * del Ingeniero sobre la maqueta: «las tablas no generan valor». Sin nada
+   * guardado sigue, que es lo que pidió para el entorno vacío.
+   */
+  sinTabla?: boolean;
+}) {
   return (
     <div className="tarjeta">
       <p className="mapa-capas-t">Lo que saldrá en cuanto cargue el archivo</p>
+      {!sinTabla && (<>
       <p className="fine">
         Esto es la <b>estructura</b>, no una demostración: no hay ni una cifra de ejemplo. Cada
         bloque dice qué pregunta contesta y qué columna de su exportación lo enciende.
@@ -3129,6 +3572,7 @@ function LoQueSaldra({ referencia }: { referencia: ReturnType<typeof ampacidadDe
           </tbody>
         </table>
       </div>
+      </>)}
 
       {/* ⚠️ EL ÚNICO NÚMERO DE ESTA TARJETA, y no sale del archivo: sale del
           conductor que la línea ya declara. Contra él se dividirá la corriente
@@ -3229,8 +3673,10 @@ function ElEntorno({ referencia, disponible, enElTiempo, soloEstructura }: {
           CON NÚMERO en el histórico, calculadas sobre sus horas guardadas. Se
           MIGRAN, no se duplican: repetirlas aquí con «—» pondría en la misma
           pantalla la cifra y su hueco, y el hueco parecería el dato. Todo lo
-          demás del entorno (las gráficas vacías, el mapa de calor, las
-          variables) se queda. Sin la prop, idéntico a como estaba. */}
+          demás del entorno se queda —la gráfica vacía—, salvo el mapa de calor
+          vacío y la tabla de variables, que con histórico también se van
+          (`99 §ADR-131`, decisión suya sobre la maqueta: «las tablas no generan
+          valor»). Sin la prop, idéntico a como estaba. */}
       {!soloEstructura && (<>
       {/* ── El veredicto, con su denominador ya puesto ─────────────────── */}
       <div className="tarjeta">
@@ -3306,6 +3752,8 @@ function ElEntorno({ referencia, disponible, enElTiempo, soloEstructura }: {
         </p>
       </div>
 
+      {/* ⚠️ Con histórico guardado, sin estas dos tablas (`99 §ADR-131`). */}
+      {!soloEstructura && (<>
       <div className="tarjeta">
         <p className="mapa-capas-t">Mapa de calor — hora contra día</p>
         <div className="tabla-scroll">
@@ -3346,6 +3794,7 @@ function ElEntorno({ referencia, disponible, enElTiempo, soloEstructura }: {
           una cabecera que no supimos leer — que en ese caso <b>es fallo nuestro</b>.
         </p>
       </div>
+      </>)}
     </>
   );
 }
@@ -3701,16 +4150,57 @@ function Kpi({ v, r, s, color }: { v: string; r: string; s?: string | null; colo
 // ════════════════════════════════════════════════════════════════════════════
 // TENDENCIA
 // ════════════════════════════════════════════════════════════════════════════
+/** Un color por línea: con varias, cada una lleva su traza (`99 §ADR-131`). */
+const TINTA_DE_LINEA = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#17becf'];
+
 function Tendencia({ registros }: { registros: Registro[] }) {
   const lineas = useMemo(
     () => [...new Set(registros.map((x_) => String(x_.linea)))].sort(), [registros]);
-  const [cual, setCual] = useState<string>('');   // '' = todas juntas
-  const serie = useMemo(
-    () => serieTemporal(registros as never[], cual || null), [registros, cual]);
-  const t = useMemo(() => tendencia(serie), [serie]);
-  const techo = techoY(serie.map((p: { pct: number }) => p.pct));
-  const tramos = tramosDeLinea(serie, techo);
-  const idx = marcasX(serie.length);
+  const [cual, setCual] = useState<string>('');   // '' = todas, cada una con su traza
+  const dibujadas = useMemo(() => (cual ? [cual] : lineas), [cual, lineas]);
+
+  // ⚠️ POR INSTANTE REAL, SOBRE EL CALENDARIO, Y UNA TRAZA POR LÍNEA (`99 §ADR-131`).
+  // `serieTemporal` quita las horas sin porcentaje antes de colocar, y la serie
+  // se dibujaba por su puesto: la hora que faltaba no dejaba hueco —las 06 se
+  // unían con las 08— ni el día que faltaba —el 2 con el 13—. Y con varias
+  // líneas, «una detrás de otra» las intercalaba en UNA polilínea que saltaba de
+  // la una a la otra en el mismo instante. Ahora el eje son los días del archivo,
+  // cada lectura va a su hora dentro de su día (`xDeInstante`), y cada línea
+  // lleva su traza, cortada donde le falta una hora. El motor no se toca.
+  const { dias, recortado } = useMemo(
+    () => calendarioDeFechas(registros.map((r) => r.fecha)), [registros]);
+  const lz = lienzoDelCalendario(dias);
+  const n = dias.length;
+  const porLinea = useMemo(() => dibujadas.map((l) => registros
+    .filter((r) => String(r.linea) === l)
+    .map((r) => {
+      // Sin porcentaje es un hueco: `null`, nunca un cero.
+      const v = r.cargabilidad_pct;
+      const pct = v == null || v === '' ? null : Number(v);
+      return { fecha: r.fecha, hora: r.hora, pct: pct != null && Number.isFinite(pct) ? pct : null };
+    })), [registros, dibujadas]);
+  const techo = techoY(porLinea.flatMap((ps) => ps.flatMap((p) => (p.pct == null ? [] : [p.pct]))));
+  const trazos = useMemo(
+    () => porLinea.map((ps) => trazosEnElCalendario(ps, dias, techo, lz)), [porLinea, dias, techo, lz]);
+  const conDato = new Set(trazos.flatMap((tr) => tr.flat().map((p) => p.fecha)));
+  const sinDato = tramosSinDato(dias, conDato);
+  // La tendencia, de CADA línea por separado: la de todas intercaladas mezclaba
+  // una línea al 90 % con otra al 30 % y llamaba «bajada» a un cambio de línea.
+  const tendencias = useMemo(() => dibujadas.map((l) => ({
+    linea: l, t: tendencia(serieTemporal(registros as never[], l)),
+  })), [registros, dibujadas]);
+  const tinta = (k: number) => (dibujadas.length === 1 ? 'var(--acc)' : TINTA_DE_LINEA[k % TINTA_DE_LINEA.length]);
+  const sentido = (s: string | undefined) => (s === 'sube' ? 'sube' : s === 'baja' ? 'baja' : 'se mantiene estable');
+  const frase = (t: ReturnType<typeof tendencia>) => (t.suficiente ? (
+    <>La serie <b>{sentido(t.sentido)}</b>
+      {t.variacion_pct != null && t.sentido !== 'estable' && (
+        <> · variación del <b>{nf(Math.abs(t.variacion_pct), 1)} %</b> entre el primer y el
+          último tercio ({nf(t.inicio_pct!, 1)} % → {nf(t.fin_pct!, 1)} %)</>
+      )}. Son {nf(t.n)} puntos.</>
+  ) : (
+    <><b>No hay tendencia que dibujar:</b> {t.porQue}. Con tan pocos puntos, una flecha diría
+      más de lo que el dato sostiene.</>
+  ));
 
   return (
     <div className="tarjeta">
@@ -3718,63 +4208,146 @@ function Tendencia({ registros }: { registros: Registro[] }) {
       <label className="mapa-tiempo-dia">
         <span>Línea</span>
         <select value={cual} onChange={(e) => setCual(e.target.value)}>
-          <option value="">Todas, una detrás de otra</option>
+          <option value="">Todas, cada una con su traza</option>
           {lineas.map((l) => <option key={l} value={l}>{l}</option>)}
         </select>
       </label>
+      {dibujadas.length > 1 && (
+        <div className="bandas-reparto">
+          {dibujadas.map((l, k) => (
+            <span key={l} className="banda-chip">
+              <i style={{ background: tinta(k) }} />{' '}{l}{trazos[k].length ? '' : ' · sin porcentaje'}
+            </span>
+          ))}
+        </div>
+      )}
 
-      <svg viewBox={`0 0 ${LIENZO.ancho} ${LIENZO.alto}`} className="grafica" role="img"
-        aria-label={`Cargabilidad en el tiempo${cual ? ` de ${cual}` : ''}`}>
+      <svg viewBox={`0 0 ${lz.ancho} ${lz.alto}`} className="grafica" role="img"
+        aria-label={`Cargabilidad en el tiempo${cual ? ` de ${cual}` : ''}, ${n} día(s) en el eje`}>
         {marcasY(techo).map((v) => (
           <g key={v}>
-            <line x1={LIENZO.margen.i} x2={LIENZO.ancho - LIENZO.margen.d}
-              y1={y(v, techo)} y2={y(v, techo)} stroke="var(--bd-tenue)" strokeWidth={1} />
-            <text x={LIENZO.margen.i - 6} y={y(v, techo) + 4} textAnchor="end"
+            <line x1={lz.margen.i} x2={lz.ancho - lz.margen.d}
+              y1={y(v, techo, lz)} y2={y(v, techo, lz)} stroke="var(--bd-tenue)" strokeWidth={1} />
+            <text x={lz.margen.i - 6} y={y(v, techo, lz) + 4} textAnchor="end"
               fontSize={10} fill="var(--tx-tenue, #888)">{v}</text>
           </g>
+        ))}
+        {/* ⚠️ EL CALENDARIO, DEBAJO DE LAS LÍNEAS (`99 §ADR-131`): el día sin
+            porcentaje en blanco rayado y una raya tenue en cada frontera de día. */}
+        <defs>
+          <pattern id="raya-tendencia" width={6} height={6} patternUnits="userSpaceOnUse"
+            patternTransform="rotate(45)">
+            <line x1={0} y1={0} x2={0} y2={6} stroke="var(--bd-tenue)" strokeWidth={2} />
+          </pattern>
+        </defs>
+        {sinDato.map(([a, b]) => {
+          const x0 = xDeDia(a, n, lz);
+          const x1 = xDeDia(b + 1, n, lz);
+          return (
+            <g key={`sd${a}`}>
+              <rect x={x0} y={lz.margen.s} width={x1 - x0} height={lz.alto - lz.margen.s - lz.margen.b}
+                fill="url(#raya-tendencia)" opacity={0.8} />
+              {x1 - x0 >= 60 && (
+                <text x={(x0 + x1) / 2} y={(lz.margen.s + lz.alto - lz.margen.b) / 2} textAnchor="middle"
+                  fontSize={10} fill="var(--tx-tenue, #888)">sin dato</text>
+              )}
+            </g>
+          );
+        })}
+        {n > 1 && dias.map((_, d) => (
+          <line key={`rd${d}`} x1={xDeDia(d, n, lz)} x2={xDeDia(d, n, lz)} y1={lz.margen.s}
+            y2={lz.alto - lz.margen.b + 3} stroke="var(--bd-tenue)" strokeWidth={0.5} />
         ))}
         {/* Las tres referencias que él pidió. A rayas y con su número al lado:
             una línea de referencia sin rótulo es una raya más. */}
         {REFERENCIAS.filter((v) => v <= techo).map((v) => (
           <g key={`r${v}`}>
-            <line x1={LIENZO.margen.i} x2={LIENZO.ancho - LIENZO.margen.d}
-              y1={y(v, techo)} y2={y(v, techo)} strokeDasharray="5 3" strokeWidth={1.4}
+            <line x1={lz.margen.i} x2={lz.ancho - lz.margen.d}
+              y1={y(v, techo, lz)} y2={y(v, techo, lz)} strokeDasharray="5 3" strokeWidth={1.4}
               stroke={TINTA_BANDA[bandaDe(v)!.clave]} />
-            <text x={LIENZO.ancho - LIENZO.margen.d} y={y(v, techo) - 4} textAnchor="end"
+            <text x={lz.ancho - lz.margen.d} y={y(v, techo, lz) - 4} textAnchor="end"
               fontSize={10} fill={TINTA_BANDA[bandaDe(v)!.clave]}>{v} %</text>
           </g>
         ))}
-        {tramos.map((puntos, i) => (
-          <polyline key={i} points={puntos} fill="none" stroke="var(--acc)" strokeWidth={1.8}
-            strokeLinejoin="round" strokeLinecap="round" />
+        {/* Cada línea, su traza; cada tramo, lo medido SEGUIDO. Un tramo de una
+            sola hora no lleva raya, pero su punto sí se pinta. */}
+        {trazos.map((tramos, k) => (
+          <g key={dibujadas[k]}>
+            {tramos.map((tramo, s) => (tramo.length > 1 ? (
+              <polyline key={`t${s}`} points={tramo.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')}
+                fill="none" stroke={tinta(k)} strokeWidth={1.8} strokeLinejoin="round" strokeLinecap="round" />
+            ) : null))}
+            {tramos.flat().map((p, j) => (
+              <circle key={`c${j}`} cx={p.x} cy={p.y} r={2.4} fill={tintaDe(p.pct)}>
+                <title>
+                  {dibujadas.length > 1 ? `${dibujadas[k]} · ` : ''}{etiquetaInstante(p)} · {nf(p.pct, 1)} %
+                </title>
+              </circle>
+            ))}
+          </g>
         ))}
-        {serie.map((p: { pct: number }, i: number) => (
-          <circle key={i} cx={x(i, serie.length)} cy={y(p.pct, techo)} r={2.4}
-            fill={tintaDe(p.pct)}>
-            <title>{etiquetaInstante(serie[i])} · {nf(p.pct, 1)} %</title>
-          </circle>
-        ))}
-        {idx.map((i) => (
-          <text key={i} x={x(i, serie.length)} y={LIENZO.alto - 10} textAnchor="middle"
-            fontSize={9} fill="var(--tx-tenue, #888)">{etiquetaInstante(serie[i])}</text>
-        ))}
+        {/* ⚠️ Con un día, el reloj: sus 24 horas, una a una (`99 §ADR-130`). Con
+            varios, CADA DÍA, UNO A UNO (`99 §ADR-131`): el número bajo su casilla
+            —tenue si no trae porcentaje— y el mes donde empieza. */}
+        {n === 1 ? (
+          <g>
+            {HORAS_DEL_DIA.map((h) => (
+              <text key={`h${h}`} x={xDeInstante(0, h, 1, lz)} y={lz.alto - lz.margen.b + 14}
+                textAnchor="middle" fontSize={9} fill="var(--tx-tenue, #888)">{rotuloDeHora(h)}</text>
+            ))}
+            <text x={lz.margen.i} y={lz.alto - 6} fontSize={10} fontWeight={700}
+              fill="var(--tx-tenue, #888)">{fechaLarga(dias[0])}</text>
+          </g>
+        ) : (
+          <g>
+            {rotulosDeDias(dias, lz).map(({ dia: d, fila }) => (
+              <text key={`dn${d}`} x={xDeDia(d + 0.5, n, lz)} y={lz.alto - lz.margen.b + 14 + fila * 11}
+                textAnchor="middle" fontSize={LETRA_DEL_DIA}
+                fill={conDato.has(dias[d]) ? 'var(--tx-tenue, #888)' : 'var(--bd-tenue)'}>
+                {Number(dias[d].slice(8, 10))}
+              </text>
+            ))}
+            {rotulosDeMes(dias, lz).map(({ dia, texto }) => (
+              <g key={`mes${dia}`}>
+                {dia > 0 && (
+                  <line x1={xDeDia(dia, n, lz)} x2={xDeDia(dia, n, lz)} y1={lz.margen.s}
+                    y2={lz.alto - 6} stroke="var(--tx-tenue, #888)" strokeWidth={0.8} />
+                )}
+                <text x={xDeDia(dia, n, lz) + 2} y={lz.alto - 6} fontSize={10} fontWeight={700}
+                  fill="var(--tx-tenue, #888)">{texto}</text>
+              </g>
+            ))}
+          </g>
+        )}
       </svg>
 
       <p className="mapa-capas-n">
-        {t.suficiente ? (
-          <>La serie <b>{t.sentido === 'sube' ? 'sube' : t.sentido === 'baja' ? 'baja' : 'se mantiene estable'}</b>
-            {t.variacion_pct != null && t.sentido !== 'estable' && (
-              <> · variación del <b>{nf(Math.abs(t.variacion_pct), 1)} %</b> entre el primer y el
-                último tercio ({nf(t.inicio_pct!, 1)} % → {nf(t.fin_pct!, 1)} %)</>
-            )}. Son {nf(t.n)} puntos.</>
-        ) : (
-          <><b>No hay tendencia que dibujar:</b> {t.porQue}. Con tan pocos puntos, una flecha diría
-            más de lo que el dato sostiene.</>
+        {dibujadas.length === 1 ? frase(tendencias[0].t) : (
+          <>Por línea, cada una por separado:{' '}
+            {tendencias.map(({ linea, t }, k) => (
+              <span key={linea}>{k > 0 && ' · '}<b>{linea}</b>{' '}
+                {t.suficiente
+                  ? <>{sentido(t.sentido)}{t.variacion_pct != null && t.sentido !== 'estable'
+                    ? ` (${nf(Math.abs(t.variacion_pct), 1)} %)` : ''}</>
+                  : 'sin puntos suficientes'}
+              </span>
+            ))}. Juntarlas en una serie haría pasar un cambio de línea por un cambio de carga.</>
         )}
       </p>
+      {/* ⚠️ LO QUE NO SE MIDIÓ SE DICE, no solo se raya (`99 §ADR-131`). */}
+      {sinDato.length > 0 && (
+        <p className="aviso">
+          Sin dato{cual ? <> de <b>{cual}</b></> : null}: <b>{tramosDichos(dias, sinDato)}</b>. Esos
+          días quedan en blanco rayado y la línea se corta.
+        </p>
+      )}
       <p className="fine">
-        Un hueco parte la línea en dos a propósito: unir los dos lados de una hora sin medir dibujaría
-        una recta que nadie midió, y esa recta puede cruzar el 100 %.
+        Cada lectura va en <b>su hora dentro de su día</b> del calendario
+        {n > 1 ? <>, del {fechaLarga(dias[0])} al {fechaLarga(dias[n - 1])}</> : null}
+        {dibujadas.length > 1 ? ', y cada línea lleva su traza' : ''}. Un hueco parte la línea en dos a
+        propósito: unir los dos lados de una hora sin medir dibujaría una recta que nadie midió, y esa
+        recta puede cruzar el 100 %.
+        {recortado && <> ⚠️ El archivo pasa de 400 días: se dibujan los <b>{nf(n)} más recientes</b>.</>}
       </p>
     </div>
   );
@@ -3843,6 +4416,25 @@ function PorLinea({ registros }: { registros: Registro[] }) {
 function MapaDeCalor({ registros }: { registros: Registro[] }) {
   const [eje, setEje] = useState<'hora' | 'fecha'>('hora');
   const m = useMemo(() => mapaDeCalor(registros as never[], eje), [registros, eje]);
+  // ⚠️ «POR FECHA», UNA COLUMNA POR DÍA DEL CALENDARIO (`99 §ADR-131`). El motor
+  // pone una columna por fecha PRESENTE: el día sin medida no dejaba columna, el
+  // 2 quedaba pegado al 13 y el blanco —que aquí significa «no se midió»— ni
+  // aparecía. Ahora las columnas son los días del archivo, del primero al
+  // último, y el que falta sale en blanco con su columna. Si alguna fecha no
+  // cabe en el calendario, se queda la colocación del motor: no pierde ninguna.
+  const enDias = useMemo(() => {
+    if (eje !== 'fecha') return null;
+    const { dias } = calendarioDeFechas(registros.map((r) => r.fecha));
+    const celdas = celdasPorDia(m.columnas, m.celdas, dias);
+    return celdas ? { dias, celdas } : null;
+  }, [registros, eje, m]);
+  const columnas: (string | number)[] = enDias?.dias ?? m.columnas;
+  const celdas = enDias?.celdas ?? m.celdas;
+  /** El día que ninguna línea midió: su cabecera va tenue. */
+  const vacia = (j: number) => enDias != null && enDias.celdas.every((f) => f[j] == null);
+  const sinDato = enDias
+    ? tramosSinDato(enDias.dias, new Set(enDias.dias.filter((_, j) => !vacia(j))))
+    : [];
   if (!m.lineas.length) return null;
 
   return (
@@ -3857,21 +4449,23 @@ function MapaDeCalor({ registros }: { registros: Registro[] }) {
       <div className="tabla-scroll">
         <table className="calor">
           <thead>
-            <tr><th /> {m.columnas.map((c) => (
-              <th key={String(c)}>{eje === 'hora' ? String(c).padStart(2, '0') : String(c).slice(5)}</th>
+            <tr><th /> {columnas.map((c, j) => (
+              <th key={String(c)} style={vacia(j) ? { color: 'var(--bd-tenue)' } : undefined}>
+                {eje === 'hora' ? String(c).padStart(2, '0') : String(c).slice(5)}
+              </th>
             ))}</tr>
           </thead>
           <tbody>
             {m.lineas.map((l, i) => (
               <tr key={l}>
                 <th scope="row">{l}</th>
-                {m.celdas[i].map((celda, j) => (
+                {celdas[i].map((celda, j) => (
                   <td key={j} className={celda ? '' : 'sin-dato'}
                     style={celda ? { background: RELLENO_BANDA[celda.banda] } : undefined}
                     title={celda
-                      ? `${l} · ${m.columnas[j]} · ${celda.pct == null ? 'sin medida' : `${nf(celda.pct, 1)} %`}`
+                      ? `${l} · ${columnas[j]} · ${celda.pct == null ? 'sin medida' : `${nf(celda.pct, 1)} %`}`
                         + ` (pico de ${celda.n} lectura/s)`
-                      : `${l} · ${m.columnas[j]} · sin medida`} />
+                      : `${l} · ${columnas[j]} · sin medida`} />
                 ))}
               </tr>
             ))}
@@ -3881,6 +4475,12 @@ function MapaDeCalor({ registros }: { registros: Registro[] }) {
       <p className="fine">
         Cada celda pinta el <b>pico</b> de esa hora, no su promedio: lo que interesa es si llegó a
         tocar una banda alta. La celda en blanco <b>no se midió</b> — y eso no es lo mismo que un cero.
+        {enDias && (
+          <> <b>Por fecha</b>, una columna por día del calendario, del {fechaCorta(enDias.dias[0])} al{' '}
+            {fechaCorta(enDias.dias[enDias.dias.length - 1])}: el día que falta queda en blanco con su
+            columna, no desaparece{sinDato.length > 0
+              ? <> (sin medida: <b>{tramosDichos(enDias.dias, sinDato)}</b>)</> : null}.</>
+        )}
       </p>
     </div>
   );

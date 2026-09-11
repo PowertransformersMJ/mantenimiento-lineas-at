@@ -134,9 +134,17 @@ describe('sin archivo cargado, la pantalla dice lo que saldrá', () => {
     PANTALLA.indexOf('// EL ENTORNO COMPLETO'));
 
   test('⚠️ el estado vacío monta la estructura, no solo la frase', () => {
-    assert.match(PANTALLA, /<LoQueSaldra referencia=\{referencia\} \/>/,
+    assert.match(PANTALLA, /<LoQueSaldra referencia=\{referencia\}(?: sinTabla=\{hayHistorico\})? \/>/,
       'el estado vacío volvió a ser una sola frase: el Ingeniero no puede ver qué hace el módulo');
     assert.ok(bloque.length > 0);
+  });
+
+  test('§ADR-131 · con histórico guardado, la tarjeta se queda sin su tabla; sin nada guardado, la conserva', () => {
+    // Orden del Ingeniero sobre la maqueta: «las tablas no generan valor». La del
+    // entorno vacío la había pedido él mismo el 04-09: ahí se queda.
+    assert.match(PANTALLA, /<LoQueSaldra referencia=\{referencia\} sinTabla=\{hayHistorico\} \/>/);
+    assert.match(bloque, /\{!sinTabla && \(<>/);
+    assert.match(bloque, /Se enciende con/, 'sin histórico la tabla sigue existiendo');
   });
 
   test('los seis bloques dicen QUÉ PREGUNTA contestan', () => {
@@ -219,6 +227,14 @@ describe('el entorno se ve entero antes de cargar nada', () => {
   test('el mapa de calor enseña sus 24 horas, en blanco', () => {
     assert.match(ent, /length: 24/);
     assert.match(ent, /sin-dato/, 'la celda sin medir dejó de marcarse como tal');
+  });
+
+  test('§ADR-131 · con histórico guardado, sin el mapa de calor vacío ni la tabla de variables', () => {
+    assert.match(ent,
+      /\{!soloEstructura && \(<>\s*<div className="tarjeta">\s*<p className="mapa-capas-t">Mapa de calor/);
+    const tras = ent.slice(ent.indexOf('Mapa de calor — hora contra día'));
+    assert.ok(tras.indexOf('Las variables que este módulo sabe leer') < tras.indexOf('</>)}'),
+      'la tarjeta de variables quedó fuera de la condición');
   });
 
   test('están TODOS los parámetros con su nombre y su unidad', () => {

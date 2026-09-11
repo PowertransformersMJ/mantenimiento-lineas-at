@@ -225,6 +225,7 @@ vive en `10 · TODO-79`, y los **relevos de sesión** `2026-08-22/24/26-relevo-c
 | `ADR-128` | 2026-09-11 | Enero a agosto en producción: el paso 0 se vuelve herramienta, 100 archivos por carga y lo que no es medida se aparta | `research-archive/2026-09-10-ene-ago-scada/` |
 | `ADR-129` | 2026-09-11 | El histórico se lee en gráficas: un filtro por gráfica, los indicadores sobre lo guardado y sin tablas | `research-archive/2026-09-11-historico-filtros/` |
 | `ADR-130` | 2026-09-11 | Un día se lee hora a hora: las 24 rotuladas y cada lectura sobre su hora | `research-archive/2026-09-11-eje-de-dias/` |
+| `ADR-131` | 2026-09-11 | El eje del histórico es el calendario: cada día uno a uno, los huecos se ven y un día abre sus 24 horas en todas las gráficas; sin tablas con histórico | `research-archive/2026-09-11-eje-de-dias/` |
 
 > Toda decisión cara de revertir entra aquí con su ADR y su crudo enlazado. Si hubo comité o consejo
 > externo y el crudo no está archivado, la tarea **no está cerrada** (`CLAUDE.md §G.4`).

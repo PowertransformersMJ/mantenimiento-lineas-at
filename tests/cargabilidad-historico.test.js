@@ -640,14 +640,119 @@ describe('§ADR-129 · el histórico: un filtro por gráfica, indicadores sobre 
   });
 
   test('§ADR-130 · una hora que no llegó corta la línea, y el ratón busca la lectura más cercana', () => {
-    assert.match(GRAF, /horasDe\[i\] - horasDe\[i - 1\] !== 1/);
-    assert.match(GRAF, /if \(unDia\) \{/);
+    assert.match(GRAF, /absDe\[i\] - absDe\[i - 1\] !== 1/);
+    assert.match(GRAF, /if \(unDia \|\| porCalendario\) \{/);
   });
 
   test('§ADR-130 · ⚠️ el día entra al reloj ORDENADO por hora, y el modelo guarda ese orden', () => {
-    assert.match(GRAF, /const enElReloj = diaEnElReloj\(entrada\)/);
-    assert.match(GRAF, /const registros = enElReloj \?\? entrada/,
+    assert.match(GRAF, /diaEnElReloj\(entrada\)/);
+    assert.match(GRAF, /const ordenadas = enElReloj \?\? enCalendario \?\? entrada/,
       'el ratón y la cajita leen los mismos índices que la línea');
-    assert.match(GRAF, /: idx\.map\(\(j, k\) =>/, 'con varios días, las marcas de siempre');
+    assert.match(GRAF, /: idx\.map\(\(j, k\) =>/, 'sin reloj ni calendario, las marcas de siempre');
+  });
+
+  // ── §ADR-131 · el eje del calendario, y el día elegido en TODAS las gráficas ──
+  // Órdenes del Ingeniero (2026-09-11): «que el rango en el eje x se aprecie
+  // cada día uno a uno, y cuando seleccione un día se aprecien las 24 horas»;
+  // y sobre la maqueta, al pulsar un día: «todas».
+  test('§ADR-131 · varios días van al calendario: cada día una casilla, y el hueco se VE', () => {
+    assert.match(GRAF, /horasEnElCalendario\(entrada/);
+    assert.match(GRAF, /xDeInstante\(posDia\.get/);
+    assert.match(GRAF, /tramosSinDato\(dias, conDato\)/);
+    assert.match(GRAF, /absDe\[i\] - absDe\[i - 1\] !== 1/, 'un día que falta corta la línea');
+    assert.match(GRAF, /rotulosDeDias\(dias, lz\)/, 'cada día con su número');
+    assert.match(GRAF, /fontSize=\{LETRA_DEL_DIA\}/, 'la letra no se encoge hasta ser ilegible');
+    assert.match(GRAF, /Sin dato\{est \?/, 'lo que no se midió se dice debajo, no solo se raya');
+  });
+
+  test('§ADR-131 · el eje sigue el periodo CONSULTADO; si la lectura se recortó, desde el primer día leído', () => {
+    assert.match(HIST, /setConsultado\(r\)/);
+    assert.match(HIST, /calendario=\{calendarioDelEje\}/);
+    assert.match(GRAF, /calendario && !recortado && calendario\.desde/);
+  });
+
+  test('§ADR-131 · pulsar un día lleva TODAS las gráficas a sus 24 horas, con una barra fija', () => {
+    assert.match(GRAF, /setDiaElegido\(dias\[d\]\)/);
+    assert.match(GRAF, /String\(r\.fecha\) === diaElegido/, 'cada tarjeta filtra el MISMO día');
+    assert.match(GRAF, /className="grafica-dia-barra"/);
+    assert.match(GRAF, /Volver al periodo/);
+    assert.match(GRAF, /sinElDia\(g\.est, g\.datos, g\.rotulo\)/,
+      'un día que la tarjeta no puede dibujar se dice, no se deja en blanco');
+  });
+
+  // Lo que cazó la revisión con el dato real, antes de publicar.
+  test('§ADR-131 · el día resaltado al pasar el ratón es el MISMO que abre el clic', () => {
+    assert.match(GRAF, /const diaSobre = raton && raton\.clave === clave \? raton\.dia : undefined/);
+    assert.match(GRAF, /diaSobre != null && posDia\.has\(diaSobre\)/, 'la columna resaltada sale del día bajo el puntero');
+    assert.match(GRAF, /String\(registros\[otro\]\.fecha\) === dia \? otro : -1/,
+      'sobre un día sin dato, la cajita no lee la hora del día de al lado');
+  });
+
+  test('§ADR-131 · otro archivo del mismo tamaño vuelve al periodo; ◀ ▶ van por fecha', () => {
+    assert.match(GRAF, /registros\?\.\[0\]\?\.fecha, registros\?\.\[registros\.length - 1\]\?\.fecha/);
+    assert.match(GRAF, /\.find\(\(f\) => f < diaElegido\)/);
+    assert.match(GRAF, /traidos\.every\(\(e\) => recortados\?\.\[e\] != null\)/);
+  });
+
+  test('§ADR-131 · un estadístico de un solo día, en un periodo largo, va en el calendario del periodo', () => {
+    assert.match(GRAF, /const periodoLargo = !delDia && calendario != null && calendario\.desde < calendario\.hasta/);
+    assert.match(GRAF, /horasEnElCalendario\(entrada, periodoLargo\)/);
+    assert.match(GRAF, /modeloDe\(g, delDia, false, true\)/, 'el día elegido sigue en el reloj');
+  });
+
+  test('§ADR-131 · «hoy» es la fecha de Colombia, no la de Greenwich', () => {
+    assert.match(P, /const iso = \(d: Date\) =>\s*`\$\{d\.getFullYear\(\)\}/);
+    assert.doesNotMatch(P, /const iso = \(d: Date\) => d\.toISOString/);
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// §ADR-131 — las otras tres gráficas, sobre el calendario, vigiladas
+// ────────────────────────────────────────────────────────────────────────────
+// La auditoría del eje encontró la misma raíz en la tendencia diaria, la de un
+// archivo recién cargado y el mapa de calor «Por fecha»: colocaban por puesto y
+// pegaban los días que faltan. Hoy no se dibujan con el dato del Ingeniero —su
+// SCADA no trae porcentaje—; estas pruebas impiden que vuelvan a colocar por
+// puesto antes de que lo traiga.
+// ════════════════════════════════════════════════════════════════════════════
+describe('§ADR-131 · la tendencia diaria, la de un archivo y el mapa de calor, sobre el calendario', () => {
+  const P = leer('web/src/componentes/Cargabilidad.tsx');
+  const cuerpo = (firma) => {
+    const i = P.indexOf(`function ${firma}`);
+    assert.ok(i >= 0, `falta function ${firma}`);
+    const j = P.indexOf('\nfunction ', i + 10);
+    return P.slice(i, j > i ? j : undefined);
+  };
+  const HIST = cuerpo('HistoricoGuardado(');
+  const DIARIA = cuerpo('TendenciaDiaria(');
+  const TEND = cuerpo('Tendencia(');
+  const CALOR = cuerpo('MapaDeCalor(');
+
+  test('la tendencia diaria: un punto por día del periodo CONSULTADO, y el día sin resumen es un hueco', () => {
+    assert.match(HIST, /<TendenciaDiaria resumenes=\{filas\} periodo=\{consultado\} \/>/);
+    assert.match(DIARIA, /calendarioDeFechas\(resumenes\.map/);
+    assert.match(DIARIA, /serieEnElCalendario\(serie, dias/);
+    assert.match(DIARIA, /tramosDeLinea\(enDias\.map/, 'la línea se corta sola en el día sin resumen');
+    assert.match(DIARIA, /areasDeBanda\(\s*enDias\.map/, 'y la franja también');
+    assert.match(DIARIA, /rotulosDeDias\(dias, lz\)/, 'cada día con su número');
+    assert.match(DIARIA, /tramosDichos\(dias, sinDato\)/, 'lo que falta se dice debajo');
+    assert.doesNotMatch(DIARIA, /marcasX\(|x\(i, serie\.length\)/, 'nada por puesto');
+    assert.doesNotMatch(DIARIA, /maxima_pct \?\? 0/, 'un hueco nunca es un cero');
+    assert.match(DIARIA, /Un\s+día sin medir parte la línea/, 'y el pie ya dice la verdad');
+  });
+
+  test('la de un archivo: por instante real, una traza por línea, sin intercalar', () => {
+    assert.match(TEND, /calendarioDeFechas\(registros\.map/);
+    assert.match(TEND, /trazosEnElCalendario\(ps, dias, techo, lz\)/);
+    assert.doesNotMatch(TEND, /una detrás de otra<\/option>/, 'las líneas ya no se intercalan');
+    assert.doesNotMatch(TEND, /tramosDeLinea\(serie|marcasX\(/, 'ni se coloca por puesto');
+    assert.match(TEND, /tendencia\(serieTemporal\(registros as never\[\], l\)\)/,
+      'la tendencia, de cada línea por separado');
+  });
+
+  test('el mapa de calor por fecha: una columna por día del calendario', () => {
+    assert.match(CALOR, /celdasPorDia\(m\.columnas, m\.celdas, dias\)/);
+    assert.match(CALOR, /columnas\.map\(\(c, j\) =>/);
+    assert.doesNotMatch(CALOR, /m\.columnas\.map\(/, 'la cabecera ya no es la lista de fechas presentes');
   });
 });

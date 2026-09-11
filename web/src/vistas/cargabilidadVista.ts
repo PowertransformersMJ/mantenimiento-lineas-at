@@ -152,6 +152,329 @@ export function diaEnElReloj<T extends { fecha?: unknown; hora?: unknown }>(punt
   return puntos.map((p, i) => ({ p, h: horas[i] })).sort((a, b) => a.h - b.h).map(({ p }) => p);
 }
 
+// ── EL EJE DEL CALENDARIO (`99 §ADR-131`) ───────────────────────────────────
+//
+// ⚠️ Orden del Ingeniero (2026-09-11), con su captura de enero: «necesito que
+// el rango en el eje x se aprecie cada día uno a uno». El eje colocaba las
+// horas por su PUESTO en la lista, y un día sin dato no dejaba hueco: la línea
+// unía el 2 con el 13 como si fueran días seguidos y el eje saltaba del 01/01 al
+// 14/01. Aquí el eje es el calendario: cada día, una casilla del mismo ancho, y
+// lo que no se midió queda en blanco.
+
+const FECHA_ISO = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Los días del calendario de `desde` a `hasta`, los dos incluidos. Con fechas que
+ * no son «AAAA-MM-DD», o al revés, devuelve `[]`. `tope` frena un eje absurdo
+ * —un rango desde el año 2000 serían 9.700 casillas— y, si se pasa, se queda con
+ * los días MÁS RECIENTES: quedarse con los más viejos dejaba fuera justo el dato
+ * nuevo, y la gráfica volvía en silencio a pegar los días (lo cazó la revisión).
+ */
+export function diasDelCalendario(desde: string, hasta: string, tope = 400): string[] {
+  if (!FECHA_ISO.test(desde) || !FECHA_ISO.test(hasta) || desde > hasta) return [];
+  const utc = (f: string) => { const [a, m, d] = f.split('-').map(Number); return Date.UTC(a, m - 1, d); };
+  const fin = utc(hasta);
+  const out: string[] = [];
+  for (let t = Math.max(utc(desde), fin - (tope - 1) * 86400000); t <= fin; t += 86400000) {
+    out.push(new Date(t).toISOString().slice(0, 10));
+  }
+  return out;
+}
+
+/**
+ * ¿SE PUEDE LEER EN EL CALENDARIO? Varios días —con uno solo manda el reloj,
+ * `diaEnElReloj`, salvo con `unDiaVale`: en un periodo consultado más largo, un
+ * estadístico que guarda un solo día va sobre el calendario del periodo, con los
+ * demás en blanco—, cada fecha «AAAA-MM-DD», cada hora 0..23 y cada instante una
+ * sola vez: dos líneas a la misma hora se apilarían en la misma x. Devuelve las
+ * horas en orden de fecha y hora, sin tocar lo recibido; o `null`, y se queda la
+ * colocación de siempre.
+ */
+export function horasEnElCalendario<T extends { fecha?: unknown; hora?: unknown }>(
+  puntos: T[], unDiaVale = false,
+): T[] | null {
+  if (!puntos.length) return null;
+  const claves: string[] = [];
+  for (const p of puntos) {
+    const f = String(p.fecha ?? '');
+    const h = p.hora == null || p.hora === '' ? NaN : Number(p.hora);
+    if (!FECHA_ISO.test(f) || !Number.isInteger(h) || h < 0 || h > 23) return null;
+    claves.push(`${f} ${String(h).padStart(2, '0')}`);
+  }
+  if (new Set(claves).size !== puntos.length) return null;
+  if (!unDiaVale && new Set(claves.map((c) => c.slice(0, 10))).size < 2) return null;
+  return puntos.map((p, i) => ({ p, c: claves[i] }))
+    .sort((a, b) => a.c.localeCompare(b.c)).map(({ p }) => p);
+}
+
+/** Borde izquierdo del día `dia` en un eje de `nDias` casillas. Admite fracciones. */
+export function xDeDia(dia: number, nDias: number, l: Lienzo = LIENZO): number {
+  const util = l.ancho - l.margen.i - l.margen.d;
+  return l.margen.i + (nDias > 0 ? (dia / nDias) * util : 0);
+}
+
+/**
+ * x de una hora dentro de su día del calendario. La hora cae en el CENTRO de su
+ * veinticuatroava parte: la 00 no se pega a la raya del día anterior ni la 23 a
+ * la del siguiente.
+ */
+export function xDeInstante(dia: number, hora: number, nDias: number, l: Lienzo = LIENZO): number {
+  return xDeDia(dia + (hora + 0.5) / 24, nDias, l);
+}
+
+/**
+ * Los tramos de días SEGUIDOS del calendario que no están en `con`, como pares
+ * de índices: `[[2, 11], [29, 30]]`. Es lo que se pinta en blanco rayado y se
+ * dice debajo de la gráfica.
+ */
+export function tramosSinDato(dias: string[], con: Set<string>): [number, number][] {
+  const out: [number, number][] = [];
+  let ini = -1;
+  dias.forEach((f, i) => {
+    if (!con.has(f)) { if (ini < 0) ini = i; } else if (ini >= 0) { out.push([ini, i - 1]); ini = -1; }
+  });
+  if (ini >= 0) out.push([ini, dias.length - 1]);
+  return out;
+}
+
+/** La letra de los números del eje de días, FIJA: encogerla a la casilla los volvía ilegibles. */
+export const LETRA_DEL_DIA = 9;
+
+/**
+ * Lo que ocupa un «30» a esa letra, más un respiro. MEDIDO por la revisión en
+ * Chrome con la letra de la aplicación: 1,31 veces la letra. La primera versión
+ * suponía 9 unidades y, con 61 a 78 días en el eje —justo «histórico completo»—,
+ * los números se montaban: se leía «10111213141516».
+ */
+const ANCHO_DE_UN_DIA = 1.31 * LETRA_DEL_DIA + 2;
+
+/**
+ * CÓMO SE ROTULAN LOS DÍAS (`99 §ADR-131`): TODOS, uno a uno, mientras quepan
+ * en una fila —así lo pidió él—; si no caben, TODOS igual pero en DOS filas
+ * alternas —el par arriba, el impar abajo—, que dobla el sitio de cada número; y
+ * solo si ni así, uno de cada `k`, con el 1 de cada mes siempre puesto.
+ */
+export function rotulosDeDias(dias: string[], l: Lienzo = LIENZO): { dia: number; fila: 0 | 1 }[] {
+  const n = dias.length;
+  if (!n) return [];
+  const casilla = (l.ancho - l.margen.i - l.margen.d) / n;
+  if (casilla >= ANCHO_DE_UN_DIA) return dias.map((_, i) => ({ dia: i, fila: 0 as const }));
+  if (2 * casilla >= ANCHO_DE_UN_DIA) return dias.map((_, i) => ({ dia: i, fila: (i % 2) as 0 | 1 }));
+  const k = Math.ceil(ANCHO_DE_UN_DIA / casilla);
+  const out: { dia: number; fila: 0 | 1 }[] = [];
+  dias.forEach((f, i) => {
+    const primero = f.slice(8) === '01';
+    const previo = out.length ? out[out.length - 1].dia : -Infinity;
+    if ((i - previo) * casilla >= ANCHO_DE_UN_DIA && (i % k === 0 || primero)) out.push({ dia: i, fila: 0 });
+    // El 1 del mes manda: si no cabe junto al anterior, lo SUSTITUYE.
+    else if (primero && out.length) out[out.length - 1] = { dia: i, fila: 0 };
+  });
+  return out;
+}
+
+/** Cuántas filas de números lleva el eje: dos cuando se alternan. */
+export function filasDeRotulos(dias: string[], l: Lienzo = LIENZO): 1 | 2 {
+  return rotulosDeDias(dias, l).some((r) => r.fila === 1) ? 2 : 1;
+}
+
+/** Los días que llevan número, en cualquiera de las dos filas. */
+export function diasRotulados(dias: string[], l: Lienzo = LIENZO): number[] {
+  return rotulosDeDias(dias, l).map((r) => r.dia);
+}
+
+export const MESES_CORTOS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+/**
+ * El rótulo del mes, donde empieza cada uno —y en el primer día del eje—, SOLO si
+ * cabe en su tramo: un mes que asoma dos días al principio se montaba sobre el
+ * siguiente («junjul»). Con poco sitio, sin año; sin sitio, no va.
+ */
+export function rotulosDeMes(dias: string[], l: Lienzo = LIENZO): { dia: number; texto: string }[] {
+  const n = dias.length;
+  if (!n) return [];
+  const casilla = (l.ancho - l.margen.i - l.margen.d) / n;
+  const inicios = dias.map((_, i) => i).filter((i) => i === 0 || dias[i].slice(8) === '01');
+  return inicios.map((i, k) => {
+    const ancho = ((k + 1 < inicios.length ? inicios[k + 1] : n) - i) * casilla;
+    const mes = MESES_CORTOS[Number(dias[i].slice(5, 7)) - 1] ?? '';
+    return { dia: i, texto: ancho >= 52 ? `${mes} ${dias[i].slice(0, 4)}` : ancho >= 20 ? mes : '' };
+  }).filter((r) => r.texto);
+}
+
+const DIAS_DE_LA_SEMANA = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+
+/** «2026-01-27» → «martes». */
+export function diaDeLaSemana(f: string): string {
+  if (!FECHA_ISO.test(f)) return '';
+  const [a, m, d] = f.split('-').map(Number);
+  return DIAS_DE_LA_SEMANA[new Date(Date.UTC(a, m - 1, d)).getUTCDay()];
+}
+
+/** «2026-01-27» → «27/01». */
+export const fechaCorta = (f: string): string => `${f.slice(8, 10)}/${f.slice(5, 7)}`;
+
+/** «2026-01-27» → «27/01/2026». */
+export const fechaLarga = (f: string): string => `${f.slice(8, 10)}/${f.slice(5, 7)}/${f.slice(0, 4)}`;
+
+// ── LAS OTRAS TRES GRÁFICAS, SOBRE EL MISMO CALENDARIO (`99 §ADR-131`) ───────
+//
+// ⚠️ La auditoría del eje encontró la misma raíz en tres gráficas más: la
+// tendencia diaria del histórico, la de un archivo recién cargado y el mapa de
+// calor «Por fecha» colocaban por PUESTO y pegaban los días que faltan. Hoy no
+// se dibujan con el dato del Ingeniero —su SCADA no trae porcentaje—, pero el
+// día que lo traiga mentirían igual que mentía su enero: el 2 pegado al 13.
+
+/**
+ * LOS DÍAS DEL EJE DE UNA GRÁFICA: del primero con dato al último, o hasta
+ * `hasta` si llega más lejos —el final del periodo consultado, que la pantalla ya
+ * recorta a hoy—. Lo que falte dentro, o al final, es una casilla más, en blanco.
+ *
+ * ⚠️ No empieza antes del primer día con dato: «histórico completo» se pide desde
+ * el año 2000, y eso no son veintiséis años de casillas vacías (el mismo criterio
+ * que el eje de las gráficas por fase). Si no cabe en `tope`, se quedan los `tope`
+ * días MÁS RECIENTES y `recortado` lo dice: la gráfica tiene que avisarlo.
+ */
+export function calendarioDeFechas(
+  fechas: Iterable<unknown>, hasta?: string | null, tope = 400,
+): { dias: string[]; recortado: boolean } {
+  const validas = [...fechas].map((f) => String(f ?? '')).filter((f) => FECHA_ISO.test(f)).sort();
+  if (!validas.length) return { dias: [], recortado: false };
+  const ini = validas[0];
+  let fin = validas[validas.length - 1];
+  if (hasta && FECHA_ISO.test(hasta) && hasta > fin) fin = hasta;
+  const [a, m, d] = fin.split('-').map(Number);
+  const cabe = Math.max(1, Math.floor(tope));
+  const primeroQueCabe = new Date(Date.UTC(a, m - 1, d) - (cabe - 1) * 86400000).toISOString().slice(0, 10);
+  const desde = ini < primeroQueCabe ? primeroQueCabe : ini;
+  return { dias: diasDelCalendario(desde, fin, cabe), recortado: desde > ini };
+}
+
+/**
+ * UN PUNTO POR DÍA DEL CALENDARIO: el de esa fecha, o `null` si ese día no hay.
+ * Es lo que hace que `tramosDeLinea` y `areasDeBanda` corten SOLAS en el día que
+ * falta: antes recibían solo los días con dato y el hueco no existía.
+ *
+ * Si una fecha sale dos veces se queda la de mayor `peso` —el peor del día, que es
+ * lo que se mira—; sin `peso`, la primera. Lo que no cae en `dias` no se coloca.
+ */
+export function serieEnElCalendario<T extends { fecha?: unknown }>(
+  serie: T[], dias: string[], peso: (p: T) => number | null | undefined = () => null,
+): (T | null)[] {
+  const pos = new Map(dias.map((f, i) => [f, i]));
+  const out: (T | null)[] = dias.map(() => null);
+  for (const p of serie) {
+    const i = pos.get(String(p.fecha ?? ''));
+    if (i == null) continue;
+    const previo = out[i];
+    if (previo == null || (peso(p) ?? -Infinity) > (peso(previo) ?? -Infinity)) out[i] = p;
+  }
+  return out;
+}
+
+/**
+ * De dónde a dónde va, en x, el tramo de días `a..b` de una serie DIARIA colocada
+ * con `x(i, n)`: media separación a cada lado de sus puntos, sin salirse del área.
+ * Es la franja que se raya en blanco donde no hubo medida, y su borde izquierdo es
+ * la frontera del día.
+ */
+export function franjaDeDias(a: number, b: number, n: number, l: Lienzo = LIENZO): [number, number] {
+  const util = l.ancho - l.margen.i - l.margen.d;
+  const medio = n > 1 ? util / (n - 1) / 2 : util / 2;
+  return [Math.max(l.margen.i, x(a, n, l) - medio), Math.min(l.ancho - l.margen.d, x(b, n, l) + medio)];
+}
+
+/** Un punto ya colocado de una traza del calendario. */
+export interface PuntoColocado { x: number; y: number; fecha: string; hora: number | null; pct: number }
+
+/**
+ * LAS TRAZAS DE UNA SERIE HORARIA SOBRE EL CALENDARIO (`99 §ADR-131`): cada
+ * lectura en SU instante —su día del eje y su hora dentro de él, `xDeInstante`—,
+ * no en su puesto en la lista. Devuelve los tramos SEGUIDOS: se corta donde falta
+ * una hora, donde falta un día y donde la lectura no trae porcentaje —un hueco
+ * nunca es un cero—. Un tramo de un solo punto se devuelve igual: la pantalla lo
+ * pinta como punto, o desaparecería.
+ *
+ * Se llama UNA VEZ POR LÍNEA: dos líneas en una sola traza se intercalaban y la
+ * recta iba de la una a la otra en el mismo instante.
+ *
+ * Una lectura sin hora es del DÍA entero: va al centro de su casilla y solo sigue
+ * el tramo con la del día siguiente, también sin hora. Una hora fuera de 0..23 no
+ * se coloca. Dos lecturas en el mismo instante se quedan en la mayor: el pico, no
+ * la media. Lo que no cae en `dias` no se coloca.
+ */
+export function trazosEnElCalendario(
+  puntos: { fecha?: unknown; hora?: unknown; pct?: number | null }[],
+  dias: string[], techo: number, l: Lienzo = LIENZO,
+): PuntoColocado[][] {
+  const pos = new Map(dias.map((f, i) => [f, i]));
+  const n = dias.length;
+  const porInstante = new Map<string, { d: number; h: number | null; abs: number; fecha: string; pct: number | null }>();
+  for (const p of puntos) {
+    const fecha = String(p.fecha ?? '');
+    const d = pos.get(fecha);
+    if (d == null) continue;
+    const sinHora = p.hora == null || p.hora === '';
+    const h = sinHora ? null : Number(p.hora);
+    if (h != null && (!Number.isInteger(h) || h < 0 || h > 23)) continue;
+    const pct = typeof p.pct === 'number' && Number.isFinite(p.pct) ? p.pct : null;
+    const clave = `${d}|${h ?? 'dia'}`;
+    const previo = porInstante.get(clave);
+    if (!previo || (pct != null && (previo.pct == null || pct > previo.pct))) {
+      porInstante.set(clave, { d, h, abs: d * 24 + (h ?? 11.5), fecha, pct });
+    }
+  }
+  const orden = [...porInstante.values()].sort((a, b) => a.abs - b.abs);
+  const tramos: PuntoColocado[][] = [];
+  let tramo: PuntoColocado[] = [];
+  let previo: (typeof orden)[number] | null = null;
+  for (const q of orden) {
+    const seguido = previo != null && ((previo.h != null && q.h != null && q.abs - previo.abs === 1)
+      || (previo.h == null && q.h == null && q.abs - previo.abs === 24));
+    if (q.pct == null || !seguido) { if (tramo.length) tramos.push(tramo); tramo = []; }
+    if (q.pct != null) {
+      tramo.push({
+        x: q.h == null ? xDeDia(q.d + 0.5, n, l) : xDeInstante(q.d, q.h, n, l),
+        y: y(q.pct, techo, l), fecha: q.fecha, hora: q.h, pct: q.pct,
+      });
+    }
+    previo = q;
+  }
+  if (tramo.length) tramos.push(tramo);
+  return tramos;
+}
+
+/**
+ * EL MAPA DE CALOR «POR FECHA», UNA COLUMNA POR DÍA DEL CALENDARIO (`99 §ADR-131`).
+ * `mapaDeCalor` del motor pone una columna por fecha PRESENTE: un día sin medida
+ * no dejaba columna y el 2 quedaba pegado al 13. Aquí cada día es su columna y la
+ * del día que falta sale vacía —`null`, que se pinta en blanco: no es un cero—.
+ *
+ * @returns las filas recolocadas, o `null` si alguna columna del motor no cae en
+ *   `dias` (una fecha que no es «AAAA-MM-DD», o un calendario recortado): entonces
+ *   se queda la colocación del motor, que al menos no pierde ninguna.
+ */
+export function celdasPorDia<C>(
+  columnas: readonly unknown[], celdas: readonly (readonly (C | null)[])[], dias: string[],
+): (C | null)[][] | null {
+  const enDias = new Set(dias);
+  if (!dias.length || !columnas.every((c) => enDias.has(String(c)))) return null;
+  const pos = new Map(columnas.map((c, j) => [String(c), j]));
+  return celdas.map((fila) => dias.map((f) => {
+    const j = pos.get(f);
+    return j == null ? null : (fila[j] ?? null);
+  }));
+}
+
+/**
+ * Los tramos sin dato, dichos para ir debajo de una gráfica: «03/01–12/01 · 30/01».
+ * Lo que no se midió se DICE, no solo se raya (`99 §ADR-131`).
+ */
+export function tramosDichos(dias: string[], tramos: [number, number][]): string {
+  return tramos.filter(([a, b]) => dias[a] != null && dias[b] != null)
+    .map(([a, b]) => (a === b ? fechaCorta(dias[a]) : `${fechaCorta(dias[a])}–${fechaCorta(dias[b])}`))
+    .join(' · ');
+}
+
 /** Coordenada Y de un porcentaje. Crece hacia arriba, que es como se lee. */
 export function y(pct: number, techo: number, l: Lienzo = LIENZO): number {
   const util = l.alto - l.margen.s - l.margen.b;

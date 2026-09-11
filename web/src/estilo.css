@@ -1901,3 +1901,17 @@ p.fund-vivo + .sello-calculo { margin-top: 5px; }
   background: var(--t-ambar);
   border: 1.5px dashed var(--acc);
 }
+
+/* §ADR-131 — el eje del calendario. La columna del día bajo el ratón —la que se
+   abriría al pulsar—, la pista de que se puede pulsar y la barra del día
+   elegido, fija arriba mientras se baja por las gráficas. Solo tokens. */
+.grafica-dia-sobre { fill: var(--acc-suave); pointer-events: none; }
+.grafica-pista { margin-left: auto; color: var(--acc); font-size: 12px; }
+.grafica-dia-barra {
+  position: sticky; top: 0; z-index: 5;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  background: var(--pnl-alto); border: 1px solid var(--acc-borde); border-radius: 10px;
+  padding: 8px 12px; margin: 0 0 10px; box-shadow: 0 2px 8px var(--acc-halo);
+}
+.grafica-dia-barra > span { font-size: 14px; }
+.grafica-dia-barra > .volver { margin-left: auto; }

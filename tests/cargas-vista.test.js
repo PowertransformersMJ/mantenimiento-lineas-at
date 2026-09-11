@@ -794,6 +794,115 @@ describe('un día se rotula hora a hora, sobre el reloj', () => {
 });
 
 // ════════════════════════════════════════════════════════════════════════════
+// EL EJE DEL CALENDARIO (`99 §ADR-131`)
+// ----------------------------------------------------------------------------
+// ⚠️ Orden del Ingeniero (2026-09-11), con su captura de enero: «necesito que el
+// rango en el eje x se aprecie cada día uno a uno». Del 3 al 12 no hay máximo,
+// y la línea unía el 2 con el 13 como si fueran días seguidos.
+// ════════════════════════════════════════════════════════════════════════════
+import {
+  diasDelCalendario, horasEnElCalendario, xDeDia, xDeInstante, tramosSinDato, diasRotulados, rotulosDeMes,
+  diaDeLaSemana, fechaCorta, fechaLarga, LIENZO as LIENZO_DEL_CALENDARIO,
+  rotulosDeDias, filasDeRotulos, LETRA_DEL_DIA,
+} from '../web/src/vistas/cargabilidadVista.ts';
+
+describe('varios días se leen sobre el calendario, uno a uno', () => {
+  test('los días del calendario, con los dos extremos y cruzando de mes', () => {
+    assert.deepEqual(diasDelCalendario('2026-01-30', '2026-02-02'),
+      ['2026-01-30', '2026-01-31', '2026-02-01', '2026-02-02']);
+    assert.equal(diasDelCalendario('2026-01-01', '2026-01-31').length, 31);
+    assert.deepEqual(diasDelCalendario('2026-02-02', '2026-01-30'), [], 'al revés, nada');
+    assert.deepEqual(diasDelCalendario('ayer', '2026-01-30'), []);
+    assert.equal(diasDelCalendario('2000-01-01', '2026-09-11').length, 400, 'con tope: nada de 9.700 casillas');
+  });
+
+  test('⚠️ su enero: el hueco del 3 al 12 y el del 30-31 se ven, y el 2 ya no toca al 13', () => {
+    const dias = diasDelCalendario('2026-01-01', '2026-01-31');
+    const con = new Set(dias.filter((f) => (f < '2026-01-03' || f > '2026-01-12') && f <= '2026-01-29'));
+    assert.deepEqual(tramosSinDato(dias, con), [[2, 11], [29, 30]]);
+    const casilla = xDeDia(1, 31) - xDeDia(0, 31);
+    assert.ok(Math.abs((xDeDia(12, 31) - xDeDia(2, 31)) - 10 * casilla) < 1e-9, 'entre el 2 y el 13 caben diez días');
+  });
+
+  test('cada hora cae dentro de su día, en el centro de su parte', () => {
+    assert.ok(xDeInstante(0, 0, 31) > xDeDia(0, 31));
+    assert.ok(xDeInstante(0, 23, 31) < xDeDia(1, 31));
+    const d4 = xDeDia(4, 31);
+    assert.ok(Math.abs(xDeInstante(4, 12, 31) - (d4 + (xDeDia(5, 31) - d4) * (12.5 / 24))) < 1e-9);
+    assert.equal(xDeDia(31, 31), LIENZO_DEL_CALENDARIO.ancho - LIENZO_DEL_CALENDARIO.margen.d);
+  });
+
+  test('las horas entran al calendario en orden; repetidas, sin hora o de un solo día, no', () => {
+    const h = (fecha, hora) => ({ fecha, hora });
+    const r = horasEnElCalendario([h('2026-01-13', 1), h('2026-01-02', 23), h('2026-01-13', 0)]);
+    assert.deepEqual(r.map((p) => `${p.fecha} ${p.hora}`), ['2026-01-02 23', '2026-01-13 0', '2026-01-13 1']);
+    assert.equal(horasEnElCalendario([h('2026-01-02', 1), h('2026-01-02', 1), h('2026-01-03', 0)]), null,
+      'dos líneas a la misma hora se apilarían');
+    assert.equal(horasEnElCalendario([h('2026-01-02', null), h('2026-01-03', 0)]), null);
+    assert.equal(horasEnElCalendario([h('2026-01-02', 0), h('2026-01-02', 1)]), null, 'un día: manda el reloj');
+    assert.equal(horasEnElCalendario([h('2026-01-02', 1), h('2026-01-02', 0)], true).length, 2,
+      'salvo en un periodo consultado más largo: ahí va en su casilla del calendario');
+    assert.equal(horasEnElCalendario([h('02/01/2026', 0), h('2026-01-03', 0)]), null);
+    assert.equal(horasEnElCalendario([]), null);
+  });
+
+  test('todos los días llevan su número: en una fila si caben, en DOS alternas si no', () => {
+    const mes = diasDelCalendario('2026-01-01', '2026-01-31');
+    assert.equal(diasRotulados(mes).length, 31);
+    assert.equal(filasDeRotulos(mes), 1);
+    // Lo que abre hoy «histórico completo»: del 30-06 a hoy, 74 días. En una fila
+    // se montaban —se leía «10111213»—; en dos alternas, caben todos.
+    const hoy = diasDelCalendario('2026-06-30', '2026-09-11');
+    assert.equal(diasRotulados(hoy).length, 74);
+    assert.equal(filasDeRotulos(hoy), 2);
+    assert.deepEqual(rotulosDeDias(hoy).slice(0, 3).map((r) => r.fila), [0, 1, 0]);
+  });
+
+  test('con más días de los que caben ni en dos filas, uno de cada k y el 1 de cada mes', () => {
+    const medio = diasDelCalendario('2026-01-01', '2026-06-30');   // 181
+    const r = diasRotulados(medio);
+    assert.ok(r.length < 181, `${r.length} rótulos en 181 días`);
+    for (const f of ['2026-02-01', '2026-03-01', '2026-04-01', '2026-05-01', '2026-06-01']) {
+      assert.ok(r.includes(medio.indexOf(f)), `falta el 1 de ${f}`);
+    }
+  });
+
+  test('⚠️ ningún número pisa al de al lado en su fila, de 20 a 300 días', () => {
+    // 1,31 × la letra + 2: lo que ocupa un «30», medido en Chrome por la revisión.
+    const ancho = 1.31 * LETRA_DEL_DIA + 2;
+    const util = LIENZO_DEL_CALENDARIO.ancho - LIENZO_DEL_CALENDARIO.margen.i - LIENZO_DEL_CALENDARIO.margen.d;
+    for (let n = 20; n <= 300; n += 1) {
+      const dias = diasDelCalendario('2026-01-01', '2027-12-31').slice(0, n);
+      const casilla = util / n;
+      for (const fila of [0, 1]) {
+        const en = rotulosDeDias(dias).filter((r) => r.fila === fila).map((r) => r.dia);
+        for (let k = 1; k < en.length; k += 1) {
+          assert.ok((en[k] - en[k - 1]) * casilla >= ancho - 1e-9, `${n} días: el ${en[k - 1]} y el ${en[k]} se pisan`);
+        }
+      }
+    }
+  });
+
+  test('con más de 400 días, el eje se queda con los MÁS RECIENTES', () => {
+    const d = diasDelCalendario('2025-06-01', '2026-09-11');
+    assert.equal(d.length, 400);
+    assert.equal(d[d.length - 1], '2026-09-11', 'quedarse con los viejos dejaba fuera el dato nuevo');
+  });
+
+  test('el mes se rotula solo si cabe: el que asoma un día no se monta sobre el siguiente', () => {
+    assert.deepEqual(rotulosDeMes(diasDelCalendario('2026-06-30', '2026-08-31')).map((x) => x.texto),
+      ['jul 2026', 'ago 2026']);
+  });
+
+  test('las fechas se dicen en español', () => {
+    assert.equal(diaDeLaSemana('2026-01-27'), 'martes');
+    assert.equal(fechaCorta('2026-01-27'), '27/01');
+    assert.equal(fechaLarga('2026-01-27'), '27/01/2026');
+    assert.equal(diaDeLaSemana('27/01/2026'), '');
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
 // EL CERO SE MARCA CUANDO SIGNIFICA ALGO (`99 §ADR-124`)
 // ----------------------------------------------------------------------------
 // ⚠️ En una magnitud con signo el cero no es una cifra más: es **dónde se
@@ -832,5 +941,151 @@ describe('las marcas del eje Y de una magnitud libre', () => {
   test('un rango degenerado no revienta', () => {
     assert.deepEqual(marcasDeRango(5, 5), [{ v: 5, cero: false }]);
     assert.deepEqual(marcasDeRango(0, 0), [{ v: 0, cero: true }]);
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// LAS OTRAS TRES GRÁFICAS, SOBRE EL CALENDARIO (`99 §ADR-131`)
+// ----------------------------------------------------------------------------
+// ⚠️ La tendencia diaria del histórico, la de un archivo recién cargado y el
+// mapa de calor «Por fecha» colocaban por PUESTO: el día que faltaba no dejaba
+// hueco y el 2 quedaba pegado al 13. Hoy no se dibujan con el dato del Ingeniero
+// —su SCADA no trae porcentaje—; el día que lo traiga, no pueden mentir.
+// Datos sintéticos (LX-001 / LX-002): nunca dato real.
+// ════════════════════════════════════════════════════════════════════════════
+import {
+  calendarioDeFechas, serieEnElCalendario, franjaDeDias, trazosEnElCalendario, celdasPorDia, tramosDichos,
+  tramosDeLinea as tramosDeLineaCal, areasDeBanda as areasDeBandaCal, x as xPorPuesto,
+} from '../web/src/vistas/cargabilidadVista.ts';
+import { serieDiaria as serieDiariaDelMotor, mapaDeCalor as mapaDeCalorDelMotor } from '../nucleo/cargabilidad.js';
+
+describe('la tendencia diaria, la de un archivo y el mapa de calor, sobre el calendario', () => {
+  test('el eje va del primer día con dato al final del periodo, sin empezar antes', () => {
+    const r = calendarioDeFechas(['2026-01-13', '2026-01-02', 'basura', null], '2026-01-20');
+    assert.equal(r.dias[0], '2026-01-02');
+    assert.equal(r.dias.at(-1), '2026-01-20', 'lo que falta al final también se ve');
+    assert.equal(r.dias.length, 19);
+    assert.equal(r.recortado, false);
+    assert.deepEqual(calendarioDeFechas(['2026-01-02', '2026-01-04']).dias,
+      ['2026-01-02', '2026-01-03', '2026-01-04'], 'sin periodo, hasta el último con dato');
+    assert.equal(calendarioDeFechas(['2026-01-02', '2026-01-04'], '2026-01-03').dias.at(-1), '2026-01-04',
+      'un final anterior al último dato no lo deja fuera');
+    assert.deepEqual(calendarioDeFechas([]), { dias: [], recortado: false });
+    assert.deepEqual(calendarioDeFechas(['02/01/2026']), { dias: [], recortado: false });
+  });
+
+  test('si no cabe, se quedan los días MÁS RECIENTES y se dice', () => {
+    const r = calendarioDeFechas(['2024-01-01', '2026-09-11'], null, 30);
+    assert.equal(r.dias.length, 30);
+    assert.equal(r.dias[0], '2026-08-13');
+    assert.equal(r.dias.at(-1), '2026-09-11');
+    assert.equal(r.recortado, true);
+  });
+
+  test('⚠️ la tendencia diaria: el día sin resumen es null y la línea se parte en DOS', () => {
+    // Del 3 al 12 de enero no hay resumen.
+    const dia = (fecha, max) => ({
+      fecha, linea: 'LX-001', maxima_pct: max, promedio_pct: max - 10, minima_pct: max - 20, horasConMedida: 24,
+    });
+    const resumenes = [dia('2026-01-01', 60), dia('2026-01-02', 62), dia('2026-01-13', 70), dia('2026-01-14', 71)];
+    const serie = serieDiariaDelMotor(resumenes, null);
+    // Por puesto, como antes: una sola línea que unía el 2 con el 13.
+    assert.equal(tramosDeLineaCal(serie.map((p) => ({ pct: p.maxima_pct })), 100).length, 1);
+
+    const { dias } = calendarioDeFechas(resumenes.map((s) => s.fecha));
+    assert.equal(dias.length, 14);
+    const enDias = serieEnElCalendario(serie, dias, (p) => p.maxima_pct);
+    assert.equal(enDias.filter((p) => p == null).length, 10, 'del 3 al 12, diez huecos');
+    assert.equal(tramosDeLineaCal(enDias.map((p) => ({ pct: p?.maxima_pct ?? null })), 100).length, 2,
+      'el 2 ya no se une con el 13');
+    assert.equal(areasDeBandaCal(
+      enDias.map((p) => ({ alto: p?.maxima_pct ?? null, bajo: p?.minima_pct ?? null })), 100).length, 2,
+    'y la franja tampoco rellena el hueco');
+  });
+
+  test('dos del mismo día: se queda el peor; lo que no cae en el calendario no se coloca', () => {
+    const dias = ['2026-01-01', '2026-01-02'];
+    const r = serieEnElCalendario(
+      [{ fecha: '2026-01-01', v: 40 }, { fecha: '2026-01-01', v: 90 }, { fecha: '2026-01-05', v: 99 }], dias, (p) => p.v);
+    assert.equal(r.length, 2);
+    assert.equal(r[0].v, 90);
+    assert.equal(r[1], null);
+    const sinPeso = serieEnElCalendario([{ fecha: '2026-01-01', v: 1 }, { fecha: '2026-01-01', v: 2 }], dias);
+    assert.equal(sinPeso[0].v, 1, 'sin peso, la primera');
+  });
+
+  test('la franja rayada de unos días cubre sus puntos y no se sale del área', () => {
+    const n = 14;
+    const [x0, x1] = franjaDeDias(2, 11, n);
+    const paso = xPorPuesto(1, n) - xPorPuesto(0, n);
+    assert.ok(Math.abs(x0 - (xPorPuesto(2, n) - paso / 2)) < 1e-9);
+    assert.ok(Math.abs(x1 - (xPorPuesto(11, n) + paso / 2)) < 1e-9);
+    assert.equal(franjaDeDias(0, 0, n)[0], LIENZO_DEL_CALENDARIO.margen.i);
+    assert.equal(franjaDeDias(13, 13, n)[1], LIENZO_DEL_CALENDARIO.ancho - LIENZO_DEL_CALENDARIO.margen.d);
+  });
+
+  test('⚠️ la de un archivo: cada lectura en su instante, en orden, cortada donde falta una hora o un día', () => {
+    const dias = diasDelCalendario('2026-01-01', '2026-01-03');
+    const h = (fecha, hora, pct) => ({ fecha, hora, pct });
+    // El 01/01 falta la hora 04; el 02/01 no hay nada; el 03/01 la hora 02 no trae porcentaje.
+    const tramos = trazosEnElCalendario([
+      h('2026-01-01', 1, 50), h('2026-01-01', 0, 48), h('2026-01-01', 2, 52), h('2026-01-01', 3, 55),
+      h('2026-01-01', 5, 60), h('2026-01-01', 6, 61),
+      h('2026-01-03', 0, 40), h('2026-01-03', 1, 41), h('2026-01-03', 2, null), h('2026-01-03', 3, 45),
+    ], dias, 100);
+    assert.deepEqual(tramos.map((t) => t.length), [4, 2, 2, 1]);
+    assert.deepEqual(tramos[0].map((p) => p.hora), [0, 1, 2, 3], 'en orden de hora, no del archivo');
+    assert.equal(tramos[0][0].x, xDeInstante(0, 0, 3));
+    assert.equal(tramos[2][0].x, xDeInstante(2, 0, 3), 'el 03/01 en su casilla: el 02 queda en medio, vacío');
+    assert.ok(tramos.flat().every((p) => typeof p.pct === 'number'), 'un hueco nunca es un cero');
+  });
+
+  test('dos líneas NO se intercalan; dos lecturas en el mismo instante, el pico', () => {
+    const dias = ['2026-01-01', '2026-01-02'];
+    const a = trazosEnElCalendario([{ fecha: '2026-01-01', hora: 0, pct: 90 }, { fecha: '2026-01-01', hora: 1, pct: 91 }], dias, 100);
+    const b = trazosEnElCalendario([{ fecha: '2026-01-01', hora: 0, pct: 30 }, { fecha: '2026-01-01', hora: 1, pct: 31 }], dias, 100);
+    assert.equal(a[0][0].x, b[0][0].x, 'la misma hora, la misma x: no una detrás de otra');
+    const rep = trazosEnElCalendario([
+      { fecha: '2026-01-01', hora: 0, pct: 30 }, { fecha: '2026-01-01', hora: 0, pct: 80 },
+      { fecha: '2026-01-01', hora: 0, pct: null },
+    ], dias, 100);
+    assert.equal(rep.length, 1);
+    assert.equal(rep[0][0].pct, 80);
+  });
+
+  test('una lectura sin hora es del día: al centro de su casilla, y sigue solo con el día siguiente', () => {
+    const dias = diasDelCalendario('2026-01-01', '2026-01-04');
+    const t = trazosEnElCalendario([
+      { fecha: '2026-01-01', hora: null, pct: 50 }, { fecha: '2026-01-02', hora: '', pct: 55 },
+      { fecha: '2026-01-04', hora: null, pct: 60 }, { fecha: '2026-01-04', hora: 25, pct: 99 },
+    ], dias, 100);
+    assert.deepEqual(t.map((tr) => tr.length), [2, 1]);
+    assert.equal(t[0][0].x, xDeDia(0.5, 4));
+    assert.ok(t.flat().every((p) => p.pct !== 99), 'una hora fuera de 0..23 no se coloca');
+  });
+
+  test('⚠️ el mapa de calor por fecha: una columna por día, en blanco la que falta', () => {
+    const r = (fecha, hora, linea, pct) => ({ fecha, hora, linea, cargabilidad_pct: pct });
+    const registros = [r('2026-01-01', 0, 'LX-001', 50), r('2026-01-02', 0, 'LX-001', 60), r('2026-01-05', 0, 'LX-002', 95)];
+    const m = mapaDeCalorDelMotor(registros, 'fecha');
+    assert.deepEqual(m.columnas, ['2026-01-01', '2026-01-02', '2026-01-05'], 'el motor: solo las presentes');
+    const { dias } = calendarioDeFechas(registros.map((x_) => x_.fecha));
+    const celdas = celdasPorDia(m.columnas, m.celdas, dias);
+    assert.equal(celdas[0].length, 5);
+    assert.deepEqual(celdas[0].map((c) => c?.pct ?? null), [50, 60, null, null, null]);
+    assert.deepEqual(celdas[1].map((c) => c?.pct ?? null), [null, null, null, null, 95]);
+    const conAlguna = new Set(dias.filter((_, j) => celdas.some((f) => f[j] != null)));
+    assert.deepEqual(tramosSinDato(dias, conAlguna), [[2, 3]], 'el 3 y el 4, en blanco');
+  });
+
+  test('si alguna columna no cae en el calendario, se queda la del motor', () => {
+    assert.equal(celdasPorDia(['2026-01-01', 'sin fecha'], [[1, 2]], ['2026-01-01']), null);
+    assert.equal(celdasPorDia(['2026-01-01'], [[1]], []), null);
+  });
+
+  test('lo que falta se dice, en fechas cortas', () => {
+    const dias = diasDelCalendario('2026-01-01', '2026-01-31');
+    assert.equal(tramosDichos(dias, [[2, 11], [29, 29]]), '03/01–12/01 · 30/01');
+    assert.equal(tramosDichos(dias, []), '');
   });
 });

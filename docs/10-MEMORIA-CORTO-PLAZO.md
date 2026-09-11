@@ -18,7 +18,7 @@ Todo EN PRODUCCIÓN y **verificado en vivo con su sesión**.
    prom 207 · inst 208 · mín 195). **Mayo NO se descargó**; faltan 30-31/01, 01/02, 12/08 y el MÁXIMO
    del 3 al 12/01 (`TODO-101`). Apartado hasta que él decida: el 20-04 congelado y un archivo de 2025
    (`TODO-103`). Pico del máximo **588 A el 05-08 = 82 %**, con forma de EVENTO; la carga real más
-   alta, **502 A el 22-07 (70 %)**. 📊 Un filtro por gráfica, indicadores sobre lo guardado, sin tablas; un día, hora a hora (`§ADR-122..130`).
+   alta, **502 A el 22-07 (70 %)**. 📊 Un filtro por gráfica, indicadores sobre lo guardado, sin tablas; eje día a día, y un día abre sus 24 h en todas (`§ADR-122..131`).
    ⚠️ Sin capacidad nominal no hay porcentaje; en **P y Q, negativas, el «max» es el de MENOS carga**.
    ⚠️ Falta lo SUYO: ratificar los **718 A** (`TODO-95/93`).
 1. **EL CUELLO DE BOTELLA NO ES CÓDIGO: ES EL DATO**: 0 de 26 con veredicto (`TODO-57`).
@@ -76,7 +76,7 @@ Todo EN PRODUCCIÓN y **verificado en vivo con su sesión**.
 | **TODO-33** | **50 % o 25 % de RTS** como tope de tiro. Ya no hay dos dueños (`§ADR-051`): falta decidir CUÁL rige | Factor 2 sobre un dictamen |
 | **TODO-98** 🔴 **MÍA** | **El recibo de la contraseña se auto-firma** desde la consola y **se salta el muro del cambio obligatorio**; con ello `ultimoAcceso` auto-declarado. Crudo: `2026-09-06-espectador-solo-lectura/` | Un muro que se salta no es un muro |
 | **TODO-95/93 · 101** 🔴 ⬅️ **SUYA, URGENTE** | Tres cosas, todas del mismo veredicto. ① **La FICHA del fabricante del conductor** y ② **ratificar la condición** de ampacidad (hoy ADOPTADA: 718 A); sin ellas se publica pero **NO SE FIRMA** (`§ADR-098/099`). ③ **`TODO-101`: re-exportar del 3 al 12 de enero con el MÁXIMO** — su exportación de esos diez días no lo trae, y es el estadístico que dicta el dictamen térmico | 718 A hoy · **611 A** a 75 °C · y diez días de enero **sin pico** |
-| **TODO-103** ⬅️ **SUYA** | **Lo apartado de ene-ago** (`§ADR-128`): ① el **20-04** 7-19 h, congelado «Not Renewed»: ¿fuera, sin esas horas o tal cual? ② re-bajar **MAYO** ③ el archivo de **2025** ④ ¿fallas o maniobras el 24-02, 20-06 y 05-08? ⑤ la maqueta del EJE DE DÍAS: hoy los días sin dato se pegan (`§ADR-130`) | Nada se carga sin su decisión |
+| **TODO-103** ⬅️ **SUYA** | **Lo apartado de ene-ago** (`§ADR-128`): ① el **20-04** 7-19 h, congelado «Not Renewed»: ¿fuera, sin esas horas o tal cual? ② re-bajar **MAYO** ③ el archivo de **2025** ④ ¿fallas o maniobras el 24-02, 20-06 y 05-08? | Nada se carga sin su decisión |
 | **TODO-100** 🔴 **MÍA** | El lector no abre los `.xls`: el paso 0 ya es herramienta (`normalizar-xls`); falta que lo haga la pantalla | Fallar oscuro se lee «dato malo» |
 | **TODO-44/34** | Alerta de gasto en Cloudflare · **nada tiene copia**: la bóveda sin remoto **y Firestore sin punto de recuperación** (`§ADR-089`) | Un fallo de disco se lleva la bóveda; un comando, la base |
 | **TODO-61/54/68** | ¿App Check? · ¿linter de frescura? · ¿cazar un ADR repetido o citado sin escribir? Las dos últimas tocan el KERNEL | Las TRES son TUYAS |
