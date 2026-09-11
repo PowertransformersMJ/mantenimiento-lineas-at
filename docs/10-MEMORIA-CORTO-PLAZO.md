@@ -12,21 +12,14 @@ Todo EN PRODUCCIÓN y **verificado en vivo con su sesión**.
 > `§ADR-049/050`—. La fase viva es **la página**: no eligió entre ② **se lee** y ③ **no se cae**.
 
 ## 🛑 LO PRIMERO AL RETOMAR
-0. 🆕 **PARÁMETROS ELÉCTRICOS** (antes «cargabilidad»; `§ADR-088..125`). Se suelta el SCADA tal
-   como sale y salen todas las magnitudes con sus fases y el veredicto contra **ampacidad**.
-   ✅ **07-09: EN PRODUCCIÓN** (`§ADR-108..125`). **31 días** cargados: **29 de enero (01 al 29)**
-   más un 31-05 y un 29-07 que venían mal etiquetados — **enero NO está entero**. 99 documentos y
-   cuatro estadísticos (máximo · promedio · instantáneo · **mínimo**). Pico **398 A el 27-01 a las
-   16:00 = 55 % de la ampacidad**. Se elige la FRANJA arriba y salen las cinco gráficas —tensión,
-   corriente, activa, reactiva y aparente— sobre todo lo elegido, **sin un clic**.
-   🔴 **El MÁXIMO —el que dicta el veredicto térmico— FALTA del 3 al 12 de enero**: 20 días con
-   máximo de 31. El hueco viene de SU exportación, no del procesado (`TODO-101`).
-   📊 **Y una gráfica se lee SOLA** (`§ADR-122/123/124`): unidad rotulando el EJE · franja, lecturas
-   y paso dichos · leyenda de cada fase · el tiempo en HORAS o DÍAS según el rango · cuatro marcas
-   en el vertical y el cero **solo si cae dentro** · y la corriente más alta que las otras cuatro,
-   porque es la ÚNICA que dictamina. Una gráfica que necesita el pie **no se pega en un informe**.
-   ⚠️ Sin capacidad nominal no hay porcentaje. En **P y Q, negativas, el «max» es el de MENOS
-   carga**. Y sus carpetas «30Enero»/«29Enero» traían julio y mayo: mandó la fecha del DATO.
+0. 🆕 **PARÁMETROS ELÉCTRICOS** (antes «cargabilidad»; `§ADR-088..128`). El SCADA entra por los
+   pasos 0·1·2 de `20`, en lotes de ≤100 archivos, y salen todas las magnitudes con sus fases.
+   ✅ **11-09: ENERO-AGOSTO EN PRODUCCIÓN**, verificado EN FRÍO (`§ADR-128`): **208 días** (máx 197 ·
+   prom 207 · inst 208 · mín 195). **Mayo NO se descargó**; faltan 30-31/01, 01/02, 12/08 y el MÁXIMO
+   del 3 al 12/01 (`TODO-101`). Apartado hasta que él decida: el 20-04 congelado y un archivo de 2025
+   (`TODO-103`). Pico del máximo **588 A el 05-08 = 82 %**, con forma de EVENTO; la carga real más
+   alta, **502 A el 22-07 (70 %)**. 📊 Las gráficas se leen SOLAS (`§ADR-122/123/124`).
+   ⚠️ Sin capacidad nominal no hay porcentaje; en **P y Q, negativas, el «max» es el de MENOS carga**.
    ⚠️ Falta lo SUYO: ratificar los **718 A** (`TODO-95/93`).
 1. **EL CUELLO DE BOTELLA NO ES CÓDIGO: ES EL DATO**: 0 de 26 con veredicto (`TODO-57`).
 2. **EL PATRÓN QUE LO DOMINA TODO:** *«arreglado donde se veía, vivo en la pieza hermana»* —
@@ -83,7 +76,8 @@ Todo EN PRODUCCIÓN y **verificado en vivo con su sesión**.
 | **TODO-33** | **50 % o 25 % de RTS** como tope de tiro. Ya no hay dos dueños (`§ADR-051`): falta decidir CUÁL rige | Factor 2 sobre un dictamen |
 | **TODO-98** 🔴 **MÍA** | **El recibo de la contraseña se auto-firma** desde la consola y **se salta el muro del cambio obligatorio**; con ello `ultimoAcceso` auto-declarado. Crudo: `2026-09-06-espectador-solo-lectura/` | Un muro que se salta no es un muro |
 | **TODO-95/93 · 101** 🔴 ⬅️ **SUYA, URGENTE** | Tres cosas, todas del mismo veredicto. ① **La FICHA del fabricante del conductor** y ② **ratificar la condición** de ampacidad (hoy ADOPTADA: 718 A); sin ellas se publica pero **NO SE FIRMA** (`§ADR-098/099`). ③ **`TODO-101`: re-exportar del 3 al 12 de enero con el MÁXIMO** — su exportación de esos diez días no lo trae, y es el estadístico que dicta el dictamen térmico | 718 A hoy · **611 A** a 75 °C · y diez días de enero **sin pico** |
-| **TODO-100** 🔴 **MÍA** | Los `.xls` de SCADA no los abre el lector (se convierten a mano) | Fallar oscuro se lee «dato malo» |
+| **TODO-103** ⬅️ **SUYA** | **Lo apartado de ene-ago** (`§ADR-128`): ① el **20-04** 7-19 h, congelado «Not Renewed»: ¿fuera, sin esas horas o tal cual? ② re-bajar **MAYO** ③ el archivo de **2025** ④ ¿fallas o maniobras el 24-02, 20-06 y 05-08? ⑤ **el preview** sin tablas | Nada se carga ni se implementa sin su decisión |
+| **TODO-100** 🔴 **MÍA** | El lector no abre los `.xls`: el paso 0 ya es herramienta (`normalizar-xls`); falta que lo haga la pantalla | Fallar oscuro se lee «dato malo» |
 | **TODO-44/34** | Alerta de gasto en Cloudflare · **nada tiene copia**: la bóveda sin remoto **y Firestore sin punto de recuperación** (`§ADR-089`) | Un fallo de disco se lleva la bóveda; un comando, la base |
 | **TODO-61/54/68** | ¿App Check? · ¿linter de frescura? · ¿cazar un ADR repetido o citado sin escribir? Las dos últimas tocan el KERNEL | Las TRES son TUYAS |
 | **TODO-76** | **¿Se guarda si un apoyo es autosoportado / retenido?** No cabe en el modelo: iría por APOYO (26 declaraciones) | Cierra media incógnita de la capacidad longitudinal |
@@ -93,7 +87,7 @@ Todo EN PRODUCCIÓN y **verificado en vivo con su sesión**.
 
 | # | Qué | Dónde está el plan |
 |---|---|---|
-| **TODO-102** 🔴 | ① **FEBRERO**: la pantalla lo lee limpio (10-09); falta GUARDARLO con su sesión · ② gráficas HERMANAS y barras del Atlas, con las reglas viejas · ④ sondas 3·4·7 (`§ADR-121`) · ⑤ los ceros al final miran solo el día 1 | `99 §ADR-125/126/127` |
+| **TODO-102** 🔴 | ① la pantalla: >100 archivos da un error crudo y el sello de calidad no se enseña (`§ADR-128`) · ② gráficas HERMANAS y barras del Atlas, con las reglas viejas · ④ sondas 3·4·7 (`§ADR-121`) · ⑤ los ceros al final miran solo el día 1 | `99 §ADR-125..128` |
 | **TODO-70** | **Cerrar la ola de la ficha.** Queda SOLO ③: el gesto «Confirmo este dato», que exige su propio molde | `99 §ADR-030/032/033/038` |
 | **TODO-66** | **Que una acción pruebe que FUNCIONÓ**, no solo que se hizo: verificación posterior con fecha | `99 §ADR-026` |
 | **TODO-50** | **Blindaje**: ✅ F1 · ✅ F2a · ✅ F3 · **2b Google**: ✅ código · ✅ consola | `99 §ADR-019/024/100` |

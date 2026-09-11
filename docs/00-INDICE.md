@@ -64,7 +64,8 @@ vive en `10 · TODO-79`, y los **relevos de sesión** `2026-08-22/24/26-relevo-c
 | «cargué el mes y la pantalla no enseña NADA», «dice *no existen registros* teniéndolos» | `99 §ADR-115/116` — dos causas distintas: lo guardado no se dibujaba, y la **ventana por defecto** (últimos 7 días) caía fuera del único dato que había |
 | «el acuse dijo *guardado* y solo entró una parte» | `99 §ADR-119` — escribir de menos **no da error en ninguna capa**: se cuenta la entrada contra la salida |
 | «no veo la potencia activa / reactiva», «solo salen las que tienen fases» | `99 §ADR-118` — la magnitud sin fases no es invisible: se dibuja su total de bahía |
-| «¿cómo subo un MES entero de SCADA?» | `20` (`extraer-bahia.mjs` → `juntar-por-dia.mjs`, en ese orden) + `99 §ADR-117/119/126`. ⚠️ El día lo declara el EJE DE TIEMPO del dato, no el nombre del archivo · los «(1)» son el mismo dato bajado dos veces: el paso 2 lo escribe UNA vez y se niega si no es idéntico |
+| «No se pudo guardar: … `too_big` … `maximum: 100`» | `99 §ADR-128` — el molde admite **100 archivos por carga**; valida ANTES de escribir, así que no entró nada: se carga en dos lotes |
+| «¿cómo subo un MES entero de SCADA?» | `20` (`normalizar-xls.mjs` si hay `.xls` → `extraer-bahia.mjs` → `juntar-por-dia.mjs`, en ese orden; lotes de ≤100) + `99 §ADR-117/119/126/128`. ⚠️ El día lo declara el EJE DE TIEMPO del dato, no el nombre del archivo · los «(1)» son el mismo dato bajado dos veces: el paso 2 lo escribe UNA vez y se niega si no es idéntico |
 | «esta gráfica no se entiende: qué fase es cada línea, en qué unidad, qué franja abarca» | `99 §ADR-122/123/124` — una gráfica que necesita el párrafo de debajo **no se puede pegar en un informe** |
 | «¿por qué se eligió este stack y no el otro?» | `99` |
 | «¿por qué la prueba espera exactamente este número?» | `40 §8` y `tests/nucleo.test.js` |
@@ -221,6 +222,7 @@ vive en `10 · TODO-79`, y los **relevos de sesión** `2026-08-22/24/26-relevo-c
 | `ADR-125` | 2026-09-10 | Documentarlo todo: la fuga que vivía en el propio guardián, el máximo que falta diez días, y un cerebro sin sitio | `research-archive/2026-09-10-auditoria-documental-total/` |
 | `ADR-126` | 2026-09-10 | Febrero: el paso 2 lee la fecha como la pantalla, escribe una vez lo bajado dos veces y nombra lo que aparta | `research-archive/2026-09-10-febrero-scada/` |
 | `ADR-127` | 2026-09-10 | El cargador de SCADA decide sobre la carga ENTERA: fases de más en cualquier día, asignación por etiqueta, la fecha del mes y el estadístico por archivo | `research-archive/2026-09-10-cargador-carga-entera/` |
+| `ADR-128` | 2026-09-11 | Enero a agosto en producción: el paso 0 se vuelve herramienta, 100 archivos por carga y lo que no es medida se aparta | `research-archive/2026-09-10-ene-ago-scada/` |
 
 > Toda decisión cara de revertir entra aquí con su ADR y su crudo enlazado. Si hubo comité o consejo
 > externo y el crudo no está archivado, la tarea **no está cerrada** (`CLAUDE.md §G.4`).

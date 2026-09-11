@@ -10444,3 +10444,69 @@ mirando SOLO el primer día, o SOLO un archivo, aplicada después a todos**. Es 
 salida y la verificación en producción).
 
 ---
+## ADR-128 · 2026-09-11 · Enero a agosto en producción: el paso 0 se vuelve herramienta, 100 archivos por carga y lo que no es medida se aparta
+
+**Deliberación:** orden del Ingeniero —*«he cargado los meses enero… agosto para que los proceses y esos
+valores se puedan apreciar en LN-627… ten en cuenta los errores… para que no sean repetidos o ilustres
+información basura o inventada»*—. Tres verificadores Opus independientes: recuento desde el crudo por dos
+métodos, fidelidad byte a byte y el paso 0 por dos vías ajenas → `research-archive/2026-09-10-ene-ago-scada/`.
+**Estado:** ✅ **EN PRODUCCIÓN y verificado EN FRÍO** con su sesión (recarga con otra dirección, página
+nueva): **208 días** —máximo 197 · promedio 207 · instantáneo 208 · mínimo 195—, el más reciente el
+31-08, exactos contra el ensayo · **NO revisada externamente**.
+
+### Lo que salió al MEDIR
+
+| Hallazgo | Por qué importa |
+|---|---|
+| **Mayo no se descargó**: su carpeta trae dos avisos del portal («This file cannot be downloaded») | Ni un dato de mayo, y no se inventa ninguno |
+| **El paso 0 de enero quedó a medias el 07-09**: 14 `.xls`, solo 2 convertidos. La activa promedio del 2 al 12 y la reactiva del 2 nunca entraron | Es `33 · L-84` por la puerta manual que `§ADR-125` ya temía |
+| LibreOffice **no** reproduce el CSV aceptado: eje `01/01/2026 00:00:00`, decimal con coma entre comillas, LF | Tal cual, el paso 2 lo habría apartado. Normalizando SOLO la forma: idéntico byte a byte a los dos aceptados, y 1.066.464 valores iguales por dos vías ajenas (una, un lector BIFF escrito desde cero) |
+| 55 archivos en la carpeta de otro mes (julio en enero; enero en junio y agosto; uno de **2025** en marzo) · 166 filas repetidas idénticas · **0 choques** | Cada una a su fecha real, una sola vez |
+| **20-04, 7-19 h**: las ocho señales con sello `Not Renewed` y valores **congelados** (199 A doce horas) | No es medida, y **la pantalla no enseña el sello**: se aparta y se le pregunta |
+| Tres **salidas de la línea** —24-04 7-8 h · 02-06 15-16 h · 22-07 21 h → 23-07 1 h—: corriente y tensión a 0 con sello `Actual` | Medidas reales: se cargan |
+| Picos con forma de **evento** —24-02 13 h (550 A) · 20-06 20 h (420 A) · **05-08 15 h (588 A = 82 %)**—: una fase dispara y el promedio de esa hora no | El máximo dicta y no se sustituye: se le pregunta. La carga real más alta, **502 A el 22-07 (70 %)** |
+| **El molde admite 100 nombres de archivo por carga** (`archivos.max(100)`): febrero entero (108) falló con el error crudo de validación | Valida ANTES de escribir (`cargabilidadRepo.ts:126` frente a `:133`): **cero escrito**, comprobado en frío. Y el ensayo no lo vio porque no pasaba por el molde (`30 · L-87`) |
+
+### Decisión
+
+1. **El paso 0 es `herramientas/normalizar-xls.mjs`**: LibreOffice y el normalizador, solo forma; un eje
+   que no entiende no se escribe. Con prueba. Cierra la mitad de `TODO-100`.
+2. **Se carga en lotes de ≤100 archivos**, por mitades de mes y con los cuatro estadísticos de cada día
+   juntos: **13 lotes**. Cada acuse se compara con un ensayo que ahora valida CADA documento con el
+   MOLDE real —carga, día y resumen, con los identificadores del molde—. Los 13 cuadraron.
+3. **De enero solo se recargan los 11 promedios** que ganan la activa: los otros 83 días guardados eran
+   idénticos y no se reescriben. El acuse lo dijo: 11 reemplazados.
+4. **Se apartan sin cargar**: el 20-04 (congelado), el 22-06-2025 (fuera del periodo) y el 31-05 suelto
+   (ya estaba, idéntico). Todo lo demás entra tal cual, eventos y salidas incluidos.
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| Subir el tope del molde por encima de 100 | Toca el contrato y las reglas en plena carga; es de la pantalla y va en su tarea (`TODO-102 ①`) |
+| Cargar el 20-04 tal cual | Trece horas repetidas del historiador se leerían como medida |
+| Borrar las horas congeladas y cargar el resto | Es editar su dato: lo decide él |
+| Usar el CSV de LibreOffice sin normalizar | Mismos dígitos, otra forma: el paso 2 lo habría apartado |
+| Recargar enero entero | 83 días idénticos reescritos para nada |
+
+### Supuestos que deben ser ciertos — y la señal que diría que dejaron de serlo
+
+| Supuesto | Señal |
+|---|---|
+| Su SCADA marca con `Actual` lo medido y con otro sello lo que no | Un sello nuevo: se aparta y se pregunta |
+| LibreOffice exporta el eje como `dd/mm/aaaa hh:mm:00` | `normalizar-xls` sale con error y no escribe |
+| Un mes cabe en dos lotes de ≤100 | Más señales por día: tres lotes |
+
+### Consecuencias
+
+- `2.694` pruebas en verde (7 nuevas del paso 0), molde verificado. Motor sin cambios.
+- ⚠️ **Vivo en la pantalla** (`TODO-102 ①`): más de 100 archivos da el error crudo de validación, y el
+  sello de calidad no se enseña.
+- ⚠️ **Suyo** (`TODO-103`): el 20-04, re-bajar mayo, el archivo de 2025 y leer los tres picos-evento.
+- **Pedido nuevo, en preview y SIN implementar**: cada gráfica con su filtro de estadístico y sin tablas
+  (maqueta local con su dato real, fuera de todo git). Espera su visto bueno (`TODO-103 ⑤`).
+
+**Crudo de respaldo:** `research-archive/2026-09-10-ene-ago-scada/` (verificadores, inventario, el
+normalizador validado, el ensayo con molde, lo que cambiaba frente a lo cargado y el barrido de ceros).
+
+---

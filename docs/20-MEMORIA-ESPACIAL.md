@@ -133,10 +133,14 @@ mantenimiento-lineas-at/
 ├── herramientas/pronostico-caribe.mjs 🌦️ 36 celdas a MET Norway → `pron-*` (ADR-086), con `naturaleza` y caducidad
 ├── herramientas/teselas/        construir-raster.py — rehace las capas del mapa (ADR-087: y
 │                             declara su `naturaleza`). ⚠️ ÚNICO Python del repo
-│                                ⚠️ **PASO 0, a mano:** algunos `.xls` de su SCADA son BIFF viejo y
-│                                el lector no los abre. En enero se convirtieron a CSV al lado del
-│                                original ANTES del paso 1. **Contar cuántos había**: uno que no entra
-│                                no da error, se guarda de menos (`33 · L-84`). Cierra en `TODO-100`
+├── herramientas/normalizar-xls.mjs 🧾 **PASO 0 del SCADA** (ADR-128): algunos `.xls` son BIFF viejo
+│                                y el lector no los abre. `soffice --headless --convert-to csv` y esta
+│                                herramienta le devuelve la FORMA del SCADA —eje `d/mm/aa h:mm`,
+│                                decimal con punto, CRLF—; ni un dígito cambia, y un eje que no
+│                                entiende NO se escribe. El CSV va AL LADO del `.xls`, antes del paso
+│                                1. **Contar cuántos había**: en enero, de 14 se convirtieron 2 (`33 · L-84`)
+│                                ⚠️ La pantalla guarda **≤100 archivos por carga** (el molde,
+│                                `archivos.max(100)`): un mes va en DOS lotes, por mitades (ADR-128)
 ├── herramientas/extraer-bahia.mjs 🛰️ **PASO 1 del SCADA** (ADR-117): de la RED ENTERA se queda con
 │                                las señales de UNA bahía. SELECCIONA FILAS, no transforma: 509 MB
 │                                → 3,5 MB. Exige el patrón de la bahía a propósito —adivinarla

@@ -132,6 +132,7 @@
 - `L-84` · Un guardado que escribe MENOS de lo que enseñó no da error en ninguna capa *(`33`)*
 - `L-85` · El emulador NO pide los índices que producción SÍ exige *(`35`)*
 - `L-86` · El mismo dato bajado dos veces no es una repetición: es una fase de más *(`33`)*
+- `L-87` · Un ensayo que no pasa por el molde no ensaya el guardado *(aquí)*
 - `M-03` · Un agente «ancho» no implementa: un archivo, un rango y el texto exacto *(aquí)*
 
 ### M-01 · Una cifra escrita a mano que un guardián puede contar es una cifra que envejece sola
@@ -458,6 +459,19 @@
   un fixture que no varía lo que producción varía ensaya otro camino (`33 · L-34`, misma familia).
 - **Emparenta con** `L-52` —el invariante que la prueba enuncia y nadie hace cumplir— y con
   `99 §ADR-111`, donde se cazó.
+
+### L-87 · Un ensayo que no pasa por el molde no ensaya el guardado
+- **Síntoma:** 10-09. El ensayo local de febrero repetía los cálculos de la pantalla —108 días, 217
+  escrituras, cero días ambiguos— y el primer «Guardar» falló: el molde admite **100** nombres de
+  archivo por carga y eran 108. No escribió nada, porque valida antes, pero el ensayo había dicho
+  «todo bien».
+- **Causa:** el ensayo reprodujo el camino del DATO y se saltó la última puerta —el `parse` del
+  molde—, que es la que decide. Mi primer arreglo del ensayo validó con identificadores inventados y
+  dio 1.438 fallos falsos: tampoco ensayaba lo real.
+- **Regla:** un ensayo de guardado valida CADA documento con el molde real y con los identificadores
+  que construye el molde. Así, los 13 lotes de enero-agosto pasaron y los 13 acuses cuadraron
+  (`99 §ADR-128`).
+- **Emparenta con** `L-83` (la prueba que no ejercita lo que dice) y `33 · L-84`.
 
 ### L-52 · Un invariante que la prueba ENUNCIA y la máquina cumple por velocidad no está garantizado
 

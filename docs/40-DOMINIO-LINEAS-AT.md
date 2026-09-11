@@ -556,7 +556,11 @@ Medido en la carga de enero: **diez días (3 al 12) llegaron sin máximo**, y so
 
 **El sello de calidad.** Cada hora viene acompañada de una marca —`Actual`— que dice si el valor es
 una **medida de verdad** o un relleno del historiador. No es un quinto estadístico: es la firma de
-que esa hora se midió. En el mes cargado, las 3.432 horas de la bahía dicen `Actual`.
+que esa hora se midió. En el mes cargado, las 3.432 horas de la bahía dicen `Actual`. De enero a
+agosto, 36.136 horas-señal dicen `Actual` y **104 dicen `Not Renewed`**: el 20-04, de 7 a 19 h, las
+ocho señales **congeladas en su último valor** (199 A doce horas seguidas). No es una medida: es el
+historiador repitiendo. Esas horas no se cargan sin decisión suya (`99 §ADR-128`). Un cero con sello
+`Actual` sí es medida —la línea fuera de servicio, corriente y tensión a 0—, y se carga.
 
 **Y la fecha la declara el DATO, no el nombre del archivo.** Medido sobre la exportación real:
 **46 de 902 archivos traen en el nombre una fecha que no es la suya** —una carpeta rotulada «30 de
