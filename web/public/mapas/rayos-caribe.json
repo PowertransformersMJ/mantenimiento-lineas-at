@@ -56,13 +56,13 @@
    "clave": "09",
    "archivo": "rayos-caribe-2026-09.png",
    "dias": 30,
-   "horasConDato": 315,
-   "bytes": 3458
+   "horasConDato": 318,
+   "bytes": 3459
   }
  ],
  "ultimoDiaConHoras": "2026-09-14",
  "ultimoDiaConTotal": "2026-09-14",
- "construido": "2026-09-14T12:48:46.175Z",
+ "construido": "2026-09-14T15:02:00.045Z",
  "resumenDiario": [
   {
    "d": "2026-08-23",
