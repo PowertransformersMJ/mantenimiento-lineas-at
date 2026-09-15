@@ -56,13 +56,13 @@
    "clave": "09",
    "archivo": "rayos-caribe-2026-09.png",
    "dias": 30,
-   "horasConDato": 328,
-   "bytes": 3599
+   "horasConDato": 331,
+   "bytes": 3648
   }
  ],
  "ultimoDiaConHoras": "2026-09-14",
  "ultimoDiaConTotal": "2026-09-14",
- "construido": "2026-09-15T01:26:36.373Z",
+ "construido": "2026-09-15T04:56:27.883Z",
  "resumenDiario": [
   {
    "d": "2026-08-23",
@@ -154,7 +154,7 @@
   },
   {
    "d": "2026-09-14",
-   "v": 50002
+   "v": 71116
   }
  ],
  "resumenDiarioEtiqueta": "Rayos contados en la región",
