@@ -10464,7 +10464,7 @@ nueva): **208 días** —máximo 197 · promedio 207 · instantáneo 208 · mín
 | 55 archivos en la carpeta de otro mes (julio en enero; enero en junio y agosto; uno de **2025** en marzo) · 166 filas repetidas idénticas · **0 choques** | Cada una a su fecha real, una sola vez |
 | **20-04, 7-19 h**: las ocho señales con sello `Not Renewed` y valores **congelados** (199 A doce horas) | No es medida, y **la pantalla no enseña el sello**: se aparta y se le pregunta |
 | Tres **salidas de la línea** —24-04 7-8 h · 02-06 15-16 h · 22-07 21 h → 23-07 1 h—: corriente y tensión a 0 con sello `Actual` | Medidas reales: se cargan |
-| Picos con forma de **evento** —24-02 13 h (550 A) · 20-06 20 h (420 A) · **05-08 15 h (588 A = 82 %)**—: una fase dispara y el promedio de esa hora no | El máximo dicta y no se sustituye: se le pregunta. La carga real más alta, **502 A el 22-07 (70 %)** |
+| Picos con forma de **evento** —24-02 13 h (550 A) · 20-06 20 h (420 A) · **05-08 15 h (588 A = 82 %)**—: una fase dispara y el promedio de esa hora no | El máximo dicta y no se sustituye: se le pregunta. La carga real más alta, **502 A el 22-07 (70 %)** —⚠️ corregido en la «Validación del 11-09»: la sostenida es **490 A** de promedio; 502 A es el máximo de la hora de la salida— |
 | **El molde admite 100 nombres de archivo por carga** (`archivos.max(100)`): febrero entero (108) falló con el error crudo de validación | Valida ANTES de escribir (`cargabilidadRepo.ts:126` frente a `:133`): **cero escrito**, comprobado en frío. Y el ensayo no lo vio porque no pasaba por el molde (`30 · L-87`) |
 
 ### Decisión
@@ -10507,7 +10507,7 @@ nueva): **208 días** —máximo 197 · promedio 207 · instantáneo 208 · mín
 - ⚠️ **Suyo** (`TODO-103`): el 20-04, re-bajar mayo, el archivo de 2025 y leer los tres picos-evento.
 - **Pedido nuevo, en preview y SIN implementar**: cada gráfica con su filtro de estadístico y sin tablas
   (maqueta local con su dato real, fuera de todo git). Espera su visto bueno (`TODO-103 ⑤`) → **aprobado
-  el 11-09 e implementado en `§ADR-129`**; aquel ⑤ ya no existe.
+  el 11-09 e implementado en `§ADR-129`**; aquel ⑤ se cerró y el ⑤ de hoy en `10` es otra pregunta.
 
 ### Validación del 11-09 — su orden «valida todos los meses»
 
@@ -10572,7 +10572,7 @@ normalizador validado, lo que cambiaba frente a lo cargado y el barrido de ceros
 `ensayo-meses.mjs` es el ensayo mes a mes y **NO pasa por el molde** —el ensayo CON molde y los 13 lotes,
 sacados de la transcripción y reproducidos, están en `scripts/ensayo-con-molde/`—) ·
 `research-archive/2026-09-11-validacion-meses/` (la validación: los dos Opus, la comparación contra la
-base y sus scripts).
+base y sus scripts) · `research-archive/2026-09-15-relevo-sesion-10-11/` (el relevo que escribió esta sección).
 
 ---
 ## ADR-129 · 2026-09-11 · El histórico se lee en gráficas: un filtro de estadístico por gráfica, los indicadores sobre lo guardado y sin tablas

@@ -52,7 +52,7 @@ Todo EN PRODUCCIÓN y **verificado en vivo con su sesión**.
 
 1. **Abrir Claude Code DENTRO del proyecto** (desde el paraguas: `session-handoff.mjs --boot-echo`).
 2. Desplegar: `git pull --rebase` → `npm run build` → `npm run deploy --workspace web` (`35 · L-35/77`). Repo
-   PÚBLICO → **cero bytes de cliente**. Reglas de Firestore por SU canal y ANTES (`35 · L-22`).
+   PÚBLICO → **cero bytes de cliente**. Reglas: `firebase deploy --only firestore:rules`, ANTES (`35 · L-22`).
 3. **Verificar contra PRODUCCIÓN con su Chrome**, no contra `dist/` (`32 · L-18/35`); el MAPA, con `herramientas/mirar-los-atlas.mjs`, que SUSPENDE si no hay dibujo — **nunca con
    tiempo virtual** (`34 · L-72`).
 4. Antes de CADA push: `npm test` + `contrato:verificar` + `brain:check` (bloquea si el boot se pasa).
@@ -72,8 +72,8 @@ Todo EN PRODUCCIÓN y **verificado en vivo con su sesión**.
 | **TODO-59** | **Qué ficha se le pide a CADA tipología.** La línea mezcla 4 y el molde es de POSTE (`40 §8.3`) | Son 3 o 4 formularios |
 | **TODO-33** | **50 % o 25 % de RTS** como tope de tiro. Ya no hay dos dueños (`§ADR-051`): falta decidir CUÁL rige | Factor 2 sobre un dictamen |
 | **TODO-98** 🔴 **MÍA** | **El recibo de la contraseña se auto-firma** desde la consola y **se salta el muro del cambio obligatorio**; con ello `ultimoAcceso` auto-declarado. Crudo: `2026-09-06-espectador-solo-lectura/` | Un muro que se salta no es un muro |
-| **TODO-95/93 · 101** 🔴 ⬅️ **SUYA, URGENTE** | Tres cosas, todas del mismo veredicto. ① **La FICHA del fabricante del conductor** y ② **ratificar la condición** de ampacidad (hoy ADOPTADA: 718 A); sin ellas se publica pero **NO SE FIRMA** (`§ADR-098/099`). ③ **`TODO-101`: re-exportar del SCADA** el **MÁXIMO del 3 al 12/01** (dicta el térmico) · el mínimo del 1 al 12/01 · el 01/02 (carpeta vacía) · el 12/08 (su «12Agosto» trae el 13) · el 30-31/01 si existe («30Enero» es el 29-jul: ⚠️ no borrarla) | 718 A hoy · **611 A** a 75 °C · y diez días de enero **sin pico** |
-| **TODO-103** ⬅️ **SUYA** | **Lo apartado de ene-ago** (`§ADR-128`): ① el **20-04** 7-19 h, congelado «Not Renewed»: ¿fuera, sin esas horas o tal cual? ② re-bajar **MAYO** ③ el archivo de **2025** ④ ¿fallas o maniobras el 24-02, 20-06, 05-08 y 29-08? ⑤ ¿las horas contra la AMPACIDAD sustituyen a las del % del archivo? (`§ADR-129`) ⑥ ofrecido 11-09: validar lo DERIVADO y los resúmenes; el aviso «del 3 al 12/01 SÍ hay promedio e instantáneo» | Nada se carga sin su decisión |
+| **TODO-95/93 · 101** 🔴 ⬅️ **SUYA, URGENTE** | Tres cosas, todas del mismo veredicto. ① **La FICHA del fabricante del conductor** y ② **ratificar la condición** de ampacidad (hoy ADOPTADA: 718 A); sin ellas se publica pero **NO SE FIRMA** (`§ADR-098/099`). ③ **`TODO-101`: re-exportar del SCADA** el **MÁXIMO del 3 al 12/01** (dicta el térmico) · el mínimo del 1 al 12/01 · el 01/02 (carpeta vacía) · el 12/08 (su «12Agosto» trae el 13) · mayo (`TODO-103`); el 30-31/01 no existe («30Enero» es el 29-jul: ⚠️ no borrarla) | 718 A hoy · **611 A** a 75 °C · y diez días de enero **sin pico** |
+| **TODO-103** ⬅️ **SUYA** | **Lo apartado de ene-ago** (`§ADR-128`): ① el **20-04** 7-19 h, congelado «Not Renewed»: ¿fuera, sin esas horas o tal cual? ② re-bajar **MAYO** ③ el archivo de **2025** ④ ¿fallas o maniobras el 24-02, 20-06, 05-08, 29-08 y el 22-07 17 h? ⑤ ¿las horas contra la AMPACIDAD sustituyen a las del % del archivo? (`§ADR-129`) ⑥ ofrecido 11-09: validar lo DERIVADO y los resúmenes; el aviso «del 3 al 12/01 SÍ hay promedio e instantáneo» | Nada se carga sin su decisión |
 | **TODO-100** 🔴 **MÍA** | El lector no abre los `.xls`: el paso 0 ya es herramienta (`normalizar-xls`); falta que lo haga la pantalla | Fallar oscuro se lee «dato malo» |
 | **TODO-44/34** | Alerta de gasto en Cloudflare · **nada tiene copia**: la bóveda sin remoto **y Firestore sin punto de recuperación** (`§ADR-089`) | Un fallo de disco se lleva la bóveda; un comando, la base |
 | **TODO-61/54/68** | ¿App Check? · ¿linter de frescura? · ¿cazar un ADR repetido o citado sin escribir? Las dos últimas tocan el KERNEL | Las TRES son TUYAS |
@@ -84,10 +84,9 @@ Todo EN PRODUCCIÓN y **verificado en vivo con su sesión**.
 
 | # | Qué | Dónde está el plan |
 |---|---|---|
-| **TODO-102** 🔴 | ① >100 archivos da un error crudo y el sello de calidad no se enseña (`§ADR-128`) · ② hermanas en el calendario pero sin ver con dato real (falta %); barras del Atlas, reglas viejas · ④ sondas 3·4·7 (`§ADR-121`) · ⑤ los ceros al final miran solo el día 1 · ⑥ conductor «fabricante» vs `supuesto`; `--tx-tenue` no existe; la guardia de color solo mira `estilo.css` · ⑦ «hoy» con dos dueños: `iso()` local y `diaDe` de Colombia · ⑧ `deploy` que se niegue con el remoto sin traer (`35 · L-77`) · ⑨ el arnés que DIBUJA, a `herramientas/` (`32 · L-90`) | `99 §ADR-125..129` |
+| **TODO-102** 🔴 | ① >100 archivos da un error crudo y el sello de calidad no se enseña (`§ADR-128`) · ② hermanas en el calendario pero sin ver con dato real (falta %); barras del Atlas, reglas viejas · ④ sondas 3·4·7 (`§ADR-121`) · ⑤ los ceros al final miran solo el día 1 · ⑥ conductor «fabricante» vs `supuesto`; `--tx-tenue` no existe; la guardia de color solo mira `estilo.css` · ⑦ «hoy» con dos dueños: `iso()` local y `diaDe` de Colombia · ⑧ `deploy` que se niegue con el remoto sin traer (`35 · L-77`) · ⑨ el arnés que DIBUJA, a `herramientas/` (`32 · L-90`), y el guardián que barra las gráficas (`§ADR-125`) | `99 §ADR-125..129` |
 | **TODO-70** | **Cerrar la ola de la ficha.** Queda SOLO ③: el gesto «Confirmo este dato», que exige su propio molde | `99 §ADR-030/032/033/038` |
 | **TODO-66** | **Que una acción pruebe que FUNCIONÓ**, no solo que se hizo: verificación posterior con fecha | `99 §ADR-026` |
-| **TODO-50** | **Blindaje**: ✅ F1 · ✅ F2a · ✅ F3 · **2b Google**: ✅ código · ✅ consola | `99 §ADR-019/024/100` |
 | **TODO-79** | **Saldo del entorno: 34 vivos + 5 parciales** (`99 §ADR-049`). Los dos restos más caros: el identificador crudo en el **informe firmable** y la red del **mapa** | Varios son decisión suya |
 | **TODO-52/49/48** | RCA: lienzo del árbol · contador de PARQUE · deuda 017 | `§ADR-017/018/020` |
 | **TODO-30/11 · 13-23** | XSD de GPX/KML en CI · nota técnica de LN-627 · F3-F5 | `ADR-014` |
