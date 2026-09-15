@@ -128,6 +128,9 @@
   quiere fotografiar **se lleva en la dirección**, porque nadie va a pulsar el botón.
   Herramienta: `herramientas/foto-del-banco.mjs` (`99 §ADR-074`). Y antes de creerse la foto:
   comprobar en ella `visibilityState` y la sonda, que la propia herramienta imprime.
+- **Recaída 11-09, sin mapa:** una maqueta con `--virtual-time-budget` y sin alarma colgó 180 s y
+  dejó Chrome vivo. La regla vale para **TODA foto sin cabeza**: reloj real y
+  `perl -e 'alarm N; exec @ARGV'` delante.
 
 ---
 

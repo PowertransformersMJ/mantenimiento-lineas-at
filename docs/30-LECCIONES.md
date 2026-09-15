@@ -133,7 +133,12 @@
 - `L-85` · El emulador NO pide los índices que producción SÍ exige *(`35`)*
 - `L-86` · El mismo dato bajado dos veces no es una repetición: es una fase de más *(`33`)*
 - `L-87` · Un ensayo que no pasa por el molde no ensaya el guardado *(aquí)*
+- `L-88` · Una maqueta que se dibuja con script llega VACÍA a su visor *(`32`)*
+- `L-89` · Una gráfica que coloca por PUESTO pega los huecos *(`32`)*
+- `L-90` · Una prueba que lee el TEXTO del fuente no prueba el dibujo *(`32`)*
+- `L-91` · Leer la base de producción con SU sesión, en solo lectura *(`35`)*
 - `M-03` · Un agente «ancho» no implementa: un archivo, un rango y el texto exacto *(aquí)*
+- `M-04` · Dos sesiones en la MISMA carpeta: la otra te cambia las herramientas mientras las usas *(aquí)*
 
 ### M-01 · Una cifra escrita a mano que un guardián puede contar es una cifra que envejece sola
 
@@ -154,6 +159,11 @@
   para un agente: es un encargo para mí, por rebanadas verificadas (`99 §ADR-100`).
   **Qué mirar la próxima vez:** un subagente que lleva minutos sin una sola herramienta de
   escritura ya falló — no se espera, se re-parte el trabajo.
+
+### M-04 · Dos sesiones en la MISMA carpeta: la otra te cambia las herramientas mientras las usas
+
+- **Síntoma (11-09):** la tarea paralela del `99 §ADR-127` trabajaba en la misma carpeta del repo. Dejó **sin commit** cambios en el paso 2 y en el núcleo mientras esta sesión los ejecutaba sobre producción, y **desplegó entre dos lotes**.
+- **Regla:** ① lo que escribe en producción se ejecuta desde una **FOTO del commit** (`git archive <commit> | tar -x` en el scratch), no desde la carpeta viva · ② `git add` con rutas explícitas, nunca `-A` · ③ si la otra despliega, **se repite el ensayo** antes del siguiente lote · ④ mejor aún: la paralela, en **su worktree**.
 
 ### M-02 · Buscar la PALABRA no es buscar la COSA: que un término no salga en `grep` no dice que el concepto no esté
 
@@ -212,7 +222,7 @@
   Ingeniero, o una regla de permiso explícita en `.claude/settings.json`. Mientras tanto, la
   verificación con sesión se cubre así: pruebas golden en Node (sin navegador) + smoke de los
   módulos en el navegador con datos SINTÉTICOS + revisión visual del estado sin sesión. No insistir
-  con variantes del mismo comando: el bloqueo es intencional.
+  con variantes del mismo comando: el bloqueo es intencional. Leer la base con SU sesión, sí: `35 · L-91`.
 
 ### L-24 · Un agente que muere deja código SIN VALIDAR, no código roto
 - **Síntoma:** 4 de 6 constructores cayeron con *«Connection closed mid-response»*. Sus módulos

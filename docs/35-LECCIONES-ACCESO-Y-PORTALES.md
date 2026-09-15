@@ -205,6 +205,10 @@ integrar no es publicar lo tuyo: es **pisar lo suyo**.
 
 **Cerrada en** `99 §ADR-091`. Emparenta con `L-35` y con `L-75`.
 
+⚠️ **Recaída 11-09 (`§ADR-131`):** se desplegó con 5 commits del bot de retraso, y otra vez lo destapó
+el push rechazado. No retrocedió lo publicado, pero tras el rebase **no se volvió a desplegar**. La
+causa: el arranque daba build→deploy sin el pull (corregido en `10`).
+
 ### L-80 · Borrar IndexedDB de Firebase con la página abierta cuelga ese Chrome, y el error dice «sin red» con el servidor sano
 - **Qué pasó (06-09-2026, mío):** al cerrar la sesión vieja del Ingeniero borré por JavaScript
   `firebase-heartbeat-database`. La base quedó bloqueada: el SDK esperaba 30 s por llamada y fallaba
@@ -258,3 +262,19 @@ integrar no es publicar lo tuyo: es **pisar lo suyo**.
   ascendente no sirve un orden descendente (`99 §ADR-116`).
 - **Emparenta con** `L-22` (reglas sin desplegar) y `L-82` (el mensaje del proveedor apunta al sitio
   equivocado).
+
+### L-91 · Leer la base de producción con SU sesión, en solo lectura
+- **Síntoma:** 11-09. Había que probar que lo guardado era lo mismo que traía su SCADA, y sin
+  credenciales propias: la llave admin la bloquea la herramienta (`30 · L-17`).
+- **Método:** en SU pestaña, ya abierta y con sesión, se recorre
+  `performance.getEntriesByType('resource')` para hallar los trozos de la app que exportan
+  `getAuth`/`getFirestore`/`collection`/`query`/`where`/`getDocs`, y se importan con `import()`.
+  **Importar el trozo `index` NO da la sesión.** Se consulta con `orgId` (de los reclamos) + `linea`.
+- **Lo que no se cruza:** NUNCA escribir, nunca pedir contraseña, nunca borrar IndexedDB (`L-80`).
+- **Se compara por HUELLA (FNV-1a), agrupada por mes·estadístico**, contra la huella esperada
+  calculada por el MISMO camino que la pantalla. No celda a celda.
+- **Trampas de la extensión de Chrome:** ① corta la salida hacia los 1.000 caracteres —por eso las
+  huellas van agrupadas—; ② enmascara los valores que parecen credenciales; ③ su «find» es un modelo:
+  gasta límite de uso y da por exacta una frase cuyo número está en un elemento hijo. **Los acuses se
+  leen con `innerText`.**
+- **El guion** vive en la bóveda: `research-archive/2026-09-11-validacion-meses/comparacion/`.

@@ -12,13 +12,14 @@ Todo EN PRODUCCIÓN y **verificado en vivo con su sesión**.
 > `§ADR-049/050`—. La fase viva es **la página**: no eligió entre ② **se lee** y ③ **no se cae**.
 
 ## 🛑 LO PRIMERO AL RETOMAR
-0. 🆕 **PARÁMETROS ELÉCTRICOS** (antes «cargabilidad»; `§ADR-088..128`). El SCADA entra por los
-   pasos 0·1·2 de `20`, en lotes de ≤100 archivos, y salen todas las magnitudes con sus fases.
-   ✅ **11-09: ENERO-AGOSTO EN PRODUCCIÓN**, verificado EN FRÍO (`§ADR-128`): **208 días** (máx 197 ·
-   prom 207 · inst 208 · mín 195). **Mayo NO se descargó**; faltan 30-31/01, 01/02, 12/08 y el MÁXIMO
-   del 3 al 12/01 (`TODO-101`). Apartado hasta que él decida: el 20-04 congelado y un archivo de 2025
-   (`TODO-103`). Pico del máximo **588 A el 05-08 = 82 %**, con forma de EVENTO; la carga real más
-   alta, **502 A el 22-07 (70 %)**. 📊 Un filtro por gráfica, indicadores sobre lo guardado, sin tablas; eje día a día, y un día abre sus 24 h en todas (`§ADR-122..131`).
+0. 🆕 **PARÁMETROS ELÉCTRICOS** (`§ADR-088..131`). El SCADA entra por los pasos 0·1·2 de `20`, ≤100
+   archivos por carga.
+   ✅ **ENERO-AGOSTO EN PRODUCCIÓN** (`§ADR-128`): **208 días** (máx 197 · prom 207 · inst 208 · mín
+   195), **validados el 11-09** —las 8 señales hora a hora, del SCADA a la base, 29/29 grupos—; lo que
+   falta no vino en la exportación (`TODO-101`); lo NO comparado, en su «Validación». Apartado
+   hasta que decida: el 20-04 y un archivo de 2025 (`TODO-103`). Pico del máximo **588 A el 05-08 =
+   82 %**, con forma de EVENTO; la sostenida más alta, **490 A de promedio el 22-07**. 📊 Filtro
+   por gráfica, sin tablas, eje día a día y un día abre sus 24 h en todas (`§ADR-129..131`).
    ⚠️ Sin capacidad nominal no hay porcentaje; en **P y Q, negativas, el «max» es el de MENOS carga**.
    ⚠️ Falta lo SUYO: ratificar los **718 A** (`TODO-95/93`).
 1. **EL CUELLO DE BOTELLA NO ES CÓDIGO: ES EL DATO**: 0 de 26 con veredicto (`TODO-57`).
@@ -27,15 +28,11 @@ Todo EN PRODUCCIÓN y **verificado en vivo con su sesión**.
    y el 05-09 (`§ADR-098`: cuatro sitios rotulaban «IEEE 738» a mano). ⚠️ **ORDEN SUYA (24-08):**
    cambiar sin dañar lo que ya está bien, y actuar solo sobre lo que él indica o lo que se DETECTA
    midiendo — **nunca sobre una suposición**.
-3. **EL ATLAS: ONCE CAPAS EN 3 FAMILIAS + LAS DOS FINAS DEL CORREDOR** (`§ADR-079/081/086/087`).
-   5 del año (POWER) · 3 del SATÉLITE que se acumulan · **3 de PRONÓSTICO** · y aparte **radiación y
-   temperatura del corredor a 2 km**. ⏱️ Manda la FUENTE, y cada una trae su retraso y su reloj: la
-   tabla está en `20`.
-   ⚠️ **CADA CAPA DECLARA QUÉ ES y sin valor por defecto** — `medida` · `pronostico` · `promedio` —
-   o no se publica ni se pinta (`§ADR-082/084/086/087`).
-   ⚙️ **El vigía FUSIONA SOLO** (`§ADR-085`), con PORTERO. Queda a mano **publicar** (`TODO-89`).
+3. **EL ATLAS: ONCE CAPAS EN 3 FAMILIAS + DOS FINAS DEL CORREDOR** (`§ADR-079/081/086/087`): 5 del
+   año · 3 del satélite · 3 de pronóstico; retraso y reloj de cada una, en `20`. ⚠️ **CADA CAPA
+   DECLARA QUÉ ES** (`medida` · `pronostico` · `promedio`), sin defecto, o no se publica
+   (`§ADR-082/084`). ⚙️ El vigía FUSIONA SOLO, con portero (`§ADR-085`); publicar, a mano (`TODO-89`).
 4. **LO QUE NO SE PUEDE ROMPER DEL CLIMA (`§ADR-057..086`):** gana el HECHO sobre el modelo · el recorrido se comprueba **punto a punto**, nunca por promedio · el clima vive en el ATLAS · **«tormenta eléctrica» NO existe en la fuente**.
-5. **Higiene** (`99 §ADR-047/048/083`): el techo es el ARRANQUE; `20` y las hijas se recalibraron (`§ADR-125`); `10` sigue pasado de LÍNEAS.
 
 ## 🚫 INVARIANTES — índice; cada uno vive ENTERO en su ADR
 
@@ -49,12 +46,12 @@ Todo EN PRODUCCIÓN y **verificado en vivo con su sesión**.
 · **Señales de la página** `§ADR-051` — banda, pestaña y tope de tiro salen del DATO, con un solo dueño; la versión del motor la ata un gate de `pre-commit`.
 · **El número que se firma** `§ADR-052` — un tope declarado manda en TODAS las piezas, y el molde tiene que admitirlo o la base lo tira en silencio.
 · **Atlas** `§ADR-045/055/079/086` — UN motor y UN escritor de fichas para los ONCE. Viento, rayos y **ningún pronóstico** marcan hipótesis; en el mapa de la línea van como dato del SITIO.
-· **Parámetros eléctricos** `§ADR-088/112/117/119` — **un hueco NO es un cero** y sin archivo, jamás cifras de muestra; el % del archivo no se pisa; el estadístico se supone solo al LEER, nunca al guardar; el máximo DICTA y no se sustituye; manda la fecha del DATO; se cuenta lo escrito contra lo leído; y se verifica abriendo EN FRÍO.
+· **Parámetros eléctricos** `§ADR-088/112/117/119` — **un hueco NO es un cero** y sin archivo, jamás cifras de muestra; el % del archivo no se pisa; el estadístico se supone solo al LEER, nunca al guardar; el máximo DICTA y no se sustituye; manda la fecha del DATO; se cuenta lo escrito contra lo leído; y se verifica abriendo EN FRÍO. **Pantalla nueva: MAQUETA con su dato y su «sí» ANTES** (`32 · L-88`).
 
 ## 🧭 Cómo retomar
 
 1. **Abrir Claude Code DENTRO del proyecto** (desde el paraguas: `session-handoff.mjs --boot-echo`).
-2. Desplegar: `npm run build && npm run deploy --workspace web`, en ese orden (`35 · L-35`). Repo
+2. Desplegar: `git pull --rebase` → `npm run build` → `npm run deploy --workspace web` (`35 · L-35/77`). Repo
    PÚBLICO → **cero bytes de cliente**. Reglas de Firestore por SU canal y ANTES (`35 · L-22`).
 3. **Verificar contra PRODUCCIÓN con su Chrome**, no contra `dist/` (`32 · L-18/35`); el MAPA, con `herramientas/mirar-los-atlas.mjs`, que SUSPENDE si no hay dibujo — **nunca con
    tiempo virtual** (`34 · L-72`).
@@ -75,19 +72,19 @@ Todo EN PRODUCCIÓN y **verificado en vivo con su sesión**.
 | **TODO-59** | **Qué ficha se le pide a CADA tipología.** La línea mezcla 4 y el molde es de POSTE (`40 §8.3`) | Son 3 o 4 formularios |
 | **TODO-33** | **50 % o 25 % de RTS** como tope de tiro. Ya no hay dos dueños (`§ADR-051`): falta decidir CUÁL rige | Factor 2 sobre un dictamen |
 | **TODO-98** 🔴 **MÍA** | **El recibo de la contraseña se auto-firma** desde la consola y **se salta el muro del cambio obligatorio**; con ello `ultimoAcceso` auto-declarado. Crudo: `2026-09-06-espectador-solo-lectura/` | Un muro que se salta no es un muro |
-| **TODO-95/93 · 101** 🔴 ⬅️ **SUYA, URGENTE** | Tres cosas, todas del mismo veredicto. ① **La FICHA del fabricante del conductor** y ② **ratificar la condición** de ampacidad (hoy ADOPTADA: 718 A); sin ellas se publica pero **NO SE FIRMA** (`§ADR-098/099`). ③ **`TODO-101`: re-exportar del 3 al 12 de enero con el MÁXIMO** — su exportación de esos diez días no lo trae; el 30-31 no existe (su «30Enero» es el 29-jul), y es el estadístico que dicta el dictamen térmico | 718 A hoy · **611 A** a 75 °C · y diez días de enero **sin pico** |
-| **TODO-103** ⬅️ **SUYA** | **Lo apartado de ene-ago** (`§ADR-128`): ① el **20-04** 7-19 h, congelado «Not Renewed»: ¿fuera, sin esas horas o tal cual? ② re-bajar **MAYO** ③ el archivo de **2025** ④ ¿fallas o maniobras el 24-02, 20-06 y 05-08? | Nada se carga sin su decisión |
+| **TODO-95/93 · 101** 🔴 ⬅️ **SUYA, URGENTE** | Tres cosas, todas del mismo veredicto. ① **La FICHA del fabricante del conductor** y ② **ratificar la condición** de ampacidad (hoy ADOPTADA: 718 A); sin ellas se publica pero **NO SE FIRMA** (`§ADR-098/099`). ③ **`TODO-101`: re-exportar del SCADA** el **MÁXIMO del 3 al 12/01** (dicta el térmico) · el mínimo del 1 al 12/01 · el 01/02 (carpeta vacía) · el 12/08 (su «12Agosto» trae el 13) · el 30-31/01 si existe («30Enero» es el 29-jul: ⚠️ no borrarla) | 718 A hoy · **611 A** a 75 °C · y diez días de enero **sin pico** |
+| **TODO-103** ⬅️ **SUYA** | **Lo apartado de ene-ago** (`§ADR-128`): ① el **20-04** 7-19 h, congelado «Not Renewed»: ¿fuera, sin esas horas o tal cual? ② re-bajar **MAYO** ③ el archivo de **2025** ④ ¿fallas o maniobras el 24-02, 20-06, 05-08 y 29-08? ⑤ ¿las horas contra la AMPACIDAD sustituyen a las del % del archivo? (`§ADR-129`) ⑥ ofrecido 11-09: validar lo DERIVADO y los resúmenes; el aviso «del 3 al 12/01 SÍ hay promedio e instantáneo» | Nada se carga sin su decisión |
 | **TODO-100** 🔴 **MÍA** | El lector no abre los `.xls`: el paso 0 ya es herramienta (`normalizar-xls`); falta que lo haga la pantalla | Fallar oscuro se lee «dato malo» |
 | **TODO-44/34** | Alerta de gasto en Cloudflare · **nada tiene copia**: la bóveda sin remoto **y Firestore sin punto de recuperación** (`§ADR-089`) | Un fallo de disco se lleva la bóveda; un comando, la base |
 | **TODO-61/54/68** | ¿App Check? · ¿linter de frescura? · ¿cazar un ADR repetido o citado sin escribir? Las dos últimas tocan el KERNEL | Las TRES son TUYAS |
 | **TODO-76** | **¿Se guarda si un apoyo es autosoportado / retenido?** No cabe en el modelo: iría por APOYO (26 declaraciones) | Cierra media incógnita de la capacidad longitudinal |
-| **TODO-78/84** ⬆️⬆️ | **Cerebro LLENO** (`§ADR-065`): el ARRANQUE vive con **~50** caracteres de margen; `30`, `20` y `32/33/35` se recalibraron (`§ADR-102/125`) y `10` sigue pasado de líneas. **Cada sesión gasta un rato podando texto bueno.** Shard o recalibrar | El freno más caro del día a día |
+| **TODO-78/84** ⬆️⬆️ | **Cerebro LLENO** (`§ADR-065/083`): el techo es el ARRANQUE y vive sin margen; `20` y las hijas se recalibraron (`§ADR-102/125`). **Cada sesión poda texto bueno.** Shard o recalibrar | El freno más caro del día a día |
 
 ## 🔲 Pendientes de CLAUDE — en este orden
 
 | # | Qué | Dónde está el plan |
 |---|---|---|
-| **TODO-102** 🔴 | ① la pantalla: >100 archivos da un error crudo y el sello de calidad no se enseña (`§ADR-128`) · ② gráficas HERMANAS y barras del Atlas, con las reglas viejas · ④ sondas 3·4·7 (`§ADR-121`) · ⑤ los ceros al final miran solo el día 1 · ⑥ el rótulo del conductor dice «fabricante» y la semilla, `supuesto`; `--tx-tenue` no existe (`§ADR-129`) | `99 §ADR-125..129` |
+| **TODO-102** 🔴 | ① >100 archivos da un error crudo y el sello de calidad no se enseña (`§ADR-128`) · ② hermanas en el calendario pero sin ver con dato real (falta %); barras del Atlas, reglas viejas · ④ sondas 3·4·7 (`§ADR-121`) · ⑤ los ceros al final miran solo el día 1 · ⑥ conductor «fabricante» vs `supuesto`; `--tx-tenue` no existe; la guardia de color solo mira `estilo.css` · ⑦ «hoy» con dos dueños: `iso()` local y `diaDe` de Colombia · ⑧ `deploy` que se niegue con el remoto sin traer (`35 · L-77`) · ⑨ el arnés que DIBUJA, a `herramientas/` (`32 · L-90`) | `99 §ADR-125..129` |
 | **TODO-70** | **Cerrar la ola de la ficha.** Queda SOLO ③: el gesto «Confirmo este dato», que exige su propio molde | `99 §ADR-030/032/033/038` |
 | **TODO-66** | **Que una acción pruebe que FUNCIONÓ**, no solo que se hizo: verificación posterior con fecha | `99 §ADR-026` |
 | **TODO-50** | **Blindaje**: ✅ F1 · ✅ F2a · ✅ F3 · **2b Google**: ✅ código · ✅ consola | `99 §ADR-019/024/100` |

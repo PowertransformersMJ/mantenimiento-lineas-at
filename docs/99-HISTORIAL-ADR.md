@@ -10477,7 +10477,9 @@ nueva): **208 días** —máximo 197 · promedio 207 · instantáneo 208 · mín
 3. **De enero solo se recargan los 11 promedios** que ganan la activa: los otros 83 días guardados eran
    idénticos y no se reescriben. El acuse lo dijo: 11 reemplazados.
 4. **Se apartan sin cargar**: el 20-04 (congelado), el 22-06-2025 (fuera del periodo) y el 31-05 suelto
-   (ya estaba, idéntico). Todo lo demás entra tal cual, eventos y salidas incluidos.
+   (ya estaba, idéntico). Todo lo demás entra tal cual, eventos y salidas incluidos. **Físicamente, los
+   cinco apartados —el 20-04 ×4 y el 22-06-2025— siguen DENTRO de `_dias-LN627/2026-ene-ago/`**: esa
+   carpeta **nunca se recarga entera**.
 
 ### Alternativas descartadas
 
@@ -10504,10 +10506,73 @@ nueva): **208 días** —máximo 197 · promedio 207 · instantáneo 208 · mín
   sello de calidad no se enseña.
 - ⚠️ **Suyo** (`TODO-103`): el 20-04, re-bajar mayo, el archivo de 2025 y leer los tres picos-evento.
 - **Pedido nuevo, en preview y SIN implementar**: cada gráfica con su filtro de estadístico y sin tablas
-  (maqueta local con su dato real, fuera de todo git). Espera su visto bueno (`TODO-103 ⑤`).
+  (maqueta local con su dato real, fuera de todo git). Espera su visto bueno (`TODO-103 ⑤`) → **aprobado
+  el 11-09 e implementado en `§ADR-129`**; aquel ⑤ ya no existe.
+
+### Validación del 11-09 — su orden «valida todos los meses»
+
+**Método, en tres tramos:**
+
+1. **Crudo → paso 2, por CONTENIDO**, con dos Opus (ene-abr y jun-ago), celda a celda. Solo el de
+   ene-abr abrió los 14 `.xls` de enero con su lector propio (336 celdas, idénticas); el de jun-ago no
+   los necesitaba.
+2. **Paso 2 → base**, leída con SU sesión y en solo lectura (`35 · L-91`): huellas por mes·estadístico
+   del lado esperado contra las leídas.
+3. **Coherencia**: la corriente de la línea es la fase mayor.
+
+**Cifras:**
+
+- **148.416 celdas idénticas** —81.816 de ene-abr (con las 24 de mayo dentro) + 66.600 de jun-ago—:
+  **0 distintas, 0 perdidas, 0 inventadas**.
+- **807 documentos día·estadístico** en la base —197 máx + 195 mín + 207 prom + 208 inst, sobre
+  **208 días de calendario**— y **807 resúmenes**, uno a uno. Esperados 812 − 4 del 20-04 − 1 del
+  22-06-2025 = **807**.
+- Las 8 señales, hora a hora: el primer cruce dio **25 de 30** grupos mes·estadístico; sacando lo
+  apartado a propósito (arriba, decisión 4), **29 de 29 idénticos**.
+- **19.320 horas** con la corriente de la línea = fase mayor.
+- **El máximo dictamina con las tres fases de corriente en 170 de 197 días** (ene 18/19 · feb 22/27 ·
+  mar 28/31 · abr 27/29 · jun 28/30 · jul 27/31 · ago 20/30). En los otros 27, el pico pudo estar en
+  la fase que falta (`§ADR-126`). En total, **221 de 812** documentos traen menos de 8 señales.
+
+**Huecos: todos vienen de la EXPORTACIÓN, no de la carga:**
+
+| Hueco | Causa |
+|---|---|
+| **Máximo del 3 al 12/01** y **mínimo del 1 al 12/01** | Nunca exportados. Esos días salieron con la plantilla vieja —nombres en mayúsculas, `.xls`, sin mínimo ni sello de calidad—: es la pista para pedirla bien. El `_min` empieza el 13-01 (`§ADR-117`, `§ADR-127`) |
+| **30 y 31/01** | No existen. «30Enero» es el **29-07**, y es la **ÚNICA fuente de 3 señales de ese día**: no se borra al re-exportar |
+| **01/02** | La carpeta llegó vacía |
+| **12/08** | «12Agosto» trae el **13-08** (41 archivos) |
+| **Mayo** | Dos avisos del portal. En la base solo está el **31-05 instantáneo, y solo la reactiva** (24 h): es el archivo de nombre 01-06 guardado en la carpeta del 29 de enero (`§ADR-117`); manda el eje |
+| **Señal-días sueltas** | **159 en ene-abr** (157 sin archivo del portal, 2 con otra señal dentro) y **137 en jun-ago** |
+
+La exportación mete otro día en una carpeta (30Enero, 12Agosto): **al re-exportar se cuenta por
+CONTENIDO, no por carpetas**. Así se contó enero: **17.717 archivos** leídos por contenido, ningún
+máximo del 3 al 12 en ninguna carpeta y máximo ≥ promedio en las 3.528 horas comparadas →
+`research-archive/2026-09-11-eje-de-dias/enero-recuento/`.
+
+**Dos lecturas más para preguntarle** (sin concluir la causa; se suman a los picos-evento de arriba):
+
+- **29-08, 23 h**: la fase S marca **426 A** con la R en 358 A. Forma de evento.
+- **22-07**: a las 17 h las tres fases suben breve a **453 / 458 / 470 A** de máximo, con promedios de
+  276 / 274 / 279 A. A las 20 h la fase T promedia **490,4 A**; a las 21 h la línea sale. **Los 502 A
+  de la tabla de arriba son el MÁXIMO de la hora de la salida, con promedio de 264 A**: la carga
+  sostenida más alta es **490 A de promedio a las 20 h**.
+
+**Lo que NO se comparó:**
+
+- La **tensión de la línea** y la **potencia aparente**: son derivadas y salen de las 8 señales que sí
+  coinciden (la corriente de la línea sí: arriba).
+- Las **cifras de los resúmenes**: solo que hay uno por día.
+- El **sello de calidad** donde no hay archivo quality (1-12/01 y 01/02), y faltan sellos sueltos en
+  jun-ago.
+- Se le ofreció comparar lo derivado y los resúmenes: **sin respuesta suya** (`TODO-103 ⑥`).
 
 **Crudo de respaldo:** `research-archive/2026-09-10-ene-ago-scada/` (verificadores, inventario, el
-normalizador validado, el ensayo con molde, lo que cambiaba frente a lo cargado y el barrido de ceros).
+normalizador validado, lo que cambiaba frente a lo cargado y el barrido de ceros; en `scripts/`,
+`ensayo-meses.mjs` es el ensayo mes a mes y **NO pasa por el molde** —el ensayo CON molde y los 13 lotes,
+sacados de la transcripción y reproducidos, están en `scripts/ensayo-con-molde/`—) ·
+`research-archive/2026-09-11-validacion-meses/` (la validación: los dos Opus, la comparación contra la
+base y sus scripts).
 
 ---
 ## ADR-129 · 2026-09-11 · El histórico se lee en gráficas: un filtro de estadístico por gráfica, los indicadores sobre lo guardado y sin tablas
@@ -10518,8 +10583,11 @@ indicadores, dame preview antes de implementar»*, *«tambien incluye estos»* (
 entorno) y *«esta perfecto, vamos con workflow»*—. Maqueta LOCAL con su dato real (fuera de todo git),
 aprobada; workflow de 7 Opus —cuatro implementan por tramos, tres revisan— →
 `research-archive/2026-09-11-historico-filtros/`.
-**Estado:** ✅ desplegado (`index-D3SEnFrw.js`, servido == construido) · ⏳ **verificación EN FRÍO con su
-sesión pendiente**: se cerró por inactividad · **NO revisada externamente**.
+**Estado:** ✅ desplegado (`index-D3SEnFrw.js`, servido == construido) y **verificado EN FRÍO con su
+sesión el 11-09** (`frio=129b`): un filtro en cada una de las seis tarjetas —cinco gráficas e
+indicadores—, sin selector global ni «Las fases, hora a hora», e indicadores 588 A · 81,9 % · margen
+130 A · 462 kW · factor de carga 0,48 (las tres tablas del entorno seguían: se fueron con el
+`§ADR-131`) · **NO revisada externamente**.
 
 ### Contexto
 
@@ -10574,6 +10642,8 @@ salían en «—».
   catalogo_fabricante», pero la semilla lo marca `supuesto` desde el 05-09 (`§ADR-099`) —con ella el
   motor dice «no es dictamen»—; y el token `--tx-tenue` que usan los ejes no existe en `estilo.css`
   (viene de antes). Los dos, en `TODO-102`.
+- **Al leerlos**: con Máximo, la rampa máxima (502 A/h) de «Cómo se comportó» es la **SALIDA de la
+  línea del 22-07** (`§ADR-128`), no una subida de carga.
 
 **Crudo de respaldo:** `research-archive/2026-09-11-historico-filtros/` (el workflow entero, la maqueta
 aprobada y su generador, los scripts de los revisores y el parche de la revisión).
@@ -10628,7 +10698,7 @@ casilla, y el rótulo quedaba bajo otra hora que la del dato.
   la versión anterior: con varios días, dos líneas o una hora nula, el dibujo es IDÉNTICO al de antes.
 - ⚠️ **Sigue igual, y es de su visto bueno**: con VARIOS días el eje coloca por puesto y los días sin
   dato se PEGAN —en enero la línea une el 2 con el 13—. Medido y archivado; la maqueta del eje de
-  días lo corrige.
+  días lo corrige. → **Cerrado el mismo día por el `§ADR-131`**.
 
 **Crudo de respaldo:** `research-archive/2026-09-11-eje-de-dias/` (la auditoría de las gráficas que
 pegan huecos, la maqueta del eje de días y sus capturas, y la revisión de este cambio).
@@ -10704,8 +10774,11 @@ faltaba al principio o al final desaparecía sin aviso, y el subtítulo contaba 
   periodo; ◀ ▶ se bloqueaban con un día fuera de su lista; y con más de 400 días volvía a pegar.
 - Corrige lo que el `§ADR-129` afirmó de más: «la línea se corta en cada hueco» solo era cierto para
   horas sueltas, no para días enteros.
+- **Ofrecido dos veces y sin respuesta suya**: que el aviso diga que del 03/01 al 12/01 sí hay
+  Promedio e Instantáneo, con maqueta antes.
 
 **Crudo de respaldo:** `research-archive/2026-09-11-eje-de-dias/` (`auditoria/`, `maqueta/`,
-`revision-130/` e `implementacion-131/`: el workflow, los arneses de los revisores y sus capturas).
+`revision-130/` e `implementacion-131/`: el workflow, los arneses de los revisores y sus capturas; y
+`enero-recuento/`, el recuento de enero por contenido de la validación del `§ADR-128`).
 
 ---

@@ -21,12 +21,14 @@ Su carpeta en la bóveda, `brain-private/mantenimiento-lineas-at/`:
 | `datos-campo/` | lo que el Ingeniero DIJO o midió. Dato real: se cita desde el ADR, nunca se copia |
 | `fixtures/` | datos reales de cliente que usan las pruebas · `entregables/` |
 | `fotos/` | material de campo (207 archivos, versionados) |
-| `Variables Electricas/` | **copia de lo PROCESADO** del SCADA (`_bahia-LN627/`, `_dias-LN627/`) y el primer día crudo |
+| `Variables Electricas/` | **copia de lo PROCESADO** del SCADA (`_bahia-LN627/`, `_dias-LN627/` = enero viejo, `_dias-LN627/2026-ene-ago/` = lo cargado) y el primer día crudo |
 
 ⚠️ **El dato crudo de SCADA NO vive en la bóveda ni en el repo:** desde el 2026-09-10 está en
 `~/Desktop/GitHub-MJ/Variables Electricas/` —mes a mes, hermana de los proyectos y fuera de todo
 git—, donde el Ingeniero lo va dejando. **Y dentro del árbol del repo sigue `LN-627/` (366 MB de
 fotos de campo)**, ignorada pero presente: ignorado no es ausente (`§ADR-125`).
+`../Variables Electricas/_preview/` = maquetas con su dato, fuera de git, servidas desde
+`../.claude/launch.json` del paraguas (`32 · L-88`).
 
 ---
 
@@ -43,6 +45,7 @@ mantenimiento-lineas-at/
 │   ├── mecanica.js              catenaria, parábola, viento, cambio de estado, tramos, vano peso
 │   ├── termica.js               resistencia c.c., ampacidad IEEE 738, derrateo · DUEÑO de las seis
 │   │                           condiciones (ADR-093) · electrica.js: variables OPERATIVAS (ADR-094)
+│   │                           + horas contra la ampacidad, PROPUESTA (ADR-129)
 │   ├── estadisticas.js          distribución de vanos (media, mediana, desv. de muestra…)
 │   ├── vanos.js                 detalle vano a vano + control catenaria vs parábola
 │   ├── umbrales.js              los 8 indicadores con semáforo y FUENTE (ADR-009)
@@ -153,7 +156,11 @@ mantenimiento-lineas-at/
 │                                estadístico, del nombre. Los «(1)» idénticos se escriben UNA vez; la
 │                                misma señal con valores distintos, o un archivo apartado, se NOMBRA y
 │                                sale con error. Exige destino VACÍO: no borra nada. Prueba:
-│                                `tests/juntar-por-dia.test.js` · salidas en `_dias-LN627/<Mes>/`
+│                                `tests/juntar-por-dia.test.js` · salidas en `_dias-LN627/<Mes>/`.
+│                                ⚠️ Lo que está en la base salió de `_dias-LN627/2026-ene-ago/`: 812 =
+│                                807 cargados + 5 apartados que siguen DENTRO. **Nunca recargar esa
+│                                carpeta entera** · copia en la bóveda: `Variables Electricas/_dias-LN627/2026-ene-ago/`
+│                                · validar lo cargado: crudo `2026-09-11-validacion-meses/` y `35 · L-91`
 ├── herramientas/plantilla-cargabilidad.mjs  el Excel MODELO para llenar a mano (ADR-088). La hoja
 │                                de datos va VACÍA, solo cabecera: el ejemplo vive en la hoja de
 │                                INSTRUCCIONES, donde nadie lo confunde con una medición
@@ -168,8 +175,8 @@ mantenimiento-lineas-at/
 │   firebase.json                catch-all que niega lo no declarado. **Por SU canal**, no con el
 │   firestore.indexes.json       sitio (`35 · L-22`)
 ├── disenos/                     5 maquetas de la carcasa; ganó `5-horizonte` (ADR-018)
-├── web/src/estilo.css           el tablero de color: ~61 tokens en `:root`, paleta CLARA. Ningún
-│                                color se escribe fuera de ahí; lo vigila una prueba
+├── web/src/estilo.css           el tablero de color: ~61 tokens en `:root`, paleta CLARA. Lo vigila una
+│                                prueba, SOLO dentro de este archivo: los `.tsx` llevan hex propios
 ├── web/src/componentes/         React SOLO pinta (ADR-005): Linea (las pestañas ARIA —cuántas son,
 │                                en `05`— **y** la carcasa de 3 columnas), **RedDeSeguridad** (la red
 │                                que evita la página en blanco de TODA la app, en `main.tsx`), **AtlasCaribe** (LOS ONCE atlas + **el trazado
@@ -190,8 +197,8 @@ mantenimiento-lineas-at/
 │                                lo que falta en blanco rayado— y un día pulsado abre sus 24 horas
 │                                en TODAS las gráficas (ADR-130/131; piezas en `vistas/cargabilidadVista.ts`);
 │                                el PERIODO manda —se elige arriba y salen las cinco magnitudes
-│                                sobre TODO lo elegido, sin un clic por día—; la tabla hora a hora
-│                                va desplegable y la corriente se dibuja más alta porque es la única
+│                                sobre TODO lo elegido, sin un clic por día—; la tabla hora a hora,
+│                                solo con archivo recién cargado; la corriente se dibuja más alta porque es la única
 │                                que dictamina (ADR-124),
 │                                Cantidades, Exportar, Sello, Estado · **Cargar** (admin) y **Fotos**
 │                                (ADR-031): las DOS que ESCRIBEN, y cuyo efecto no se deshace ·
@@ -216,8 +223,10 @@ mantenimiento-lineas-at/
 │   ├── cargabilidadVista.ts     geometría SVG, orden y CSV de «Parámetros eléctricos» (ADR-088), y
 │   │                            **cómo se lee CUALQUIER gráfica**: lo que aquí se decida vale para todas.
 │   │                            Dibujo, no cálculo: los números los da el núcleo. Suyas son las
-│   │                            marcas de los DOS ejes (ADR-123/124): el del tiempo rotula HORAS o
-│   │                            DÍAS según el rango y marca el cambio de día; el vertical da cuatro
+│   │                            marcas de los DOS ejes (ADR-123/124): el del tiempo, con UN día, es el
+│   │                            reloj de 24 h (ADR-130); con VARIOS, el CALENDARIO: casilla por día,
+│   │                            huecos rayados y dichos, tope 400 (ADR-131; pruebas en
+│   │                            `cargas-vista.test.js`; `calendarioDelEje` vive en el componente); el vertical da cuatro
 │   │                            marcas del recorrido REAL y señala el cero **solo si cae dentro**
 │   ├── radiacion.ts             el recurso solar del corredor (ADR-037/046): rampa ajustada al
 │   │                            recorte y su aviso de escala
@@ -269,7 +278,8 @@ mantenimiento-lineas-at/
 │                                ⚠️ Sin la bóveda montada, ② AVISA y no bloquea: un clon suelto no
 │                                está protegido de los nombres
 ├── .claude/settings.json        hooks de sesión (SÍ se commitea; el resto no)
-├── .github/workflows/ci.yml     integridad del kernel + suite de pruebas
+├── .github/workflows/ci.yml     «CI · Cerebro + Tests»: kernel + pruebas. Esperarlo por HASH
+│                                (`gh run list --json databaseId,headSha`): buscar «CI» da id vacío = falso rojo
 └── …/vigia-nasa.yml             LOS ONCE atlas, dos relojes (4 h · 1 h). El portero MIRA el mapa
                               y FUSIONA solo (ADR-080/085). Falta publicar: TODO-89
 ```

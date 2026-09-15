@@ -552,7 +552,10 @@ de signo, el máximo sí es el peor caso.
 
 ⚠️ **Un estadístico que falta no se sustituye por otro.** Si un día no trae el máximo, ese día
 **no tiene veredicto térmico** — no se rellena con el promedio, que siempre sería más benévolo.
-Medido en la carga de enero: **diez días (3 al 12) llegaron sin máximo**, y son diez días sin pico.
+Medido de enero a agosto: **el máximo falta del 3 al 12/01**, y el 30-31/01, el 01/02 y el 12/08
+**no existen**. Esos días **no tienen veredicto térmico**. El mínimo empieza el 13/01, y eso no toca
+el veredicto. Y donde sí hay máximo, **solo en 170 de 197 días guardados trae las tres fases**: en los
+otros, el pico pudo estar en la fase que falta (`99 §ADR-126`).
 
 **El sello de calidad.** Cada hora viene acompañada de una marca —`Actual`— que dice si el valor es
 una **medida de verdad** o un relleno del historiador. No es un quinto estadístico: es la firma de
@@ -593,8 +596,11 @@ Medido en LN-627 con un pico de 502 A a 66 kV (S = 57,4 MVA): con factor de pote
 
 ⚠️ **De dónde sale ese 502 A, y qué dice el histórico medido.** Los 502 A son el pico que se usó el
 2026-09-01 para dimensionar el módulo (`99 §ADR-093`), anteriores a que existiera historia horaria.
-Con el primer mes ya cargado (enero de 2026), el **pico horario medido es de 398 A —el 27-01 a las
-16:00, un 55 % de los 718 A**— sobre los veinte días que traen máximo. Las cuentas de arriba se
+Con enero-agosto de 2026 guardado (`99 §ADR-128`), el **pico del MÁXIMO es de 588 A —el 05-08 a las
+15 h, en una sola fase, un 82 % de los 718 A—**. Tiene forma de **EVENTO**, no de carga, y espera su
+lectura (`TODO-103`). La **carga sostenida más alta** es otra cifra: **490 A de promedio en la fase T
+el 22-07 a las 20 h**, justo antes de una salida de la línea. Los 502 A de esa noche no son carga: son
+el máximo de la hora en que la línea sale (21 h, con 264 A de promedio). Las cuentas de arriba se
 mantienen como ejercicio con su cifra original; el número vivo es el del histórico.
 
 **Pérdidas por efecto Joule**, `3 · I² · R · longitud`. Con el Darien AAAC en los 3,03 km de LN-627 y

@@ -66,6 +66,8 @@ vive en `10 · TODO-79`, y los **relevos de sesión** `2026-08-22/24/26-relevo-c
 | «no veo la potencia activa / reactiva», «solo salen las que tienen fases» | `99 §ADR-118` — la magnitud sin fases no es invisible: se dibuja su total de bahía |
 | «No se pudo guardar: … `too_big` … `maximum: 100`» | `99 §ADR-128` — el molde admite **100 archivos por carga**; valida ANTES de escribir, así que no entró nada: se carga en dos lotes |
 | «¿cómo subo un MES entero de SCADA?» | `20` (`normalizar-xls.mjs` si hay `.xls` → `extraer-bahia.mjs` → `juntar-por-dia.mjs`, en ese orden; lotes de ≤100) + `99 §ADR-117/119/126/128`. ⚠️ El día lo declara el EJE DE TIEMPO del dato, no el nombre del archivo · los «(1)» son el mismo dato bajado dos veces: el paso 2 lo escribe UNA vez y se niega si no es idéntico |
+| «del 3 al 12 de enero no hay registro en la gráfica», «¿está todo bien cargado?» | `99 §ADR-128` «Validación del 11-09» + `10 TODO-101` — la gráfica abre en MÁXIMO y su exportación no lo trae esos días (promedio e instantáneo SÍ); lo que falta nunca vino del SCADA y lo cargado es idéntico hora a hora. Leer la base sin tocarla: `35 · L-91` |
+| «no veo enero con Histórico completo», «¿y las tablas?» | `99 §ADR-129/131` — las horas se piden ≤62 días por estadístico (con «Entre dos fechas» se ve); con histórico no hay tablas, por orden suya |
 | «esta gráfica no se entiende: qué fase es cada línea, en qué unidad, qué franja abarca» | `99 §ADR-122/123/124` — una gráfica que necesita el párrafo de debajo **no se puede pegar en un informe** |
 | «¿por qué se eligió este stack y no el otro?» | `99` |
 | «¿por qué la prueba espera exactamente este número?» | `40 §8` y `tests/nucleo.test.js` |
@@ -222,7 +224,7 @@ vive en `10 · TODO-79`, y los **relevos de sesión** `2026-08-22/24/26-relevo-c
 | `ADR-125` | 2026-09-10 | Documentarlo todo: la fuga que vivía en el propio guardián, el máximo que falta diez días, y un cerebro sin sitio | `research-archive/2026-09-10-auditoria-documental-total/` |
 | `ADR-126` | 2026-09-10 | Febrero: el paso 2 lee la fecha como la pantalla, escribe una vez lo bajado dos veces y nombra lo que aparta | `research-archive/2026-09-10-febrero-scada/` |
 | `ADR-127` | 2026-09-10 | El cargador de SCADA decide sobre la carga ENTERA: fases de más en cualquier día, asignación por etiqueta, la fecha del mes y el estadístico por archivo | `research-archive/2026-09-10-cargador-carga-entera/` |
-| `ADR-128` | 2026-09-11 | Enero a agosto en producción: el paso 0 se vuelve herramienta, 100 archivos por carga y lo que no es medida se aparta | `research-archive/2026-09-10-ene-ago-scada/` |
+| `ADR-128` | 2026-09-11 | Enero a agosto en producción: el paso 0 se vuelve herramienta, 100 archivos por carga y lo que no es medida se aparta (+ «Validación del 11-09») | `research-archive/2026-09-10-ene-ago-scada/` + `research-archive/2026-09-11-validacion-meses/` |
 | `ADR-129` | 2026-09-11 | El histórico se lee en gráficas: un filtro por gráfica, los indicadores sobre lo guardado y sin tablas | `research-archive/2026-09-11-historico-filtros/` |
 | `ADR-130` | 2026-09-11 | Un día se lee hora a hora: las 24 rotuladas y cada lectura sobre su hora | `research-archive/2026-09-11-eje-de-dias/` |
 | `ADR-131` | 2026-09-11 | El eje del histórico es el calendario: cada día uno a uno, los huecos se ven y un día abre sus 24 horas en todas las gráficas; sin tablas con histórico | `research-archive/2026-09-11-eje-de-dias/` |

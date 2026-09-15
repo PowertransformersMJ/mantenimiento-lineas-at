@@ -226,6 +226,9 @@
   respaldo, es otro dato disfrazado del que se pedía. Y si hay que fijar una hora, la que **coincide
   con un sello real en los dos regímenes** (13:00 de Colombia = 18 UTC; las 12:00 no).
 - **Hermana de `L-69`**: mismo día, mismo módulo, las dos dando resultados creíbles.
+- **Recaída 11-09 (`§ADR-131`):** «hoy» con `toISOString` era la fecha de Greenwich: desde las 19:00
+  pintaba mañana como sin dato. Se arregló con la fecha LOCAL del navegador, no con la de Colombia:
+  quedan dos dueños de «hoy» (`10 · TODO-102`).
 
 ### L-73 · Un icono se juzga a su TAMAÑO REAL — a 3× todo se ve bien
 
@@ -271,3 +274,25 @@
   las MEDIDAS van a `—` con su motivo, y una prueba falla si alguien escribe una medida como cero.
 - **Regla:** si avisa DOS veces de lo mismo, la tercera respuesta **no es una explicación: es un
   cambio en la pantalla**. Toda pantalla que dependa de un dato suyo se diseña **primero vacía**.
+
+### L-88 · Una maqueta que se dibuja con script llega VACÍA a su visor
+- **Síntoma (11-09):** la primera maqueta le llegó en blanco —*«no veo grafica ni nada»*— y en mi
+  navegador se veía entera. Dibujaba las gráficas con un script, y su visor lateral **no ejecuta scripts**.
+- **Regla:** la maqueta viaja **ya dibujada**: el SVG calculado dentro del HTML y los filtros solo con
+  CSS. Se comprueba en Chrome sin cabeza con `--disable-javascript` y reloj real (`34 · L-72`).
+- **Para enseñar algo RETIRADO** se simula ocultándolo en SU pestaña, y se le dice que vuelve al
+  recargar (`§ADR-131`). Dónde viven las maquetas y sus servidores: `20`.
+
+### L-89 · Una gráfica que coloca por PUESTO pega los huecos, y la prueba con horas sueltas lo tapa
+- **Síntoma (11-09, su captura):** cinco gráficas ponían cada hora en su **puesto de la lista**; un día
+  sin documento no entra en la lista y el hueco se pegaba. Con el máximo, **45 días escondidos** en
+  enero-agosto, y `§ADR-129` afirmaba «la línea se corta en cada hueco»: se probó con horas sueltas.
+- **Regla:** la x sale del **día del calendario × 24 + la hora**, nunca del puesto. Se prueba con días
+  **ENTEROS** ausentes y con su dato real (`§ADR-131`). Emparenta con `L-76` y con `30 · L-33/56`.
+
+### L-90 · Una prueba que lee el TEXTO del fuente no prueba el dibujo
+- **Síntoma (11-09, `§ADR-131`):** 2.741 pruebas en verde y **siete defectos** que solo cazaron los
+  revisores **dibujando**. Y tres roturas por un salto de línea o un renombre; una vez se reformateó
+  el código para contentar a la regex.
+- **Regla:** la regex, solo para «esta pieza llama a esta función». Lo que se **ve** se prueba
+  **RENDERIZANDO** y midiendo el SVG. **Nunca se toca el código para contentar una regex.**
