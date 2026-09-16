@@ -18,11 +18,29 @@
 //   1. Descargar una clave de cuenta de servicio del proyecto y guardarla FUERA
 //      del repo (o dentro: el .gitignore ya bloquea serviceAccount*.json).
 //   2. GOOGLE_APPLICATION_CREDENTIALS=/ruta/clave.json \
-//        node herramientas/sembrar.mjs --linea LN-627 --admin correo@ejemplo.com
+//        node herramientas/sembrar.mjs --linea LN-627
 //
+//   --linea CODIGO              OBLIGATORIO. No hay línea por defecto: con más de
+//                               una en el parque, olvidarlo sembraría en otra.
 //   --seco                      enseña todo lo que haría sin escribir nada.
 //   --emitir-semillas           autoriza dar de alta ids NUEVOS en el registro.
 //   --contrato-050-desplegado   confirma que la web ya valida `orden` no entero.
+//
+// LO QUE NECESITA DE LA BÓVEDA, por línea:
+//   <CODIGO>-geometria.json     el levantamiento base (obligatorio)
+//   <CODIGO>-linea.json         la FICHA DE LÍNEA: tensión, circuitos, conductor
+//                               e hipótesis (obligatoria; ver `construirLinea`)
+//   <CODIGO>-geometria-ampliacion-2026-08.json · <CODIGO>-falla.json  (opcionales)
+//
+// LO QUE YA NO HACE (2026-09-16):
+//   · Dar permisos. Tenía un `--admin CORREO` que reescribía los reclamos de la
+//     cuenta con `{orgId, rol:'admin'}` a secas: sin funciones ni alcance, así
+//     que al propietario le habría dejado sin leer ni escribir nada. Desde
+//     `99 §ADR-100` el ÚNICO que escribe permisos es el trabajador de
+//     `usuarios/`, y las altas se hacen desde la pantalla Personas.
+//   · Reescribir `config/ia` en cada corrida. Lo ponía `enabled:false` cada vez,
+//     así que resembrar apagaba la IA sin que nadie lo decidiera. Ahora solo lo
+//     CREA, apagado, si todavía no existe.
 //
 // Es IDEMPOTENTE: se puede correr las veces que haga falta.
 // ============================================================================
@@ -31,10 +49,9 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { initializeApp, cert, applicationDefault } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
-import { getAuth } from 'firebase-admin/auth';
 import { CANONICOS, ORG_POR_DEFECTO, RUTA_REGISTRO, emitirSemillas, idDeSemilla } from './identidad.mjs';
-import { construirApoyos, construirInvestigacion, documentoParaResembrar,
-  CAMPOS_QUE_NO_SE_RESIEMBRAN } from './construir-apoyos.mjs';
+import { construirApoyos, construirInvestigacion, construirLinea, documentoParaResembrar,
+  CAMPOS_QUE_NO_SE_RESIEMBRAN, FICHA_DE_LINEA } from './construir-apoyos.mjs';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
 const RAIZ = join(AQUI, '..');
@@ -48,11 +65,37 @@ const arg = (n, def) => {
 };
 const bandera = (n) => process.argv.includes('--' + n);
 
-const CODIGO_LINEA = arg('linea', 'LN-627');
-const CORREO_ADMIN = arg('admin', null);
+const CODIGO_LINEA = arg('linea', null);
 const SECO = bandera('seco');
 const EMITIR_SEMILLAS = bandera('emitir-semillas');
 const CONTRATO_050_DESPLEGADO = bandera('contrato-050-desplegado');
+
+// ⚠️ `--admin` YA NO EXISTE, y no se ignora en silencio: quien lo pase por
+// costumbre creería que la cuenta quedó con permisos. Se para antes de nada.
+if (bandera('admin')) {
+  console.error(`
+❌ --admin se retiró de este script (2026-09-16) y no se siembra nada.
+
+   Escribía en la cuenta \`{orgId, rol:'admin'}\` sin funciones ni alcance: al
+   propietario lo habría dejado sin poder leer ni escribir. Los permisos los
+   escribe SOLO el trabajador de usuarios/ (\`99 §ADR-100\`): las altas y los
+   roles se dan desde la pantalla Personas de la aplicación.
+
+   Para sembrar, vuelva a correr sin --admin.
+`);
+  process.exit(1);
+}
+
+// La línea se declara SIEMPRE. Con dos o más líneas en el parque, un defecto
+// sembraría —o colgaría un expediente— en la que no era, sin dar ningún error.
+if (!CODIGO_LINEA) {
+  console.error(`
+❌ Falta --linea. No hay línea por defecto.
+
+   node herramientas/sembrar.mjs --linea CODIGO --seco
+`);
+  process.exit(1);
+}
 
 // ── Credenciales ────────────────────────────────────────────────────────────
 const claveEnv = process.env.GOOGLE_APPLICATION_CREDENTIALS;
@@ -68,7 +111,7 @@ if (!claveEnv && !SECO) {
    3. Correr:
 
       GOOGLE_APPLICATION_CREDENTIALS=~/Downloads/EL-ARCHIVO.json \\
-        node herramientas/sembrar.mjs --linea ${CODIGO_LINEA} --admin TU-CORREO
+        node herramientas/sembrar.mjs --linea ${CODIGO_LINEA}
 
    ⚠️ Ese archivo es una llave maestra del proyecto: no se commitea (el
       .gitignore ya lo bloquea) y no se comparte por correo ni por chat.
@@ -81,11 +124,34 @@ if (!claveEnv && !SECO) {
 // ── Origen de los datos: la bóveda privada ──────────────────────────────────
 const BOVEDA = join(RAIZ, '..', 'brain-private', 'mantenimiento-lineas-at', 'fixtures');
 const FIXTURE = join(BOVEDA, `${CODIGO_LINEA}-geometria.json`);
+/**
+ * LA FICHA DE LÍNEA. Tensión, circuitos, conductor e hipótesis de ESTA línea.
+ * Antes iban escritos aquí a mano con los valores de LN-627, y sembrar otra
+ * línea se los habría prestado en silencio. Sin ficha no se siembra: no hay
+ * valores por defecto.
+ */
+const FIXTURE_LINEA = join(BOVEDA, `${CODIGO_LINEA}-linea.json`);
+// Se revisan los dos archivos antes de parar, para decir todo lo que falta de
+// una vez y no a golpe de corrida.
+let faltaAlgunArchivo = false;
 if (!existsSync(FIXTURE)) {
   console.error(`❌ No está el levantamiento de ${CODIGO_LINEA} en la bóveda:\n   ${FIXTURE}`);
-  process.exit(1);
+  faltaAlgunArchivo = true;
 }
+if (!existsSync(FIXTURE_LINEA)) {
+  const campos = (seccion) => Object.keys(FICHA_DE_LINEA[seccion]).join(', ');
+  console.error(`❌ No está la ficha de línea de ${CODIGO_LINEA} en la bóveda:\n   ${FIXTURE_LINEA}
+   Tiene que declarar, con la procedencia de cada cifra:
+     codigo     : "${CODIGO_LINEA}"
+     linea      : ${campos('linea')}, conductor
+     conductor  : ${campos('conductor')}
+     hipotesis  : ${campos('hipotesis')}
+   No se toma la de otra línea ni se ponen valores por defecto.`);
+  faltaAlgunArchivo = true;
+}
+if (faltaAlgunArchivo) process.exit(1);
 const levantamiento = JSON.parse(readFileSync(FIXTURE, 'utf-8'));
+const fichaLinea = JSON.parse(readFileSync(FIXTURE_LINEA, 'utf-8'));
 
 /**
  * AMPLIACIONES. Un levantamiento no se corrige sobrescribiéndolo: se AMPLÍA con
@@ -103,61 +169,24 @@ const ampliacion = existsSync(FIXTURE_AMPLIACION)
 const lineaId = idDeSemilla(CODIGO_LINEA, 'linea', ORG);
 const hipotesisId = idDeSemilla(CODIGO_LINEA, 'hipotesis-modulo-campo', ORG);
 
-const base = (id, extra = {}) => ({
-  id, orgId: ORG, creadoEn: AHORA, creadoPor: 'sembrador', revision: 0, ...extra,
-});
-
-const linea = base(lineaId, {
-  tipo: 'linea',
-  codigo: CODIGO_LINEA,
-  nombre: `Línea ${CODIGO_LINEA}`,
-  tensionNominal_kV: 66,
-  circuitos: 1,
-  activa: true,
-  hipotesisId,
-  conductor: {
-    codigo: 'Darien', material: 'AAAC', calibre: '559,5 MCM', formacion: '19',
-    seccion_mm2: 283.5, diametro_m: 0.02179, masaLineal_kg_m: 0.776, rts_kgf: 8528,
-    moduloElastico_kg_mm2: 6300, moduloEs: 'no_declarado', dilatacion_1_C: 23.0e-6,
-    tempMaxOperacion_C: 90,
-    // ⚠️ ESTA PROCEDENCIA ESTABA MAL ETIQUETADA, y era una suposición con
-    // insignia de fabricante (`99 §ADR-099`). Decía `catalogo_fabricante`
-    // mientras su propia `fuente` —dos líneas más abajo, sin cambiar— dice que
-    // viene del catálogo embebido en el módulo de campo y que está PENDIENTE de
-    // confirmar con el proveedor. Las dos cosas no pueden ser ciertas.
-    //
-    // Corregido a `supuesto` el 2026-09-05 por orden del Ingeniero: *«debe ser
-    // información del fabricante, no supongamos nada»*. Consecuencia inmediata y
-    // buscada: la temperatura de operación pasa a viajar marcada como SUPUESTA y
-    // el amperaje deja de presentarse como dictamen hasta que llegue la ficha.
-    //
-    // ⚠️ Y NO ES LA ÚNICA CIFRA AFECTADA: la auditoría ya había encontrado
-    // conflicto en el módulo elástico (6.300 vs 7.000), y ese conflicto decide
-    // si un tramo cumple el RETIE. Todo este bloque espera la misma ficha.
-    procedencia: 'supuesto',
-    fuente: 'catálogo del módulo de campo LN-627 v10 — PENDIENTE confirmar con el proveedor',
-  },
-});
-
-const hipotesis = base(hipotesisId, {
-  tipo: 'hipotesis',
-  nombre: 'Hipótesis del módulo de campo (SIN VALIDAR)',
-  lineaId,
-  eds_pct: 20, tempEds_C: 28, tempMax_C: 75, tempMin_C: 22,
-  vientoMax_kmh: 100, tempViento_C: 28, cx: 1.0, densidadAire_kg_m3: 1.2,
-  // ⚠️ La auditoría normativa encontró que 7,0 m no corresponde a ninguna
-  // categoría de 66 kV del RETIE. Se cargan los valores reales de la tabla.
-  despejeMinimo_m: {
-    'vias_zonas_peatonales': 5.8,
-    'campo_abierto_con_control_de_copas': 5.8,
-    'bosque_o_cultivo_sin_control': 8.3,
-    'rio_navegable': 10.4,
-    'campos_deportivos': 12.0,
-  },
-  normaReferencia: 'RETIE Libro 3, Tabla 3.10.2.a (Res. 40284 de 2026)',
-  procedencia: 'supuesto',
-  congelada: false,
-});
+// ── La línea y su hipótesis, desde SU ficha ─────────────────────────────────
+//
+// Aquí iban escritos a mano el conductor Darien, 66 kV, un circuito y las
+// hipótesis de LN-627 —con sus avisos: el conductor es `supuesto` y no
+// `catalogo_fabricante` (`99 §ADR-099`, orden del Ingeniero del 2026-09-05), y
+// el despeje sale de la tabla del RETIE y no de los 7,0 m del módulo—. Esos
+// valores y sus avisos viven ahora en `LN-627-linea.json` de la bóveda, sin
+// cambiar ni una cifra. Si la ficha no está completa, se para ANTES de abrir
+// la conexión con la base.
+let linea, hipotesis;
+try {
+  ({ linea, hipotesis } = construirLinea(CODIGO_LINEA, fichaLinea, {
+    org: ORG, ahora: AHORA, lineaId, hipotesisId,
+  }));
+} catch (e) {
+  console.error(`\n❌ ${e.message}\n   Ficha: ${FIXTURE_LINEA}\n`);
+  process.exit(1);
+}
 
 // ── Los apoyos ──────────────────────────────────────────────────────────────
 // El id y el nombre canónico salen del PUNTO, no de dónde caiga en la lista.
@@ -283,7 +312,11 @@ console.log(`\n📋 ${CODIGO_LINEA} — lo que se va a escribir\n`);
 console.log(`   línea      : ${lineaId}`);
 console.log(`   apoyos     : ${apoyos.length} punto(s) · ${apoyos.filter((a) => a.tipoPunto !== 'Empalme').length} estructuras · ${apoyos.filter((a) => a.tipoPunto === 'Empalme').length} empalmes`);
 console.log(`   anclajes   : ${apoyos.filter((a) => a.tipoPunto !== 'Empalme' && /Retención|Terminal|Ángulo/.test(a.funcionEstructural)).length}`);
-console.log(`   hipótesis  : SIN VALIDAR (así queda marcada, a propósito)`);
+// Lo que se dice de la hipótesis sale de SU ficha: afirmar «sin validar» de una
+// línea cuya hipótesis sí lo está sería el mismo préstamo que se acaba de quitar.
+console.log(hipotesis.procedencia === 'supuesto'
+  ? `   hipótesis  : SIN VALIDAR (así queda marcada, a propósito)`
+  : `   hipótesis  : procedencia «${hipotesis.procedencia}»`);
 console.log(investigacion
   ? `   falla      : ${investigacion.componenteAfectado} · ${investigacion.fechaTexto} · cuelga de «${apoyoDeLaFalla?.nombreNormalizado}» (${investigacion.apoyoId})`
   : `   falla      : sin expediente en la bóveda — no se inventa ninguno`);
@@ -305,6 +338,8 @@ async function sembrar() {
     console.log(`\n♻️  De lo que YA exista en la base no se pisa `
       + `${CAMPOS_QUE_NO_SE_RESIEMBRAN.join(', ')} (\`99 §ADR-033\`): sin credencial no se`);
     console.log('   puede leer qué hay, así que aquí solo se declara la regla.');
+    console.log('\n🤖 config/ia (el interruptor de la IA) solo se CREA, apagado, si todavía no');
+    console.log('   existe. Si ya existe no se toca: reescribirlo apagaba la IA en cada corrida.');
     console.log('\n🌵 Modo seco: no se escribió nada.');
     console.log('   Un id que se mueve deja huérfanas las fotos y el expediente, y NO da');
     console.log('   ningún error: la pantalla simplemente dice «no identificada». Por eso');
@@ -369,10 +404,27 @@ async function sembrar() {
       }
     }
   }
-  lote.set(db.collection('config').doc('ia'), {
-    enabled: false, actualizadoEn: FieldValue.serverTimestamp(),
-    nota: 'Apagado hasta que existan los papeles de tratamiento de datos con el cliente (ADR-004).',
-  }, { merge: true });
+  // ── El interruptor de la IA: se CREA si no existe, jamás se reescribe ─────
+  //
+  // Antes iba con `set(..., {merge:true})` en cada corrida y lo dejaba
+  // `enabled:false` siempre: resembrar una línea apagaba la IA de todo el
+  // sistema sin que nadie lo hubiera decidido. Quien lo encienda o lo apague lo
+  // hace a propósito, y el sembrador no tiene nada que opinar.
+  //
+  // Va con `create` y no con `set`: si entre la lectura y la escritura alguien
+  // lo crea, el lote entero falla en vez de pisarlo. Mejor una corrida que hay
+  // que repetir que un interruptor cambiado en silencio.
+  const refIa = db.collection('config').doc('ia');
+  const iaActual = await refIa.get();
+  if (iaActual.exists) {
+    console.log(`\n🤖 config/ia ya existe (enabled: ${iaActual.data()?.enabled}): no se toca.`);
+  } else {
+    lote.create(refIa, {
+      enabled: false, actualizadoEn: FieldValue.serverTimestamp(),
+      nota: 'Apagado hasta que existan los papeles de tratamiento de datos con el cliente (ADR-004).',
+    });
+    console.log('\n🤖 config/ia no existía: se crea APAGADO (ADR-004).');
+  }
   await lote.commit();
 
   // El registro se apunta DESPUÉS de que la escritura haya ido bien: un id
@@ -385,18 +437,7 @@ async function sembrar() {
   }
 
   console.log(`\n✅ ${CODIGO_LINEA} cargada en Firestore`);
-
-  if (CORREO_ADMIN) {
-    const u = await getAuth().getUserByEmail(CORREO_ADMIN).catch(() => null);
-    if (!u) {
-      console.log(`\n⚠️  ${CORREO_ADMIN} todavía no ha entrado nunca. Que inicie sesión una vez y`);
-      console.log(`   vuelva a correr este script para darle el rol.`);
-      return;
-    }
-    await getAuth().setCustomUserClaims(u.uid, { orgId: ORG, rol: 'admin' });
-    console.log(`\n✅ ${CORREO_ADMIN} es admin de "${ORG}".`);
-    console.log(`   Debe cerrar sesión y volver a entrar para que el token traiga el rol.`);
-  }
+  // Los permisos de las personas NO se tocan desde aquí: ver la cabecera.
 }
 
 sembrar().catch((e) => { console.error('❌', e.message); process.exit(1); });

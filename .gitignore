@@ -74,6 +74,12 @@ web/dist/
 # ⚠️ Registro fotográfico de campo — DATO DE CLIENTE. Nunca al repositorio público.
 # Lo puso aquí el Ingeniero el 17-08; vive en la bóveda privada (ver docs/10).
 LN-627/
+# 16-09: el GPS de LN-617/LN-628 que dejó el Ingeniero; *.gpx ya lo cubría, pero la carpeta entera
+# también (fotos o Excel que caigan ahí). Copia del GPX en la bóveda: fixtures/gpx/LN-617-LN-628/.
+LN-617:LN-628/
+# Y cualquier carpeta de línea en la raíz con otro nombre («LN-617-LN-628/», «LN-628/»…): ningún
+# archivo del repositorio empieza por «LN-» (comprobado el 16-09).
+/LN-[0-9]*/
 **/Registro Fotografico/
 fotos-del-portero/
 

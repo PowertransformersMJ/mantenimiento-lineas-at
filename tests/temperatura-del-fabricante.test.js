@@ -24,6 +24,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import { ampacidadDeLinea, temperaturaDelConductor } from '../nucleo/termica.js';
+import { faltasDeLaFichaDeLinea } from '../herramientas/construir-apoyos.mjs';
 
 const leer = (p) => readFileSync(fileURLToPath(new URL('../' + p, import.meta.url)), 'utf-8');
 
@@ -124,13 +125,18 @@ describe('lo dicen los sitios que publican, no solo el motor', () => {
     // Decía `catalogo_fabricante` mientras su propia `fuente` decía «catálogo
     // del módulo de campo … PENDIENTE confirmar con el proveedor». Las dos no
     // pueden ser ciertas, y la etiqueta era la que mentía.
-    const t = leer('herramientas/sembrar.mjs');
-    // ⚠️ El corte NO puede ser `const hipotesis`: `const hipotesisId` aparece
-    // ANTES en el archivo y es su prefijo, así que el slice salía vacío y la
-    // prueba habría pasado en verde sin mirar nada. Lo cazó ella misma.
-    const bloque = t.slice(t.indexOf("codigo: 'Darien'"), t.indexOf('const hipotesis ='));
-    assert.match(bloque, /procedencia: 'supuesto'/);
-    assert.ok(!/procedencia: 'catalogo_fabricante'/.test(bloque),
-      'la suposición volvió a ponerse la insignia del fabricante');
+    //
+    // Desde el 16-09 el conductor ya no vive en el texto del sembrador sino en la
+    // ficha de cada línea, en la bóveda (que en CI no está). Por eso la regla se
+    // comprueba donde sí corre siempre: en el validador de la ficha, con una
+    // ficha inventada.
+    const conductor = (procedencia) => ({
+      linea: { conductor: { procedencia, fuente: 'catálogo del módulo de campo — PENDIENTE confirmar con el proveedor' } },
+    });
+    const regla = (f) => f.includes('linea.conductor.procedencia');
+    assert.ok(faltasDeLaFichaDeLinea('LX-1', conductor('catalogo_fabricante')).some(regla),
+      'la suposición volvió a ponerse la insignia del fabricante y el sembrador no la para');
+    assert.ok(!faltasDeLaFichaDeLinea('LX-1', conductor('supuesto')).some(regla),
+      'un supuesto declarado como supuesto no es una falta');
   });
 });

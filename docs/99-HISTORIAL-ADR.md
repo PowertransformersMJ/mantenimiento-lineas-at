@@ -2705,6 +2705,8 @@ las piezas, ninguna el ciclo completo.
 - **La llave NO se retira.** Sigue siendo obligatoria para: dar de alta personas y ponerles rol
   (`setCustomUserClaims` no tiene equivalente de cliente) · corregir o borrar cualquier cosa (todas
   las colecciones de activos niegan `delete`) · subir fotos · sembrar una línea nueva desde cero.
+  → *16-09*: lo de las personas ya no es verdad desde `§ADR-100` (lo escribe el trabajador de
+  usuarios), y el sembrador ya no toca permisos (`§ADR-132`).
 - **Sin verificar en vivo**: que la cuenta del Ingeniero traiga realmente `rol: admin` no se ha
   comprobado nunca contra producción — la aplicación no leía el rol en ningún sitio. La cabecera de
   la pantalla nueva existe justo para eso, y es la primera comprobación del despliegue.
@@ -8622,6 +8624,9 @@ publica pero no se firma.**
   la vez**, y el dictamen se enciende solo.
 - El bloque del conductor sembrado queda **entero a la espera de esa ficha**: también el módulo
   elástico (6.300 vs 7.000), que decide si un tramo cumple el RETIE.
+  → *16-09*: ese bloque ya no vive en `sembrar.mjs` sino en la ficha de la línea de la bóveda
+  (`fixtures/LN-627-linea.json`), y la regla «fabricante con fuente PENDIENTE = supuesto» la hace
+  cumplir el validador de la ficha, que sí corre en CI (`§ADR-132`).
 - `2.264` pruebas en verde · motor **0.13.0** · contrato **0.14.0**.
 
 ### Crudo de respaldo
@@ -8799,7 +8804,7 @@ Se revisan en el **repaso trimestral** (el primero, con la rotación de la clave
 | Solo existe UNA llave con poder sobre el proyecto, y se rota | IAM → cuentas de servicio → Claves: una segunda clave en `ing-miguel-jimenez`, o cualquiera en `firebase-adminsdk-fbsvc`, o `docs/05` sin fecha de rotación |
 | El token de cada persona lleva `f` y `l` | fila «SIN RECONCILIAR» o «reclamos anteriores al catálogo» en Personas |
 | `REVOCADOS_ANTES_DE` está bajo `[vars]` en los DOS `wrangler.toml` | `grep -n REVOCADOS_ANTES_DE usuarios/wrangler.toml evidencias/wrangler.toml` |
-| El Worker es el único escritor de reclamos | `grep -rn "setCustomUserClaims\|customAttributes" --include=*.js --include=*.mjs --include=*.ts . \| grep -v node_modules` solo da `usuarios/src/` |
+| El Worker es el único escritor de reclamos | `grep -rn "setCustomUserClaims\|customAttributes" --include=*.js --include=*.mjs --include=*.ts . \| grep -v node_modules` solo da `usuarios/src/` — *16-09: hasta ese día daba también `herramientas/sembrar.mjs` (su `--admin`); se retiró en `§ADR-132`* |
 | La CSP en Report-Only no rompe nada | líneas «[Report Only] Refused to…» en la consola de su Chrome al abrir mapa, atlas y galería |
 
 ### Consecuencias
@@ -10318,7 +10323,7 @@ Febrero llegó el 10-09: 28 carpetas, 1.194 CSV, 577 MB, fuera de todo git. Los 
 4. **Lo demás del revisor, con su caso:** separador decidido por ARCHIVO y no por fila, la marca de
    orden de bytes se quita como la quita el lector, un eje de más de un día se aparta, y el destino
    tiene que estar VACÍO —la herramienta no borra, y un resto se cargaría—.
-5. **`tests/juntar-por-dia.test.js`, 17 casos**, cada uno con el escenario con que se demostró el fallo.
+5. **`tests/juntar-por-dia.test.js`, 17 casos** (25 desde el `§ADR-132`), cada uno con el escenario con que se demostró el fallo.
 
 ### Alternativas descartadas
 
@@ -10780,5 +10785,84 @@ faltaba al principio o al final desaparecía sin aviso, y el subtítulo contaba 
 **Crudo de respaldo:** `research-archive/2026-09-11-eje-de-dias/` (`auditoria/`, `maqueta/`,
 `revision-130/` e `implementacion-131/`: el workflow, los arneses de los revisores y sus capturas; y
 `enero-recuento/`, el recuento de enero por contenido de la validación del `§ADR-128`).
+
+---
+
+## ADR-132 · 2026-09-16 · LN-617 y LN-628 al parque, fase 0: las herramientas dejan de heredar LN-627 y el SCADA de las dos bahías queda listo
+
+**Deliberación:** orden del Ingeniero —*«he anexado en el repositorio los puntos GPS referentes a las
+líneas que comparten la misma estructura LN-617 y LN-628; anéxala al parque adoptando el mismo entorno
+que LN-627»*—, con la bahía del SCADA de cada una dada por él. Workflow de cinco lentes Opus (modelo,
+entorno, GPS, SCADA, datos y permisos) + un crítico; luego la fase 0 (cinco implementadores, uno por
+herramienta) con tres revisores: procesado real, regresión y repositorio público.
+**Estado:** ✅ herramientas y pruebas en `main`; SCADA procesado en local y en la bóveda. **Nada escrito
+en la base ni desplegado**: ninguna línea nueva existe todavía en producción · NO revisada externamente.
+
+### Lo que salió al MEDIR
+
+| Hallazgo | Por qué importa |
+|---|---|
+| El GPS son 28 puntos «618 E07…E36» (3.183,3 m con el Vincenty del núcleo): faltan E01-E06, y E09 y E24 tienen pinta de torre sin marcar (vanos de 174 y 217 m). A 4,2 km de LN-627, sin torres comunes | Lo levantado no es la línea (`40 §10`) |
+| El punto que en agosto se descartó como pórtico de LN-627 cae a 19 m de la torre E26 de este corredor | Explica el «tramo sin explicar» de la ampliación del 21-08; se le pregunta |
+| **Un apoyo pertenece a UNA línea** y su id lleva el código de la línea: la misma torre sembrada en dos líneas son dos ids para siempre, y cada copia calcula 3 conductores con 6 colgados | Decidir ANTES de emitir un solo nombre |
+| **`sembrar.mjs` traía LN-627 escrito dentro** (conductor, hipótesis, 66 kV, 1 circuito) y su `--admin` escribía permisos sin funciones ni alcance: dejaba fuera al dueño y hacía falso el supuesto del `§ADR-100` | Una línea nueva habría nacido con dato de otra |
+| `construir-apoyos` ponía «Suspensión, confirmada por el Ingeniero» a un punto sin función | Firma que nadie dio |
+| El paso 1 buscaba el patrón en la FILA entera: «617» arrastraba otra bahía, el otro extremo y ~51.000 filas por sus valores; con los espacios mal daba 0 filas «bien» | Datos de una línea en otra, en silencio |
+| Hay archivos cuyo NOMBRE miente sobre la señal (un «IT» con la fase S, un «UST» con la U TR): ese día se queda sin la señal y nadie lo decía | Pasa igual en las tres bahías |
+| La bahía de LN-617 trae 8 señales; la de LN-628, 5 y **ninguna tensión** | Sus MVA y pérdidas irán con la nominal, dicho |
+| **LN-628: 185 horas «Invalid»/«Not Renewed»** —25-26/03 con valores imposibles, 26-30/04 y 15-16/06 congelados, 26-01 y 01-07—; LN-617, 8 horas sueltas; el 20-04 congelado de LN-627 es dato BUENO en las otras dos | La pantalla no enseña el sello: entrarían como medida |
+| Pico simultáneo el 16-02 07 h (LN-628 1.461 A · LN-617 523 A) y 1.412 A en LN-628 el 07-02 | Forma de evento en el corredor compartido |
+
+### Decisión
+
+1. **`extraer-bahia.mjs`** mira el patrón SOLO en la etiqueta; cero filas, cero CSV o dos bahías = error
+   y no escribe nada; imprime las etiquetas elegidas. LN-627 sale idéntica (7.907 archivos por md5).
+2. **`juntar-por-dia.mjs`** nombra el archivo cuyo nombre dice una señal y trae otra, y qué día se queda
+   sin ella, sin cambiar lo escrito ni el código de salida (812 de LN-627 idénticos).
+3. **`sellos-de-calidad.mjs`** (nueva, solo lee): las horas sin sello «Actual» en bloques, si están
+   congeladas o son imposibles, y los días sin sello; su `--json` no se escribe dentro del repo.
+4. **`sembrar.mjs`**: sin `--admin` (se detiene si se pasa), `config/ia` solo se crea si falta,
+   `--linea` obligatorio y **cada cifra de la línea sale de su ficha** `fixtures/<LÍNEA>-linea.json` en
+   la bóveda; sin ficha completa no siembra. La de LN-627 lleva exactamente lo que había en el script:
+   los 31 documentos salen idénticos byte a byte contra un Firestore simulado.
+5. **`construir-apoyos.mjs`**: un punto sin función declarada aborta y se nombra; la regla del
+   `§ADR-099` (fabricante con fuente PENDIENTE = supuesto) la hace cumplir el validador de la ficha.
+6. **SCADA procesado** (pasos 1 y 2, el 0 ya estaba): `_dias-LN617/2026-ene-ago/` (812) y
+   `_dias-LN628/2026-ene-ago/` (811), leído = escrito + repetidas, copia en la bóveda por md5.
+7. `.gitignore` cubre cualquier carpeta de línea en la raíz; los nombres de las bahías nuevas, en las
+   dos listas del guardián.
+
+### Lo que decidió el Ingeniero el 16-09 (para el diseño, aún SIN implementar)
+
+- **Una torre, dos líneas**: LN-617 y LN-628 salen por separado en el parque, cada una con su SCADA,
+  pero cada torre se registra UNA vez —una ficha, unas fotos— y se calcula con los dos circuitos.
+- **«618» es el código del tramo compartido.**
+- **El alta la hace él desde una pantalla** «Alta de línea», con maqueta antes.
+- **El conductor y las hipótesis los entrega después**: no se copia nada de LN-627.
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| Sembrar ya las dos líneas con la herramienta tal cual | Heredaban el conductor de LN-627 y le quitaban el acceso al dueño |
+| Salir con error cuando un nombre miente | LN-627 y LN-617 saldrían en rojo por algo que no pierde ninguna fila (`§ADR-126`) |
+| Apartar las horas no «Actual» al procesar | Es decidir por él; la regla va junto a la del 20-04 (`TODO-103`) |
+
+### Supuestos que deben ser ciertos — y la señal que diría que dejaron de serlo
+
+| Supuesto | Señal |
+|---|---|
+| La etiqueta del SCADA tiene subestación, tensión y bahía en sus tres primeros tramos | `extraer-bahia` ve una bahía por señal y se niega |
+| Ninguna carpeta del repositorio empieza por «LN-» | Un archivo propio con ese prefijo desaparece de git |
+
+### Consecuencias
+
+- `2.837` pruebas: 2.835 en verde y **2 `todo`** que dicen lo que el motor NO calcula con dos circuitos
+  —la carga vertical por peso y el viento sobre la estructura—; la transversal sí dobla.
+- Pendiente de SU parte (`TODO-104`): las preguntas del GPS, las 185 horas y los picos.
+- Pendiente de diseño: el ADR de la torre compartida, con tres propuestas y tres jueces.
+
+**Crudo de respaldo:** `research-archive/2026-09-16-ln617-ln628/` (las cinco lentes y el crítico, la
+fase 0 con sus revisores, y los ensayos del SCADA).
 
 ---

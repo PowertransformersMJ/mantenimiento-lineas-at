@@ -65,6 +65,7 @@ vive en `10 · TODO-79`, y los **relevos de sesión** `2026-08-22/24/26-relevo-c
 | «el acuse dijo *guardado* y solo entró una parte» | `99 §ADR-119` — escribir de menos **no da error en ninguna capa**: se cuenta la entrada contra la salida |
 | «no veo la potencia activa / reactiva», «solo salen las que tienen fases» | `99 §ADR-118` — la magnitud sin fases no es invisible: se dibuja su total de bahía |
 | «No se pudo guardar: … `too_big` … `maximum: 100`» | `99 §ADR-128` — el molde admite **100 archivos por carga**; valida ANTES de escribir, así que no entró nada: se carga en dos lotes |
+| «¿cómo sumo OTRA línea al parque?», «¿y si dos líneas van en las mismas torres?» | `99 §ADR-132` + `10 TODO-104/105` — la línea nace de su ficha `fixtures/<LÍNEA>-linea.json` (sin ficha no se siembra) y del GPS; una torre compartida NO se siembra dos veces: espera el diseño de la torre común |
 | «¿cómo subo un MES entero de SCADA?» | `20` (`normalizar-xls.mjs` si hay `.xls` → `extraer-bahia.mjs` → `juntar-por-dia.mjs`, en ese orden; lotes de ≤100) + `99 §ADR-117/119/126/128`. ⚠️ El día lo declara el EJE DE TIEMPO del dato, no el nombre del archivo · los «(1)» son el mismo dato bajado dos veces: el paso 2 lo escribe UNA vez y se niega si no es idéntico |
 | «del 3 al 12 de enero no hay registro en la gráfica», «¿está todo bien cargado?» | `99 §ADR-128` «Validación del 11-09» + `10 TODO-101` — la gráfica abre en MÁXIMO y su exportación no lo trae esos días (promedio e instantáneo SÍ); lo que falta nunca vino del SCADA y lo cargado es idéntico hora a hora. Leer la base sin tocarla: `35 · L-91` |
 | «no veo enero con Histórico completo», «¿y las tablas?» | `99 §ADR-129/131` — las horas se piden ≤62 días por estadístico (con «Entre dos fechas» se ve); con histórico no hay tablas, por orden suya |
@@ -228,6 +229,7 @@ vive en `10 · TODO-79`, y los **relevos de sesión** `2026-08-22/24/26-relevo-c
 | `ADR-129` | 2026-09-11 | El histórico se lee en gráficas: un filtro por gráfica, los indicadores sobre lo guardado y sin tablas | `research-archive/2026-09-11-historico-filtros/` |
 | `ADR-130` | 2026-09-11 | Un día se lee hora a hora: las 24 rotuladas y cada lectura sobre su hora | `research-archive/2026-09-11-eje-de-dias/` |
 | `ADR-131` | 2026-09-11 | El eje del histórico es el calendario: cada día uno a uno, los huecos se ven y un día abre sus 24 horas en todas las gráficas; sin tablas con histórico | `research-archive/2026-09-11-eje-de-dias/` |
+| `ADR-132` | 2026-09-16 | LN-617 y LN-628 al parque, fase 0: las herramientas dejan de heredar LN-627 y el SCADA de las dos bahías queda listo | `research-archive/2026-09-16-ln617-ln628/` |
 
 > Toda decisión cara de revertir entra aquí con su ADR y su crudo enlazado. Si hubo comité o consejo
 > externo y el crudo no está archivado, la tarea **no está cerrada** (`CLAUDE.md §G.4`).

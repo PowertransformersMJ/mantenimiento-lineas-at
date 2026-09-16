@@ -200,6 +200,108 @@ describe('LO QUE NO ENTRA SE DICE CON NOMBRE, SE CUENTA Y SALE CON ERROR', () =>
   });
 });
 
+// ── El nombre que promete una señal y trae otra ─────────────────────────────
+// Medido en enero: un `IT_Current` con la fase S dentro y un `UST_Average` con la
+// tensión TR. Se escribía por la etiqueta —bien— y la fila entraba como repetida
+// idéntica de su hermana: el día se quedaba sin la fase T y nadie lo decía. El
+// aviso NO cambia lo escrito ni el código de salida; por eso cada caso compara
+// además contra el mismo origen con el nombre que DEBERÍA tener.
+/** La línea del recuento, que tiene que salir igual con el aviso y sin él. */
+const recuento = (texto) => texto.match(/\d+ fila\(s\) de señal leídas = .*/)?.[0];
+
+describe('EL NOMBRE QUE PROMETE UNA SEÑAL Y TRAE OTRA SE NOMBRA, y lo escrito no cambia', () => {
+  test('un «IT» que trae la fase S: se nombra, el día se queda sin la T, y la salida es la del nombre bueno', () => {
+    const comun = {
+      'd/IR_Current-a.csv': [eje('2/02/26'), senal('I R', 100)],
+      'd/IS_Current-a.csv': [eje('2/02/26'), senal('I S', 200)],
+    };
+    const miente = correr({ ...comun, 'd/IT_Current-a.csv': [eje('2/02/26'), senal('I S', 200)] });
+    const bueno = correr({ ...comun, 'd/IS_Current-a(1).csv': [eje('2/02/26'), senal('I S', 200)] });
+    assert.equal(miente.codigo, 0, 'el código de salida no cambia: ninguna fila leída se pierde');
+    assert.equal(miente.codigo, bueno.codigo);
+    assert.deepEqual(miente.salida, bueno.salida, 'lo escrito, byte a byte, es lo mismo');
+    assert.equal(recuento(miente.texto), recuento(bueno.texto));
+    assert.match(miente.texto, /«d\/IT_Current-a\.csv» · el nombre dice corriente de la fase T; dentro trae corriente de la fase S/);
+    assert.match(miente.texto, /RESUMEN: 1 archivo\(s\) traen otra señal que la de su nombre: «d\/IT_Current-a\.csv»; esos días se quedan sin: instantaneo-20260202 sin corriente de la fase T\./);
+    assert.doesNotMatch(bueno.texto, /OTRA señal/, 'con el nombre bueno no hay aviso');
+  });
+
+  test('un «UST» que trae la tensión TR y nadie trae la ST: la fila entra como TR y se dice que falta la ST', () => {
+    const { salida, texto, codigo } = correr({
+      'd/ust_average-x.csv': [eje('2/02/26'), senal('U TR', 66)],
+      'd/p_average-x.csv': [eje('2/02/26'), senal('P', 10)],
+    });
+    assert.equal(codigo, 0);
+    assert.deepEqual(salida['promedio-20260202.csv'].slice(1).sort(), [senal('P', 10), senal('U TR', 66)].sort());
+    assert.match(texto, /«d\/ust_average-x\.csv» · el nombre dice tensión entre las fases ST; dentro trae tensión entre las fases TR/);
+    assert.match(texto, /esos días se quedan sin: promedio-20260202 sin tensión entre las fases ST/);
+  });
+
+  test('si otro archivo SÍ trae la señal del nombre, se nombra igual pero no se dice que falte', () => {
+    const { texto, codigo } = correr({
+      'd/it_max-a.csv': [eje('2/02/26'), senal('I S', 5)],
+      'd/is_max-a.csv': [eje('2/02/26'), senal('I S', 5)],
+      'd/it_max-b(1).csv': [eje('2/02/26'), senal('I T', 7)],
+    });
+    assert.equal(codigo, 0);
+    assert.match(texto, /«d\/it_max-a\.csv» · el nombre dice corriente de la fase T; dentro trae corriente de la fase S/);
+    assert.match(texto, /a ningún día le falta la señal del nombre; no les falta, la trae otro archivo: maximo-20260202 \(corriente de la fase T\)/);
+    assert.doesNotMatch(texto, /«d\/it_max-b\(1\)\.csv» · el nombre dice/, 'el que casa no se acusa');
+  });
+
+  test('un archivo que trae SU señal y además otras no miente: trae de más, y no se acusa', () => {
+    // Lo cazó la revisión del 16-09: un «IR» con las tres fases dentro salía acusado.
+    const { texto, codigo } = correr({
+      'd/IR_Current-a.csv': [eje('2/02/26'), senal('I R', 1), senal('I S', 2), senal('I T', 3)],
+    });
+    assert.equal(codigo, 0);
+    assert.doesNotMatch(texto, /el nombre dice/, 'la fase R está dentro: el nombre no miente');
+  });
+
+  test('los nombres que casan no avisan: mayúsculas, P y Q sin fase, y «usr» con las letras al revés', () => {
+    const { texto, codigo } = correr({
+      'd/IR_max-x.csv': [eje('2/02/26'), senal('I R', 1)],
+      'd/p_max-x.csv': [eje('2/02/26'), senal('P', 2)],
+      'd/Q_max_x.csv': [eje('2/02/26'), senal('Q', 3)],
+      'd/usr_max-x.csv': [eje('2/02/26'), senal('U RS', 4)],
+      'd/UTR_max-x.csv': [eje('2/02/26'), senal('U TR', 5)],
+    });
+    assert.equal(codigo, 0);
+    assert.doesNotMatch(texto, /OTRA señal/);
+  });
+
+  test('un nombre que no promete una señal conocida, o una etiqueta que el núcleo no entiende, no se acusa', () => {
+    const { texto, codigo } = correr({
+      'd/cargas_max-x.csv': [eje('2/02/26'), senal('I R', 1)],
+      'd/it_max-x.csv': [eje('2/02/26'), ['', ...Array.from({ length: 24 }, (_, h) => 9 + h)].join(',')],
+    });
+    assert.equal(codigo, 0);
+    assert.doesNotMatch(texto, /OTRA señal/, 'sin prueba no hay mentira: null antes que adivinar');
+  });
+
+  test('el que además se aparta se nombra igual, y el error de apartarlo sigue siendo el de siempre', () => {
+    const { texto, codigo } = correr({
+      'd/ir_min-a.csv': [eje('2/02/26'), senal('I R', 100)],
+      'd/it_min-b.csv': [eje('2/02/26') + ',', senal('I S', 200)],   // una coma de más al final del eje
+    });
+    assert.equal(codigo, 1, 'lo apartado con filas sigue saliendo con error');
+    assert.match(texto, /«it_min-b\.csv» · su eje de tiempo no es idéntico/);
+    assert.match(texto, /«d\/it_min-b\.csv» · el nombre dice corriente de la fase T; dentro trae corriente de la fase S/);
+    assert.match(texto, /«d\/it_min-b\.csv» está apartado \(ver arriba\)/);
+  });
+
+  test('si su día trae un choque, se nombra y se remite al choque, que sigue saliendo con error', () => {
+    const { texto, codigo, salida } = correr({
+      'd/is_max-a.csv': [eje('2/02/26'), senal('I S', 100)],
+      'd/it_max-a.csv': [eje('2/02/26'), senal('I S', 101)],
+    });
+    assert.equal(codigo, 1);
+    assert.deepEqual(salida, {});
+    assert.match(texto, /«d\/it_max-a\.csv» · el nombre dice corriente de la fase T/);
+    assert.match(texto, /maximo-20260202 no se escribe: trae un choque \(ver arriba\)/);
+  });
+});
+
 describe('NI UN NÚMERO SE TOCA', () => {
   test('la fila sale byte a byte como entró', () => {
     const fila = senal('I T', 123.456);

@@ -674,3 +674,196 @@ describe('cargasDeLaLinea — la tabla que se lleva al informe', () => {
     }
   });
 });
+
+// ════════════════════════════════════════════════════════════════════════════
+// DOBLE CIRCUITO — la MISMA línea sintética, con uno y con dos circuitos
+// ----------------------------------------------------------------------------
+// Hasta aquí ninguna prueba de este archivo usaba `circuitos: 2`, y el motor
+// convierte los circuitos en conductores (`conductoresDeLaLinea`: 3 por
+// circuito, UN solo diámetro y UN solo tiro para todos). Una línea de doble
+// circuito sobre las mismas torres pasa entera por ese camino, así que se fija
+// aquí qué tiene que cambiar y qué no.
+//
+// LA FÍSICA, dicha antes de mirar el código:
+//   · Lo que empujan los CONDUCTORES es por conductor × número de conductores.
+//     Con el doble de fases, el doble: quiebre, viento sobre los conductores,
+//     y el peso que cuelga de la cruceta.
+//   · Lo que NO depende de cuántos conductores hay no se mueve: la presión del
+//     viento, la carga por metro de UN conductor, el vano viento, el tiro de
+//     cada conductor, el ángulo, la capacidad del poste, el viento sobre la
+//     propia estructura y el cable de guarda (una torre de doble circuito no
+//     lleva el doble de guardas por llevar el doble de fases).
+//
+// EL APOYO DE LAS CUENTAS A MANO es AP-04: 60° de deflexión (factor exacto 1,
+// cuerda = radio), vano viento (350 + 250)/2 = 300 m, cuelga solo del tramo 2
+// (tiro con viento 1 400 kgf, tiro máximo 1 500 kgf), poste de 9 000 kgf de
+// rotura, 12 m libres, amarre a 10 m. Todo sintético, como el resto del archivo.
+//
+//   w viento  = 375 Pa · 1,0 · 0,024 m / 9,80665 = 9 / 9,80665 = 0,917745 kg/m
+//
+//                                   1 circuito (n = 3)       2 circuitos (n = 6)
+//   quiebre   1 · 1 400 · n         4 200,000 kgf            8 400,000 kgf
+//   viento    0,917745 · 300 · n      825,970 kgf            1 651,940 kgf
+//   total     quiebre + viento      5 025,970 kgf           10 051,940 kgf
+//   quiebre con tiro máx 1 500 · n  4 500,000 kgf            9 000,000 kgf
+//   utilización  F · 10/(9 000 · 12) · 100 = F / 108
+//                                      46,537 %  cumple        93,074 %  revisar
+//   admisible  0,5 · 9 000 · 12 / 10 = 5 400 kgf en los DOS casos
+//   margen     5 400 − F                 374,030 kgf          −4 651,940 kgf
+//
+// Y en el extremo AP-01 (semivano de 150 m, sin deflexión definida):
+//   viento    0,917745 · 150 · n       412,985 kgf              825,970 kgf
+//   quiebre   no evaluable en los dos: un hueco no se vuelve número al doblar.
+// ════════════════════════════════════════════════════════════════════════════
+
+describe('doble circuito — lo que cuelgan los conductores se dobla, lo demás no', () => {
+
+  const conCircuitos = (circuitos, conductor = CONDUCTOR) =>
+    cargasDeLaLinea(lineaSintetica(), tramosSinteticos(), conductor, { ...HIPOTESIS, circuitos });
+  const fila = (filas, nombre) => filas.find((f) => f.apoyo === nombre);
+
+  // La nota de los cables de guarda es la ÚNICA que cita el número de
+  // conductores; fuera de ella, las notas de una fila no pueden cambiar.
+  const esNotaDeGuarda = (t) => /guarda NO están contados/.test(t);
+
+  test('el empuje de los conductores se dobla, apoyo por apoyo — cuentas a mano', () => {
+    const uno = conCircuitos(1);
+    const dos = conCircuitos(2);
+    assert.equal(uno.length, 5);
+    assert.equal(dos.length, 5, 'doblar circuitos no crea ni quita apoyos');
+
+    for (const f of uno) assert.equal(f.nConductores, 3, `${f.apoyo}: 3 fases × 1 circuito`);
+    for (const f of dos) assert.equal(f.nConductores, 6, `${f.apoyo}: 3 fases × 2 circuitos`);
+
+    // AP-04, contra la tabla de arriba. Cifras de calculadora con tolerancia de
+    // milésima, y además la misma cuenta escrita como fórmula.
+    const W = 9 / 9.80665;
+    const a1 = fila(uno, 'AP-04');
+    const a2 = fila(dos, 'AP-04');
+    cerca(a1.ftAngulo_kgf, 4200, 1e-9, 'quiebre AP-04, 1 circuito');
+    cerca(a2.ftAngulo_kgf, 8400, 1e-9, 'quiebre AP-04, 2 circuitos');
+    cerca(a1.ftViento_kgf, 825.970, 1e-3, 'viento AP-04, 1 circuito');
+    cerca(a2.ftViento_kgf, 1651.940, 1e-3, 'viento AP-04, 2 circuitos');
+    cerca(a2.ftViento_kgf, W * 300 * 6, 1e-9, 'viento AP-04, 2 circuitos, por fórmula');
+    cerca(a1.ftTotal_kgf, 5025.970, 1e-3, 'total AP-04, 1 circuito');
+    cerca(a2.ftTotal_kgf, 10051.940, 1e-3, 'total AP-04, 2 circuitos');
+    cerca(a2.ftTotal_kgf, 1400 * 6 + W * 300 * 6, 1e-9, 'total AP-04, 2 circuitos, por fórmula');
+    cerca(a1.ftAnguloTiroMaximo_kgf, 4500, 1e-9, 'quiebre con tiro máximo AP-04, 1 circuito');
+    cerca(a2.ftAnguloTiroMaximo_kgf, 9000, 1e-9, 'quiebre con tiro máximo AP-04, 2 circuitos');
+
+    // El extremo: el viento del semivano se dobla, el quiebre sigue sin existir.
+    cerca(fila(uno, 'AP-01').ftViento_kgf, 412.985, 1e-3, 'viento AP-01, 1 circuito');
+    cerca(fila(dos, 'AP-01').ftViento_kgf, 825.970, 1e-3, 'viento AP-01, 2 circuitos');
+
+    // Y en TODA la tabla: el doble exacto donde había número, hueco donde había
+    // hueco. Un null que al doblar saliera como 0 (o al revés) sería un cambio de
+    // veredicto que nadie pidió.
+    for (let i = 0; i < 5; i++) {
+      for (const campo of ['ftAngulo_kgf', 'ftViento_kgf', 'ftTotal_kgf', 'ftAnguloTiroMaximo_kgf']) {
+        const u = uno[i][campo];
+        const d = dos[i][campo];
+        if (u === null) {
+          assert.equal(d, null, `${uno[i].apoyo}.${campo}: era hueco y tiene que seguir siéndolo`);
+        } else {
+          cerca(d, 2 * u, 1e-9, `${uno[i].apoyo}.${campo} con dos circuitos`);
+        }
+      }
+    }
+  });
+
+  test('lo que NO depende de cuántos conductores hay no se mueve', () => {
+    const uno = conCircuitos(1);
+    const dos = conCircuitos(2);
+
+    // AP-04 a mano: nada de esto sabe cuántas fases cuelgan.
+    const a2 = fila(dos, 'AP-04');
+    assert.equal(a2.vanoViento_m, 300);
+    assert.equal(a2.presionViento_Pa, 375);
+    cerca(a2.cargaViento_kg_m, 9 / 9.80665, 1e-12, 'carga por metro de UN conductor');
+    assert.equal(a2.tiro_kgf, 1400, 'el tiro es de CADA conductor: no se reparte ni se suma');
+    assert.equal(a2.tiroMaximo_kgf, 1500);
+    cerca(a2.factorAngulo, 1, 1e-12, 'el factor del quiebre es geometría');
+
+    // La capacidad del poste tampoco crece por colgarle más fases: el admisible
+    // (margen + carga) vale 0,5 · 9 000 · 12 / 10 = 5 400 kgf con uno y con dos.
+    const a1 = fila(uno, 'AP-04');
+    cerca(a1.utilizacion.margen_kgf + a1.ftTotal_kgf, 5400, 1e-9, 'admisible AP-04, 1 circuito');
+    cerca(a2.utilizacion.margen_kgf + a2.ftTotal_kgf, 5400, 1e-9, 'admisible AP-04, 2 circuitos');
+
+    // En TODA la tabla, campo a campo.
+    const fijos = ['n', 'apoyo', 'funcionEstructural', 'esExtremo', 'tramos_n', 'deflexion_grados',
+      'factorAngulo', 'vanoViento_m', 'presionViento_Pa', 'cargaViento_kg_m', 'tiro_kgf',
+      'estadoTiro', 'tiroMaximo_kgf', 'estadoTiroMaximo', 'capacidadDeclarada',
+      'faltaParaVeredicto', 'supuestosDelVeredicto', 'noEvaluable'];
+    for (let i = 0; i < 5; i++) {
+      for (const campo of fijos) {
+        assert.deepEqual(dos[i][campo], uno[i][campo], `${uno[i].apoyo}.${campo} no puede cambiar con los circuitos`);
+      }
+      // Las notas, iguales salvo la de los cables de guarda.
+      assert.deepEqual(dos[i].notas.filter((t) => !esNotaDeGuarda(t)),
+        uno[i].notas.filter((t) => !esNotaDeGuarda(t)), `${uno[i].apoyo}: notas`);
+    }
+
+    // EL CABLE DE GUARDA: fuera de la cuenta con uno y con dos circuitos, y
+    // dicho en los dos casos. Con dos circuitos son 6 conductores: ni 7 (la
+    // guarda colada dentro) ni 8 (la guarda doblada con las fases).
+    const guarda1 = fila(uno, 'AP-04').notas.find(esNotaDeGuarda);
+    const guarda2 = a2.notas.find(esNotaDeGuarda);
+    assert.ok(guarda1, 'con un circuito se declara que la guarda no está contada');
+    assert.ok(guarda2, 'con dos circuitos también: doblar las fases no la mete');
+    assert.match(guarda1, /Se cuentan 3 conductores \(3 fases × 1 circuito\(s\)\)/);
+    assert.match(guarda2, /Se cuentan 6 conductores \(3 fases × 2 circuito\(s\)\)/);
+  });
+
+  test('el MISMO poste que cumple con un circuito hay que revisarlo con dos', () => {
+    // La consecuencia que se firma. AP-04 no cambió en nada; solo le cuelgan el
+    // doble de fases. Con la carga del doble y la capacidad igual, la
+    // utilización se dobla y el veredicto se da la vuelta.
+    const a1 = fila(conCircuitos(1), 'AP-04');
+    const a2 = fila(conCircuitos(2), 'AP-04');
+
+    cerca(a1.utilizacion.utilizacion_pct, 46.537, 1e-3, 'utilización AP-04, 1 circuito');
+    cerca(a2.utilizacion.utilizacion_pct, 93.074, 1e-3, 'utilización AP-04, 2 circuitos');
+    assert.equal(a1.utilizacion.estado, 'cumple');
+    assert.equal(a2.utilizacion.estado, 'revisar');
+    cerca(a1.utilizacion.margen_kgf, 374.030, 1e-3, 'margen AP-04, 1 circuito');
+    cerca(a2.utilizacion.margen_kgf, -4651.940, 1e-3, 'margen AP-04, 2 circuitos');
+  });
+
+  // ── Lo que la física pide y el motor NO hace (se deja escrito, no se arregla) ──
+
+  test('la carga VERTICAL del peso de los conductores también se dobla', {
+    todo: 'NINGÚN motor calcula hoy la carga vertical de un apoyo en kgf. nucleo/cargas.js la declara fuera («esa es el vano peso, y ya vive en mecanica.js»), pero `mecanica.vanoPeso` devuelve METROS por conductor —no kgf— y fuera de las pruebas nadie la llama (web/src/vistas/criteriosApoyo.ts lo explica). En una línea de doble circuito ese peso se dobla y hoy no sale en ninguna tabla.',
+  }, () => {
+    // Esperado a mano, en terreno plano (las tres cotas de sujeción iguales, así
+    // que el vano peso vale el vano viento: 300 m en AP-04) y con un peso propio
+    // sintético de 1,2 kg/m:
+    //   1 circuito : 1,2 kg/m · 300 m · 3 = 1 080 kgf
+    //   2 circuitos: 1,2 kg/m · 300 m · 6 = 2 160 kgf   (el doble)
+    const conPeso = { ...CONDUCTOR, masaLineal_kg_m: 1.2 };
+    const plano = (circuitos) => cargasDeLaLinea(
+      lineaSintetica().map((a) => ({ ...a, cotaSujecion_m: 10 })),
+      tramosSinteticos(), conPeso, { ...HIPOTESIS, circuitos });
+    const a1 = fila(plano(1), 'AP-04');
+    const a2 = fila(plano(2), 'AP-04');
+    const campo = Object.keys(a1).find((k) => /vertical/i.test(k));
+    assert.ok(campo, 'la fila de cargas no trae ninguna carga vertical');
+    cerca(a1[campo], 1080, 1e-9, 'vertical AP-04, 1 circuito');
+    cerca(a2[campo], 2160, 1e-9, 'vertical AP-04, 2 circuitos');
+  });
+
+  test('el viento sobre la PROPIA estructura no se dobla: el total crece menos del doble', {
+    todo: 'nucleo/cargas.js no calcula el empuje del viento sobre el apoyo (fuste, crucetas, cadenas) y, a diferencia del cable de guarda, TAMPOCO lo declara: su lista de «lo que este archivo NO hace» no lo nombra y ninguna nota de la fila lo dice. Por eso con dos circuitos el total crece EXACTAMENTE el doble. El molde del apoyo no tiene área expuesta ni coeficiente de forma con los que calcularlo.',
+  }, () => {
+    // La física, sin números porque el dato de la estructura no existe:
+    //   total = C·(n/3) + S     con C lo de los conductores de un circuito y S
+    //                           el viento sobre la estructura (S > 0 siempre)
+    //   1 circuito : C + S      2 circuitos: 2C + S
+    //   cociente (2C + S)/(C + S) < 2
+    // Hoy S no entra, el cociente vale 2 y esta prueba no se cumple.
+    const t1 = fila(conCircuitos(1), 'AP-04').ftTotal_kgf;
+    const t2 = fila(conCircuitos(2), 'AP-04').ftTotal_kgf;
+    assert.ok(t2 / t1 < 2 - 1e-9,
+      `con dos circuitos el total debería crecer menos del doble; creció ×${(t2 / t1).toFixed(6)}`);
+  });
+});

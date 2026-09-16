@@ -44,6 +44,17 @@
 // filas entran en el recuento y la salida es 1. Solo el sello de calidad se
 // aparta sin error: no es una medida, la pantalla lo lee aparte.
 //
+// ⚠️ EL NOMBRE PUEDE MENTIR SOBRE LA SEÑAL, Y ESO SE DICE (`99 §ADR-126`).
+// El nombre empieza por la señal —`ir_`, `IT_`, `p_`, `ust_`…— y a veces trae
+// otra: medido en enero, un `IT_Current` que trae la fase S y un `UST_Average`
+// que trae la tensión TR. Aquí se escribe por la ETIQUETA, que es lo correcto,
+// y la fila entraba como «repetida idéntica» de su hermana: el día se quedaba
+// sin la fase T y nadie lo decía. Ahora cada archivo así se nombra, con lo que
+// promete y lo que trae, y se dice qué día·estadístico se queda sin la señal.
+// NO cambia lo escrito ni el código de salida: ninguna fila leída se pierde
+// —lo que falta nunca vino en la exportación—, igual que una repetida idéntica
+// se cuenta y se dice sin error. El error queda para lo que se lee y no entra.
+//
 // ⚠️ DESTINO VACÍO, SIEMPRE. La herramienta no borra nada, así que en una
 // carpeta con restos un día que ahora NO se escribe —por un choque— seguiría
 // ahí con la versión anterior, y se cargaría. Si el destino trae CSV, se niega.
@@ -51,10 +62,10 @@
 //   node herramientas/juntar-por-dia.mjs <carpeta-origen> <carpeta-destino>
 // ============================================================================
 import { readdirSync, readFileSync, writeFileSync, mkdirSync, statSync, existsSync } from 'node:fs';
-import { join, basename } from 'node:path';
+import { join, basename, relative } from 'node:path';
 import { celdasDeCsv, separadorDe } from '../importar/csv.js';
 import {
-  encontrarEjeDeTiempo, estadisticoDeNombre, esArchivoDeCalidad, ordenDeLaCarga,
+  encontrarEjeDeTiempo, estadisticoDeNombre, esArchivoDeCalidad, ordenDeLaCarga, campoDeSenal,
 } from '../nucleo/cargabilidadAncho.js';
 
 const [origen, destino] = process.argv.slice(2);
@@ -92,6 +103,52 @@ function etiquetaDe(linea, primeraColumna, separador) {
     .map((v) => (v == null ? '' : String(v).trim())).filter((t) => t !== '').join(' · ');
 }
 
+/**
+ * QUÉ SEÑAL PROMETE EL NOMBRE. El SCADA lo empieza por la señal: `ir_`, `IT_`,
+ * `p_`, `Q_`, `ust_`… Ese comienzo se escribe como lo rotula la etiqueta
+ * (`/I T`, `/U ST`) y lo lee el NÚCLEO con `campoDeSenal`: nombre y etiqueta se
+ * comparan con la misma regla y se describen con las mismas palabras.
+ * Un comienzo que no es una señal conocida devuelve `null`: ese nombre no
+ * promete nada, y no hay nada que contradecir.
+ */
+function senalDeNombre(nombre) {
+  const p = (basename(nombre).match(/^([a-z]+)(?=[_\-. ]|$)/i)?.[1] ?? '').toUpperCase();
+  let rotulo = null;
+  if (/^I[RST]$/.test(p)) rotulo = `/I ${p[1]}`;
+  else if (p === 'P' || p === 'Q') rotulo = `/${p}`;
+  else if (/^U[RST]{2}$/.test(p) && p[1] !== p[2]) {
+    // Las dos letras en cualquier orden: la bahía trae `usr_` con la tensión RS dentro.
+    rotulo = `/U ${{ RS: 'RS', ST: 'ST', RT: 'TR' }[[p[1], p[2]].sort().join('')]}`;
+  }
+  return rotulo ? campoDeSenal(rotulo) : null;
+}
+
+/** ¿Trae esta etiqueta, leída por el núcleo, la señal que promete el nombre? */
+function esLaSenal(lee, dice) {
+  return lee.campo === dice.campo && (!dice.fase || lee.fase === dice.fase);
+}
+
+/**
+ * LAS SEÑALES DE UN ARCHIVO QUE NO SON LA DE SU NOMBRE, o `null` si casan.
+ * ⚠️ Solo se afirma lo que se puede demostrar: si el nombre no promete una señal
+ * conocida, o el núcleo no entiende una etiqueta, eso no cuenta como mentira.
+ */
+function senalesQueNoCasan(nombre, lineas, primeraColumna, separador) {
+  const dice = senalDeNombre(nombre);
+  if (!dice) return null;
+  const trae = new Set();
+  let traeLaSuya = false;
+  for (const fila of lineas.slice(1)) {
+    const lee = campoDeSenal(etiquetaDe(fila, primeraColumna, separador));
+    if (!lee) continue;
+    // Una fase que la etiqueta no dice no desmiente al nombre; una distinta, sí.
+    if (lee.campo !== dice.campo || (dice.fase && lee.fase && lee.fase !== dice.fase)) trae.add(lee.porQue);
+    else traeLaSuya = true;
+  }
+  // Un archivo que trae SU señal y además otras no miente sobre su nombre: trae de más.
+  return trae.size && !traeLaSuya ? { dice, trae: [...trae] } : null;
+}
+
 function archivos(raiz) {
   const out = [];
   for (const n of readdirSync(raiz).filter((x) => !x.startsWith('.')).sort()) {
@@ -104,6 +161,7 @@ function archivos(raiz) {
 
 const grupos = new Map();
 const apartados = [];
+const noCasan = [];   // archivos cuyo nombre promete una señal y traen otra
 const ordenes = [];
 let deCalidad = 0;
 let leidas = 0;
@@ -124,6 +182,11 @@ for (const p of archivos(origen)) {
   const separador = separadorDe(lineas[0]);
   const eje = ejeDe(lineas[0], separador);
   if (!eje) { apartar('la primera fila no es un eje de tiempo reconocible'); continue; }
+  // Se mira ANTES de apartar por un eje de varios días, así que ese también se nombra. Los apartados
+  // de arriba (sin estadístico, sin filas o sin eje legible) no llegan a revisarse.
+  // Con su ruta, no solo su nombre: la misma exportación puede estar dos veces en el origen.
+  const noCasa = senalesQueNoCasan(nombre, lineas, eje.primeraColumna, separador);
+  if (noCasa) noCasan.push({ ruta: relative(origen, p), ...noCasa, clave: null });
   if (eje.fechas.length !== 1) {
     apartar(`su eje cubre ${eje.fechas.length} días: no se sabe a qué día va cada hora`); continue;
   }
@@ -135,6 +198,7 @@ for (const p of archivos(origen)) {
   // ⚠️ Si el eje no es el MISMO, no se juntan: alinear dos rejillas es
   // interpolar, y una medida interpolada no la tomó nadie.
   if (g.eje !== lineas[0]) { apartar(`su eje de tiempo no es idéntico al de «${g.primero}»`); continue; }
+  if (noCasa) noCasan[noCasan.length - 1].clave = k;   // entra en su día·estadístico
   ordenes.push({ nombre, orden: eje.orden });
   for (const fila of lineas.slice(1)) {
     g.leidas += 1;
@@ -212,3 +276,32 @@ if (leidas !== escritas + repetidas + deChoque + filasApartadas) {
   process.exitCode = 1;
 }
 if (deCalidad) console.log(`\n${deCalidad} sello(s) de calidad apartados: no son medidas (la pantalla los lee aparte).`);
+
+// ── El nombre que promete una señal y trae otra: se nombra y se dice qué día falta ──
+// Va al FINAL y no toca nada de lo anterior: lo escrito, el recuento y el código
+// de salida son los mismos con este aviso que sin él.
+if (noCasan.length) {
+  console.log(`\n${noCasan.length} archivo(s) traen OTRA señal que la de su nombre. Se escribe por la etiqueta,`
+    + ' que es la que dice qué señal es; el nombre no cambia nada de lo escrito:');
+  for (const a of noCasan) {
+    console.log(`   «${a.ruta}» · el nombre dice ${a.dice.porQue}; dentro trae ${a.trae.join(' y ')}`);
+  }
+  const faltan = new Set(); const noFaltan = new Set(); const otros = new Set();
+  for (const a of noCasan) {
+    if (!a.clave) { otros.add(`«${a.ruta}» está apartado (ver arriba)`); continue; }
+    if (conChoque.some(([c]) => c === a.clave)) { otros.add(`${a.clave} no se escribe: trae un choque (ver arriba)`); continue; }
+    const laTrae = [...grupos.get(a.clave).filas.keys()].some((et) => {
+      const lee = campoDeSenal(et);
+      return lee && esLaSenal(lee, a.dice);
+    });
+    if (laTrae) noFaltan.add(`${a.clave} (${a.dice.porQue})`);
+    else faltan.add(`${a.clave} sin ${a.dice.porQue}`);
+  }
+  const partes = [];
+  partes.push(faltan.size ? `esos días se quedan sin: ${[...faltan].sort().join(' · ')}`
+    : 'a ningún día le falta la señal del nombre');
+  if (noFaltan.size) partes.push(`no les falta, la trae otro archivo: ${[...noFaltan].sort().join(' · ')}`);
+  if (otros.size) partes.push([...otros].sort().join(' · '));
+  console.log(`   RESUMEN: ${noCasan.length} archivo(s) traen otra señal que la de su nombre: `
+    + `${noCasan.map((a) => `«${a.ruta}»`).join(', ')}; ${partes.join('; ')}.`);
+}

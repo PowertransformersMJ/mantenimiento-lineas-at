@@ -54,6 +54,10 @@ const puntosJulio = () => CANONICOS[LINEA].map((_, i) => ({
   lon: 1 + i * 0.001,
   ele: 10 + i,
   utc: '2026-07-25T12:00:00.000Z',
+  // Declarada a propósito desde el 2026-09-16: el levantamiento base ya no
+  // cae a «Suspensión» si falta, aborta. Es la misma que este mundo sintético
+  // recibía antes por defecto, así que ningún resultado de abajo cambia.
+  funcionEstructural: 'Suspensión',
 }));
 
 /** El empalme del 11 de agosto: cae DENTRO del vano E03→E04. */
@@ -151,7 +155,7 @@ describe('LA PRUEBA MADRE — un punto nuevo en medio no mueve el id de nadie', 
     // inventadas. Insertar al principio, en medio y al final; nadie se mueve.
     const canonicos = ['LX-1 A', 'LX-1 B', 'LX-1 C', 'LX-1 D'];
     const registro = { 'LX-1': Object.fromEntries(canonicos.map((n, i) => [n, { semilla: `apoyo-${i}`, id: idEstable('transpower', 'LX-1', `apoyo-${i}`) }])) };
-    const base = canonicos.map((_, i) => ({ name: `campo ${i}`, lat: 1 + i, lon: 1 + i, ele: 1, utc: AHORA }));
+    const base = canonicos.map((_, i) => ({ name: `campo ${i}`, lat: 1 + i, lon: 1 + i, ele: 1, utc: AHORA, funcionEstructural: 'Suspensión' }));
     const opciones = { ahora: AHORA, registro, canonicos };
 
     const antes = porNombre(construirApoyos('LX-1', base, [], opciones).apoyos);
@@ -408,6 +412,47 @@ describe('LOS FRENOS — antes se adivinaba; ahora se aborta', () => {
       () => construirApoyos('LN-999', puntosJulio(), [], { ahora: AHORA, registro: REGISTRO }),
       /nombres canónicos/,
     );
+  });
+
+  test('el levantamiento BASE tampoco cae a «Suspensión» con la firma del Ingeniero', () => {
+    // Hasta el 2026-09-16 un punto base sin función salía `Suspensión` +
+    // `confirmado_humano`: la firma del Ingeniero sobre una tipificación que
+    // nadie hizo, en un documento que no se puede borrar. Medido ese día, ningún
+    // punto de LN-627 caía ahí; una línea nueva que llegue de un GPS pelado sí.
+    for (const funcionEstructural of [undefined, null, '', 'Portico', 'terminal', 'Suspension']) {
+      const base = puntosJulio();
+      base[4] = { ...base[4], funcionEstructural };
+      assert.throws(
+        () => construirApoyos(LINEA, base, [], { ahora: AHORA, registro: REGISTRO }),
+        /funcionEstructural/,
+        `un punto base con función «${String(funcionEstructural)}» se sembró igual`,
+      );
+    }
+  });
+
+  test('…y nombra TODOS los puntos sin función, no solo el primero', () => {
+    const base = puntosJulio();
+    delete base[4].funcionEstructural;
+    base[17].funcionEstructural = 'Portico';
+    let mensaje = '';
+    try {
+      construirApoyos(LINEA, base, [], { ahora: AHORA, registro: REGISTRO });
+    } catch (e) {
+      mensaje = e.message;
+    }
+    assert.match(mensaje, /^2 punto\(s\)/, 'no dijo cuántos faltan');
+    assert.ok(mensaje.includes(CANONICOS[LINEA][4]), `no nombró ${CANONICOS[LINEA][4]}`);
+    assert.ok(mensaje.includes(CANONICOS[LINEA][17]), `no nombró ${CANONICOS[LINEA][17]}`);
+    assert.ok(!mensaje.includes(CANONICOS[LINEA][5]), 'nombró un punto que sí declara su función');
+  });
+
+  test('con la función declarada en todos, el base se construye como siempre', () => {
+    // Lo que protege a LN-627: quitar el defecto no toca a un levantamiento que
+    // ya la declaraba entera. Se usa la que declara el punto, tal cual.
+    const apoyos = construir().apoyos;
+    assert.equal(apoyos.length, 26);
+    assert.ok(apoyos.every((a) => a.funcionEstructural === 'Suspensión'));
+    assert.ok(apoyos.every((a) => a.funcionProcedencia === 'confirmado_humano'));
   });
 });
 

@@ -23,11 +23,19 @@
 //    (En IEEE-754, (2+3)/2 = 2,5 es exacto, y quedan ~50 subdivisiones
 //    sucesivas antes de agotar la mantisa: sobra para varias vidas de línea.)
 //
-// 3. NADA POR DEFECTO EN UN PUNTO NUEVO. La función estructural no se adivina:
+// 3. NADA POR DEFECTO EN NINGÚN PUNTO. La función estructural no se adivina:
 //    si no viene declarada, la construcción FALLA. El defecto silencioso
 //    anterior era 'Suspensión', y sembrar un pórtico de subestación como
 //    suspensión cambia el corte de tramos de tensión y con él el cálculo
 //    mecánico — un número que se firma, cambiado sin que nadie lo pida.
+//    Hasta el 2026-09-16 el levantamiento BASE todavía caía a 'Suspensión':
+//    medido ese día, ninguno de los 26 puntos de LN-627 lo usaba, así que
+//    quitarlo no cambia nada de lo sembrado y cierra la puerta a una línea
+//    nueva que llegue de un GPS pelado.
+//
+// 4. LA LÍNEA TAMPOCO SE PRESTA. Tensión, circuitos, conductor e hipótesis
+//    salen de la FICHA DE LÍNEA de la bóveda (`<CODIGO>-linea.json`), no de
+//    valores escritos a mano en el sembrador. Ver `construirLinea`.
 // ============================================================================
 import { CANONICOS, ORG_POR_DEFECTO, idDePunto, idDeSemilla, leerRegistro, verificarRegistro } from './identidad.mjs';
 
@@ -138,6 +146,25 @@ export function construirApoyos(codigoLinea, puntosJulio, puntosAmpliacion = [],
     );
   }
 
+  // ── Nada por defecto: ver la decisión 3 de la cabecera ───────────────────
+  // Se revisan TODOS antes de construir nada y se nombran todos los que fallan,
+  // no solo el primero: quien prepara el levantamiento tiene que poder
+  // completarlo de una vez, no a golpe de corrida.
+  const sinFuncion = puntosJulio
+    .map((p, i) => ({ p, i }))
+    .filter(({ p }) => !FUNCIONES[p.funcionEstructural]);
+  if (sinFuncion.length) {
+    const lista = sinFuncion
+      .map(({ p, i }) => `   · ${canonicos[i]} (en el GPS «${p.name ?? '—'}») — trae «${p.funcionEstructural ?? '—'}»`)
+      .join('\n');
+    throw new Error(
+      `${sinFuncion.length} punto(s) del levantamiento base de ${codigoLinea} no declaran una funcionEstructural válida:\n${lista}\n` +
+      `   Admitidas: ${Object.keys(FUNCIONES).join(' · ')}.\n` +
+      '   No se asume «Suspensión»: la función decide el corte de tramos de tensión y con él el cálculo mecánico, ' +
+      'y los apoyos no se pueden borrar una vez escritos.'
+    );
+  }
+
   // ── El levantamiento base ────────────────────────────────────────────────
   // El `orden` de estos 26 sale del índice y así se queda: son los que ya están
   // escritos en producción con orden 0…25, y reescribirlos no registraría
@@ -167,7 +194,8 @@ export function construirApoyos(codigoLinea, puntosJulio, puntosAmpliacion = [],
         precision_m: 8,
         tomadaEn: p.utc,
       },
-      funcionEstructural: FUNCIONES[p.funcionEstructural] ?? 'Suspensión',
+      // Ya no hay `?? 'Suspensión'`: arriba se aborta si falta (decisión 3).
+      funcionEstructural: FUNCIONES[p.funcionEstructural],
       funcionProcedencia: 'confirmado_humano',
       deflexion_grados: p.deflexion ?? null,
       condicion: 'Sin evaluar',
@@ -366,4 +394,185 @@ export function construirInvestigacion(falla, apoyos, apoyosJulio = apoyos, opci
     verificacionesPendientes: (falla.verificacionesPendientes ?? []).map((v) => ({ ...v, estado: v.estado ?? 'pendiente' })),
     cerrada: false,
   });
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// LA FICHA DE LÍNEA — lo que es de CADA línea y no del sembrador
+// ────────────────────────────────────────────────────────────────────────────
+// Hasta el 2026-09-16 el sembrador llevaba escritos a mano la tensión (66 kV),
+// un circuito, el conductor Darien y las hipótesis de LN-627. Sembrar otra
+// línea le habría puesto todo eso en silencio: la ampacidad, la cargabilidad y
+// el veredicto mecánico saldrían de los datos de OTRA línea, presentados como
+// suyos. Ahora cada línea trae su ficha en la bóveda (`<CODIGO>-linea.json`)
+// y, si falta algo, no se siembra y se dice QUÉ falta. No hay valores por
+// defecto, tampoco los que el molde de los datos pondría solo (`cx`,
+// `densidadAire_kg_m3`, `moduloEs`, `circuitos`, `activa`): aquí se declaran.
+// ════════════════════════════════════════════════════════════════════════════
+
+const esTexto = (v) => typeof v === 'string' && v.trim().length > 0;
+const esNumero = (v) => typeof v === 'number' && Number.isFinite(v);
+const esPositivo = (v) => esNumero(v) && v > 0;
+const esNoNegativo = (v) => esNumero(v) && v >= 0;
+const esEnteroPositivo = (v) => Number.isInteger(v) && v > 0;
+const esSiNo = (v) => typeof v === 'boolean';
+
+/**
+ * Lo que la ficha de una línea TIENE que declarar, con qué forma. El molde de
+ * los datos (`contratos/src/activos.ts`) sigue siendo el juez final; esto es
+ * el mínimo sin el cual la línea no abre o abre con un número que no es suyo.
+ */
+export const FICHA_DE_LINEA = Object.freeze({
+  linea: Object.freeze({
+    nombre: [esTexto, 'texto'],
+    tensionNominal_kV: [esPositivo, 'número > 0'],
+    circuitos: [esEnteroPositivo, 'entero > 0'],
+    activa: [esSiNo, 'true o false'],
+  }),
+  conductor: Object.freeze({
+    codigo: [esTexto, 'texto'],
+    material: [esTexto, 'texto'],
+    seccion_mm2: [esPositivo, 'número > 0'],
+    diametro_m: [esPositivo, 'número > 0'],
+    masaLineal_kg_m: [esPositivo, 'número > 0'],
+    rts_kgf: [esPositivo, 'número > 0'],
+    moduloElastico_kg_mm2: [esPositivo, 'número > 0'],
+    moduloEs: [esTexto, 'inicial · final · no_declarado'],
+    dilatacion_1_C: [esPositivo, 'número > 0'],
+    tempMaxOperacion_C: [esPositivo, 'número > 0'],
+    procedencia: [esTexto, 'texto'],
+    // Una cifra de conductor sin su fuente es una opinión: se exige aunque el
+    // molde la deje opcional.
+    fuente: [esTexto, 'texto'],
+  }),
+  hipotesis: Object.freeze({
+    nombre: [esTexto, 'texto'],
+    eds_pct: [esPositivo, 'número > 0'],
+    tempEds_C: [esNumero, 'número'],
+    tempMax_C: [esNumero, 'número'],
+    tempMin_C: [esNumero, 'número'],
+    vientoMax_kmh: [esNoNegativo, 'número ≥ 0'],
+    tempViento_C: [esNumero, 'número'],
+    cx: [esPositivo, 'número > 0'],
+    densidadAire_kg_m3: [esPositivo, 'número > 0'],
+    procedencia: [esTexto, 'texto'],
+    congelada: [esSiNo, 'true o false'],
+  }),
+});
+
+/**
+ * Claves que la ficha NO puede declarar: son la identidad y la partida de
+ * nacimiento del documento, y las pone el sembrador. Una ficha copiada de otra
+ * línea que trajera su `id` o su `lineaId` escribiría sobre la línea vecina.
+ */
+const IDENTIDAD_LINEA = ['id', 'orgId', 'tipo', 'codigo', 'hipotesisId', 'creadoEn', 'creadoPor', 'revision'];
+const IDENTIDAD_HIPOTESIS = ['id', 'orgId', 'tipo', 'lineaId', 'creadoEn', 'creadoPor', 'revision'];
+
+const esObjeto = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+/** Las claves que empiezan por «_» son notas para quien lee la ficha: no viajan a la base. */
+const sinNotas = (o) => Object.fromEntries(Object.entries(o).filter(([k]) => !k.startsWith('_')));
+
+/**
+ * Todo lo que le falta o le sobra a una ficha de línea, dicho de una vez.
+ * Lista vacía = se puede sembrar. PURA: no lee archivos.
+ *
+ * @param {string} codigoLinea  el de `--linea`
+ * @param {object} ficha        el JSON de `<CODIGO>-linea.json`
+ * @returns {string[]}
+ */
+export function faltasDeLaFichaDeLinea(codigoLinea, ficha) {
+  if (!esObjeto(ficha)) return ['la ficha no es un objeto JSON'];
+  const faltas = [];
+
+  // Protege de copiar la ficha de una línea para otra sin editarla: la
+  // tensión y el conductor serían los de la vecina, y nada más lo delataría.
+  if (ficha.codigo !== codigoLinea) {
+    faltas.push(`codigo: la ficha dice «${ficha.codigo ?? '—'}» y se está sembrando ${codigoLinea}`);
+  }
+
+  const revisar = (seccion, obj, prohibidas = []) => {
+    if (!esObjeto(obj)) { faltas.push(`${seccion}: falta la sección entera`); return; }
+    for (const [campo, [valido, forma]] of Object.entries(FICHA_DE_LINEA[seccion.split('.').pop()])) {
+      if (obj[campo] === undefined || obj[campo] === null) faltas.push(`${seccion}.${campo} (${forma}): falta`);
+      else if (!valido(obj[campo])) faltas.push(`${seccion}.${campo} (${forma}): trae «${JSON.stringify(obj[campo])}»`);
+    }
+    for (const campo of prohibidas) {
+      if (campo in obj) faltas.push(`${seccion}.${campo}: no se declara en la ficha, lo pone el sembrador`);
+    }
+  };
+  revisar('linea', ficha.linea, IDENTIDAD_LINEA);
+  if (esObjeto(ficha.linea)) revisar('linea.conductor', ficha.linea.conductor);
+  revisar('hipotesis', ficha.hipotesis, IDENTIDAD_HIPOTESIS);
+
+  // La insignia del fabricante solo la lleva lo que viene de su ficha (`§ADR-099`):
+  // un conductor cuya propia fuente dice PENDIENTE o «módulo de campo» es un
+  // supuesto, y las dos cosas no pueden ser ciertas a la vez.
+  const c = esObjeto(ficha.linea) ? ficha.linea.conductor : null;
+  if (esObjeto(c) && c.procedencia === 'catalogo_fabricante' &&
+      /pendiente|m[oó]dulo de campo/i.test(String(c.fuente ?? ''))) {
+    faltas.push('linea.conductor.procedencia: dice catálogo del fabricante y su fuente dice que está PENDIENTE: es un supuesto');
+  }
+
+  // Un despeje sin la norma que lo fija es una cifra sin respaldo.
+  const h = ficha.hipotesis;
+  if (esObjeto(h) && h.despejeMinimo_m !== undefined) {
+    if (!esObjeto(h.despejeMinimo_m) || !Object.values(h.despejeMinimo_m).every(esPositivo)) {
+      faltas.push('hipotesis.despejeMinimo_m: tiene que ser { categoría: metros > 0 }');
+    }
+    if (!esTexto(h.normaReferencia)) {
+      faltas.push('hipotesis.normaReferencia (texto): falta, y hay despejeMinimo_m que la necesita');
+    }
+  }
+  return faltas;
+}
+
+/**
+ * Los documentos `lineas/{id}` e `hipotesis/{id}` de una línea, desde su ficha.
+ *
+ * El orden de las claves es el mismo que tenían cuando el sembrador los
+ * escribía a mano, para que LN-627 salga idéntica byte a byte. Lo que la ficha
+ * traiga además de lo obligatorio (p. ej. `tensionMaxima_kV`) se escribe
+ * detrás, tal cual.
+ *
+ * @throws si la ficha tiene cualquier falta: no se siembra «lo que se pueda».
+ */
+export function construirLinea(codigoLinea, ficha, opciones = {}) {
+  const {
+    org = ORG_POR_DEFECTO,
+    ahora = new Date().toISOString(),
+    creadoPor = 'sembrador',
+    lineaId = idDeSemilla(codigoLinea, 'linea', org),
+    hipotesisId = idDeSemilla(codigoLinea, 'hipotesis-modulo-campo', org),
+  } = opciones;
+
+  const faltas = faltasDeLaFichaDeLinea(codigoLinea, ficha);
+  if (faltas.length) {
+    throw new Error(
+      `La ficha de línea de ${codigoLinea} no está completa — no se siembra nada:\n` +
+      faltas.map((f) => `   · ${f}`).join('\n') +
+      '\n   No hay valores por defecto: cada cifra de la línea se declara en su ficha.'
+    );
+  }
+
+  const { nombre, tensionNominal_kV, circuitos, activa, conductor, ...otrosDeLinea } = sinNotas(ficha.linea);
+  const { nombre: nombreHipotesis, ...restoHipotesis } = sinNotas(ficha.hipotesis);
+
+  return {
+    linea: documentoBase(lineaId, org, ahora, creadoPor, {
+      tipo: 'linea',
+      codigo: codigoLinea,
+      nombre,
+      tensionNominal_kV,
+      circuitos,
+      activa,
+      hipotesisId,
+      conductor: sinNotas(conductor),
+      ...otrosDeLinea,
+    }),
+    hipotesis: documentoBase(hipotesisId, org, ahora, creadoPor, {
+      tipo: 'hipotesis',
+      nombre: nombreHipotesis,
+      lineaId,
+      ...restoHipotesis,
+    }),
+  };
 }
