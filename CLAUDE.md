@@ -70,7 +70,7 @@ no existe:**
 | Frontend | **React 19 + Vite + TypeScript** (ADR-005), web instalable | ✅ vivo |
 | Hosting | **Cloudflare Pages** — en producción, no en el futuro | ✅ vivo |
 | Cómputo servidor | **DOS Workers gratuitos**: el portero de fotos y el de personas (`ADR-100`). Nada que facture | ✅ vivo |
-| Mapas | **Protomaps / PMTiles + MapLibre**, recortes por línea | ✅ vivo |
+| Mapas | **Protomaps / PMTiles + MapLibre**, recorte de ÁREA común | ✅ vivo |
 | CI/CD | **GitHub Actions**, runners `ubuntu-latest` **siempre** | ✅ vivo |
 | Auth | **correo + contraseña**, cero registro público, **Google no existe**; roles·funciones·alcance en el token, altas desde Personas (ADR-019/100) | ✅ vivo |
 
