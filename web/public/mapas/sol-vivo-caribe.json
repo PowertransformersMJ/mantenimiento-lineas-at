@@ -53,13 +53,13 @@
    "clave": "09",
    "archivo": "sol-vivo-caribe-2026-09.png",
    "dias": 30,
-   "horasConDato": 200.41666666666666,
-   "bytes": 7023
+   "horasConDato": 201.75,
+   "bytes": 7055
   }
  ],
  "ultimoDiaConHoras": "2026-09-16",
  "ultimoDiaConTotal": "2026-09-16",
- "construido": "2026-09-16T22:09:13.546Z",
+ "construido": "2026-09-17T00:29:27.829Z",
  "resumenDiario": [
   {
    "d": "2026-08-24",
