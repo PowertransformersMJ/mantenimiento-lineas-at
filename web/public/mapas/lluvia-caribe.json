@@ -102,13 +102,13 @@
    "clave": "09",
    "archivo": "lluvia-caribe-2026-09.png",
    "dias": 30,
-   "horasConDato": 312,
-   "bytes": 180
+   "horasConDato": 336,
+   "bytes": 195
   }
  ],
- "ultimoDiaConHoras": "2026-09-13",
- "ultimoDiaConTotal": "2026-09-13",
- "construido": "2026-09-16T13:31:28.717Z",
+ "ultimoDiaConHoras": "2026-09-14",
+ "ultimoDiaConTotal": "2026-09-14",
+ "construido": "2026-09-17T13:29:34.860Z",
  "resumenDiario": [
   {
    "d": "2026-01-01",
@@ -1133,6 +1133,10 @@
   {
    "d": "2026-09-13",
    "v": 5.63
+  },
+  {
+   "d": "2026-09-14",
+   "v": 2.98
   }
  ],
  "resumenDiarioEtiqueta": "Total del día",
