@@ -10839,6 +10839,9 @@ en la base ni desplegado**: ninguna línea nueva existe todavía en producción 
 - **«618» es el código del tramo compartido.**
 - **El alta la hace él desde una pantalla** «Alta de línea», con maqueta antes.
 - **El conductor y las hipótesis los entrega después**: no se copia nada de LN-627.
+- *(misma tarde)* Las placas dicen «E16», «E31», «E32», «E35»: la «R» del GPS era anotación suya.
+  **Alta SIN torres** por ahora (las torres, cuando declare la función de cada una); **las dos líneas
+  van en las 28 torres** del E07 al E36; **sin segunda opinión externa** del diseño.
 
 ### Alternativas descartadas
 
