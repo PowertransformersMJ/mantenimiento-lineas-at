@@ -102,13 +102,13 @@
    "clave": "09",
    "archivo": "viento-caribe-2026-09.png",
    "dias": 30,
-   "horasConDato": 312,
-   "bytes": 9107
+   "horasConDato": 336,
+   "bytes": 9768
   }
  ],
- "ultimoDiaConHoras": "2026-09-13",
- "ultimoDiaConTotal": "2026-09-13",
- "construido": "2026-09-16T13:31:26.737Z",
+ "ultimoDiaConHoras": "2026-09-14",
+ "ultimoDiaConTotal": "2026-09-14",
+ "construido": "2026-09-17T13:29:28.270Z",
  "resumenDiario": [
   {
    "d": "2026-01-01",
@@ -1133,6 +1133,10 @@
   {
    "d": "2026-09-13",
    "v": 13.07
+  },
+  {
+   "d": "2026-09-14",
+   "v": 11.88
   }
  ],
  "resumenDiarioEtiqueta": "Máxima del día",
