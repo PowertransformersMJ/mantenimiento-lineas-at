@@ -32,6 +32,7 @@ export type { ClaveAtlas };// ==================================================
  *   #/rca            → el índice de análisis
  *   #/rca/<codigo>   → un análisis concreto
  *   #/personas       → administrar personas (de ORGANIZACIÓN, no de línea)
+ *   #/alta           → dar de alta una línea nueva (tampoco es de ninguna línea)
  *   #/<linea>/<pest> → una línea en una pestaña (ya existía y no se toca)
  */
 /** Los atlas regionales. La clave es la del componente, no un texto suelto. */
@@ -58,6 +59,23 @@ export type Ruta =
    * abrir una pantalla real.
    */
   | { tipo: 'personas' }
+  /**
+   * ALTA DE LÍNEA. Se escribe como un atlas o como personas —sin segundo
+   * tramo— y por la misma razón: **no cuelga de ninguna línea**. La pantalla
+   * ocupa el sitio de las pestañas, pero lo que se está creando todavía no
+   * existe, así que ponerla detrás de un código de línea sería mentir sobre de
+   * quién es.
+   *
+   * Que tenga dirección propia no es adorno: dar de alta una línea escribe
+   * cosas que NO SE PUEDEN DESHACER, así que recargar a media faena tiene que
+   * devolver a la pantalla de alta y no a la línea de debajo, y el botón Atrás
+   * tiene que salir del alta en vez de sacar de la aplicación.
+   *
+   * ⚠️ Mismo borde declarado que `rca` y `personas`: una línea cuyo código
+   * fuera literalmente «alta» sería inalcanzable por enlace. Queda escrito
+   * aquí para que se sepa, en vez de descubrirse el día que ocurra.
+   */
+  | { tipo: 'alta' }
   | { tipo: 'linea'; codigo: string; pestana?: string }
   | null;
 
@@ -70,6 +88,7 @@ export function leerRuta(hash = location.hash): Ruta {
   // correcto: una dirección inventada no debe abrir una pantalla real.
   if (!b && POR_HASH[a]) return { tipo: 'atlas', cual: POR_HASH[a] };
   if (!b && a === 'personas') return { tipo: 'personas' };
+  if (!b && a === 'alta') return { tipo: 'alta' };
   if (a === 'rca') return { tipo: 'rca', codigo: b ? decodeURIComponent(b) : undefined };
   return { tipo: 'linea', codigo: decodeURIComponent(a), pestana: b };
 }

@@ -11,6 +11,7 @@ import { FUNCIONES_ANCLA, type Apoyo, type Conductor, type Evidencia, type Hipot
 import { vincenty, deflexion, vanoViento } from '@lineas/nucleo/geodesia';
 import { tramosDeTension } from '@lineas/nucleo/mecanica';
 import { soloEstructuras, nombreVisible, vanos } from '../vistas/planta';
+import { sinPrefijoDeSerie } from '../vistas/rotulos';
 import { nf, aGMS } from '../vistas/formato';
 import { contextoDeLinea } from '../vistas/ejesLinea';
 import { avisoDeSupuestos, estadoDelApoyo, etiquetaDeOrigen, selloDeOrigen } from '../vistas/fichaEstructural';
@@ -72,8 +73,15 @@ interface FichaPunto {
   enVano: string | null;             // para empalmes: dentro de qué vano viven
 }
 
-export function Fichas({ apoyos, linea, conductor, hipotesis, evidencias = [], sesion, noSePudoLeerFotos }:
+export function Fichas({ apoyos, linea, conductor, hipotesis, evidencias = [], sesion, noSePudoLeerFotos, codigos = [] }:
   { apoyos: Apoyo[];
+    /**
+     * Los códigos de las series que se están leyendo, SOLO para recortar el
+     * prefijo en el botón de cada punto. Era `.replace('LN-627 ', '')` escrito
+     * a mano: con LN-617 y LN-628 en el parque, los puntos de un tramo
+     * compartido —«TR-618 E07»— se habrían quedado con el nombre entero.
+     */
+    codigos?: readonly string[];
     /**
      * Por qué no se pudieron leer las fichas de foto, si fue el caso. La pestaña
      * Falla ya lo pintaba y ésta no: decía «No hay fotografías cargadas de E07»
@@ -232,7 +240,7 @@ export function Fichas({ apoyos, linea, conductor, hipotesis, evidencias = [], s
             <button key={x.apoyo.id}
               className={claseChip(x) + (i === sel ? ' activo' : '')}
               onClick={() => { setSel(i); setEditando(false); }}>
-              {nombreVisible(x.apoyo).replace('LN-627 ', '')}
+              {sinPrefijoDeSerie(nombreVisible(x.apoyo), codigos)}
             </button>
           ))}
         </div>

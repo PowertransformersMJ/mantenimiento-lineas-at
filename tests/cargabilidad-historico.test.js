@@ -134,8 +134,19 @@ describe('el modelo evita la factura, y se puede demostrar', () => {
   test('⚠️ la consulta de periodo lleva TOPE, y dice si recortó', () => {
     // Sin tope, «histórico completo» sobre años de datos se trae todo de un
     // clic. Y si recorta sin decirlo, quien mire creerá que vio el total.
+    //
+    // ⚠️ Decía `recortado: filas.length > tope` —la cuenta sobre las filas YA
+    // filtradas por línea—, y eso contestaba «no se recortó nada» cuando el
+    // filtro quitaba parte de lo leído habiendo dejado meses sin leer. Hoy el
+    // tope se mide sobre lo LEÍDO y el recorte se queda con lo MÁS RECIENTE; lo
+    // que antes se comprobaba leyendo el texto ahora se EJECUTA en
+    // `tests/cargabilidad-repo.test.js`, con un doble de Firestore que resuelve
+    // la consulta —un `slice(0, tope)` se lee igual de bien tanto si trae lo
+    // reciente como si trae lo viejo, y por eso esto no lo cazó nadie—.
     assert.match(REPO, /tope = 1200/);
-    assert.match(REPO, /recortado: filas\.length > tope/);
+    assert.match(REPO, /const recortado = leidas\.length > tope/);
+    assert.match(REPO, /orderBy\('fecha', 'desc'\), limit\(tope \+ 1\)/,
+      'la consulta del periodo volvió a quedarse con los días más ANTIGUOS');
   });
 
   test('cada consulta tiene su índice, o Firestore la rechaza en producción', () => {

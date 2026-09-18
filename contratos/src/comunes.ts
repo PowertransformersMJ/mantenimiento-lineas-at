@@ -147,8 +147,37 @@ import { z } from 'zod';
  * nuevo y la aplicación NO puede acuñarlo. Los reclamos ganan `f` (funciones
  * en código corto) y `l` (alcance por línea): un token sin ellos vale mínimo
  * privilegio, jamás el máximo.
+ *
+ * 0.16.0 — MENOR (dos campos opcionales en `Linea`, uno en `Apoyo` y un módulo
+ * NUEVO `levantamiento.ts`; nada renombrado, nada cambiado de tipo, cero
+ * migración: una línea o un apoyo escritos hoy validan sin tocarlos). Entra lo
+ * que hace falta para dar de alta dos líneas que comparten un trozo de trazado y
+ * que todavía no tienen torres, ni conductor, ni hipótesis:
+ *   · `Linea.tramosCompartidos` — que esta línea RECORRE ese tramo compartido.
+ *     Las torres del trozo compartido se registran UNA vez a nombre del tramo
+ *     (`TR-618`), no dos veces, una por línea. Se llama así y no `tramos` porque
+ *     «tramo» ya significa TRAMO DE TENSIÓN en el núcleo y en Mecánico, y dos
+ *     significados con el mismo nombre convierten «recalcular el tramo» en una
+ *     frase ambigua el día que haya que discutir un número.
+ *   · `Linea.recorridoCompleto` — si lo levantado es la línea entera. Ausente =
+ *     NO CONSTA. Con `false`, una longitud es COTA INFERIOR y se dice.
+ *   · `Apoyo.circuitosTendidos` — cuántos circuitos cuelgan de la torre, con su
+ *     sello dentro. Aún no se usa: lo llenará el alta de torres. Es la defensa
+ *     contra la carga calculada A LA MITAD en una torre de doble circuito por la
+ *     que todavía solo pasa una línea dada de alta.
+ *   · `levantamiento.ts` — el recorrido del GPS TAL CUAL, con su archivo y su
+ *     huella, y sin una sola interpretación dentro: función estructural, orden y
+ *     nombre canónico están PROHIBIDOS con nombre y apellido, porque nacen al
+ *     REGISTRAR la torre y un apoyo no se puede borrar.
+ *
+ * ⚠️ MISMA DIRECCIÓN ÚNICA que todo lo aditivo de esta lista, y aquí con un
+ * daño mayor: `Linea` no es `strict`, así que un navegador con el bundle 0.15.0
+ * QUITA `tramosCompartidos` al validar y enseñaría la línea **sin las torres de
+ * su tramo compartido** — sin error, sin aviso, como en 0.5.0/0.6.0/0.9.0. Se
+ * despliega el sitio, se comprueba el hash del bundle y se recargan los equipos
+ * —también la aplicación del teléfono— ANTES de la primera alta.
  */
-export const VERSION_CONTRATO = '0.15.0';
+export const VERSION_CONTRATO = '0.16.0';
 
 // ── Identificadores ─────────────────────────────────────────────────────────
 

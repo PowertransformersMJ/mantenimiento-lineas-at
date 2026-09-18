@@ -34,6 +34,8 @@ import {
 } from '@lineas/contratos';
 import nucleoPkg from '@lineas/nucleo/package.json';
 import { cargarFirebase } from './cargar';
+import { repositorioFirestore } from './firestore';
+import { ordenarParque } from './repositorio';
 
 /**
  * EL SELLO QUE SE ESTAMPA EN TODO LO QUE SE ESCRIBE.
@@ -257,11 +259,101 @@ export async function ultimoDiaGuardado(
   return d ? String(d.fecha) : null;
 }
 
+/** Lo que devuelve una consulta de periodo: lo que se trajo Y lo que se dejó. */
+export interface ResumenesDelPeriodo {
+  /** Los resúmenes, de la fecha MÁS VIEJA a la más nueva (como siempre). */
+  resumenes: Record<string, unknown>[];
+  /** ¿Se quedó algo fuera por el tope? */
+  recortado: boolean;
+  /** Cuántos días caben de una vez. */
+  tope: number;
+  /** El periodo que se PIDIÓ, tal cual llegó. */
+  pedido: { desde: string; hasta: string };
+  /** El primer y el último día que de verdad se trajeron (`null` si no hubo ninguno). */
+  desdeLeido: string | null;
+  hastaLeido: string | null;
+  /**
+   * La frase para la pantalla cuando se recortó, ya escrita: qué se trajo, desde
+   * cuándo y qué hacer para ver el resto. `null` si no se recortó nada.
+   *
+   * Va aquí y no en la pantalla porque el único sitio que SABE qué se dejó fuera
+   * es el que hizo la consulta. Una pantalla que redacta ese aviso por su cuenta
+   * acaba diciendo lo que ya no es verdad — que es exactamente lo que pasó con
+   * el «se muestran los primeros» de antes de este cambio.
+   */
+  aviso: string | null;
+}
+
+/**
+ * Miles con punto, como se escriben en Colombia: «1.200 días».
+ *
+ * A mano y no con `toLocaleString`: el formateo por configuración regional
+ * depende del ICU de la máquina, y esta frase la lee el Ingeniero en pantalla —
+ * es el mismo motivo por el que el núcleo tampoco lo usa (`vistas/formato.ts`).
+ */
+const conMiles = (n: number): string => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+
+/**
+ * QUÉ SE QUEDA Y QUÉ SE DICE cuando la consulta pasa del tope.
+ *
+ * ⚠️ **SE QUEDA LO MÁS RECIENTE.** Hasta hoy se pedía `orderBy('fecha')` —de la
+ * más vieja hacia adelante— y se cortaba con `slice(0, tope)`: al pasar de 1.200
+ * resúmenes, la pantalla enseñaba **los días más ANTIGUOS** y escondía los
+ * meses recientes, que son justo por los que se abre esta pestaña. Con tres
+ * líneas cargadas el tope se alcanza ya; a LN-627 sola le llegaría en diciembre.
+ * Es el mismo criterio que `diasCompletos`, que se quedaba con los últimos desde
+ * el primer día (`99 §ADR-120`): lo que se mira es lo último que pasó.
+ *
+ * ⚠️ **Y EL TOPE SE MIDE SOBRE LO LEÍDO, no sobre lo que queda tras filtrar.**
+ * Con varias líneas, el filtro por línea se aplica DESPUÉS de la lectura: si de
+ * los 1.201 documentos leídos el filtro deja 900, se recortó igual —hay días
+ * anteriores que nadie llegó a leer— y antes eso se contestaba «no se recortó
+ * nada», porque la cuenta se hacía sobre las filas ya filtradas. Un recorte que
+ * no se anuncia se lee como «esto es todo lo que hay».
+ *
+ * Es una función aparte y PURA a propósito: decidir qué se queda y qué se avisa
+ * es lo único que se puede equivocar aquí, y así se prueba sin base de datos.
+ *
+ * @param leidas  lo que devolvió la consulta, de la MÁS NUEVA a la más vieja.
+ */
+export function recorteDeResumenes(
+  leidas: Record<string, unknown>[],
+  { tope, desde, hasta, lineas = [] }: {
+    tope: number; desde: string; hasta: string; lineas?: string[];
+  },
+): ResumenesDelPeriodo {
+  // Se pidieron `tope + 1`: si vino uno de más, hay más historia detrás.
+  const recortado = leidas.length > tope;
+  const dentro = leidas.slice(0, tope);
+  const filtradas = lineas.length > 1
+    ? dentro.filter((f) => lineas.includes(String(f.linea)))
+    : dentro;
+
+  // ⚠️ `reverse()`, NO `sort()`. La consulta descendente ordena por fecha y,
+  // dentro de la misma fecha, por id de documento —también descendente—. Darle
+  // la vuelta a la lista entera devuelve EXACTAMENTE el orden que traía la
+  // consulta ascendente de siempre, empates incluidos; ordenar solo por `fecha`
+  // dejaría los empates del mismo día al revés y movería lo que la pantalla
+  // dibuja sin que nadie lo hubiera pedido.
+  const resumenes = filtradas.slice().reverse();
+
+  const desdeLeido = resumenes.length ? String(resumenes[0].fecha) : null;
+  const hastaLeido = resumenes.length ? String(resumenes[resumenes.length - 1].fecha) : null;
+
+  const aviso = !recortado ? null
+    : `Se trajeron los ${conMiles(tope)} días más recientes del periodo pedido (${desde} → ${hasta})`
+      + (desdeLeido ? `: lo que se ve empieza el ${desdeLeido}` : '')
+      + '. Hay días anteriores guardados que NO están en esta pantalla. Acote el periodo '
+      + 'o filtre por una línea para verlos.';
+
+  return { resumenes, recortado, tope, pedido: { desde, hasta }, desdeLeido, hastaLeido, aviso };
+}
+
 export async function resumenesEntre(
   { desde, hasta, lineas = [] }: { desde: string; hasta: string; lineas?: string[] },
   sesion: Sesion,
   { tope = 1200 } = {},
-): Promise<{ resumenes: Record<string, unknown>[]; recortado: boolean; tope: number }> {
+): Promise<ResumenesDelPeriodo> {
   const { baseDatos } = await cargarFirebase();
   const { collection, getDocs, limit, orderBy, query, where } = await firestore();
   const db = await baseDatos();
@@ -276,12 +368,20 @@ export async function resumenesEntre(
   // por combinación: no vale la pena para lo que ahorra.
   if (lineas.length === 1) partes.splice(1, 0, where('linea', '==', lineas[0]));
 
-  const q = query(collection(db, RESUMENES), ...partes, orderBy('fecha'), limit(tope + 1));
+  // ⚠️ DESCENDENTE, para que el tope se coma lo VIEJO y no lo reciente.
+  //
+  // No estrena índice: `firestore.indexes.json` ya declara
+  // `(orgId, linea, fecha DESC)` y `(orgId, fecha DESC)` —los que pide
+  // `ultimoDiaGuardado` desde `99 §ADR-116`—, que son exactamente los que sirven
+  // esta consulta con el mismo rango sobre `fecha`. Es la comprobación que no se
+  // puede dejar al emulador: sirve consultas sin índice y no se queja
+  // (`35 · L-85`), así que un índice que falte no aparece hasta producción, y
+  // cuando aparece lo hace como «no existen registros» teniéndolos.
+  const q = query(collection(db, RESUMENES), ...partes, orderBy('fecha', 'desc'), limit(tope + 1));
   const instantanea = await getDocs(q);
-  let filas = instantanea.docs.map((d) => d.data() as Record<string, unknown>);
-  if (lineas.length > 1) filas = filas.filter((f) => lineas.includes(String(f.linea)));
+  const leidas = instantanea.docs.map((d) => d.data() as Record<string, unknown>);
 
-  return { resumenes: filas.slice(0, tope), recortado: filas.length > tope, tope };
+  return recorteDeResumenes(leidas, { tope, desde, hasta, lineas });
 }
 
 /**
@@ -346,6 +446,96 @@ export async function ultimasCargas(sesion: Sesion, { cuantas = 20 } = {}) {
   const q = query(collection(db, CARGAS), where('orgId', '==', sesion.orgId),
     orderBy('cargadoEn', 'desc'), limit(cuantas));
   return (await getDocs(q)).docs.map((d) => d.data() as Record<string, unknown>);
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// LAS LÍNEAS DEL PARQUE — para que «de qué línea es este archivo» se ELIJA
+// ────────────────────────────────────────────────────────────────────────────
+// ⚠️ POR QUÉ, y no es cosmética. Hoy la línea del archivo se escribe a mano en
+// una casilla de texto libre, y esa casilla es **lo más caro de equivocar de
+// toda la pantalla**: con un solo parque de una línea, un dedazo se notaba; con
+// tres líneas, «LN-618» en vez de «LN-617» escribe un histórico entero a nombre
+// de una línea que no existe, y **no hay forma de retirarlo** —`firestore.rules`
+// niega el borrado a propósito («un histórico del que se puede quitar una hora
+// incómoda no es un histórico»)—. Nadie lo ve nunca: ninguna pantalla abre esa
+// línea, así que el dato no aparece «mal», aparece **ausente**.
+//
+// ⚠️ Y HAY UNA TRAMPA PEOR, que es la que obliga a normalizar contra el parque:
+// el `id` del día colapsa mayúsculas, tildes y espacios (`clave()` en
+// `contratos/src/cargabilidad.ts`), pero el campo `linea` GUARDA el texto tal
+// como se escribió y las consultas (`where('linea','==',…)`) son literales. Así
+// que «ln-627» y «LN-627» escriben ENCIMA del mismo documento —la segunda carga
+// pisa a la primera— y luego una consulta por «LN-627» no encuentra lo que la
+// otra dejó. Mismo documento, dos nombres, y el histórico partido en dos sin un
+// solo error por ningún lado.
+//
+// Aquí se expone lo que la pantalla necesita para ofrecer una LISTA en vez de
+// una casilla libre. La pantalla es de otra mano: esto no la cambia.
+// ════════════════════════════════════════════════════════════════════════════
+
+/** Una línea del parque, con lo justo para poder ofrecerla y guardarla bien. */
+export interface LineaDelParque {
+  /** El id de la línea. NO se guarda en el histórico; sirve para casar con la abierta. */
+  id: string;
+  /** El código: es lo que el histórico guarda en el campo `linea` («LN-627»). */
+  codigo: string;
+  /** El nombre largo, para poder enseñar «LN-627 · …» sin adivinarlo. */
+  nombre: string;
+}
+
+/**
+ * LAS LÍNEAS QUE ESTA CUENTA PUEDE VER, en el orden en que se dieron de alta.
+ *
+ * ⚠️ No abre una consulta nueva: reusa `listarLineas()` del repositorio, que es
+ * quien ya hace cumplir el alcance del token y valida cada documento contra el
+ * molde. Una segunda consulta a `lineas` desde aquí sería una segunda forma de
+ * decidir qué líneas existen, y el día que las dos discreparan la pantalla
+ * ofrecería para guardar una línea que ninguna otra pestaña abre.
+ *
+ * Se llama a la implementación de Firestore DIRECTAMENTE y no al singleton
+ * `repositorio`, que arranca en «sin sesión» y devuelve `[]` hasta que alguien
+ * llama a `usarRepositorio()`: una lista vacía por no estar conectado se leería
+ * en pantalla como «su parque no tiene líneas», que es la clase de mentira
+ * tranquila que este módulo lleva evitando desde el principio.
+ *
+ * ⚠️ Vacío significa **«esta cuenta no alcanza ninguna línea»**, nunca «falló la
+ * lectura»: los fallos se LANZAN, para que la pantalla los pueda decir. Y el
+ * orden es el de la **fecha de alta**, el mismo con el que el navegador del
+ * parque enumera las líneas: dos listas de lo mismo en dos órdenes distintos se
+ * leen como dos parques distintos.
+ *
+ * ⚠️ EL ORDEN SE REUSA, NO SE VUELVE A ESCRIBIR. Aquí había una segunda
+ * ordenación —por TEXTO, con `localeCompare` de `creadoEn`— que deshacía la
+ * buena: `Instante` admite desplazamiento horario, así que «…T09:00:00-05:00»
+ * es TRES HORAS POSTERIOR a «…T12:00:00Z» aunque alfabéticamente vaya antes.
+ * El desplegable de esta pantalla y la columna del parque enseñaban el mismo
+ * parque en distinto orden, que es exactamente lo que el párrafo de arriba dice
+ * que no puede pasar. `ordenarParque` es puro, está probado y compara
+ * INSTANTES; se aplica sobre lo ya ordenado —es idempotente— para que quede
+ * escrito de quién es el criterio y no dependa de que nadie lo quite de
+ * `listarLineas`.
+ */
+export async function lineasDelParque(): Promise<LineaDelParque[]> {
+  const lineas = await repositorioFirestore.listarLineas();
+  return ordenarParque(lineas).map((l) => ({ id: l.id, codigo: l.codigo, nombre: l.nombre }));
+}
+
+/**
+ * ¿ESTE CÓDIGO ES DE UNA LÍNEA DEL PARQUE? Devuelve el código **canónico** —el
+ * que el parque tiene escrito— o `null` si no es ninguna.
+ *
+ * Se compara sin distinguir mayúsculas ni espacios de sobra por lo que dice el
+ * cabecero: el `id` del día ya los colapsa, así que dos grafías escriben el
+ * mismo documento y luego se consultan por separado. Lo que se guarde tiene que
+ * ser la grafía del parque, siempre la misma.
+ *
+ * Es PURA: no lee la base. La lista se pide una vez con `lineasDelParque()` y se
+ * comprueba contra ella tantas veces como haga falta, sin gastar lecturas.
+ */
+export function codigoEnElParque(escrito: string, lineas: LineaDelParque[]): string | null {
+  const q = escrito.trim().toLowerCase();
+  if (!q) return null;
+  return lineas.find((l) => l.codigo.trim().toLowerCase() === q)?.codigo ?? null;
 }
 
 /** La versión del molde con la que se escribió. Va al pie, como el resto. */

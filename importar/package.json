@@ -10,6 +10,7 @@
     "./decisiones": "./decisiones.js",
     "./punto": "./punto.js",
     "./gpx": "./gpx.js",
+    "./levantamientoDesdeGpx": "./levantamientoDesdeGpx.js",
     "./plan": "./plan.js",
     "./package.json": "./package.json",
     "./xlsx": "./xlsx.js",

@@ -9,6 +9,8 @@
 // ============================================================================
 
 import { useState } from 'react';
+import { almacen, useQuien } from '../datos/enlace';
+import { puede } from '../datos/permisos';
 
 interface Props {
   titulo: string;
@@ -155,6 +157,8 @@ export function Cargando() {
  * que promete un mecanismo que no existe, también.
  */
 export function Vacio({ alcanzaTodas }: { alcanzaTodas?: boolean }) {
+  const quien = useQuien();
+  const puedeDarDeAlta = puede(quien, 'lineas.editar') && puede(quien, 'cargar.puntos');
   if (alcanzaTodas) {
     return (
       <Estado
@@ -163,6 +167,16 @@ export function Vacio({ alcanzaTodas }: { alcanzaTodas?: boolean }) {
       >
         Su usuario alcanza <b>todas las líneas de su organización</b>, y ahora mismo no hay ninguna
         cargada. No es un problema de permiso.
+        {/* LA FRONTERA DEL ESTADO CERO: con el parque vacío no hay columna de
+            parque, así que el botón de alta no se alcanzaría por ningún sitio y
+            la primera línea no podría darse nunca desde la pantalla. */}
+        {puedeDarDeAlta && (
+          <p style={{ marginTop: 12 }}>
+            <button type="button" className="boton" onClick={() => almacen.abrirAlta()}>
+              + Alta de línea
+            </button>
+          </p>
+        )}
       </Estado>
     );
   }

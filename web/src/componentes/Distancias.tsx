@@ -12,9 +12,23 @@ import type { Apoyo } from '@lineas/contratos';
 import { vincenty, rumbo } from '@lineas/nucleo/geodesia';
 import { soloEstructuras, nombreVisible, vanos } from '../vistas/planta';
 import { nf } from '../vistas/formato';
+import { sinPrefijoDeSerie } from '../vistas/rotulos';
 import { Sello } from './Sello';
 
-export function Distancias({ apoyos }: { apoyos: Apoyo[] }) {
+export function Distancias({ apoyos, codigos = [] }: {
+  apoyos: Apoyo[];
+  /**
+   * Los códigos de las series que se están leyendo (la línea y sus tramos
+   * compartidos), SOLO para recortar el prefijo en las cabeceras de la matriz.
+   *
+   * ⚠️ Esto era `.replace('LN-627 ', '')`, con el código de una línea escrito a
+   * mano dentro del componente. Funcionaba mientras hubiera una sola línea; con
+   * LN-617 y LN-628 dentro habría dejado enteros los nombres de las otras dos
+   * —«TR-618 E07» en cada cabecera de una columna de 40 px— y el día que
+   * alguien renombre LN-627 se habría quedado con el recorte viejo.
+   */
+  codigos?: readonly string[];
+}) {
   const datos = useMemo(() => {
     const E = soloEstructuras([...apoyos].sort((x, y) => x.orden - y.orden));
     const L = vanos(apoyos);
@@ -127,13 +141,13 @@ export function Distancias({ apoyos }: { apoyos: Apoyo[] }) {
             <thead>
               <tr>
                 <th className="pegado"> </th>
-                {E.map((a) => <th key={a.id}>{nombreVisible(a).replace('LN-627 ', '')}</th>)}
+                {E.map((a) => <th key={a.id}>{sinPrefijoDeSerie(nombreVisible(a), codigos)}</th>)}
               </tr>
             </thead>
             <tbody>
               {E.map((a, i) => (
                 <tr key={a.id}>
-                  <th className="pegado">{nombreVisible(a).replace('LN-627 ', '')}</th>
+                  <th className="pegado">{sinPrefijoDeSerie(nombreVisible(a), codigos)}</th>
                   {E.map((b, j) => (
                     <td key={b.id}
                         className={(i === ia && j === ib) || (i === ib && j === ia) ? 'celda-sel' : undefined}

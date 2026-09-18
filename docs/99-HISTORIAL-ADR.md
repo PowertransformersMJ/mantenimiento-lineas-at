@@ -10869,3 +10869,78 @@ en la base ni desplegado**: ninguna línea nueva existe todavía en producción 
 fase 0 con sus revisores, y los ensayos del SCADA).
 
 ---
+
+## ADR-133 · 2026-09-18 · Una torre, dos líneas: el tramo compartido 618, el alta que pulsa él y la línea que se abre sin conductor
+
+**Deliberación:** orden del Ingeniero del 16-09 y sus cuatro respuestas de ese día. Tres arquitectos Opus
+(mínimo aditivo · la estructura primero · el tramo como pieza) y tres jueces (motor · datos irreversibles ·
+pantalla): dos eligieron «tramo» y uno «aditivo». Se tomó el aditivo como base —no toca las reglas de lectura
+ni un solo documento de LN-627— con los injertos que hicieron ganar al otro. **Sin consejo externo, por
+decisión suya: NO revisada externamente.** Maquetas M1, M2, M4, M5 y M6 aprobadas por él el 17-09 («procede»).
+**Estado:** ✅ código y pruebas en `main`; **nada escrito en la base**: las dos líneas no existen todavía —el
+alta la pulsa él (`TODO-104`)—.
+
+### Lo que decidió él, y manda
+
+| Decisión | Qué implica |
+|---|---|
+| **Una torre, dos líneas** | Las 28 torres del tramo se registran UNA vez a nombre del tramo (`TR-618`; en pantalla «tramo compartido 618»), y cada línea declara que lo recorre. Una ficha, unas fotos, un veredicto |
+| **«618» es el código del TRAMO** | No es una línea: nunca se le carga un histórico de SCADA |
+| **ALTA SIN TORRES** | Entran las dos líneas y el LEVANTAMIENTO del GPS tal cual; las torres esperan a que él declare la función de cada una |
+| **Las dos van en las 28** | 2 circuitos; se sellará por torre cuando existan |
+| **Conductor e hipótesis, después** | No se copia nada de LN-627: la línea se abre igual y dice qué le falta |
+| **El alta la pulsa él** | Desde la pantalla, con su sesión, el antes y el después delante y un acuse que cuenta lo escrito |
+
+### Decisión
+
+1. **Molde 0.16.0, todo aditivo y opcional**: `Linea.tramosCompartidos` (con desde/hasta, procedencia, fuente y
+   un **cierre fechado** en vez de borrado) y `recorridoCompleto`; `Apoyo.circuitosTendidos` con su sello; y el
+   molde nuevo **`Levantamiento`**: el GPS tal cual (fecha, archivo con su huella, puntos con nota), con los
+   campos de interpretación **prohibidos por nombre** — función, orden, nombre canónico, deflexión.
+2. **Identidad**: la fórmula no cambia. Libro nuevo `herramientas/codigos-emitidos.json` (LN-627, LN-617,
+   LN-628, TR-618) con prefijo obligatorio `LN-`/`TR-`, y el id del levantamiento derivado de la serie, la
+   fecha y la huella del archivo: el mismo archivo cae en el mismo documento. **La capa de datos EXIGE que el
+   par código↔id esté en el libro**: un tramo que no cuadre no se junta, ni se consulta, y se dice.
+3. **Reglas**: colección `levantamientos` —crear con el permiso de cargar puntos, **solo la nota se edita**,
+   **borrar negado**— y su índice. Nada de lo de hoy se afloja; las de `apoyos` y `lineas` no se tocan.
+4. **La pantalla no se cae sin conductor**: fase nueva **«recorrido»**. Cada pestaña que no puede calcular dice
+   QUÉ falta; abren Falla, Parámetros eléctricos y Cargar, y Resumen y Distancias enseñan el recorrido
+   levantado. El parque marca «tramo compartido 618 · sin torres registradas · sin conductor ni hipótesis»,
+   **sin contador** —no hay nada que contar—, y se abre primero la línea más antigua por fecha de alta.
+5. **Alta de línea** (`#/alta`): código elegido del libro, tensión declarada con su fuente, el tramo, el GPX
+   leído en su computador, nota por punto, **los dos documentos validados contra su molde ANTES de escribir**,
+   aviso si ese recorrido ya estaba guardado —también bajo otra serie— y acuse que cuenta lo escrito contra lo
+   esperado. Con el parque vacío el alta se ofrece en la propia pantalla de «todavía no hay ninguna línea».
+6. **Informe BORRADOR no firmable** para una línea sin torres: longitud «levantado», torres sin registrar,
+   calidad del levantamiento con sus hallazgos, y la firma bloqueada nombrando a las dos líneas.
+7. **Tres reglas al núcleo** (`geodesia.js`): margen del quiebre, vano cuya dirección no se puede saber y vano
+   con pinta de torre sin levantar. La pantalla no recalcula nada por su cuenta.
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| Sembrar las mismas torres en las dos líneas | Dos ids permanentes por fierro, dos fichas que divergen, fotos repartidas y **media carga** en el cálculo |
+| Una sola línea con dos circuitos | Choca con sus dos bahías de SCADA: el resumen diario no distingue circuito y uno pisaría al otro |
+| Colección `tramos` con `lineaId` opcional | Aflojaba el molde y las reglas de TODOS los apoyos y fotos, incluidas las 30 torres y 99 fotos de LN-627 |
+| Ofrecer en el SCADA las líneas del libro | El libro anota códigos que aún no existen: guardar a su nombre deja un histórico que no se borra |
+
+### Supuestos que deben ser ciertos — y la señal que diría que dejaron de serlo
+
+| Supuesto | Señal |
+|---|---|
+| Un bundle viejo no abre una línea con tramo | `Linea` no es estricta: quitaría `tramosCompartidos` y enseñaría la línea sin sus torres. **Desplegar y recargar sus equipos ANTES del alta** |
+| El par código↔id del libro es el que emitió el sembrador | Un aviso de «no avalado» en una línea que sí es suya |
+| Él declarará la función de cada torre | Mientras no lo haga, el tramo no tiene torres y ninguna pestaña de cálculo abre |
+
+### Consecuencias
+
+- `3.324` pruebas (3.319 verdes, 5 declaradas) · reglas **94/94** · contrato 0.16.0 · `tsc` limpio.
+- **Queda para cuando él entregue el conductor**: la suma de circuitos por torre y el desglose por circuito.
+- Vivo y dicho: con alcance acotado la lista de líneas se deniega entera (`§ADR-100`), y el portero de fotos
+  todavía no mira el alcance.
+
+**Crudo de respaldo:** `research-archive/2026-09-16-ln617-ln628/` (`diseno-torre-comun/`, `cimientos/`,
+`pantallas/` con el render real, y los tres revisores de cada tanda).
+
+---

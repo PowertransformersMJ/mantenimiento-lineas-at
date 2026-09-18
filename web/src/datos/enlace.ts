@@ -17,10 +17,10 @@
 // la pestaña — sin avisar, con el técnico en mitad de una inspección.
 // ============================================================================
 import { useSyncExternalStore } from 'react';
-import type { AccionCapa, AnalisisCausa, Evidencia, Linea, SondeoClima } from '@lineas/contratos';
+import type { AccionCapa, AnalisisCausa, Evidencia, Levantamiento, Linea, SondeoClima } from '@lineas/contratos';
 import { cargarFirebase } from './cargar';
 import { puertaDeAcceso } from '@lineas/contratos';
-import { repositorio, usarRepositorio, type AcuseDeFicha, type AcuseDeLote, type EstadoDatos, type EstadoRca, type EstadoSesion, type FiltroDeAuditoria, type PaginaDeAuditoria, type ResultadoCarga } from './repositorio';
+import { ordenarParque, repositorio, seriesDeLinea, usarRepositorio, vecinasDeLinea, type AcuseDeFicha, type AcuseDeLote, type EstadoDatos, type EstadoRca, type EstadoSesion, type FiltroDeAuditoria, type PaginaDeAuditoria, type ResultadoCarga } from './repositorio';
 import { leerRuta, HASH_ATLAS, type ClaveAtlas } from './ruta';
 import { quienDe, type SesionDePantalla } from './permisos';
 import { repositorioFirestore } from './firestore';
@@ -91,6 +91,26 @@ class Almacen {
    */
   #personas = false;
   /**
+   * SI SE ESTÁ DANDO DE ALTA UNA LÍNEA NUEVA.
+   *
+   * Es un interruptor y no una fase con datos, como el atlas: aquí no se lee
+   * nada de la base al abrir —lo que hay que rellenar lo rellena el Ingeniero—,
+   * así que no hay nada que cargar, que fallar ni que reintentar.
+   *
+   * ⚠️ VIVE AQUÍ, EN EL ALMACÉN, y no en un estado de la pantalla de línea. Si
+   * viviera ahí, cambiar de línea en la columna del parque —o abrir el atlas y
+   * volver— desmontaría el componente y se perdería a medias lo que se estuviera
+   * declarando, sin un solo aviso. Y además no habría dirección que pegar: el
+   * alta escribe cosas que NO SE PUEDEN DESHACER, así que recargar a media
+   * faena tiene que devolver al alta y no a la línea de debajo.
+   *
+   * ⚠️ NO SE APAGA al abrir encima el análisis de causa raíz, un atlas o
+   * personas: esas tres SUSTITUYEN la pantalla entera, así que el alta no se ve
+   * mientras estén abiertas, y al cerrarlas se vuelve a `#/alta` —que es donde
+   * se estaba— porque `#hashPrevio` guardó esa dirección y no la de la línea.
+   */
+  #alta = false;
+  /**
    * POR QUÉ SE CERRÓ LA SESIÓN LA ÚLTIMA VEZ, o `null`.
    *
    * Vive en el almacén y no en el componente del reloj porque el componente se
@@ -129,6 +149,8 @@ class Almacen {
 
   leerPersonas = (): boolean => this.#personas;
 
+  leerAlta = (): boolean => this.#alta;
+
   leerMotivoDeSalida = (): string | null => this.#motivoDeSalida;
 
   /**
@@ -156,6 +178,56 @@ class Almacen {
   }
 
   /**
+   * ABRE EL ALTA DE LÍNEA. La pantalla ocupa el sitio de las pestañas y la
+   * columna del parque se queda donde está: lo que se da de alta es una línea
+   * NUEVA, no una pestaña de la que esté abierta.
+   *
+   * No comprueba el permiso, igual que `abrirPersonas`: eso lo hace la propia
+   * pantalla con `puede()`, y detrás de ella lo hacen las reglas de la base.
+   * Aquí solo se navega.
+   *
+   * Cierra lo que estuviera ENCIMA —análisis, atlas, personas— porque si no
+   * quedarían dos pantallas encendidas a la vez y mandaría la que `App.tsx`
+   * mira primero: se vería una y la dirección diría otra, que es exactamente el
+   * enlace que lleva a donde no dice.
+   */
+  abrirAlta(): void {
+    if (!this.#alta && !this.#personas && this.#atlas === null && this.#rca.fase === 'cerrado') {
+      // ⚠️ LA DIRECCIÓN DE VUELTA NUNCA PUEDE SER `#/alta`, y hace falta decirlo
+      // porque el caso ocurre de verdad: cuando alguien PEGA `#/alta`, el
+      // arranque llama aquí con `location.hash` ya puesto en `#/alta` —la vista
+      // de línea reescribe la dirección en un efecto, o sea DESPUÉS—. Sin esta
+      // guarda, «volver» llevaría al alta otra vez y no habría forma de salir
+      // más que a mano.
+      //
+      // Y aquí muerde de un modo en que no muerde en los atlas ni en personas:
+      // esas tres sustituyen la pantalla entera, así que al cerrarlas la vista
+      // de línea se monta y su efecto corrige la dirección sola. El alta ocupa
+      // el sitio de las pestañas DENTRO de esa vista, que ya está montada: nadie
+      // corrige nada, la barra se quedaría diciendo `#/alta` y al recargar se
+      // reabriría.
+      //
+      // Sin dirección previa se vuelve a `#/`, que es la línea de siempre.
+      const actual = location.hash || null;
+      this.#hashPrevio = actual === '#/alta' ? null : actual;
+    }
+    if (this.#rca.fase !== 'cerrado') this.#rca = { fase: 'cerrado' };
+    this.#atlas = null;
+    this.#personas = false;
+    irA('#/alta');
+    this.#alta = true;
+    this.#avisar();
+  }
+
+  /** Vuelve a la línea de la que se vino. Sin esto, recargar reabriría el alta. */
+  cerrarAlta(): void {
+    irA(this.#hashPrevio ?? '#/');
+    this.#hashPrevio = null;
+    this.#alta = false;
+    this.#avisar();
+  }
+
+  /**
    * CIERRA LA SESIÓN Y DICE POR QUÉ.
    *
    * Lo usa el reloj de sesión. Va aquí y no en el componente porque el motivo
@@ -171,6 +243,9 @@ class Almacen {
     }
     this.#motivoDeSalida = motivo;
     this.#personas = false;
+    // El alta se apaga con la sesión, como personas: volver a entrar no puede
+    // dejar a nadie dentro de un formulario que empezó otra persona.
+    this.#alta = false;
     await this.cargar();
   }
 
@@ -434,6 +509,13 @@ class Almacen {
     const personas = r2?.tipo === 'personas';
     if (personas !== this.#personas) { this.#personas = personas; this.#avisar(); }
 
+    // El alta de línea, por la misma regla: la dirección manda. Sin esto, Atrás
+    // dejaría `#/alta` en la barra con la línea debajo — y peor al revés: salir
+    // del alta con Atrás dejaría el formulario en pantalla con la dirección de
+    // la línea, o sea un enlace que lleva a donde no dice.
+    const alta = r2?.tipo === 'alta';
+    if (alta !== this.#alta) { this.#alta = alta; this.#avisar(); }
+
     // La dirección ya no habla del segmento: si estaba abierto, se cierra.
     if (r.fase !== 'cerrado') this.#ponerRca({ fase: 'cerrado' });
   }
@@ -534,7 +616,13 @@ class Almacen {
     // antes/después que el Ingeniero acaba de aprobar. Van a la escritura para
     // saber si algún punto estaba ya cargado SIN preguntárselo a la base — esa
     // pregunta, sobre un documento que aún no existe, la deniegan las reglas.
-    const yaCargados = e.fase === 'listo' ? e.apoyos.map((a) => a.id) : [];
+    //
+    // ⚠️ «recorrido» CUENTA IGUAL, y es el caso que más importa: una línea sin
+    // torres —o con una sola— está en esa fase, y es exactamente a la que se le
+    // van a cargar puntos. Si la lista saliera vacía por la fase, un punto ya
+    // cargado se volvería a escribir encima del que está, con sus fotos y su
+    // expediente colgando, y un apoyo no se puede borrar.
+    const yaCargados = e.fase === 'listo' || e.fase === 'recorrido' ? e.apoyos.map((a) => a.id) : [];
     return await repositorio.cargarPuntosNuevos(documentos, yaCargados);
   }
 
@@ -592,7 +680,11 @@ class Almacen {
     conectarBase();
     const acuse = await repositorio.declararCableGuarda(apoyoId, valor, revision);
     const e = this.#estado;
-    if (e.fase === 'listo') {
+    // Las dos fases que tienen apoyos en pantalla. Con solo «listo», declarar un
+    // vano en una línea que todavía no calcula escribiría en la base y la
+    // pantalla seguiría enseñando el valor viejo: la marca parecería no haberse
+    // guardado y se volvería a pulsar, ahora con la revisión desfasada.
+    if (e.fase === 'listo' || e.fase === 'recorrido') {
       this.poner({
         ...e,
         apoyos: e.apoyos.map((a) => {
@@ -648,7 +740,10 @@ class Almacen {
    */
   async refrescarLinea(): Promise<void> {
     const e = this.#estado;
-    if (e.fase === 'listo') await this.abrir(e.linea.id, e.lineas);
+    // También desde «recorrido»: es justo la línea a la que se le acaban de
+    // cargar sus primeros puntos, y la razón de releer —que nadie vuelva a
+    // pulsar el botón sobre unos apoyos que no se pueden borrar— es la misma.
+    if (e.fase === 'listo' || e.fase === 'recorrido') await this.abrir(e.linea.id, e.lineas);
   }
 
   /** Carga la línea que el usuario tenga permiso de ver. Nunca inventa nada. */
@@ -669,6 +764,7 @@ class Almacen {
       this.#ponerSesion(s);
       if (s.fase !== 'autenticado') {
         this.#personas = false;
+        this.#alta = false;   // nadie se queda dentro de un alta sin sesión
         return this.poner({ fase: 'sin_sesion' });
       }
 
@@ -695,7 +791,36 @@ class Almacen {
         }
       }
 
-      const lineas = await repositorio.listarLineas();
+      // EL PARQUE, ORDENADO POR FECHA DE ALTA — la más antigua primero — Y SE
+      // ORDENA AQUÍ, donde se elige.
+      //
+      // ⚠️ NO SE HEREDA EL ORDEN DE QUIEN TRAJO LA LISTA, y esa es la
+      // corrección. `lineas[0]` decide qué línea se abre al entrar SIN enlace,
+      // o sea la pantalla que el Ingeniero ve casi todos los días; y hasta hoy
+      // esa decisión dependía de que `firestore.ts` se acordara de llamar a
+      // `ordenarParque` — un invariante mantenido a mano en OTRO archivo, que
+      // es la familia de `30 · M-01`: lo que hay que sincronizar a mano se
+      // desincroniza, y aquí el síntoma sería mudo (se abriría otra línea, con
+      // sus cifras, sin un solo error).
+      //
+      // `ordenarParque` es puro, está probado y es idempotente: aplicarlo dos
+      // veces no cuesta nada y no introduce un segundo criterio —sigue habiendo
+      // UNA regla y UN dueño—. Lo que cambia es que el criterio se hace cumplir
+      // en el sitio que depende de él.
+      //
+      // Y ordena TAMBIÉN la lista que viaja a la pantalla: la columna del
+      // parque enseña el mismo orden por el que se eligió, en vez de uno que
+      // dependa de cómo vinieron los documentos.
+      //
+      // El empate y la línea sin fecha los resuelve `ordenarParque` (la que no
+      // trae fecha legible va al final, y el empate se rompe por código). Y las
+      // fechas se comparan como INSTANTES, no como texto: `…T09:00:00-05:00` es
+      // POSTERIOR a `…T12:00:00Z` aunque alfabéticamente vaya antes.
+      //
+      // Con esto, «la primera» sigue siendo la línea de siempre cuando el parque
+      // crece, sin escribir ningún código de línea en el programa — que es lo
+      // que convertiría una línea concreta en parte de la aplicación.
+      const lineas = ordenarParque(await repositorio.listarLineas());
       if (!lineas.length) return this.poner({ fase: 'vacio' });
 
       // LA DIRECCIÓN MANDA. Antes se abría siempre `lineas[0]` y el código que
@@ -717,12 +842,17 @@ class Almacen {
           // que la línea faltaba porque no estaba en la organización, no porque
           // no fuera suya. Ahora el alcance existe de verdad (`l` en el token),
           // así que hay dos motivos posibles y la frase tiene que decir cuál es.
+          //
+          // El aviso nombra `objetivo`, que es LA QUE SE ABRE, y no otra vez
+          // `lineas[0]`: hoy son la misma y por eso el fallo sería mudo, pero
+          // el día que la de defecto se elija de otra forma el aviso diría un
+          // código y la pantalla enseñaría otro.
           const conAlcanceTotal = s.claims?.l?.includes('*') ?? false;
           aviso = conAlcanceTotal
             ? `El enlace pedía la línea ${ruta.codigo}, y no hay ninguna con ese código en su `
-              + `organización. Se abrió ${lineas[0].codigo}.`
+              + `organización. Se abrió ${objetivo.codigo}.`
             : `El enlace pedía la línea ${ruta.codigo}, que no está entre las que su cuenta tiene `
-              + `asignadas. Se abrió ${lineas[0].codigo}.`;
+              + `asignadas. Se abrió ${objetivo.codigo}.`;
         }
       }
 
@@ -744,6 +874,12 @@ class Almacen {
       // Y la pantalla de personas, por lo mismo: pegar `#/personas` tiene que
       // abrirla, no cargar la línea y llevarse la dirección por delante.
       if (ruta?.tipo === 'personas') this.abrirPersonas();
+
+      // El alta de línea, igual. Aquí importa MÁS que en las demás: el alta
+      // escribe cosas que no se pueden deshacer, y quien recarga a media faena
+      // tiene que volver a donde estaba, no a la línea de debajo con el
+      // formulario perdido y la dirección cambiada sola.
+      if (ruta?.tipo === 'alta') this.abrirAlta();
     } catch (e) {
       this.poner({ fase: 'error', mensaje: e instanceof Error ? e.message : 'error desconocido' });
     }
@@ -756,15 +892,56 @@ class Almacen {
    */
   async abrir(lineaId: string, lineas?: Linea[], avisoRuta?: string): Promise<void> {
     const previo = this.#estado;
-    const conocidas = lineas ?? (previo.fase === 'listo' ? previo.lineas : undefined);
+    const conocidas = lineas
+      ?? (previo.fase === 'listo' || previo.fase === 'recorrido' ? previo.lineas : undefined);
     this.poner({ fase: 'cargando' });
     try {
       conectarBase();
       const e = await repositorio.cargarLinea(lineaId);
-      this.poner(e.fase === 'listo' ? { ...e, avisoRuta, lineas: conocidas } : e);
+      // LAS VECINAS SE CALCULAN AQUÍ y no en el lector, porque quien tiene el
+      // parque en la mano es el puente. Son las OTRAS líneas que declaran
+      // recorrer el mismo tramo compartido, y salen de la lista que ya está en
+      // memoria: **cero consultas nuevas y ningún apoyo traído dos veces**.
+      // Hacen falta para el cálculo de una torre compartida —una torre de dos
+      // circuitos no se carga con uno— y para poder decir en la ficha que lo
+      // que se guarde ahí lo ve también la vecina.
+      //
+      // ⚠️ Si NO hay parque en memoria no se pone el campo, en vez de ponerlo
+      // vacío: una lista vacía se lee «esta línea no comparte tramo con
+      // ninguna», y eso sería afirmar algo que aquí no se ha mirado. Ausente
+      // significa «no consta», que es la verdad.
+      if (e.fase === 'listo' || e.fase === 'recorrido') {
+        this.poner({
+          ...e,
+          avisoRuta,
+          lineas: conocidas,
+          ...(conocidas ? { vecinas: vecinasDeLinea(e.linea, conocidas) } : {}),
+        });
+      } else {
+        this.poner(e);
+      }
     } catch (e) {
       this.poner({ fase: 'error', mensaje: e instanceof Error ? e.message : 'error desconocido' });
     }
+  }
+
+  /**
+   * LO LEVANTADO EN CAMPO de la línea que está abierta, a petición.
+   *
+   * Va por su cuenta y no dentro del arranque porque una línea COMPLETA no lo
+   * necesita para abrirse: pedirlo siempre añadiría una lectura facturada a
+   * cada apertura de una línea que ya funciona, por un dato que solo mira quien
+   * abre el recorrido. La línea sin torres sí lo trae de entrada — ahí es lo
+   * único que hay que enseñar.
+   *
+   * Devuelve los de TODAS sus series: los suyos y los del tramo compartido que
+   * recorra.
+   */
+  async levantamientosDeLaLinea(): Promise<Levantamiento[]> {
+    const e = this.#estado;
+    if (e.fase !== 'listo' && e.fase !== 'recorrido') return [];
+    conectarBase();
+    return await repositorio.listarLevantamientos(seriesDeLinea(e.linea).map((s) => s.id));
   }
 }
 
@@ -809,6 +986,16 @@ export function useQuien(): SesionDePantalla | undefined {
 
 export function usePersonas(): boolean {
   return useSyncExternalStore(almacen.suscribir, almacen.leerPersonas, almacen.leerPersonas);
+}
+
+/**
+ * Si se está dando de alta una línea nueva. Misma suscripción, otro trozo.
+ *
+ * Lo consume la vista de línea: el alta ocupa el sitio de las pestañas y deja
+ * la columna del parque donde está (maqueta M1).
+ */
+export function useAlta(): boolean {
+  return useSyncExternalStore(almacen.suscribir, almacen.leerAlta, almacen.leerAlta);
 }
 
 /** Por qué se cerró la última sesión, para poder decirlo en la pantalla de acceso. */

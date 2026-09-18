@@ -1,0 +1,36 @@
+{
+  "_nota": "Libro de CÓDIGOS DE SERIE emitidos. Una serie es lo que lleva torres colgando: una LÍNEA (prefijo `LN-`) o un TRAMO COMPARTIDO (prefijo `TR-`). Este archivo dice qué códigos existen y qué identificador permanente tiene cada uno. El alta ELIGE de esta lista; el código no se teclea. Solo se AÑADEN filas: una fila escrita NO SE TOCA JAMÁS, porque de ese id cuelgan la ficha de la línea, sus torres, sus hipótesis, sus cálculos y sus fotos, y `firestore.rules` no deja borrar nada. Mover un id no da error: deja el parque enseñando una línea vacía, en silencio.",
+  "_porQueEsUnLibroYNoUnCalculo": "Porque el código se teclea una sola vez y para siempre. Si la pantalla derivara el id de lo que el usuario escribe, «LN-628» con un cero de más crearía una línea nueva, permanente y sin forma de borrarla (`firestore.rules`: las líneas no se borran). Con una lista cerrada no hay nada que teclear mal. Es la misma doctrina de `semillas-emitidas.json` para los puntos (ADR-028): la pantalla BUSCA identidades, no las acuña.",
+  "_queSignificaEmitido": "OJO, aquí no significa lo mismo que en `semillas-emitidas.json`. Allí una fila significa «este punto YA existe en la base y sostiene fotos». Aquí significa «este código ya tiene identificador reservado y no puede cambiar»: el libro se escribe y se despliega ANTES del alta, justo para que el alta tenga de dónde elegir. Que un código esté aquí NO dice que su línea exista todavía en la base — eso lo dice el parque. La columna `origen` lo declara fila por fila.",
+  "_comoSeDerivaCadaId": "Con la MISMA fórmula que ya emitió todo lo que está en producción: `sha256(org|código|semilla)`, recortado a 32 hex y con guiones de identificador (`herramientas/identidad.mjs`, gemela en `importar/identidad.js`). Lo único que cambia entre una línea y un tramo es la SEMILLA: `linea` para una línea —la misma que usó el sembrador el 30-07-2026— y `tramo` para un tramo compartido. El código ya va dentro del hash y por sí solo los separaría, así que la semilla distinta no hace falta para evitar choques: se elige para que la semilla diga en voz alta qué clase de serie es, y para que nadie pueda escribir un tramo con semilla de línea sin que la prueba se ponga roja.",
+  "_porQueEstaEnElRepoPublico": "Para que la prueba que fija estos identificadores corra en CI, donde la bóveda privada NO está montada. Y porque el libro viaja al sitio publicado: la lista de códigos del alta sale de aquí. No hay dato de cliente: un código de serie, su tipo, un hash y una fecha. Ni coordenada, ni nombre de subestación o bahía, ni foto.",
+  "_porQueSeGuardaElId": "No es redundancia: convierte el archivo en un registro AUTO-VERIFICABLE. `tests/codigos-emitidos.test.js` recalcula cada id desde su semilla y lo compara con esta columna; si alguien toca la fórmula del hash, se pone rojo en CI en vez de en producción.",
+  "LN-627": {
+    "tipo": "linea",
+    "semilla": "linea",
+    "id": "f50d70ec-ad33-8af9-8aeb-742e49ed2fab",
+    "emitidoEn": "2026-07-30",
+    "origen": "EN PRODUCCIÓN desde el 30-07-2026. Este id ya sostiene la ficha de la línea, sus 30 puntos, sus hipótesis, sus cálculos y sus 99 fotos. La fila se anotó aquí el 17-09-2026, al nacer el libro: el id no se estrenó ese día, se escribió el que ya estaba."
+  },
+  "LN-617": {
+    "tipo": "linea",
+    "semilla": "linea",
+    "id": "6d9ca4ca-1734-8823-2b99-7a107ddae99f",
+    "emitidoEn": "2026-09-17",
+    "origen": "Parque 617-628. Código RESERVADO el 17-09-2026, antes del alta: la pantalla elige de aquí. Recorre el tramo compartido TR-618. Todavía NO existe en la base — el alta la pulsa el Ingeniero."
+  },
+  "LN-628": {
+    "tipo": "linea",
+    "semilla": "linea",
+    "id": "85038a14-252b-fcdf-1c0c-c9d5b187f2b6",
+    "emitidoEn": "2026-09-17",
+    "origen": "Parque 617-628. Código RESERVADO el 17-09-2026, antes del alta: la pantalla elige de aquí. Recorre el mismo tramo compartido TR-618 que LN-617. Todavía NO existe en la base — el alta la pulsa el Ingeniero."
+  },
+  "TR-618": {
+    "tipo": "tramo",
+    "semilla": "tramo",
+    "id": "32987a44-128c-cb40-66e4-ae46604a7c29",
+    "emitidoEn": "2026-09-17",
+    "origen": "Tramo compartido 618 («tramo compartido 618» en pantalla). Las torres del recorrido se registran UNA sola vez a nombre de este código, y cada línea declara que lo recorre; así una torre no se duplica ni se queda con dos fichas que se contradicen. Código RESERVADO el 17-09-2026. Todavía NO tiene página de nombres en `semillas-emitidas.json`: sus torres se emitirán cuando el Ingeniero declare la función de cada una, y hasta entonces lo que hay del recorrido es el LEVANTAMIENTO guardado tal cual, que no es una torre."
+  }
+}

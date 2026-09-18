@@ -19,6 +19,20 @@
       ]
     },
     {
+      "collectionGroup": "levantamientos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "orgId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "serieId",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "inspecciones",
       "queryScope": "COLLECTION",
       "fields": [

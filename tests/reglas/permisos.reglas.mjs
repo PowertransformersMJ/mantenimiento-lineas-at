@@ -32,6 +32,12 @@ import {
 } from 'firebase/firestore';
 
 import { reclamosDe } from '../../contratos/src/usuarios.ts';
+// Los moldes, para que los documentos de prueba NO puedan divergir de la forma
+// real: lo que aquí se escribe se valida antes contra el contrato (ver el bloque
+// `§ADR-133`). Un fixture que la aplicación no podría leer deja la prueba verde
+// midiendo algo que nunca va a pasar.
+import { Linea, TramoCompartidoEnLinea } from '../../contratos/src/activos.ts';
+import { Levantamiento, PuntoLevantado } from '../../contratos/src/levantamiento.ts';
 
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -636,7 +642,7 @@ describe('los cerrojos de config/ solo los escribe el servidor', () => {
 // ============================================================================
 describe('EL ESPECTADOR: un token de solo lectura no escribe en NINGUNA colección', () => {
   const COLECCIONES = [
-    'lineas', 'apoyos', 'hipotesis', 'inspecciones', 'evidencias', 'investigaciones',
+    'lineas', 'apoyos', 'levantamientos', 'hipotesis', 'inspecciones', 'evidencias', 'investigaciones',
     'analisis', 'acciones_capa', 'sondeos_clima', 'hallazgos', 'calculos', 'solicitudes_ia',
     'sugerencias', 'llamadas_ia', 'config', 'usuarios', 'auditoria_accesos',
     'cargabilidad_dias', 'cargabilidad_resumenes', 'cargabilidad_cargas',
@@ -721,7 +727,7 @@ describe('EL ESPECTADOR: un token de solo lectura no escribe en NINGUNA colecci�
 // ════════════════════════════════════════════════════════════════════════════
 describe('LEER LO QUE NO EXISTE: «no hay nada» no puede contestarse «no puedes»', () => {
   const COLECCIONES = [
-    'lineas', 'apoyos', 'hipotesis', 'inspecciones', 'evidencias', 'investigaciones',
+    'lineas', 'apoyos', 'levantamientos', 'hipotesis', 'inspecciones', 'evidencias', 'investigaciones',
     'analisis', 'acciones_capa', 'sondeos_clima', 'hallazgos', 'calculos', 'solicitudes_ia',
     'sugerencias', 'llamadas_ia', 'config', 'usuarios', 'auditoria_accesos',
     'cargabilidad_dias', 'cargabilidad_resumenes', 'cargabilidad_cargas',
@@ -853,5 +859,520 @@ describe('GUARDAR UNA CARGA: el camino completo, sobre base vacía', () => {
     const db = como('editor-total', claims('editor'));
     await assertFails(setDoc(doc(db, 'cargabilidad_cargas', 'carga-del-editor'),
       { orgId: ORG, creadoEn: '2026-01-01T00:00:00.000Z', creadoPor: 'editor-total', revision: 0, id: 'z' }));
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// UNA TORRE, DOS LÍNEAS · Y EL LEVANTAMIENTO QUE TODAVÍA NO ES NINGUNA TORRE
+// (`99 §ADR-133`)
+// ----------------------------------------------------------------------------
+// Dos cosas distintas, y se prueban juntas porque llegan juntas:
+//
+//   1. Una línea DECLARA qué tramo compartido recorre, y las torres de ese tramo
+//      se registran UNA vez a nombre del tramo. Lo que se mide aquí es que eso
+//      NO necesitó aflojar ni una regla: el identificador de la serie viaja por
+//      el mismo campo y por la misma puerta que hoy.
+//   2. Mientras nadie declare la función de cada punto, el recorrido del GPS se
+//      guarda TAL CUAL en `levantamientos`, que sí es colección nueva. Un punto
+//      de un levantamiento NO es una torre: no tiene función, no calcula nada y
+//      va rotulado «sin registrar como torres».
+//
+// ⚠️ Códigos, identificadores y coordenadas INVENTADOS. El repositorio es
+// público (`L-23`): aquí no entra ni un nombre de línea, de tramo o de
+// subestación reales. En el libro de códigos del sistema estos serían «LX-1» y
+// «TR-9».
+// ════════════════════════════════════════════════════════════════════════════
+// ── Los identificadores ─────────────────────────────────────────────────────
+// SON UUID, como manda `contratos/src/comunes.ts §Id`, y no rótulos legibles: un
+// documento cuyo `id` no es UUID lo DESCARTA EN SILENCIO la aplicación al leerlo
+// (`web/src/datos/firestore.ts`), así que un fixture así deja la prueba en verde
+// midiendo un alta que en la pantalla no existe.
+//
+// Inventados dígito a dígito y conformes a RFC-4122 —el `4` del tercer grupo es
+// la versión y el `8` del cuarto la variante—: si mañana el molde aprieta la
+// comprobación de UUID (hoy la de zod 3.22 es laxa), estos siguen valiendo.
+const TRAMO = '00000009-0000-4000-8000-000000000009';    // «TR-9», el tramo que recorren dos líneas
+const LINEA_A = '00000011-0000-4000-8000-000000000011';  // «LX-1», la que entra sin torres
+const LEV = '00000101-0000-4000-8000-000000000101';
+const LEV_DE_LINEA = '00000102-0000-4000-8000-000000000102';  // el de una línea, no el de un tramo
+const LEV_AJENO = '00000103-0000-4000-8000-000000000103';     // el de la otra organización
+const LEV_NUEVO = '00000104-0000-4000-8000-000000000104';     // el que se intenta crear
+const LEV_DEL_ALTA = '00000105-0000-4000-8000-000000000105';  // el que entra en el lote del alta
+const LEV_CON_NOTA_ROTA = '00000106-0000-4000-8000-000000000106';  // sembrado por el servidor con la nota de otro tipo
+
+/**
+ * Un punto del GPS, tal y como lo trae el archivo: sin función, no es torre.
+ * Los valores son inventados (0,1° de latitud y longitud cae en medio del
+ * Atlántico) y **la forma la impone el molde**: `PuntoLevantado.parse` corre
+ * aquí mismo, así que un punto que la aplicación rechazaría no llega a escribirse.
+ */
+const punto = (n) => PuntoLevantado.parse({
+  nombreCampo: `9 E0${n}`, lat: 0.1 + n / 1000, lon: 0.1 + n / 1000, ele: 10 + n,
+  instante: `2026-02-09T${String(n % 24).padStart(2, '0')}:00:00.000Z`,
+});
+
+/**
+ * LA DECLARACIÓN DE QUE UNA LÍNEA RECORRE EL TRAMO, con la forma real.
+ *
+ * `id` (no `tramoId`) es el UUID del tramo y `codigo` su rótulo: son los dos
+ * campos que `TramoCompartidoEnLinea` exige, y el molde es `strict`, así que una
+ * clave mal escrita revienta AQUÍ en vez de escribirse y desaparecer al leer.
+ * `procedencia` sale de la lista cerrada de `comunes.ts §Procedencia`: un tramo
+ * declarado desde un plano es `documento_proyecto`.
+ */
+const tramoDeclarado = (uid, en = '2026-02-01T00:00:00.000Z') => TramoCompartidoEnLinea.parse({
+  id: TRAMO, codigo: 'TR-9',
+  procedencia: 'documento_proyecto', fuente: 'plano inventado de prueba',
+  declaradoEn: en, declaradoPor: uid,
+});
+
+/**
+ * LA LÍNEA DEL ALTA, tal y como la escribe la pantalla: validada contra `Linea`
+ * antes de salir de aquí.
+ *
+ * Que el documento pase las reglas no dice nada de si la aplicación puede
+ * leerlo: las reglas de `lineas` no miran ni un campo del molde. Por eso el
+ * `parse` — sin él, renombrar un campo del contrato dejaría esta prueba en verde
+ * y la pantalla en blanco (`32 · L-67`: lo que no valida se descarta sin avisar).
+ */
+const lineaNueva = (uid, extra = {}) => Linea.parse({
+  id: LINEA_A, tipo: 'linea', orgId: ORG,
+  codigo: 'LX-1', nombre: 'Línea inventada de prueba',
+  tensionNominal_kV: 66, circuitos: 1,
+  creadoEn: '2026-02-01T00:00:00.000Z', creadoPor: uid, revision: 0,
+  tramosCompartidos: [tramoDeclarado(uid)],
+  ...extra,
+});
+
+describe('§ADR-133 · LA LÍNEA QUE DECLARA UN TRAMO Y ENTRA SIN TORRES', () => {
+  test('crear la línea con `tramosCompartidos` NO necesita ninguna regla nueva', async () => {
+    // La regla de `lineas` no mira ningún campo del documento salvo los
+    // reservados, así que un campo nuevo del molde entra por la misma puerta.
+    // Se prueba porque «no hace falta tocar nada» es exactamente la frase que
+    // hay que MEDIR antes de decirla (§3.2).
+    const db = como('editor-total', claims('editor'));
+    await assertSucceeds(setDoc(doc(db, 'lineas', LINEA_A), lineaNueva('editor-total')));
+    const leida = await getDoc(doc(db, 'lineas', LINEA_A));
+    assert.equal(leida.data().tramosCompartidos.length, 1,
+      'el campo del tramo no sobrevivió a la escritura: la línea se vería sin torres');
+    assert.equal(leida.data().tramosCompartidos[0].id, TRAMO);
+    // Y lo que quedó ESCRITO lo acepta el molde: es lo único que demuestra que la
+    // pantalla podrá enseñarla. Pasar las reglas y ser ilegible son compatibles.
+    assert.doesNotThrow(() => Linea.parse(leida.data()),
+      'la línea se guardó, pero la aplicación la descartaría al leerla');
+  });
+
+  test('…y SIN conductor, SIN hipótesis y SIN un solo apoyo colgando', async () => {
+    // El alta de hoy es así a propósito: él entrega conductor e hipótesis
+    // después. Si la base exigiera algo de eso, la línea no podría nacer.
+    const db = como('editor-total', claims('editor'));
+    await assertSucceeds(setDoc(doc(db, 'lineas', LINEA_A), lineaNueva('editor-total')));
+    // Y preguntar por sus apoyos contesta «no hay», que no es lo mismo que «no
+    // puedes»: la pantalla tiene que poder decir qué le falta.
+    const s = await getDocs(query(
+      collection(db, 'apoyos'), where('orgId', '==', ORG), where('lineaId', '==', LINEA_A),
+    ));
+    assert.equal(s.size, 0, 'la línea recién creada no debería tener apoyos');
+  });
+
+  test('declarar el tramo DESPUÉS, sobre una línea que ya existía, tampoco', async () => {
+    const db = como('editor-total', claims('editor'));
+    await assertSucceeds(updateDoc(doc(db, 'lineas', LN), {
+      tramosCompartidos: [tramoDeclarado('editor-total')],
+      recorridoCompleto: false,
+    }));
+  });
+
+  test('y lo de siempre sigue en pie: no la crea quien no edita líneas, y nadie la borra', async () => {
+    await assertFails(setDoc(
+      doc(como('cuadrilla-1', claims('cuadrilla')), 'lineas', LINEA_A), lineaNueva('cuadrilla-1'),
+    ));
+    await assertFails(deleteDoc(doc(como('admin-1', claims('admin')), 'lineas', LN)));
+  });
+});
+
+describe('§ADR-133 · EL APOYO A NOMBRE DEL TRAMO: `lineaId` se lee «id de la serie»', () => {
+  const apoyoDelTramo = (uid) => ({
+    id: 'apoyo-del-tramo', tipo: 'apoyo', orgId: ORG, lineaId: TRAMO, orden: 7,
+    creadoEn: '2026-02-01T00:00:00.000Z', creadoPor: uid, revision: 0,
+  });
+
+  test('crear un apoyo con `lineaId` = id del TRAMO pasa con el alcance de hoy', async () => {
+    // `alcanza()` compara un identificador contra la lista del token sin
+    // preguntar de qué es, y todo el mundo trae hoy `l: ['*']`.
+    const db = como('admin-1', claims('admin'));
+    await assertSucceeds(setDoc(doc(db, 'apoyos', 'apoyo-del-tramo'), apoyoDelTramo('admin-1')));
+  });
+
+  test('y se lista por el tramo con la consulta EXACTA de hoy', async () => {
+    await entorno.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'apoyos', 'apoyo-del-tramo'), apoyoDelTramo('servidor'));
+    });
+    const { orderBy } = await import('firebase/firestore');
+    const db = como('editor-total', claims('editor'));
+    const s = await getDocs(query(
+      collection(db, 'apoyos'),
+      where('orgId', '==', ORG), where('lineaId', '==', TRAMO), orderBy('orden', 'asc'),
+    ));
+    assert.equal(s.size, 1, 'la torre del tramo no sale en la consulta por serie');
+    // Misma FORMA que la consulta de una línea cualquiera: cambia el valor, no
+    // la consulta. Por eso el índice `(orgId, lineaId, orden)` que ya existe la
+    // cubre y no hizo falta declarar ninguno nuevo.
+  });
+
+  test('la ficha de esa torre se guarda UNA vez, con el mismo cerrojo de revisión', async () => {
+    // Es el corazón de «una torre, dos líneas»: el MISMO documento desde las dos
+    // líneas, y el cerrojo impidiendo que el guardado de una pise el de la otra.
+    await entorno.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'apoyos', 'apoyo-del-tramo'), apoyoDelTramo('servidor'));
+    });
+    const db = como('editor-total', claims('editor'));
+    await assertFails(updateDoc(doc(db, 'apoyos', 'apoyo-del-tramo'), { alturaTotal_m: 30 }));
+    await assertSucceeds(updateDoc(doc(db, 'apoyos', 'apoyo-del-tramo'), {
+      revision: 1, alturaTotal_m: 30, circuitosTendidos: 2,
+    }));
+  });
+
+  test('⚠️ HUECO CONOCIDO · una cuenta con alcance ACOTADO a sus líneas NO ve el tramo', async () => {
+    // Y hay que saberlo ANTES de acotarle el alcance a alguien: el tramo es una
+    // serie propia, así que su identificador tiene que estar en la lista de esa
+    // persona. No se tapa inventando una regla con «o»: se declara y se arregla
+    // donde se decide el alcance, en Personas.
+    await entorno.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'apoyos', 'apoyo-del-tramo'), apoyoDelTramo('servidor'));
+    });
+    const acotado = como('editor-acotado', claims('editor', [LN]));
+    await assertFails(getDoc(doc(acotado, 'apoyos', 'apoyo-del-tramo')));
+    await assertFails(getDocs(query(
+      collection(acotado, 'apoyos'), where('orgId', '==', ORG), where('lineaId', '==', TRAMO),
+    )));
+    // Y con el identificador del tramo en su alcance, sí: el remedio existe y es
+    // el mismo de siempre, sin tocar las reglas.
+    const conTramo = como('editor-con-tramo', claims('editor', [LN, TRAMO]));
+    await assertSucceeds(getDoc(doc(conTramo, 'apoyos', 'apoyo-del-tramo')));
+    await assertSucceeds(getDocs(query(
+      collection(conTramo, 'apoyos'), where('orgId', '==', ORG), where('lineaId', '==', TRAMO),
+    )));
+  });
+});
+
+describe('§ADR-133 · EL LEVANTAMIENTO: se guarda tal cual, y ningún punto se reescribe', () => {
+  // La forma es la del molde (`contratos/src/levantamiento.ts`): la jornada, el
+  // archivo con su huella, los puntos y la nota. Las reglas no validan el molde
+  // —eso lo hace el contrato—, y por eso el documento pasa por `Levantamiento.parse`
+  // ANTES de escribirse: si lo que se guarda aquí no es lo que la aplicación lee,
+  // esta prueba mide un alta que en la pantalla no existe.
+  const levantamiento = (uid, extra = {}) => Levantamiento.parse({
+    id: LEV, tipo: 'levantamiento', orgId: ORG, serieId: TRAMO, codigoSerie: 'TR-9',
+    fecha: '2026-02-09', aparato: 'GPS de mano',
+    archivo: { nombre: 'recorrido-inventado.gpx', huella: 'a'.repeat(64) },
+    cargadoEn: '2026-02-10T00:00:00.000Z', cargadoPor: uid,
+    puntos: [punto(7), punto(8)],
+    creadoEn: '2026-02-10T00:00:00.000Z', creadoPor: uid, revision: 0,
+    ...extra,
+  });
+
+  beforeEach(async () => {
+    await entorno.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'levantamientos', LEV), levantamiento('servidor'));
+      // Uno de una LÍNEA (no de un tramo): la colección sirve para las dos cosas.
+      // Se anota a `LINEA_A` —«LX-1»— y no a la línea de siempre porque `serieId`
+      // es un UUID del molde y la de siempre es un rótulo: el alcance que se mide
+      // abajo es el mismo, y el documento sí es legible.
+      await setDoc(doc(db, 'levantamientos', LEV_DE_LINEA),
+        levantamiento('servidor', { id: LEV_DE_LINEA, serieId: LINEA_A, codigoSerie: 'LX-1' }));
+      // Y uno de otra organización, para el barrido de siempre.
+      await setDoc(doc(db, 'levantamientos', LEV_AJENO),
+        levantamiento('servidor', { id: LEV_AJENO, orgId: OTRA_ORG }));
+    });
+  });
+
+  // ── CREAR ────────────────────────────────────────────────────────────────
+  test('lo crea quien CARGA PUNTOS, y nadie más: es el mismo acto que crear apoyos', async () => {
+    const nuevo = (uid) => levantamiento(uid, { id: LEV_NUEVO });
+    await assertFails(setDoc(
+      doc(como('editor-total', claims('editor')), 'levantamientos', LEV_NUEVO), nuevo('editor-total'),
+    ));
+    await assertFails(setDoc(
+      doc(como('cuadrilla-1', claims('cuadrilla')), 'levantamientos', LEV_NUEVO), nuevo('cuadrilla-1'),
+    ));
+    await assertSucceeds(setDoc(
+      doc(como('admin-1', claims('admin')), 'levantamientos', LEV_NUEVO), nuevo('admin-1'),
+    ));
+  });
+
+  test('no nace en otra organización, ni suplantando autor, ni SIN serie', async () => {
+    const db = como('admin-1', claims('admin'));
+    await assertFails(setDoc(doc(db, 'levantamientos', LEV_NUEVO),
+      levantamiento('admin-1', { id: LEV_NUEVO, orgId: OTRA_ORG })));
+    await assertFails(setDoc(doc(db, 'levantamientos', LEV_NUEVO),
+      levantamiento('otro-uid', { id: LEV_NUEVO })));
+    // ⚠️ SIN `serieId` NO ENTRA, y esta línea se ganó midiendo: con el alcance
+    // que trae hoy todo el mundo (`l: ['*']`), `alcanza()` corta por el lado
+    // izquierdo del `||` y NUNCA mira el campo que falta, así que el documento
+    // huérfano se creaba tan tranquilo. Por eso la regla lo exige aparte
+    // (`levantamientoCoherente()`). Si alguien «simplifica» quitándolo, esta
+    // prueba se pone roja.
+    //
+    // Los dos documentos rotos se construyen VÁLIDOS y se rompen después, a
+    // propósito: el molde no los dejaría nacer así, y lo que se mide aquí es la
+    // regla, no el molde.
+    const { serieId, ...sinSerie } = levantamiento('admin-1', { id: LEV_NUEVO });
+    await assertFails(setDoc(doc(db, 'levantamientos', LEV_NUEVO), sinSerie));
+    await assertFails(setDoc(doc(db, 'levantamientos', LEV_NUEVO),
+      { ...levantamiento('admin-1', { id: LEV_NUEVO }), serieId: '' }));
+  });
+
+  test('⚠️ NI CON LA NOTA O LA REVISIÓN DE OTRO TIPO: aquí no se borra, así que no se deja nacer', async () => {
+    // POR QUÉ ESTO SE MIDE EN EL ALTA Y NO SOLO EN LA EDICIÓN. Un levantamiento
+    // con la nota de otro tipo lo DESCARTA el lector de la aplicación entero,
+    // con sus puntos dentro, y sin decir nada. No se puede borrar
+    // (`delete: if false`) y se queda congelado: solo lo salva escribir encima
+    // de la nota misma, y para eso hay que saber que ese recorrido está ahí —
+    // que es justo lo que la pantalla no puede decir. Medido abajo, documento a
+    // documento. Nace bien o no nace.
+    //
+    // Los documentos rotos se construyen VÁLIDOS y se rompen DESPUÉS del
+    // `parse`, como los de arriba: el molde no los dejaría nacer así, y lo que
+    // se mide aquí es la regla, no el molde.
+    const db = como('admin-1', claims('admin'));
+    const bueno = levantamiento('admin-1', { id: LEV_NUEVO });
+    for (const notaMala of [7, true, ['una', 'lista'], { texto: 'un objeto' }]) {
+      await assertFails(setDoc(doc(db, 'levantamientos', LEV_NUEVO), { ...bueno, nota: notaMala }));
+    }
+    for (const revisionMala of ['0', 1.5, null]) {
+      await assertFails(setDoc(doc(db, 'levantamientos', LEV_NUEVO), { ...bueno, revision: revisionMala }));
+    }
+    // Y la nota de verdad —texto— entra sin estorbo: lo que se cierra es el
+    // tipo, no el campo.
+    await assertSucceeds(setDoc(doc(db, 'levantamientos', LEV_NUEVO),
+      levantamiento('admin-1', { id: LEV_NUEVO, nota: 'faltan los puntos E01 a E06: se levantaron otro día' })));
+  });
+
+  test('EL ALTA COMPLETA, como la escribe la pantalla: la línea y el levantamiento en un lote', async () => {
+    // El acuse de la maqueta dice «2 documentos». Si el lote cayera, caería
+    // entero y sin decir cuál de los dos lo tumbó, así que se prueba junto.
+    //
+    // ⚠️ «COMO LA ESCRIBE LA PANTALLA» hay que MEDIRLO, y por eso los dos
+    // documentos salen de los moldes (`Linea`, `Levantamiento`) y se vuelven a
+    // leer al final. Escritos a mano pasaban las reglas igual —`lineas` no mira
+    // ni un campo del molde— siendo documentos que la aplicación DESCARTA al
+    // leerlos: el alta quedaba «probada» y la línea no aparecía en pantalla.
+    const db = como('propietario-1', claims('propietario'));
+    const lote = writeBatch(db);
+    lote.set(doc(db, 'lineas', LINEA_A), lineaNueva('propietario-1', {
+      creadoEn: '2026-02-10T00:00:00.000Z',
+      tramosCompartidos: [tramoDeclarado('propietario-1', '2026-02-10T00:00:00.000Z')],
+    }));
+    lote.set(doc(db, 'levantamientos', LEV_DEL_ALTA),
+      levantamiento('propietario-1', { id: LEV_DEL_ALTA }));
+    await assertSucceeds(lote.commit());
+
+    // Y los dos, leídos de vuelta, siguen siendo lo que el molde acepta: el alta
+    // se ve en la pantalla, no solo en la base.
+    const ojos = como('editor-total', claims('editor'));
+    const lineaGuardada = await getDoc(doc(ojos, 'lineas', LINEA_A));
+    const levGuardado = await getDoc(doc(ojos, 'levantamientos', LEV_DEL_ALTA));
+    assert.doesNotThrow(() => Linea.parse(lineaGuardada.data()),
+      'la línea del alta se guardó, pero la aplicación la descartaría al leerla');
+    assert.doesNotThrow(() => Levantamiento.parse(levGuardado.data()),
+      'el levantamiento del alta se guardó, pero la aplicación lo descartaría al leerlo');
+  });
+
+  test('la SEGUNDA línea del tramo no vuelve a escribir el levantamiento: ya estaba', async () => {
+    // Y si alguien lo intentara, la regla no se lo impide por ser un `set` —lo
+    // trata como edición—: lo que lo impide es la lista cerrada de abajo, que
+    // deja fuera los puntos. Se mide, no se supone.
+    const db = como('admin-1', claims('admin'));
+    await assertFails(setDoc(doc(db, 'levantamientos', LEV),
+      levantamiento('admin-1', { puntos: [punto(7), punto(8), punto(9)] })));
+  });
+
+  // ── LEER ─────────────────────────────────────────────────────────────────
+  test('lo lee quien ve líneas: el editor, la cuadrilla y el auditor', async () => {
+    for (const rol of ['editor', 'cuadrilla', 'auditor']) {
+      await assertSucceeds(getDoc(doc(como(`uid-${rol}`, claims(rol)), 'levantamientos', LEV)));
+    }
+  });
+
+  test('un token con `rol` pero sin `f` no lo lee, y el de otra organización tampoco', async () => {
+    await assertFails(getDoc(doc(como('admin-viejo', { orgId: ORG, rol: 'admin' }), 'levantamientos', LEV)));
+    const ajeno = como('ajeno', reclamosDe({ orgId: OTRA_ORG, rol: 'admin' }));
+    await assertFails(getDoc(doc(ajeno, 'levantamientos', LEV)));
+    // Ni al revés: el de aquí no lee el de la otra organización.
+    await assertFails(getDoc(doc(como('admin-1', claims('admin')), 'levantamientos', LEV_AJENO)));
+  });
+
+  test('EL ALCANCE VA POR `serieId`: acotado al tramo sí, acotado a otra línea no', async () => {
+    await assertFails(getDoc(doc(como('acotado-otra', claims('editor', [OTRA_LN])), 'levantamientos', LEV)));
+    await assertSucceeds(getDoc(doc(como('acotado-tramo', claims('editor', [TRAMO])), 'levantamientos', LEV)));
+    // El de una línea se alcanza por su línea, sin saber nada de tramos.
+    await assertSucceeds(getDoc(doc(como('acotado-linea', claims('editor', [LINEA_A])), 'levantamientos', LEV_DE_LINEA)));
+    await assertFails(getDoc(doc(como('acotado-otra', claims('editor', [OTRA_LN])), 'levantamientos', LEV_DE_LINEA)));
+  });
+
+  test('LISTA · la consulta por serie pasa; sin el `where(orgId)` se DENIEGA entera', async () => {
+    // La forma exacta que hace la capa de datos: una consulta por serie, dos
+    // igualdades.
+    //
+    // ⚠️ ESTO NO DICE NADA DEL ÍNDICE, y hay que repetirlo cada vez: **el
+    // emulador sirve consultas sin índice y no se queja** (`35 · L-85`). Que esta
+    // prueba pase en verde no promete que la consulta funcione en producción. Por
+    // eso el índice `(orgId, serieId)` va declarado en `firestore.indexes.json`
+    // —regla del proyecto: toda consulta que filtre por más de un campo se
+    // declara en el mismo cambio— y lo vigila la prueba de abajo.
+    const db = como('editor-total', claims('editor'));
+    const s = await getDocs(query(
+      collection(db, 'levantamientos'), where('orgId', '==', ORG), where('serieId', '==', TRAMO),
+    ));
+    assert.equal(s.size, 1, 'el levantamiento del tramo no sale en la consulta por serie');
+    await assertFails(getDocs(query(
+      collection(db, 'levantamientos'), where('serieId', '==', TRAMO),
+    )));
+    // Y con alcance acotado la consulta sigue pasando, porque el `where` prueba
+    // por sí solo que todo lo devuelto está dentro del alcance.
+    await assertSucceeds(getDocs(query(
+      collection(como('acotado-tramo', claims('editor', [TRAMO])), 'levantamientos'),
+      where('orgId', '==', ORG), where('serieId', '==', TRAMO),
+    )));
+  });
+
+  // ── EDITAR: SOLO LA NOTA ─────────────────────────────────────────────────
+  test('la NOTA se edita; se guarda quien la escribió y cuándo', async () => {
+    const db = como('admin-1', claims('admin'));
+    await assertSucceeds(updateDoc(doc(db, 'levantamientos', LEV), {
+      nota: 'la «R» del nombre de campo es anotación de campo; la placa dice otra cosa',
+      actualizadoEn: '2026-02-11T00:00:00.000Z', actualizadoPor: 'admin-1', revision: 1,
+    }));
+  });
+
+  test('⚠️ LA LISTA CERRADA MIRA NOMBRES, NO CONTENIDO: la nota es TEXTO y la revisión un ENTERO', async () => {
+    // El defecto que cierra: `hasOnly([...])` dice qué CLAVES se pueden tocar y
+    // no sabe nada de lo que va dentro, así que `nota: {puntos: […]}` pasaba la
+    // regla entera. El molde lo rechaza —pero el molde vive en el navegador, y
+    // quien escriba con el SDK a pelo no pasa por él; las reglas son la última
+    // línea. Y el daño aquí no se deshace: un documento que el lector descarta
+    // no se puede borrar ni corregir.
+    const db = como('admin-1', claims('admin'));
+    for (const notaMala of [7, true, ['una', 'lista'], { texto: 'un objeto' }]) {
+      await assertFails(updateDoc(doc(db, 'levantamientos', LEV), { nota: notaMala }));
+    }
+    for (const revisionMala of ['1', 1.5, null]) {
+      await assertFails(updateDoc(doc(db, 'levantamientos', LEV), { nota: 'apunto yo', revision: revisionMala }));
+    }
+    // Y lo que SÍ es texto y SÍ es entero sigue entrando, sin nota previa y con
+    // ella: la comprobación cierra el tipo, no el campo.
+    await assertSucceeds(updateDoc(doc(db, 'levantamientos', LEV), { nota: 'apunto yo', revision: 1 }));
+    await assertSucceeds(updateDoc(doc(db, 'levantamientos', LEV), { nota: 'y corrijo lo que apunté', revision: 2 }));
+    // Una edición que NI TOCA la nota tampoco se estorba con la que ya está
+    // guardada: se comprueba «si viene», no «tiene que venir».
+    await assertSucceeds(updateDoc(doc(db, 'levantamientos', LEV), {
+      actualizadoEn: '2026-02-12T00:00:00.000Z', actualizadoPor: 'admin-1',
+    }));
+  });
+
+  test('⚠️ POR QUÉ LA COMPROBACIÓN TAMBIÉN ESTÁ EN EL ALTA: el que nace mal se queda invisible', async () => {
+    // Se siembra desde el SERVIDOR —saltándose las reglas— un documento con la
+    // nota de otro tipo, que es como habría quedado antes de cerrar el alta.
+    // Esta prueba no pide que cambie nada: mide lo que cuesta no comprobarlo al
+    // crear, y es lo que sostiene que la comprobación esté en las dos puertas.
+    await entorno.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'levantamientos', LEV_CON_NOTA_ROTA), {
+        ...levantamiento('servidor', { id: LEV_CON_NOTA_ROTA }), nota: { texto: 'un objeto' },
+      });
+    });
+    const db = como('admin-1', claims('admin'));
+    // 1 · La aplicación NO LO ENSEÑA: lo descarta al leerlo, con sus puntos
+    // dentro y sin un solo error por el camino. Es lo que hace cara la avería —
+    // nadie sabe que ese recorrido está ahí para ir a corregirlo.
+    const leido = await getDoc(doc(db, 'levantamientos', LEV_CON_NOTA_ROTA));
+    assert.equal(Levantamiento.safeParse(leido.data()).success, false,
+      'si el molde lo aceptara, este documento no sería el daño que la regla evita');
+    // 2 · No se borra: aquí no se borra nada, tampoco lo que nació roto.
+    await assertFails(deleteDoc(doc(db, 'levantamientos', LEV_CON_NOTA_ROTA)));
+    // 3 · Y ninguna edición que no TOQUE la nota pasa ya: la nota mala sigue
+    // dentro del documento resultante y la regla la vuelve a ver. O sea que el
+    // documento se queda además congelado.
+    await assertFails(updateDoc(doc(db, 'levantamientos', LEV_CON_NOTA_ROTA), {
+      actualizadoEn: '2026-02-12T00:00:00.000Z', actualizadoPor: 'admin-1',
+    }));
+    // 4 · LA ÚNICA SALIDA, y se deja MEDIDA para no prometer de más: escribir
+    // encima de la nota con texto. La corrección existe —pero hay que saber que
+    // ese documento existe, y el punto 1 dice que en la pantalla no aparece.
+    await assertSucceeds(updateDoc(doc(db, 'levantamientos', LEV_CON_NOTA_ROTA), {
+      nota: 'nota corregida a mano', actualizadoEn: '2026-02-12T00:00:00.000Z', actualizadoPor: 'admin-1',
+    }));
+    const arreglado = await getDoc(doc(db, 'levantamientos', LEV_CON_NOTA_ROTA));
+    assert.ok(Levantamiento.safeParse(arreglado.data()).success,
+      'una vez corregida la nota, el recorrido vuelve a ser legible para la aplicación');
+  });
+
+  test('⚠️ NINGÚN PUNTO SE REESCRIBE, y ése es el motivo de que esta colección exista', async () => {
+    const db = como('admin-1', claims('admin'));
+    await assertFails(updateDoc(doc(db, 'levantamientos', LEV), { puntos: [punto(7)] }));
+    await assertFails(updateDoc(doc(db, 'levantamientos', LEV), { puntos: [punto(7), punto(99)] }));
+    // Ni colándolo junto a una nota, que es como se colaría de verdad.
+    await assertFails(updateDoc(doc(db, 'levantamientos', LEV), {
+      nota: 'corrijo un punto de paso', puntos: [punto(7)],
+    }));
+    // Ni la fecha de campo, ni el archivo del que salió con su huella: es un
+    // hecho fechado, y la huella es lo que permite volver a demostrar dentro de
+    // un año que estos puntos son los del archivo que se enseñó.
+    await assertFails(updateDoc(doc(db, 'levantamientos', LEV), { fecha: '2026-03-01' }));
+    await assertFails(updateDoc(doc(db, 'levantamientos', LEV), {
+      archivo: { nombre: 'otro.gpx', huella: 'b'.repeat(64) },
+    }));
+    await assertFails(updateDoc(doc(db, 'levantamientos', LEV), { codigoSerie: 'LX-1' }));
+  });
+
+  test('ni se muda de serie, ni se le cambia el dueño, ni la partida de nacimiento', async () => {
+    const db = como('admin-1', claims('admin'));
+    await assertFails(updateDoc(doc(db, 'levantamientos', LEV), { serieId: LN }));
+    await assertFails(updateDoc(doc(db, 'levantamientos', LEV), { orgId: OTRA_ORG }));
+    await assertFails(updateDoc(doc(db, 'levantamientos', LEV), { creadoPor: 'otro' }));
+    await assertFails(updateDoc(doc(db, 'levantamientos', LEV), { creadoEn: '2020-01-01T00:00:00.000Z' }));
+  });
+
+  test('la nota la escribe quien carga puntos: el editor y la cuadrilla, no', async () => {
+    for (const rol of ['editor', 'cuadrilla', 'auditor']) {
+      await assertFails(updateDoc(
+        doc(como(`uid-${rol}`, claims(rol)), 'levantamientos', LEV), { nota: 'apunto yo' },
+      ));
+    }
+  });
+
+  test('y con alcance acotado a otra línea no se edita aunque se traiga la función', async () => {
+    const db = como('admin-acotado', claims('admin', [OTRA_LN]));
+    await assertFails(updateDoc(doc(db, 'levantamientos', LEV), { nota: 'apunto yo' }));
+    await assertSucceeds(updateDoc(
+      doc(como('admin-con-tramo', claims('admin', [TRAMO])), 'levantamientos', LEV), { nota: 'apunto yo' },
+    ));
+  });
+
+  // ── BORRAR ───────────────────────────────────────────────────────────────
+  test('NO SE BORRA: ni el administrador, ni el propietario, ni quien lo creó', async () => {
+    for (const rol of ['propietario', 'admin', 'editor', 'cuadrilla', 'auditor']) {
+      await assertFails(deleteDoc(doc(como(`uid-${rol}`, claims(rol)), 'levantamientos', LEV)));
+    }
+  });
+
+  // ── EL ÍNDICE, QUE EL EMULADOR NO PIDE ───────────────────────────────────
+  test('⚠️ el índice de la consulta por serie está DECLARADO (`35 · L-85`)', () => {
+    // Estática a propósito: lo de arriba corre contra el emulador, y el emulador
+    // sirve la consulta sin índice y se queda tan tranquilo. En producción la
+    // misma consulta contestaría `failed-precondition` y la pantalla diría «no
+    // hay levantamiento» teniéndolo — que es exactamente lo que pasó el 07-09 con
+    // el histórico de cargas. La única defensa barata es esta prueba.
+    const indices = JSON.parse(readFileSync(join(RAIZ, 'firestore.indexes.json'), 'utf8')).indexes;
+    const campos = (grupo) => indices
+      .filter((i) => i.collectionGroup === grupo)
+      .map((i) => i.fields.map((f) => f.fieldPath).join(','));
+    assert.ok(campos('levantamientos').includes('orgId,serieId'),
+      'falta el índice (orgId, serieId) de `levantamientos`: la lectura por serie moriría solo en producción');
+    // Y el de los apoyos sigue siendo el de siempre: leer por TRAMO no estrenó
+    // consulta, solo cambia el valor del campo.
+    assert.ok(campos('apoyos').includes('orgId,lineaId,orden'),
+      'desapareció el índice (orgId, lineaId, orden): la lectura por serie de apoyos se apaga en producción');
   });
 });

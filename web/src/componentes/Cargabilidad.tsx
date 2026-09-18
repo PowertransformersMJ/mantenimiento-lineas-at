@@ -70,9 +70,31 @@ import {
   desviacionDeTension, horasContraAmpacidad, perdidasJoule, potenciasDelInstante,
 } from '@lineas/nucleo/electrica';
 import { contrasteConLaAmpacidad } from '@lineas/nucleo/cargabilidad';
+import { codigosDelLibro, filaDelLibro } from '@lineas/importar/identidad';
+import { LIBRO_DE_CODIGOS_CRUDO } from '../datos/registroCodigos';
 import { puede, type SesionDePantalla } from '../datos/permisos';
 
 const VERSION_DEL_MOTOR = nucleoPkg.version;
+
+/**
+ * LAS LÍNEAS ENTRE LAS QUE SE ELIGE AL GUARDAR — del libro de códigos, no de lo
+ * que alguien teclee.
+ *
+ * ⚠️ POR QUÉ NO ES UNA CASILLA DE TEXTO. La casilla «Línea» era libre, y esa
+ * casilla decide bajo qué código se escribe el histórico. Un código con un
+ * dígito cambiado no da error: escribe días y resúmenes reales a nombre de una
+ * línea que no existe, **y el histórico no se borra** (`firestore.rules`: las
+ * tres colecciones de cargabilidad niegan el borrado). Queda dato huérfano que
+ * ninguna pantalla abre y nadie puede retirar.
+ *
+ * Es la misma doctrina del alta (`herramientas/codigos-emitidos.json`): la
+ * pantalla **busca** identidades, no las acuña. Quien interpreta el libro sigue
+ * siendo `@lineas/importar` — aquí no se filtra a mano por prefijo.
+ */
+// El libro solo se usa para AVISAR de un código anotado que aún no está en el
+// parque; nunca como lista para elegir (ver `opcionesDeLinea`).
+const LINEAS_DEL_LIBRO: string[] = codigosDelLibro(LIBRO_DE_CODIGOS_CRUDO)
+  .filter((c) => filaDelLibro(LIBRO_DE_CODIGOS_CRUDO, c)?.tipo === 'linea');
 
 type Registro = Record<string, string | number | null>;
 type Mapeo = Record<string, string>;
@@ -142,8 +164,14 @@ function descargar(nombre: string, texto: string) {
 }
 
 export default function Cargabilidad({
-  lineaAbierta, conductor, hipotesis, tensionNominal_kV, longitud_m, sesion }: {
+  lineaAbierta, conductor, hipotesis, tensionNominal_kV, longitud_m, sesion, lineasDelParque }: {
   lineaAbierta?: string;
+  /**
+   * Las líneas que YA existen en el parque, para elegir de ellas al guardar.
+   * Opcional: sin ella se usan las del libro de códigos, que es la misma lista
+   * cerrada de la que elige el alta. Nunca se teclea un código (`§ADR-091`).
+   */
+  lineasDelParque?: string[];
   /**
    * El conductor de la línea. **Sin él no hay veredicto**: la ampacidad sale de
    * sus propiedades, y sin ampacidad esta pantalla solo puede enseñar el
@@ -181,6 +209,26 @@ export default function Cargabilidad({
   const [leyendo, setLeyendo] = useState(false);
   /** Lo que hace falta cuando el archivo viene TRANSPUESTO, de SCADA. */
   const [linea, setLinea] = useState<string>(lineaAbierta ?? '');
+  /**
+   * Las opciones de la casilla «Línea»: LAS DEL PARQUE. El libro de códigos NO
+   * sirve de lista: anota códigos reservados que todavía no existen en la base
+   * («todavía NO existe en la base», dice él mismo), y guardar el histórico a
+   * nombre de una línea que no existe deja un dato que no se puede borrar —las
+   * reglas niegan el borrado de las tres colecciones de cargabilidad—. Si el
+   * parque no llegó, se ofrece SOLO la línea abierta y se dice por qué.
+   *
+   * ⚠️ LA LÍNEA ABIERTA ENTRA SIEMPRE. Una línea que lleva meses en producción
+   * pudo nacer antes de que existiera el libro: si no estuviera anotada, la
+   * lista la dejaría fuera y su propia pantalla no la podría guardar. Añadirla
+   * no abre la puerta a teclear nada — sale del parque, no del teclado.
+   */
+  const opcionesDeLinea = useMemo(
+    () => [...new Set([
+      ...(lineasDelParque ?? []),
+      ...(lineaAbierta ? [lineaAbierta] : []),
+    ])],
+    [lineasDelParque, lineaAbierta],
+  );
   const [criterioFase, setCriterioFase] = useState('maxima');
   /**
    * QUÉ SEÑAL ES QUÉ, por ETIQUETA (`99 §ADR-127`). Iba por número de fila del
@@ -564,6 +612,16 @@ export default function Cargabilidad({
       // rechaza—, pero con varios no: las señales sin estadístico entran en TODOS
       // los que se leen, así que llegaban con la identidad del máximo, del
       // mínimo y del instantáneo a la vez, y el repositorio no tenía qué rechazar.
+      // ⚠️ ÚLTIMA PUERTA ANTES DE LA BASE: la línea tiene que ser una del
+      // parque. La casilla ya es una lista, así que esto no debería poder
+      // saltar nunca — y por eso mismo se comprueba: el histórico no se borra,
+      // y un código que no existe deja días escritos que ninguna pantalla abre.
+      if (cargado.ancho && !opcionesDeLinea.includes(linea.trim())) {
+        throw new Error(`«${linea.trim() || '—'}» no es una línea del parque. Elíjala de la lista `
+          + `(${opcionesDeLinea.join(', ')}); si la que busca no está, dese antes de alta la línea. `
+          + 'El histórico no se puede borrar: guardarlo con un código que no existe deja días que '
+          + 'ninguna pantalla abre');
+      }
       const sinResolver = porArchivo.filter((a) => !a.resuelto);
       if (cargado.ancho && sinResolver.length) {
         throw new Error(`${nf(sinResolver.length)} archivo(s) sin decir qué estadístico traen (`
@@ -712,6 +770,7 @@ export default function Cargabilidad({
               alMirar={setMirado}
               alCorregir={(nombre, v) => setCorregido({ ...corregido, [nombre]: v })}
               lineaAbierta={lineaAbierta} criterioFase={criterioFase} alCambiarCriterio={setCriterioFase}
+              opcionesDeLinea={opcionesDeLinea} hayParque={Boolean(lineasDelParque?.length)}
               asignado={asignado} alAsignar={setAsignado} />
           ) : (
             <>
@@ -724,7 +783,7 @@ export default function Cargabilidad({
             <p className="advertencia">
               <b>Falta decir de qué línea es este archivo.</b> La exportación nombra la subestación y
               la bahía, no la línea — y atribuir estas mediciones a la línea equivocada es lo más
-              caro de equivocar aquí, así que no se adivina.
+              caro de equivocar aquí, así que no se adivina. Elíjala arriba, en la lista del parque.
             </p>
           ) : lote?.faltan?.length ? (
             <p className="advertencia">
@@ -1029,7 +1088,22 @@ function HistoricoGuardado({
     () => Object.fromEntries(Object.entries(porEst).map(([e, v]) => [e, !!v?.cargando])),
     [porEst],
   );
-  const [recortado, setRecortado] = useState(false);
+  /**
+   * LA FRASE DEL RECORTE, YA ESCRITA POR QUIEN HIZO LA CONSULTA.
+   *
+   * ⚠️ AQUÍ SE REDACTABA A MANO, Y ACABÓ MINTIENDO. El cartel decía «se muestran
+   * los primeros» mientras el repositorio pasaba a traerse los ÚLTIMOS
+   * (`cargabilidadRepo §recorteDeResumenes`, que ordena `fecha desc` justo para
+   * que el tope se coma lo viejo y no lo reciente). Quien lo leyera creería que
+   * lo que le falta está por delante, cuando lo que falta está por detrás — y
+   * buscaría sus meses recientes en una pantalla que ya se los estaba enseñando.
+   *
+   * El único sitio que SABE qué se dejó fuera es el que hizo la consulta, así que
+   * la frase viene de ahí (`res.aviso`) y dice además **desde qué día empieza lo
+   * que se ve**: es la explicación de por qué las gráficas de abajo arrancan
+   * más tarde que el periodo que se pidió.
+   */
+  const [avisoDelRecorte, setAvisoDelRecorte] = useState<string | null>(null);
   const [buscando, setBuscando] = useState(false);
   /**
    * El periodo que se CONSULTÓ de verdad (`99 §ADR-131`): el eje del calendario
@@ -1062,7 +1136,7 @@ function HistoricoGuardado({
         { uid: sesion.uid, orgId: sesion.orgId },
       );
       setFilas(res.resumenes);
-      setRecortado(res.recortado);
+      setAvisoDelRecorte(res.aviso);
       setConsultado(r);
     } catch (e) {
       setFallo((e as Error).message);
@@ -1333,6 +1407,18 @@ function HistoricoGuardado({
         </p>
       )}
 
+      {/* ⚠️ EL RECORTE SE DICE ANTES DE LO QUE AFECTA, no al final de la
+          pestaña. Mueve el PRINCIPIO de todo lo que va debajo: el tablero, la
+          tendencia diaria y el eje de las gráficas arrancan en el primer día
+          que se pudo leer, no en el que usted pidió. Sin esta frase por delante,
+          ese comienzo tardío se lee como «antes de esa fecha esta línea no tuvo
+          carga», que es exactamente lo contrario de lo que pasa. */}
+      {avisoDelRecorte && (
+        <p className="advertencia">
+          <b>Se recortó la consulta.</b> {avisoDelRecorte}
+        </p>
+      )}
+
       {filas && filas.length > 0 && (
         <>
           {/* ⚠️ `99 §ADR-129`: sin selector global, la línea de cabecera dice
@@ -1424,7 +1510,24 @@ function HistoricoGuardado({
             mismas funciones del motor que el veredicto de un archivo recién cargado. Un solo filtro
             para todos los indicadores.
           </p>
-          <TableroDelHistorico resumenes={filas} />
+          {/* ⚠️ LOS CUATRO DE ABAJO PUEDEN HABLAR DE MENOS DÍAS QUE EL RESTO, y
+              hay que decirlo AQUÍ. «El periodo guardado, de un vistazo», la
+              tendencia diaria y el reparto por línea salen de los resúmenes —el
+              periodo entero—; el veredicto, qué transporta, lo que cuesta y
+              cómo se comportó salen de las HORAS, que se leen con su propio tope
+              (`diasCompletos`). Sin esta frase, «cómo se comportó» describe la
+              cola del periodo bajo un rótulo que promete el periodo entero: se
+              ve vacío por la izquierda y nadie sabe por qué. */}
+          {estInd && recortadosPorEst[estInd] != null && (
+            <p className="advertencia">
+              <b>De este estadístico solo se trajeron las horas de los{' '}
+              {nf(recortadosPorEst[estInd]!)} días más recientes</b> del periodo: el veredicto, qué
+              transporta, lo que cuesta y cómo se comportó hablan de esos días y no de los
+              anteriores —cada día son 24 lecturas y el plan es gratuito—. Los indicadores de los
+              resúmenes diarios sí cubren el periodo entero. Acote el periodo para mirar lo de antes.
+            </p>
+          )}
+          <TableroDelHistorico resumenes={filas} sinAmpacidad={referencia.motivo} />
           {lineaUnica && (horasInd === undefined ? (
             indicadoresDe?.fallo ? (
               <p className="advertencia">
@@ -1463,15 +1566,6 @@ function HistoricoGuardado({
               no la lista de días con dato (`99 §ADR-131`). */}
           <TendenciaDiaria resumenes={filas} periodo={consultado} />
           <PorLineaDelHistorico resumenes={filas} />
-
-          {/* ⚠️ Si se recortó, se dice. Enseñar 1.200 de 3.000 días sin avisar
-              haría creer que se vio el total del histórico. */}
-          {recortado && (
-            <p className="advertencia">
-              <b>Se recortó la consulta.</b> Hay más días de los que caben de una vez; se muestran
-              los primeros. Acote el periodo o filtre por una línea para verlo entero.
-            </p>
-          )}
         </>
       )}
       {/* ⚠️ `99 §ADR-129`: esta frase hablaba de «la tabla de arriba», y la
@@ -1509,22 +1603,39 @@ const MAGNITUDES_ROTULO: [string, string][] = [
   ['potenciaAparente_MVA', 'aparente'],
 ];
 
-function TableroDelHistorico({ resumenes }: { resumenes: ResumenDiario[] }) {
+function TableroDelHistorico({ resumenes, sinAmpacidad }: {
+  resumenes: ResumenDiario[];
+  /**
+   * POR QUÉ ESTA LÍNEA NO TIENE AMPACIDAD, si no la tiene (`referencia.motivo`:
+   * «no hay conductor declarado en la línea»). `null` cuando sí la tiene.
+   *
+   * ⚠️ NO ES DECORACIÓN. Sin conductor no hay denominador, así que no hay
+   * porcentaje: el pico, el promedio y el valle salen «—» y quien mire no sabe
+   * si es que falta el dato o si es que la línea no cargó. Y «Días con
+   * sobrecarga: 0» en ese estado es peor todavía — un cero en verde sobre algo
+   * que nadie ha podido comparar grita «todo bien» justo donde no se sabe nada.
+   * Es la misma regla de `Dato`: ningún «—» mudo y ningún cero por un hueco.
+   */
+  sinAmpacidad?: string | null;
+}) {
   const t = useMemo(() => resumenDelHistorico(resumenes as never[]), [resumenes]);
   const cifra = (v: number | null | undefined, u = ' %') => (v == null ? '—' : `${nf(v, 1)}${u}`);
+  // Con conductor, `undefined`: la tarjeta queda EXACTAMENTE como estaba.
+  const sinPct = sinAmpacidad ? `sin porcentaje: ${sinAmpacidad}` : undefined;
   return (
     <div className="tarjeta">
       <p className="mapa-capas-t">El periodo guardado, de un vistazo</p>
       <div className="kpis">
         <Kpi v={cifra(t.pico?.pct)} r="Pico del periodo"
-          s={t.pico ? `${t.pico.linea} · ${t.pico.fecha}` : undefined}
+          s={t.pico ? `${t.pico.linea} · ${t.pico.fecha}` : sinPct}
           color={tintaDe(t.pico?.pct ?? null)} />
         <Kpi v={cifra(t.promedio)} r="Promedio del periodo"
-          s="ponderado por horas medidas" color={tintaDe(t.promedio)} />
+          s={t.promedio == null ? sinPct ?? 'ponderado por horas medidas' : 'ponderado por horas medidas'}
+          color={tintaDe(t.promedio)} />
         <Kpi v={cifra(t.valle?.pct)} r="Valle del periodo"
-          s={t.valle ? `${t.valle.linea} · ${t.valle.fecha}` : undefined} />
+          s={t.valle ? `${t.valle.linea} · ${t.valle.fecha}` : sinPct} />
         <Kpi v={t.lineaMasCargada?.linea ?? '—'} r="Línea con mayor pico"
-          s={t.lineaMasCargada?.maximo != null ? `${nf(t.lineaMasCargada.maximo, 1)} %` : undefined} />
+          s={t.lineaMasCargada?.maximo != null ? `${nf(t.lineaMasCargada.maximo, 1)} %` : sinPct} />
         {/* ⚠️ EL PICO QUE SÍ EXISTE. Un día de solo corriente y tensión no tiene
             porcentaje —hace falta la capacidad nominal para calcularlo—, así que
             las tres primeras cifras salen «—» con razón. Pero la corriente del
@@ -1538,9 +1649,13 @@ function TableroDelHistorico({ resumenes }: { resumenes: ResumenDiario[] }) {
         <Kpi v={nf(t.dias)} r="Días guardados"
           s={t.diasConMedida !== t.dias ? `${nf(t.diasConMedida)} con porcentaje` : undefined} />
         <Kpi v={nf(t.lineas)} r="Líneas en el periodo" />
-        <Kpi v={nf(t.diasConSobrecarga)} r="Días con sobrecarga"
-          s={t.horasDeSobrecarga > 0 ? `${nf(t.horasDeSobrecarga)} h en total` : '≥ 100 %'}
-          color={t.diasConSobrecarga > 0 ? 'var(--tx-alerta)' : undefined} />
+        {/* ⚠️ SIN DENOMINADOR NO SE CUENTA, y no se escribe «0»: un cero en verde
+            sobre una línea que nadie ha podido comparar se lee como «ninguna
+            sobrecarga», y lo cierto es que no se sabe. */}
+        <Kpi v={sinAmpacidad ? '—' : nf(t.diasConSobrecarga)} r="Días con sobrecarga"
+          s={sinAmpacidad ? `no hay con qué comparar: ${sinAmpacidad}`
+            : t.horasDeSobrecarga > 0 ? `${nf(t.horasDeSobrecarga)} h en total` : '≥ 100 %'}
+          color={!sinAmpacidad && t.diasConSobrecarga > 0 ? 'var(--tx-alerta)' : undefined} />
         <Kpi v={cifra(t.cobertura_pct)} r="Cobertura horaria"
           s="de las 24 h de cada día guardado" />
       </div>
@@ -1837,12 +1952,16 @@ const PUNTOS_VISIBLES = 120;
 const FILAS_TABLA = 200;
 
 function SenalesDelScada({
-  cargado, ancho, linea, alCambiarLinea, lineaAbierta, criterioFase, alCambiarCriterio,
+  cargado, ancho, linea, alCambiarLinea, lineaAbierta, opcionesDeLinea, hayParque, criterioFase, alCambiarCriterio,
   asignado, alAsignar, porArchivo, presentes, verAhora, alMirar, alCorregir,
 }: {
   cargado: Cargado;
   ancho: ReturnType<typeof registrosDeVariosDias> | null;
   linea: string; alCambiarLinea: (v: string) => void; lineaAbierta?: string;
+  /** Las líneas del parque: la casilla ELIGE de esta lista, no se teclea. */
+  opcionesDeLinea: string[];
+  /** Si el parque se pudo leer: cambia lo que la pantalla AFIRMA de esa lista. */
+  hayParque: boolean;
   criterioFase: string; alCambiarCriterio: (v: string) => void;
   asignado: Record<string, string | null>;
   alAsignar: (a: Record<string, string | null>) => void;
@@ -1961,22 +2080,49 @@ function SenalesDelScada({
       {/* ── 1 · DE QUÉ LÍNEA ES ─────────────────────────────────────────── */}
       <label className="mapa-tiempo-dia">
         <span>Línea *</span>
-        {/* ⚠️ SIN EJEMPLO. Lo tuvo —«p. ej. LN-627»— y proponía como pista el
-            código de una línea REAL del proyecto, justo en la casilla que dos
-            párrafos más abajo se declara «lo más caro de equivocar aquí».
-            Aceptarlo sin pensar le cuelga a LN-627 la operación de otra línea.
-            La única propuesta admisible es la que sale del dato: la línea
-            abierta, que se ofrece debajo con un botón (`99 §ADR-091`). */}
-        <input type="text" value={linea} onChange={(e) => alCambiarLinea(e.target.value)}
-          placeholder="código de la línea a la que pertenecen estas mediciones"
-          aria-label="De qué línea es este archivo" />
+        {/* ⚠️ SE ELIGE DE LA LISTA DEL PARQUE, NO SE TECLEA.
+            Era una casilla de texto libre, y es la que decide bajo qué código
+            se escribe el histórico. Un código mal escrito no daba error:
+            guardaba días y resúmenes reales a nombre de una línea que no
+            existe — y el histórico NO SE BORRA (las tres colecciones niegan el
+            borrado en `firestore.rules`), así que ese dato se quedaba ahí,
+            sin pantalla que lo abriera y sin forma de retirarlo.
+
+            ⚠️ Y SIGUE SIN VENIR ELEGIDA POR INERCIA cuando no hay línea
+            abierta: la primera opción no es una línea, es la petición de que
+            elija (`99 §ADR-091`). */}
+        <select value={linea} onChange={(e) => alCambiarLinea(e.target.value)}
+          aria-label="De qué línea es este archivo">
+          <option value="">— elija una línea del parque —</option>
+          {opcionesDeLinea.map((l) => <option key={l} value={l}>{l}</option>)}
+        </select>
       </label>
       <p className="fine">
         {lineaAbierta
-          ? <>Se propone <b>{lineaAbierta}</b> porque es la línea que tiene abierta. Cámbielo si el
+          ? <>Se propone <b>{lineaAbierta}</b> porque es la línea que tiene abierta. Cámbiela si el
             archivo es de otra: el archivo nombra la subestación y la bahía, no la línea.</>
-          : <>El archivo nombra la subestación y la bahía, no la línea. Escríbala usted.</>}
+          : <>El archivo nombra la subestación y la bahía, no la línea. Elíjala usted.</>}
       </p>
+      <p className="fine">
+        {hayParque
+          ? <>Solo se elige una línea que <b>ya está en el parque</b> ({nf(opcionesDeLinea.length)} en
+            total). Un código mal escrito ya no deja un histórico que ninguna línea abre. Si la línea
+            que busca no está, primero se da de alta.</>
+          : <>No se pudo leer el parque, así que solo se ofrece <b>la línea abierta</b>. Lo guardado
+            queda a su nombre; para otra línea, ábrala y cargue desde ella.</>}
+      </p>
+
+      {(() => {
+        // Un código anotado en el libro que todavía no está en el parque no se
+        // ofrece, pero se NOMBRA: si no, «no aparece mi línea» parece un fallo.
+        const reservados = LINEAS_DEL_LIBRO.filter((c) => !opcionesDeLinea.includes(c));
+        return reservados.length ? (
+          <p className="fine">
+            Reservado en el libro y <b>todavía sin dar de alta</b>: {reservados.join(' · ')}. Hasta
+            que exista en el parque no se puede guardar nada a su nombre.
+          </p>
+        ) : null;
+      })()}
 
       {/* ── 2 · QUÉ SEÑAL ES QUÉ ────────────────────────────────────────── */}
       <p className="mapa-capas-t">Qué señal es qué</p>
@@ -3474,8 +3620,13 @@ export function VeredictoDelHistorico({ pico, referencia }: {
               : String(c?.porQue ?? 'no se pudo contrastar con la ampacidad')} />
         <Dato v={corriente == null ? null : `${nf(corriente)} A`} r="Corriente del pico"
           s={cuando} falta={sinPico} />
+        {/* ⚠️ Y NO SE PIDE PRESTADA. Dos líneas pueden ir en las MISMAS torres
+            —el tramo compartido— y aun así llevar conductores distintos: coger
+            la ampacidad de la vecina daría un veredicto de un conductor que
+            nadie ha declarado aquí. Se dice que falta, y se espera. */}
         <Dato v={vigente == null ? null : `${nf(vigente)} A`} r="Ampacidad"
-          s="del conductor, no del archivo" color="var(--acc)" falta={sinAmp} />
+          s="del conductor, no del archivo" color="var(--acc)"
+          falta={referencia.motivo ? `${referencia.motivo} · no se usa la de otra línea` : sinAmp} />
         <Dato v={margen_A == null ? null : `${nf(margen_A)} A`} r="Margen disponible"
           s={margen_A == null || pct == null ? null
             : margen_A < 0 ? `la corriente pasa la ampacidad en ${nf(pct - 100, 1)} %`
@@ -3483,15 +3634,34 @@ export function VeredictoDelHistorico({ pico, referencia }: {
           color={margen_A != null && margen_A < 0 ? 'var(--tx-alerta)' : undefined}
           falta={corriente == null
             ? 'saldrá de restar la corriente del pico a la ampacidad, y este periodo no la tiene'
-            : sinAmp} />
+            : referencia.motivo
+              ? 'saldrá de restar la corriente del pico a la ampacidad, y esta línea no la tiene'
+              : sinAmp} />
       </div>
 
       {c?.comparable && c.aviso ? <p className="advertencia alerta">⚠️ {String(c.aviso)}</p> : null}
 
+      {/* ⚠️ SIN CONDUCTOR, ESTO NO ES «UN AVISO MÁS»: ES LO QUE FALTA.
+          La corriente está guardada y se enseña; lo que no hay es con qué
+          compararla. Se dice una vez, en positivo y sin veredicto térmico. */}
+      {referencia.motivo && (
+        <p className="fine">
+          Pendiente: el <b>conductor</b> de esta línea. Mientras no se declare, la cargabilidad, la
+          ampacidad y el margen se quedan sin número — <b>no se toma el de otra línea</b>, ni
+          siquiera el de una que comparta torres: la torre se comparte, el conductor no tiene por
+          qué. Lo guardado se sigue viendo entero: la corriente, las potencias y las horas están ahí.
+        </p>
+      )}
+
       {/* ⚠️ El MISMO aviso de `ElVeredicto` (orden del Ingeniero, 2026-09-05):
           sin temperatura del fabricante, este amperaje se enseña pero no se
-          presenta como dictamen — y se dice antes de la letra pequeña. */}
-      {referencia.esDictamen === false && (
+          presenta como dictamen — y se dice antes de la letra pequeña.
+
+          ⚠️ Y SOLO CUANDO HAY AMPERAJE QUE CALIFICAR. Sin conductor,
+          `esDictamen` también es `false`, y este párrafo salía hablando de «este
+          conductor» y de «90 °C» en una línea que no declara ninguno: un
+          veredicto térmico inventado en la única pantalla que no lo puede dar. */}
+      {referencia.esDictamen === false && referencia.ampacidad_A != null && (
         <p className="advertencia alerta">
           ⚠️ <b>Este amperaje NO es un dictamen.</b> La temperatura de operación del conductor no la
           ha declarado ningún fabricante: {referencia.temperatura.rotulo}. Siete fichas públicas dan
@@ -3867,8 +4037,18 @@ function QueTransporta({ o, pico, estadistico }: {
         <Dato v={p.activa_MW == null ? null : `${nf(p.activa_MW, 1)} MW`} r="Potencia activa"
           falta="esta carga no trae la columna de MW" />
         <Dato v={p.reactiva_MVAr == null ? null : `${nf(p.reactiva_MVAr, 1)} MVAr`} r="Potencia reactiva"
-          s={p.naturaleza ?? undefined} falta="esta carga no trae la columna de MVAr" />
+          s={p.naturaleza ?? undefined}
+          falta={estadistico
+            ? 'falta Q: el archivo de ese día no trae la fila de MVAr'
+            : 'esta carga no trae la columna de MVAr'} />
+        {/* ⚠️ DE QUÉ APARENTE SALE ESTE FACTOR (`99 §ADR-129`). Es P ÷ S, y S
+            tiene dos orígenes: con P y Q sale de ellas; sin una de las dos sale
+            de √3·V·I, que arrastra la tensión. Un 0,374 no significa lo mismo
+            en los dos casos, y hasta hoy salía sin decir de cuál venía. */}
         <Dato v={p.factorDePotencia == null ? null : nf(p.factorDePotencia, 3)} r="Factor de potencia"
+          s={p.factorDePotencia != null
+            && !(p as { origenAparente?: string }).origenAparente?.startsWith('de P y Q')
+            ? 'con la aparente de √3·V·I, no de P y Q' : undefined}
           falta="hace falta la potencia activa para calcularlo" />
         <Dato v={p.corrienteReactiva_A == null ? null : `${nf(p.corrienteReactiva_A)} A`}
           r="Corriente en reactiva"
@@ -3889,6 +4069,24 @@ function QueTransporta({ o, pico, estadistico }: {
           <Dato v={null} r="Corriente residual" falta="exige los ángulos, no solo las magnitudes" />
         )}
       </div>
+
+      {/* ⚠️ LA NOMINAL NO ES UNA MEDIDA (`99 §ADR-094`), y solo entra cuando no
+          queda otra. El motor prefiere siempre el camino con MENOS supuestos:
+          con P y Q la aparente sale de ellas y ninguna tensión participa
+          (`potenciasDelInstante`). La nominal declarada de la línea se usa solo
+          si falta P o Q **y** además falta la tensión medida — y entonces estos
+          MVA son placa, no operación. Decirlo aquí, y no dejarlo en un
+          «MVA con la nominal» al pie, es lo que impide firmarlos como medida. */}
+      {p.aparente_MVA != null && p.tensionUsada.de === 'nominal'
+        && !(p as { origenAparente?: string }).origenAparente?.startsWith('de P y Q') && (
+        <p className="advertencia">
+          <b>Estos MVA son una estimación de placa, no una medida.</b> Esa hora no trae la activa y
+          la reactiva juntas —con las dos, la aparente saldría de ellas y no haría falta ninguna
+          tensión— y tampoco trae tensión medida, así que se usó la <b>nominal declarada</b> de la
+          línea ({nf(p.tensionUsada.kV!, 0)} kV). El factor de potencia que salga de aquí arrastra el
+          mismo supuesto.
+        </p>
+      )}
 
       {estadistico === 'instantaneo' && (
         <p className="fine">
@@ -3940,7 +4138,17 @@ function LoQueCuesta({ p }: { p: ReturnType<typeof perdidasJoule> }) {
     <div className="tarjeta">
       <p className="mapa-capas-t">Lo que cuesta transportarlo</p>
       {p.perdidas_kW == null ? (
-        <p className="advertencia"><b>No se pueden calcular las pérdidas:</b> {p.motivo}</p>
+        <>
+          <p className="advertencia"><b>No se pueden calcular las pérdidas:</b> {p.motivo}</p>
+          {/* ⚠️ QUÉ HACE FALTA, no solo qué falta. Así se sabe que no es un
+              fallo de la pantalla ni algo que traiga el archivo: son dos datos
+              de la LÍNEA, y hasta que estén no hay kW que enseñar. */}
+          <p className="fine">
+            Son <b>3 · I² · R · L</b>: la resistencia sale del <b>conductor</b> y la longitud, del
+            levantamiento de la línea. La tensión no entra. Por eso una línea sin conductor
+            declarado no las puede dar, por mucha corriente que tenga guardada.
+          </p>
+        </>
       ) : (
         <>
           <div className="kpis">

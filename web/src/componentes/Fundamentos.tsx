@@ -23,6 +23,7 @@ import { conductorParaNucleo, paramsParaNucleo, calcularTramos } from '../vistas
 import { selloDeOrigen } from '../vistas/fichaEstructural';
 import { diagrama, type IdDiagrama, type DatosDiagrama } from '../vistas/diagramas';
 import { vanos, soloEstructuras, nombreVisible } from '../vistas/planta';
+import { sinPrefijoDeSerie } from '../vistas/rotulos';
 import { nf } from '../vistas/formato';
 import { Sello } from './Sello';
 
@@ -36,6 +37,13 @@ interface Ctx {
   /** Estados mecánicos del tramo que contiene el vano MÁXIMO (gobierna la flecha). */
   gob: { estados: ReturnType<typeof estadosDelTramo>; vanoMax: number; nombre: string } | null;
   vientoPorApoyo: { nombre: string; m: number }[];
+  /**
+   * Los códigos de las series que se están leyendo, SOLO para recortar el
+   * prefijo de los nombres. Era `.replace('LN-627 ', '')` escrito a mano en
+   * cuatro sitios de este archivo: con más de una línea en el parque, esos
+   * cuatro sitios dejaban sin recortar todo lo que no fuera LN-627.
+   */
+  codigos: readonly string[];
   c: Conductor;
   h: Hipotesis;
 }
@@ -61,7 +69,7 @@ function valorVivo(id: string, x: Ctx): ReactNode {
     case 'vir':
       return <>{x.filas.map((f) => (
         <span key={f.n} className="fund-vir">
-          Tramo {f.n} · {f.desde.replace('LN-627 ', '')} → {f.hasta.replace('LN-627 ', '')}: {f.nVanos} vano(s), VIR = {nf(f.vir, 1)} m
+          Tramo {f.n} · {sinPrefijoDeSerie(f.desde, x.codigos)} → {sinPrefijoDeSerie(f.hasta, x.codigos)}: {f.nVanos} vano(s), VIR = {nf(f.vir, 1)} m
         </span>
       ))}</>;
     case 'tens': {
@@ -89,13 +97,13 @@ function valorVivo(id: string, x: Ctx): ReactNode {
       if (!conAngulo.length) return <>Sin apoyos con deflexión superior a 10°.</>;
       return <>{conAngulo.map((p) => (
         <span key={p.n} className="fund-vir">
-          {p.nombre.replace('LN-627 ', '')}: α = {p.deflexion_grados!.toFixed(2)}° → factor 2·sen(α/2) = {(2 * Math.sin((p.deflexion_grados! * Math.PI) / 360)).toFixed(3)}
+          {sinPrefijoDeSerie(p.nombre, x.codigos)}: α = {p.deflexion_grados!.toFixed(2)}° → factor 2·sen(α/2) = {(2 * Math.sin((p.deflexion_grados! * Math.PI) / 360)).toFixed(3)}
         </span>
       ))}</>;
     }
     case 'vanos':
       return <>
-        Vano viento por apoyo: {x.vientoPorApoyo.map((v) => `${v.nombre.replace('LN-627 ', '')} ${nf(v.m, 1)} m`).join(' · ')}.
+        Vano viento por apoyo: {x.vientoPorApoyo.map((v) => `${sinPrefijoDeSerie(v.nombre, x.codigos)} ${nf(v.m, 1)} m`).join(' · ')}.
         <br /><b>El vano peso no se puede calcular con este levantamiento:</b> requiere el perfil del
         terreno, y la altimetría GPS (±8 m) no tiene la precisión necesaria. No se inventa.
       </>;
@@ -150,8 +158,10 @@ function valorVivo(id: string, x: Ctx): ReactNode {
   }
 }
 
-export function Fundamentos({ apoyos, conductor, hipotesis }:
-  { apoyos: Apoyo[]; conductor: Conductor; hipotesis: Hipotesis }) {
+export function Fundamentos({ apoyos, conductor, hipotesis, codigos = [] }:
+  { apoyos: Apoyo[]; conductor: Conductor; hipotesis: Hipotesis;
+    /** Códigos de las series leídas, para recortar el prefijo de los nombres. */
+    codigos?: readonly string[] }) {
 
   const ctx = useMemo<Ctx>(() => {
     const E = soloEstructuras(apoyos);
@@ -169,7 +179,7 @@ export function Fundamentos({ apoyos, conductor, hipotesis }:
       gob = {
         estados: estadosDelTramo(t, conductorParaNucleo(conductor), paramsParaNucleo(hipotesis)),
         vanoMax: Math.max(...t.vanos),
-        nombre: `${t.desde.nombre.replace('LN-627 ', '')} → ${t.hasta.nombre.replace('LN-627 ', '')}`,
+        nombre: `${sinPrefijoDeSerie(t.desde.nombre, codigos)} → ${sinPrefijoDeSerie(t.hasta.nombre, codigos)}`,
       };
     }
 
@@ -197,8 +207,8 @@ export function Fundamentos({ apoyos, conductor, hipotesis }:
       tMin_C: hipotesis.tempMin_C,
     };
 
-    return { filas, lev, gob, vientoPorApoyo, datosDiagrama, c: conductor, h: hipotesis };
-  }, [apoyos, conductor, hipotesis]);
+    return { filas, lev, gob, vientoPorApoyo, datosDiagrama, codigos, c: conductor, h: hipotesis };
+  }, [apoyos, conductor, hipotesis, codigos]);
 
   return (
     <>

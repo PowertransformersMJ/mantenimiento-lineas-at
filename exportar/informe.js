@@ -46,6 +46,11 @@
 // ============================================================================
 import { bloqueProcedencia } from './procedencia.js';
 import { calidadLevantamiento } from './calidad.js';
+// La versión del exportador la sabe su propio módulo. El BORRADOR (final de este
+// archivo) arma su portada a mano —no puede usar `bloqueProcedencia`, que habla
+// de estructuras y de vanos reales que ahí no existen— y aun así tiene que
+// declarar con qué versión salió: un papel sin eso no es reproducible.
+import { VERSION_EXPORTADOR } from './version.js';
 // El texto del criterio y su umbral tienen UN dueño: el núcleo. Aquí no se
 // reescriben a mano — un criterio copiado es un criterio que algún día dice una
 // cosa en la pantalla y otra en el papel firmado.
@@ -437,6 +442,14 @@ function resumenEjecutivo(lev, tramos, indicadores, conductor) {
 // ── 3 · Calidad del levantamiento ───────────────────────────────────────────
 
 function seccionCalidad(hallazgos) {
+  // ⚠️ `null` = NADIE COMPROBÓ; `[]` = se comprobó y no salió nada. Decir «no se
+  // detectó ningún problema» cuando no se pasó la calidad es firmar un control
+  // que no se corrió (lo cazó la revisión del 17-09).
+  if (hallazgos === null) {
+    return parrafo('<b>La calidad del levantamiento no se comprobó al generar este borrador</b>: '
+      + 'esta copia no trae el resultado de los controles automáticos. No dice que el levantamiento '
+      + 'esté bien ni mal; dice que aquí no consta.');
+  }
   if (!hallazgos.length) {
     return parrafo('No se detectó ningún problema de calidad en el levantamiento con los controles '
       + 'automáticos vigentes (numeración, quiebres, vanos anómalos, precisión declarada y completitud). '
@@ -1728,6 +1741,743 @@ ${secciones}
 <p class="pie">${esc(linea.codigo ?? 'Línea sin identificar')} · documento generado por la plataforma de
 mantenimiento de líneas AT${meta.generadoEn ? ` el ${esc(meta.generadoEn)}` : ''}. Este documento no
 certifica nada por sí mismo: certifica el ingeniero que lo firma.</p>
+</main>
+</body>
+</html>`;
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// EL BORRADOR — el informe de una línea que todavía no es una línea
+// ----------------------------------------------------------------------------
+// POR QUÉ EXISTE (orden del Ingeniero, 2026-09-17). LN-617 y LN-628 entraron al
+// parque SIN TORRES: de ellas solo hay el recorrido que se levantó con el GPS,
+// guardado tal cual y rotulado «levantado el DD-MM-AAAA · sin registrar como
+// torres». Las torres nacerán el día que él declare la función de cada una, y
+// el conductor y las hipótesis llegan DESPUÉS.
+//
+// Con eso no se puede firmar nada — y esconder el informe hasta entonces sería
+// peor: lo levantado y lo medido en el SCADA YA existen, ya cuestan dinero y ya
+// hay que poder enseñarlos. Así que el papel SALE, con todo lo que sí hay, y
+// dice en la portada, en la firma y en el pie que es un **BORRADOR NO
+// FIRMABLE**. Es el mismo principio de siempre: declarar el hueco en vez de
+// taparlo ni de fingir una avería (`99 §ADR-029/032`).
+//
+// LAS CUATRO REGLAS DE ARRIBA SIGUEN EN PIE, sin excepción: autocontenido, CSS
+// de papel, todo el dato escapado, y aquí no se calcula nada — la geometría del
+// recorrido llega ya derivada en `entrada.recorrido`.
+//
+// Y UNA QUINTA, QUE ES DE ESTE BORRADOR:
+//
+// 5) NO SE COPIA NADA DE OTRA LÍNEA. Ni el conductor de la vecina, ni su
+//    hipótesis, ni su longitud. Donde falta un dato va el guion y el motivo. Un
+//    borrador que se rellena con las cifras del vecino es exactamente el papel
+//    que nadie podría defender tres años después.
+//
+// ⚠️ `informeHtml` NO SE TOCA. El informe de una línea completa tiene que salir
+// byte por byte igual que ayer, y por eso esto es una función aparte con su
+// propia hoja de estilo (`ESTILO_BORRADOR`, que se AÑADE a `ESTILO` y no lo
+// modifica). Hay prueba que compara la huella del documento completo antes y
+// después (`tests/informe-borrador.test.js`).
+// ════════════════════════════════════════════════════════════════════════════
+
+/** El sello que lleva el documento en la portada, en la firma y en el pie. */
+export const TITULO_BORRADOR = 'BORRADOR · NO FIRMABLE';
+
+/**
+ * Lo que el BORRADOR añade a la hoja de papel. Va DETRÁS de `ESTILO`, nunca
+ * dentro: tocar `ESTILO` cambiaría también el informe firmable, que no cambia.
+ */
+export const ESTILO_BORRADOR = `
+/* El sello de borrador: lo primero que se ve, y se ve fotocopiado. */
+.portada .borrador { font-family: Arial, Helvetica, sans-serif; font-size: 12pt; font-weight: bold;
+  letter-spacing: 0.12em; border: 2.5pt solid #000000; padding: 2mm 4mm; margin: 0 0 5mm;
+  display: inline-block; }
+
+/* El recuadro que dice por qué no se puede firmar. Ocupa el sitio de la firma. */
+.firma-bloqueada { border: 2pt solid #000000; padding: 3mm 4mm; margin: 5mm 0 0;
+  font-family: Arial, Helvetica, sans-serif; font-size: 9.5pt; break-inside: avoid;
+  page-break-inside: avoid; }
+.firma-bloqueada table { margin-top: 3mm; }
+
+/* La línea de firma sigue impresa y TACHADA: que se vea que había un sitio para
+   firmar y que hoy está cerrado, en vez de un hueco que alguien rellene a mano. */
+.firma .linea-firma.tachada { text-decoration: line-through; color: #555555; }
+`;
+
+/**
+ * Cómo se LEE en pantalla el código de una serie.
+ *
+ * Un tramo compartido se escribe `TR-618` y se dice «tramo compartido 618»: son
+ * las palabras del Ingeniero, y las de las maquetas que aprobó. El código sigue
+ * siendo el dueño de la identidad; esto es solo cómo se pronuncia.
+ */
+export function rotuloDeSerie(codigo) {
+  const c = String(codigo ?? '').trim();
+  const m = /^TR-(.+)$/i.exec(c);
+  if (m) return `tramo compartido ${m[1]}`;
+  return c || 'serie sin código';
+}
+
+/**
+ * El rótulo con sus extremos, en TEXTO PLANO: «tramo compartido 618 (E07–E36)».
+ *
+ * Crudo a propósito: también entra dentro de frases que se escapan enteras
+ * después (las limitaciones), y escapar dos veces imprimiría `&amp;lt;` en un
+ * papel que alguien va a leer.
+ */
+function rotuloDelRecorridoTexto(R) {
+  const base = rotuloDeSerie(R.codigoSerie);
+  return R.desde && R.hasta ? `${base} (${R.desde}–${R.hasta})` : base;
+}
+
+/**
+ * El mismo, ya escapado, para pegarlo directamente en el HTML. El código de una
+ * serie y los nombres de los extremos llegan de la base: el informe no da nada
+ * por bueno, ni siquiera lo que el molde promete validar.
+ */
+function rotuloDelRecorrido(R) {
+  return esc(rotuloDelRecorridoTexto(R));
+}
+
+/**
+ * «a, b y c», con la «e» del castellano delante de palabra que empieza por i-.
+ * Sin esto la frase del bloqueo sale «torres, conductor y hipótesis», que se
+ * lee mal justo en el renglón que más se va a leer de este papel.
+ */
+function yLista(xs) {
+  const L = xs.filter(Boolean);
+  if (L.length <= 1) return L.join('');
+  const ultimo = L[L.length - 1];
+  const conjuncion = /^(i|hi(?!e))/i.test(ultimo) ? 'e' : 'y';
+  return `${L.slice(0, -1).join(', ')} ${conjuncion} ${ultimo}`;
+}
+
+/** Cómo se dice en castellano cada cosa que puede faltar. Orden fijo. */
+const NOMBRE_DE_FALTA = { torres: 'torres', conductor: 'conductor', hipotesis: 'hipótesis' };
+const ORDEN_DE_FALTA = ['torres', 'conductor', 'hipotesis'];
+
+const ordenarFaltas = (faltan) => ORDEN_DE_FALTA.filter((f) => lista(faltan).includes(f));
+
+/**
+ * POR QUÉ NO SE PUEDE FIRMAR, dicho en una frase y en una tabla.
+ *
+ * La frase nombra a las OTRAS líneas que van en las mismas torres, y eso no es
+ * un adorno: mientras LN-628 no tenga conductor ni hipótesis congelada, el
+ * veredicto de una torre del tramo compartido no se puede cerrar aunque LN-617
+ * los traiga los dos — de esa torre tiran los dos circuitos. Firmar una no
+ * congela la otra: exige que ya lo esté.
+ *
+ * @param {Object} q
+ * @param {Object} q.linea     documento `Linea` (solo se usa el código)
+ * @param {string[]} q.faltan  'torres' | 'conductor' | 'hipotesis'
+ * @param {Array}  q.vecinas   `[{ codigo, faltan? }]` — las que recorren el mismo tramo
+ * @param {Object} q.recorrido el recorrido levantado, para nombrar el tramo
+ * @returns {{ texto: string, filas: string[], cabecera: string, faltan: string[] }}
+ */
+export function bloqueoDeFirma(q) {
+  const Q = objeto(q);
+  const L = objeto(Q.linea);
+  const R = objeto(Q.recorrido);
+  const codigo = esc(L.codigo ?? 'esta línea');
+  const faltan = ordenarFaltas(Q.faltan);
+  const vecinas = lista(Q.vecinas).filter((v) => objeto(v).codigo);
+
+  const cosas = yLista(faltan.map((f) => NOMBRE_DE_FALTA[f]));
+  const verbo = faltan.length === 1 ? 'falta' : 'faltan';
+  // Los dueños del hueco. Con vecinas se dice «y comparten torres» con todas las
+  // letras: es la razón por la que traer el conductor de una sola no desbloquea.
+  const duenos = vecinas.length
+    ? `${codigo} y de ${yLista(vecinas.map((v) => esc(v.codigo)))} (comparten torres)`
+    : codigo;
+
+  const texto = faltan.length
+    ? `<b>No se puede firmar:</b> ${verbo} ${cosas} de ${duenos}.`
+    : `<b>No se puede firmar:</b> este documento se generó como ${TITULO_BORRADOR}.`;
+
+  // La tabla: una columna por línea implicada, para que se vea de un vistazo
+  // cuál trae qué. Las torres van en una sola casilla a lo ancho — son LAS
+  // MISMAS torres, y dos casillas sugerirían que cada línea tiene las suyas.
+  const columnas = [{ codigo, faltan }, ...vecinas.map((v) => ({
+    codigo: esc(v.codigo),
+    // Sin `faltan` de la vecina no se supone nada: se dice que no consta.
+    faltan: Array.isArray(v.faltan) ? ordenarFaltas(v.faltan) : null,
+  }))];
+  const casilla = (c, que) => {
+    if (c.faltan === null) return '<i>no consta</i>';
+    return c.faltan.includes(que) ? '○ falta' : '● declarado';
+  };
+  const filas = [
+    `<tr><td>Torres del ${esc(rotuloDeSerie(R.codigoSerie))}, con función declarada</td>`
+      + `<td colspan="${columnas.length}">○ ninguna registrada (son las mismas torres)</td></tr>`,
+    `<tr><td>Conductor declarado</td>${columnas.map((c) => `<td>${casilla(c, 'conductor')}</td>`).join('')}</tr>`,
+    `<tr><td>Hipótesis de cálculo declarada y congelada</td>`
+      + `${columnas.map((c) => `<td>${casilla(c, 'hipotesis')}</td>`).join('')}</tr>`,
+  ];
+  const cabecera = `<th>Falta</th>${columnas.map((c) => `<th>${c.codigo}</th>`).join('')}`;
+
+  return { texto, filas, cabecera, faltan };
+}
+
+/**
+ * LA FRASE DE LA LONGITUD, que es la que este borrador no puede equivocar.
+ *
+ * Lo levantado con el GPS NO es la longitud de la línea, y la diferencia no es
+ * un matiz: el recorrido empieza y acaba donde la cuadrilla pudo llegar, se
+ * salta las torres que no encontró, y encima es de un TRAMO que comparten dos
+ * líneas. Poner esos metros en el renglón «longitud de línea» sería fabricar
+ * el dato del que después cuelgan las pérdidas y la memoria de cantidades.
+ *
+ * Devuelve TEXTO PLANO: quien la pegue en el HTML la escapa (y quien la meta en
+ * una limitación no, porque la limitación entera se escapa después).
+ */
+export function fraseDeLongitudLevantada(recorrido) {
+  const R = objeto(recorrido);
+  const cifra = Number.isFinite(R.longitud_m) ? `${n(R.longitud_m, 0)} m` : SIN_DATO;
+  return `Levantado: ${rotuloDelRecorridoTexto(R)}, ${cifra} — no es la longitud de la línea`;
+}
+
+// ── B1 · Resumen ejecutivo del borrador ─────────────────────────────────────
+
+function borradorResumen(R, electricos, vecinas) {
+  const f = (concepto, valor, significa) =>
+    `<tr><td>${concepto}</td><td class="num">${valor}</td><td>${significa}</td></tr>`;
+  const hayRec = Number.isFinite(R.nPuntos) && R.nPuntos > 0;
+  const extremos = R.desde && R.hasta ? `${esc(R.desde)} a ${esc(R.hasta)}` : SIN_DATO;
+  const P = objeto(electricos).pico;
+
+  const filas = [
+    f('Torres registradas', 'ninguna',
+      'Se registran cuando el Ingeniero declare la función de cada una.'),
+    f(`Longitud levantada: ${rotuloDelRecorrido(R)}`, nu(R.longitud_m, 0, 'm'),
+      '<b>NO es la longitud de la línea.</b> Es la suma de los vanos entre los puntos que trajo el '
+      + `GPS${lista(vecinas).filter((v) => objeto(v).codigo).length
+        ? ', en un tramo que recorre más de una línea' : ''}.`),
+    f('Longitud de línea (eje)', SIN_DATO,
+      'No se conoce: no hay torres registradas ni recorrido completo declarado.'),
+    f('Puntos del levantamiento', n(R.nPuntos),
+      hayRec ? `De ${extremos}. Son posiciones, no torres: ninguna tiene función declarada.`
+        : 'No hay recorrido guardado para esta línea.'),
+    f('Vanos entre puntos', n(R.nVanos),
+      'Entre puntos del GPS, <b>no entre torres</b>. Dos puntos seguidos pueden esconder una torre '
+      + 'que no se levantó.'),
+    f('Vano máximo entre puntos', nu(R.vanoMax_m, 1, 'm'),
+      'Un vano muy por encima de la mediana suele delatar una torre sin levantar.'),
+    f('Vano mínimo entre puntos', nu(R.vanoMin_m, 1, 'm'),
+      'Un vano muy corto suele delatar un quiebre o un punto tomado dos veces.'),
+    f('Vano medio entre puntos', nu(R.vanoMedio_m, 1, 'm'),
+      `Longitud levantada dividida entre los vanos. Mediana: ${nu(R.medianaVano_m, 1, 'm')}.`),
+    f('Empalmes', SIN_DATO, 'Sin torres registradas no se distinguen de los apoyos.'),
+    f('Tramos de tensión', SIN_DATO,
+      'Trozos entre anclajes: sin función estructural declarada no hay anclajes.'),
+    f('Tiro máximo calculado', SIN_DATO, 'Sin conductor ni hipótesis no hay cálculo mecánico.'),
+    f('Criterios evaluados', SIN_DATO, 'No se evaluó ninguno: no hay cálculo contra el que medirlos.'),
+  ];
+  if (objeto(P).valor_A != null) {
+    const cuando = [objeto(P).fecha ? `el ${esc(String(objeto(P).fecha))}` : null,
+      objeto(P).hora != null ? `a las ${esc(String(objeto(P).hora))} h` : null].filter(Boolean).join(' ');
+    filas.push(f('Corriente más alta medida', nu(objeto(P).valor_A, 1, 'A'),
+      `${objeto(P).fase ? `Fase ${esc(String(objeto(P).fase))}, ` : ''}${cuando}. `
+      + '<b>Sin veredicto:</b> sin conductor no hay ampacidad contra la que compararla.'));
+  }
+
+  const conVecinas = lista(vecinas).filter((v) => objeto(v).codigo);
+  return parrafo('<b>No se declaró conductor</b>: sin él no hay cálculo mecánico posible, solo '
+    + 'geometría. <b>No se usa el de otra línea</b>, ni siquiera el de la que va en estas mismas '
+    + 'torres.')
+    + `<p class="aviso"><b>${esc(fraseDeLongitudLevantada(R))}.</b>`
+    + `${conVecinas.length ? ` Esas torres las comparte con ${yLista(conVecinas.map((v) => esc(v.codigo)))}.` : ''}</p>`
+    + tabla({
+      leyenda: 'La línea en cifras. Salen del recorrido guardado y de lo medido; ninguna se '
+        + 'escribió a mano, y ninguna viene de otra línea.',
+      cabecera: '<th>Cifra</th><th class="num">Valor</th><th>Qué significa</th>',
+      filas,
+      pie: NOTA_HUECO,
+    });
+}
+
+// ── B2 · Torres: sin registrar ──────────────────────────────────────────────
+
+function borradorTorres(linea, R, vecinas) {
+  const codigo = esc(objeto(linea).codigo ?? 'Esta línea');
+  const conVecinas = lista(vecinas).filter((v) => objeto(v).codigo);
+  const quienes = yLista([codigo, ...conVecinas.map((v) => esc(v.codigo))]);
+
+  const r = [`<p class="aviso"><b>${codigo} no tiene torres registradas.</b> Las del `
+    + `${rotuloDelRecorrido(R)} se registrarán cuando el Ingeniero declare la función de cada una. `
+    + 'Hasta entonces este informe no dibuja apoyos, no calcula vanos entre torres y no dictamina '
+    + 'ninguna estructura.</p>'];
+
+  if (!Number.isFinite(R.nPuntos) || R.nPuntos <= 0) {
+    r.push(parrafo('Tampoco hay recorrido guardado: de esta línea no consta todavía ni una jornada '
+      + 'de campo. No es un fallo de la aplicación, es lo que hay declarado hoy.'));
+    return r.join('\n');
+  }
+
+  const compartido = conVecinas.length
+    ? ` Lo recorren ${quienes}${Number.isFinite(R.circuitosPorTorre)
+      ? `: ${n(R.circuitosPorTorre)} circuitos tendidos en cada posición` : ''}.`
+    : '';
+  r.push(parrafo('Lo que sí hay es el levantamiento del GPS, guardado tal cual como registro '
+    + `aparte: <b>${esc(R.rotulo ?? 'levantado en campo · sin registrar como torres')}</b>. De ahí `
+    + `saldrán las torres.${compartido}`));
+
+  const puntos = lista(R.puntos);
+  if (puntos.length) {
+    const filas = puntos.map((p) => {
+      const P = objeto(p);
+      const defl = Number.isFinite(P.deflexion_grados)
+        ? `${n(P.deflexion_grados, 1)}°${Number.isFinite(P.margenDeflexion_grados)
+          ? ` ±${n(P.margenDeflexion_grados, 1)}°` : ''}`
+        : (P.notaDeflexion ? esc(P.notaDeflexion) : SIN_DATO);
+      return `<tr><td>${esc(P.nombre)}</td><td>${esc(P.hora ?? SIN_DATO)}</td>`
+        + `<td class="num">${n(P.cota_m, 1)}</td>`
+        + `<td class="num">${n(P.vanoSiguiente_m, 1)}</td>`
+        + `<td class="num">${defl}</td><td><i>sin declarar</i></td></tr>`;
+    });
+    r.push(tabla({
+      leyenda: `Recorrido del ${rotuloDelRecorrido(R)} tal como lo grabó el GPS`
+        + `${R.aparato ? ` (${esc(R.aparato)})` : ''}. <b>Son posiciones, no torres.</b>`,
+      cabecera: '<th>Punto</th><th>Hora</th><th class="num">Cota (m)</th>'
+        + '<th class="num">Vano al siguiente (m)</th><th class="num">Deflexión</th><th>Función</th>',
+      filas,
+      pie: `Suma de vanos: ${nu(R.longitud_m, 2, 'm')}. Las cotas son las que dio el aparato`
+        + `${Number.isFinite(R.precision_m) ? ` (±${n(R.precision_m)} m)` : ''}: solo referencia. `
+        + `${NOTA_HUECO}`,
+    }));
+  }
+
+  // Los vanos con pinta de esconder una torre: no es un veredicto, es el aviso
+  // que evita que un vano falso se lleve por delante flecha, viento y tramo.
+  const sosp = lista(R.sospechosos);
+  if (sosp.length) {
+    r.push(tabla({
+      leyenda: 'Vanos que podrían esconder una torre que no se levantó. No es un veredicto: es '
+        + 'dónde mirar antes de registrar las torres.',
+      cabecera: '<th>Vano</th><th class="num">Longitud</th><th>Por qué llama la atención</th>',
+      filas: sosp.map((s) => {
+        const S = objeto(s);
+        return `<tr class="revisar"><td>${esc(S.vano)}</td><td class="num">${nu(S.longitud_m, 1, 'm')}</td>`
+          + `<td>${esc(S.motivo ?? (Number.isFinite(S.veces)
+            ? `${n(S.veces, 2)} veces la mediana de los vanos levantados.` : ''))}</td></tr>`;
+      }),
+    }));
+  }
+  return r.join('\n');
+}
+
+// ── B3 · Lo que NO se calcula, y qué le falta a cada cosa ───────────────────
+
+function borradorNoSeCalcula(linea, R, vecinas) {
+  const codigo = esc(objeto(linea).codigo ?? 'esta línea');
+  const conVecinas = lista(vecinas).filter((v) => objeto(v).codigo);
+  const vecinasTxt = conVecinas.length ? yLista(conVecinas.map((v) => esc(v.codigo))) : null;
+  const circuitos = Number.isFinite(R.circuitosPorTorre)
+    ? `: cada torre lleva ${n(R.circuitosPorTorre)} circuitos` : '';
+
+  const f = (seccion, falta) => `<tr><td>${seccion}</td><td>${falta}</td></tr>`;
+  return parrafo('Las secciones de cálculo del informe completo <b>no salen</b> en este borrador, y '
+    + 'ninguna se rellena con datos de otra línea. Cada una dice qué le falta para volver a su sitio.')
+    + tabla({
+      leyenda: 'Qué le falta a cada sección para volver al informe.',
+      cabecera: '<th>Sección del informe completo</th><th>Qué le falta</th>',
+      filas: [
+        f('Cálculo mecánico por tramo de tensión',
+          `torres con función declarada (que son las que marcan los anclajes), conductor e hipótesis de ${codigo}`),
+        f('Detalle vano a vano', `torres registradas, conductor e hipótesis de ${codigo}`),
+        f('Carga sobre las estructuras', vecinasTxt
+          ? `torres registradas; conductor e hipótesis de ${codigo} <b>y de ${vecinasTxt}</b>${circuitos}`
+          : `torres registradas, conductor e hipótesis de ${codigo}`),
+        f('Carga longitudinal sobre las estructuras', vecinasTxt
+          ? 'lo mismo: las dos líneas tiran de las mismas torres'
+          : 'lo mismo que la fila de arriba'),
+        f('Umbrales y criterios de evaluación', 'el cálculo de las filas de arriba'),
+        f('Capacidad en corriente de la línea',
+          `el conductor de ${codigo} y el clima de su hipótesis`),
+        f('Memoria de cantidades (geométrica)', 'torres registradas y conductor'),
+      ],
+    });
+}
+
+// ── B4 · Parámetros eléctricos medidos ──────────────────────────────────────
+//
+// LO QUE SÍ HAY. El SCADA lleva meses grabando por esta bahía, y eso no depende
+// de que haya torres: es dato medido y entra al papel. Lo que NO entra es un
+// veredicto — sin conductor no hay ampacidad contra la que comparar, y sin
+// conductor ni longitud no hay pérdidas (3·I²·R·L). Se dice así, entero.
+
+function borradorElectricos(E) {
+  if (E === null) {
+    return parrafo('<b>Los parámetros eléctricos no se consultaron al generar este borrador</b>: '
+      + 'lo que haya cargado se ve en su pestaña. Esta copia no afirma si hay o no hay medidas.');
+  }
+  if (!E || !Object.keys(E).length) {
+    return parrafo('<b>No hay parámetros eléctricos cargados</b> para esta línea. No es un fallo: '
+      + 'es que nadie ha subido todavía el archivo de operación en la pestaña de cargabilidad.');
+  }
+  const periodo = E.desde && E.hasta
+    ? `, del ${esc(String(E.desde))} al ${esc(String(E.hasta))}` : '';
+  const partes = [E.archivos ? esc(String(E.archivos)) : null,
+    Number.isFinite(E.nSenales) ? `${n(E.nSenales)} señales` : null].filter(Boolean);
+
+  const r = [parrafo(`Lo cargado${E.fuente ? ` desde ${esc(String(E.fuente))}` : ''}${periodo}`
+    + `${partes.length ? `: ${partes.join(', ')}` : ''}. <b>Es dato medido, sin veredicto</b>: sin `
+    + 'conductor no hay ampacidad contra la que comparar, y tampoco hay pérdidas — faltan el '
+    + 'conductor y la longitud de la línea (3·I²·R·L).')];
+
+  const dias = lista(E.dias);
+  if (dias.length) {
+    r.push(tabla({
+      leyenda: 'Días con archivo en el periodo. Un día sin archivo no es un día sin carga: es un '
+        + 'día del que no se sabe.',
+      cabecera: '<th>Estadístico</th><th class="num">Días con archivo</th><th>Días sin archivo</th>'
+        + '<th>Con archivo pero sin corriente</th>',
+      filas: dias.map((d) => {
+        const D = objeto(d);
+        return `<tr><td>${esc(D.estadistico)}</td><td class="num">${n(D.conArchivo)}</td>`
+          + `<td>${esc(D.sinArchivo ?? SIN_DATO)}</td><td>${esc(D.sinCorriente ?? SIN_DATO)}</td></tr>`;
+      }),
+    }));
+  }
+
+  const senales = lista(E.senales);
+  if (senales.length) {
+    const cuando = (x) => {
+      const X = objeto(x);
+      const c = [X.fecha ? esc(String(X.fecha)) : null,
+        X.hora != null ? `${esc(String(X.hora))} h` : null].filter(Boolean).join(' ');
+      return c ? `<br><span class="supuesto">${c}</span>` : '';
+    };
+    r.push(tabla({
+      leyenda: 'Lo cargado, señal por señal.',
+      cabecera: '<th>Señal</th><th class="num">Horas</th><th class="num">En cero</th>'
+        + '<th class="num">Más bajo</th><th class="num">Mediana</th><th class="num">Más alto</th>',
+      filas: senales.map((s) => {
+        const S = objeto(s);
+        const d = S.decimales ?? 1;
+        return `<tr><td>${esc(S.senal)}${S.unidad ? ` (${esc(S.unidad)})` : ''}</td>`
+          + `<td class="num">${n(S.horas)}</td><td class="num">${S.ceros ? n(S.ceros) : SIN_DATO}</td>`
+          + `<td class="num">${n(objeto(S.bajo).valor, d)}${cuando(S.bajo)}</td>`
+          + `<td class="num">${n(S.mediana, d)}</td>`
+          + `<td class="num">${n(objeto(S.alto).valor, d)}${cuando(S.alto)}</td></tr>`;
+      }),
+      pie: E.notaSenales ? esc(String(E.notaSenales)) : NOTA_HUECO,
+    }));
+  }
+
+  const rev = objeto(E.aRevisar);
+  if (Number.isFinite(rev.horas)) {
+    r.push(parrafo(`<b>A revisar antes de usar estas cifras: ${n(rev.horas)} horas.</b> `
+      + `${esc(rev.regla ?? '')}`));
+  }
+  const avisos = lista(E.avisos).filter((a) => typeof a === 'string' && a);
+  if (avisos.length) {
+    r.push(`<ul>${avisos.map((a) => `<li>${escRico(a)}</li>`).join('')}</ul>`);
+  }
+  return r.join('\n');
+}
+
+// ── B5 · Lo que este borrador NO demuestra ──────────────────────────────────
+
+/**
+ * Las limitaciones del borrador, DERIVADAS de lo que hay y de lo que falta.
+ *
+ * Misma regla que `limitacionesDeclaradas` del informe completo y por la misma
+ * razón: escritas a mano se quedarían desactualizadas, y el día que llegue el
+ * conductor seguiría impreso que no hay conductor.
+ */
+export function limitesDelBorrador(entrada) {
+  const e = objeto(entrada);
+  const L = objeto(e.linea);
+  const R = objeto(e.recorrido);
+  const faltan = ordenarFaltas(e.faltan);
+  const vecinas = lista(e.vecinas).filter((v) => objeto(v).codigo);
+  const codigo = L.codigo ?? 'esta línea';
+  const lim = [];
+
+  lim.push({
+    titulo: 'No hay torres registradas',
+    detalle: `La longitud, los vanos y las deflexiones de este papel son del recorrido levantado`
+      + `${R.fecha ? ` el ${R.fecha}` : ''}, no de torres con función declarada. Ninguna estructura `
+      + 'tiene veredicto, y este documento no dictamina ninguna.',
+    origen: 'torres de la línea',
+  });
+  if (faltan.includes('conductor')) {
+    lim.push({
+      titulo: 'No se declaró el conductor',
+      detalle: 'Sin masa lineal, sección, módulo elástico y carga de rotura no hay cálculo mecánico: '
+        + 'lo que queda es geometría. No se toma el de ninguna otra línea.',
+      origen: 'datos del conductor',
+    });
+  }
+  if (faltan.includes('hipotesis')) {
+    lim.push({
+      titulo: 'No se declaró la hipótesis de cálculo',
+      detalle: 'Temperaturas, viento y EDS son la mitad del resultado. Sin declararlas no hay tiros '
+        + 'ni flechas que calcular: este borrador no trae ninguno.',
+      origen: 'hipótesis de cálculo',
+    });
+  }
+  if (vecinas.length) {
+    lim.push({
+      titulo: `Comparte torres con ${yLista(vecinas.map((v) => String(v.codigo)))}`,
+      detalle: `Cada torre del ${rotuloDeSerie(R.codigoSerie)}`
+        + `${Number.isFinite(R.circuitosPorTorre) ? ` lleva ${R.circuitosPorTorre} circuitos y` : ''}`
+        + ` sostiene más de una línea: su veredicto depende también de la vecina. Firmar ${codigo} `
+        + 'no congela la hipótesis de la otra línea: exige que ya lo esté.',
+      origen: 'torres compartidas',
+    });
+  }
+  if (Number.isFinite(R.longitud_m)) {
+    lim.push({
+      titulo: 'La longitud es la levantada, no la de la línea',
+      detalle: `${fraseDeLongitudLevantada(R)}. Empieza y acaba donde llegó la cuadrilla, y puede `
+        + 'saltarse torres que no se levantaron. No sirve para calcular pérdidas: para eso hacen '
+        + 'falta el conductor y la longitud de la línea.',
+      origen: 'recorrido de la línea',
+    });
+  }
+  // La advertencia de las cotas NO puede depender de que alguien haya declarado
+  // la precisión: el peligro es la cota en sí. Si la precisión consta, se
+  // imprime; si no consta, se dice que no consta — que es peor, no mejor.
+  if (Number.isFinite(R.nPuntos) && R.nPuntos > 0) {
+    lim.push({
+      titulo: Number.isFinite(R.precision_m)
+        ? `Las cotas del terreno tienen precisión declarada de ±${R.precision_m} m`
+        : 'Las cotas del terreno son las que dio el GPS, sin precisión declarada',
+      detalle: 'El error vertical de un GPS de mano es del mismo orden que el gálibo que habría que '
+        + 'demostrar. Las cotas sirven de referencia, NO de evidencia: este documento no verifica '
+        + 'distancias de seguridad al terreno. Eso se cierra con topografía o LiDAR.',
+      origen: 'precisión del levantamiento',
+    });
+  }
+  for (const h of lista(e.calidad)) {
+    const H = objeto(h);
+    if (H.severidad !== 'atencion') continue;
+    lim.push({
+      titulo: `Calidad del levantamiento: ${H.titulo}`,
+      detalle: String(H.detalle ?? ''),
+      origen: 'calidad del levantamiento',
+    });
+  }
+  const E = objeto(e.electricos);
+  if (Object.keys(E).length) {
+    lim.push({
+      titulo: 'Lo medido no tiene veredicto',
+      detalle: 'Las corrientes no se comparan con ninguna ampacidad (falta el conductor) y no hay '
+        + 'pérdidas (faltan el conductor y la longitud de la línea). Son cifras medidas, no un '
+        + 'dictamen de operación.',
+      origen: 'parámetros eléctricos',
+    });
+  }
+  lim.push({
+    titulo: 'No se declaró norma de referencia',
+    detalle: 'Los umbrales del sistema son criterios adoptados por el proyecto, no artículos '
+      + 'citables. En este borrador ni siquiera se aplicaron: no hay cálculo que medir contra ellos.',
+    origen: 'criterios de evaluación',
+  });
+  return lim;
+}
+
+function borradorLimites(entrada, bloqueo) {
+  const lim = limitesDelBorrador(entrada);
+  const R = objeto(objeto(entrada).recorrido);
+  const hayElectricos = Object.keys(objeto(objeto(entrada).electricos)).length > 0;
+
+  const alcance = `<div class="bloque">
+    <h3>Alcance de este borrador</h3>
+    <p>Este borrador cubre: el <b>recorrido levantado</b> del ${rotuloDelRecorrido(R)} tal como se
+    grabó${hayElectricos ? ', y lo <b>medido</b> en el sistema de operación' : ''}.</p>
+    <p>Este borrador <b>NO</b> cubre: torres, cálculo mecánico, cargas sobre las estructuras,
+    capacidad en corriente, pérdidas ni cantidades. Tampoco lo que no cubre el informe completo: la
+    verificación en campo de distancias de seguridad al terreno y a cruces; el cálculo estructural de
+    apoyos, cimentaciones y retenidas; el diseño del aislamiento y la coordinación de aislamiento; los
+    estudios eléctricos de la línea; ni el estado de conservación de los componentes.</p>
+    <p><b>Nada de lo que sigue invalida lo que sí trae este papel.</b> Lo que hace es decir con
+    exactitud hasta dónde llega — que es la razón por la que no se puede firmar todavía.</p>
+  </div>`;
+
+  const filas = lim.map((l) => `<li><b>${esc(l.titulo)}</b><br>${esc(l.detalle)}
+    <span class="origen">Origen: ${esc(l.origen)}</span></li>`).join('');
+
+  return `${alcance}
+<div class="bloque"><h3>Limitaciones declaradas (${n(lim.length)})</h3>
+  <p>Cada una se DERIVA de los datos con que se generó este borrador. No están escritas a mano y no
+  se quedan desactualizadas: el día que llegue el dato que falta, la limitación desaparece sola del
+  informe siguiente.</p></div>
+<ol>${filas}</ol>
+<div class="firma-bloqueada">${bloqueo.texto}</div>`;
+}
+
+// ── B6 · La portada del borrador ────────────────────────────────────────────
+
+function portadaBorrador(linea, R, vecinas, electricos, meta, indice, bloqueo) {
+  const L = objeto(linea);
+  const identidad = [L.nombre, L.tensionNominal_kV != null ? `${n(L.tensionNominal_kV)} kV` : null,
+    L.propietario].filter(Boolean).map(esc).join(' · ');
+  const conVecinas = lista(vecinas).filter((v) => objeto(v).codigo);
+
+  const renglones = [];
+  renglones.push(`<li>Línea ${esc(L.codigo ?? 'sin identificar')}`
+    + `${L.tensionNominal_kV != null ? ` · ${n(L.tensionNominal_kV)} kV` : ''}</li>`);
+  renglones.push('<li>Torres registradas: <b>ninguna</b> · longitud de la línea no declarada</li>');
+  if (Number.isFinite(R.nPuntos) && R.nPuntos > 0) {
+    renglones.push(`<li>Recorrido guardado aparte: ${rotuloDelRecorrido(R)} · `
+      + `${n(R.nPuntos)} puntos del GPS · ${nu(R.longitud_m, 2, 'm')} entre puntos · `
+      + `${esc(R.rotulo ?? 'sin registrar como torres')}</li>`);
+    const geo = [R.datum ? `sistema de referencia ${esc(R.datum)}` : null,
+      R.metodo ? `método ${esc(R.metodo)}` : null,
+      Number.isFinite(R.precision_m)
+        ? `precisión declarada ±${n(R.precision_m)} m — cotas GPS referenciales, NO aptas para `
+          + 'verificar distancias de seguridad' : null].filter(Boolean);
+    if (geo.length) renglones.push(`<li>${geo.join(' · ').replace(/^./, (c) => c.toUpperCase())}</li>`);
+  } else {
+    renglones.push('<li>Recorrido guardado aparte: <b>ninguno</b> — de esta línea no consta todavía '
+      + 'ni una jornada de campo</li>');
+  }
+  if (conVecinas.length) {
+    renglones.push(`<li>Recorre el ${esc(rotuloDeSerie(R.codigoSerie))} junto con `
+      + `${yLista(conVecinas.map((v) => esc(v.codigo)))}`
+      + `${Number.isFinite(R.circuitosPorTorre)
+        ? `: ${n(R.circuitosPorTorre)} circuitos tendidos en cada torre` : ''}</li>`);
+  }
+  const E = objeto(electricos);
+  if (Object.keys(E).length) {
+    renglones.push(`<li>Parámetros eléctricos: ${esc(String(E.fuente ?? 'lo cargado en el sistema'))}`
+      + `${E.desde && E.hasta ? `, del ${esc(String(E.desde))} al ${esc(String(E.hasta))}` : ''}`
+      + `${E.archivos ? ` · ${esc(String(E.archivos))}` : ''}</li>`);
+  }
+  const motor = meta.versionNucleo ?? meta.versionMotor;
+  renglones.push(`<li>Motor de cálculo @lineas/nucleo: ${motor
+    ? `v${esc(motor)}` : '<b>versión NO declarada</b>'} — en este borrador no calculó nada</li>`);
+  renglones.push('<li>Conductor: <b>no declarado</b> — no se usa el de otra línea</li>');
+  renglones.push('<li>Hipótesis de cálculo: <b>no declarada</b></li>');
+  renglones.push(`<li>${meta.generadoEn ? `Generado ${esc(meta.generadoEn)} · ` : ''}`
+    + `Exportador @lineas/exportar v${esc(VERSION_EXPORTADOR)} · generado desde los datos del `
+    + 'sistema, no desde la pantalla (ADR-005/006)</li>');
+
+  return `<section class="portada">
+  <p class="borrador">${TITULO_BORRADOR}</p>
+  <p class="rotulo">Informe técnico de línea de alta tensión</p>
+  <h1>${esc(L.codigo ?? 'Línea sin identificar')}</h1>
+  ${identidad ? parrafo(identidad) : ''}
+
+  <p class="lema">Este sistema no certifica nada. Certifica el ingeniero que firma.
+  El trabajo del sistema es hacer barato comprobar que ese ingeniero tiene razón.</p>
+
+  <div class="procedencia">
+    <h3>Procedencia de este documento</h3>
+    <ul>${renglones.join('')}</ul>
+  </div>
+
+  <div class="bloque">
+    <h3>Contenido</h3>
+    <ul>${indice.map((t, i) => `<li>${i + 1}. ${esc(t)}</li>`).join('')}</ul>
+    <p class="nota">Sin enlaces internos a propósito: en papel un enlace no lleva a ninguna parte,
+    y el documento se guarda impreso tan a menudo como en pantalla.</p>
+  </div>
+
+  <div class="firma bloque">
+    <p class="nota">El sistema produce las cifras; la responsabilidad técnica es de quien firma.</p>
+    <div class="firma-bloqueada">${bloqueo.texto}
+      ${tabla({
+    leyenda: 'Lo que desbloquea la firma. Mientras haya un círculo (○) en esta tabla, este '
+        + 'documento sigue siendo un borrador.',
+    cabecera: bloqueo.cabecera,
+    filas: bloqueo.filas,
+  })}
+    </div>
+    <div class="linea-firma tachada">Ingeniero responsable — nombre, matrícula profesional y fecha</div>
+  </div>
+</section>`;
+}
+
+// ── Función pública del BORRADOR ────────────────────────────────────────────
+
+/**
+ * Genera el BORRADOR NO FIRMABLE de una línea sin torres (y normalmente sin
+ * conductor ni hipótesis), en un solo archivo HTML autocontenido.
+ *
+ * Aquí NO se calcula nada: el recorrido llega ya derivado, igual que al informe
+ * completo le llegan los tramos y los vanos ya calculados por `nucleo/`.
+ *
+ * @param {Object} [entrada]
+ * @param {Object} [entrada.linea]      documento `Linea`
+ * @param {Object} [entrada.recorrido]  el recorrido levantado, YA derivado:
+ *   `{ codigoSerie, rotulo, fecha, aparato, desde, hasta, nPuntos, nVanos,
+ *      longitud_m, vanoMax_m, vanoMin_m, vanoMedio_m, medianaVano_m,
+ *      precision_m, datum, metodo, circuitosPorTorre, puntos[], sospechosos[] }`
+ *   `puntos`: `{ nombre, hora, cota_m, vanoSiguiente_m, deflexion_grados,
+ *      margenDeflexion_grados, notaDeflexion }`
+ * @param {Array}  [entrada.vecinas]    otras líneas del mismo tramo: `{ codigo, faltan? }`
+ * @param {string[]} [entrada.faltan]   'torres' | 'conductor' | 'hipotesis'
+ * @param {Array}  [entrada.calidad]    hallazgos de `calidadLevantamiento`, si los hay
+ * @param {Object} [entrada.electricos] lo medido, ya resumido para el papel
+ * @param {Object} [entrada.meta]       `{ generadoEn, versionNucleo, generadoPor }`
+ * @returns {string} documento HTML completo, sin JavaScript y sin recursos externos
+ */
+export function informeBorradorHtml(entrada) {
+  const e = objeto(entrada);
+  const linea = objeto(e.linea);
+  const meta = objeto(e.meta);
+  const R = objeto(e.recorrido);
+  const vecinas = lista(e.vecinas);
+  // `undefined` se distingue de la lista vacía en las dos: ver `seccionCalidad`
+  // y `borradorElectricos`.
+  const calidad = e.calidad === undefined ? null : lista(e.calidad);
+  const electricos = e.electricos === undefined ? null : objeto(e.electricos);
+  // Sin lista explícita, lo que falta es lo que se deduce de lo que no llegó.
+  // Las torres SIEMPRE faltan en un borrador: es lo que lo hace borrador.
+  const faltan = lista(e.faltan).length
+    ? ordenarFaltas(e.faltan)
+    : ['torres', 'conductor', 'hipotesis'];
+
+  const bloqueo = bloqueoDeFirma({ linea, faltan, vecinas, recorrido: R });
+
+  // El índice se ARMA de esta lista, igual que en el informe completo: así no
+  // puede desincronizarse del cuerpo.
+  const cuerpo = [
+    { titulo: 'Resumen ejecutivo', html: borradorResumen(R, electricos, vecinas) },
+    { titulo: 'Torres: sin registrar', html: borradorTorres(linea, R, vecinas) },
+  ];
+  if (Number.isFinite(R.nPuntos) && R.nPuntos > 0) {
+    cuerpo.splice(1, 0, { titulo: 'Calidad del levantamiento', html: seccionCalidad(calidad) });
+  }
+  cuerpo.push({
+    titulo: 'Cálculo, cargas, capacidad y cantidades: no se calculan',
+    html: borradorNoSeCalcula(linea, R, vecinas),
+  });
+  cuerpo.push({ titulo: 'Parámetros eléctricos medidos', html: borradorElectricos(electricos) });
+  cuerpo.push({
+    titulo: 'Lo que este borrador NO demuestra',
+    html: borradorLimites({ linea, recorrido: R, vecinas, faltan, calidad, electricos }, bloqueo),
+    clase: 'limites',
+  });
+
+  const indice = cuerpo.map((s) => s.titulo);
+  const secciones = cuerpo.map((s, i) =>
+    `<section${s.clase ? ` class="${s.clase}"` : ''}>
+  <h2>${i + 1}. ${esc(s.titulo)}</h2>
+  ${s.html}
+</section>`).join('\n');
+
+  const titulo = `BORRADOR NO FIRMABLE — línea ${linea.codigo ?? 'sin identificar'}`;
+
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${esc(titulo)}</title>
+<style>${ESTILO}${ESTILO_BORRADOR}</style>
+</head>
+<body>
+<main class="hoja">
+${portadaBorrador(linea, R, vecinas, electricos, meta, indice, bloqueo)}
+${secciones}
+<p class="pie">${esc(linea.codigo ?? 'Línea sin identificar')} · documento generado por la plataforma de
+mantenimiento de líneas AT${meta.generadoEn ? ` el ${esc(meta.generadoEn)}` : ''}. Este documento no
+certifica nada por sí mismo: certifica el ingeniero que lo firma.
+<b>${TITULO_BORRADOR}: no se puede firmar.</b></p>
 </main>
 </body>
 </html>`;

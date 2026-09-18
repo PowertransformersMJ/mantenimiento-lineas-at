@@ -9,7 +9,7 @@
 // Aquí NO hay ni una fórmula. Todo el cálculo se le pide a @lineas/nucleo.
 // ============================================================================
 import { Component, Suspense, lazy, useEffect, useMemo, useState, type KeyboardEvent, type ReactNode } from 'react';
-import type { Apoyo, Conductor, Evidencia, Funcion, Hipotesis, Investigacion, Linea as TLinea } from '@lineas/contratos';
+import type { Apoyo, Conductor, Evidencia, Funcion, Hipotesis, Investigacion, Levantamiento, Linea as TLinea } from '@lineas/contratos';
 import { vincenty, vanoIdealRegulacion } from '@lineas/nucleo/geodesia';
 import { ampacidadDeLinea, etiquetaDeAmpacidad } from '@lineas/nucleo/termica';
 import { estadisticasVanos } from '@lineas/nucleo/estadisticas';
@@ -19,14 +19,25 @@ import { calidadLevantamiento } from '@lineas/exportar/calidad';
 import { proyectar, vanos, geometriaSvg, soloEstructuras } from '../vistas/planta';
 import { COLORES_TRAMO_CSS } from '../vistas/tramoColores';
 import { calcularTramos } from '../vistas/tramos';
-import { textoNucleo } from '../vistas/formato';
+import { aGMS, textoNucleo } from '../vistas/formato';
 import { conReintentos } from '../datos/cargar';
 import { almacen, useQuien } from '../datos/enlace';
 import { puede } from '../datos/permisos';
+import { avisosDeDatos, ordenarLevantamientos, seriesDeLinea } from '../datos/repositorio';
+import type { AvisoDeDatos, EstadoDatos, FaltaDeLinea, LineaVecina } from '../datos/repositorio';
+import { rotuloDeTramo, sinPrefijoDeSerie } from '../vistas/rotulos';
+import {
+  bandaSinCalculo, cartelDeLaLinea, cartelDePestana, faltaEnElParque, faltasDePestana,
+  fechaDeCampoCorta, motivoDeFaltas, motivoSinHorizonte, porQueNoCalcula,
+  recorridoLevantado,
+} from '../vistas/recorrido';
+import type { CartelSinCalculo, FichaDeBanda, RecorridoLevantado } from '../vistas/recorrido';
 import { ejesDeLinea } from '../vistas/ejesLinea';
+import type { EjesDeLinea } from '../vistas/ejesLinea';
 import { estadoDeLinea } from '../vistas/estadoLinea';
 import { vanosDeLinea } from '../vistas/vanosLinea';
-import { Horizonte } from './Horizonte';
+import type { VanosDeLinea } from '../vistas/vanosLinea';
+import { Horizonte as DibujoDelHorizonte } from './Horizonte';
 import { Distribucion } from './Distribucion';
 import { DetalleGps } from './DetalleGps';
 import { Distancias } from './Distancias';
@@ -219,6 +230,19 @@ function BandaEstado({ eventos, calidad, filasMecanico, excedidos, hipotesis }: 
     },
   ];
 
+  return <FichasDeBanda fichas={fichas} />;
+}
+
+/**
+ * EL DIBUJO de la banda, separado de QUIÉN decide sus cuatro frases.
+ *
+ * Lo comparten la línea completa —cuyas fichas decide `BandaEstado`, aquí
+ * arriba— y la línea que todavía no calcula, cuyas fichas decide
+ * `vistas/recorrido.ts`. La banda es lo PRIMERO que se ve de una línea, y dos
+ * dibujos distintos de la misma banda es como se acaba con una pantalla en la
+ * que el punto de color significa una cosa y en otra, otra.
+ */
+function FichasDeBanda({ fichas }: { fichas: readonly { t: string; v: string; tono: string }[] }) {
   return (
     <div className="banda-estado" role="group" aria-label="Estado de la línea">
       {fichas.map((f) => (
@@ -234,9 +258,15 @@ function BandaEstado({ eventos, calidad, filasMecanico, excedidos, hipotesis }: 
   );
 }
 
-function Resumen({ apoyos, investigaciones, alVerEvento, hipotesis, conductor }:
+function Resumen({ apoyos, investigaciones, alVerEvento, hipotesis, conductor, codigos }:
   { apoyos: Apoyo[]; investigaciones: Investigacion[]; alVerEvento: () => void;
-    hipotesis: Hipotesis; conductor: Conductor }) {
+    hipotesis: Hipotesis; conductor: Conductor;
+    /**
+     * Los códigos de las series que esta pantalla está leyendo (la línea y sus
+     * tramos compartidos abiertos). Solo para RECORTAR el prefijo de los
+     * nombres: aquí no se decide nada con ellos.
+     */
+    codigos: readonly string[] }) {
   const r = useMemo(() => {
     const E = soloEstructuras(apoyos);
     const L = vanos(apoyos);
@@ -308,7 +338,7 @@ function Resumen({ apoyos, investigaciones, alVerEvento, hipotesis, conductor }:
               {r.tramos.map((t, i) => (
                 <span key={t.n} className="tramo-item">
                   <span className="li" style={{ background: COLORES_TRAMO_CSS[i % COLORES_TRAMO_CSS.length] }} />
-                  T{t.n} · {t.desde.replace('LN-627 ', '')} → {t.hasta.replace('LN-627 ', '')} · {nf(t.longitud_m)} m
+                  T{t.n} · {sinPrefijoDeSerie(t.desde, codigos)} → {sinPrefijoDeSerie(t.hasta, codigos)} · {nf(t.longitud_m)} m
                 </span>
               ))}
             </div>
@@ -630,15 +660,534 @@ function DetalleVanos({ apoyos, conductor, hipotesis }:
   );
 }
 
+// ── LA LÍNEA QUE TODAVÍA NO CALCULA ─────────────────────────────────────────
+// Lo que decide QUÉ se dice vive en `vistas/recorrido.ts`, que es puro y se
+// prueba con `node --test`. Lo de aquí abajo solo PINTA lo que aquél decidió.
+
+/**
+ * LO QUE NO SE PUDO LEER, DICHO EN LA PANTALLA.
+ *
+ * ⚠️ ES EL AVISO MÁS CARO DEL PROYECTO. `repositorio.ts` ya sabía que una serie
+ * no se había podido leer —o que se había decidido no juntarla porque su código
+ * y su identificador no cuadran en el libro— y lo dejaba escrito en
+ * `avisosDeSeries` y `noSePudoLeer.torres`. **No lo leía nadie.** Una cuenta
+ * cuyo alcance no llegue al tramo compartido abre la línea, la dibuja, calcula
+ * sus tramos de tensión y firma un informe **con la mitad de sus torres**, sin
+ * una sola señal en pantalla: un número de menos, en silencio, en un papel que
+ * alguien firma.
+ *
+ * Va arriba del todo y fuera de las pestañas a propósito: no es un detalle de
+ * una pantalla, es una advertencia sobre TODO lo que se vea debajo.
+ */
+function AvisosDeDatos({ avisos }: { avisos: readonly AvisoDeDatos[] }) {
+  if (!avisos.length) return null;
+  return (
+    <section className="panel falla-alerta" role="status">
+      <h2>Esta pantalla no está viendo todos los datos de la línea</h2>
+      <ul className="calidad-lista">
+        {avisos.map((a, i) => (
+          <li key={i} className={`calidad-item ${a.clase === 'lectura' ? 'atencion' : 'aviso'}`}>
+            <b>{a.clase === 'lectura' ? 'No se pudo leer.' : 'No se juntó.'}</b> {a.texto}
+          </li>
+        ))}
+      </ul>
+      <p className="fine">
+        Mientras esto salga, lo que se enseñe abajo puede estar calculado con <b>menos torres de
+        las que tiene la línea</b>. No es un aviso cosmético: revíselo antes de firmar nada.
+      </p>
+    </section>
+  );
+}
+
+/** El cartel de una pestaña que no puede calcular, con el motivo exacto. */
+function CartelNoCalcula({ cartel }: { cartel: CartelSinCalculo }) {
+  return (
+    <section className="panel vacio cartel-no-calcula">
+      <div className="vacio-t">{cartel.titulo}</div>
+      <p className="vacio-c"><b>{cartel.titular}</b> {cartel.lead}</p>
+      <ul className="cargar-lista falta-lista">
+        {cartel.items.map((it) => (
+          <li key={it.que}><b>{it.que}</b> — {it.porque}</li>
+        ))}
+      </ul>
+      {cartel.pie && <p className="fine">{cartel.pie}</p>}
+    </section>
+  );
+}
+
+/**
+ * EL HORIZONTE CUANDO NO HAY TORRES: la franja se queda, y dice por qué.
+ *
+ * NO se dibujan los puntos levantados como torres huecas, y es la decisión
+ * importante de este dibujo: una torre hueca significa «esta torre existe y no
+ * tiene veredicto», y aquí no existe ninguna torre. Veintiocho fantasmas dirían
+ * que hay veintiocho torres sin dictaminar cuando lo que hay son veintiocho
+ * puntos de un GPS que todavía no son nada.
+ */
+function SinHorizonte({ puntos, torres, faltan }: {
+  /** Puntos del recorrido levantado, que NO son torres y por eso no se dibujan. */
+  puntos: number;
+  /** Torres registradas que sí hay. Con conductor pendiente puede no ser cero. */
+  torres: number;
+  faltan: readonly FaltaDeLinea[];
+}) {
+  const motivo = motivoSinHorizonte(faltan);
+  return (
+    <figure className="horizonte" data-sin-torres={faltan.includes('torres')}>
+      <svg viewBox="0 0 1200 96" role="img" aria-label={`Horizonte: ${motivo}`}
+        preserveAspectRatio="xMidYMid meet">
+        <rect className="hz-suelo" x="0" y="66" width="1200" height="18" />
+        <text className="hz-sin" x="600" y="44" textAnchor="middle">{motivo}</text>
+      </svg>
+      <figcaption className="hz-pie">
+        <span className="hz-leyenda">
+          {nf(torres)} torres dibujadas
+          {puntos ? ` · no se pintan ${nf(puntos)} huecos por los puntos levantados` : ''}
+        </span>
+        <span className="hz-nota">el recorrido levantado se ve en Resumen, Detalle GPS y Distancias</span>
+      </figcaption>
+    </figure>
+  );
+}
+
+/**
+ * EL HORIZONTE DE LA LÍNEA, sea el que sea: el dibujo de las torres cuando las
+ * hay, y la franja que dice por qué no lo hay cuando no.
+ *
+ * Existe para que la pantalla no tenga que elegir: la decisión —«hay torres con
+ * veredicto que dibujar»— se toma AQUÍ, en un sitio, y `VistaLinea` sigue
+ * diciendo lo único que le toca decir, que es EN QUÉ PESTAÑAS se pinta.
+ *
+ * ⚠️ NO LO VUELVAS A METER EN LA PESTAÑA: el guardián
+ * `tests/horizonte-cobertura.test.js` fija que la condición de arriba sea
+ * «todas las pestañas menos Detalle GPS» y que el elemento vaya pegado a ella.
+ * Deshacer esto en un ternario dentro del JSX pone esa prueba en rojo, y con
+ * razón: fue así como el horizonte se ató una vez a una sola pestaña.
+ */
+function Horizonte({ ejes, vanos, total, puntosLevantados, torres, faltan }: {
+  ejes: EjesDeLinea | null;
+  vanos: VanosDeLinea | null;
+  /** Cuántos apoyos hay que dictaminar. `null` = no hay torres que contar. */
+  total: number | null;
+  /** Puntos del recorrido levantado, que NO son torres y no se dibujan. */
+  puntosLevantados: number;
+  /** Torres registradas que sí hay, y qué le falta a la línea para calcular. */
+  torres: number;
+  faltan: readonly FaltaDeLinea[];
+}) {
+  if (!ejes || total == null) {
+    return <SinHorizonte puntos={puntosLevantados} torres={torres} faltan={faltan} />;
+  }
+  return <DibujoDelHorizonte ejes={ejes} vanos={vanos} total={total} />;
+}
+
+/** El esquema del recorrido: un dibujo del trazado, nunca un mapa. */
+function EsquemaRecorrido({ r }: { r: RecorridoLevantado }) {
+  const g = r.esquema;
+  if (!g) return null;
+  return (
+    <div className="mapa">
+      <svg viewBox={`0 0 ${g.ancho} ${g.alto}`} role="img"
+        aria-label="Esquema del recorrido levantado, norte arriba">
+        <polyline points={g.traza} className="traza lev-traza" />
+        {g.puntos.map((p) => (
+          <circle key={p.n} cx={p.x} cy={p.y} r={4} className="lev-punto">
+            <title>{p.titulo}</title>
+          </circle>
+        ))}
+        <g className="norte">
+          <line x1={g.ancho - 30} y1={42} x2={g.ancho - 30} y2={20} />
+          <text x={g.ancho - 26} y={26}>N</text>
+        </g>
+      </svg>
+    </div>
+  );
+}
+
+/** La ficha de procedencia del recorrido: de qué día, de qué aparato, cuántos puntos. */
+function SelloDelRecorrido({ r }: { r: RecorridoLevantado }) {
+  const detalles = [
+    r.aparato,
+    r.primeraHora && r.ultimaHora ? `${r.primeraHora} → ${r.ultimaHora}` : null,
+    `${nf(r.puntos.length)} puntos guardados tal cual: nombre de campo, posición y cota`,
+  ].filter(Boolean);
+  return (
+    <p className="cargar-sello lev-sello">
+      <b>{r.sello}</b>{detalles.length ? ` — ${detalles.join(' · ')}` : ''}
+    </p>
+  );
+}
+
+/** Los hallazgos del recorrido: señales para ir a mirar, nunca veredictos. */
+function HallazgosDelRecorrido({ r }: { r: RecorridoLevantado }) {
+  if (!r.hallazgos.length) return null;
+  return (
+    <ul className="calidad-lista">
+      {r.hallazgos.map((h, i) => (
+        <li key={i} className="calidad-item aviso">
+          <b>{h.titulo}.</b> {textoNucleo(h.detalle)}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/**
+ * LOS QUIEBRES DEL RECORRIDO, CADA UNO CON SU MARGEN.
+ *
+ * El margen no es adorno: con ±8 m en cada punto, un quiebre de 10,3° puede
+ * moverse ±24,9° — o sea que de ese punto **no se sabe si gira**. Enseñar el
+ * ángulo sin el margen invita a declarar una retención donde puede no haber ni
+ * quiebre. Y cuando el vano es tan corto que su dirección no se puede saber, no
+ * se publica un margen enorme: se dice que no es fiable, con todas las letras.
+ *
+ * Los dos números salen de `nucleo/geodesia.js`. Aquí no se calcula ninguno.
+ */
+function QuiebresDelRecorrido({ r }: { r: RecorridoLevantado }) {
+  const filas = r.puntos.filter((p) => p.quiebre_grados != null && p.quiebre_grados >= 10);
+  if (!filas.length) return null;
+  return (
+    <section className="panel">
+      <h2>Quiebres del recorrido levantado</h2>
+      <p className="fine">
+        Quiebres de 10° o más, medidos con el GPS de mano. «Margen»: lo que puede moverse el ángulo
+        si cada punto se corre ± {nf(r.precision_m)} m de través al vano; se suman los dos vanos que
+        llegan al punto. <b>No deciden la función de la torre: la declara usted.</b>
+      </p>
+      <Sello origen={`geodesia Vincenty sobre WGS84 · ${r.sello} · GPS de mano ± ${nf(r.precision_m)} m`} />
+      <div className="tabla-caja">
+        <table className="tabla">
+          <thead>
+            <tr><th>#</th><th>Nombre de campo</th><th>Quiebre</th><th>Margen</th><th>Lectura</th></tr>
+          </thead>
+          <tbody>
+            {filas.map((p) => {
+              const q = p.quiebre_grados as number;
+              const m = p.margen_grados;
+              const vano = p.vanoIndeterminado === 'entra' ? 'el vano que entra'
+                : p.vanoIndeterminado === 'sale' ? 'el vano que sale' : 'los dos vanos';
+              return (
+                <tr key={p.n} className={p.margenDeterminado ? undefined : 'sin-comparar'}>
+                  <td className="num">{p.n}</td>
+                  <td>{p.nombreCampo}</td>
+                  <td className="num destaca">{nf(q, 1)}°</td>
+                  <td className="num">{m == null ? 'no se puede saber' : `± ${nf(m, 1)}°`}</td>
+                  <td>{m == null
+                    ? `no fiable: la dirección de ${vano} no se puede saber`
+                    : m > q
+                      ? 'puede no haber quiebre: el margen es mayor que el ángulo'
+                      : `hay quiebre: con el margen, entre ${nf(q - m, 1)}° y ${nf(q + m, 1)}°`}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+/** Lo que le falta a la línea para calcular, enumerado con su porqué. */
+function LoQueFalta({ cartel }: { cartel: CartelSinCalculo }) {
+  return (
+    <section className="panel">
+      <h2>{cartel.titulo}</h2>
+      <p className="vacio-c"><b>{cartel.titular}</b> {cartel.lead}</p>
+      <ul className="cargar-lista falta-lista">
+        {cartel.items.map((it) => (
+          <li key={it.que}><b>{it.que}</b> — {it.porque}</li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/**
+ * EL RESUMEN DE UNA LÍNEA SIN TORRES: el recorrido levantado, y nada más.
+ *
+ * Se ve, y **no se calcula con él**: cada cifra va rotulada «levantado el … ·
+ * sin registrar como torres», y la longitud levantada lleva escrito que NO es la
+ * longitud de la línea. Un recorrido que salta placas no cubre la línea entera,
+ * y presentarlo como si la cubriera es la clase de error que no se descubre
+ * hasta que alguien lo compara con el papel del cliente.
+ */
+function ResumenDelRecorrido({ r, cartel, banda, tramo, vecinas, torres, faltan }: {
+  r: RecorridoLevantado | null;
+  cartel: CartelSinCalculo;
+  banda: readonly FichaDeBanda[];
+  tramo?: string;
+  vecinas: readonly string[];
+  /** Torres registradas que sí hay: con el conductor pendiente puede no ser cero. */
+  torres: number;
+  faltan: readonly FaltaDeLinea[];
+}) {
+  return (
+    <>
+      <FichasDeBanda fichas={banda} />
+      {/* ⚠️ EL SALUDO SE DERIVA, no se escribe. Estuvo fijo en «sin torres
+          registradas · conductor pendiente», y esa frase es FALSA en cuanto la
+          línea tenga torres y le falte solo el conductor: mandaría a registrar
+          unas torres que ya están registradas. */}
+      <p className="saludo">
+        Línea <b>{faltan.includes('torres')
+          ? 'sin torres registradas' : `${nf(torres)} torres registradas`}</b>
+        {faltan.includes('conductor') ? <> · conductor <b>pendiente</b></> : null}.
+        {r
+          ? <> Abajo, el recorrido <b>{r.sello}</b>: se ve, pero no se calcula con él.</>
+          : <> Todavía no hay ningún recorrido levantado que enseñar.</>}
+      </p>
+
+      {r && (
+        <section className="panel">
+          <h2>Recorrido levantado, sin registrar como torres</h2>
+          <SelloDelRecorrido r={r} />
+          {tramo && (
+            <p className="saludo">
+              <span className="pill inf">
+                {tramo}{vecinas.length ? ` · también lo recorre ${vecinas.join(' y ')}` : ''}
+              </span>
+              {r.desde && r.hasta ? ` de ${r.desde} a ${r.hasta}.` : ''}
+            </p>
+          )}
+          <p className="fine">
+            Esquema del recorrido levantado, <b>no un mapa</b>: sin fondo, norte arriba y la misma
+            escala en los dos sentidos. Pase el ratón por un punto para ver su nombre y su cota.
+          </p>
+          <EsquemaRecorrido r={r} />
+          <div className="kpis">
+            <Kpi valor={`${nf(r.longitud_m, 1)} m`} etiqueta="levantados"
+              sub="no es la longitud de la línea" />
+            <Kpi valor={r.directa_m == null ? '—' : `${nf(r.directa_m, 1)} m`}
+              etiqueta="dist. directa entre extremos" />
+            <Kpi valor={nf(r.puntos.length)} etiqueta="puntos levantados"
+              sub={`${nf(torres)} torres registradas`} />
+            <Kpi valor={nf(r.vanos.length)} etiqueta="vanos levantados" />
+            <Kpi valor={r.estadisticas ? `${nf(r.estadisticas.promedio, 1)} m` : '—'}
+              etiqueta="vano promedio"
+              sub={r.estadisticas ? `mediana ${nf(r.estadisticas.mediana, 1)} m` : undefined} />
+            <Kpi valor={r.estadisticas
+              ? `${nf(r.estadisticas.minimo, 1)} / ${nf(r.estadisticas.maximo, 1)}` : '—'}
+              etiqueta="vano mín / máx (m)" />
+          </div>
+          <HallazgosDelRecorrido r={r} />
+        </section>
+      )}
+
+      {r && <QuiebresDelRecorrido r={r} />}
+      <LoQueFalta cartel={cartel} />
+    </>
+  );
+}
+
+/**
+ * EL DETALLE DEL RECORRIDO: los puntos tal cual, uno por fila.
+ *
+ * Es lo que la pestaña «Detalle GPS» puede enseñar mientras no haya torres: el
+ * mapa de siempre dibuja apoyos, y aquí no hay ninguno. La precisión de la
+ * columna NO sale del archivo —el GPX no la trae—: es la que el sistema declara
+ * a todo GPS de mano, y por eso va dicha y no escondida.
+ */
+function DetalleDelRecorrido({ r, torres }: { r: RecorridoLevantado; torres: number }) {
+  return (
+    <>
+      <section className="panel">
+        <h2>Recorrido levantado, sin registrar como torres</h2>
+        <SelloDelRecorrido r={r} />
+        <p className="fine">
+          Esquema, no mapa: el mapa de siempre dibuja torres registradas, y aquí lo que hay es el
+          recorrido tal como lo trajo el GPS.
+        </p>
+        <EsquemaRecorrido r={r} />
+        <p className="advertencia">
+          <b>Esta precisión no sirve para verificar despejes.</b> Un GPS de mano sitúa el punto en el
+          plano con el error que él mismo declara, y la cota arrastra ese mismo error. Sirve para
+          saber dónde está y para llegar hasta él, no para dictaminar una distancia vertical.
+        </p>
+      </section>
+
+      <section className="panel">
+        <h2>Coordenadas levantadas</h2>
+        <p className="fine">
+          {nf(r.puntos.length)} puntos · {nf(torres)} torres registradas · sistema <b>WGS84</b> · GPS de mano ·
+          precisión declarada por el sistema: <b>± {nf(r.precision_m)} m</b>. Un punto por fila, en
+          el orden del archivo. {r.sello}.
+        </p>
+        <div className="tabla-caja">
+          <table className="tabla">
+            <thead>
+              <tr>
+                <th>#</th><th>Nombre de campo</th><th>Latitud</th><th>Longitud</th>
+                <th>Decimal</th><th>Cota (m)</th><th>Precisión</th>
+              </tr>
+            </thead>
+            <tbody>
+              {r.puntos.map((p) => (
+                <tr key={p.n}>
+                  <td className="num">{p.n}</td>
+                  <td>{p.nombreCampo}{p.nota ? ` · ${p.nota}` : ''}</td>
+                  <td className="num">{aGMS(p.lat, 'lat')}</td>
+                  <td className="num">{aGMS(p.lon, 'lon')}</td>
+                  <td className="num">{p.lat.toFixed(6)}, {p.lon.toFixed(6)}</td>
+                  <td className="num">{p.ele == null ? '—' : nf(p.ele, 1)}</td>
+                  <td className="num">± {nf(r.precision_m)} m</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </>
+  );
+}
+
+/**
+ * DISTANCIAS SOBRE EL RECORRIDO LEVANTADO.
+ *
+ * Es la gemela de `Distancias`, y va aparte en vez de reutilizarla porque el
+ * SUJETO es otro: aquélla mide entre ESTRUCTURAS —apoyos registrados, con su
+ * función declarada— y ésta entre PUNTOS de un GPS que todavía no son torres.
+ * Fabricar apoyos falsos para poder reutilizar el componente dejaría la decisión
+ * del Ingeniero —«las torres se registran cuando yo declare la función de cada
+ * una»— a un `as` de distancia de colarse en el cálculo mecánico.
+ */
+function DistanciasDelRecorrido({ r }: { r: RecorridoLevantado }) {
+  const M = useMemo(() => {
+    const n = r.puntos.length;
+    const m: number[][] = Array.from({ length: n }, () => Array(n).fill(0));
+    let max = 0;
+    for (let i = 0; i < n; i++) {
+      for (let j = i + 1; j < n; j++) {
+        const d = vincenty(r.puntos[i].lat, r.puntos[i].lon,
+                           r.puntos[j].lat, r.puntos[j].lon).d;
+        m[i][j] = d; m[j][i] = d;
+        if (d > max) max = d;
+      }
+    }
+    return { m, max };
+  }, [r]);
+
+  // Mismo criterio de color que la matriz de la línea: sale del tablero, no de
+  // un ámbar escrito aquí.
+  const tono = (d: number) => d === 0 || M.max === 0 ? undefined
+    : { background: `rgba(var(--calor-rgb), ${(0.06 + 0.30 * (d / M.max)).toFixed(3)})` };
+
+  return (
+    <>
+      <section className="panel">
+        <h2>Vanos levantados</h2>
+        <SelloDelRecorrido r={r} />
+        <p className="fine">
+          Los {nf(r.vanos.length)} vanos entre puntos consecutivos, en el orden del archivo.
+          <b> Levantados, no registrados:</b> ninguna fila es todavía un vano de la línea.
+          «± dirección» es lo que puede girar el vano si sus dos extremos se corren
+          ± {nf(r.precision_m)} m de través, en sentidos opuestos.
+        </p>
+        <Sello origen={`geodesia Vincenty sobre WGS84 · ${r.sello} · GPS de mano ± ${nf(r.precision_m)} m`} />
+        <div className="tabla-caja">
+          <table className="tabla">
+            <thead>
+              <tr>
+                <th>#</th><th>Vano</th><th>Vano (m)</th><th>Progresiva (m)</th>
+                <th>Azimut</th><th>Rumbo</th><th>± dirección</th><th>Δ cota GPS (m)</th>
+                <th>Minutos entre marcas</th>
+              </tr>
+            </thead>
+            <tbody>
+              {r.vanos.map((v) => (
+                <tr key={v.n} className={v.sospechoso ? 'excede'
+                  : v.direccionDeterminada ? undefined : 'sin-comparar'}>
+                  <td className="num">{v.n}</td>
+                  <td>{v.desde} → {v.hasta}</td>
+                  <td className="num destaca">{nf(v.longitud_m, 1)}</td>
+                  <td className="num">{nf(v.progresiva_m, 1)}</td>
+                  <td className="num">{nf(v.azimut_grados, 1)}°</td>
+                  <td className="num">{v.rumbo}</td>
+                  <td className="num">{v.margenDireccion_grados == null
+                    ? 'no se puede saber' : `± ${nf(v.margenDireccion_grados, 1)}°`}</td>
+                  <td className="num">{v.desnivel_m == null ? '—' : nf(v.desnivel_m, 1)}</td>
+                  <td className="num">{v.minutos == null ? '—' : nf(v.minutos, 1)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="fine">
+          Suma: <b>{nf(r.longitud_m, 1)} m</b> en {nf(r.vanos.length)} vanos
+          {r.estadisticas ? ` · promedio ${nf(r.estadisticas.promedio, 1)} m · mediana ${nf(r.estadisticas.mediana, 1)} m` : ''}.
+          No es la longitud de la línea: es lo que se recorrió.
+        </p>
+        <HallazgosDelRecorrido r={r} />
+      </section>
+
+      <section className="panel">
+        <h2>Matriz de distancias directas (m)</h2>
+        <Sello origen={`geodesia Vincenty sobre WGS84 · ${r.sello}`} />
+        <div className="matriz-caja" tabIndex={0} role="region"
+          aria-label="Matriz de distancias entre puntos levantados, desplazable">
+          <table className="matriz">
+            <thead>
+              <tr>
+                <th className="pegado"> </th>
+                {r.puntos.map((p) => <th key={p.n}>{p.nombreCampo}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {r.puntos.map((a, i) => (
+                <tr key={a.n}>
+                  <th className="pegado">{a.nombreCampo}</th>
+                  {r.puntos.map((b, j) => (
+                    <td key={b.n} style={tono(M.m[i][j])}
+                      title={`${a.nombreCampo} → ${b.nombreCampo}: ${nf(M.m[i][j], 1)} m`}>
+                      {i === j ? '—' : nf(M.m[i][j])}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="fine">
+          Distancias geodésicas directas (Vincenty sobre WGS84), en metros, entre los puntos
+          levantados. Ninguno de ellos es todavía una torre.
+        </p>
+      </section>
+    </>
+  );
+}
+
 // ── Vista principal ─────────────────────────────────────────────────────────
 
-export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigaciones = [], evidencias = [], lineas, noSePudoLeer, avisoRuta }:
-  { linea: TLinea; apoyos: Apoyo[]; conductor: Conductor; hipotesis: Hipotesis;
+export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigaciones = [], evidencias = [], lineas, noSePudoLeer, avisoRuta, levantamientos, vecinas, avisosDeSeries }:
+  { linea: TLinea; apoyos: Apoyo[];
+    /**
+     * EL CONDUCTOR Y LAS HIPÓTESIS SON OPCIONALES DESDE 0.16.0, y es el cambio
+     * que sostiene toda esta pantalla.
+     *
+     * Hasta hoy eran obligatorios, así que una línea recién dada de alta —sin
+     * torres, sin conductor y sin hipótesis, que es como el Ingeniero decidió
+     * el 2026-09-17 que nacen— **no llegaba aquí**: el almacén devolvía `error`
+     * o `vacio`, las dos SUSTITUYEN la pantalla entera, y con ella se iba la
+     * columna del parque. O sea que dar de alta LN-617 dejaba sin acceso a
+     * LN-627 salvo escribiendo la dirección a mano.
+     *
+     * Ausentes, la línea abre igual: se pinta el parque, se pintan las quince
+     * pestañas, las que pueden abrir abren, y las que no lo dicen con su motivo
+     * exacto. **Nunca se sustituyen por los de otra línea** — no hay ni un sitio
+     * donde pudieran colarse, porque aquí llegan ausentes, no vacíos.
+     */
+    conductor?: Conductor | null; hipotesis?: Hipotesis | null;
     investigaciones?: Investigacion[]; evidencias?: Evidencia[];
     /** Qué NO se pudo leer, para no afirmar «no hay» cuando fue «no se pudo mirar». */
-    noSePudoLeer?: { investigaciones?: string; evidencias?: string };
+    noSePudoLeer?: { investigaciones?: string; evidencias?: string; torres?: string;
+      levantamientos?: string; hipotesis?: string };
     /** Por qué se abrió esta línea y no la que pedía el enlace. */
-    avisoRuta?: string; lineas?: TLinea[] }) {
+    avisoRuta?: string; lineas?: TLinea[];
+    /** Lo levantado en campo y todavía NO registrado como torres. */
+    levantamientos?: Levantamiento[];
+    /** Las otras líneas que declaran recorrer su mismo tramo compartido. */
+    vecinas?: LineaVecina[];
+    /** Series que se decidió NO juntar, y por qué. Se pintan arriba del todo. */
+    avisosDeSeries?: string[] }) {
 
   /**
    * Cuántos expedientes de falla siguen ABIERTOS. Es lo que decide si la pestaña
@@ -734,17 +1283,107 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
   // llegó, la única que consta es la que está abierta. No se inventa un parque.
   const parque = lineas?.length ? lineas : [linea];
 
+  // ── QUÉ TIENE Y QUÉ LE FALTA A ESTA LÍNEA ───────────────────────────────
+  // Se deriva de lo que REALMENTE llegó, no de una bandera: el mismo umbral de
+  // siempre (`repositorio.ts §faltasDeLinea`) —menos de dos puntos no es media
+  // línea, es ningún vano— solo que ahora se NOMBRA en vez de tumbar la vista.
+  //
+  // ⚠️ LAS HIPÓTESIS DECLARADAS Y NO LEÍDAS CUENTAN COMO AUSENTES, y tienen que
+  // contar: sin ellas no hay cálculo posible, se declaren o no. Lo que cambia es
+  // lo que se DICE — el renglón del cartel explica que la línea sí las declara y
+  // que lo que falló fue traerlas, y el aviso de arriba da el motivo. Decir «las
+  // entrega usted después» de unas hipótesis ya entregadas mandaría al Ingeniero
+  // a rehacer un trabajo hecho (`32 · L-44`).
+  const faltan = useMemo<FaltaDeLinea[]>(() => {
+    const f: FaltaDeLinea[] = [];
+    if (apoyos.length < 2) f.push('torres');
+    if (!conductor) f.push('conductor');
+    if (!hipotesis) f.push('hipotesis');
+    return f;
+  }, [apoyos.length, conductor, hipotesis]);
+  const calcula = faltan.length === 0;
+
+  /** El recorrido levantado más reciente, si hay alguno. */
+  const recorrido = useMemo<RecorridoLevantado | null>(() => {
+    const lev = ordenarLevantamientos(levantamientos ?? [])[0];
+    return lev ? recorridoLevantado(lev) : null;
+  }, [levantamientos]);
+
+  // Los códigos de las series que esta pantalla lee: la línea y sus tramos
+  // compartidos abiertos. Solo para RECORTAR prefijos en los rótulos — el
+  // código de una línea no vuelve a escribirse dentro de un componente.
+  const series = useMemo(() => seriesDeLinea(linea), [linea]);
+  const codigosDeSerie = useMemo(() => series.map((s) => s.codigo), [series]);
+  const tramoAbierto = useMemo(() => {
+    const t = series.find((s) => s.tipo === 'tramo');
+    return t ? rotuloDeTramo(t.codigo) : undefined;
+  }, [series]);
+  // Para el borrador: la vecina con lo que le falta, que es lo que el papel
+  // nombra («su veredicto depende también de ellas»).
+  const vecinasParaExportar = useMemo(
+    () => (vecinas ?? []).map((v) => ({
+      codigo: v.linea.codigo,
+      faltan: [...(v.linea.conductor ? [] : ['conductor']),
+        ...(v.linea.hipotesisId ? [] : ['hipotesis'])],
+    })), [vecinas]);
+
+  const codigosVecinos = useMemo(
+    () => (vecinas ?? []).map((v) => v.linea.codigo), [vecinas]);
+
+  /**
+   * TODO LO QUE HAY QUE ADVERTIR DEL DATO, en la lista y el orden que decidió su
+   * dueño (`repositorio.ts §avisosDeDatos`). Se le pasa un estado recortado a lo
+   * que esa función mira —y solo mira eso— porque aquí llegan las piezas
+   * sueltas, ya desestructuradas por quien monta la pantalla.
+   */
+  const avisos = useMemo(
+    () => avisosDeDatos({ fase: 'listo', avisosDeSeries, noSePudoLeer } as EstadoDatos),
+    [avisosDeSeries, noSePudoLeer]);
+
+  /** El cartel de la pestaña abierta, o nulo si esa pestaña sí puede abrir. */
+  const contexto = useMemo(() => ({
+    codigoLinea: linea.codigo,
+    faltanEnLaLinea: faltan,
+    tramo: tramoAbierto,
+    vecinas: codigosVecinos,
+    fechaDelRecorrido: recorrido ? fechaDeCampoCorta(recorrido.fecha) : undefined,
+    hipotesisIlegibles: noSePudoLeer?.hipotesis,
+  }), [linea.codigo, faltan, tramoAbierto, codigosVecinos, recorrido, noSePudoLeer?.hipotesis]);
+
+  /** El cartel de la pestaña abierta. Nulo = esa pestaña sí puede abrir. */
+  const cartel = useMemo(
+    () => cartelDePestana(activa, PESTANAS.find((p) => p.id === activa)?.rotulo ?? activa, contexto),
+    [activa, contexto]);
+  /** El cartel de la línea entera, para cerrar el Resumen. */
+  const cartelLinea = useMemo(() => cartelDeLaLinea(contexto), [contexto]);
+  /** Las cuatro fichas de la banda cuando la línea todavía no calcula. */
+  const banda = useMemo(() => bandaSinCalculo({
+    eventosAbiertos,
+    eventosIlegibles: noSePudoLeer?.investigaciones,
+    faltan,
+    fechaDelRecorrido: recorrido ? fechaDeCampoCorta(recorrido.fecha) : undefined,
+    hipotesisIlegibles: noSePudoLeer?.hipotesis,
+  }), [eventosAbiertos, noSePudoLeer?.investigaciones, noSePudoLeer?.hipotesis, faltan, recorrido]);
+
   // EL CIELO. Sale de los dos ejes REALES —los mismos que pinta la pestaña
   // Cargas, por el mismo dueño— y de los expedientes sin cerrar. Ni un texto
   // fijo, ni una bandera escrita a mano: si mañana el inventario trae las
   // fichas, el cielo amanece solo.
+  //
+  // ⚠️ SIN CONDUCTOR NI HIPÓTESIS NO SE CALCULA NADA, ni siquiera para
+  // descartarlo: `ejesDeLinea` sobre cero apoyos devolvería un cielo «0/0», que
+  // es justo el cero en rojo que el Ingeniero no quiere ver en una línea que
+  // todavía no tiene nada que contar.
   const ejes = useMemo(
-    () => ejesDeLinea(apoyos, conductor, hipotesis, linea.circuitos),
-    [apoyos, conductor, hipotesis, linea.circuitos]);
+    () => (calcula && conductor && hipotesis
+      ? ejesDeLinea(apoyos, conductor, hipotesis, linea.circuitos) : null),
+    [calcula, apoyos, conductor, hipotesis, linea.circuitos]);
   const vanosLinea = useMemo(
-    () => vanosDeLinea(apoyos, conductor, hipotesis), [apoyos, conductor, hipotesis]);
+    () => (calcula && conductor && hipotesis ? vanosDeLinea(apoyos, conductor, hipotesis) : null),
+    [calcula, apoyos, conductor, hipotesis]);
 
   const estado = useMemo(() => {
+    if (!ejes || !hipotesis) return null;
     return estadoDeLinea({
       transversal: { filas: ejes.transversal.filas, total: ejes.transversal.total, aRevisar: ejes.transversal.aRevisar },
       longitudinal: ejes.longitudinal
@@ -765,11 +1404,30 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
           ingenieros pueden discutir cifras creyendo que miran la misma. */}
       {avisoRuta && <p className="alerta" role="status">{avisoRuta}</p>}
 
+      {/* Antes que cualquier pestaña: lo que esta pantalla NO está viendo. */}
+      <AvisosDeDatos avisos={avisos} />
+
       <div className="cuerpo">
         <nav className="col-parque" aria-label="Parque de líneas">
           <div className="col-rotulo">Parque · {parque.length}</div>
           <div className="parque-lista">
-            {parque.map((l) => (
+            {parque.map((l) => {
+              // ── QUÉ SE LEE BAJO CADA LÍNEA DEL PARQUE ─────────────────────
+              // El tramo compartido y la ausencia de conductor e hipótesis las
+              // dice el DOCUMENTO de la línea, que el parque ya tiene: cuestan
+              // cero lecturas y valen igual para la abierta y para las cerradas.
+              //
+              // ⚠️ «SIN TORRES REGISTRADAS» SOLO SE AFIRMA DE LA LÍNEA ABIERTA,
+              // que es de la única de la que consta: sus torres ya se leyeron.
+              // De una línea cerrada haría falta una lectura más —la maqueta M4
+              // la deja marcada como «cómo se sabe», sin decidir—, y escribirlo
+              // sin haber mirado sería afirmar lo que no se comprobó.
+              const t = seriesDeLinea(l).find((s) => s.tipo === 'tramo');
+              const suyas: FaltaDeLinea[] = l.id === linea.id ? faltan
+                : [...(l.conductor ? [] : ['conductor' as FaltaDeLinea]),
+                   ...(l.hipotesisId ? [] : ['hipotesis' as FaltaDeLinea])];
+              const falta = faltaEnElParque(suyas);
+              return (
               <button
                 key={l.id}
                 type="button"
@@ -779,14 +1437,30 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
               >
                 <span className="parque-id">{l.codigo}</span>
                 <span className="parque-sub">{nf(l.tensionNominal_kV)} kV</span>
-                {l.id === linea.id && (
+                {t && <span className="parque-sub parque-tramo">{rotuloDeTramo(t.codigo)}</span>}
+                {falta && <span className="parque-sub parque-falta">{falta}</span>}
+                {/* SIN CONTADOR mientras no haya torres: «0/0» no es un cero
+                    malo, es que no hay nada que contar, y el motivo de arriba ya
+                    lo dice (orden del Ingeniero, maqueta M4). */}
+                {l.id === linea.id && estado && (
                   <span className="parque-ver" data-cero={estado.dictaminados === 0}>
                     <b>{nf(estado.dictaminados)}/{nf(estado.total)}</b> con veredicto
                   </span>
                 )}
               </button>
-            ))}
+              );
+            })}
           </div>
+          {/* DAR DE ALTA OTRA LÍNEA. Solo se ofrece a quien puede hacerlo: crear
+              la línea y cargar su trazado. Esconderlo a los demás es cosmético
+              —quien decide son las reglas—, pero ofrecer un botón que va a ser
+              denegado es peor que no ofrecerlo. */}
+          {puede(quien, 'lineas.editar') && puede(quien, 'cargar.puntos') && (
+            <button type="button" className="boton chico parque-alta"
+              onClick={() => almacen.abrirAlta()}>
+              + Alta de línea
+            </button>
+          )}
           {parque.length === 1 && (
             <p className="parque-nota">
               Una sola línea consolidada. Esta columna crece sola cuando entren más:
@@ -798,7 +1472,15 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
         <nav className="col-secciones" aria-label="Secciones">
           <div className="col-rotulo">Secciones</div>
           <div className="pestanas" role="tablist" aria-label="Secciones de la línea" onKeyDown={conFlechas}>
-            {visibles.map((p) => (
+            {visibles.map((p) => {
+              // LAS QUE NO PUEDEN CALCULAR **NO SE APAGAN**: se abren, y dentro
+              // dicen qué falta. Una pestaña apagada obliga a adivinar por qué;
+              // el motivo viaja además en el `title` para quien la sobrevuele.
+              // Con la línea completa esto es `''` y el `title` sigue sin
+              // existir: LN-627 se ve exactamente igual que antes.
+              const suyas = faltasDePestana(p.id, faltan);
+              const motivo = motivoDeFaltas(suyas);
+              return (
               <button
                 key={p.id}
                 id={`pestana-${p.id}`}
@@ -809,16 +1491,18 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
                 className={'pestana' + (activa === p.id ? ' activa' : '')
                   + (p.id === 'falla' && eventosAbiertos ? ' roja' : '')}
                 disabled={!p.lista}
-                title={p.lista ? undefined : 'En construcción'}
+                title={p.lista ? (motivo || undefined) : 'En construcción'}
                 onClick={() => p.lista && irA(p.id)}
               >
                 {p.rotulo}
               </button>
-            ))}
+              );
+            })}
           </div>
         </nav>
 
         <div className="col-contenido">
+          {estado ? (
           <div className={`cielo cielo-${estado.cielo}`} role="status">
             <div className="cielo-txt">
               <span className="cielo-rotulo">{estado.rotulo}</span>
@@ -835,6 +1519,22 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
               <span>apoyos con veredicto · los dos ejes →</span>
             </button>
           </div>
+          ) : (
+          /* EL CIELO DE UNA LÍNEA QUE TODAVÍA NO CALCULA. Ni «0/0» ni un cero en
+             rojo: el medidor dice con palabras que no hay nada que contar. Un
+             cero rojo se lee como «veintiocho torres suspendidas», y aquí no hay
+             ni una torre. */
+          <div className="cielo cielo-niebla" role="status">
+            <div className="cielo-txt">
+              <span className="cielo-rotulo">Sin cálculo</span>
+              <span className="cielo-porque">{porQueNoCalcula(linea.codigo, faltan)}</span>
+            </div>
+            <span className="cielo-medidor">
+              <b>{faltan.includes('torres') ? 'sin torres' : 'sin cálculo'}</b>
+              <span>apoyos con veredicto · los dos ejes</span>
+            </span>
+          </div>
+          )}
 
           {/* `dictaminados` ya no se pasa: el dibujo lo pide al dueño del cruce
               (`coberturaEjes.ts`), el mismo que alimenta este contador de
@@ -848,37 +1548,67 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
               —uno geográfico y otro por orden de vano—. Sigue intacto en el
               resto de pestañas, que es donde sí es lo primero que hay que ver. */}
           {activa !== 'gps' && (
-            <Horizonte ejes={ejes} vanos={vanosLinea} total={estado.total} />
+            <Horizonte ejes={ejes} vanos={vanosLinea} total={estado?.total ?? null}
+              puntosLevantados={recorrido?.puntos.length ?? 0}
+              torres={apoyos.length} faltan={faltan} />
           )}
 
       <div id="panel-linea" role="tabpanel" aria-labelledby={`pestana-${activa}`}>
-        {activa === 'resumen' && (
+        {/* EL CARTEL MANDA. Si a esta pestaña le falta algo SUYO, lo dice con el
+            motivo exacto y no se monta nada más: así no puede quedar media
+            pantalla calculada con huecos. Y como el cartel se decide en
+            `vistas/recorrido.ts`, cada `conductor &&` de abajo es solo lo que
+            TypeScript necesita para creerse lo que aquél ya garantizó. */}
+        {cartel && <CartelNoCalcula cartel={cartel} />}
+
+        {!cartel && activa === 'resumen' && (conductor && hipotesis && calcula ? (
           <Resumen apoyos={apoyos} investigaciones={investigaciones}
             alVerEvento={() => irA('falla')}
-            hipotesis={hipotesis} conductor={conductor} />
-        )}
-        {activa === 'gps' && (
+            hipotesis={hipotesis} conductor={conductor} codigos={codigosDeSerie} />
+        ) : cartelLinea && (
+          <ResumenDelRecorrido r={recorrido} cartel={cartelLinea} banda={banda}
+            tramo={tramoAbierto} vecinas={codigosVecinos}
+            torres={apoyos.length} faltan={faltan} />
+        ))}
+        {!cartel && activa === 'gps' && (hipotesis && apoyos.length >= 2 ? (
           <DetalleGps apoyos={apoyos} investigaciones={investigaciones}
             alVerEvento={() => irA('falla')} hipotesis={hipotesis}
             codigoLinea={linea.codigo}
             sesion={quien && { rol: quien.rol, claims: quien.claims }} />
-        )}
+        ) : recorrido ? <DetalleDelRecorrido r={recorrido} torres={apoyos.length} /> : (
+          <section className="panel vacio">
+            <div className="vacio-t">{linea.codigo} no tiene todavía recorrido que enseñar</div>
+            <p className="vacio-c">
+              Ni torres registradas ni ningún recorrido levantado con GPS. No es un hueco de la
+              aplicación: es el estado de la línea.
+            </p>
+          </section>
+        ))}
         {activa === 'falla' && <Falla investigaciones={investigaciones} apoyos={apoyos} evidencias={evidencias} noSePudoLeer={noSePudoLeer?.investigaciones} noSePudoLeerFotos={noSePudoLeer?.evidencias} />}
-        {activa === 'distancias' && <Distancias apoyos={apoyos} />}
+        {!cartel && activa === 'distancias' && (apoyos.length >= 2
+          ? <Distancias apoyos={apoyos} codigos={codigosDeSerie} />
+          : recorrido ? <DistanciasDelRecorrido r={recorrido} /> : (
+          <section className="panel vacio">
+            <div className="vacio-t">{linea.codigo} no tiene entre qué medir</div>
+            <p className="vacio-c">
+              Hacen falta al menos dos puntos: ni torres registradas ni recorrido levantado.
+            </p>
+          </section>
+        ))}
         {/* La sesión viaja a Fichas por el mismo motivo por el que ya viajaba a
             Cargar: desde que esta pestaña ESCRIBE, saber con qué permiso se
             entró deja de ser un lujo — sin eso, quien no pueda escribir lo
             descubriría por una denegación de la base, en inglés y después de
             rellenar seis campos. Se pasa aunque la sesión aún no conste: Fichas
             SIEMPRE se puede leer, y es el botón lo que se guarda. */}
-        {activa === 'fichas' && (
+        {!cartel && activa === 'fichas' && conductor && hipotesis && (
           <Fichas apoyos={apoyos} linea={linea} conductor={conductor} hipotesis={hipotesis}
             evidencias={evidencias} noSePudoLeerFotos={noSePudoLeer?.evidencias}
-            sesion={quien} />
+            sesion={quien} codigos={codigosDeSerie} />
         )}
-        {activa === 'mecanico' && <Mecanico apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} />}
-        {activa === 'fundamentos' && <Fundamentos apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} />}
-        {activa === 'termica' && <Termica linea={linea} conductor={conductor} hipotesis={hipotesis} />}
+        {!cartel && activa === 'mecanico' && conductor && hipotesis && <Mecanico apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} />}
+        {!cartel && activa === 'fundamentos' && conductor && hipotesis && <Fundamentos apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} codigos={codigosDeSerie} />}
+        {!cartel && activa === 'termica' && conductor && hipotesis && <Termica linea={linea} conductor={conductor} hipotesis={hipotesis} />}
         {/* Perezosa a propósito: trae el lector de `.xlsx` y las gráficas, y
             quien no abra la pestaña no baja un byte de eso. */}
         {activa === 'parametros' && (
@@ -887,18 +1617,33 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
                 cinco líneas más arriba. Sin ellos la pantalla no puede calcular
                 la ampacidad, y sin ampacidad no hay veredicto: solo el
                 porcentaje que trae el archivo, contra la capacidad NOMINAL
-                (`99 §ADR-093`). */}
+                (`99 §ADR-093`). Esta pestaña ABRE IGUAL sin ellos —lee el
+                histórico por el código de la línea— y ella misma dice lo que no
+                puede dictaminar.
+                ⚠️ LA LONGITUD, SOLO SI HAY LÍNEA QUE MEDIR. Sin torres,
+                `derivarLevantamiento` daría cero metros y las pérdidas saldrían
+                a cero: un número inventado por el lado tranquilizador. Nulo es
+                «no consta», y la pantalla lo dice. */}
             <Cargabilidad lineaAbierta={linea.codigo}
+              lineasDelParque={parque.map((l) => l.codigo)}
               conductor={conductor} hipotesis={hipotesis}
               tensionNominal_kV={linea.tensionNominal_kV}
-              longitud_m={derivarLevantamiento(apoyos).longitud_m}
+              longitud_m={apoyos.length >= 2 ? derivarLevantamiento(apoyos).longitud_m : null}
               sesion={quien && { rol: quien.rol, orgId: quien.orgId, uid: quien.uid, claims: quien.claims }} />
           </Suspense>
         )}
-        {activa === 'viento' && <Viento apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} />}
-        {activa === 'cargas' && <Cargas linea={linea} apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} />}
-        {activa === 'cantidades' && <Cantidades linea={linea} apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} />}
-        {activa === 'exportar' && <Exportar linea={linea} apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} investigaciones={investigaciones} />}
+        {!cartel && activa === 'viento' && conductor && hipotesis && <Viento apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} />}
+        {!cartel && activa === 'cargas' && conductor && hipotesis && <Cargas linea={linea} apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} />}
+        {!cartel && activa === 'cantidades' && conductor && hipotesis && <Cantidades linea={linea} apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} />}
+        {/* EXPORTAR SE MONTA SIEMPRE, también sin conductor ni torres: es la
+            pestaña que saca el BORRADOR no firmable, y con el cartel delante no
+            se alcanzaba nunca (revisión del 17-09). El cartel sigue arriba
+            diciendo qué falta; debajo, la pestaña con sus botones apagados. */}
+        {activa === 'exportar' && (
+          <Exportar linea={linea} apoyos={apoyos} conductor={conductor ?? undefined}
+            hipotesis={hipotesis ?? undefined} investigaciones={investigaciones}
+            levantamientos={levantamientos ?? []} vecinas={vecinasParaExportar} />
+        )}
         {/* La sesión se vuelve a comprobar aquí: `visibles` decide si la pestaña
             se enseña, y esto decide si el panel se pinta. Son dos guardas del
             mismo hecho a propósito — la primera puede quedarse vieja si el
@@ -909,7 +1654,7 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
         {/* La sesión se pasa AUNQUE aún no conste: esta pantalla siempre se
             puede mirar —el reparto se revisa sin escribir nada— y lo que se
             guarda es el botón. Lo mismo que ya se hace con Fichas. */}
-        {activa === 'fotos' && (
+        {!cartel && activa === 'fotos' && (
           <Fotos linea={linea} apoyos={apoyos} evidencias={evidencias}
             sesion={quien} />
         )}

@@ -4,10 +4,10 @@
 // React se usa ÚNICAMENTE para pintar (ADR-005). Aquí no hay lógica de negocio:
 // se lee el estado del almacén, se elige qué pantalla toca, y ya.
 // ============================================================================
-import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useState, type ReactElement } from 'react';
 import { PROVEEDOR_CONTRASENA, VERSION_CONTRATO } from '@lineas/contratos';
 import { derivarLevantamiento } from '@lineas/exportar/levantamiento';
-import { useAtlas, useDatos, useMotivoDeSalida, usePersonas, useQuien, useRca, useSesion, almacen } from './datos/enlace';
+import { useAlta, useAtlas, useDatos, useMotivoDeSalida, usePersonas, useQuien, useRca, useSesion, almacen } from './datos/enlace';
 import { puede } from './datos/permisos';
 import { Rca } from './componentes/Rca';
 import { conReintentos } from './datos/cargar';
@@ -31,6 +31,10 @@ import { RelojDeSesion } from './componentes/RelojDeSesion';
 // nunca la abre no baja un byte de eso.
 const Usuarios = lazy(() => conReintentos(() => import('./componentes/Usuarios'))
   .then((m) => ({ default: m.Usuarios })));
+// El alta de línea, también en diferido y por la misma razón: se abre una vez
+// por línea nueva, y arrastra el lector del GPS y su tabla de puntos.
+const AltaDeLinea = lazy(() => conReintentos(() => import('./componentes/AltaDeLinea'))
+  .then((m) => ({ default: m.AltaDeLinea })));
 
 /**
  * Quién está adentro y cómo salir. En una demostración, no poder cerrar sesión
@@ -221,11 +225,30 @@ function Pie() {
   );
 }
 
-function Contenido() {
+/**
+ * QUÉ PANTALLA TOCA. **El tipo de retorno está declarado a propósito, y es lo
+ * que convierte el `switch` de abajo en una obligación.**
+ *
+ * Hasta hoy esta función no lo declaraba, así que TypeScript INFERÍA
+ * `ReactElement | undefined` y el `switch` sin caso por defecto no obligaba a
+ * nada — justo lo contrario de lo que decía su propio comentario. MEDIDO, no
+ * supuesto: con la fase «recorrido» añadida a `EstadoDatos` y sin tratar aquí,
+ * `npx tsc --noEmit` pasaba LIMPIO, y una línea sin torres pintaba una pantalla
+ * EN BLANCO: ni datos, ni parque, ni error, ni «Reintentar» — porque una
+ * función de React que devuelve `undefined` no dibuja nada y no se queja.
+ *
+ * Con `: ReactElement` declarado, salirse por el final es el error TS2366 y la
+ * compilación se cae. O sea: añadir una fase a `EstadoDatos` obliga a decidir
+ * qué se pinta, o no hay despliegue. El compilador vigila el olvido de verdad,
+ * no de palabra.
+ */
+function Contenido(): ReactElement {
   const d = useDatos();
   const rca = useRca();
   const atlas = useAtlas();
   const personas = usePersonas();
+  const alta = useAlta();
+  const quien = useQuien();
   const sesion = useSesion();
   const motivoDeSalida = useMotivoDeSalida();
 
@@ -322,6 +345,15 @@ function Contenido() {
     return <Suspense fallback={<Cargando />}><Usuarios /></Suspense>;
   }
 
+  // EL ALTA DE LÍNEA, por la MISMA razón que personas y en el mismo sitio: hay
+  // que poder dar de alta la PRIMERA línea, y entonces `d.fase` es 'vacio' —
+  // con el `switch` delante, la pantalla de «todavía no hay ninguna línea» se
+  // habría comido el alta y no habría forma de salir de cero.
+  if (alta && quien && d.fase !== 'cambiar_contrasena') {
+    const parque = d.fase === 'listo' || d.fase === 'recorrido' ? d.lineas : undefined;
+    return <Suspense fallback={<Cargando />}><AltaDeLinea sesion={quien} parque={parque} /></Suspense>;
+  }
+
   switch (d.fase) {
     case 'sin_sesion': return (
       <SinSesion onEntrar={entrar} onRecuperar={recuperar} motivoDeSalida={motivoDeSalida} />
@@ -336,8 +368,44 @@ function Contenido() {
     case 'error':      return <Error_ mensaje={d.mensaje} onReintentar={() => void almacen.cargar()} />;
     // No es una ruta: es una fase. Y este `switch` NO tiene caso por defecto a
     // propósito — añadir una fase OBLIGA a tratarla aquí o la compilación se
-    // cae. El compilador vigila el olvido.
+    // cae (lo hace cumplir el `: ReactElement` de la firma; ver arriba por qué
+    // hizo falta escribirlo). El compilador vigila el olvido.
     case 'cambiar_contrasena': return <Contrasena correo={d.correo} />;
+    // ⚠️ LA LÍNEA QUE TODAVÍA NO CALCULA SE PINTA, NO SE ESCONDE (0.16.0).
+    //
+    // Es la MISMA vista de línea que la de abajo, y a propósito: una línea
+    // recién dada de alta no es otra aplicación ni un error, es la misma línea
+    // con menos cosas declaradas. Mandarla a una pantalla aparte habría
+    // partido en dos el parque, las pestañas y el mapa — y quien entrara por
+    // un enlace a una línea a medias habría perdido el acceso a la que sí
+    // funciona, que es exactamente lo que hacían `error` y `vacio` hasta
+    // 0.15.0 (ver `EstadoDatos` en `datos/repositorio.ts`).
+    //
+    // **Conductor e hipótesis van NULOS, no prestados** (orden del Ingeniero,
+    // 2026-09-17): no se copia nada de otra línea, ni siquiera para que las
+    // pestañas «se vean bien». La fase ni siquiera trae campo donde colarlos;
+    // aquí se dice explícitamente que no hay, y cada pestaña que necesite uno
+    // de los dos lo declara como hueco con su motivo en vez de calcular con el
+    // de un vecino — un número firmado con la hipótesis de otra línea es el
+    // fallo más caro que este proyecto puede cometer.
+    //
+    // Lo demás viaja tal cual en el reparto: `faltan` (qué hay que declarar,
+    // en orden fijo), `levantamientos` (lo recorrido en campo y aún no
+    // registrado como torres), `vecinas`, `avisosDeSeries` y `noSePudoLeer`
+    // —que dice «no se pudo mirar» donde no se pudo, nunca «no hay»—.
+    //
+    // ⚠️ LA OTRA MITAD DEL TRATO ESTÁ EN `componentes/Linea.tsx`: `VistaLinea`
+    // todavía declara `conductor: Conductor; hipotesis: Hipotesis` sin admitir
+    // nulo, así que mientras no los abra a `Conductor | null` e
+    // `Hipotesis | null` —y cada pestaña que los use declare el hueco en vez de
+    // calcular sin ellos— la compilación se cae AQUÍ, en estas dos palabras.
+    //
+    // Se deja que se caiga a propósito. Lo contrario —forzar el tipo con un
+    // `as`— compilaría hoy y reventaría en producción la primera vez que una
+    // pestaña leyera el conductor que no existe; y de paso apagaría el único
+    // aviso que recuerda que esa mitad falta. Un compilador rojo se ve; una
+    // conversión forzada, no.
+    case 'recorrido':  return <VistaLinea {...d} conductor={null} hipotesis={null} />;
     case 'listo':      return <VistaLinea {...d} />;
   }
 }

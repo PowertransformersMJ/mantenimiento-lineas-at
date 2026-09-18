@@ -230,6 +230,7 @@ vive en `10 · TODO-79`, y los **relevos de sesión** `2026-08-22/24/26-relevo-c
 | `ADR-130` | 2026-09-11 | Un día se lee hora a hora: las 24 rotuladas y cada lectura sobre su hora | `research-archive/2026-09-11-eje-de-dias/` |
 | `ADR-131` | 2026-09-11 | El eje del histórico es el calendario: cada día uno a uno, los huecos se ven y un día abre sus 24 horas en todas las gráficas; sin tablas con histórico | `research-archive/2026-09-11-eje-de-dias/` |
 | `ADR-132` | 2026-09-16 | LN-617 y LN-628 al parque, fase 0: las herramientas dejan de heredar LN-627 y el SCADA de las dos bahías queda listo | `research-archive/2026-09-16-ln617-ln628/` |
+| `ADR-133` | 2026-09-18 | Una torre, dos líneas: el tramo compartido 618, el alta que pulsa él y la línea que se abre sin conductor | `research-archive/2026-09-16-ln617-ln628/` |
 
 > Toda decisión cara de revertir entra aquí con su ADR y su crudo enlazado. Si hubo comité o consejo
 > externo y el crudo no está archivado, la tarea **no está cerrada** (`CLAUDE.md §G.4`).

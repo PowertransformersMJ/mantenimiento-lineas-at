@@ -190,6 +190,26 @@ service cloud.firestore {
     function alcanzaDelDoc()       { return !existe() || alcanza(resource.data.lineaId); }
     function alcanzaSiDeclaraDoc() { return !existe() || alcanzaSiDeclara(resource.data); }
 
+    /**
+     * El mismo alcance, pero sobre el campo que se llama `serieId`.
+     *
+     * POR QUÉ HAY DOS NOMBRES PARA LA MISMA IDEA, y no es un descuido: desde
+     * `§ADR-133` un identificador de SERIE es «el de una línea o el de un tramo
+     * compartido». En `apoyos` ese identificador sigue viajando en `lineaId`
+     * —renombrarlo habría exigido reescribir los 30 apoyos que ya existen, y
+     * aquí los cambios son ADITIVOS—, mientras que la colección NUEVA
+     * (`levantamientos`) lo llama por su nombre honesto desde el primer
+     * documento. La comprobación es exactamente la misma; lo único que cambia es
+     * de qué campo sale.
+     *
+     * Y el campo es OBLIGATORIO en su molde, así que se pide sin red de
+     * seguridad —como en `apoyos`, no como en `hipotesis`—: un levantamiento
+     * siempre se hizo sobre algo. Lo que eso implica está medido y escrito en
+     * `tests/reglas/permisos.reglas.mjs`: si algún día apareciera un documento
+     * sin el campo, se leería con `l: ['*']` y NO con un alcance acotado.
+     */
+    function alcanzaSerieDelDoc() { return !existe() || alcanza(resource.data.serieId); }
+
     // ── Lectura ────────────────────────────────────────────────────────────
     /**
      * Lectura: quien trae la función `corto` y es de la organización dueña del
@@ -231,6 +251,15 @@ service cloud.firestore {
       // El identificador de la línea es el ID DEL DOCUMENTO — `lineas` no lleva
       // un campo `lineaId`: ella ES la línea. Por eso el alcance se comprueba
       // contra el comodín de la ruta y no contra `resource.data`.
+      //
+      // ⚠️ MEDIDO, NO SUPUESTO (§ADR-133): que una línea DECLARE los tramos
+      // compartidos que recorre no necesita ni una regla más. Estas tres líneas
+      // no miran los campos del documento salvo los reservados, así que un campo
+      // nuevo del molde —`tramosCompartidos`, `recorridoCompleto`— pasa por la
+      // misma puerta que los de hoy; y una línea SIN apoyos, sin conductor y sin
+      // hipótesis nace y se lee igual, porque aquí nunca se exigió que existiera
+      // nada colgando de ella. Lo comprueban las pruebas del emulador, que es la
+      // única forma de saberlo: una regla se puede leer bien y denegar igual.
       allow read:   if puedeVer('lv') && alcanza(lineaId);
       allow create: if tiene('le') && altaCoherente() && alcanza(lineaId);
       allow update: if tiene('le') && deMiOrg(resource.data) && noTocaReservados()
@@ -239,6 +268,14 @@ service cloud.firestore {
     }
 
     match /apoyos/{apoyoId} {
+      // ⚠️ `lineaId` SE LEE «ID DE LA SERIE» (§ADR-133): el de su línea, o el del
+      // TRAMO COMPARTIDO cuando la torre la recorren dos líneas. El campo no se
+      // renombra —los apoyos que ya existen lo traen así y aquí los cambios son
+      // aditivos—, y la regla no cambia: `alcanza()` compara un identificador
+      // contra la lista del token sin preguntar de qué es. Un id de tramo pasa
+      // con `l: ['*']`, que es lo que trae todo el mundo hoy; con un alcance
+      // ACOTADO haría falta añadir el id del tramo a la lista de esa persona, y
+      // eso está probado y declarado como hueco conocido en `tests/reglas/`.
       allow read:   if puedeVer('lv') && alcanzaDelDoc();
       // CREAR un apoyo es `cargar.puntos` ('cp'), NO `apoyos.editar` ('ae'), y
       // el catálogo lo dice con esas mismas palabras: 'cp' es «cargar el trazado
@@ -263,6 +300,147 @@ service cloud.firestore {
                     && alcanza(resource.data.lineaId)
                     && alcanza(request.resource.data.lineaId)
                     && request.resource.data.revision == resource.data.get('revision', 0) + 1;
+      allow delete: if false;
+    }
+
+    // ── EL LEVANTAMIENTO TAL CUAL, ANTES DE QUE HAYA NINGUNA TORRE (§ADR-133) ─
+    //
+    // QUÉ ES, Y POR QUÉ NO ES UN APOYO. Cuando una cuadrilla recorre una línea
+    // con el GPS de mano trae una lista de puntos medidos: fecha, nombre que le
+    // dio en campo, posición, cota, quién lo midió y con qué archivo. Eso NO son
+    // torres todavía: una torre registrada tiene función —suspensión, retención,
+    // ángulo— y esa función la declara el ingeniero, no el GPS. Registrar los
+    // puntos como apoyos para «ya tenerlos» sería fabricar un dato que nadie ha
+    // medido, y como aquí NADA SE BORRA, fabricarlo es fabricarlo para siempre.
+    //
+    // Así que el recorrido se guarda TAL CUAL, en su propio documento, rotulado
+    // «sin registrar como torres», y las torres nacen después, cuando él declare
+    // qué es cada punto. Mientras tanto la línea existe, se abre y dice qué le
+    // falta, en vez de no poder darse de alta.
+    //
+    // DE QUÉ CUELGA: de una SERIE (`serieId`) —una línea o un tramo compartido—,
+    // no de una línea a secas. El levantamiento de un tramo compartido lo hicieron
+    // una vez las dos líneas que lo recorren, y se guarda UNA vez a nombre del tramo:
+    // duplicarlo por línea daría dos versiones del mismo día de campo y ninguna
+    // forma de saber cuál manda.
+
+    /**
+     * ⚠️ POR QUÉ ESTO EXISTE, Y POR QUÉ `alcanza()` NO BASTABA. Se midió en el
+     * emulador: `alcanza()` es un `||` cuyo lado izquierdo —`'*' in l`— es cierto
+     * sin mirar el documento, y hoy TODO EL MUNDO trae `l: ['*']`. Así que un
+     * levantamiento SIN `serieId` se creaba sin problema: la regla nunca llegaba
+     * a evaluar el campo que falta. Es la misma trampa que ya está medida para el
+     * apoyo sin línea, con una diferencia que la hace barata de cerrar: esta
+     * colección es NUEVA y no hay ni un documento viejo al que dejar inservible.
+     *
+     * Y hay que cerrarla porque aquí no se borra nada: un recorrido que no se
+     * sabe de qué serie es no lo puede leer nadie con alcance acotado, no sale en
+     * ninguna consulta por serie… y se queda ahí para siempre. Mismo criterio que
+     * `cargabilidadCoherente()`, por la misma razón escrita allí.
+     */
+    function levantamientoCoherente() {
+      return altaCoherente()
+          && request.resource.data.serieId is string
+          && request.resource.data.serieId.size() > 0
+          && notaYRevisionSanas();
+    }
+
+    /**
+     * LA NOTA ES TEXTO Y LA REVISIÓN UN ENTERO. Suena obvio; no lo era.
+     *
+     * ⚠️ QUÉ SE ESTABA MIRANDO Y QUÉ NO. La lista cerrada de abajo
+     * (`hasOnly([...])`) dice QUÉ CLAVES se pueden tocar, y nada más: del
+     * CONTENIDO de esas claves no sabe nada. Así que `nota: {puntos: […]}` o
+     * `revision: 'mañana'` pasaban la regla enteros. El molde los rechaza —pero
+     * el molde vive en el navegador, y las reglas son la última línea; quien
+     * escribe con el SDK a pelo no pasa por el molde.
+     *
+     * Y POR QUÉ SE PIDE TAMBIÉN AL CREAR, no solo al editar: un documento con la
+     * nota de un tipo que el molde no acepta lo DESCARTA el lector
+     * (`validar<Levantamiento>`) y desaparece de la pantalla entero —con sus
+     * puntos— sin un solo error. No se puede borrar (`delete: if false`) y queda
+     * congelado: cualquier edición que no TOQUE la nota vuelve a encontrarse la
+     * nota mala en el documento resultante y se niega. Arreglarlo es posible
+     * —escribir encima de la nota con texto, y está medido en
+     * `tests/reglas/permisos.reglas.mjs`—, pero hay que SABER que ese recorrido
+     * existe, y en la pantalla no aparece. Mejor no dejarlo nacer.
+     *
+     * Se comprueba «si viene», no «tiene que venir»: la nota es opcional en el
+     * molde —un recorrido normal no lleva ninguna— y exigirla convertiría un
+     * campo voluntario en obligatorio. `request.resource.data` es el documento
+     * TAL COMO QUEDARÁ, así que en una edición esto también vigila lo que ya
+     * estaba, que es justo lo que se quiere.
+     *
+     * NO se comprueba el largo de la nota ni el valor de la revisión: el largo
+     * es un número del molde (1.000 caracteres) que aquí habría que copiar a
+     * mano, y copiarlo es firmar que dos sitios digan lo mismo para siempre. Lo
+     * que se cierra aquí es el TIPO, que no cambia nunca.
+     */
+    function notaYRevisionSanas() {
+      return (!('nota' in request.resource.data)
+              || request.resource.data.nota is string)
+          && (!('revision' in request.resource.data)
+              || request.resource.data.revision is int);
+    }
+
+    match /levantamientos/{levantamientoId} {
+      // LEER: el mismo permiso con el que se ven los apoyos ('lv'), y a
+      // propósito. Quien puede ver las torres de una línea puede ver el recorrido
+      // del que salieron; negarlo dejaría media pantalla en blanco sin proteger
+      // nada que la otra mitad no enseñe ya.
+      allow read:   if puedeVer('lv') && alcanzaSerieDelDoc();
+
+      // CREAR: `cargar.puntos` ('cp'), la MISMA función que crea apoyos, porque
+      // es literalmente el mismo acto —cargar el trazado que trajo el GPS— y
+      // pedir menos aquí sería abrir por la puerta de al lado lo que la regla de
+      // `apoyos` acaba de cerrar: quien no puede cargar el trazado tampoco puede
+      // dejar guardado el trazado en crudo.
+      allow create: if tiene('cp') && levantamientoCoherente()
+                    && alcanza(request.resource.data.serieId);
+
+      // EDITAR: SOLO LA NOTA. Ni un punto se reescribe, y ésta es la razón por la
+      // que la lista es cerrada y no una lista de prohibidos: un levantamiento es
+      // un HECHO FECHADO, como el sondeo de clima. Lo que el GPS midió el día que
+      // se recorrió la línea tiene que seguir diciendo lo mismo dentro de seis
+      // años, cuando alguien pregunte de dónde salió una distancia de un informe
+      // firmado. Poder corregir un punto «porque estaba mal» convertiría la
+      // prueba en una opinión editable, y además sin rastro: aquí no hay
+      // versiones anteriores que consultar. Si un recorrido está mal, se vuelve a
+      // levantar y se guarda otro; el malo se queda, con su nota diciendo por qué.
+      //
+      // La nota sí se edita porque es de la casa: «la R del GPS es anotación
+      // mía», «faltan E01-E06». Es lo único que una persona escribe aquí.
+      //
+      // ⚠️ `noTocaReservados()` NO se repite, y no es un olvido: la lista cerrada
+      // de abajo ya deja fuera `orgId`, `creadoPor` y `creadoEn` —y también
+      // `serieId` y los puntos—, así que repetirlo solo daría una segunda copia
+      // de la misma condición que mañana se quedaría desincronizada. Es el mismo
+      // criterio que en `evidencias`.
+      //
+      // Y TAMPOCO LLEVA EL CERROJO DE REVISIÓN de `apoyos`, por la misma razón
+      // que no lo lleva la evidencia: allí el peligro es que dos personas
+      // guarden la ficha ENTERA y la segunda borre en silencio lo que escribió la
+      // primera. Aquí lo único que se puede escribir es un campo de texto suyo;
+      // lo que un cerrojo protegería —los puntos— ya no se puede tocar de
+      // ninguna manera. El número de revisión se deja en la lista para que la
+      // escritura pueda seguir firmándose como las demás.
+      allow update: if tiene('cp') && deMiOrg(resource.data)
+                    // Las DOS series, la que tiene y la que tendría, igual que en
+                    // `apoyos`: hoy la lista cerrada ya congela `serieId`, pero si
+                    // mañana alguien la ensancha, esta línea sigue impidiendo que
+                    // un levantamiento se saque de su alcance mudándolo de serie.
+                    && alcanza(resource.data.serieId)
+                    && alcanza(request.resource.data.serieId)
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['nota', 'actualizadoEn', 'actualizadoPor', 'revision'])
+                    // Y QUÉ SE ESCRIBE DENTRO DE ESAS CLAVES, no solo cuáles
+                    // son: la lista de arriba mira nombres, no contenido
+                    // (`notaYRevisionSanas()`, con su porqué escrito allí).
+                    && notaYRevisionSanas();
+
+      // Igual que `lineas` y `apoyos`: lo cargado se queda cargado. Un
+      // levantamiento borrable sería un recorrido que se puede hacer desaparecer
+      // después de haber sostenido un informe.
       allow delete: if false;
     }
 

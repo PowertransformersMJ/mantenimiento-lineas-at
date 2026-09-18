@@ -650,6 +650,8 @@ p.fund-vivo + .sello-calculo { margin-top: 5px; }
 .parque-linea[aria-current="true"] .parque-id { color: var(--acc); }
 .parque-sub { display: block; margin-top: 2px; font-size: 10.5px; color: var(--mut); font-variant-numeric: tabular-nums; }
 .parque-nota { margin: 8px 4px 0; font-size: 10.5px; color: var(--mut); line-height: 1.5; }
+/* Dar de alta otra línea: debajo de la lista del parque, no dentro de ella. */
+.parque-alta { width: 100%; margin-top: 8px; }
 
 /* ── la columna de secciones: las MISMAS pestañas, en vertical ───────────── */
 .col-secciones .pestanas { flex-direction: column; flex-wrap: nowrap; gap: 1px; margin-bottom: 0; }
@@ -1915,3 +1917,45 @@ p.fund-vivo + .sello-calculo { margin-top: 5px; }
 }
 .grafica-dia-barra > span { font-size: 14px; }
 .grafica-dia-barra > .volver { margin-left: auto; }
+
+/* ── LA LÍNEA QUE TODAVÍA NO CALCULA (molde 0.16.0) ───────────────────────
+   Una línea recién dada de alta no tiene ni torres registradas, ni conductor,
+   ni hipótesis, y aun así abre: el parque sigue a la izquierda y cada pestaña
+   dice con su nombre qué le falta. Valores tomados de las maquetas M2 y M4
+   aprobadas por el Ingeniero. Solo tokens: si la paleta cambia, esto cambia
+   con ella. */
+
+/* La marca del tramo compartido bajo una línea del parque. INFORMATIVA (azul),
+   nunca un aviso: que dos líneas vayan en las mismas torres no es un problema. */
+.parque-tramo {
+  display: inline-block; margin-top: 5px; padding: 1px 7px; border-radius: 999px;
+  background: var(--t-azul); color: var(--tx-info); border: 1px solid var(--b-azul);
+  font-size: 10px; line-height: 1.5; letter-spacing: .2px;
+}
+/* Lo que le falta a esa línea: «sin torres registradas · sin conductor ni
+   hipótesis». En cursiva y con el tono de PENDIENTE, que no es el de error:
+   faltar no es estar mal, es no haber llegado todavía. */
+.parque-falta {
+  display: block; margin-top: 4px; font-size: 10px; line-height: 1.4;
+  color: var(--tx-pendiente); font-style: italic;
+}
+
+/* El cartel de una pestaña que no puede calcular: la lista de lo que falta va
+   alineada a la izquierda dentro de un cartel centrado — una lista centrada de
+   tres renglones largos no se lee. */
+.falta-lista { text-align: left; }
+.cartel-no-calcula .falta-lista {
+  display: inline-block; max-width: 64ch; margin: 10px auto 0;
+  font-size: 12.5px; color: var(--tx2);
+}
+
+/* El horizonte cuando NO hay torres. No se dibujan los puntos levantados como
+   torres huecas: una torre hueca significa «existe y no tiene veredicto», y
+   aquí no existe ninguna. */
+.hz-sin { fill: var(--tx2); font-size: 26px; font-style: italic; }
+
+/* El esquema del RECORRIDO LEVANTADO: trazo discontinuo y punto hueco, para que
+   no se confunda con una torre registrada, que lleva el color de su función. */
+.lev-traza { stroke-dasharray: 6 4; }
+.lev-punto { fill: var(--pnl-alto); stroke: var(--tx3); stroke-width: 1.4; }
+.lev-sello { margin-top: 0; }

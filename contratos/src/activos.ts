@@ -255,6 +255,139 @@ export const Conductor = z.object({
   ampacidadDeFabricante: AmpacidadDeFabricante.optional(),
 });
 
+// ── El tramo COMPARTIDO: una torre, dos líneas ──────────────────────────────
+
+/**
+ * EL CÓDIGO DE UN TRAMO COMPARTIDO. Lleva el prefijo `TR-` y va en ASCII.
+ *
+ * ⚠️ POR QUÉ NO SE LLAMA «TRAMO» A SECAS, que es el nombre que pedía el cuerpo.
+ * En este sistema **«tramo» ya significa TRAMO DE TENSIÓN**: el trozo de línea
+ * entre dos apoyos que anclan el conductor, que es la unidad del cálculo
+ * mecánico (`nucleo/mecanica.js`, pestaña Mecánico, `FUNCIONES_ANCLA` aquí
+ * arriba). Si un segundo significado entrara con el mismo nombre, «recalcular el
+ * tramo» dejaría de tener UNA lectura: la del cálculo o la del trozo que
+ * comparten dos líneas. El día que un número salga mal, la discusión tiene que
+ * poder ser sobre el cálculo — no sobre qué tramo era. Por eso el campo se llama
+ * `tramosCompartidos` y nunca `tramos`, y en pantalla se lee «tramo compartido
+ * 618».
+ *
+ * ASCII y sin espacios porque el código NO se queda en la pantalla: viaja en
+ * nombres de archivo exportados, en claves de exportación y en la clave del
+ * portero de fotografías. Es la misma razón por la que `TipoCapacidadLongitudinal`
+ * va sin eñe: una clave que cada exportador escribe de una manera no es una clave.
+ */
+export const CodigoTramoCompartido = z.string()
+  .min(4).max(24)
+  .regex(/^TR-[A-Za-z0-9][A-Za-z0-9-]*$/,
+    'el código de un tramo compartido va como «TR-618»: prefijo TR-, ASCII, sin espacios ni acentos');
+
+/**
+ * EL CIERRE DE UNA DECLARACIÓN. Una entrada de `tramosCompartidos` **nunca se
+ * quita: se cierra**, con fecha, autor y motivo.
+ *
+ * No es ceremonia. «Esta línea recorre este tramo» es un HECHO FECHADO, igual
+ * que renumerar un apoyo o corregir una coordenada (`CLAUDE.md §3.1`): si el día
+ * que deja de recorrerlo se borrase la entrada, el informe que se firmó el año
+ * pasado —con las torres de ese tramo dentro— pasaría a ser indefendible, porque
+ * el sistema diría que esa línea nunca pasó por ahí.
+ *
+ * Los dos tipos NO son lo mismo y por eso no se fusionan:
+ *   · `fin`        — dejó de recorrerlo de verdad (se seccionó, se desmontó).
+ *                    Lo anterior SIGUE SIENDO CIERTO hasta esa fecha.
+ *   · `correccion` — nunca lo recorrió: esto se declaró por error. Lo anterior
+ *                    NO era cierto, y lo que se calculó con ello hay que revisarlo.
+ */
+export const CierreDeTramoCompartido = z.object({
+  tipo: z.enum(['fin', 'correccion']),
+  en: Instante,
+  por: Uid,
+  /** Una línea que otro pueda leer dentro de tres años. Obligatoria. */
+  motivo: z.string().min(1).max(500),
+}).strict();
+
+/**
+ * QUE ESTA LÍNEA RECORRE ESE TRAMO COMPARTIDO.
+ *
+ * ── LA DECISIÓN QUE HAY DETRÁS (orden del Ingeniero, 2026-09-17) ───────────
+ * Las torres de un trozo que comparten dos líneas se registran **UNA sola vez**,
+ * a nombre del TRAMO, y cada línea declara aquí que lo recorre. La alternativa
+ * —sembrar la misma torre en las dos líneas— daba dos identidades para siempre
+ * (el id sale de `sha256(org|código|semilla)`), dos fichas que divergen, las
+ * fotos repartidas entre ambas y, lo caro: **cada copia calcularía la carga de
+ * un solo circuito en una torre que lleva dos**, o sea la mitad, con veredicto
+ * «cumple» encima. Y un apoyo no se puede borrar (`firestore.rules`).
+ *
+ * ── CAMPOS ────────────────────────────────────────────────────────────────
+ * `id` es la identidad del tramo (su UUID) y es lo que llevan sus torres en
+ * `lineaId` — que desde esta versión se lee «id de la SERIE»: el de su línea o
+ * el de su tramo compartido. `codigo` es el rótulo legible; el dueño del código
+ * es el libro de códigos, aquí se copia para poder leer el documento y enseñarlo
+ * sin cruzarlo con nada, y una prueba comprueba que los dos concuerdan.
+ *
+ * `desdeApoyoId` / `hastaApoyoId` ausentes = **el tramo entero**. Están para el
+ * día en que una línea entre o salga a mitad del tramo: entonces se acota, sin
+ * mover ni una torre.
+ *
+ * ⚠️ `strict`: una clave mal escrita se RECHAZA en vez de escribirse. Es un dato
+ * que decide qué torres entran al informe de una línea; un `desdeApoyold` con
+ * ele minúscula que se guardara en silencio dejaría fuera medio tramo.
+ */
+export const TramoCompartidoEnLinea = z.object({
+  /** UUID del tramo compartido. Es el `lineaId` que llevan sus torres. */
+  id: Id,
+  codigo: CodigoTramoCompartido,
+  /** Ausentes los dos = la línea recorre el tramo entero. */
+  desdeApoyoId: Id.optional(),
+  hastaApoyoId: Id.optional(),
+  /**
+   * De dónde sale que esta línea recorre este tramo, y quién lo dice. Opcionales
+   * en el molde de LECTURA —igual que `SelloDeDato.fuente`— y exigibles al
+   * ESCRIBIR: el punto donde se aprieta la tuerca es la escritura. `fuente` es
+   * la línea que otro pueda discutir: un plano, un acta, un recorrido.
+   */
+  procedencia: Procedencia.optional(),
+  fuente: z.string().min(1).max(500).optional(),
+  declaradoEn: Instante,
+  declaradoPor: Uid,
+  /** Presente = ya no cuenta. Nunca se borra la entrada (ver `CierreDeTramoCompartido`). */
+  cierre: CierreDeTramoCompartido.optional(),
+}).strict();
+
+/**
+ * LA LISTA DE TRAMOS COMPARTIDOS DE UNA LÍNEA, con su única regla dura: **no
+ * puede haber dos entradas ABIERTAS del mismo tramo**.
+ *
+ * Dos abiertas no son un dato redundante: son dos verdades sobre el mismo trozo
+ * —una del tramo entero y otra acotada, pongamos— y quien lea tendría que elegir.
+ * Elegir en silencio es exactamente lo que este sistema no hace. Cerrada + nueva
+ * sí vale, y es la forma correcta de corregir: la historia queda.
+ *
+ * El tope de 20 no es una restricción del dominio, es un cortafuegos: una línea
+ * con veinte tramos compartidos es un error de carga, no una línea.
+ *
+ * La regla vive en el ARRAY y no en `Linea` a propósito: si se pusiera como
+ * `refine` de `Linea`, el esquema dejaría de ser un objeto de Zod y cualquier
+ * `Linea.extend(...)` o `.partial()` futuro dejaría de compilar.
+ */
+export const TramosCompartidosDeLinea = z.array(TramoCompartidoEnLinea).max(20)
+  .superRefine((lista, ctx) => {
+    const abiertos = new Map<string, number>();
+    lista.forEach((t, i) => {
+      if (t.cierre) return;
+      const antes = abiertos.get(t.id);
+      if (antes != null) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [i, 'id'],
+          message: `el tramo ${t.codigo} está declarado dos veces sin cerrar (entradas ${antes + 1} y ${i + 1}): ` +
+            'una declaración que cambia se CIERRA con su motivo y se abre otra, nunca se duplica',
+        });
+      } else {
+        abiertos.set(t.id, i);
+      }
+    });
+  });
+
 // ── Línea ───────────────────────────────────────────────────────────────────
 
 export const Linea = Base.extend({
@@ -269,12 +402,55 @@ export const Linea = Base.extend({
   conductor: Conductor.optional(),
   hipotesisId: Id.optional(),
   activa: z.boolean().default(true),
+
+  /**
+   * LOS TRAMOS QUE ESTA LÍNEA COMPARTE CON OTRAS (0.16.0).
+   *
+   * Ausente = la línea no comparte nada, que es el caso de todas las que ya
+   * están escritas: por eso es opcional y por eso ninguna hay que tocarla.
+   *
+   * ⚠️ DIRECCIÓN ÚNICA. `Linea` no es `strict`, así que un navegador con el
+   * bundle anterior QUITA este campo al validar y enseñaría la línea **sin sus
+   * torres**, sin un solo error donde mirar. Se despliega el sitio y se recargan
+   * los equipos —también la aplicación del teléfono— ANTES de la primera alta.
+   */
+  tramosCompartidos: TramosCompartidosDeLinea.optional(),
+
+  /**
+   * SI LO LEVANTADO ES LA LÍNEA ENTERA (0.16.0).
+   *
+   * Tres estados, y el que importa es el tercero: `true` (se recorrió de punta a
+   * punta), `false` (se conoce solo una parte) y **el campo AUSENTE, que
+   * significa NO CONSTA** — nadie lo ha declarado. Es el mismo criterio de
+   * `cableGuardaVanoSaliente`: un hueco no es un «sí».
+   *
+   * Lo leen el informe y Parámetros eléctricos para no presentar lo levantado
+   * como si fuera la línea completa. Con `false`, una longitud o unas pérdidas
+   * son COTA INFERIOR y hay que decirlo: firmar «la línea mide X» cuando X es
+   * solo el trozo recorrido es la clase de error que no se ve hasta que alguien
+   * lo compara con el papel del cliente.
+   */
+  recorridoCompleto: z.boolean().optional(),
 });
 
 // ── Apoyo ───────────────────────────────────────────────────────────────────
 
 export const Apoyo = Base.extend({
   tipo: z.literal('apoyo'),
+  /**
+   * LA SERIE A LA QUE PERTENECE ESTE PUNTO.
+   *
+   * ⚠️ DESDE 0.16.0 SE LEE «id de la SERIE», no «id de la línea»: puede ser una
+   * LÍNEA (`LN-627`) o un TRAMO COMPARTIDO (`TR-618`), que es donde viven, una
+   * sola vez, las torres por las que pasan dos líneas. Qué líneas recorren ese
+   * tramo lo dice cada línea en su `tramosCompartidos`, no la torre.
+   *
+   * **El campo NO se renombra** —los cambios son aditivos y renombrarlo movería
+   * los 28 documentos que ya están escritos—, así que lo que cambia es cómo se
+   * lee. Sigue siendo obligatorio y sigue siendo UNO: un punto pertenece a una
+   * sola serie, y ahí está justamente la decisión — la torre compartida NO se
+   * duplica en las dos líneas (ver `TramoCompartidoEnLinea`).
+   */
   lineaId: Id,
   /**
    * Posición en la línea. Es lo que ORDENA los vanos. Se separa del nombre a
@@ -438,6 +614,47 @@ export const Apoyo = Base.extend({
    * estructura, y el veredicto que sale de él no lo puede defender nadie.
    */
   nFasesAmarradas: z.number().int().positive().optional(),
+
+  /**
+   * CUÁNTOS CIRCUITOS CUELGAN FÍSICAMENTE DE ESTA TORRE (0.16.0).
+   *
+   * Es un dato de la ESTRUCTURA, no de ninguna línea: una torre de doble
+   * circuito lleva dos aunque hoy solo pase una línea por ella, y lleva dos
+   * aunque las dos líneas que la usan estén dadas de alta o no.
+   *
+   * ── PARA QUÉ SIRVE, EN UNA FRASE ──────────────────────────────────────────
+   * Es la defensa contra **la carga calculada a la mitad**. En una torre
+   * compartida, la carga sale de sumar los circuitos de las líneas que la
+   * recorren; si una de esas líneas todavía no existe en el sistema, la suma da
+   * menos de lo que la torre aguanta de verdad y el veredicto saldría por el
+   * lado favorable — «cumple» sobre una estructura que lleva el doble. Con este
+   * número declarado, el sistema puede CONTRASTAR lo que suma contra lo que la
+   * torre lleva, y cuando no cuadran no inventa: lo dice y deja el apoyo sin
+   * veredicto, que es lo que hace en todos los demás sitios (`99 §ADR-029/032`).
+   *
+   * ⚠️ AÚN NO SE USA. Lo llenará el alta de torres cuando el Ingeniero declare la
+   * función de cada una. Hasta entonces el campo está ausente en todos los
+   * apoyos, y ausente significa NO CONSTA — nunca «uno».
+   *
+   * ⚠️ NO se deduce de `Linea.circuitos` ni de `nFasesAmarradas`. Aquél es lo que
+   * lleva UNA línea; éste es lo que lleva la TORRE, y confundirlos es justo el
+   * error que este campo existe para impedir.
+   *
+   * ⚠️ SU SELLO VA DENTRO DEL VALOR, y por eso `ProcedenciasDeApoyo` sigue
+   * teniendo seis claves y no siete: es un hecho con un solo dueño, como la
+   * `fuente` de `capacidadLongitudinal`. Al ESCRIBIR se exige lo mismo que en la
+   * ficha estructural: procedencia que no sea `confirmado_humano` —confirmar es
+   * un acto posterior, no un origen— y fuente de verdad.
+   */
+  circuitosTendidos: z.object({
+    /** Circuitos tendidos en la torre. Entero y ≥ 1: un cero no es un dato. */
+    n: z.number().int().min(1),
+    procedencia: Procedencia,
+    /** La línea que otro pueda discutir: un plano, un acta, una fotografía. */
+    fuente: z.string().min(1).max(500).optional(),
+    declaradoEn: Instante,
+    declaradoPor: Uid,
+  }).strict().optional(),
 
   /**
    * EL CABLE DE GUARDA DEL VANO QUE **SALE** DE ESTE APOYO — no del apoyo.
@@ -783,6 +1000,8 @@ export const Hipotesis = Base.extend({
 
 export type Linea = z.infer<typeof Linea>;
 export type Apoyo = z.infer<typeof Apoyo>;
+export type TramoCompartidoEnLinea = z.infer<typeof TramoCompartidoEnLinea>;
+export type CierreDeTramoCompartido = z.infer<typeof CierreDeTramoCompartido>;
 export type SelloDeDato = z.infer<typeof SelloDeDato>;
 export type ProcedenciasDeApoyo = z.infer<typeof ProcedenciasDeApoyo>;
 export type FichaEstructural = z.infer<typeof FichaEstructural>;

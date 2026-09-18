@@ -220,3 +220,213 @@ export const idDeEvidencia = async (codigoLinea, sha256, org = ORG_POR_DEFECTO) 
 /** El id de la línea. Misma semilla que el sembrador; se deriva, no se inventa. */
 export const idDeLinea = async (codigoLinea, org = ORG_POR_DEFECTO) =>
   idEstable(org, codigoLinea, 'linea');
+
+// ════════════════════════════════════════════════════════════════════════════
+// LAS SERIES: el código no se teclea, se ELIGE del libro
+// ────────────────────────────────────────────────────────────────────────────
+// Una serie es lo que lleva torres colgando: una LÍNEA (`LN-`) o un TRAMO
+// COMPARTIDO (`TR-`), que es el trozo por el que pasan dos líneas en la misma
+// torre y donde cada torre se registra UNA sola vez.
+//
+// LO QUE ESTA PANTALLA HACE Y LO QUE NO. El identificador de una serie se BUSCA
+// en `herramientas/codigos-emitidos.json`, igual que el de un punto se busca en
+// el libro de nombres. No es celo: el documento de una línea no se puede borrar
+// (`firestore.rules`), así que «LN-628» con un cero de más derivaría una línea
+// nueva, permanente y sin marcha atrás. Con una lista cerrada no hay nada que
+// teclear mal.
+//
+// Las funciones que DERIVAN (`semillaDeSerie`, `idDeSerie`) están aquí por un
+// solo motivo declarado: ser la gemela exacta de `herramientas/identidad.mjs`,
+// para que la prueba de oro pueda exigir que las dos den lo mismo. El alta usa
+// `idDelLibro`.
+// ════════════════════════════════════════════════════════════════════════════
+
+/** El prefijo obligatorio de cada clase de serie. No hay serie sin prefijo. */
+export const PREFIJO_DE_TIPO = { linea: 'LN-', tramo: 'TR-' };
+
+/** La semilla de cada clase de serie. `linea` es la que ya emitió la línea de hoy. */
+export const SEMILLA_DE_TIPO = { linea: 'linea', tramo: 'tramo' };
+
+/**
+ * Qué clase de serie es un código, a partir de su PREFIJO. Lanza si no lo trae:
+ * adivinar aquí es escribir el documento de una línea con identidad de otra cosa.
+ */
+export function tipoDeSerie(codigo) {
+  for (const [tipo, prefijo] of Object.entries(PREFIJO_DE_TIPO)) {
+    if (typeof codigo === 'string' && codigo.startsWith(prefijo)) return tipo;
+  }
+  throw new Error(
+    `«${codigo}» no es un código de serie: tiene que empezar por «LN-» (línea) o por «TR-» (tramo compartido). ` +
+    'El prefijo es lo que dice si lo que se va a escribir es una línea o un tramo.',
+  );
+}
+
+/** La semilla que le toca a un código de serie. Sale del prefijo, no de un campo. */
+export const semillaDeSerie = (codigo) => SEMILLA_DE_TIPO[tipoDeSerie(codigo)];
+
+/**
+ * El id de una serie, DERIVADO. Gemela exacta de la de Node; la pantalla no la
+ * usa para dar de alta nada — para eso está `idDelLibro`.
+ */
+export const idDeSerie = async (codigo, org = ORG_POR_DEFECTO) =>
+  idEstable(org, codigo, semillaDeSerie(codigo));
+
+/**
+ * Los códigos de serie anotados en el libro, en el orden en que se escribieron.
+ * Es lo único que alimenta la lista del alta: así no hay forma de teclear un
+ * código que no exista.
+ *
+ * @param {object} libro   `herramientas/codigos-emitidos.json`, tal cual
+ * @returns {string[]}
+ */
+export function codigosDelLibro(libro) {
+  if (!libro || typeof libro !== 'object') return [];
+  return Object.keys(libro).filter((c) => !esNota(c));
+}
+
+/**
+ * La fila completa de un código, o `undefined` si nunca se anotó.
+ *
+ * @returns {{tipo: string, semilla: string, id: string, emitidoEn?: string, origen?: string}|undefined}
+ */
+export function filaDelLibro(libro, codigo) {
+  if (!libro || typeof libro !== 'object') return undefined;
+  if (typeof codigo !== 'string' || esNota(codigo)) return undefined;
+  // `hasOwnProperty` y no `libro[codigo]`: un código como 'constructor' o
+  // 'toString' devolvería una función heredada y pasaría por fila válida.
+  return Object.prototype.hasOwnProperty.call(libro, codigo) ? libro[codigo] : undefined;
+}
+
+/**
+ * El id permanente de una serie, tal como se emitió. **Si el código no está
+ * anotado, LANZA** — igual que con un punto, esta pantalla no estrena identidad.
+ */
+export function idDelLibro(libro, codigo) {
+  if (!libro || typeof libro !== 'object') {
+    throw new Error(
+      'No se recibió el libro de códigos. Sin él no se puede resolver la identidad de ninguna línea ni de ningún tramo, ' +
+      'y esta pantalla no tiene permitido calcular una: se pasa el libro o no se da de alta nada.',
+    );
+  }
+  const fila = filaDelLibro(libro, codigo);
+  if (!fila) {
+    throw new Error(
+      `«${codigo}» no está en el libro de códigos de serie. Antes de darlo de alta hay que anotarlo en el repositorio. ` +
+      'No se puede estrenar un código desde la aplicación: una línea creada con el código mal escrito no se puede borrar.',
+    );
+  }
+  if (typeof fila.id !== 'string' || !FORMA_DEL_ID.test(fila.id)) {
+    throw new Error(
+      `La fila de «${codigo}» en el libro de códigos no trae un id con forma de identificador (trae «${fila.id ?? '—'}»). ` +
+      'El libro está corrupto y no se da de alta nada: un documento sin id no se escribe mal, se escribe en otro sitio.',
+    );
+  }
+  return fila.id;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// LA SEGUNDA PUERTA DECLARADA: el id de un LEVANTAMIENTO
+// ────────────────────────────────────────────────────────────────────────────
+// Un levantamiento es lo que trajo el GPS, guardado TAL CUAL: la fecha, el
+// nombre de campo, la posición, la cota y la hora de cada punto, quién lo trajo
+// y con qué archivo. **No crea torres.** Una torre nace cuando el Ingeniero
+// declara su FUNCIÓN, y esa decisión no la toma un aparato.
+//
+// POR QUÉ DERIVARLO AQUÍ NO ROMPE EL VETO DE ADR-028, que es el mismo
+// argumento que ya valió para una evidencia (ADR-031): el veto protege la
+// identidad de un PUNTO —activo permanente, nombre elegido por una persona, del
+// que cuelgan fotos y expediente para siempre—. Un levantamiento es un ARCHIVO
+// leído un día concreto: su identidad sale de la huella del binario y de la
+// fecha que grabó el aparato, hechos medibles sobre los que nadie puede
+// discrepar. No hay nada que anotar en un libro ni nada que firmar.
+//
+// Y ES OBLIGATORIO derivarlo: el archivo del GPS se lee en el computador del
+// Ingeniero y no sube a ningún sitio. Si el id no saliera de la huella, leer dos
+// veces el mismo GPX escribiría DOS recorridos del mismo día, y no hay forma de
+// borrar el sobrante.
+// ────────────────────────────────────────────────────────────────────────────
+
+/** Fecha de jornada, `AAAA-MM-DD`. */
+const FORMA_DE_FECHA = /^\d{4}-\d{2}-\d{2}$/;
+
+/** La huella de un archivo: sha256 en minúsculas, los 64 caracteres. */
+const FORMA_DE_HUELLA = /^[0-9a-f]{64}$/;
+
+/** Cuántos días tiene cada mes. Bisiesto: divisible por 4, salvo siglo no divisible por 400. */
+const DIAS_DE_MES = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+const esBisiesto = (anio) => (anio % 4 === 0 && anio % 100 !== 0) || anio % 400 === 0;
+
+/**
+ * ¿Ese día EXISTE en el calendario? Gemela exacta de la de consola
+ * (`herramientas/identidad.mjs`) y de la del molde (`contratos/src/levantamiento.ts`).
+ *
+ * Se cuenta a mano y NO con `new Date(...)` a propósito: `Date` no rechaza nada
+ * —«2026-02-31» se le vuelve calladamente el 3 de marzo— y además reinterpreta los
+ * años de dos cifras (el año 0 se le convierte en 1900, que no es bisiesto cuando
+ * el 0 sí lo es). Aquí no se puede fallar: esta fecha entra en un id PERMANENTE.
+ */
+export function esDiaDelCalendario(fecha) {
+  if (typeof fecha !== 'string' || !FORMA_DE_FECHA.test(fecha)) return false;
+  const anio = Number(fecha.slice(0, 4));
+  const mes = Number(fecha.slice(5, 7));
+  const dia = Number(fecha.slice(8, 10));
+  if (mes < 1 || mes > 12 || dia < 1) return false;
+  return dia <= (mes === 2 && esBisiesto(anio) ? 29 : DIAS_DE_MES[mes - 1]);
+}
+
+/**
+ * La semilla de un levantamiento: `levantamiento-<AAAA-MM-DD>-<huella>`.
+ *
+ * Las dos piezas se validan antes de mezclarlas. Sin esto, un `undefined` que
+ * se colara daría el hash de la cadena «undefined»: un id con forma perfecta,
+ * repetible, y apuntando al documento equivocado.
+ *
+ * ⚠️ La fecha sale de la hora que grabó el propio aparato, NUNCA de una casilla
+ * escrita a mano: si se teclea, corregir un dedazo mueve el identificador y deja
+ * el recorrido anterior colgado.
+ *
+ * Y se exige que el DÍA EXISTA, no solo que tenga la forma: `2026-02-31`,
+ * `2026-13-01` y `0000-99-99` pasaban el filtro y acuñaban un identificador
+ * permanente con una fecha imposible dentro — el documento no se puede borrar ni
+ * se le puede reescribir la fecha.
+ */
+export function semillaDeLevantamiento(fecha, huella) {
+  if (typeof fecha !== 'string' || !FORMA_DE_FECHA.test(fecha)) {
+    throw new Error(
+      `La fecha del levantamiento tiene que venir como AAAA-MM-DD y llegó «${fecha ?? '—'}». ` +
+      'Sale de la hora que grabó el propio aparato, no de una casilla escrita a mano.',
+    );
+  }
+  if (!esDiaDelCalendario(fecha)) {
+    throw new Error(
+      `«${fecha}» no es un día que exista en el calendario. ` +
+      'La fecha de la jornada entra en el identificador del recorrido, y ese identificador no se puede cambiar ni borrar: un 31 de febrero se quedaría escrito para siempre.',
+    );
+  }
+  if (typeof huella !== 'string' || !FORMA_DE_HUELLA.test(huella)) {
+    throw new Error(
+      `La huella del archivo del levantamiento tiene que ser un sha256 de 64 caracteres en minúsculas y llegó «${huella ?? '—'}». ` +
+      'Sin huella no se puede saber si este archivo ya se leyó, y leerlo dos veces escribiría dos recorridos que no se pueden borrar.',
+    );
+  }
+  return `levantamiento-${fecha}-${huella}`;
+}
+
+/**
+ * El id del levantamiento de una serie. Leer dos veces el mismo archivo con la
+ * misma fecha y la misma serie cae en el MISMO documento: **no se duplica**.
+ *
+ * ⚠️ PERO NO «SE PISA A SÍ MISMO» — eso es lo que decía aquí y era falso. La
+ * regla DENIEGA reescribirlo: `firestore.rules §levantamientos` solo deja mover
+ * `nota`, `actualizadoEn`, `actualizadoPor` y `revision`, así que un segundo
+ * guardado del mismo archivo —que mueve `cargadoEn` y los puntos— se cae, y se
+ * cae con «Missing or insufficient permissions»: «no tienes permiso» donde la
+ * verdad es «esto ya estaba cargado» (`35 · L-24`, `99 §ADR-108`).
+ *
+ * ESTA es la pantalla que tiene que taparlo, y aquí está dicho porque este es el
+ * archivo que ella importa: antes de guardar, un `getDoc` de este mismo id; si el
+ * documento existe, se dice «este recorrido ya estaba cargado» y NO se reintenta
+ * el guardado. El reintento no puede salir bien: la regla está bien puesta.
+ */
+export const idDeLevantamiento = async (codigoSerie, fecha, huella, org = ORG_POR_DEFECTO) =>
+  idEstable(org, codigoSerie, semillaDeLevantamiento(fecha, huella));

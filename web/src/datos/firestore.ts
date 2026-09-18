@@ -8,13 +8,14 @@
 // la frontera. Un documento que no cumple el esquema no entra al cálculo — y el
 // cálculo es lo que el Ingeniero firma.
 // ============================================================================
-import { AccionCapa, AnalisisCausa, Apoyo, ETIQUETA_CAMPO_FICHA, Evidencia, FichaEstructural, Hipotesis, Investigacion, Linea, ParteDeAccion, ParteDeAnalisis, SondeoClima } from '@lineas/contratos';
+import { AccionCapa, AnalisisCausa, Apoyo, ETIQUETA_CAMPO_FICHA, Evidencia, FichaEstructural, Hipotesis, Investigacion, Levantamiento, Linea, ParteDeAccion, ParteDeAnalisis, SondeoClima } from '@lineas/contratos';
 import { EntradaDeAuditoria } from '@lineas/contratos';
 import { cargarFirebase } from './cargar';
 import { anotarFalloDeBitacora } from './bitacora';
 import { alcanza, permisosDeSesion, puede } from './permisos';
-import { PAGINA_DE_AUDITORIA } from './repositorio';
-import type { AcuseDeFicha, AcuseDeLote, EntradaLeidaDeAuditoria, EstadoDatos, EstadoSesion, FichaDeFoto, FiltroDeAuditoria, PaginaDeAuditoria, Repositorio, ResultadoCarga, ResultadoFotos } from './repositorio';
+import { apoyosDeLasSeries, faltasYHuecosDeLinea, ordenarLevantamientos, ordenarParque, PAGINA_DE_AUDITORIA, seriesAvaladas, seriesDeLinea } from './repositorio';
+import { LIBRO_DE_CODIGOS } from './registroCodigos';
+import type { AcuseDeFicha, AcuseDeLevantamiento, AcuseDeLineaNueva, AcuseDeLote, EntradaLeidaDeAuditoria, EstadoDatos, EstadoSesion, FichaDeFoto, FiltroDeAuditoria, PaginaDeAuditoria, Repositorio, ResultadoCarga, ResultadoFotos, SerieDeLinea } from './repositorio';
 
 /**
  * La mitad pensante de la ficha —qué campos hay, qué geometría no puede dar
@@ -88,6 +89,47 @@ function sellarFicha(ficha: Record<string, unknown>, uid: string, ahora: string)
   return { ...valores, procedencias: sellos };
 }
 
+/**
+ * SELLA LA FIRMA DE CADA TRAMO COMPARTIDO DECLARADO, con la sesión abierta.
+ *
+ * Mismo criterio que `sellarFicha` y por la misma razón: `declaradoEn` y
+ * `declaradoPor` dicen quién responde de que esta línea recorra ese tramo, y eso
+ * decide qué torres entran en su informe. No puede salir de un campo que la
+ * pantalla rellena — las reglas solo comprueban el autor del DOCUMENTO
+ * (`altaCoherente`), así que dentro del array no hay nadie mirando.
+ *
+ * Lo que NO sea un objeto se deja tal cual, a propósito: que lo rechace el molde
+ * con su mensaje en vez de convertirse aquí en una firma a medias.
+ */
+function sellarTramos(tramos: unknown, uid: string, ahora: string): unknown {
+  if (!Array.isArray(tramos)) return tramos;
+  return tramos.map((t) => (t && typeof t === 'object' && !Array.isArray(t)
+    ? { ...(t as Record<string, unknown>), declaradoEn: ahora, declaradoPor: uid }
+    : t));
+}
+
+/**
+ * ⚠️ LA PROCEDENCIA DEL TRAMO SE EXIGE AL ESCRIBIR, que es donde el molde dice
+ * que se aprieta la tuerca: son opcionales en LECTURA (una línea vieja no las
+ * trae) pero declarar que esta línea recorre un tramo decide qué torres entran
+ * en su informe, y esa entrada no se borra nunca. Hasta el 17-09 lo único que
+ * las pedía era un `if` de pantalla.
+ */
+function faltaProcedenciaDeTramo(tramos: unknown): string | null {
+  if (!Array.isArray(tramos)) return null;
+  for (const t of tramos) {
+    if (!t || typeof t !== 'object' || Array.isArray(t)) continue;
+    const e = t as Record<string, unknown>;
+    if (e.cierre) continue; // una entrada cerrada ya no declara nada
+    const codigo = String(e.codigo ?? 'sin código');
+    if (!e.procedencia) return `el tramo ${codigo} no dice de dónde sale que esta línea lo recorre`;
+    if (typeof e.fuente !== 'string' || !e.fuente.trim()) {
+      return `el tramo ${codigo} no trae la fuente de esa declaración: la línea que otro pueda ir a comprobar`;
+    }
+  }
+  return null;
+}
+
 /** El primer motivo de rechazo del molde, dicho de una vez y en castellano. */
 function motivoDelMolde(error: { issues: { message?: string; path?: (string | number)[] }[] }): string {
   const p = error.issues[0];
@@ -123,7 +165,56 @@ function conflicto(donde: string): string {
     + 'recarga la ficha y vuelve a ponerlo.';
 }
 
-export const repositorioFirestore: Repositorio = {
+/**
+ * CUÁNTOS RECORRIDOS LEVANTADOS SE TRAEN DE CADA SERIE, COMO MUCHO.
+ *
+ * Es un freno de coste y de memoria, no un criterio: una serie con doscientas
+ * jornadas de campo no puede descargarlas todas cada vez que se abre la línea.
+ * Cincuenta es lo que había —esto no cambia cuánto se trae—; lo que cambia es
+ * que ahora, cuando el tope muerde, se DICE.
+ */
+export const TOPE_DE_LEVANTAMIENTOS = 50;
+
+/**
+ * CÓMO SE ENTERA QUIEN LLAMA DE QUE EL TOPE RECORTÓ LA LECTURA.
+ *
+ * ⚠️ POR QUÉ NO VIAJA EN LO DEVUELTO, que sería lo natural. Porque
+ * `listarLevantamientos` devuelve una lista de recorridos y esa firma la declara
+ * el repositorio (`repositorio.ts §Repositorio`), que lo implementan también el
+ * repositorio sin sesión y el puente: cambiar el tipo de vuelta obligaría a
+ * tocar tres archivos que no son de este cambio, y aquí los cambios son
+ * ADITIVOS. Así que se recoge por un canal aparte y opcional: quien no lo pase
+ * recibe exactamente lo de siempre.
+ *
+ * Es la misma idea que `recortado`/`aviso` en el histórico de cargabilidad, con
+ * la frase redactada DONDE SE HIZO LA CONSULTA y no en cada pantalla: dos
+ * pantallas redactando el mismo aviso acaban diciendo dos cosas distintas.
+ */
+export interface AvisoDeTopeDeRecorridos {
+  /**
+   * Identificador de serie → su código («LN-627», «TR-618»), para que el aviso
+   * nombre la serie por donde se la conoce y no por un identificador que en
+   * pantalla no dice nada. Sin rótulo el aviso sigue saliendo, más vago.
+   */
+  rotulos?: ReadonlyMap<string, string>;
+  /** Se llama UNA vez por cada serie recortada, con la frase ya escrita. */
+  avisar?: (aviso: string) => void;
+}
+
+/**
+ * ⚠️ `satisfies Repositorio` Y NO `: Repositorio`, y la diferencia importa.
+ *
+ * Con la anotación de tipo, CADA método se ve desde fuera con la firma de la
+ * interfaz, aunque aquí acepte más: `listarLevantamientos` admite un segundo
+ * argumento opcional —el canal por donde dice si el tope recortó— y con
+ * `: Repositorio` ese argumento era invisible para quien llama, incluso desde
+ * este mismo archivo. Con `satisfies` se sigue comprobando, igual de estricto,
+ * que este objeto cumple la interfaz entera —si mañana falta un método o cambia
+ * un tipo, el error salta aquí—, pero lo que se ve desde fuera es lo que de
+ * verdad hay. Es lo que permite que el aviso del tope no obligue a tocar
+ * `repositorio.ts` ni `enlace.ts`, que no son de este cambio.
+ */
+export const repositorioFirestore = {
   /**
    * Quién entró, y CON QUÉ PERMISO.
    *
@@ -186,10 +277,96 @@ export const repositorioFirestore: Repositorio = {
     // filtro de igualdad en la consulta puede exigir un índice compuesto, y un
     // índice que falta no da error claro. A esta escala (decenas de líneas) no
     // compensa el riesgo. La frontera de verdad son las reglas, del otro lado.
-    return s.docs
+    // EL ORDEN DEL PARQUE SE DECIDE AQUÍ, EN EL NAVEGADOR, y no en la consulta.
+    // Por fecha de alta: la más antigua primero, que es lo que hace que entrar
+    // sin enlace abra la línea de siempre. Un `orderBy('creadoEn')` en la
+    // consulta pediría un índice compuesto que **el emulador no exige**
+    // (`35 · L-85`) —verde aquí, parque vacío en producción— y encima dejaría
+    // fuera cualquier línea sin ese campo. `ordenarParque` es puro y está
+    // probado; aquí solo se aplica.
+    return ordenarParque(s.docs
       .map((d) => validar<Linea>(Linea, d.data()))
       .filter((x): x is Linea => x !== null && x.activa !== false)
-      .filter((l) => alcanza({ claims }, l.id));
+      .filter((l) => alcanza({ claims }, l.id)));
+  },
+
+  /**
+   * LOS RECORRIDOS LEVANTADOS DE UNAS SERIES. Una consulta por serie.
+   *
+   * ⚠️ SIN `orderBy` EN LA CONSULTA, a propósito. El índice declarado para esta
+   * colección es `(orgId, serieId)` y nada más: añadir aquí un orden pediría un
+   * índice que **no existe**, y el emulador sirve la consulta sin quejarse
+   * (`35 · L-85`) — o sea, verde en las pruebas y «no existen registros» en
+   * producción. Se ordena abajo, en el cliente, por la fecha de la JORNADA de
+   * campo: lo más reciente primero, que es lo que se enseña arriba.
+   *
+   * No lanza: lo que no se pueda leer se devuelve como lista corta y quien
+   * llama decide. Una línea no se queda sin abrir porque falle esto.
+   *
+   * `avisoDeTope` es opcional y sirve para UNA cosa: enterarse de si el tope
+   * recortó la lectura (`TOPE_DE_LEVANTAMIENTOS`). Quien no lo pase recibe
+   * exactamente lo de siempre —una lista de recorridos—, y por eso la firma que
+   * declara el repositorio (`repositorio.ts §Repositorio`) no cambia.
+   */
+  async listarLevantamientos(
+    serieIds: string[],
+    avisoDeTope?: AvisoDeTopeDeRecorridos,
+  ): Promise<Levantamiento[]> {
+    const { esperarSesion, credenciales, baseDatos } = await cargarFirebase();
+    const { collection, getDocs, limit, query, where } = await firestore();
+    const u = await esperarSesion();
+    if (!u) return [];
+    const { orgId } = await credenciales(u);
+    if (!orgId) return [];
+
+    const ids = [...new Set((serieIds ?? []).map(String).filter(Boolean))];
+    if (!ids.length) return [];
+
+    const db = await baseDatos();
+    const leidos: Levantamiento[] = [];
+    for (const serieId of ids) {
+      // El filtro por `orgId` es OBLIGATORIO aunque `serieId` ya acote: en
+      // Firestore las reglas NO son filtros, y una consulta que no declara lo
+      // que la regla exige se niega ENTERA. Es la trampa que ya costó una tarde
+      // en `apoyos`.
+      //
+      // SE PIDE UNO MÁS DEL TOPE, A PROPÓSITO. Es la única forma honesta de
+      // saber si quedó algo fuera: con `limit(50)` a secas, cincuenta leídos
+      // pueden ser el final justo o el principio de doscientos, y no hay manera
+      // de distinguirlo. Se piden 51, se entregan 50 —los mismos de antes— y el
+      // de más solo sirve para poder decirlo. Es lo que ya hace el histórico de
+      // cargabilidad (`cargabilidadRepo.ts §recorteDeResumenes`).
+      const s = await getDocs(query(
+        collection(db, 'levantamientos'),
+        where('orgId', '==', orgId),
+        where('serieId', '==', serieId),
+        limit(TOPE_DE_LEVANTAMIENTOS + 1),
+      ));
+      // ⚠️ EL AVISO NO DICE «LOS MÁS RECIENTES», Y ES UNA DIFERENCIA REAL. La
+      // consulta no lleva orden —no hay índice para ello, y ponerlo sería verde
+      // aquí y vacío en producción (`35 · L-85`)—, así que la base devuelve los
+      // que quiera y la fecha se ordena DESPUÉS, con lo que ya llegó. O sea que
+      // lo que se queda fuera no son «los más antiguos»: puede ser el recorrido
+      // de la semana pasada. Prometer que son los más recientes sería el cartel
+      // que miente, que es justo el defecto que esto cierra.
+      for (const d of s.docs.slice(0, TOPE_DE_LEVANTAMIENTOS)) {
+        const v = validar<Levantamiento>(Levantamiento, d.data());
+        if (v) leidos.push(v);
+      }
+      if (s.docs.length > TOPE_DE_LEVANTAMIENTOS) {
+        const rotulo = avisoDeTope?.rotulos?.get(serieId) ?? 'una de las series de esta línea';
+        avisoDeTope?.avisar?.(
+          `Se han traído ${TOPE_DE_LEVANTAMIENTOS} recorridos levantados de ${rotulo} y hay más guardados. `
+          + `No son «los ${TOPE_DE_LEVANTAMIENTOS} más recientes»: la base los entrega en el orden en que `
+          + 'están guardados y la fecha se ordena aquí, con los que ya llegaron, así que puede haberse '
+          + 'quedado fuera alguno reciente.',
+        );
+      }
+    }
+
+    // Lo más reciente primero, por el día que se RECORRIÓ. La regla es pura y
+    // está probada (`ordenarLevantamientos`); aquí solo se aplica.
+    return ordenarLevantamientos(leidos);
   },
 
   async cargarLinea(lineaId: string): Promise<EstadoDatos> {
@@ -218,11 +395,20 @@ export const repositorioFirestore: Repositorio = {
     if (!linea) {
       return { fase: 'error', mensaje: 'La línea guardada no cumple el contrato del sistema. No se muestra por seguridad.' };
     }
-    if (!linea.conductor) {
-      return { fase: 'error', mensaje: 'La línea no tiene conductor declarado: sin él no hay cálculo mecánico posible.' };
-    }
 
-    // ⚠️ EL FILTRO POR `orgId` ES OBLIGATORIO, aunque `lineaId` ya acote el
+    // ── LAS SERIES DE ESTA LÍNEA ─────────────────────────────────────────────
+    // La suya SIEMPRE, y detrás un TRAMO COMPARTIDO por cada declaración
+    // abierta: las torres de un trozo que recorren dos líneas se registran una
+    // sola vez, a nombre del tramo (`§TramoCompartidoEnLinea`). Quién decide
+    // qué series hay y cómo se juntan es `seriesDeLinea`/`apoyosDeLasSeries`,
+    // que son PUROS y están probados sin base de datos; aquí solo se pide.
+    //
+    // ⚠️ Una línea SIN tramos devuelve UNA serie, o sea EXACTAMENTE la consulta
+    // de siempre. LN-627 no cambia de camino, y hay una prueba que cuenta las
+    // consultas para que siga siendo verdad dentro de un año.
+    const series = seriesDeLinea(linea);
+
+    // ⚠️ EL FILTRO POR `orgId` ES OBLIGATORIO, aunque la serie ya acote el
     // resultado. En Firestore **las reglas no son filtros**: para una consulta,
     // la base exige poder DEMOSTRAR de antemano que todo lo devuelto cumple la
     // regla. La regla pide que el documento sea de mi organización; si la
@@ -233,30 +419,96 @@ export const repositorioFirestore: Repositorio = {
     //
     // Se ordena por `orden`, NUNCA por nombre: en LN-627 conviven "E022",
     // "EMP TUB" y "EMPT", y ordenar por nombre daría vanos equivocados.
-    const sApoyos = await getDocs(query(
-      collection(db, 'apoyos'),
-      where('orgId', '==', orgId),
-      where('lineaId', '==', lineaId),
-      orderBy('orden', 'asc'),
-    ));
-    const apoyos = sApoyos.docs
-      .map((d) => validar<Apoyo>(Apoyo, d.data()))
-      .filter((x): x is Apoyo => x !== null);
+    //
+    // La forma de la consulta es la MISMA para una línea y para un tramo —solo
+    // cambia el valor de `lineaId`, que desde 0.16.0 se lee «id de la serie»—,
+    // así que la sirve el índice `(orgId, lineaId, orden)` que ya existe: leer
+    // por tramo no estrena ninguna consulta y no hace falta índice nuevo.
+    const pedirApoyos = async (serie: SerieDeLinea): Promise<Apoyo[]> => {
+      // EL ALCANCE DEL TRAMO, ANTES DE PEDIRLO. El de la línea ya se comprobó
+      // arriba; el del tramo es OTRO id, y una cuenta con alcance acotado —que
+      // no lo lleve en su lista— recibiría de la base un «Missing or
+      // insufficient permissions» en inglés, después de pagar la lectura. Aquí
+      // se convierte en una frase que dice qué hacer. Es el hueco que las
+      // reglas ya dejaron medido y escrito.
+      if (serie.tipo === 'tramo' && !alcanza({ claims }, serie.id)) {
+        throw new Error(
+          `el tramo compartido ${serie.codigo} no está entre lo que su cuenta tiene asignado. `
+          + 'Sus torres no se han leído. El administrador puede añadir el tramo a su alcance.',
+        );
+      }
+      const s = await getDocs(query(
+        collection(db, 'apoyos'),
+        where('orgId', '==', orgId),
+        where('lineaId', '==', serie.id),
+        orderBy('orden', 'asc'),
+      ));
+      return s.docs
+        .map((d) => validar<Apoyo>(Apoyo, d.data()))
+        .filter((x): x is Apoyo => x !== null);
+    };
+    // ⚠️ EL LIBRO DE CÓDIGOS VIAJA CON LA LECTURA, y no es un adorno: es lo
+    // único que amarra el `codigo` que se ENSEÑA de un tramo con el `id` con el
+    // que se PIDEN sus torres. Sin él, una línea que declare
+    // `{ codigo: 'TR-618', id: <el id de otra línea> }` se trae las torres de
+    // esa otra línea rotuladas como del tramo, en silencio, y esas torres
+    // entran en el cálculo y en el informe. Quien decide es `seriesAvaladas`,
+    // que es pura y está probada; aquí solo se le pasa el libro.
+    const leido = await apoyosDeLasSeries(series, pedirApoyos, LIBRO_DE_CODIGOS);
+    const apoyos = leido.apoyos;
 
-    if (apoyos.length < 2) return { fase: 'vacio' };
+    // ── LAS HIPÓTESIS ────────────────────────────────────────────────────────
+    // Ya NO tumban la línea. Hay tres estados y son distintos: no hay ninguna
+    // declarada (falta, y se dice cuál); hay una declarada que no se pudo leer
+    // o no cumple el molde (falta Y se declara el motivo); o está y la línea
+    // calcula como siempre. Aplanar los dos primeros en «no tiene hipótesis»
+    // convertiría un fallo de lectura en una afirmación sobre la línea.
+    let hipotesis: Hipotesis | null = null;
+    let falloHipotesis: string | undefined;
+    if (linea.hipotesisId) {
+      try {
+        const dHip = await getDoc(doc(db, 'hipotesis', linea.hipotesisId));
+        hipotesis = dHip.exists() ? validar<Hipotesis>(Hipotesis, dHip.data()) : null;
+        if (!hipotesis) {
+          falloHipotesis = dHip.exists()
+            ? 'Las hipótesis de cálculo que esta línea declara no cumplen el molde del sistema, así que '
+              + 'no se usan. No se toman las de otra línea.'
+            : 'Las hipótesis de cálculo que esta línea declara no están en la base.';
+        }
+      } catch (e) {
+        console.warn('[datos] no se pudieron leer las hipótesis:', e);
+        falloHipotesis = e instanceof Error ? e.message : 'fallo desconocido';
+      }
+    }
 
-    if (!linea.hipotesisId) {
-      return { fase: 'error', mensaje: 'La línea no tiene hipótesis de cálculo asociadas.' };
-    }
-    const dHip = await getDoc(doc(db, 'hipotesis', linea.hipotesisId));
-    const hipotesis = dHip.exists() ? validar<Hipotesis>(Hipotesis, dHip.data()) : null;
-    if (!hipotesis) {
-      return { fase: 'error', mensaje: 'No se pudieron leer las hipótesis de cálculo de esta línea.' };
-    }
+    // ── QUÉ LE FALTA A ESTA LÍNEA, Y QUÉ NO SE PUDO MIRAR ────────────────────
+    // Tres datos que ENTREGA una persona y que no se deducen ni se copian de
+    // otra línea (orden del Ingeniero, 2026-09-17).
+    //
+    // ⚠️ SE PASA `hipotesisDeclarada` —del DOCUMENTO— y no solo las leídas. Un
+    // fallo de lectura llega aquí como `null`, indistinguible de «esta línea no
+    // declara hipótesis», y la pantalla lo habría enumerado como «falta
+    // declarar las hipótesis» cuando la línea las declara y lo que falló fue la
+    // red, el permiso o el molde. Eso es afirmar algo falso sobre la línea
+    // (`32 · L-44`): ahora `faltan` lleva solo lo no declarado y el motivo de
+    // la lectura viaja aparte, en `noSePudoLeer.hipotesis`.
+    const revisado = faltasYHuecosDeLinea({
+      conductor: linea.conductor,
+      hipotesisDeclarada: Boolean(linea.hipotesisId),
+      hipotesis,
+      falloHipotesis,
+      apoyos: apoyos.length,
+    });
+    const faltan = revisado.faltan;
 
     // Los expedientes de falla son OPCIONALES: una línea sin eventos es lo
     // normal, y un fallo leyéndolos no puede tumbar la vista entera de la
     // línea — el cálculo mecánico no depende de ellos.
+    //
+    // Se piden por el id de la LÍNEA y no por serie, a propósito: un expediente
+    // es un hecho que se registra DESDE una línea, y hoy no hay consulta por
+    // torre. Consecuencia declarada: un expediente abierto en una torre
+    // compartida solo lo ve la línea que lo registró.
     let investigaciones: Investigacion[] = [];
     let falloInvestigaciones: string | undefined;
     try {
@@ -284,17 +536,29 @@ export const repositorioFirestore: Repositorio = {
     // sus fotos se leían. Una línea con fotos de estructura y sin falla —el caso
     // normal— habría mostrado cero fotos sin un solo error, y el fallo no
     // aparecería hasta la segunda línea (plan de TODO-43, paso 7).
+    //
+    // ⚠️ SE PIDEN POR SERIE, igual que los apoyos: la foto de una torre
+    // compartida cuelga de la TORRE, y la torre pertenece al tramo — así que su
+    // ficha lleva el id del tramo en `lineaId`. Preguntando solo por el id de
+    // la línea, una línea con tramo compartido enseñaría CERO fotos de sus
+    // torres sin un solo error por el camino. Una línea sin tramos hace, otra
+    // vez, exactamente la consulta de hoy.
     let evidencias: Evidencia[] = [];
     let falloEvidencias: string | undefined;
     try {
-      const sEv = await getDocs(query(
-        collection(db, 'evidencias'),
-        where('orgId', '==', orgId),
-        where('lineaId', '==', lineaId),
-      ));
-      evidencias = sEv.docs
-        .map((d) => validar<Evidencia>(Evidencia, d.data()))
-        .filter((x): x is Evidencia => x !== null);
+      const porId = new Map<string, Evidencia>();
+      for (const serie of series) {
+        const sEv = await getDocs(query(
+          collection(db, 'evidencias'),
+          where('orgId', '==', orgId),
+          where('lineaId', '==', serie.id),
+        ));
+        for (const d of sEv.docs) {
+          const e = validar<Evidencia>(Evidencia, d.data());
+          if (e) porId.set(e.id, e);
+        }
+      }
+      evidencias = [...porId.values()];
     } catch (e) {
       console.warn('[datos] no se pudieron leer las fichas de evidencia:', e);
       falloEvidencias = e instanceof Error ? e.message : 'fallo desconocido';
@@ -302,11 +566,109 @@ export const repositorioFirestore: Repositorio = {
 
     // El hueco viaja con el dato. Si no se pudo leer algo, la pantalla tiene que
     // poder decirlo en vez de afirmar que no hay nada (`32 · L-44`).
-    const noSePudoLeer = (falloInvestigaciones || falloEvidencias)
-      ? { investigaciones: falloInvestigaciones, evidencias: falloEvidencias }
-      : undefined;
+    const hueco = {
+      ...(falloInvestigaciones ? { investigaciones: falloInvestigaciones } : {}),
+      ...(falloEvidencias ? { evidencias: falloEvidencias } : {}),
+      ...(leido.noSePudoLeer ? { torres: leido.noSePudoLeer } : {}),
+    };
 
-    return { fase: 'listo', linea, apoyos, conductor: linea.conductor, hipotesis, investigaciones, evidencias, noSePudoLeer };
+    // ── LA LÍNEA QUE TODAVÍA NO CALCULA ──────────────────────────────────────
+    // Abre igual y dice qué le falta. Antes esto era `{ fase: 'error' }` o
+    // `{ fase: 'vacio' }`, y las dos SUSTITUYEN la pantalla entera: dar de alta
+    // una línea incompleta se llevaba por delante el parque y con él el acceso
+    // a la línea que sí funciona.
+    // ⚠️ LA CONDICIÓN NO ES «¿FALTA ALGO?» SINO «¿PUEDE CALCULAR?», y la
+    // diferencia es un caso real: una línea con conductor, torres e hipótesis
+    // DECLARADAS que no se pudieron leer no echa nada en falta y aun así no
+    // puede calcular. Preguntando solo por `faltan` seguiría al camino de
+    // siempre y llegaría a `hipotesis!` siendo nula.
+    if (!revisado.puedeCalcular) {
+      // El recorrido levantado se lee SOLO aquí, y es deliberado: es lo que la
+      // pantalla enseña cuando no hay torres que enseñar. Pedirlo también en el
+      // camino bueno añadiría una lectura facturada a cada apertura de una
+      // línea que hoy funciona, para un dato que ninguna pestaña le pide
+      // todavía. Quien lo necesite en una línea completa lo pide por su nombre
+      // (`listarLevantamientos`).
+      let levantamientos: Levantamiento[] = [];
+      let falloLevantamientos: string | undefined;
+      // Lo que diga el tope si recorta, para que salga junto a los demás avisos
+      // de series en vez de quedarse en la consola.
+      const avisosDelTope: string[] = [];
+      // ⚠️ LAS SERIES QUE EL LIBRO AVALA, NO LA LISTA CRUDA — y es el MISMO daño
+      // que `apoyosDeLasSeries` ya cierra con las torres, por un camino que
+      // estaba abierto. Pidiendo por la lista cruda, una línea que declare
+      // `{ codigo: 'TR-618', id: <el id de otra línea> }` no se trae ni una
+      // torre del tramo —el libro lo para— pero SÍ se trae su recorrido
+      // levantado, y la pantalla lo dibuja rotulado como del tramo compartido.
+      // Un trazado ajeno enseñado como propio es exactamente lo que el libro
+      // existe para impedir.
+      //
+      // Se vuelve a cruzar el libro aquí en vez de reaprovechar el cruce de
+      // `apoyosDeLasSeries` porque esa función no lo devuelve; y pasarle la
+      // lista ya filtrada sería PEOR: los avisos de lo que se dejó fuera nacen
+      // ahí dentro, y con la lista limpia no tendría de qué avisar. Cruzar dos
+      // veces no cuesta ninguna lectura —es una cuenta pura sobre un mapa que ya
+      // está en memoria—, y sus avisos NO se recogen aquí: son los mismos que ya
+      // viajan en `leido.avisos` y decirlos otra vez sería un aviso duplicado.
+      const avaladas = seriesAvaladas(series, LIBRO_DE_CODIGOS).series;
+      try {
+        // Por su nombre y no por `this`: quien llame a `cargarLinea` puede
+        // haberla sacado del objeto (`const { cargarLinea } = repositorio`), y
+        // entonces `this` no existe y la línea entera se caería por un dato
+        // accesorio.
+        levantamientos = await repositorioFirestore.listarLevantamientos(
+          avaladas.map((s) => s.id),
+          {
+            rotulos: new Map(avaladas.map((s) => [s.id, s.codigo])),
+            avisar: (aviso) => avisosDelTope.push(aviso),
+          },
+        );
+      } catch (e) {
+        console.warn('[datos] no se pudieron leer los levantamientos:', e);
+        falloLevantamientos = e instanceof Error ? e.message : 'fallo desconocido';
+      }
+      // El motivo de las hipótesis sale de `revisado.noSePudoLeer` y NO de
+      // `falloHipotesis` a pelo: ahí ya se decidió que unas hipótesis que la
+      // línea no declara no son un hueco de lectura, sino una falta.
+      const huecoRecorrido = {
+        ...hueco,
+        ...(falloLevantamientos ? { levantamientos: falloLevantamientos } : {}),
+        ...revisado.noSePudoLeer,
+      };
+      // Los avisos de las series y los del tope salen por el mismo sitio: los
+      // dos dicen «esto que ves no es todo lo que hay», que es lo único que la
+      // pantalla necesita saber para no afirmar de más.
+      const avisosDeSeries = [...leido.avisos, ...avisosDelTope];
+      return {
+        fase: 'recorrido',
+        linea,
+        apoyos,
+        evidencias,
+        investigaciones,
+        faltan,
+        levantamientos,
+        ...(avisosDeSeries.length ? { avisosDeSeries } : {}),
+        ...(Object.keys(huecoRecorrido).length ? { noSePudoLeer: huecoRecorrido } : {}),
+      };
+    }
+
+    // A partir de aquí la línea está completa, y el camino es el de siempre.
+    // Los dos `!` no son un atajo: `faltasYHuecosDeLinea` acaba de comprobar
+    // que los dos están **y que las hipótesis se pudieron leer de verdad** —que
+    // es justo lo que `faltan` por sí solo no distinguía—, y si mañana alguien
+    // afloja esa comprobación, la prueba de «línea completa igual que hoy» se
+    // pone roja antes que la pantalla.
+    return {
+      fase: 'listo',
+      linea,
+      apoyos,
+      conductor: linea.conductor!,
+      hipotesis: hipotesis!,
+      investigaciones,
+      evidencias,
+      ...(leido.avisos.length ? { avisosDeSeries: leido.avisos } : {}),
+      ...(Object.keys(hueco).length ? { noSePudoLeer: hueco } : {}),
+    };
   },
 
   /**
@@ -427,6 +789,242 @@ export const repositorioFirestore: Repositorio = {
     }
 
     return { escritos, yaEstaban, rechazados };
+  },
+
+  /**
+   * ⚠️ EL ALTA DE UNA LÍNEA: UN documento, y no se puede deshacer.
+   *
+   * `firestore.rules` niega `delete` sobre líneas —se marcan inactivas, no se
+   * borran— y además deja ACTUALIZAR a quien tiene `lineas.editar`. Las dos
+   * cosas juntas son lo que obliga a este orden, que es el mismo de
+   * `cargarPuntosNuevos` con un paso más:
+   *
+   *   1. **Permiso ANTES de mandar nada.** Es `lineas.editar` ('le'), lo que la
+   *      regla pide para crear. Preguntar aquí convierte una denegación opaca en
+   *      una frase que se entiende.
+   *   2. **`orgId` y `creadoPor` se sellan con la SESIÓN.** `altaCoherente()`
+   *      exige que el autor sea exactamente quien escribe, y es el único rechazo
+   *      campo por campo que hay. La firma de cada tramo compartido se sella
+   *      igual (`sellarTramos`): dentro del array no mira nadie.
+   *   3. **Se valida contra el molde antes de mandar.** Las reglas no miran el
+   *      contenido de una línea, así que este `safeParse` es la única defensa que
+   *      tiene la forma del dato — y una línea que el molde rechaza al LEERLA
+   *      desaparecería del parque en silencio.
+   *   4. **Se comprueba el ALCANCE.** La regla exige `alcanza(lineaId)`, y una
+   *      sesión con alcance acotado no puede crear una línea que no tenga
+   *      asignada. Sin esta comprobación, la denegación llegaría en inglés
+   *      después de rellenar el formulario entero.
+   *   5. **Se mira con `getDoc` si la línea YA existe, y si existe no se escribe.**
+   *      El identificador sale del libro de códigos y es siempre el mismo para un
+   *      código: un segundo alta sería un `setDoc` sobre el documento vivo, que
+   *      la regla PERMITE, y se llevaría por delante su conductor, sus hipótesis
+   *      y sus tramos. Preguntar es seguro: `puedeVer()` contempla el documento
+   *      que no existe (`§existe()`), así que un `get` de algo que aún no está
+   *      contesta vacío en vez de denegar.
+   *   6. **Se vuelve a leer lo escrito y se CUENTA.** Una escritura que no lanza
+   *      dice «la base la aceptó», no «está escrito lo que yo creía».
+   */
+  async crearLinea(documento: Record<string, unknown>): Promise<AcuseDeLineaNueva> {
+    const { esperarSesion, credenciales, baseDatos } = await cargarFirebase();
+    const { doc, getDoc, setDoc } = await firestore();
+    const u = await esperarSesion();
+    if (!u) throw new Error('No hay ninguna sesión abierta: no se puede dar de alta ninguna línea.');
+
+    const { rol, orgId, claims } = await credenciales(u);
+    if (!puede({ claims }, 'lineas.editar')) {
+      throw new Error(
+        `Su sesión entró con el permiso «${rol}», y dar de alta una línea necesita el permiso de crear y `
+        + 'editar líneas y su conductor. No se ha mandado nada a la base. Si esto le sorprende, es que el '
+        + 'permiso de su cuenta cambió: hay que revisarlo antes del alta, no después.',
+      );
+    }
+    if (!orgId) {
+      throw new Error(
+        'Su sesión no declara a qué organización pertenece, y una línea sin organización no la puede leer '
+        + 'nadie después — ni usted. No se ha mandado nada a la base.',
+      );
+    }
+
+    const ahora = new Date().toISOString();
+    const sellado = sinIndefinidos({
+      ...documento,
+      orgId,
+      creadoPor: u.uid,
+      ...(documento?.tramosCompartidos !== undefined
+        ? { tramosCompartidos: sellarTramos(documento.tramosCompartidos, u.uid, ahora) }
+        : {}),
+    });
+
+    const sinProcedencia = faltaProcedenciaDeTramo(sellado.tramosCompartidos);
+    if (sinProcedencia) {
+      throw new Error(
+        `No se dio de alta nada: ${sinProcedencia}. Declarar que una línea recorre un tramo decide qué `
+        + 'torres entran en su informe, y esa declaración no se borra: se cierra con fecha y motivo.',
+      );
+    }
+
+    const r = Linea.safeParse(sellado);
+    if (!r.success) {
+      const p = r.error.issues[0];
+      const donde = p?.path?.length ? ` (en «${p.path.join('.')}»)` : '';
+      throw new Error(
+        `La línea no cumple el molde de los datos y NO se ha mandado nada a la base: `
+        + `${p?.message ?? 'motivo desconocido'}${donde}.`,
+      );
+    }
+
+    if (!alcanza({ claims }, r.data.id)) {
+      throw new Error(
+        `Su sesión no alcanza a ${r.data.codigo}: tiene asignadas unas líneas concretas y ésta todavía no `
+        + 'está entre ellas. La base negaría el alta. No se ha mandado nada. Un administrador tiene que '
+        + 'añadir esta línea a su alcance antes de darla de alta.',
+      );
+    }
+
+    const db = await baseDatos();
+    const ref = doc(db, 'lineas', r.data.id);
+
+    const antes = await getDoc(ref);
+    if (antes.exists()) {
+      // Ya estaba. NO se reescribe: un `setDoc` aquí lo permite la regla y
+      // pisaría la línea viva entera.
+      const viva = validar<Linea>(Linea, antes.data());
+      return {
+        codigo: r.data.codigo,
+        id: r.data.id,
+        yaEstaba: true,
+        releida: viva
+          ? {
+            codigo: viva.codigo,
+            nombre: viva.nombre,
+            tensionNominal_kV: viva.tensionNominal_kV,
+            circuitos: viva.circuitos,
+            tramosCompartidos: viva.tramosCompartidos?.length ?? 0,
+          }
+          : null,
+      };
+    }
+
+    // Se escribe lo que SALIÓ del molde, no lo que entró: validar una cosa y
+    // escribir otra es la peor forma de este fallo. Y se vuelve a pasar por
+    // `sinIndefinidos` porque el molde puede devolver una clave opcional
+    // presente y sin valor, con la que el SDK lanza.
+    const validado = sinIndefinidos(r.data as unknown as Record<string, unknown>);
+    await setDoc(ref, validado);
+
+    // La relectura NO tumba el alta: la línea ya está escrita, y decir que no lo
+    // está sería peor que no poder contarla. Se devuelve `null`, que la pantalla
+    // enseña como «no se pudo comprobar», nunca como «no se escribió».
+    let releida: AcuseDeLineaNueva['releida'] = null;
+    try {
+      const despues = await getDoc(ref);
+      const v = despues.exists() ? validar<Linea>(Linea, despues.data()) : null;
+      if (v) {
+        releida = {
+          codigo: v.codigo,
+          nombre: v.nombre,
+          tensionNominal_kV: v.tensionNominal_kV,
+          circuitos: v.circuitos,
+          tramosCompartidos: v.tramosCompartidos?.length ?? 0,
+        };
+      }
+    } catch { /* la comprobación falló; la escritura no. Se dice, no se inventa. */ }
+
+    return { codigo: r.data.codigo, id: r.data.id, yaEstaba: false, releida };
+  },
+
+  /**
+   * ⚠️ EL RECORRIDO LEVANTADO, GUARDADO TAL CUAL. Un documento, y tampoco se
+   * puede deshacer: `firestore.rules` niega `delete` y congela los puntos.
+   *
+   * Mismo orden que el alta de la línea, con tres diferencias que hay que saber:
+   *
+   *   · El permiso es `cargar.puntos` ('cp') —la MISMA función que crea apoyos—
+   *     porque es literalmente el mismo acto: cargar el trazado que trajo el GPS.
+   *   · El alcance se comprueba contra la SERIE (`serieId`), que puede ser un
+   *     tramo compartido y no la línea: son identificadores distintos, y una
+   *     sesión con alcance acotado a la línea no alcanza al tramo.
+   *   · **La comprobación previa no es una precaución, es obligatoria.** El
+   *     identificador se deriva de la fecha de la jornada y de la huella del
+   *     archivo, así que leer dos veces el mismo GPX cae sobre el mismo
+   *     documento. Ahí la regla solo deja mover la nota, de modo que el segundo
+   *     guardado se caería con «Missing or insufficient permissions»: «no tienes
+   *     permiso» donde la verdad es «esto ya estaba cargado» (`35 · L-24`).
+   */
+  async guardarLevantamiento(documento: Record<string, unknown>): Promise<AcuseDeLevantamiento> {
+    const { esperarSesion, credenciales, baseDatos } = await cargarFirebase();
+    const { doc, getDoc, setDoc } = await firestore();
+    const u = await esperarSesion();
+    if (!u) throw new Error('No hay ninguna sesión abierta: no se puede guardar ningún recorrido levantado.');
+
+    const { rol, orgId, claims } = await credenciales(u);
+    if (!puede({ claims }, 'cargar.puntos')) {
+      throw new Error(
+        `Su sesión entró con el permiso «${rol}», y guardar el trazado que trajo el GPS es acto de `
+        + 'administración: es el mismo permiso con el que se crean puntos. No se ha mandado nada a la base.',
+      );
+    }
+    if (!orgId) {
+      throw new Error(
+        'Su sesión no declara a qué organización pertenece, y un recorrido sin organización no lo puede '
+        + 'leer nadie después — ni usted. No se ha mandado nada a la base.',
+      );
+    }
+
+    const sellado = sinIndefinidos({ ...documento, orgId, cargadoPor: u.uid, creadoPor: u.uid });
+
+    const r = Levantamiento.safeParse(sellado);
+    if (!r.success) {
+      const p = r.error.issues[0];
+      const donde = p?.path?.length ? ` (en «${p.path.join('.')}»)` : '';
+      throw new Error(
+        'El recorrido levantado no cumple el molde de los datos y NO se ha mandado nada a la base: '
+        + `${p?.message ?? 'motivo desconocido'}${donde}.`,
+      );
+    }
+
+    if (!alcanza({ claims }, r.data.serieId)) {
+      throw new Error(
+        `Su sesión no alcanza a ${r.data.codigoSerie}: tiene asignadas unas series concretas y ésta todavía `
+        + 'no está entre ellas. La base negaría el guardado. No se ha mandado nada. Un administrador tiene '
+        + 'que añadirla a su alcance.',
+      );
+    }
+
+    const db = await baseDatos();
+    const ref = doc(db, 'levantamientos', r.data.id);
+
+    const antes = await getDoc(ref);
+    if (antes.exists()) {
+      const viejo = validar<Levantamiento>(Levantamiento, antes.data());
+      return {
+        codigoSerie: r.data.codigoSerie,
+        id: r.data.id,
+        fecha: r.data.fecha,
+        puntosEnviados: r.data.puntos.length,
+        puntosReleidos: viejo ? viejo.puntos.length : null,
+        yaEstaba: true,
+      };
+    }
+
+    const validado = sinIndefinidos(r.data as unknown as Record<string, unknown>);
+    await setDoc(ref, validado);
+
+    let puntosReleidos: number | null = null;
+    try {
+      const despues = await getDoc(ref);
+      const v = despues.exists() ? validar<Levantamiento>(Levantamiento, despues.data()) : null;
+      if (v) puntosReleidos = v.puntos.length;
+    } catch { /* la comprobación falló; la escritura no. */ }
+
+    return {
+      codigoSerie: r.data.codigoSerie,
+      id: r.data.id,
+      fecha: r.data.fecha,
+      puntosEnviados: r.data.puntos.length,
+      puntosReleidos,
+      yaEstaba: false,
+    };
   },
 
   /**
@@ -1342,4 +1940,4 @@ export const repositorioFirestore: Repositorio = {
 
     return [...porId.values()];
   },
-};
+} satisfies Repositorio;

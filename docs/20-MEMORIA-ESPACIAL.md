@@ -21,7 +21,7 @@ Su carpeta en la bóveda, `brain-private/mantenimiento-lineas-at/`:
 | `datos-campo/` | lo que el Ingeniero DIJO o midió. Dato real: se cita desde el ADR, nunca se copia |
 | `fixtures/` | datos reales de cliente que usan las pruebas · `<LÍNEA>-linea.json`, la ficha que siembra cada línea (ADR-132) · `gpx/` · `entregables/` |
 | `fotos/` | material de campo (207 archivos, versionados) |
-| `Variables Electricas/` | **copia de lo PROCESADO** del SCADA (`_dias-LN627/` = enero viejo; `_dias-<LÍNEA>/2026-ene-ago/`: el de LN627, cargado; LN617 y LN628, listos sin cargar) y el primer día crudo |
+| `Variables Electricas/` | **copia de lo PROCESADO** del SCADA: `_dias-LN627/` = enero viejo; `_dias-<LÍNEA>/2026-ene-ago/` = LN627 cargado, LN617 y LN628 listos sin cargar. Y el primer día crudo |
 
 ⚠️ **El dato crudo de SCADA NO vive en la bóveda ni en el repo:** desde el 2026-09-10 está en
 `~/Desktop/GitHub-MJ/Variables Electricas/` —mes a mes, hermana de los proyectos y fuera de todo
@@ -146,13 +146,13 @@ mantenimiento-lineas-at/
 │                                `archivos.max(100)`): un mes va en DOS lotes, por mitades (ADR-128)
 ├── herramientas/extraer-bahia.mjs 🛰️ **PASO 1 del SCADA** (ADR-117): de la RED ENTERA se queda con
 │                                las señales de UNA bahía. SELECCIONA FILAS, no transforma: 509 MB
-│                                → 3,5 MB. Exige el patrón de la bahía (adivinarla es elegir por él), lo
-│                                mira SOLO en la etiqueta, y cero filas o dos bahías = error sin escribir
-│                                (ADR-132). `node herramientas/extraer-bahia.mjs <origen> <destino> <patrón>`
+│                                → 3,5 MB. Exige el patrón de la bahía, lo mira SOLO en la etiqueta, y cero
+│                                filas o dos bahías = error sin escribir (ADR-132).
+│                                `node herramientas/extraer-bahia.mjs <origen> <destino> <patrón>`
 ├── herramientas/juntar-por-dia.mjs 📅 **PASO 2** (ADR-119/126/127): un archivo por DÍA y ESTADÍSTICO
 │                                (enero 902 → 99 · febrero 1.060 → 108). Ni un número se toca. El día
-│                                sale del EJE, leído con la MISMA regla que la pantalla —y el orden de
-│                                la fecha de TODA la carga, con `ordenDeLaCarga` del núcleo—; el
+│                                sale del EJE, con la MISMA regla que la pantalla —y el orden de la fecha
+│                                de TODA la carga, con `ordenDeLaCarga` del núcleo—; el
 │                                estadístico, del nombre. Los «(1)» idénticos se escriben UNA vez; la
 │                                misma señal con valores distintos, o un archivo apartado, se NOMBRA y
 │                                sale con error; el archivo cuyo NOMBRE dice una señal y trae otra se
@@ -160,11 +160,13 @@ mantenimiento-lineas-at/
 │                                ⚠️ La base de LN627 salió de `_dias-LN627/2026-ene-ago/`: 812 = 807 + 5
 │                                apartados DENTRO. **Nunca recargar esa carpeta entera** · copia en la
 │                                bóveda · validar lo cargado: `2026-09-11-validacion-meses/` y `35 · L-91`
-├── herramientas/sellos-de-calidad.mjs 🔎 SOLO LEE: las horas sin sello «Actual», en bloques, y si
-│                                están congeladas o son imposibles (ADR-132). `<días> --sellos <bahía>`
-├── herramientas/plantilla-cargabilidad.mjs  el Excel MODELO para llenar a mano (ADR-088). La hoja
-│                                de datos va VACÍA, solo cabecera: el ejemplo vive en la hoja de
-│                                INSTRUCCIONES, donde nadie lo confunde con una medición
+├── herramientas/codigos-emitidos.json 📘 LIBRO DE CÓDIGOS (ADR-133): qué serie es cada código y con qué
+│                                id nace; prefijo `LN-` o `TR-`. El alta solo ofrece lo de aquí, y un
+│                                tramo cuyo par código↔id no cuadre NO se junta
+├── herramientas/sellos-de-calidad.mjs 🔎 SOLO LEE: horas sin sello «Actual», en bloques, y si están
+│                                congeladas o son imposibles (ADR-132). `<días> --sellos <bahía>`
+├── herramientas/plantilla-cargabilidad.mjs  el Excel MODELO (ADR-088): la hoja de datos va VACÍA y el
+│                                ejemplo vive en la de INSTRUCCIONES, donde no pasa por medición
 ├── herramientas/                sembrar.mjs (línea + expediente; `--linea` obligatorio y cada cifra de su
 │                                ficha, sin defectos ni permisos, ADR-132) · subir-evidencias.mjs (fotos) ·
 │                                (`usuarios.mjs` retirada en ADR-100; el rescate vive en la bóveda)
