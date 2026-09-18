@@ -102,13 +102,13 @@
    "clave": "09",
    "archivo": "temp-caribe-2026-09.png",
    "dias": 30,
-   "horasConDato": 336,
-   "bytes": 8126
+   "horasConDato": 360,
+   "bytes": 8656
   }
  ],
- "ultimoDiaConHoras": "2026-09-14",
- "ultimoDiaConTotal": "2026-09-14",
- "construido": "2026-09-17T13:29:30.497Z",
+ "ultimoDiaConHoras": "2026-09-15",
+ "ultimoDiaConTotal": "2026-09-15",
+ "construido": "2026-09-18T12:58:50.905Z",
  "resumenDiario": [
   {
    "d": "2026-01-01",
@@ -1137,6 +1137,10 @@
   {
    "d": "2026-09-14",
    "v": 29.31
+  },
+  {
+   "d": "2026-09-15",
+   "v": 29.16
   }
  ],
  "resumenDiarioEtiqueta": "Máxima del día",
