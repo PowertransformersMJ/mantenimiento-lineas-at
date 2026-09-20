@@ -10940,6 +10940,15 @@ alta la pulsa él (`TODO-104`)—.
 - Vivo y dicho: con alcance acotado la lista de líneas se deniega entera (`§ADR-100`), y el portero de fotos
   todavía no mira el alcance.
 
+### Confirmado por él el 20-09, con la evidencia delante
+
+Dudó de su propia indicación («quizás te indiqué erróneamente») porque las placas dicen **618** y
+ninguna de las dos líneas se llama así. Se le enseñó lo que dice su SCADA —cada línea aparece medida
+en sus DOS extremos, y los de llegada son la MISMA subestación; **ninguna bahía de 66 kV lleva 618**—
+y lo ratificó: **las 28 torres las comparten LN-617 y LN-628**, «618» es solo la numeración de placa
+del tramo común, LN-617 entra con su SCADA y la bahía de LN-628 no cambia. El diseño no se toca. Que
+las dos lleguen a la misma subestación es lo que hace creíble el tramo común.
+
 ### Lo que salió al ponerlo en sus manos (20-09)
 
 - **Las reglas no se habían desplegado.** El código sí; `levantamientos` quedaba cerrada y la pantalla
