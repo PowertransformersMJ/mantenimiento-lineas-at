@@ -10940,6 +10940,16 @@ alta la pulsa él (`TODO-104`)—.
 - Vivo y dicho: con alcance acotado la lista de líneas se deniega entera (`§ADR-100`), y el portero de fotos
   todavía no mira el alcance.
 
+### Lo que salió al ponerlo en sus manos (20-09)
+
+- **Las reglas no se habían desplegado.** El código sí; `levantamientos` quedaba cerrada y la pantalla
+  decía «Missing or insufficient permissions» al mirar los recorridos guardados. Recaída de `35 · L-22`:
+  una colección nueva son TRES despliegues. Reglas e índices ya desplegados.
+- **Se le pedía la fuente de la tensión y no se guardaba**: el molde no tenía casilla. Contrato
+  **0.17.0** con `Linea.procedenciaTension` (procedencia, fuente, cuándo y quién), la pantalla la
+  escribe y el aviso pasa a decir la verdad. Un número sin procedencia es una opinión, y éste es el
+  denominador de todo lo eléctrico.
+
 **Crudo de respaldo:** `research-archive/2026-09-16-ln617-ln628/` (`diseno-torre-comun/`, `cimientos/`,
 `pantallas/` con el render real, y los tres revisores de cada tanda).
 

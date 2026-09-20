@@ -69,6 +69,11 @@
 - **Regla:** una colección nueva son **TRES** despliegues, no uno: (1) el código, (2) `firebase
   deploy --only firestore:rules`, (3) la siembra del dato. Si falta el (2), el síntoma no dice
   «faltan reglas»: dice «no hay datos», que es lo que hace perder la tarde.
+- ⚠️ **RECAÍDA 20-09 (`§ADR-133`):** se desplegó el código de la colección `levantamientos` y **no
+  las reglas**. El Ingeniero abrió el alta y la pantalla dijo «No se pudo comprobar qué recorridos
+  hay ya guardados: Missing or insufficient permissions». Aquí no perdió la tarde —el aviso nombra
+  el síntoma y la pantalla no lo confunde con «no hay ninguno»—, pero el alta habría fallado al
+  escribir. Son TRES despliegues y el orden importa: reglas, código, dato.
 - **Lo que salvó la vista:** la lectura de expedientes va en su propio `try/catch` y devuelve lista
   vacía. Entre el despliegue del código y el de las reglas, la línea **siguió viéndose completa**.
   *Una capa opcional jamás puede tener poder de veto sobre una esencial* (misma regla que `L-11`).
