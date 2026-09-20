@@ -323,6 +323,9 @@ export interface PlanDeAlta {
     id: string;
     nombre: string;
     tensionNominal_kV: number;
+    /** De dónde sale esa tensión, y la línea que otro pueda ir a comprobar. */
+    origenTension: string;
+    fuenteTension: string;
     circuitos: number;
     /** El tramo compartido que recorre, con el origen de esa declaración. */
     tramo: { id: string; codigo: string; procedencia: string; fuente: string } | null;
@@ -382,6 +385,18 @@ export function documentosDelAlta(plan: PlanDeAlta): {
     circuitos: L.circuitos,
     activa: true,
   };
+
+  // DE DÓNDE SALE LA TENSIÓN, guardada con el número (contrato 0.17.0). Hasta el
+  // 20-09 esta pantalla la pedía y la tiraba: el Ingeniero la escribía, pulsaba,
+  // y el dato se quedaba aquí. Un número sin procedencia es una opinión.
+  if (L.origenTension && L.fuenteTension) {
+    linea.procedenciaTension = {
+      procedencia: L.origenTension,
+      fuente: L.fuenteTension,
+      declaradoEn: quien.ahora,
+      declaradoPor: quien.uid,
+    };
+  }
 
   if (L.tramo) {
     // UNA sola entrada, y abierta: la línea recorre el tramo ENTERO. No se
@@ -730,6 +745,8 @@ export function AltaDeLinea({ sesion, parque }: {
         id: elegida.id,
         nombre: nombreLimpio,
         tensionNominal_kV: tensionLeida,
+        origenTension,
+        fuenteTension: fuenteTensionLimpia,
         circuitos: Number(circuitos),
         tramo: tramo
           ? { id: tramo.id, codigo: tramo.codigo, procedencia: origenTramo, fuente: fuenteTramoLimpia }
@@ -950,12 +967,11 @@ export function AltaDeLinea({ sesion, parque }: {
         </label>
       </div>
       {comoSeEntendio(tension, 'kV') && <p className="fine">{comoSeEntendio(tension, 'kV')}</p>}
-      <p className="advertencia">
-        <b>De dónde sale la tensión todavía NO se guarda, y hay que saberlo.</b> El molde de los
-        datos (contrato 0.16.0) guarda el número y no tiene casilla para su origen ni para su fuente:
-        lo que escriba aquí queda en esta pantalla y en el acuse, no en la base. Se le pide igual
-        porque un número sin procedencia es una opinión, y porque el día que el molde tenga esa
-        casilla hay que poder rellenarla con lo que usted decidió hoy. <b>Anótelo aparte.</b>
+      <p className="fine">
+        <b>De dónde sale la tensión se guarda CON el número</b> (contrato 0.17.0), con su fuente, la
+        fecha y quién la declaró. Hasta el 20-09 esta pantalla la pedía y no la guardaba: el molde no
+        tenía esa casilla. Un número sin procedencia es una opinión, y éste es el denominador de todo
+        lo eléctrico.
       </p>
       <p className="fine">
         La tensión declarada es la <b>nominal</b>: la que sirve para comparar con lo que el SCADA

@@ -297,7 +297,8 @@ const PUNTOS = NOMBRES.map((n, i) => ({
 const planCompleto = (extra = {}) => ({
   linea: {
     codigo: 'LN-901', id: ID_LINEA, nombre: 'Línea de prueba',
-    tensionNominal_kV: 66, circuitos: 1,
+    tensionNominal_kV: 66, origenTension: 'documento_proyecto',
+    fuenteTension: 'plano unifilar de prueba, hoja 2', circuitos: 1,
     tramo: { id: ID_TRAMO, codigo: 'TR-909', procedencia: 'documento_proyecto', fuente: 'plano de prueba' },
     recorridoCompleto: false,
     ...(extra.linea ?? {}),
@@ -561,6 +562,12 @@ describe('los documentos del alta, campo a campo', () => {
       codigo: 'LN-901',
       nombre: 'Línea de prueba',
       tensionNominal_kV: 66,
+      procedenciaTension: {
+        procedencia: 'documento_proyecto',
+        fuente: 'plano unifilar de prueba, hoja 2',
+        declaradoEn: AHORA,
+        declaradoPor: UID,
+      },
       circuitos: 1,
       activa: true,
       recorridoCompleto: false,
@@ -710,6 +717,29 @@ describe('los documentos del alta, campo a campo', () => {
 // ════════════════════════════════════════════════════════════════════════════
 // 4 · ANTES DE ESCRIBIR SE PREGUNTA SI YA ESTÁ
 // ════════════════════════════════════════════════════════════════════════════
+
+describe('la tensión se guarda CON su procedencia (contrato 0.17.0)', () => {
+  test('⚠️ lo que se le pide en pantalla llega al DOCUMENTO, no se queda en la pantalla', () => {
+    // Hasta el 20-09 la pantalla exigía «la fuente de la tensión» y el molde no
+    // tenía dónde ponerla: él la escribía y se perdía al pulsar. Lo cazó él
+    // mismo, con el botón apagado y el aviso diciendo que no se guardaba.
+    const plan = planCompleto();
+    const { linea } = puro.documentosDelAlta(plan);
+    assert.deepEqual(linea.procedenciaTension, {
+      procedencia: plan.linea.origenTension,
+      fuente: plan.linea.fuenteTension,
+      declaradoEn: plan.quien.ahora,
+      declaradoPor: plan.quien.uid,
+    });
+    assert.ok(Linea.safeParse(linea).success, 'y el molde lo admite tal cual sale');
+  });
+
+  test('sin declararla, el campo NO se escribe: ausente no es vacío', () => {
+    const { linea } = puro.documentosDelAlta(
+      planCompleto({ linea: { origenTension: '', fuenteTension: '' } }));
+    assert.ok(!('procedenciaTension' in linea));
+  });
+});
 
 describe('el alta de la línea contra la base', () => {
   beforeEach(() => { datos.vaciar(); datos.ponerSesion(SESION_COMPLETA); });

@@ -148,6 +148,16 @@ import { z } from 'zod';
  * en código corto) y `l` (alcance por línea): un token sin ellos vale mínimo
  * privilegio, jamás el máximo.
  *
+ * 0.17.0 — MENOR (un campo opcional en `Linea`; nada renombrado, nada cambiado
+ * de tipo, cero migración). `Linea.procedenciaTension`: de dónde sale la tensión
+ * nominal, con su fuente, la fecha y quién la declaró. La pantalla del alta la
+ * EXIGÍA y el molde no tenía dónde ponerla: el 20-09 el Ingeniero la escribió,
+ * vio el aviso de que no se guardaba y paró. Un número sin procedencia es una
+ * opinión, y éste es el denominador de todo lo eléctrico.
+ *   ⚠️ DIRECCIÓN ÚNICA, como siempre: un navegador con el bundle anterior QUITA
+ *   el campo al validar, sin error. Desplegar el sitio ANTES de dar de alta, y
+ *   recargar los equipos.
+ *
  * 0.16.0 — MENOR (dos campos opcionales en `Linea`, uno en `Apoyo` y un módulo
  * NUEVO `levantamiento.ts`; nada renombrado, nada cambiado de tipo, cero
  * migración: una línea o un apoyo escritos hoy validan sin tocarlos). Entra lo
@@ -177,7 +187,7 @@ import { z } from 'zod';
  * despliega el sitio, se comprueba el hash del bundle y se recargan los equipos
  * —también la aplicación del teléfono— ANTES de la primera alta.
  */
-export const VERSION_CONTRATO = '0.16.0';
+export const VERSION_CONTRATO = '0.17.0';
 
 // ── Identificadores ─────────────────────────────────────────────────────────
 

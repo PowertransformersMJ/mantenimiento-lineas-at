@@ -395,6 +395,20 @@ export const Linea = Base.extend({
   codigo: z.string().min(1),             // p. ej. "LN-627"
   nombre: z.string().min(1),
   tensionNominal_kV: z.number().positive(),
+  /**
+   * DE DÓNDE SALE LA TENSIÓN NOMINAL. Se añadió el 20-09 (contrato 0.17.0): la
+   * pantalla del alta la exigía y el molde no tenía dónde guardarla, así que el
+   * Ingeniero escribía una procedencia que se perdía al pulsar. Un número sin
+   * procedencia es una opinión (`CLAUDE.md §4`), y éste es el denominador de
+   * todo lo eléctrico. Opcional porque las líneas anteriores no la traen: lo
+   * que no consta no se inventa.
+   */
+  procedenciaTension: z.object({
+    procedencia: Procedencia,
+    fuente: z.string().min(1).max(500),
+    declaradoEn: Instante,
+    declaradoPor: Uid,
+  }).strict().optional(),
   /** Las distancias de seguridad se basan en la MÁXIMA tensión de operación, no en la nominal. */
   tensionMaxima_kV: z.number().positive().optional(),
   circuitos: z.number().int().positive().default(1),

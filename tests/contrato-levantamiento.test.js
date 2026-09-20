@@ -148,10 +148,10 @@ const falla = (esquema, doc) => {
 };
 
 // ════════════════════════════════════════════════════════════════════════════
-describe('0.16.0 — la versión, y el aviso que la acompaña', () => {
+describe('0.17.0 — la versión, y el aviso que la acompaña', () => {
 
-  test('`VERSION_CONTRATO` dice 0.16.0 — es lo que pinta el pie de la aplicación', () => {
-    assert.equal(VERSION_CONTRATO, '0.16.0');
+  test('`VERSION_CONTRATO` dice 0.17.0 — es lo que pinta el pie de la aplicación', () => {
+    assert.equal(VERSION_CONTRATO, '0.17.0');
   });
 
   test('`contratos/package.json` la espeja: se suben juntas o el pie miente', () => {
@@ -164,8 +164,8 @@ describe('0.16.0 — la versión, y el aviso que la acompaña', () => {
     // navegador con el bundle anterior QUITA el campo nuevo al validar, sin
     // error. Si alguien añade una versión sin este aviso, esto se pone rojo.
     const fuente = readFileSync(join(AQUI, '..', 'contratos', 'src', 'comunes.ts'), 'utf-8');
-    const i = fuente.indexOf('0.16.0 — MENOR');
-    assert.ok(i > 0, 'la versión 0.16.0 subió sin dejar su renglón de cambios');
+    const i = fuente.indexOf('0.17.0 — MENOR');
+    assert.ok(i > 0, 'la versión 0.17.0 subió sin dejar su renglón de cambios');
     const renglon = fuente.slice(i, fuente.indexOf('export const VERSION_CONTRATO', i));
     assert.match(renglon, /DIRECCIÓN ÚNICA/i,
       '0.16.0 no declara que es de una sola dirección: es justo el fallo que no da error');
