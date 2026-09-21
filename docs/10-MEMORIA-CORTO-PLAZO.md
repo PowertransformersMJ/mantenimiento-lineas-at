@@ -12,16 +12,14 @@ Todo EN PRODUCCIÓN y **verificado en vivo con su sesión**.
 > `§ADR-049/050`—. La fase viva es **la página**: no eligió entre ② **se lee** y ③ **no se cae**.
 
 ## 🛑 LO PRIMERO AL RETOMAR
-0. 🆕 **PARÁMETROS ELÉCTRICOS** (`§ADR-088..131`). El SCADA entra por los pasos 0·1·2 de `20`, ≤100
-   archivos por carga.
-   ✅ **ENERO-AGOSTO EN PRODUCCIÓN** (`§ADR-128`): **208 días** (máx 197 · prom 207 · inst 208 · mín
-   195), **validados el 11-09** —las 8 señales hora a hora, del SCADA a la base, 29/29 grupos—; lo que
-   falta no vino en la exportación (`TODO-101`); lo NO comparado, en su «Validación». Apartado
-   hasta que decida: el 20-04 y un archivo de 2025 (`TODO-103`). Pico del máximo **588 A el 05-08 =
+0. 🆕 **PARÁMETROS ELÉCTRICOS** (`§ADR-088..131`). El SCADA entra por los pasos 0·1·2 de `20`, por
+   CARPETA entera, en tandas de ≤100 (`§ADR-134`).
+   ✅ **ENERO-AGOSTO EN PRODUCCIÓN** (`§ADR-128`): **208 días** (máx 197 · prom 207 · inst 208 ·
+   mín 195), **validados el 11-09** (8 señales hora a hora, 29/29); lo que falta no vino en la
+   exportación (`TODO-101`) y lo apartado espera su decisión (`TODO-103`). Pico del máximo **588 A el 05-08 =
    82 %**, con forma de EVENTO; la sostenida más alta, **490 A de promedio el 22-07**. 📊 Filtro
    por gráfica, sin tablas, eje día a día y un día abre sus 24 h en todas (`§ADR-129..131`).
    ⚠️ Sin capacidad nominal no hay porcentaje; en **P y Q, negativas, el «max» es el de MENOS carga**.
-   ⚠️ Falta lo SUYO: ratificar los **718 A** (`TODO-95/93`).
 1. **EL CUELLO DE BOTELLA NO ES CÓDIGO: ES EL DATO**: 0 de 26 con veredicto (`TODO-57`).
 2. **EL PATRÓN QUE LO DOMINA TODO:** *«arreglado donde se veía, vivo en la pieza hermana»* (`34 · L-65/74`,
    `32 · L-67`, `30 · L-68/M-01`; mordió en `§ADR-078/087/098`). ⚠️ **ORDEN SUYA (24-08):** cambiar sin
@@ -83,7 +81,7 @@ Todo EN PRODUCCIÓN y **verificado en vivo con su sesión**.
 
 | # | Qué | Dónde está el plan |
 |---|---|---|
-| **TODO-105** 🔴 | **Torre común hecha y en producción** (`§ADR-133`): las dos líneas, de alta el 20-09. Falta cargar su SCADA | `§ADR-133` |
+| **TODO-105** 🔴 ⬅️ **SUYA** | Las dos líneas, de alta el 20-09. **Falta su SCADA, y ya va por CARPETA ENTERA** (`§ADR-134`): suelte la del paso 2 y la del 1 (sellos): **779 docs** y **767** en 8 tandas. Si falla, reanude con «Ya cargado hasta», no con el periodo | `§ADR-133/134` |
 | **TODO-102** 🔴 | ① >100 archivos da un error crudo y el sello de calidad no se enseña (`§ADR-128`) · ② hermanas en el calendario pero sin ver con dato real (falta %); barras del Atlas, reglas viejas · ④ sondas 3·4·7 (`§ADR-121`) · ⑤ los ceros al final miran solo el día 1 · ⑥ conductor «fabricante» vs `supuesto`; `--tx-tenue` no existe; la guardia de color solo mira `estilo.css` · ⑦ «hoy» con dos dueños: `iso()` local y `diaDe` de Colombia · ⑧ `deploy` que se niegue con el remoto sin traer (`35 · L-77`) · ⑨ el arnés que DIBUJA, a `herramientas/` (`32 · L-90`), y el guardián que barra las gráficas (`§ADR-125`) | `99 §ADR-125..129` |
 | **TODO-70** | **Cerrar la ola de la ficha.** Queda SOLO ③: el gesto «Confirmo este dato», que exige su propio molde | `99 §ADR-030/032/033/038` |
 | **TODO-66** | **Que una acción pruebe que FUNCIONÓ**, no solo que se hizo: verificación posterior con fecha | `99 §ADR-026` |

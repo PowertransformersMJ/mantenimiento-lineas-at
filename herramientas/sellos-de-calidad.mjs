@@ -54,6 +54,13 @@ import { celdasDeCsv, separadorDe } from '../importar/csv.js';
 import {
   CALIDAD_BUENA, campoDeSenal, encontrarEjeDeTiempo, esArchivoDeCalidad, estadisticoDeNombre, ordenDeLaCarga,
 } from '../nucleo/cargabilidadAncho.js';
+// ⚠️ LA CUENTA DE LOS SELLOS NO SE ESCRIBE AQUÍ. Cada hora·señal vale UNA vez la
+// traigan uno o cinco archivos, y quién la cuenta es el núcleo
+// (`nucleo/cargaPorLotes.js#indiceDeSellos`), el mismo que usa la pantalla de
+// cargabilidad. Tener cada uno la suya costó un «×9» aquí y un «×8» allá sobre
+// el mismo dato —1.080 lecturas repetidas en LN-617— con el agravante de que ese
+// texto se escribe en un rastro que no se puede corregir (`99 §ADR-128`).
+import { ejeConHorasRepetidas, indiceDeSellos, MOTIVO_EJE_NO_HORARIO } from '../nucleo/cargaPorLotes.js';
 
 /**
  * CONGELADO: cuántas horas seguidas con el MISMO valor bastan para decirlo.
@@ -137,9 +144,10 @@ const deOrdinal = (o) => {
 const etiquetaDe = (celdas, primeraColumna) => (celdas ?? []).slice(0, primeraColumna)
   .map((v) => (v == null ? '' : String(v).trim())).filter((t) => t !== '').join(' · ') || '(sin etiqueta)';
 
-// sellos:  ordinal → etiqueta → Set de sellos (más de uno = dos archivos que no coinciden)
+// sellos:  el índice del núcleo — hora·señal → los sellos que trajo (más de uno
+//          = dos archivos que no coinciden). La cuenta es SUYA, no de aquí.
 // valores: estadístico → etiqueta → ordinal → número | null (celda con texto)
-const sellos = new Map();
+const indiceSellos = indiceDeSellos();
 const valores = new Map();
 const apartados = [];
 const choques = [];
@@ -168,11 +176,10 @@ for (const { p, raiz, soloSellos } of lotes) {
   // Para el sello, el mismo mínimo de columnas con que lo lee el núcleo (`leerCalidad`).
   const eje = encontrarEjeDeTiempo(matriz, calidad ? { minimo: 2 } : {});
   if (!eje) { apartar('no trae un eje de tiempo reconocible'); continue; }
+  // El mismo criterio y el MISMO texto que el núcleo, que es quien lo guarda:
+  // dos redacciones del mismo problema son dos problemas para quien lee.
+  if (ejeConHorasRepetidas(eje)) { apartar(MOTIVO_EJE_NO_HORARIO); continue; }
   const instantes = eje.instantes.map((i) => (i ? ordinal(i.fecha, i.hora) : null));
-  const vistos = instantes.filter((o) => o != null);
-  if (new Set(vistos).size !== vistos.length) {
-    apartar('su eje no es horario: dos columnas caen en la misma hora'); continue;
-  }
   ordenes.push({ nombre: ruta, orden: eje.ordenDeFecha });
   leidos += 1;
   if (calidad) deCalidad += 1; else deMedida += 1;
@@ -185,13 +192,14 @@ for (const { p, raiz, soloSellos } of lotes) {
       const o = instantes[k];
       if (o == null || v == null || String(v).trim() === '') return;
       if (calidad) {
-        if (!sellos.has(o)) sellos.set(o, new Map());
-        const porSenal = sellos.get(o);
-        if (!porSenal.has(etiqueta)) porSenal.set(etiqueta, new Set());
-        const s = porSenal.get(etiqueta);
-        const sello = String(v).trim();
-        if (s.size && !s.has(sello)) choques.push({ tipo: 'sello', ...deOrdinal(o), etiqueta, archivo: ruta });
-        s.add(sello);
+        // QUIÉN CUENTA: el núcleo. Que la misma hora·señal leída dos veces valga
+        // UNA, y que dos lecturas distintas sean un choque, lo decide él —y con
+        // él lo decide la pantalla—. Aquí solo se le pasa lo leído.
+        const instante = eje.instantes[k];
+        const fue = indiceSellos.anotar({ ...instante, etiqueta, sello: String(v).trim(), archivo: ruta });
+        // El choque SÍ se nombra con su señal: este informe sale del repositorio
+        // público, a la bóveda, y ahí la etiqueta es con lo que se busca el archivo.
+        if (fue === 'choque') choques.push({ tipo: 'sello', ...deOrdinal(o), etiqueta, archivo: ruta });
         return;
       }
       const n = typeof v === 'number' ? v : Number(String(v).replace(',', '.'));
@@ -206,6 +214,18 @@ for (const { p, raiz, soloSellos } of lotes) {
       serie.set(o, valor);
     });
   }
+}
+
+// ── El índice del núcleo, traído al espacio de horas absolutas de este informe ─
+// La CUENTA ya está hecha —cada hora·señal una vez, los choques aparte—; esto
+// solo la vuelve a colocar por hora absoluta, que es como se miran aquí las
+// rachas y los bloques seguidos. Ni se recuenta ni se juzga nada de nuevo.
+/** ordinal → Map(etiqueta → Set(sello)) */
+const sellos = new Map();
+for (const h of indiceSellos.horaSenal()) {
+  const o = ordinal(h.fecha, h.hora);
+  if (!sellos.has(o)) sellos.set(o, new Map());
+  sellos.get(o).set(h.etiqueta, new Set(h.sellos));
 }
 
 // ── ¿Día/mes o mes/día? La regla de la carga entera es la del núcleo ─────────

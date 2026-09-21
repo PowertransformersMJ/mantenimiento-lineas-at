@@ -66,6 +66,11 @@ mantenimiento-lineas-at/
 │                                nombre del archivo —46 de 902 lo traen mal—; el estadístico sí sale
 │                                del nombre y, si hay varios y no se elige, NO lee nada. `_quality`
 │                                es un SELLO por hora («Actual»), no un estadístico
+│   └── cargaPorLotes.js         qué día ENTRA, cuál se aparta y en cuántas tandas (ADR-134). UNA
+│                                cuenta del sello para la pantalla y la consola (`indiceDeSellos`:
+│                                cada hora·señal vale una vez). ⚠️ «Ya cargado hasta» NO es el
+│                                periodo: de un día ya escrito esta carga no dice NADA, y por eso
+│                                `OTRA_CORRIDA` no cabe en el molde
 │
 ├── contratos/                   ⭐ WORKSPACE @lineas/contratos — los esquemas Zod que ambos lados
 │                                obedecen. `comunes.ts` es dueño de `VERSION_CONTRATO` (el

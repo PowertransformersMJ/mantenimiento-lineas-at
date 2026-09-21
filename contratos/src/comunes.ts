@@ -186,8 +186,37 @@ import { z } from 'zod';
  * su tramo compartido** — sin error, sin aviso, como en 0.5.0/0.6.0/0.9.0. Se
  * despliega el sitio, se comprueba el hash del bundle y se recargan los equipos
  * —también la aplicación del teléfono— ANTES de la primera alta.
+ *
+ * 0.18.0 — MENOR (un campo opcional en `CargaDeCargabilidad`; nada renombrado,
+ * nada cambiado de tipo, cero migración: una carga escrita ayer valida hoy sin
+ * tocarla). `CargaDeCargabilidad.apartados` — **los días que NO entraron y por
+ * qué**: la fecha, el motivo de un catálogo CERRADO (`MotivoApartado`), el sello
+ * que lo marcó, las horas y las señales afectadas.
+ *
+ * El documento que deja constancia de una carga anotaba lo que entró —archivos,
+ * líneas, periodo, filas— y no tenía dónde decir lo que se quedó fuera. Y lo que
+ * se queda fuera no es una anécdota: al preparar LN-617 y LN-628 se apartan 8 y
+ * 11 días por horas cuyo sello no es «Actual», más un archivo de 2025 que cae
+ * fuera del periodo. Sin este campo, dentro de seis meses «¿por qué falta el
+ * 26-01?» solo se responde volviendo a correr la lectura de sellos sobre unos
+ * CSV que viven en el disco del Ingeniero — y un hueco sin explicación no se
+ * distingue de un fallo del sistema. Es la misma regla que ya gobierna el resto
+ * del molde: el dato guardado dice con qué se produjo; ahora el que NO se guardó
+ * dice por qué no.
+ *
+ * ⚠️ **Ausente ≠ «no se apartó nada»**: quiere decir que esa carga no lo
+ * declaró. Las cargas ya escritas no lo traen y NO se pueden completar —esa
+ * colección es inmutable, `update: if false`—, así que se leen como no
+ * declarado, jamás como «entró todo».
+ *
+ * ⚠️ MISMA DIRECCIÓN ÚNICA que todo lo aditivo de esta lista, y aquí sin
+ * segunda oportunidad: una pantalla o una herramienta con el contrato anterior
+ * QUITA `apartados` al validar, sin error y sin aviso, y la carga queda escrita
+ * **para siempre** sin su motivo, porque esa colección no se actualiza. Se
+ * despliega el sitio y se actualiza `herramientas/cargar-cargabilidad.mjs` ANTES
+ * de la primera carga que aparte un día.
  */
-export const VERSION_CONTRATO = '0.17.0';
+export const VERSION_CONTRATO = '0.18.0';
 
 // ── Identificadores ─────────────────────────────────────────────────────────
 

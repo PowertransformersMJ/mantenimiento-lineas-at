@@ -349,6 +349,127 @@ export const EstadoCarga = z.enum([
 ]);
 
 /**
+ * POR QUÉ UN DÍA NO ENTRÓ AL HISTÓRICO. Catálogo CERRADO, sin texto libre — la
+ * misma regla que `MotivoRechazo` en `comunes.ts`: si no está aquí, no existe.
+ *
+ * Es cerrado porque este dato se va a CONTAR —«¿cuántos días de agosto se
+ * apartaron por sello?»— y una frase escrita a mano no se cuenta, se lee. El
+ * matiz —qué sello, en qué horas, cuántas señales— va en los campos de al lado.
+ *
+ *   · `sello_no_actual`   — alguna hora del día traía un sello distinto de
+ *     «Actual», así que **el día se apartó ENTERO**. Es la decisión del
+ *     Ingeniero del 2026-09-20, y su razón está escrita en
+ *     `herramientas/cargar-cargabilidad.mjs`: no se recortan «las horas
+ *     buenas», porque lo apartado se puede sumar después y **lo cargado NO se
+ *     puede retirar** — `firestore.rules` niega el borrado de las tres
+ *     colecciones a propósito.
+ *   · `fuera_del_periodo` — el día no cae en el periodo que se pidió cargar.
+ *     Suele ser una exportación traspapelada: en LN-617 vino uno de 2025.
+ *   · `sin_lecturas`      — los archivos de ese día no produjeron ninguna
+ *     lectura con número. El día existe en el origen y no existe en la base, y
+ *     esa diferencia hay que poder explicarla.
+ *
+ * ⚠️ **UN DÍA SIN NINGÚN SELLO NO ES UN DÍA APARTADO Y NO VA EN ESTA LISTA.**
+ * Los días sin archivo de calidad —del 1 al 12 de enero y el 31-05— ENTRAN:
+ * ninguna de sus horas trae un sello distinto de «Actual» porque no traen sello
+ * ninguno. Que se NOMBREN, para saber qué entró sin respaldo, es otra cosa y
+ * vive en el informe de la herramienta. Meterlos aquí diría que falta un día que
+ * sí está, que es exactamente la mentira contraria.
+ *
+ * ⚠️ Un motivo NUEVO es una versión del contrato, como lo fue
+ * `documento_proyecto` en 0.6.0. Un catálogo que se amplía a escondidas deja de
+ * poder contarse, y contarlo es para lo que existe.
+ */
+export const MOTIVOS_APARTADO = ['sello_no_actual', 'fuera_del_periodo', 'sin_lecturas'] as const;
+export const MotivoApartado = z.enum(MOTIVOS_APARTADO);
+export type MotivoApartado = z.infer<typeof MotivoApartado>;
+
+/** Cómo se llama cada motivo en pantalla. Aquí, para que no haya dos verdades. */
+export const ROTULO_MOTIVO_APARTADO: Record<MotivoApartado, string> = {
+  sello_no_actual: 'alguna hora no se midió: sello distinto de «Actual»',
+  fuera_del_periodo: 'el día queda fuera del periodo que se cargó',
+  sin_lecturas: 'ese día no trajo ninguna lectura con número',
+};
+
+/**
+ * CUÁNTOS DÍAS APARTADOS CABEN EN UNA CARGA. 366 = los días de un año bisiesto.
+ *
+ * No es una cifra de gusto. Una carga no puede apartar más días de los que tiene
+ * el periodo que carga, y un periodo de más de un año no es una carga: son
+ * varias. De referencia, el periodo que se está cargando —enero a agosto— son
+ * 243 días de calendario, y de ellos se apartan 8 en LN-617 y 11 en LN-628.
+ *
+ * ⚠️ **El tope RECHAZA, no recorta**, por la misma razón que `archivos`: una
+ * lista que se corta deja de responder la pregunta para la que existe —«¿por qué
+ * falta el 26-01?»— y encima lo hace en silencio. Si una carga aparta más días
+ * que esto, se parte por periodo, igual que `archivos` obliga a partir en lotes
+ * de cien (`99 §ADR-113`).
+ */
+export const DIAS_APARTADOS_POR_CARGA = 366;
+
+/**
+ * UN DÍA QUE NO ENTRÓ, con su porqué.
+ *
+ * Es el reverso del resto de este archivo: todo lo demás guarda lo que se midió
+ * y con qué se produjo; esto guarda **lo que NO se guardó y por qué no**. Sin
+ * ello un hueco del histórico no se distingue de un fallo del sistema, y la
+ * única forma de responder «¿por qué falta el 26-01?» sería volver a correr la
+ * lectura de sellos sobre unos CSV que viven en el disco del Ingeniero.
+ */
+export const DiaApartado = z.object({
+  /** Qué día es el que falta. Es literalmente la pregunta que se hará después. */
+  fecha: DiaIso,
+  /** De qué catálogo cerrado. Un motivo en blanco no es un motivo: no valida. */
+  motivo: MotivoApartado,
+  /**
+   * EL SELLO QUE LO MARCÓ, tal y como venía en el archivo de calidad: «Not
+   * Renewed», «Invalid»… Es una LISTA y no una sola cadena porque un mismo día
+   * puede traer dos sellos distintos en horas distintas, y quedarse con uno
+   * sería decidir por el Ingeniero cuál de los dos cuenta.
+   *
+   * ⚠️ OBLIGATORIO cuando el motivo es `sello_no_actual`, y lo hace cumplir el
+   * `refine` de abajo: un día apartado «por el sello» que no dice CUÁL sello no
+   * deja revisar la decisión, que es justo para lo que se escribe.
+   */
+  sellos: z.array(z.string().min(1).max(60)).max(12).optional(),
+  /**
+   * LAS HORAS que traían ese sello, con las mismas claves que el día: `00`…`23`.
+   * No cambian la decisión —el día se aparta entero— pero son la diferencia
+   * entre «ese día no se midió» y «ese día se cayó el enlace de 3 a 8».
+   */
+  horas: z.array(ClaveHora).max(24).optional(),
+  /**
+   * CUÁNTAS señales del día quedaron afectadas.
+   *
+   * Va aparte de `senales` a propósito: la CIFRA se puede escribir siempre —dos
+   * señales de veinte no es lo mismo que veinte de veinte, y eso ya orienta la
+   * revisión—, mientras que los NOMBRES son la ruta del SCADA del cliente y hay
+   * salidas que se pegan en un correo o en un informe. Quien escribe elige si
+   * los pone; el recuento no se pierde por ello.
+   */
+  senalesAfectadas: z.number().int().positive().max(500).optional(),
+  /**
+   * CUÁLES, cuando quien escribe puede nombrarlas. Nunca puede haber más
+   * nombres que señales declaradas: lo comprueba el `refine` de abajo.
+   */
+  senales: z.array(z.string().min(1).max(200)).max(50).optional(),
+  /**
+   * LA FRASE ENTERA, la que se leyó en pantalla el día de la carga.
+   *
+   * Se guarda además de los campos de arriba para que la base diga LO MISMO que
+   * dijo la consola, sin recomponerlo. ⚠️ Si está, no puede estar en blanco: un
+   * detalle vacío es peor que ninguno, porque parece que alguien lo explicó.
+   */
+  detalle: z.string().min(1).max(300).optional(),
+}).refine((d) => d.motivo !== 'sello_no_actual' || (d.sellos?.length ?? 0) > 0, {
+  message: 'un día apartado por su sello tiene que decir CUÁL sello lo marcó: sin eso la decisión no se puede revisar',
+  path: ['sellos'],
+}).refine((d) => d.senales == null || d.senalesAfectadas == null || d.senales.length <= d.senalesAfectadas, {
+  message: 'se nombran más señales de las que se declaran afectadas: una de las dos cifras miente',
+  path: ['senales'],
+});
+
+/**
  * DE QUÉ ARCHIVO SALIÓ TODO.
  *
  * ⚠️ **No se guarda el archivo, solo su rastro.** El `.xlsx` original es material
@@ -393,6 +514,27 @@ export const CargaDeCargabilidad = Base.extend({
   estadisticos: z.array(Estadistico).max(8).optional(),
   desde: DiaIso.optional(),
   hasta: DiaIso.optional(),
+  /**
+   * LOS DÍAS QUE NO ENTRARON, Y POR QUÉ.
+   *
+   * ⚠️ Hasta hoy este documento anotaba lo que SÍ entró —`archivos`, `lineas`,
+   * `desde`/`hasta`, cuántas filas— y **no tenía dónde decir lo que se quedó
+   * fuera**. Y lo que se queda fuera no es una anécdota: al preparar LN-617 y
+   * LN-628 se apartan 8 y 11 días por sellos que no son «Actual», más un día de
+   * 2025 que cae fuera del periodo. Sin esto, dentro de seis meses «¿por qué
+   * falta el 26-01?» no se responde desde la base.
+   *
+   * ⚠️ **Ausente ≠ «no se apartó nada»**: significa que esa carga no lo dijo.
+   * Las cargas ya escritas no lo traen y **no se pueden completar** —la
+   * colección es INMUTABLE, `update: if false` en las reglas—, así que se leen
+   * como no declarado. Rellenarlas sería fabricar una decisión que nadie tomó,
+   * en el único registro que existe para auditar.
+   */
+  apartados: z.array(DiaApartado).max(
+    DIAS_APARTADOS_POR_CARGA,
+    `no caben más de ${DIAS_APARTADOS_POR_CARGA} días apartados en una carga (un año): `
+    + 'la lista no se recorta —dejaría de explicar los huecos, y en silencio—, así que parta la carga por periodo',
+  ).optional(),
   estado: EstadoCarga,
   /** Con qué motor y con qué molde se proceso este archivo. */
   versionMotor: z.string().max(30).optional(),
@@ -408,6 +550,7 @@ export type DiaDeCargabilidad = z.infer<typeof DiaDeCargabilidad>;
 export type ResumenDiarioCargabilidad = z.infer<typeof ResumenDiarioCargabilidad>;
 export type CargaDeCargabilidad = z.infer<typeof CargaDeCargabilidad>;
 export type EstadoCarga = z.infer<typeof EstadoCarga>;
+export type DiaApartado = z.infer<typeof DiaApartado>;
 
 /**
  * EL `id` DE UN DÍA, derivado y estable.

@@ -17,6 +17,9 @@
 //     las fases (`nucleo/cargabilidadAncho.js`);
 //   · `empaquetarPorDia` / `resumirDia`       — armar el día y su resumen
 //     (`nucleo/cargabilidad.js`);
+//   · `repartirEnLotes` / `ARCHIVOS_POR_CARGA` / `motivoDelApartado` — en cuántas
+//     tandas se parte y cómo se dice por qué se apartó un día
+//     (`nucleo/cargaPorLotes.js`);
 //   · `idDelDia` / `idDelResumen` y los moldes — la identidad y la forma
 //     (`contratos/src/cargabilidad.ts`);
 //   · `sellos-de-calidad.mjs`                 — qué horas NO son medida.
@@ -36,6 +39,15 @@
 // trae un sello distinto de «Actual» porque no trae sello ninguno, así que la
 // regla de arriba no lo toca — pero tampoco es un día dado por bueno. Se carga
 // y se NOMBRA, uno a uno, para que el Ingeniero sepa qué entró sin respaldo.
+//
+// ⚠️ LO APARTADO SE ESCRIBE EN EL RASTRO DE CADA CARGA, y solo lo apartado POR
+// UNA REGLA (`CargaDeCargabilidad.apartados`, molde 0.18.0). Va la MISMA lista
+// en todas las cargas de la pasada —lo apartado es de la carpeta, no de la
+// tanda— y NO va lo que queda fuera de «--desde/--hasta»: acotar el periodo es
+// lo que se pidió cargar hoy, y es la forma de reanudar una pasada que se cortó;
+// anotar como «no entró» un día que la pasada anterior ya cargó sería una
+// mentira imposible de corregir, porque esa colección no se actualiza. El porqué
+// entero, en `apartadosParaElRastro`, que es donde se decide.
 //
 // ⚠️ NO BORRA, NO CORRIGE Y NO ELIGE. Escribe lo que el motor produce, valida
 // cada documento contra su molde ANTES de mandar nada, y si algo no cuadra sale
@@ -74,8 +86,11 @@ import {
   registrosDeVariosDias, revisarFasesPorDia, unirPorDia,
 } from '../nucleo/cargabilidadAncho.js';
 import {
-  CargaDeCargabilidad, COLECCIONES_CARGABILIDAD, DiaDeCargabilidad, idDelDia, idDelResumen,
-  ResumenDiarioCargabilidad,
+  ARCHIVOS_POR_CARGA, CAUSA_DEL_APARTADO, motivoDelApartado, repartirEnLotes,
+} from '../nucleo/cargaPorLotes.js';
+import {
+  CargaDeCargabilidad, COLECCIONES_CARGABILIDAD, DiaDeCargabilidad, DIAS_APARTADOS_POR_CARGA,
+  idDelDia, idDelResumen, ResumenDiarioCargabilidad, ROTULO_MOTIVO_APARTADO,
 } from '../contratos/src/cargabilidad.ts';
 import { VERSION_CONTRATO } from '../contratos/src/index.ts';
 
@@ -84,17 +99,27 @@ const RAIZ = resolve(AQUI, '..');
 export const VERSION_MOTOR = JSON.parse(readFileSync(join(RAIZ, 'nucleo', 'package.json'), 'utf8')).version;
 
 /**
- * CUÁNTOS ARCHIVOS CABEN EN UNA CARGA, y no es un gusto: `CargaDeCargabilidad`
- * declara `archivos: z.array(...).max(100)` porque ese documento es el RASTRO de
- * procedencia —«¿de qué archivo salió este número?»— y una lista que se corta no
- * responde esa pregunta. Es el mismo tope con el que el Ingeniero subió LN-627 a
- * mano, en trece pasadas (`99 §ADR-128`).
+ * EL TOPE DE ARCHIVOS Y EL REPARTO EN TANDAS **NO VIVEN AQUÍ**: son del núcleo
+ * (`nucleo/cargaPorLotes.js`), que es de donde tira también la pantalla. Esto
+ * solo los reexporta con el mismo nombre de siempre, para que quien ya los
+ * importaba de aquí —las pruebas— los siga encontrando (`CLAUDE.md §3.1`: nada
+ * exportado se renombra sin migración).
  *
- * ⚠️ Un día NUNCA se parte entre dos lotes: sus archivos —los cuatro
- * estadísticos— viajan juntos, porque juntos se unen (`unirAnchas` exige el
- * mismo eje de tiempo) y juntos se leen.
+ * ⚠️ HASTA HOY HABÍA DOS COPIAS —una aquí y otra en el núcleo— y una prueba de
+ * paridad que las comparaba caso por caso. Una prueba de paridad es un cable
+ * trampa: avisa DESPUÉS de que alguien cambie una de las dos, y mientras tanto
+ * dos criterios para partir la misma carpeta son dos históricos distintos. Ahora
+ * hay una sola versión, y el cable trampa compara la única que queda consigo
+ * misma: sobra, y por eso sobra.
+ *
+ * Lo que dicen allí, y sigue mandando: el tope es 100 porque
+ * `CargaDeCargabilidad.archivos` declara `.max(100)` —ese documento es el RASTRO
+ * de procedencia y una lista que se corta no responde «¿de qué archivo salió
+ * este número?»—, y **un día NUNCA se parte entre dos tandas**: sus archivos —los
+ * estadísticos del día— viajan juntos porque juntos se unen (`unirAnchas` exige
+ * el mismo eje de tiempo) y juntos se leen.
  */
-export const ARCHIVOS_POR_CARGA = 100;
+export { ARCHIVOS_POR_CARGA, repartirEnLotes };
 
 /**
  * Firestore admite 500 escrituras por lote. Se parte en trozos y no se manda uno
@@ -157,25 +182,82 @@ function ordenarHondo(v) {
 }
 
 /**
- * LOS LOTES: días seguidos hasta llenar `tope` archivos, sin partir ningún día.
+ * LOS DÍAS QUE NO ENTRARON, EN LA FORMA DEL RASTRO (`CargaDeCargabilidad.apartados`).
  *
- * ⚠️ Un día que por sí solo pasa del tope va SOLO, entero: partirlo sería
- * separar los estadísticos de un mismo día, que es justo lo que `unirAnchas`
- * necesita juntos. Un lote así se pasaría del tope y el molde lo diría; hoy no
- * puede ocurrir —un día trae cuatro archivos— y si algún día ocurriera, se vería.
+ * ⚠️ NO BASTA CON DECIRLO EN LA CONSOLA. `cargabilidad_cargas` es INMUTABLE
+ * —`update: if false` en las reglas—: lo que no se escriba al CREAR la carga no
+ * se escribe nunca. Una carga que calla lo apartado afirma, dentro de seis
+ * meses, que aquel día **no vino** — cuando lo que pasó es que se dejó fuera a
+ * propósito y se puede sumar el día que el Ingeniero lo decida.
  *
- * @param {{archivos: number}[]} elementos  un día cada uno, en el orden en que van
- * @param {{tope?: number}} [opciones]
- * @returns {{elementos: object[], archivos: number}[]}
+ * ⚠️ AQUÍ SOLO ENTRA LO APARTADO **POR UNA REGLA**, es decir lo que se decidió
+ * mirando este origen: `sello_no_actual` (alguna hora del día no se midió),
+ * `fuera_del_periodo` (el Ingeniero acotó qué quería cargar) y `sin_lecturas`
+ * (el día no dejó ni una lectura con número).
+ *
+ * ⚠️ **LO QUE NO ENTRA NUNCA son los días de `--ya-cargado-hasta`**, y ahí está
+ * todo el asunto. Reanudar una pasada cortada NO es acotar el periodo: son dos
+ * preguntas distintas y por eso tienen dos opciones distintas. Mientras las dos
+ * cupieron en «--desde», reanudar dejaba escrito —en un rastro que no se edita
+ * ni se borra— que días YA CARGADOS «quedaron fuera del periodo»; medido en la
+ * pantalla, con el mismo defecto: 110 días de LN-617. De un día ya escrito esta
+ * carga no dice nada: lo que haya que decir lo dijo la carga que lo escribió.
+ *
+ * ⚠️ Y UN DÍA SIN NINGÚN SELLO NO VA EN ESTA LISTA: entra en la carga, así que
+ * decir que no entró sería la mentira contraria. Se NOMBRA aparte, en el aviso.
+ *
+ * ⚠️ De las señales sale CUÁNTAS, nunca cuáles: su etiqueta es la ruta del SCADA
+ * del cliente (subestación, nivel de tensión, bahía) y esto acaba en una base
+ * que se lee desde la pantalla y en informes que se pegan donde sea.
+ *
+ * @param {{
+ *   porSello?: {fecha: string, sellos?: {sello: string, horas: number}[],
+ *               senales?: number, horas?: number[], porQue?: string}[],
+ *   fueraDelPeriodo?: string[],
+ *   periodo?: {desde?: string|null, hasta?: string|null},
+ *   sinLecturas?: string[],
+ * }} entrada
+ * @returns {{fecha: string, motivo: string}[]}  en la forma de `DiaApartado`
  */
-export function repartirEnLotes(elementos, { tope = ARCHIVOS_POR_CARGA } = {}) {
-  const lotes = [];
-  for (const e of elementos ?? []) {
-    const ultimo = lotes[lotes.length - 1];
-    if (!ultimo || ultimo.archivos + e.archivos > tope) lotes.push({ elementos: [e], archivos: e.archivos });
-    else { ultimo.elementos.push(e); ultimo.archivos += e.archivos; }
+export function apartadosParaElRastro({
+  porSello = [], fueraDelPeriodo = [], periodo = {}, sinLecturas = [],
+} = {}) {
+  const puestos = new Set();
+  const salida = [];
+  for (const d of porSello ?? []) {
+    if (!d?.fecha || puestos.has(d.fecha)) continue;
+    puestos.add(d.fecha);
+    salida.push({
+      fecha: d.fecha,
+      motivo: 'sello_no_actual',
+      // El molde admite doce sellos y veinticuatro horas; la frase ENTERA se
+      // guarda igual en `detalle`, que es lo que se lee. Estos dos campos son
+      // para CONTAR («¿cuántos días de agosto por “Not Renewed”?»).
+      sellos: (d.sellos ?? []).map((s) => String(s.sello)).slice(0, 12),
+      horas: (d.horas ?? []).map((h) => String(h).padStart(2, '0')).slice(0, 24),
+      senalesAfectadas: Number(d.senales) > 0 ? Number(d.senales) : undefined,
+      detalle: String(d.porQue ?? motivoDelApartado(d)).slice(0, 300),
+    });
   }
-  return lotes;
+  for (const f of fueraDelPeriodo ?? []) {
+    if (!f || puestos.has(f)) continue;
+    puestos.add(f);
+    // El mismo texto que la pantalla, palabra por palabra: lo redacta el núcleo.
+    salida.push({
+      fecha: f,
+      motivo: 'fuera_del_periodo',
+      detalle: motivoDelApartado({ causa: CAUSA_DEL_APARTADO.PERIODO, periodo }).slice(0, 300),
+    });
+  }
+  for (const f of sinLecturas ?? []) {
+    // Un día no puede estar dos veces con dos motivos: el primero que lo explica
+    // se queda. Los apartados por sello ni siquiera llegan a leerse, así que no
+    // pueden aparecer también como «sin lecturas».
+    if (!f || puestos.has(f)) continue;
+    puestos.add(f);
+    salida.push({ fecha: f, motivo: 'sin_lecturas', detalle: ROTULO_MOTIVO_APARTADO.sin_lecturas });
+  }
+  return salida.sort((a, b) => a.fecha.localeCompare(b.fecha));
 }
 
 /**
@@ -201,10 +283,13 @@ export function partidaDeNacimiento(previo, { ahora, uid }) {
  * LOS DOCUMENTOS DE UN LOTE, armados EXACTAMENTE como los arma la pantalla.
  *
  * @param lote  lo que salió del motor: `dias`, `resumenes`, `archivos`, `huella`…
- * @param ctx   `{ org, uid, ahora, linea, totalLotes, previos, nuevoId }`
+ * @param ctx   `{ org, uid, ahora, linea, totalLotes, apartados, previos, nuevoId }`
  */
 export function armarDocumentos(lote, ctx) {
-  const { org, uid, ahora, linea, totalLotes, previos = new Map(), nuevoId = () => crypto.randomUUID() } = ctx;
+  const {
+    org, uid, ahora, linea, totalLotes, apartados = [],
+    previos = new Map(), nuevoId = () => crypto.randomUUID(),
+  } = ctx;
   const cargaId = nuevoId();
   const dias = lote.dias.map((d) => {
     const id = idDelDia(org, String(d.linea), d.circuito, String(d.fecha), d.estadistico);
@@ -255,6 +340,31 @@ export function armarDocumentos(lote, ctx) {
       lineas: [linea],
       estadisticos: lote.presentes,
       desde: lote.fechas[0], hasta: lote.fechas[lote.fechas.length - 1],
+      /**
+       * LOS DÍAS QUE NO ENTRARON — **LA MISMA LISTA EN TODAS LAS CARGAS DE LA
+       * PASADA**, y es una decisión, no un descuido al copiar.
+       *
+       * Lo apartado es de la CARPETA, no de la tanda: se decide una vez, antes
+       * de partir en tandas de cien archivos. Va repetido en todas porque:
+       *
+       *   · el rastro es INMUTABLE y la pasada se puede cortar —o saltarse una
+       *     tanda entera, porque lo ya guardado e idéntico no se reescribe y esa
+       *     carga entonces no se escribe—. Si la lista viviera solo «en la
+       *     primera», el porqué del hueco desaparecería para siempre el día que
+       *     esa primera no llegue a existir;
+       *   · así CADA carga responde sola «¿por qué falta el 26-01?», sin tener
+       *     que buscar a sus hermanas y adivinar cuál de las ocho la llevaba;
+       *   · y repetirla no infla ninguna cuenta: contar días apartados ya exige
+       *     quitar repetidos por fecha —dos pasadas sobre la misma carpeta los
+       *     vuelven a declarar—, así que se cuentan FECHAS distintas, no se
+       *     suman listas. Es lo mismo que hace la pantalla, que manda la misma
+       *     lista en cada tanda y las une sin repetir.
+       *
+       * ⚠️ Vacía NO es lo mismo que ausente: vacía dice «esta pasada miró y no
+       * apartó ningún día por una regla»; ausente —las cargas de antes de 0.18.0—
+       * dice «esta carga no lo declaró», y esas no se pueden completar.
+       */
+      apartados,
       estado: 'guardada',
       versionMotor: VERSION_MOTOR, versionContrato: VERSION_CONTRATO,
     },
@@ -352,10 +462,12 @@ export function cuadre({ archivos, explicados, documentos, resumenes, lecturas, 
 const USO = `uso: node herramientas/cargar-cargabilidad.mjs --linea LN-617 --origen <carpeta del paso 2>
               [--sellos <carpeta del paso 1>] [--seco] [--json <ruta fuera del repo>]
               [--reemplazar] [--desde AAAA-MM-DD] [--hasta AAAA-MM-DD]
+              [--ya-cargado-hasta AAAA-MM-DD]
               [--org transpower] [--uid <quien>] [--criterio-fase maxima|promedio]`;
 
 const CON_VALOR = new Set([
-  '--linea', '--origen', '--sellos', '--json', '--desde', '--hasta', '--org', '--uid', '--criterio-fase',
+  '--linea', '--origen', '--sellos', '--json', '--desde', '--hasta', '--ya-cargado-hasta',
+  '--org', '--uid', '--criterio-fase',
 ]);
 const SIN_VALOR = new Set(['--seco', '--reemplazar']);
 
@@ -369,7 +481,9 @@ export function leerArgumentos(argv) {
     const v = argv[i + 1];
     if (v == null || v.startsWith('--')) return { error: `«${a}» necesita un valor detrás` };
     if (a === '--sellos') opciones.sellos.push(v);
-    else opciones[a === '--criterio-fase' ? 'criterioFase' : a.slice(2)] = v;
+    else if (a === '--criterio-fase') opciones.criterioFase = v;
+    else if (a === '--ya-cargado-hasta') opciones.yaCargadoHasta = v;
+    else opciones[a.slice(2)] = v;
     i += 1;
   }
   return { opciones };
@@ -419,6 +533,16 @@ async function principal(argv) {
   const CRITERIO_FASE = String(opciones.criterioFase ?? 'maxima').trim();
   const DESDE = opciones.desde ?? null;
   const HASTA = opciones.hasta ?? null;
+  /**
+   * ⚠️ REANUDAR NO ES ACOTAR EL PERIODO. `--desde/--hasta` dice QUÉ SE QUIERE
+   * CARGAR —un juicio sobre el dato, y por eso se escribe en el rastro—;
+   * `--ya-cargado-hasta` dice QUÉ YA ESTÁ ESCRITO —un hecho del histórico, del
+   * que esta carga no dice nada—. La misma separación que la pantalla, con el
+   * mismo módulo detrás (`nucleo/cargaPorLotes.js`), para que no puedan
+   * discrepar. Antes las dos cosas cabían en «--desde», y eso dejaba escrito en
+   * un rastro inmutable que días ya cargados «no entraron».
+   */
+  const YA_CARGADO_HASTA = opciones.yaCargadoHasta ?? null;
 
   if (!LINEA) mal('falta «--linea».');
   if (!ORIGEN) mal('falta «--origen».');
@@ -428,10 +552,13 @@ async function principal(argv) {
   if (!['maxima', 'promedio'].includes(CRITERIO_FASE)) {
     mal('«--criterio-fase» solo admite «maxima» (la fase más cargada) o «promedio».');
   }
-  for (const [rot, v] of [['--desde', DESDE], ['--hasta', HASTA]]) {
+  for (const [rot, v] of [['--desde', DESDE], ['--hasta', HASTA], ['--ya-cargado-hasta', YA_CARGADO_HASTA]]) {
     if (v != null && !esDiaIso(v)) mal(`«${rot}» va como AAAA-MM-DD.`);
   }
   if (DESDE && HASTA && DESDE > HASTA) mal('«--desde» es posterior a «--hasta».');
+  if (YA_CARGADO_HASTA && HASTA && YA_CARGADO_HASTA >= HASTA) {
+    mal('«--ya-cargado-hasta» alcanza o pasa a «--hasta»: no quedaría ningún día por cargar.');
+  }
 
   const REPO = rutaReal(RAIZ).toLowerCase();
   const RUTA_JSON = opciones.json ?? null;
@@ -634,12 +761,26 @@ async function principal(argv) {
       for (const h of x.horas ?? []) a.horas.add(h);
     }
   }
-  const motivoDe = (f) => {
+  /**
+   * LO QUE SE SABE DE UN DÍA APARTADO, ordenado y sin nombres de cliente: es la
+   * forma que piden tanto la frase como el rastro que se guarda.
+   */
+  const detalleDe = (f) => {
     const a = apartados.get(f);
-    const conSello = [...a.sellos].sort((x, y) => y[1] - x[1]).map(([s, k]) => `«${s}» ×${k}`).join(' · ');
-    return `${a.senales.size} señal(es) con sello ${conSello} en la(s) hora(s) `
-      + `${[...a.horas].sort((x, y) => x - y).join(', ')} h`;
+    return {
+      fecha: f,
+      sellos: [...a.sellos].map(([sello, horas]) => ({ sello, horas }))
+        .sort((x, y) => y.horas - x.horas || x.sello.localeCompare(y.sello)),
+      senales: a.senales.size,
+      horas: [...a.horas].sort((x, y) => x - y),
+    };
   };
+  /**
+   * LA FRASE LA COMPONE EL NÚCLEO (`motivoDelApartado`), no esta herramienta:
+   * es la que la pantalla enseña y la que se guarda en `detalle`, y dos redactores
+   * darían dos explicaciones del mismo hueco.
+   */
+  const motivoDe = (f) => motivoDelApartado(detalleDe(f));
 
   const diasApartados = [...apartados.keys()].sort();
   console.log(`\n${diasApartados.length} DÍA(S) APARTADOS — el día entero, no las horas malas:`);
@@ -666,6 +807,19 @@ async function principal(argv) {
   }
   const fuera = new Set(fueraDelPeriodo);
 
+  // ⚠️ LOS DÍAS QUE YA ESTABAN ESCRITOS van en su PROPIO conjunto, no en
+  // `fuera`: de ellos esta carga no dice nada, ni en la consola ni en el rastro.
+  // Un día que ya cargó la pasada anterior no «quedó fuera del periodo» —el
+  // periodo lo incluía y sí entró—, y escribirlo así sería una mentira para
+  // siempre en el único papel que existe para auditar.
+  const yaEscritos = new Set(YA_CARGADO_HASTA
+    ? porDia.map((d) => d.fecha).filter((f) => f <= YA_CARGADO_HASTA && !fuera.has(f))
+    : []);
+  if (yaEscritos.size) {
+    aviso(`${yaEscritos.size} día(s) ya estaban escritos (hasta el ${YA_CARGADO_HASTA}) y se saltan. `
+      + 'No se apartan y no van al rastro: no les falta nada.');
+  }
+
   // ⚠️ Un día del origen que cae fuera del grueso del periodo suele ser una
   // exportación traspapelada. No se decide por él —lo que entra es decisión
   // suya—, pero se NOMBRA: cargarlo tampoco se puede deshacer.
@@ -676,7 +830,8 @@ async function principal(argv) {
   }
 
   // ── 5 · Armar los lotes, como los armaría la pantalla ─────────────────────
-  const diasQueEntran = porDia.filter((d) => !apartados.has(d.fecha) && !fuera.has(d.fecha));
+  const diasQueEntran = porDia.filter((d) => !apartados.has(d.fecha)
+    && !fuera.has(d.fecha) && !yaEscritos.has(d.fecha));
   const lotes = repartirEnLotes(
     diasQueEntran.map((d) => ({ dia: d, archivos: d.union.deCada.length })),
     { tope: ARCHIVOS_POR_CARGA },
@@ -731,17 +886,19 @@ async function principal(argv) {
   const diaDelArchivo = new Map();
   for (const d of porDia) for (const c of d.union.deCada) diaDelArchivo.set(c.nombre, d.fecha);
 
-  const cuentaArchivos = { escritos: 0, apartados: 0, fuera: 0, sinRegistros: [] };
+  const cuentaArchivos = { escritos: 0, apartados: 0, fuera: 0, yaEscritos: 0, sinRegistros: [] };
   for (const [ruta, x] of porArchivo) {
     const f = diaDelArchivo.get(ruta) ?? null;
     if (f == null) { cuentaArchivos.sinRegistros.push(`${ruta} · no quedó dentro de ningún día`); continue; }
     if (apartados.has(f)) { cuentaArchivos.apartados += 1; continue; }
     if (fuera.has(f)) { cuentaArchivos.fuera += 1; continue; }
+    // Ya escrito por otra pasada: explicado, pero no es ni apartado ni fuera.
+    if (yaEscritos.has(f)) { cuentaArchivos.yaEscritos += 1; continue; }
     if (escritoPorPar.has(`${f}|${x.estadistico}`)) { cuentaArchivos.escritos += 1; continue; }
     cuentaArchivos.sinRegistros.push(`${ruta} · ${f} · ${x.estadistico}: no produjo ninguna lectura con número`);
   }
   const explicados = cuentaArchivos.escritos + cuentaArchivos.apartados + cuentaArchivos.fuera
-    + cuentaArchivos.sinRegistros.length;
+    + cuentaArchivos.yaEscritos + cuentaArchivos.sinRegistros.length;
   const desajustes = cuadre({
     archivos: porArchivo.size, explicados,
     documentos: totalDias, resumenes: totalResumenes,
@@ -750,6 +907,22 @@ async function principal(argv) {
 
   const fechasEscritas = new Set(armados.flatMap((a) => a.dias.map((d) => d.fecha)));
   const entranSinDocumento = diasQueEntran.map((d) => d.fecha).filter((f) => !fechasEscritas.has(f));
+
+  // ⚠️ LO QUE VA EN EL RASTRO DE CADA CARGA, y se escribe una sola vez en la
+  // vida: los días apartados POR UNA REGLA. Los de «--ya-cargado-hasta» NO van —
+  // ver `apartadosParaElRastro`— porque ya los escribió otra pasada.
+  const apartadosDelRastro = apartadosParaElRastro({
+    porSello: diasApartados.map((f) => ({ ...detalleDe(f), porQue: motivoDe(f) })),
+    fueraDelPeriodo,
+    periodo: { desde: DESDE, hasta: HASTA },
+    sinLecturas: entranSinDocumento,
+  });
+  if (apartadosDelRastro.length > DIAS_APARTADOS_POR_CARGA) {
+    alto(`${apartadosDelRastro.length} día(s) apartados no caben en el rastro de una carga `
+      + `(el molde admite ${DIAS_APARTADOS_POR_CARGA}, los días de un año).`,
+      'La lista NO se recorta: recortada dejaría huecos sin explicar, y en silencio, en el único',
+      'papel que existe para auditar. Parta la carga por periodo con «--desde»/«--hasta».');
+  }
 
   // ── 7 · La tabla ──────────────────────────────────────────────────────────
   const porEstadistico = new Map();
@@ -805,6 +978,17 @@ async function principal(argv) {
     aviso(`${entranSinDocumento.length} día(s) entran y no producen documento: `
       + `${entranSinDocumento.slice(0, 8).join(', ')}${entranSinDocumento.length > 8 ? '…' : ''}`);
   }
+
+  console.log('\nEL RASTRO DE CADA CARGA — lo que queda escrito para siempre sobre lo que NO entró');
+  console.log(`   ${apartadosDelRastro.length} día(s) apartados por una regla`
+    + `: ${apartadosDelRastro.filter((a) => a.motivo === 'sello_no_actual').length} por sello`
+    + ` + ${apartadosDelRastro.filter((a) => a.motivo === 'sin_lecturas').length} sin lecturas con número`
+    + ' · la MISMA lista en las ' + `${lotes.length} carga(s), porque lo apartado es de la carpeta`);
+  if (fuera.size) {
+    console.log(`   los ${n(fuera.size)} día(s) fuera del periodo NO van al rastro: acotar con `
+      + '«--desde/--hasta» es lo que usted pidió cargar hoy —y es la forma de reanudar—, no un juicio');
+    console.log('   sobre esos días. Quedan dichos aquí y en el informe «--json».');
+  }
   if (desajustes.length) alto('EL RECUENTO NO CUADRA. No se carga nada:', ...desajustes.map((d) => `· ${d}`));
 
   // La huella cubre TODO lo que entró en el lote, en el orden en que entró: la
@@ -824,6 +1008,10 @@ async function principal(argv) {
     periodo: { desde: DESDE, hasta: HASTA },
     leido: { archivos: porArchivo.size, filas: filasLeidas, dias: porDia.length, ordenDeFecha: union.ordenDeFecha ?? null },
     apartados: diasApartados.map((f) => ({ fecha: f, porQue: motivoDe(f) })),
+    /** Lo que se escribe en el rastro de CADA carga, tal cual va a la base. */
+    apartadosDelRastro,
+    /** Días que entran y no dejan documento: van al rastro como `sin_lecturas`. */
+    sinLecturas: entranSinDocumento,
     diasSinSello,
     fueraDelPeriodo,
     porEstadistico: Object.fromEntries([...porEstadistico].map(([e, x]) => [e, {
@@ -847,7 +1035,9 @@ async function principal(argv) {
     console.log(`\nInforme escrito en «${RUTA_JSON}».`);
   };
 
-  const ctx = { org: ORG, uid: UID, ahora, linea: LINEA, totalLotes: lotes.length };
+  const ctx = {
+    org: ORG, uid: UID, ahora, linea: LINEA, totalLotes: lotes.length, apartados: apartadosDelRastro,
+  };
   const contarMolde = () => console.log(`\nMOLDE: ${n(totalDias + totalResumenes + lotes.length)} documento(s) `
     + `validados contra «contratos/src/cargabilidad.ts» ${VERSION_CONTRATO}`);
 
@@ -1033,6 +1223,8 @@ async function principal(argv) {
   console.log(`\n✅ CUADRA: ${n(escritoDias)} día(s) y ${n(escritoResumenes)} resumen(es) escritos y releídos `
     + `iguales · ${n(decision.identicos.length)} ya estaban igual · ${n(diasApartados.length)} día(s) apartados `
     + 'sin cargar.');
+  console.log(`   ${n(apartadosDelRastro.length)} día(s) quedan explicados dentro de cada rastro de carga: `
+    + 'por qué no entraron se puede responder desde la base, sin volver a los CSV.');
   console.log('   Lo apartado se puede sumar después; lo cargado no se puede retirar.');
   return 0;
 }

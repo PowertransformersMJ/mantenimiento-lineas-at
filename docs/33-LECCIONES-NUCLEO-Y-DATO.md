@@ -290,3 +290,17 @@
   una, y se dice; misma etiqueta con valores distintos → no se escribe y sale con error. Y un recuento
   de control solo vale si lo que se aparta también entra en él, con nombre y con error (`99 §ADR-126`).
 - **Emparenta con** `L-84` (lo escrito contra lo leído) y `30 · L-83` (la prueba que no prueba).
+
+### L-92 · Lo que se escribe en un papel que no se corrige exige UNA fuente de verdad
+
+- **Síntoma (20-09, medido antes de desplegar):** ① reanudar una carga cortada moviendo el campo del
+  PERIODO dejaba escrito **para siempre** que **105 días ya cargados «quedaron fuera del periodo»**,
+  y **5** perdían su motivo real · ② la consola contaba hora·señal y la pantalla CELDAS: «×9» contra
+  «×8» sobre el mismo dato, con 1.080 lecturas repetidas.
+- **Por qué no lo caza nada:** el plan cuadra, el molde valida, el acuse suma. La mentira está en
+  que **la misma cifra responde a dos preguntas** —«¿qué quiero cargar?» (juicio, merece escribirse)
+  y «¿qué ya está cargado?» (hecho, del que esta carga no dice nada)— y en que **dos sitios cuentan**.
+- **Regla:** ① antes de reutilizar un campo, pregunte qué se ESCRIBE por él; si no se corrige, se
+  abre otro · ② lo que no merece escribirse, que **no quepa** en el catálogo cerrado del molde ·
+  ③ la cuenta se saca a un sitio y los dos caminos la consumen · ④ la prueba compara **la salida de
+  los dos caminos sobre el origen real** y reproduce el corte (105→0, 5→0). `99 §ADR-134`.

@@ -53,13 +53,17 @@ import {
   type Lienzo,
 } from '../vistas/cargabilidadVista';
 import {
-  cerosAlFinal, CRITERIOS_DE_FASE, encontrarEjeDeTiempo, estadisticoDeNombre, estadisticoPorFilaCorregido,
-  FASES_POR_MAGNITUD, leerSenales, ordenDeLaCarga, pareceAncho, registrosDeVariosDias, revisarFasesPorDia,
-  unirAnchas, unirPorDia,
+  cerosAlFinal, CRITERIOS_DE_FASE, encontrarEjeDeTiempo, esArchivoDeCalidad, estadisticoDeNombre,
+  estadisticoPorFilaCorregido, FASES_POR_MAGNITUD, leerSenales, ordenDeLaCarga, pareceAncho,
+  registrosDeVariosDias, revisarFasesPorDia, unirAnchas, unirPorDia,
 } from '@lineas/nucleo/cargabilidadAncho';
+import {
+  ARCHIVOS_POR_CARGA, periodoDelGrueso, planDeLaCarga, sellosPorDia,
+} from '@lineas/nucleo/cargaPorLotes';
 import { desempaquetarDia, empaquetarPorDia, ESTADISTICOS, resumirDia } from '@lineas/nucleo/cargabilidad';
 import {
-  diasCompletos, guardarCarga, huellaDe, resumenesEntre, ultimoDiaGuardado, type Acuse,
+  acumularAcuses, diasCompletos, guardarCarga, huellaDe, resumenesEntre, ultimoDiaGuardado,
+  type Acuse, type DiaApartado,
 } from '../datos/cargabilidadRepo';
 import { nf } from '../vistas/formato';
 import { Sello } from './Sello';
@@ -138,6 +142,15 @@ interface Cargado {
     fecha: string | null; matriz: Celda[][]; estadisticoPorFila: Record<number, string | null>;
     /** De qué ARCHIVO salió cada fila: la corrección del estadístico va por archivo (`99 §ADR-127`). */
     anotadas: Anotada[];
+    /**
+     * QUÉ ARCHIVOS TRAJO ESTE DÍA, por nombre.
+     *
+     * ⚠️ Hace falta para repartir la carga en tandas sin partir ningún día: el
+     * rastro de procedencia de una carga admite cien archivos, y los del mismo
+     * día viajan juntos o no viajan. Sin esto, la cuenta de archivos existía
+     * pero no se sabía de qué día era cada uno.
+     */
+    archivos: string[];
   }[];
   /** Lo mismo para la carga de UN día con varios archivos; `null` con un archivo solo. */
   anotadas: Anotada[] | null;
@@ -153,6 +166,28 @@ interface Cargado {
 
 /** Una fila de la matriz unida: de qué archivo salió y qué estadístico dice su nombre. */
 type Anotada = { fila: number; nombre: string; estadistico: string | null };
+
+// ── La carga por CARPETA: lo que el plan dice antes de escribir nada ─────────
+//
+// ⚠️ Las reglas NO se escriben aquí. Quién entra, quién se aparta y en cuántas
+// tandas se reparte lo decide `@lineas/nucleo/cargaPorLotes`, que es el mismo
+// módulo que usa la carga por consola: una pantalla con su propia versión de
+// «este día se aparta» sería una segunda verdad sobre un histórico que no se
+// puede borrar. Aquí solo se declara la FORMA de lo que ese módulo devuelve,
+// porque el núcleo es JavaScript y TypeScript no lo comprueba.
+
+/**
+ * Lo que dicen los sellos de una carpeta, y el plan de la carga.
+ *
+ * ⚠️ Los dos tipos se DERIVAN del módulo, no se copian a mano. Una copia sería
+ * una segunda declaración de la misma forma, y el día que el núcleo añadiera un
+ * campo la pantalla seguiría compilando sin enterarse.
+ */
+type SellosLeidos = ReturnType<typeof sellosPorDia>;
+type PlanDeCarga = ReturnType<typeof planDeLaCarga>;
+
+/** El acuse de UNA tanda, para poder sumar el acumulado y decir dónde se paró. */
+type TandaHecha = { tanda: number; desde: string | null; hasta: string | null; acuse: Acuse };
 
 /** Bajar un texto como archivo. El navegador ya sabe; solo hay que pedírselo. */
 function descargar(nombre: string, texto: string) {
@@ -252,8 +287,92 @@ export default function Cargabilidad({
   const [falloGuardar, setFalloGuardar] = useState<string | null>(null);
   const [bytes, setBytes] = useState<ArrayBuffer | null>(null);
 
+  // ── La carga por CARPETA ──────────────────────────────────────────────────
+  //
+  // ⚠️ POR QUÉ EXISTE. El rastro de procedencia de una carga admite CIEN
+  // archivos (`CargaDeCargabilidad.archivos`), y ocho meses de una línea son
+  // ~810. Hasta hoy eso significaba elegir archivos a mano diecisiete veces
+  // seguidas, sin más criterio que no equivocarse. Ahora se suelta la carpeta
+  // entera, la pantalla la parte en tandas de cien sin cortar ningún día, y
+  // ENSEÑA EL PLAN antes de escribir el primer documento.
+  const entradaCarpeta = useRef<HTMLInputElement>(null);
+  const entradaSellos = useRef<HTMLInputElement>(null);
+  /** De qué carpeta salió cada cosa. Solo para decirlo en pantalla. */
+  const [carpeta, setCarpeta] = useState<string | null>(null);
+  const [carpetaSellos, setCarpetaSellos] = useState<string | null>(null);
+  /** Lo que dicen los sellos. `null` = todavía no se ha dado ninguna carpeta. */
+  const [sellos, setSellos] = useState<SellosLeidos | null>(null);
+  /** El periodo que se quiere cargar. Vacío = no se acota nada. */
+  const [desde, setDesde] = useState('');
+  const [hasta, setHasta] = useState('');
+  /**
+   * HASTA QUÉ DÍA ESTO YA ESTÁ ESCRITO — para reanudar una carga que se cortó.
+   *
+   * ⚠️ NO ES EL PERIODO, y tiene su propio campo justamente para que no pueda
+   * confundirse con él. Acotar el periodo es un JUICIO sobre el dato («2025 no
+   * lo quiero») y se escribe en el rastro; reanudar es un HECHO del histórico
+   * («hasta el 23-04 ya está») y de esos días esta carga no dice nada.
+   *
+   * Hasta el 2026-09-20 se reanudaba reescribiendo «Desde», y medido sobre
+   * LN-617 eso dejaba escrito —en documentos que no se editan ni se borran— que
+   * 110 días ya cargados «quedaron fuera del periodo», además de robarle el
+   * motivo real a 5 días apartados por su sello.
+   */
+  const [yaCargadoHasta, setYaCargadoHasta] = useState('');
+  /** Leer 800 archivos tarda. Sin esto la pestaña parece colgada. */
+  const [progreso, setProgreso] = useState<{ que: string; hechos: number; total: number } | null>(null);
+  /** La carga por tandas: cuál va, qué acusó cada una y dónde se paró. */
+  const [enMarcha, setEnMarcha] = useState<{ tanda: number; total: number } | null>(null);
+  const [tandasHechas, setTandasHechas] = useState<TandaHecha[]>([]);
+  const [paradoEn, setParadoEn] = useState<{ tanda: number; total: number; porQue: string } | null>(null);
+  /**
+   * LOS BYTES DE CADA ARCHIVO, para poder sellar CADA TANDA con su propia
+   * huella. La huella de la carpeta entera puesta en cada tanda diría que las
+   * ocho traen lo mismo, que es una procedencia que miente.
+   *
+   * Va en una referencia y no en el estado a propósito: son megas, no cambian
+   * nada de lo que se pinta, y meterlos en el estado repintaría la pantalla.
+   */
+  const bytesPorArchivo = useRef<Map<string, Uint8Array>>(new Map());
+
+  /** ¿Es un archivo que esta pantalla sabe leer? Lo demás de la carpeta se ignora. */
+  const esDeDatos = (f: File) => /\.(csv|xlsx)$/i.test(f.name) && !f.name.startsWith('.');
+
+  /**
+   * LEER LOS SELLOS de una carpeta. De la carpeta de sellos NO se leen medidas:
+   * los valores salen de la carpeta principal, y contar el mismo valor dos veces
+   * sería inventarse cobertura. Es la misma regla que `--sellos` en la consola.
+   */
+  const leerSellos = async (elegidos: File[], deDonde: string | null) => {
+    const deCalidad = elegidos.filter((f) => esDeDatos(f) && esArchivoDeCalidad(f.name));
+    if (!deCalidad.length) {
+      throw new Error(`esa carpeta no trae ningún archivo de sello («_quality»). Los sellos quedan en la `
+        + 'carpeta del paso 1 (la de la bahía): el paso 2 los aparta porque no son medidas');
+    }
+    const entradas: { nombre: string; matriz: Celda[][] }[] = [];
+    for (const [i, f] of deCalidad.entries()) {
+      if (i % 40 === 0) {
+        setProgreso({ que: 'Leyendo los sellos', hechos: i, total: deCalidad.length });
+        await new Promise((r) => { setTimeout(r, 0); });
+      }
+      const datos = await f.arrayBuffer();
+      const { hojas } = /\.csv$/i.test(f.name)
+        ? await leerCsv(datos, { nombre: f.name })
+        : await leerXlsx(datos);
+      if (hojas.length) entradas.push({ nombre: f.name, matriz: hojas[0].matriz as Celda[][] });
+    }
+    setSellos(sellosPorDia(entradas) as SellosLeidos);
+    setCarpetaSellos(deDonde);
+  };
+
+  /** De dónde vino la selección, para poder decirlo: «carpeta 2026-ene-ago». */
+  const carpetaDe = (elegidos: File[]) => {
+    const rutas = elegidos.map((f) => f.webkitRelativePath).filter(Boolean);
+    return rutas.length ? String(rutas[0]).split('/')[0] : null;
+  };
+
   // ── Leer el archivo ───────────────────────────────────────────────────────
-  const alElegir = async (elegidos: File[]) => {
+  const alElegir = async (elegidos: File[], deLaCarpeta: string | null = null) => {
     if (!elegidos.length) return;
     setFallo(null); setLeyendo(true);
     try {
@@ -263,13 +382,34 @@ export default function Cargabilidad({
       // RS en uno, la ST en otro, la TR en un tercero. Cargarlos de uno en uno
       // NO los suma: los tres son la misma magnitud del mismo día, así que el
       // segundo pisaría al primero. Se leen juntos o no se leen.
+      // ⚠️ DOS ARCHIVOS DISTINTOS NO PUEDEN LLAMARSE IGUAL. El nombre es la
+      // clave de todo lo que viene después —qué estadístico trae, de qué día
+      // es, de dónde salió cada número—, y una carpeta con subcarpetas puede
+      // traer el mismo nombre dos veces. Si eso pasa, uno pisaría al otro sin
+      // un solo error: se para y se dice.
+      const repetidos = [...elegidos.reduce((m, f) => m.set(f.name, (m.get(f.name) ?? 0) + 1),
+        new Map<string, number>())].filter(([, k]) => k > 1).map(([n]) => n);
+      if (repetidos.length) {
+        throw new Error(`${nf(repetidos.length)} nombre(s) de archivo se repiten dentro de la selección `
+          + `(${repetidos.slice(0, 3).map((x) => `«${x}»`).join(', ')}${repetidos.length > 3 ? '…' : ''}). `
+          + 'El nombre es lo que dice de qué día y qué estadístico es cada archivo: con dos iguales, uno '
+          + 'taparía al otro sin dar error. Renómbrelos o cargue las subcarpetas por separado');
+      }
+      bytesPorArchivo.current = new Map();
       const leidos: { nombre: string; datos: ArrayBuffer; matriz: Celda[][]; hoja: string }[] = [];
-      for (const f of elegidos) {
+      for (const [i, f] of elegidos.entries()) {
+        // Sin ceder el hilo cada tantos archivos, 800 lecturas dejan la pestaña
+        // congelada y sin nada que mirar: parece rota sin estarlo.
+        if (elegidos.length > 50 && i % 25 === 0) {
+          setProgreso({ que: 'Leyendo los archivos', hechos: i, total: elegidos.length });
+          await new Promise((r) => { setTimeout(r, 0); });
+        }
         const datos = await f.arrayBuffer();
         const esCsv = /\.csv$/i.test(f.name);
         const { hojas } = esCsv ? await leerCsv(datos, { nombre: f.name }) : await leerXlsx(datos);
         if (!hojas.length) throw new Error(`«${f.name}» no trae ninguna hoja`);
         const cual = esCsv ? 0 : elegirHoja(hojas)!.indice;
+        bytesPorArchivo.current.set(f.name, new Uint8Array(datos));
         leidos.push({ nombre: f.name, datos, matriz: hojas[cual].matriz, hoja: hojas[cual].nombre });
       }
       // La huella cubre TODO lo que entró, en el orden en que entró: con varios
@@ -280,6 +420,9 @@ export default function Cargabilidad({
       for (const x of leidos) { juntos.set(new Uint8Array(x.datos), off); off += x.datos.byteLength; }
       setBytes(juntos.buffer);
       setAcuse(null); setFalloGuardar(null);
+      // Una carga nueva empieza sin acuses: los de la anterior hablaban de otros
+      // archivos, y dejarlos a la vista sería decir que esto ya se guardó.
+      setTandasHechas([]); setParadoEn(null); setCarpeta(deLaCarpeta);
 
       const varios = leidos.length > 1;
       const entradas = leidos.map((x) => ({ nombre: x.nombre, matriz: x.matriz }));
@@ -395,6 +538,8 @@ export default function Cargabilidad({
           ? dias.porDia.map((d) => ({
             fecha: d.fecha, matriz: d.union.matriz, estadisticoPorFila: d.union.estadisticoPorFila,
             anotadas: d.union.senales,
+            // De qué archivos salió ESTE día: es lo que se reparte en tandas.
+            archivos: d.union.deCada.map((x: { nombre: string }) => x.nombre),
           }))
           : [],
       });
@@ -405,14 +550,58 @@ export default function Cargabilidad({
       setFallo((e as Error).message);
       setCargado(null);
     } finally {
-      setLeyendo(false);
-      if (entrada.current) entrada.current.value = '';   // permite recargar el MISMO archivo
+      setLeyendo(false); setProgreso(null);
+      // Permite volver a soltar LO MISMO: sin esto, el navegador no avisa de un
+      // cambio que para él no lo es.
+      for (const e of [entrada, entradaCarpeta]) if (e.current) e.current.value = '';
+    }
+  };
+
+  /**
+   * SOLTAR UNA CARPETA ENTERA. Se separa lo que es medida de lo que es sello
+   * —igual que la consola separa `--origen` de `--sellos`— y los sellos que
+   * vengan dentro se leen sin tener que pedirlos aparte.
+   */
+  const alElegirCarpeta = async (elegidos: File[]) => {
+    const deDatos = elegidos.filter(esDeDatos);
+    const medidas = deDatos.filter((f) => !esArchivoDeCalidad(f.name));
+    const deCalidad = deDatos.filter((f) => esArchivoDeCalidad(f.name));
+    const nombre = carpetaDe(elegidos);
+    if (!medidas.length) {
+      setFallo(`la carpeta «${nombre ?? '—'}» no trae ningún .csv ni .xlsx de medidas`
+        + (deCalidad.length ? ` (sí ${nf(deCalidad.length)} de sello, que no son medidas)` : ''));
+      setCargado(null);
+      return;
+    }
+    setSellos(null); setCarpetaSellos(null);
+    if (deCalidad.length) {
+      setLeyendo(true);
+      try { await leerSellos(deCalidad, nombre); } catch { /* se dirá que no hay sellos */ }
+      setLeyendo(false); setProgreso(null);
+    }
+    await alElegir(medidas, nombre);
+  };
+
+  /** La carpeta del paso 1, de la que salen los sellos que el paso 2 aparta. */
+  const alElegirSellos = async (elegidos: File[]) => {
+    setFallo(null); setLeyendo(true);
+    try {
+      await leerSellos(elegidos.filter(esDeDatos), carpetaDe(elegidos));
+    } catch (e) {
+      setFallo((e as Error).message);
+    } finally {
+      setLeyendo(false); setProgreso(null);
+      if (entradaSellos.current) entradaSellos.current.value = '';
     }
   };
 
   const descartar = () => {
     setCargado(null); setMapeo({}); setFallo(null);
     setAcuse(null); setFalloGuardar(null); setBytes(null);
+    setSellos(null); setCarpeta(null); setCarpetaSellos(null);
+    setTandasHechas([]); setParadoEn(null); setEnMarcha(null);
+    setDesde(''); setHasta(''); setYaCargadoHasta('');
+    bytesPorArchivo.current = new Map();
   };
 
   /**
@@ -593,6 +782,246 @@ export default function Cargabilidad({
     };
   }, [veredicto, conductor, longitud_m, tensionNominal_kV, referencia]);
 
+  // ══════════════════════════════════════════════════════════════════════════
+  // LA CARGA POR TANDAS — el plan primero, la escritura después
+  // ══════════════════════════════════════════════════════════════════════════
+
+  /** Los días que trae el origen, con cuántos archivos puso cada uno. */
+  const diasDelOrigen = useMemo(
+    () => (cargado?.porDia ?? [])
+      .filter((d) => d.fecha)
+      .map((d) => ({ fecha: d.fecha as string, archivos: d.archivos.length })),
+    [cargado]);
+
+  /** De qué archivos salió cada día: es el rastro que va en la carga de su tanda. */
+  const archivosDelDia = useMemo(
+    () => new Map((cargado?.porDia ?? []).filter((d) => d.fecha)
+      .map((d) => [d.fecha as string, d.archivos])),
+    [cargado]);
+
+  /**
+   * CUÁNTOS ESTADÍSTICOS TRAE CADA DÍA — y por tanto cuántos documentos como
+   * mucho saldrán de él, porque cada estadístico va en el SUYO (`99 §ADR-112`).
+   *
+   * ⚠️ «COMO MUCHO» es literal, no una forma de hablar: un archivo que no
+   * produzca ninguna lectura con número no deja documento, y entonces serán
+   * menos. Se dice así en pantalla en vez de prometer una cifra exacta que solo
+   * se sabe al empaquetar.
+   */
+  const estadisticosPorDia = useMemo(
+    () => new Map((cargado?.porDia ?? []).filter((d) => d.fecha).map((d) => [
+      d.fecha as string,
+      new Set(d.anotadas.map((a) => corregido[a.nombre] ?? a.estadistico).filter(Boolean)).size,
+    ])),
+    [cargado, corregido]);
+
+  /**
+   * ¿ESTA CARGA VA POR TANDAS?
+   *
+   * ⚠️ Lo decide el NÚMERO DE ARCHIVOS, no cómo se eligieron. Pasados los cien
+   * del rastro de procedencia, una sola carga no cabe en su molde: hasta hoy eso
+   * era un guardado que fallaba entero al final. Y también va por tandas en
+   * cuanto hay sellos que leer, porque entonces hay días que apartar y eso se
+   * enseña antes de escribir, no después.
+   */
+  const porTandas = Boolean(cargado?.ancho
+    && ((cargado?.porArchivo.length ?? 0) > ARCHIVOS_POR_CARGA || sellos));
+
+  /** El periodo que propone el propio dato cuando la carpeta mezcla años. */
+  const propuestaDePeriodo = useMemo(() => periodoDelGrueso(diasDelOrigen), [diasDelOrigen]);
+
+  /**
+   * EL PLAN: qué entra, qué se aparta, qué queda fuera y en cuántas tandas.
+   *
+   * ⚠️ Las reglas no están aquí: las pone `@lineas/nucleo/cargaPorLotes`, el
+   * mismo módulo que usa la carga por consola. Esta pantalla pregunta y pinta.
+   */
+  const plan = useMemo(() => {
+    if (!porTandas || !diasDelOrigen.length) return null;
+    return planDeLaCarga({
+      dias: diasDelOrigen,
+      sellos,
+      periodo: { desde: desde || null, hasta: hasta || null },
+      yaCargadoHasta: yaCargadoHasta || null,
+    }) as PlanDeCarga;
+  }, [porTandas, diasDelOrigen, sellos, desde, hasta, yaCargadoHasta]);
+
+  /**
+   * LOS DÍAS QUE NO ENTRAN, EN LA FORMA DEL RASTRO (`CargaDeCargabilidad.apartados`).
+   *
+   * ⚠️ NO BASTA CON DECIRLO EN PANTALLA. `cargabilidad_cargas` es INMUTABLE: lo
+   * que no se escriba al crear la carga no se escribe nunca. Una carga que calla
+   * lo apartado afirma, dentro de seis meses, que aquel día **no vino** — cuando
+   * lo que pasó es que se dejó fuera a propósito y se puede sumar cuando él lo
+   * decida. Va la misma lista en todas las tandas: `acumularAcuses` las une sin
+   * repetir, porque lo apartado es de la carpeta, no de la tanda.
+   *
+   * ⚠️ Las señales van CONTADAS y no nombradas: sus etiquetas son la ruta del
+   * SCADA del cliente, y este acuse se pega en correos e informes.
+   *
+   * ⚠️ **LOS DÍAS DE `plan.otraCorrida` NO ENTRAN AQUÍ, Y ES LO IMPORTANTE DE
+   * ESTA LISTA.** Un día que ya escribió otra tanda no es un día apartado: no se
+   * le miró, no se le juzgó y no le falta nada. Meterlo —como se hacía hasta el
+   * 2026-09-20, cuando reanudar era reescribir «Desde»— deja afirmado PARA
+   * SIEMPRE, en una colección que niega editar y borrar, que aquel día no vino;
+   * y basta con abrir el histórico para ver que sí está. Medido en LN-617: 110
+   * días. Lo que haya que decir de ellos lo dice la carga que los escribió.
+   */
+  const apartadosParaElRastro = useMemo((): DiaApartado[] => {
+    if (!plan) return [];
+    const detalleDe = new Map((sellos?.apartados ?? []).map((a) => [a.fecha, a]));
+    return [
+      ...plan.apartados.map((d) => {
+        const x = detalleDe.get(d.fecha);
+        return {
+          fecha: d.fecha,
+          motivo: 'sello_no_actual' as const,
+          sellos: (x?.sellos ?? []).map((s) => String(s.sello)).slice(0, 12),
+          horas: (x?.horas ?? []).map((h) => String(h).padStart(2, '0')).slice(0, 24),
+          senalesAfectadas: x?.senales ? Number(x.senales) : undefined,
+          detalle: d.porQue.slice(0, 300),
+        };
+      }),
+      ...plan.fuera.map((d) => ({
+        fecha: d.fecha,
+        motivo: 'fuera_del_periodo' as const,
+        detalle: d.porQue.slice(0, 300),
+      })),
+    ];
+  }, [plan, sellos]);
+
+  /**
+   * LAS DOS PUERTAS QUE HAY QUE PASAR ANTES DE ESCRIBIR, las mismas por los dos
+   * caminos: la línea tiene que existir en el parque, y ningún archivo puede
+   * quedarse sin decir qué estadístico trae. Se comprueban aquí y no en cada
+   * sitio para que no puedan separarse.
+   */
+  const puertaAntesDeGuardar = () => {
+    if (!cargado) return;
+    // ⚠️ ÚLTIMA PUERTA ANTES DE LA BASE: la línea tiene que ser una del
+    // parque. La casilla ya es una lista, así que esto no debería poder
+    // saltar nunca — y por eso mismo se comprueba: el histórico no se borra,
+    // y un código que no existe deja días escritos que ninguna pantalla abre.
+    if (cargado.ancho && !opcionesDeLinea.includes(linea.trim())) {
+      throw new Error(`«${linea.trim() || '—'}» no es una línea del parque. Elíjala de la lista `
+        + `(${opcionesDeLinea.join(', ')}); si la que busca no está, dese antes de alta la línea. `
+        + 'El histórico no se puede borrar: guardarlo con un código que no existe deja días que '
+        + 'ninguna pantalla abre');
+    }
+    const sinResolver = porArchivo.filter((a) => !a.resuelto);
+    if (cargado.ancho && sinResolver.length) {
+      throw new Error(`${nf(sinResolver.length)} archivo(s) sin decir qué estadístico traen (`
+        + `${sinResolver.slice(0, 3).map((a) => `«${a.nombre}»`).join(', ')}${sinResolver.length > 3 ? '…' : ''}). `
+        + 'Dígalo arriba, en «Qué trae cada archivo», y vuelva a guardar');
+    }
+  };
+
+  /**
+   * LOS DOCUMENTOS DE UNOS DÍAS — los mismos que se están mirando, no otra lectura.
+   *
+   * ⚠️ SE LEEN TODOS LOS ESTADÍSTICOS, cada uno en SU documento (`99 §ADR-112`).
+   * Mirar es una cosa y guardar es otra: si el Ingeniero suelta los cuatro
+   * archivos del día, los cuatro son dato suyo. Guardar solo el visible le haría
+   * perder tres cuartas partes de lo que entregó sin que nada se lo dijera.
+   */
+  const documentosDe = (deEstosDias: typeof diasDeLaCarga) => {
+    const todos = presentes.length
+      ? presentes.flatMap((est) => registrosDeVariosDias(deEstosDias, {
+        linea: linea.trim(), asignadoPorEtiqueta: asignado, criterioFase, estadistico: est,
+      }).registros)
+      : [];
+    const { dias } = empaquetarPorDia(todos as never[]);
+    return { dias, resumenes: dias.map((d) => resumirDia(d)), registros: todos };
+  };
+
+  /** La huella de LO QUE VA EN ESTA TANDA, en el orden en que entró. */
+  const huellaDeLaTanda = async (nombres: string[]) => {
+    const trozos = nombres.map((n) => bytesPorArchivo.current.get(n)).filter(Boolean) as Uint8Array[];
+    if (trozos.length !== nombres.length) return undefined;
+    const juntos = new Uint8Array(trozos.reduce((k, t) => k + t.byteLength, 0));
+    let off = 0;
+    for (const t of trozos) { juntos.set(t, off); off += t.byteLength; }
+    return huellaDe(juntos.buffer as ArrayBuffer);
+  };
+
+  /**
+   * ESCRIBIR LAS TANDAS, UNA DETRÁS DE OTRA — y PARARSE a la primera que falle.
+   *
+   * ⚠️ NO SE SIGUE TRAS UN FALLO. Si la tanda 4 de 8 no entra, seguir con la 5
+   * dejaría un histórico con un agujero en medio del que nadie se acordaría
+   * mañana — y no se puede borrar para rehacerlo. Se para, se dice qué tandas
+   * quedaron escritas y cuáles no, y se dice cómo seguir sin repetir.
+   */
+  const arrancar = async () => {
+    if (!plan || !plan.sePuedeEmpezar || !cargado || !sesion) return;
+    setGuardando(true); setFalloGuardar(null); setParadoEn(null); setTandasHechas([]);
+    const hechas: TandaHecha[] = [];
+    const total = plan.lotes.length;
+    try {
+      puertaAntesDeGuardar();
+      const porFecha = new Map(diasDeLaCarga.filter((d) => d.fecha).map((d) => [d.fecha as string, d]));
+      for (const l of plan.lotes) {
+        setEnMarcha({ tanda: l.indice, total });
+        // Deja que la pantalla pinte el avance antes de irse a la red.
+        await new Promise((r) => { setTimeout(r, 0); });
+        const deLaTanda = l.dias.map((d) => porFecha.get(d.fecha)).filter(Boolean) as typeof diasDeLaCarga;
+        const archivos = l.dias.flatMap((d) => archivosDelDia.get(d.fecha) ?? []);
+        try {
+          // ⚠️ EL CUADRE DE LA TANDA, ANTES DE MANDARLA. Escribir menos de lo
+          // que se enseñó no da error en ninguna capa: la tanda se confirma, la
+          // pantalla dice «listo» y faltan veinte días. Contar la entrada contra
+          // la salida es la única defensa.
+          if (deLaTanda.length !== l.dias.length || archivos.length !== l.archivos) {
+            throw new Error(`el plan decía ${nf(l.dias.length)} día(s) y ${nf(l.archivos)} archivo(s), `
+              + `y a la hora de mandarla van ${nf(deLaTanda.length)} y ${nf(archivos.length)}. `
+              + 'No se manda nada: escribir menos de lo que se enseñó no daría error en ninguna capa');
+          }
+          const { dias, resumenes, registros: suyos } = documentosDe(deLaTanda);
+          if (!dias.length) {
+            throw new Error(`no produjo ningún documento: ${nf(l.dias.length)} día(s) `
+              + `(${l.desde} → ${l.hasta}) entraron y salieron sin una sola lectura con número`);
+          }
+          // ⚠️ UN DÍA QUE ENTRÓ Y NO DEJÓ DOCUMENTO NO SE CALLA. Sus archivos no
+          // trajeron ninguna lectura con número; sin decirlo, ese hueco del
+          // histórico parecería mañana un fallo del sistema.
+          const conDocumento = new Set(dias.map((d) => d.fecha));
+          const sinLecturas: DiaApartado[] = l.dias.filter((d) => !conDocumento.has(d.fecha))
+            .map((d) => ({ fecha: d.fecha, motivo: 'sin_lecturas' as const }));
+          const acuseDeLaTanda = await guardarCarga({
+            dias: dias as unknown as Record<string, unknown>[],
+            resumenes: resumenes as unknown as Record<string, unknown>[],
+            carga: {
+              // El rótulo es CORTO a propósito: con cien nombres pegados se pasa
+              // de los 260 caracteres y el guardado muere entero. Los nombres van
+              // en `archivos`, que es donde vive el rastro (`99 §ADR-113`).
+              nombreArchivo: `${linea.trim()} · tanda ${l.indice}/${total} · `
+                + `${nf(archivos.length)} archivos de SCADA`,
+              archivos,
+              huella: await huellaDeLaTanda(archivos),
+              filasDelArchivo: suyos.length,
+              registrosGuardados: suyos.length,
+              filasConError: 0,
+              mapeo: {},
+              lineas: [...new Set(dias.map((d) => d.linea))] as string[],
+              estadisticos: [...new Set(dias.map((d) => d.estadistico).filter(Boolean))] as string[],
+              desde: l.desde ?? undefined, hasta: l.hasta ?? undefined,
+              apartados: [...apartadosParaElRastro, ...sinLecturas],
+            },
+          }, { uid: sesion.uid, orgId: sesion.orgId });
+          hechas.push({ tanda: l.indice, desde: l.desde, hasta: l.hasta, acuse: acuseDeLaTanda });
+          setTandasHechas([...hechas]);
+        } catch (e) {
+          setParadoEn({ tanda: l.indice, total, porQue: (e as Error).message });
+          return;
+        }
+      }
+    } catch (e) {
+      setFalloGuardar((e as Error).message);
+    } finally {
+      setEnMarcha(null); setGuardando(false);
+    }
+  };
+
   /**
    * GUARDAR LA CARGA. Empaqueta por día, resume y escribe — en ese orden, y con
    * las piezas que ya venían armadas del núcleo. Aquí no se calcula nada.
@@ -612,31 +1041,14 @@ export default function Cargabilidad({
       // rechaza—, pero con varios no: las señales sin estadístico entran en TODOS
       // los que se leen, así que llegaban con la identidad del máximo, del
       // mínimo y del instantáneo a la vez, y el repositorio no tenía qué rechazar.
-      // ⚠️ ÚLTIMA PUERTA ANTES DE LA BASE: la línea tiene que ser una del
-      // parque. La casilla ya es una lista, así que esto no debería poder
-      // saltar nunca — y por eso mismo se comprueba: el histórico no se borra,
-      // y un código que no existe deja días escritos que ninguna pantalla abre.
-      if (cargado.ancho && !opcionesDeLinea.includes(linea.trim())) {
-        throw new Error(`«${linea.trim() || '—'}» no es una línea del parque. Elíjala de la lista `
-          + `(${opcionesDeLinea.join(', ')}); si la que busca no está, dese antes de alta la línea. `
-          + 'El histórico no se puede borrar: guardarlo con un código que no existe deja días que '
-          + 'ninguna pantalla abre');
-      }
-      const sinResolver = porArchivo.filter((a) => !a.resuelto);
-      if (cargado.ancho && sinResolver.length) {
-        throw new Error(`${nf(sinResolver.length)} archivo(s) sin decir qué estadístico traen (`
-          + `${sinResolver.slice(0, 3).map((a) => `«${a.nombre}»`).join(', ')}${sinResolver.length > 3 ? '…' : ''}). `
-          + 'Dígalo arriba, en «Qué trae cada archivo», y vuelva a guardar');
-      }
+      puertaAntesDeGuardar();
       // Los mismos días y la misma asignación que se están mirando: no otra lectura.
-      const todos = cargado.ancho && presentes.length
-        ? presentes.flatMap((est) => registrosDeVariosDias(diasDeLaCarga, {
-          linea: linea.trim(), asignadoPorEtiqueta: asignado, criterioFase, estadistico: est,
-        }).registros)
-        : (registros as never[]);
-
-      const { dias } = empaquetarPorDia(todos as never[]);
-      const resumenes = dias.map((d) => resumirDia(d));
+      const { dias, resumenes } = cargado.ancho && presentes.length
+        ? documentosDe(diasDeLaCarga)
+        : (() => {
+          const { dias: d } = empaquetarPorDia(registros as never[]);
+          return { dias: d, resumenes: d.map((x) => resumirDia(x)) };
+        })();
       const fechas = [...new Set(dias.map((d) => d.fecha))].sort();
       const a = await guardarCarga({
         dias: dias as unknown as Record<string, unknown>[],
@@ -709,12 +1121,36 @@ export default function Cargabilidad({
           onClick={() => entrada.current?.click()}>
           {leyendo ? 'Leyendo…' : 'Cargar archivo de cargabilidad'}
         </button>
+        {/* ⚠️ LA CARPETA ENTERA, de una vez. Ocho meses de una línea son ~810
+            archivos y el rastro de procedencia de una carga admite cien: a mano
+            son diecisiete pasadas de ratón. La pantalla las hace sola, sin
+            partir ningún día, y enseña el plan antes de escribir nada. */}
+        <button type="button" className="boton" disabled={leyendo}
+          onClick={() => entradaCarpeta.current?.click()}>
+          {leyendo ? 'Leyendo…' : 'Cargar una carpeta entera'}
+        </button>
         {cargado && (
           <button type="button" className="boton chico" onClick={descartar}>Descartar esta carga</button>
         )}
         <input ref={entrada} type="file" accept=".xlsx,.csv" multiple hidden
           onChange={(e) => void alElegir([...(e.target.files ?? [])])} />
+        {/* `webkitdirectory` se pone a mano porque no es un atributo estándar de
+            React; es lo que hace que el navegador pida una CARPETA y entregue
+            todo lo que hay dentro, subcarpetas incluidas. */}
+        <input type="file" multiple hidden
+          ref={(el) => { entradaCarpeta.current = el; el?.setAttribute('webkitdirectory', ''); }}
+          onChange={(e) => void alElegirCarpeta([...(e.target.files ?? [])])} />
+        <input type="file" multiple hidden
+          ref={(el) => { entradaSellos.current = el; el?.setAttribute('webkitdirectory', ''); }}
+          onChange={(e) => void alElegirSellos([...(e.target.files ?? [])])} />
       </div>
+
+      {progreso && (
+        <p className="fine">
+          {progreso.que}: <b>{nf(progreso.hechos)} de {nf(progreso.total)}</b>. Todavía no se ha
+          escrito nada.
+        </p>
+      )}
 
       {fallo && <p className="advertencia alerta"><b>No se pudo leer el archivo:</b> {fallo}</p>}
 
@@ -796,18 +1232,45 @@ export default function Cargabilidad({
     <FasesDeLaCarga registros={registros} />
     <GraficasPorFase registros={registros} />
               <VistaPrevia registros={registros} />
-              {puede(sesion, 'cargabilidad.cargar') && registros.length > 0 && (
+              {/* ⚠️ CON MÁS DE CIEN ARCHIVOS NO HAY UN BOTÓN DE GUARDAR: hay un
+                  PLAN. El rastro de procedencia de una carga admite cien
+                  nombres, así que una sola escritura no cabría en su molde — y
+                  enseñar un botón que va a fallar al final de ochocientos
+                  archivos es peor que no enseñar ninguno. */}
+              {puede(sesion, 'cargabilidad.cargar') && registros.length > 0 && porTandas && plan && (
+                <CargaPorTandas
+                  plan={plan} sellos={sellos} carpeta={carpeta} carpetaSellos={carpetaSellos}
+                  linea={linea.trim()} archivosEnTotal={cargado.porArchivo.length}
+                  documentosComoMucho={plan.entran.reduce(
+                    (k, d) => k + (estadisticosPorDia.get(d.fecha) ?? 0), 0)}
+                  desde={desde} hasta={hasta} alCambiarDesde={setDesde} alCambiarHasta={setHasta}
+                  yaCargadoHasta={yaCargadoHasta} alCambiarYaCargadoHasta={setYaCargadoHasta}
+                  propuesta={propuestaDePeriodo}
+                  alPedirSellos={() => entradaSellos.current?.click()}
+                  enMarcha={enMarcha} tandasHechas={tandasHechas} paradoEn={paradoEn}
+                  guardando={guardando} alEmpezar={() => void arrancar()}
+                  falloGuardar={falloGuardar} />
+              )}
+              {puede(sesion, 'cargabilidad.cargar') && registros.length > 0 && !porTandas && (
                 <div className="tarjeta">
                   <p className="mapa-capas-t">Guardar en el histórico</p>
                   {acuse ? (
                     <>
+                      {/* ⚠️ «Reemplazado» y «ya estaba igual» NO son lo mismo, y
+                          decir «todos son nuevos» de un día que ya estaba —
+                          idéntico, y por eso no se reescribió— sería mentir por
+                          simplificar. Se dicen las tres cosas por separado. */}
                       <p className="mapa-capas-n">
-                        ✅ Guardado: <b>{nf(acuse.dias)} día(s)</b> de línea,{' '}
-                        {nf(acuse.resumenes)} resumen(es) diario(s).
+                        ✅ Guardado: <b>{nf(acuse.escritos.dias)} día(s)</b> de línea escritos,{' '}
+                        {nf(acuse.escritos.resumenes)} resumen(es) diario(s).
+                        {acuse.repetidos.dias > 0 && (
+                          <> {nf(acuse.repetidos.dias)} día(s) ya estaban guardados y decían lo
+                            mismo: no se han reescrito.</>
+                        )}
                         {acuse.reemplazados > 0
-                          ? <> ⚠️ <b>{nf(acuse.reemplazados)} de esos días YA estaban</b> y se han
-                            reemplazado con lo que trae este archivo.</>
-                          : <> Ninguno estaba antes: todos son nuevos.</>}
+                          ? <> ⚠️ <b>{nf(acuse.reemplazados)} día(s) ya estaban y decían OTRA
+                            cosa</b>: se han reemplazado con lo que trae este archivo.</>
+                          : <> Ninguno de los escritos decía antes otra cosa.</>}
                       </p>
                       <p className="fine">
                         {nf(acuse.escrituras)} escritura(s) en total. Volver a cargar el mismo día
@@ -863,6 +1326,354 @@ export default function Cargabilidad({
         </>
       )}
     </section>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// LA CARPETA ENTERA, POR TANDAS — el plan primero, la escritura después
+// ----------------------------------------------------------------------------
+// QUÉ RESUELVE. El rastro de procedencia de una carga admite CIEN archivos
+// (`CargaDeCargabilidad.archivos`), y ocho meses de una línea son ~810: el
+// Ingeniero tenía que elegir archivos a mano diecisiete veces. Aquí suelta la
+// carpeta y la pantalla hace el resto — pero **le enseña antes qué va a pasar**.
+//
+// LAS TRES REGLAS QUE MANDAN, y ninguna se decide aquí (viven en
+// `@lineas/nucleo/cargaPorLotes`, el mismo módulo que usa la carga por consola):
+//
+//   · **un día con alguna hora que no sea «Actual» se aparta ENTERO** y se dice
+//     cuál y por qué. No se recorta el día ni se cargan «las horas buenas»;
+//   · **un día fuera del periodo no entra**, y se dice;
+//   · **un día no se parte entre dos tandas**.
+//
+// ⚠️ Y LA RAZÓN DE TODO ESTO: `firestore.rules` niega el borrado de las tres
+// colecciones de cargabilidad a propósito. Lo apartado se puede sumar después;
+// **lo cargado no se puede retirar**. Por eso el plan se enseña ANTES, por eso
+// el botón no existe mientras haya un freno, y por eso una tanda que falla PARA
+// la carga en vez de seguir y dejar un agujero en medio del histórico.
+// ════════════════════════════════════════════════════════════════════════════
+function CargaPorTandas({
+  plan, sellos, carpeta, carpetaSellos, linea, archivosEnTotal, documentosComoMucho,
+  desde, hasta, alCambiarDesde, alCambiarHasta,
+  yaCargadoHasta, alCambiarYaCargadoHasta, propuesta, alPedirSellos,
+  enMarcha, tandasHechas, paradoEn, guardando, alEmpezar, falloGuardar,
+}: {
+  plan: PlanDeCarga;
+  sellos: SellosLeidos | null;
+  carpeta: string | null;
+  carpetaSellos: string | null;
+  linea: string;
+  archivosEnTotal: number;
+  documentosComoMucho: number;
+  desde: string;
+  hasta: string;
+  alCambiarDesde: (v: string) => void;
+  alCambiarHasta: (v: string) => void;
+  yaCargadoHasta: string;
+  alCambiarYaCargadoHasta: (v: string) => void;
+  propuesta: { anio: string; desde: string; hasta: string; porQue: string } | null;
+  alPedirSellos: () => void;
+  enMarcha: { tanda: number; total: number } | null;
+  tandasHechas: TandaHecha[];
+  paradoEn: { tanda: number; total: number; porQue: string } | null;
+  guardando: boolean;
+  alEmpezar: () => void;
+  falloGuardar: string | null;
+}) {
+  const [verDias, setVerDias] = useState(false);
+  const total = plan.lotes.length;
+  const escritas = tandasHechas.length;
+  /**
+   * EL ACUMULADO SALE DE LOS ACUSES REALES, y lo suma quien escribió.
+   *
+   * ⚠️ No se recalcula aquí: `acumularAcuses` vive junto al guardado porque el
+   * único que SABE qué se escribió, qué ya estaba igual y qué se dejó fuera es
+   * el que lo hizo. Un total recalculado por la pantalla acaba discrepando de la
+   * base sin que nadie lo note — y esto habla de un histórico que no se retira.
+   */
+  const acumulado = acumularAcuses(tandasHechas.map((t) => t.acuse));
+  const terminado = escritas > 0 && escritas === total && !paradoEn && !enMarcha;
+  const pendientes = plan.lotes.filter((l) => !tandasHechas.some((t) => t.tanda === l.indice));
+  /**
+   * EL ÚLTIMO DÍA QUE QUEDÓ ESCRITO DE VERDAD — el que hay que poner en «Ya
+   * cargado hasta» para continuar.
+   *
+   * ⚠️ Sale del ÚLTIMO ACUSE, no del plan: el plan dice lo que se iba a hacer y
+   * el acuse dice lo que la base confirmó. Y se toma el mayor, no el último de
+   * la lista, porque una tanda que falla no aparece aquí y el orden de llegada
+   * no tiene por qué ser el del calendario.
+   */
+  const ultimoEscrito = tandasHechas.map((t) => t.hasta).filter(Boolean)
+    .sort((a, b) => String(a).localeCompare(String(b))).pop() ?? null;
+
+  return (
+    <div className="tarjeta">
+      <p className="mapa-capas-t">Cargar la carpeta entera, por tandas</p>
+
+      <p className="mapa-capas-n">
+        {carpeta ? <>Carpeta <b>{carpeta}</b> · </> : null}
+        <b>{nf(archivosEnTotal)} archivo(s)</b> de medidas · <b>{nf(plan.dias.total)} día(s)</b>
+        {linea ? <> · línea <b>{linea}</b></> : null}
+      </p>
+
+      {/* ── Los sellos: sin ellos no se puede decidir qué día se aparta ──── */}
+      <p className="fine">
+        <b>Sellos de calidad:</b>{' '}
+        {sellos?.leidos
+          ? <>
+            {nf(sellos.leidos)} archivo(s) leídos
+            {carpetaSellos ? <> de <b>{carpetaSellos}</b></> : null}
+            {' '}· {nf(sellos.horas.actual)} hora·señal dicen «Actual» y{' '}
+            {nf(sellos.horas.noActual)} dicen otra cosa.
+          </>
+          : <>ninguno todavía. El paso 2 aparta los «_quality» porque no son medidas, así que los
+            sellos siguen en la carpeta del paso 1 (la de la bahía).</>}
+        {' '}
+        <button type="button" className="boton chico" disabled={guardando} onClick={alPedirSellos}>
+          {sellos?.leidos ? 'Cambiar la carpeta de sellos' : 'Añadir la carpeta de sellos'}
+        </button>
+      </p>
+
+      {/* ── El periodo ─────────────────────────────────────────────────────── */}
+      <p className="fine">
+        <b>Periodo:</b>{' '}
+        <input type="date" value={desde} disabled={guardando}
+          onChange={(e) => alCambiarDesde(e.target.value)} aria-label="Desde" />
+        {' → '}
+        <input type="date" value={hasta} disabled={guardando}
+          onChange={(e) => alCambiarHasta(e.target.value)} aria-label="Hasta" />
+        {(desde || hasta) && (
+          <> <button type="button" className="boton chico" disabled={guardando}
+            onClick={() => { alCambiarDesde(''); alCambiarHasta(''); }}>Quitar el periodo</button></>
+        )}
+        {' '}Vacío = se carga todo lo que trae la carpeta.
+      </p>
+
+      {/* ── REANUDAR: un campo APARTE del periodo, y no por gusto ─────────────
+          Acotar el periodo dice algo del dato y queda escrito; reanudar dice
+          algo del histórico y NO se escribe. El mismo campo para las dos cosas
+          dejaba anotado que 110 días ya cargados «no entraron». */}
+      <p className="fine">
+        <b>Ya cargado hasta:</b>{' '}
+        <input type="date" value={yaCargadoHasta} disabled={guardando}
+          onChange={(e) => alCambiarYaCargadoHasta(e.target.value)} aria-label="Ya cargado hasta" />
+        {yaCargadoHasta && (
+          <> <button type="button" className="boton chico" disabled={guardando}
+            onClick={() => alCambiarYaCargadoHasta('')}>Quitarlo</button></>
+        )}
+        {' '}Solo para <b>continuar una carga que se cortó</b>: esos días no se vuelven a escribir y
+        esta carga <b>no dice nada de ellos</b> —lo que haya que decir ya lo dijo la carga que los
+        escribió—. Déjelo vacío si empieza de cero.
+      </p>
+      {plan.dias.otraCorrida > 0 && (
+        <p className="fine">
+          <b>{nf(plan.dias.otraCorrida)} día(s) ya estaban escritos</b> (hasta el {yaCargadoHasta}) y
+          se saltan. No cuentan como apartados y no van al rastro: no les falta nada.
+        </p>
+      )}
+      {propuesta && !desde && !hasta && (
+        <p className="fine">
+          {/* ⚠️ LA PROPUESTA SALE DEL DATO, no de un supuesto: es el año que más
+              archivos trae y sus extremos, con la cuenta a la vista. */}
+          Medido en esta carpeta: {propuesta.porQue}, del <b>{propuesta.desde}</b> al{' '}
+          <b>{propuesta.hasta}</b>.{' '}
+          <button type="button" className="boton chico" disabled={guardando}
+            onClick={() => { alCambiarDesde(propuesta.desde); alCambiarHasta(propuesta.hasta); }}>
+            Usar {propuesta.desde} → {propuesta.hasta}
+          </button>
+        </p>
+      )}
+
+      {/* ── EL PLAN ───────────────────────────────────────────────────────── */}
+      <p className="mapa-capas-n">
+        Lo que se haría: <b>{nf(plan.dias.entran)} día(s)</b> entran en{' '}
+        <b>{nf(total)} tanda(s)</b> de {ARCHIVOS_POR_CARGA} archivos como mucho ·{' '}
+        <b>{nf(plan.dias.apartados)}</b> se apartan por sello ·{' '}
+        <b>{nf(plan.dias.fuera)}</b> quedan fuera del periodo
+        {plan.dias.otraCorrida > 0 && <> · <b>{nf(plan.dias.otraCorrida)}</b> ya estaban escritos</>}.
+      </p>
+      <p className="fine">
+        Archivos: {nf(plan.archivos.total)} = {nf(plan.archivos.entran)} que entran
+        {' '}+ {nf(plan.archivos.apartados)} de días apartados
+        {' '}+ {nf(plan.archivos.fuera)} fuera del periodo
+        {plan.archivos.otraCorrida > 0 && <> + {nf(plan.archivos.otraCorrida)} ya escritos</>}.
+        {' '}Se escribirían <b>hasta {nf(documentosComoMucho)} documento(s)</b> de día y otros tantos
+        resúmenes —uno por día y estadístico—, más un rastro de carga por tanda. Se dice
+        «hasta» a propósito: un archivo que no traiga ninguna lectura con número no deja documento,
+        y entonces serán menos. El total exacto lo dice el acuse de cada tanda.
+      </p>
+
+      {plan.apartados.length > 0 && (
+        <>
+          <p className="mapa-capas-n">
+            {nf(plan.apartados.length)} día(s) apartados — el día ENTERO, no las horas malas:
+          </p>
+          <div className="tabla-scroll">
+            <table className="tabla">
+              <thead><tr><th>Día</th><th>Archivos</th><th>Por qué</th></tr></thead>
+              <tbody>
+                {plan.apartados.map((d) => (
+                  <tr key={d.fecha}><td>{d.fecha}</td><td>{nf(d.archivos)}</td><td>{d.porQue}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="fine">
+            Se apartan enteros porque un día del que se han quitado las horas incómodas ya no es
+            ese día. <b>Lo apartado se puede sumar después; lo cargado no se puede retirar</b>, así
+            que ante la duda se deja fuera.
+          </p>
+        </>
+      )}
+
+      {plan.fuera.length > 0 && (
+        <p className="fine">
+          <b>{nf(plan.fuera.length)} día(s) fuera del periodo y NO se cargan:</b>{' '}
+          {plan.fuera.slice(0, 12).map((d) => d.fecha).join(', ')}
+          {plan.fuera.length > 12 ? '…' : ''} ({nf(plan.archivos.fuera)} archivo(s)).
+        </p>
+      )}
+
+      {plan.sinSello.length > 0 && (
+        <p className="advertencia">
+          <b>{nf(plan.sinSello.length)} día(s) entran SIN NINGÚN SELLO que los respalde.</b> No son
+          días apartados —ninguna de sus horas trae un sello distinto de «Actual», porque no traen
+          sello ninguno— pero tampoco están dados por buenos:{' '}
+          {plan.sinSello.slice(0, 15).join(', ')}{plan.sinSello.length > 15 ? '…' : ''}.
+        </p>
+      )}
+
+      <p className="fine">
+        <button type="button" className="boton chico" onClick={() => setVerDias(!verDias)}>
+          {verDias ? 'Ocultar las tandas' : `Ver las ${nf(total)} tanda(s), una a una`}
+        </button>
+      </p>
+      {verDias && (
+        <div className="tabla-scroll">
+          <table className="tabla">
+            <thead><tr><th>Tanda</th><th>Días</th><th>Archivos</th><th>Desde</th><th>Hasta</th></tr></thead>
+            <tbody>
+              {plan.lotes.map((l) => (
+                <tr key={l.indice}>
+                  <td>{l.indice} de {total}</td><td>{nf(l.dias.length)}</td>
+                  <td>{nf(l.archivos)}</td><td>{l.desde}</td><td>{l.hasta}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* ── Lo que impide empezar ─────────────────────────────────────────── */}
+      {plan.frenos.map((f) => (
+        <p className="advertencia alerta" key={f.clave}>
+          <b>No se puede empezar todavía:</b> {f.texto}
+        </p>
+      ))}
+
+      {/* ── Empezar, avanzar, acusar ──────────────────────────────────────── */}
+      {enMarcha ? (
+        <p className="mapa-capas-n">
+          ⏳ Escribiendo la <b>tanda {enMarcha.tanda} de {enMarcha.total}</b>…{' '}
+          {escritas > 0 && <>Ya van {nf(escritas)} escrita(s).</>} No cierre esta pestaña.
+        </p>
+      ) : !paradoEn && !terminado && (
+        <>
+          {/* ⚠️ NO viene preseleccionado ni se carga solo: un acto sobre el
+              histórico se decide, no se confirma por inercia. */}
+          <button type="button" className="boton" disabled={guardando || !plan.sePuedeEmpezar}
+            onClick={alEmpezar}>
+            {guardando ? 'Cargando…' : `Empezar: ${nf(total)} tanda(s), ${nf(plan.dias.entran)} día(s)`}
+          </button>
+          <p className="fine">
+            Compruebe antes lo de arriba: qué línea, qué señal es qué, qué días entran y cuáles se
+            apartan. <b>Esto escribe en el histórico y el histórico no se borra.</b>
+          </p>
+        </>
+      )}
+
+      {tandasHechas.length > 0 && (
+        <>
+          <p className="mapa-capas-n">
+            {/* La frase la escribe quien guardó, no esta pantalla. */}
+            {terminado ? '✅ ' : ''}<b>Acuse acumulado</b> ({nf(escritas)} de {nf(total)} tanda(s),{' '}
+            {nf(acumulado.escrituras)} escritura(s)): {acumulado.frase}
+          </p>
+          <div className="tabla-scroll">
+            <table className="tabla">
+              <thead>
+                <tr>
+                  <th>Tanda</th><th>Desde</th><th>Hasta</th><th>Días escritos</th>
+                  <th>Resúmenes</th><th>Ya estaban igual</th><th>Reemplazados</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tandasHechas.map((t) => (
+                  <tr key={t.tanda}>
+                    <td>{t.tanda} de {total}</td><td>{t.desde}</td><td>{t.hasta}</td>
+                    <td>{nf(t.acuse.escritos.dias)}</td><td>{nf(t.acuse.escritos.resumenes)}</td>
+                    <td>{nf(t.acuse.repetidos.dias)}</td><td>{nf(t.acuse.reemplazados)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {paradoEn && (
+        <div className="advertencia alerta">
+          <p>
+            <b>Se paró en la tanda {paradoEn.tanda} de {paradoEn.total}, y no se siguió.</b>{' '}
+            {paradoEn.porQue}
+          </p>
+          <p>
+            <b>Escritas y confirmadas:</b>{' '}
+            {escritas
+              ? <>{tandasHechas.map((t) => t.tanda).join(', ')} ({nf(acumulado.escritos.dias)} día(s)
+                escritos, del {tandasHechas[0].desde} al {tandasHechas[escritas - 1].hasta}).</>
+              : <>ninguna.</>}
+            {' '}<b>Sin escribir:</b>{' '}
+            {pendientes.length
+              ? <>{pendientes.map((l) => l.indice).join(', ')} (del {pendientes[0].desde} al{' '}
+                {pendientes[pendientes.length - 1].hasta}).</>
+              : <>ninguna.</>}
+          </p>
+          <p>
+            <b>Cómo seguir sin repetir lo ya escrito:</b> arregle lo que dice el error y siga desde
+            aquí mismo —o vuelva a soltar la misma carpeta— con{' '}
+            <b>«Ya cargado hasta» = {ultimoEscrito ?? '—'}</b>.{' '}
+            {escritas > 0 && ultimoEscrito && (
+              <button type="button" className="boton chico" disabled={guardando}
+                onClick={() => alCambiarYaCargadoHasta(ultimoEscrito)}>
+                Poner «Ya cargado hasta» = {ultimoEscrito}
+              </button>
+            )}
+          </p>
+          <p className="fine">
+            {/* ⚠️ Por qué NO se dice «ponga Desde». El periodo es un juicio sobre
+                el dato y se escribe en el rastro de cada tanda; usarlo para
+                reanudar dejaba anotado, en documentos que no se editan ni se
+                borran, que los días ya cargados «quedaron fuera del periodo». */}
+            <b>No use el «Periodo» para esto.</b> El periodo dice qué quiere cargar y eso queda
+            escrito en el rastro de cada tanda: si lo mueve para reanudar, los días que ya escribió
+            quedarían anotados para siempre como que no entraron —y sí entraron—. «Ya cargado hasta»
+            se salta esos días <b>sin decir nada de ellos</b>, que es la verdad.{' '}
+            {escritas > 0 && <>Si prefiere repetirlo todo tampoco se duplica —volver a cargar un día
+              lo reemplaza— pero gasta escrituras de balde.</>}
+          </p>
+        </div>
+      )}
+
+      {falloGuardar && (
+        <p className="advertencia alerta">
+          <b>No se pudo cargar:</b> {falloGuardar}
+          {/[Pp]ermis|insufficient/.test(falloGuardar) && (
+            <> · Si dice «permisos», falta desplegar las reglas de la base: el código nuevo sin sus
+              reglas da «no hay datos» en vez de «faltan reglas» (`35 · L-22`).</>
+          )}
+        </p>
+      )}
+    </div>
   );
 }
 

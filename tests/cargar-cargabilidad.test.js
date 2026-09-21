@@ -37,8 +37,12 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { empaquetarPorDia, resumirDia } from '../nucleo/cargabilidad.js';
 import {
-  armarDocumentos, cuadre, decidirEscritura, leerArgumentos, mismoContenido,
-  NO_SE_COMPARAN, partidaDeNacimiento, repartirEnLotes, validarDocumentos, VERSION_MOTOR,
+  ARCHIVOS_POR_CARGA as TOPE_DEL_NUCLEO,
+  repartirEnLotes as repartirEnLotesDelNucleo,
+} from '../nucleo/cargaPorLotes.js';
+import {
+  apartadosParaElRastro, ARCHIVOS_POR_CARGA, armarDocumentos, cuadre, decidirEscritura, leerArgumentos,
+  mismoContenido, NO_SE_COMPARAN, partidaDeNacimiento, repartirEnLotes, validarDocumentos, VERSION_MOTOR,
 } from '../herramientas/cargar-cargabilidad.mjs';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));

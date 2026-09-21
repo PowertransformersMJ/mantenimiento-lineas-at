@@ -137,6 +137,7 @@
 - `L-89` · Una gráfica que coloca por PUESTO pega los huecos *(`32`)*
 - `L-90` · Una prueba que lee el TEXTO del fuente no prueba el dibujo *(`32`)*
 - `L-91` · Leer la base de producción con SU sesión, en solo lectura *(`35`)*
+- `L-92` · Lo que se escribe en un papel que no se corrige exige UNA fuente de verdad *(`33`)*
 - `M-03` · Un agente «ancho» no implementa: un archivo, un rango y el texto exacto *(aquí)*
 - `M-04` · Dos sesiones en la MISMA carpeta: la otra te cambia las herramientas mientras las usas *(aquí)*
 
@@ -159,6 +160,13 @@
   para un agente: es un encargo para mí, por rebanadas verificadas (`99 §ADR-100`).
   **Qué mirar la próxima vez:** un subagente que lleva minutos sin una sola herramienta de
   escritura ya falló — no se espera, se re-parte el trabajo.
+- ⚠️ **Y cuando muere, el archivo queda ROTO, no como estaba** (20-09). El workflow cayó entero por
+  **límite mensual de gasto** y el informe dijo «4 agentes con error, 0 resultados» — que se lee
+  como *no pasó nada*. Falso: dos ya habían escrito. Uno dejó `sellos-de-calidad.mjs` a medio
+  renombrar (`ReferenceError`, la herramienta no arrancaba) y otro una referencia a una prueba
+  inexistente. **Ante un workflow caído no se relanza sin mirar:** ① `git status` + fechas de
+  modificación contra la hora de arranque, para saber quién escribió qué · ② `npm test` ANTES de
+  nada · ③ buscar las referencias colgadas que dejó · ④ y solo entonces continuar.
 
 ### M-04 · Dos sesiones en la MISMA carpeta: la otra te cambia las herramientas mientras las usas
 

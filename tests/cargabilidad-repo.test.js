@@ -13,6 +13,13 @@
 //      porque todas leían el archivo como TEXTO: `slice(0, tope)` se lee igual
 //      de bien tanto si trae lo reciente como si trae lo viejo.
 //
+//   0. **LA CARGA LARGA, POR TANDAS** (§7, y es lo más caro de equivocar de todo
+//      el archivo): que los días APARTADOS queden escritos en el rastro con su
+//      motivo —la colección es INMUTABLE: lo que no se escriba al crearla no se
+//      escribe nunca—, que cada tanda devuelva contado lo suyo para poder
+//      sumarlo, que lo ya guardado e igual NO se reescriba, y que nada de esto
+//      toque lo que ya está en producción de otra línea.
+//
 //   2. **Y EL AVISO SE MEDÍA MAL.** `recortado` se calculaba sobre las filas ya
 //      filtradas por línea, así que un filtro que quitaba 300 de los 1.201
 //      documentos leídos contestaba «no se recortó nada» habiendo dejado atrás
@@ -38,6 +45,18 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { stripTypeScriptTypes } from 'node:module';
 
+import { empaquetarPorDia, resumirDia } from '../nucleo/cargabilidad.js';
+import { CargaDeCargabilidad, idDelDia } from '../contratos/src/cargabilidad.ts';
+// ⚠️ EL CRITERIO DE «ESTE DÍA YA ESTÁ IGUAL» TIENE UN SOLO DUEÑO. El cargador de
+// consola y esta pantalla escriben en las MISMAS tres colecciones; si cada uno
+// decidiera a su manera qué cuenta como cambio, una misma carpeta pasada por los
+// dos caminos dejaría dos históricos. Se traen los de la herramienta para
+// compararlos de verdad, no para copiarlos.
+import {
+  mismoContenido as mismoContenidoDeLaHerramienta,
+  NO_SE_COMPARAN as NO_SE_COMPARAN_DE_LA_HERRAMIENTA,
+} from '../herramientas/cargar-cargabilidad.mjs';
+
 // El aviso de «experimental» de la herramienta de tipos ensuciaría la salida de
 // `npm test`. Se silencia SOLO ése; cualquier otro aviso sigue saliendo.
 const avisosDeAntes = process.listeners('warning');
@@ -49,6 +68,7 @@ process.on('warning', (w) => {
 const leer = (p) => readFileSync(fileURLToPath(new URL('../' + p, import.meta.url)), 'utf-8');
 const REPO = leer('web/src/datos/cargabilidadRepo.ts');
 const INDICES = JSON.parse(leer('firestore.indexes.json'));
+const VERSION_MOTOR = JSON.parse(leer('nucleo/package.json')).version;
 
 const ORG = 'org-de-prueba';
 const SESION = { uid: 'uid-de-prueba', orgId: ORG };
@@ -66,7 +86,12 @@ const cmp = (x, y) => (x < y ? -1 : x > y ? 1 : 0);
  * del archivo, esto falla RUIDOSAMENTE en vez de probar un trozo equivocado.
  */
 function fuenteDe(nombre) {
-  const firmas = [`export function ${nombre}(`, `export async function ${nombre}(`];
+  const firmas = [
+    `export function ${nombre}(`, `export async function ${nombre}(`,
+    // Las de dentro del módulo —`ordenarHondo`— también se ejecutan: son parte
+    // del criterio con el que se decide si un día cambió.
+    `function ${nombre}(`,
+  ];
   const i = firmas.map((f) => REPO.indexOf(f)).find((k) => k >= 0);
   assert.ok(i != null && i >= 0, `no está \`${nombre}\` en el repositorio: ¿se renombró?`);
   const j = REPO.indexOf('\n}\n', i);
@@ -76,9 +101,14 @@ function fuenteDe(nombre) {
   return trozo;
 }
 
-/** Igual que `fuenteDe`, para una constante de una sola línea (`const x = …;`). */
-function constanteDe(nombre) {
-  const i = REPO.indexOf(`const ${nombre} = `);
+/**
+ * Igual que `fuenteDe`, para una constante (`const x = …;`). Con `exportada` se
+ * conserva el `export`, que es lo que permite leerla desde la prueba y
+ * compararla con la del cargador de consola.
+ */
+function constanteDe(nombre, { exportada = false } = {}) {
+  const marca = `${exportada ? 'export ' : ''}const ${nombre} = `;
+  const i = REPO.indexOf(marca);
   assert.ok(i >= 0, `no está la constante \`${nombre}\` en el repositorio`);
   const j = REPO.indexOf(';\n', i);
   assert.ok(j > i, `no se encontró el final de \`${nombre}\``);
@@ -150,6 +180,76 @@ const repositorioFirestore = {
 };
 `;
 
+/**
+ * EL DOBLE PARA ESCRIBIR — una base que GUARDA lo que se le manda y apunta cada
+ * escritura, para poder responder las dos preguntas que de verdad importan aquí:
+ * **qué se escribió** y **qué NO se tocó**.
+ *
+ * ⚠️ Los moldes son LOS DE VERDAD (`contratos/src/cargabilidad.ts`), no un
+ * doble. El campo donde van los días apartados vive ahí, y un doble permisivo
+ * dejaría pasar exactamente lo que esta prueba existe para cazar: que el molde
+ * se coma el campo en silencio y la carga afirme que entró todo.
+ *
+ * `moldeDeLaCarga.ciego` simula un molde que NO conoce el campo `apartados`: un
+ * `z.object` sin `passthrough` borra lo que no conoce **sin error y sin aviso**,
+ * y ése es exactamente el estado en el que el repositorio se tiene que parar en
+ * vez de escribir una carga que calla lo que se dejó fuera.
+ */
+const PRELUDIO_GUARDADO = `
+import {
+  CargaDeCargabilidad as CargaReal, DiaDeCargabilidad, ResumenDiarioCargabilidad,
+  idDelDia, idDelResumen, ROTULO_MOTIVO_APARTADO,
+} from ${JSON.stringify(new URL('../contratos/src/cargabilidad.ts', import.meta.url).href)};
+import { VERSION_CONTRATO } from ${JSON.stringify(new URL('../contratos/src/comunes.ts', import.meta.url).href)};
+
+const nucleoPkg = { version: VERSION_MOTOR_DE_LA_PRUEBA };
+
+export const moldeDeLaCarga = { ciego: false };
+const CargaDeCargabilidad = {
+  parse: (x) => {
+    const salida = CargaReal.parse(x);
+    if (!moldeDeLaCarga.ciego) return salida;
+    const copia = { ...salida };
+    delete copia.apartados;
+    return copia;
+  },
+};
+
+/** El universo guardado: clave «coleccion/id» → documento, como en la base. */
+let BASE = new Map();
+export const escrituras = [];
+export const lotes = [];
+export const vaciarLaBase = () => { BASE = new Map(); escrituras.length = 0; lotes.length = 0; };
+export const loGuardado = (coleccion, id) => BASE.get(coleccion + '/' + id) ?? null;
+export const todoLoGuardado = () => [...BASE.entries()].map(([clave, doc]) => [clave, doc]);
+
+const cargarFirebase = async () => ({ baseDatos: async () => ({ nombre: 'base-de-prueba' }) });
+const firestore = async () => ({
+  doc: (db, coleccion, id) => ({ coleccion, id }),
+  getDoc: async (ref) => {
+    const d = BASE.get(ref.coleccion + '/' + ref.id);
+    return { exists: () => d !== undefined, data: () => d };
+  },
+  setDoc: async (ref, datos) => {
+    escrituras.push({ via: 'suelta', coleccion: ref.coleccion, id: ref.id, doc: datos });
+    BASE.set(ref.coleccion + '/' + ref.id, datos);
+  },
+  writeBatch: () => {
+    const pendientes = [];
+    return {
+      set: (ref, datos) => { pendientes.push([ref, datos]); },
+      commit: async () => {
+        lotes.push(pendientes.length);
+        for (const [ref, datos] of pendientes) {
+          escrituras.push({ via: 'lote', coleccion: ref.coleccion, id: ref.id, doc: datos });
+          BASE.set(ref.coleccion + '/' + ref.id, datos);
+        }
+      },
+    };
+  },
+});
+`;
+
 async function cargar(preludio, nombres) {
   const fuente = preludio + '\n' + nombres.map(fuenteDe).join('\n');
   const js = stripTypeScriptTypes(fuente, { mode: 'strip' });
@@ -158,12 +258,22 @@ async function cargar(preludio, nombres) {
 
 let repo;      // resumenesEntre + recorteDeResumenes, con el doble de Firestore
 let parque;    // lineasDelParque + codigoEnElParque, con el doble del repositorio
+let guardado;  // guardarCarga + acumularAcuses, con una base que guarda de verdad
 
 before(async () => {
   // `conMiles` es del propio repositorio (no una copia): el aviso que ve el
   // Ingeniero tiene que salir con el separador de miles de verdad.
   repo = await cargar(PRELUDIO_BASE + constanteDe('conMiles'), ['recorteDeResumenes', 'resumenesEntre']);
   parque = await cargar(PRELUDIO_PARQUE, ['lineasDelParque', 'codigoEnElParque']);
+  guardado = await cargar(
+    PRELUDIO_GUARDADO.replace('VERSION_MOTOR_DE_LA_PRUEBA', JSON.stringify(VERSION_MOTOR))
+      + [
+        constanteDe('SELLO'), constanteDe('DIAS'), constanteDe('RESUMENES'), constanteDe('CARGAS'),
+        constanteDe('POR_LOTE'), constanteDe('NO_SE_COMPARAN', { exportada: true }),
+        constanteDe('conMiles'),
+      ].join('\n'),
+    ['ordenarHondo', 'mismoContenido', 'guardarCarga', 'acumularAcuses'],
+  );
 });
 
 // ── El universo de prueba ───────────────────────────────────────────────────
@@ -543,5 +653,409 @@ describe('el resto del repositorio sigue en su sitio', () => {
 
   test('y nada de esto abre la puerta a borrar: aquí no hay `deleteDoc`', () => {
     assert.doesNotMatch(REPO, /deleteDoc/);
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// 7 · GUARDAR POR TANDAS — lo apartado, lo repetido y lo que de verdad se escribe
+// ────────────────────────────────────────────────────────────────────────────
+// QUÉ SE JUEGA AQUÍ. La pantalla admite CIEN archivos por carga —es el tope del
+// rastro de procedencia, `CargaDeCargabilidad.archivos`—, así que enero-agosto
+// de una línea son unas DIECISIETE tandas. Tres cosas no pueden fallar:
+//
+//   1. **lo que se deja fuera se escribe.** Un día con alguna hora que no es
+//      «Actual» se aparta ENTERO (decisión del Ingeniero, 2026-09-20) y su
+//      motivo va en el rastro, que es INMUTABLE: lo que no se escriba al
+//      crearlo no se escribe nunca, y una carga que calla lo apartado afirma
+//      dentro de seis meses que aquel día no vino;
+//   2. **cada tanda devuelve lo suyo ya contado** —escrito, repetido, apartado—
+//      para que la pantalla sume y no recalcule: un total recalculado por quien
+//      no escribió acaba discrepando de la base sin que nadie lo note;
+//   3. **nada de esto toca lo que ya está guardado.** El histórico no se puede
+//      retirar: `firestore.rules` niega el borrado a propósito.
+//
+// ⚠️ Datos SINTÉTICOS (`L-23`): líneas `LX-…`, nunca las del cliente.
+// ════════════════════════════════════════════════════════════════════════════
+
+/** Un día completo de 24 horas, tal y como lo produce el motor de verdad. */
+function diaSintetico({ linea = 'LX-1', fecha = dia(0), estadistico = 'maximo', amperios = (h) => 100 + h } = {}) {
+  const registros = Array.from({ length: 24 }, (_, h) => ({
+    linea, fecha, hora: h, estadistico, corriente_A: amperios(h), tension_kV: 68.4,
+  }));
+  const { dias } = empaquetarPorDia(registros);
+  assert.equal(dias.length, 1, 'el montaje de la prueba no produjo un día');
+  return { dias, resumenes: dias.map((d) => resumirDia(d)) };
+}
+
+/** El rastro de la carga, con lo mínimo que su molde exige. */
+const carga = (extra = {}) => ({
+  nombreArchivo: 'tanda-sintetica.csv',
+  archivos: ['tanda-sintetica.csv'],
+  filasDelArchivo: 24, registrosGuardados: 24, filasConError: 0,
+  mapeo: {}, lineas: ['LX-1'], estadisticos: ['maximo'],
+  desde: dia(0), hasta: dia(0),
+  ...extra,
+});
+
+/**
+ * LOS DOS DÍAS APARTADOS DE LA PRUEBA, con la forma del molde: fecha, motivo de
+ * un catálogo CERRADO y el detalle de qué sello lo marcó y en qué horas.
+ *
+ * ⚠️ Fechas y sellos SINTÉTICOS; y sin una sola etiqueta del SCADA —la ruta de
+ * subestación y bahía es material del cliente y este repositorio es público—.
+ */
+const APARTADOS = [
+  {
+    fecha: '2026-04-20', motivo: 'sello_no_actual', sellos: ['Not Renewed'],
+    horas: ['07', '08', '09'], senalesAfectadas: 3,
+    detalle: '3 señal(es) con sello «Not Renewed» ×39 en la(s) hora(s) 7, 8, 9 h',
+  },
+  { fecha: '2026-06-20', motivo: 'fuera_del_periodo', detalle: 'el archivo es de 2025' },
+];
+const soloLoQueImporta = (xs) => (xs ?? []).map((x) => [x.fecha, x.motivo, x.detalle]);
+
+describe('el rastro de la carga dice lo que se dejó FUERA', () => {
+  test('⚠️ EL APRETÓN DE MANOS: el molde de los datos conserva `apartados`', () => {
+    // Ésta es la única pieza de este encargo que NO vive en el repositorio: el
+    // campo lo pone el molde (`contratos/src/cargabilidad.ts`). Si esta prueba
+    // está roja, lo que falta es ESO —o el nombre cambió—, y hasta entonces el
+    // guardado de una carga con días apartados se PARA a propósito, en vez de
+    // escribir una carga que afirma que entró todo.
+    const conApartados = CargaDeCargabilidad.parse({
+      id: '6f1f5e2e-2a3c-4f8e-9a1d-0b7c2d3e4f50', orgId: ORG,
+      creadoEn: '2026-09-20T12:00:00.000Z', creadoPor: SESION.uid, revision: 0,
+      nombreArchivo: 'tanda-sintetica.csv', filasDelArchivo: 24, registrosGuardados: 24,
+      filasConError: 0, mapeo: {}, lineas: ['LX-1'], estado: 'guardada',
+      cargadoEn: '2026-09-20T12:00:00.000Z', cargadoPor: SESION.uid,
+      apartados: APARTADOS,
+    });
+    assert.deepEqual(soloLoQueImporta(conApartados.apartados), soloLoQueImporta(APARTADOS),
+      'el molde se come los días apartados: el rastro de una carga es INMUTABLE («update: if false» '
+      + 'en las reglas), así que lo que no se escriba al crearlo NO SE ESCRIBE NUNCA. Hace falta el '
+      + 'campo `apartados` en `contratos/src/cargabilidad.ts`');
+  });
+
+  test('⚠️ los días apartados se escriben, con su motivo, en el rastro y en el acuse', async () => {
+    guardado.vaciarLaBase();
+    const { dias, resumenes } = diaSintetico();
+    const acuse = await guardado.guardarCarga(
+      { dias, resumenes, carga: carga({ apartados: APARTADOS }) }, SESION,
+    );
+
+    const rastro = guardado.escrituras.find((e) => e.coleccion === 'cargabilidad_cargas');
+    assert.ok(rastro, 'no se escribió el rastro de la carga');
+    assert.deepEqual(soloLoQueImporta(rastro.doc.apartados), soloLoQueImporta(APARTADOS),
+      'el rastro no se lleva los días apartados');
+    assert.deepEqual(rastro.doc.apartados[0].sellos, ['Not Renewed'],
+      'sin decir CUÁL sello lo marcó, la decisión no se puede revisar');
+    assert.deepEqual(soloLoQueImporta(acuse.apartados), soloLoQueImporta(APARTADOS),
+      'el acuse no devuelve lo apartado y la pantalla tendría que volver a calcularlo');
+    // Y se escribe ANTES que los días, como todo el rastro: si algo falla a
+    // mitad, queda dicho qué se dejó fuera y por qué.
+    assert.equal(guardado.escrituras[0].coleccion, 'cargabilidad_cargas');
+  });
+
+  test('⚠️ si el molde no conservara el campo NO se guarda NADA, y se dice por qué', async () => {
+    // Un `z.object` sin `passthrough` borra lo que no conoce **sin error y sin
+    // aviso**: ése es el silencio que aquí no se puede permitir. Y se para ANTES
+    // de escribir el rastro, para no dejar una carga a medias.
+    guardado.vaciarLaBase();
+    guardado.moldeDeLaCarga.ciego = true;
+    try {
+      const { dias, resumenes } = diaSintetico();
+      await assert.rejects(
+        () => guardado.guardarCarga(
+          { dias, resumenes, carga: carga({ apartados: APARTADOS }) }, SESION,
+        ),
+        (e) => {
+          assert.match(e.message, /apartados/);
+          assert.match(e.message, /No se guarda nada/);
+          assert.match(e.message, /2 día\(s\)/, 'no dice cuántos días se iban a dejar fuera');
+          return true;
+        },
+      );
+      assert.deepEqual(guardado.escrituras, [],
+        'se escribió algo antes de pararse: el rastro de una carga no se puede corregir después');
+    } finally {
+      guardado.moldeDeLaCarga.ciego = false;
+    }
+  });
+
+  test('y si se apartan más días de los que el molde admite, tampoco se escribe nada', async () => {
+    // El tope del molde RECHAZA, no recorta: una lista de apartados que se corta
+    // deja de explicar los huecos, y en silencio. Aquí lo que importa es que ese
+    // rechazo llega ANTES de tocar la base.
+    guardado.vaciarLaBase();
+    const { dias, resumenes } = diaSintetico();
+    const demasiados = Array.from({ length: 400 }, (_, k) => ({
+      fecha: dia(k), motivo: 'sin_lecturas',
+    }));
+    await assert.rejects(
+      () => guardado.guardarCarga({ dias, resumenes, carga: carga({ apartados: demasiados }) }, SESION),
+    );
+    assert.deepEqual(guardado.escrituras, [], 'se escribió antes de que el molde dijera que no');
+  });
+
+  test('una carga sin nada apartado se guarda como siempre, y el acuse lo dice vacío', async () => {
+    guardado.vaciarLaBase();
+    const { dias, resumenes } = diaSintetico();
+    const acuse = await guardado.guardarCarga({ dias, resumenes, carga: carga() }, SESION);
+    assert.deepEqual(acuse.apartados, []);
+    assert.deepEqual(acuse.escritos, { dias: 1, resumenes: 1 });
+  });
+});
+
+describe('cada tanda devuelve lo suyo ya contado', () => {
+  test('la primera vez: nace todo, no se repite nada', async () => {
+    guardado.vaciarLaBase();
+    const { dias, resumenes } = diaSintetico();
+    const a = await guardado.guardarCarga({ dias, resumenes, carga: carga() }, SESION);
+
+    assert.equal(a.dias, 1); assert.equal(a.resumenes, 1);
+    assert.deepEqual(a.escritos, { dias: 1, resumenes: 1 });
+    assert.deepEqual(a.repetidos, { dias: 0, resumenes: 0 });
+    assert.equal(a.reemplazados, 0);
+    assert.equal(a.otroMotor, 0);
+    assert.equal(a.escrituras, 3, 'el día, su resumen y el rastro de la carga');
+    assert.ok(a.cargaId, 'sin id de carga no se puede rastrear de dónde salió');
+  });
+
+  test('⚠️ la segunda vez con los mismos archivos NO se reescribe nada', async () => {
+    // Es lo que hace cara la carga larga: diecisiete tandas reescribiendo lo de
+    // las anteriores gastarían la cuota del plan gratuito en no cambiar nada, y
+    // le subirían la revisión a días que nadie corrigió.
+    guardado.vaciarLaBase();
+    const { dias, resumenes } = diaSintetico();
+    await guardado.guardarCarga({ dias, resumenes, carga: carga() }, SESION);
+    const id = idDelDia(ORG, 'LX-1', null, dia(0), 'maximo');
+    const comoQuedo = JSON.parse(JSON.stringify(guardado.loGuardado('cargabilidad_dias', id)));
+    guardado.escrituras.length = 0;
+
+    const otra = diaSintetico();       // los mismos archivos, otra pasada
+    const a = await guardado.guardarCarga({ ...otra, carga: carga() }, SESION);
+
+    assert.deepEqual(a.escritos, { dias: 0, resumenes: 0 });
+    assert.deepEqual(a.repetidos, { dias: 1, resumenes: 1 });
+    assert.equal(a.reemplazados, 0, 'no se reemplazó nada: decían exactamente lo mismo');
+    assert.equal(a.escrituras, 1, 'solo el rastro de la carga, que SÍ deja constancia del intento');
+    assert.ok(!guardado.escrituras.some((e) => e.coleccion !== 'cargabilidad_cargas'),
+      'se volvió a escribir un día o un resumen que ya decía lo mismo');
+    assert.deepEqual(guardado.loGuardado('cargabilidad_dias', id), comoQuedo,
+      'el documento guardado cambió: revisión, fecha de carga o sello');
+    assert.equal(comoQuedo.revision, 0, 'la revisión subió sin que nadie corrigiera nada');
+    assert.equal(comoQuedo.actualizadoEn, undefined);
+  });
+
+  test('pero un día que ya estaba y dice OTRA cosa sí se pisa, y se cuenta', async () => {
+    guardado.vaciarLaBase();
+    await guardado.guardarCarga({ ...diaSintetico(), carga: carga() }, SESION);
+    guardado.escrituras.length = 0;
+
+    // El mismo día, corregido: otros amperios.
+    const corregido = diaSintetico({ amperios: (h) => 200 + h });
+    const a = await guardado.guardarCarga({ ...corregido, carga: carga() }, SESION);
+
+    assert.equal(a.reemplazados, 1, 'un día corregido tiene que contarse como reemplazado');
+    assert.deepEqual(a.escritos, { dias: 1, resumenes: 1 });
+    assert.deepEqual(a.repetidos, { dias: 0, resumenes: 0 });
+
+    const id = idDelDia(ORG, 'LX-1', null, dia(0), 'maximo');
+    const guardadoAhora = guardado.loGuardado('cargabilidad_dias', id);
+    assert.equal(guardadoAhora.horas['00'].corriente_A, 200, 'la corrección no llegó a la base');
+    assert.equal(guardadoAhora.revision, 1, 'una corrección sube la revisión');
+    assert.ok(guardadoAhora.actualizadoEn, 'no consta cuándo se corrigió');
+  });
+
+  test('⚠️ mismas cifras con otro motor: no se reescribe, se DICE', async () => {
+    // Ponerle el sello de hoy a una cifra que produjo otro motor es inventar la
+    // trazabilidad; reescribir ochocientos días por un cambio de versión es
+    // gastar la cuota en no cambiar nada. Se cuenta y se dice.
+    guardado.vaciarLaBase();
+    await guardado.guardarCarga({ ...diaSintetico(), carga: carga() }, SESION);
+    const id = idDelDia(ORG, 'LX-1', null, dia(0), 'maximo');
+    guardado.loGuardado('cargabilidad_dias', id).versionMotor = '0.9.0';
+    guardado.escrituras.length = 0;
+
+    const a = await guardado.guardarCarga({ ...diaSintetico(), carga: carga() }, SESION);
+    assert.deepEqual(a.repetidos, { dias: 1, resumenes: 1 });
+    assert.equal(a.otroMotor, 1, 'no se dice que aquel día lo escribió otro motor');
+    assert.equal(guardado.loGuardado('cargabilidad_dias', id).versionMotor, '0.9.0',
+      'se le puso el sello de hoy a una cifra que produjo otro motor');
+  });
+
+  test('y lo que se escribe sigue yendo sellado y en lotes por debajo del tope', async () => {
+    guardado.vaciarLaBase();
+    await guardado.guardarCarga({ ...diaSintetico(), carga: carga() }, SESION);
+    const escrito = guardado.escrituras.filter((e) => e.via === 'lote');
+    assert.equal(escrito.length, 2);
+    for (const e of escrito) assert.equal(e.doc.versionMotor, VERSION_MOTOR, 'se escribió sin sello');
+    assert.ok(guardado.lotes.every((n) => n > 0 && n <= 400), 'un lote se pasó del tope de la base');
+  });
+});
+
+describe('lo que ya está guardado no se toca', () => {
+  test('⚠️ guardar una línea nueva no escribe NI UNA VEZ sobre la que ya estaba', async () => {
+    // Es la mitad del encargo que nadie ve si sale bien: la línea que lleva
+    // ocho meses cargada no puede moverse ni un byte porque se cargue otra.
+    guardado.vaciarLaBase();
+    const vieja = diaSintetico({ linea: 'LX-627', fecha: dia(0) });
+    await guardado.guardarCarga({ ...vieja, carga: carga({ lineas: ['LX-627'] }) }, SESION);
+    const antes = JSON.parse(JSON.stringify(guardado.todoLoGuardado()));
+    guardado.escrituras.length = 0;
+
+    const nueva = diaSintetico({ linea: 'LX-617', fecha: dia(0) });
+    const a = await guardado.guardarCarga(
+      { ...nueva, carga: carga({ lineas: ['LX-617'] }) }, SESION,
+    );
+
+    assert.deepEqual(a.escritos, { dias: 1, resumenes: 1 });
+    assert.ok(!guardado.escrituras.some((e) => e.id.includes('lx-627')),
+      'se escribió encima de la línea que ya estaba en producción');
+    for (const [clave, doc] of antes) {
+      if (!clave.includes('lx-627')) continue;
+      const [coleccion, id] = clave.split('/');
+      assert.deepEqual(guardado.loGuardado(coleccion, id), doc,
+        `cambió «${clave}», que no tenía por qué tocarse`);
+    }
+  });
+
+  test('y las consultas de lectura no saben nada de esto: leen igual que ayer', () => {
+    const lectura = ['ultimoDiaGuardado', 'resumenesEntre', 'diaCompleto', 'diasCompletos', 'ultimasCargas']
+      .map(fuenteDe).join('\n');
+    assert.doesNotMatch(lectura, /apartad/i, 'una consulta de lectura filtra por lo apartado');
+    assert.doesNotMatch(lectura, /mismoContenido|repetidos|acumularAcuses/,
+      'una consulta de lectura se metió en la decisión de qué se escribe');
+    assert.doesNotMatch(lectura, /setDoc|writeBatch|deleteDoc/, 'una consulta de lectura escribe');
+    // Y las dos que sostienen la pestaña, intactas.
+    assert.match(lectura, /orderBy\('fecha', 'desc'\), limit\(tope \+ 1\)/);
+    assert.match(lectura, /const traer = pedidas\.slice\(-tope\);/);
+  });
+});
+
+describe('el mismo criterio que el cargador de consola', () => {
+  test('⚠️ la lista de lo que NO se compara es LA MISMA en los dos caminos', () => {
+    // Escriben en las mismas tres colecciones. Dos criterios para decidir si un
+    // día cambió son dos históricos que se pisan el uno al otro.
+    assert.deepEqual([...guardado.NO_SE_COMPARAN], [...NO_SE_COMPARAN_DE_LA_HERRAMIENTA],
+      'el repositorio y `herramientas/cargar-cargabilidad.mjs` ya no comparan lo mismo');
+  });
+
+  test('y ante los mismos documentos deciden lo mismo', () => {
+    const base = { fecha: '2026-01-01', horas: { '00': { corriente_A: 100 }, '01': { corriente_A: 110 } } };
+    const casos = [
+      ['idéntico', { ...base }, { ...base }],
+      ['solo cambia la metadata', { ...base, revision: 0, cargaId: 'a', versionMotor: '0.21.0' },
+        { ...base, revision: 7, cargaId: 'b', versionMotor: '0.9.0' }],
+      ['las claves en otro orden', { fecha: '2026-01-01', horas: base.horas },
+        { horas: base.horas, fecha: '2026-01-01' }],
+      ['cambia una medida', base, { ...base, horas: { '00': { corriente_A: 999 }, '01': { corriente_A: 110 } } }],
+      ['falta una hora', base, { ...base, horas: { '00': { corriente_A: 100 } } }],
+      ['una lista en otro orden', { ...base, lineas: ['a', 'b'] }, { ...base, lineas: ['b', 'a'] }],
+    ];
+    for (const [que, a, b] of casos) {
+      assert.equal(guardado.mismoContenido(a, b), mismoContenidoDeLaHerramienta(a, b),
+        `«${que}»: el repositorio y la herramienta deciden distinto`);
+    }
+  });
+});
+
+describe('el acuse acumulado de una carga larga', () => {
+  const tanda = (i, extra = {}) => ({
+    cargaId: `carga-${i}`, dias: 50, resumenes: 50, reemplazados: 0, escrituras: 101,
+    escritos: { dias: 50, resumenes: 50 }, repetidos: { dias: 0, resumenes: 0 },
+    otroMotor: 0, apartados: APARTADOS, ...extra,
+  });
+
+  test('suma lo escrito, lo repetido y las escrituras de todas las tandas', () => {
+    const t = guardado.acumularAcuses([tanda(1), tanda(2), tanda(3)]);
+    assert.equal(t.tandas, 3);
+    assert.deepEqual(t.cargas, ['carga-1', 'carga-2', 'carga-3']);
+    assert.equal(t.dias, 150);
+    assert.deepEqual(t.escritos, { dias: 150, resumenes: 150 });
+    assert.equal(t.escrituras, 303);
+  });
+
+  test('⚠️ los días apartados NO se suman: se unen sin repetir', () => {
+    // La lista de lo apartado es la misma para todas las tandas de una carpeta.
+    // Sumarla diría «34 días apartados» donde hay dos, y cada uno de esos días
+    // es una decisión pendiente del Ingeniero, no una estadística.
+    const t = guardado.acumularAcuses([tanda(1), tanda(2), tanda(3)]);
+    assert.equal(t.apartados.length, 2);
+    assert.deepEqual(t.apartados.map((x) => x.fecha), ['2026-04-20', '2026-06-20']);
+    assert.match(t.frase, /2 día\(s\) apartados SIN CARGAR/);
+  });
+
+  test('un día apartado que solo sale en una tanda no se pierde, y van ordenados', () => {
+    const t = guardado.acumularAcuses([
+      tanda(1, { apartados: [{ fecha: '2026-06-20', motivo: 'sin_lecturas' }] }),
+      tanda(2, { apartados: [{ fecha: '2026-02-24', motivo: 'sello_no_actual', sellos: ['Invalid'] }] }),
+    ]);
+    assert.deepEqual(t.apartados.map((x) => x.fecha), ['2026-02-24', '2026-06-20']);
+  });
+
+  test('⚠️ y se cuentan POR MOTIVO, que es para lo que el catálogo es cerrado', () => {
+    const t = guardado.acumularAcuses([tanda(1), tanda(2)]);
+    assert.deepEqual(t.apartadosPorMotivo.map((m) => [m.motivo, m.dias]),
+      [['sello_no_actual', 1], ['fuera_del_periodo', 1]]);
+    assert.match(t.apartadosPorMotivo[0].rotulo, /sello distinto de «Actual»/,
+      'el rótulo no sale del molde: habría dos maneras de llamar al mismo motivo');
+    assert.match(t.frase, /1 porque alguna hora no se midió/);
+  });
+
+  test('un día con dos motivos se cuenta UNA vez: la suma no puede pasarse de los días', () => {
+    const t = guardado.acumularAcuses([tanda(1, {
+      apartados: [
+        { fecha: '2026-04-20', motivo: 'sello_no_actual', sellos: ['Not Renewed'] },
+        { fecha: '2026-04-20', motivo: 'sin_lecturas' },
+      ],
+    })]);
+    assert.equal(t.apartados.length, 2, 'ninguno de los dos motivos se pierde de la lista');
+    assert.equal(t.apartadosPorMotivo.reduce((k, m) => k + m.dias, 0), 1,
+      'la suma por motivo dice más días apartados de los que hay');
+    assert.match(t.frase, /1 día\(s\) apartados SIN CARGAR/);
+  });
+
+  test('la frase la redacta el que escribió, no la pantalla', () => {
+    const t = guardado.acumularAcuses([
+      tanda(1, { escritos: { dias: 600, resumenes: 600 }, repetidos: { dias: 0, resumenes: 0 } }),
+      tanda(2, { escritos: { dias: 600, resumenes: 600 }, repetidos: { dias: 12, resumenes: 12 }, reemplazados: 3 }),
+    ]);
+    assert.match(t.frase, /1\.200 día\(s\)/, 'los miles se escriben como en Colombia: 1.200');
+    assert.match(t.frase, /12 día\(s\) ya estaban igual/);
+    assert.match(t.frase, /3 día\(s\) ya estaban y decían otra cosa/);
+    assert.match(t.frase, /no se puede retirar/);
+  });
+
+  test('sin ninguna tanda no inventa nada', () => {
+    const t = guardado.acumularAcuses([]);
+    assert.equal(t.tandas, 0);
+    assert.deepEqual(t.apartados, []);
+    assert.deepEqual(t.escritos, { dias: 0, resumenes: 0 });
+    assert.equal(t.frase, 'No se guardó ninguna tanda.');
+  });
+
+  test('⚠️ y el acumulado cuadra con lo que de verdad quedó en la base', async () => {
+    // Tres tandas de días distintos, la tercera repetida a propósito: lo que
+    // dice el acuse acumulado tiene que ser lo que hay guardado, ni uno más.
+    guardado.vaciarLaBase();
+    const acuses = [];
+    for (const k of [0, 1, 2, 2]) {
+      const { dias, resumenes } = diaSintetico({ fecha: dia(k) });
+      acuses.push(await guardado.guardarCarga(
+        { dias, resumenes, carga: carga({ desde: dia(k), hasta: dia(k), apartados: APARTADOS }) },
+        SESION,
+      ));
+    }
+    const t = guardado.acumularAcuses(acuses);
+
+    assert.equal(t.tandas, 4);
+    assert.equal(t.escritos.dias, 3, 'la cuarta tanda traía un día ya guardado e igual');
+    assert.deepEqual(t.repetidos, { dias: 1, resumenes: 1 });
+    assert.equal(t.apartados.length, 2, 'los apartados de las cuatro tandas son los mismos dos días');
+
+    const enLaBase = guardado.todoLoGuardado();
+    assert.equal(enLaBase.filter(([c]) => c.startsWith('cargabilidad_dias/')).length, t.escritos.dias);
+    assert.equal(enLaBase.filter(([c]) => c.startsWith('cargabilidad_cargas/')).length, t.tandas,
+      'cada tanda deja su rastro, aunque no escriba ningún día');
   });
 });

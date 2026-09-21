@@ -150,8 +150,21 @@ const falla = (esquema, doc) => {
 // ════════════════════════════════════════════════════════════════════════════
 describe('0.17.0 — la versión, y el aviso que la acompaña', () => {
 
-  test('`VERSION_CONTRATO` dice 0.17.0 — es lo que pinta el pie de la aplicación', () => {
-    assert.equal(VERSION_CONTRATO, '0.17.0');
+  // ⚠️ ESTA PRUEBA NO FIJA LA VERSIÓN EN 0.17.0, y antes sí (hasta el bump a
+  // 0.18.0). Clavar aquí el número obliga a tocar la prueba de `levantamiento`
+  // en cada versión del molde, venga de donde venga —0.18.0 vino de
+  // cargabilidad—, y lo que de verdad vigila esto es otra cosa: que el renglón
+  // de 0.17.0 y su aviso de dirección única SIGAN escritos. El número de la
+  // versión en curso lo clava la prueba de esa versión (hoy,
+  // `tests/cargabilidad-dias-apartados.test.js`), que es quien sabe qué cambió.
+  // Lo que sí se exige aquí es que el molde no RETROCEDA por debajo de 0.17.0.
+  test('`VERSION_CONTRATO` va por 0.17.0 o más — es lo que pinta el pie de la aplicación', () => {
+    const cifras = (v) => v.split('.').map(Number);
+    const [ma, me, pa] = cifras(VERSION_CONTRATO);
+    const [Ma, Me, Pa] = cifras('0.17.0');
+    assert.ok(ma > Ma || (ma === Ma && (me > Me || (me === Me && pa >= Pa))),
+      `el molde dice ${VERSION_CONTRATO}: ha retrocedido por debajo de 0.17.0, que es donde `
+      + 'entró `Linea.procedenciaTension`');
   });
 
   test('`contratos/package.json` la espeja: se suben juntas o el pie miente', () => {

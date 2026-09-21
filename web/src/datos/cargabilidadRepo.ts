@@ -5,7 +5,7 @@
 // —leer el `.xlsx`, validar, empaquetar, resumir— es puro y no sabe que existe
 // Firestore. Aquí solo se escribe lo que ya viene armado y se lee lo justo.
 //
-// ⚠️ LAS TRES COSAS QUE ESTE ARCHIVO NO PUEDE OLVIDAR
+// ⚠️ LO QUE ESTE ARCHIVO NO PUEDE OLVIDAR
 //
 // 1. **UN DOCUMENTO POR LÍNEA Y DÍA.** Un año horario son 8.760 lecturas por
 //    línea; una por documento haría que «histórico completo» de diez líneas
@@ -25,12 +25,26 @@
 //    añadió tarde (`99 §ADR-091`) y por eso hay días sin sello: se marcan al
 //    leerlos, no se rellenan.
 //
+// 5. **LO QUE SE DEJA FUERA SE ESCRIBE TAMBIÉN.** Un día con alguna hora que no
+//    es «Actual» se aparta ENTERO —decisión del Ingeniero, 2026-09-20— y su
+//    motivo va en el rastro de la carga, no solo en la pantalla. El rastro es
+//    INMUTABLE: lo que no se escriba al crearlo no se escribe nunca, y dentro de
+//    seis meses una carga que calla lo apartado afirma que aquel día no vino.
+//
+// 6. **LO QUE YA ESTÁ IGUAL NO SE REESCRIBE.** Ocho meses de una línea entran en
+//    DIECISIETE tandas de cien archivos, y volver a pasar una tanda ya cargada
+//    no puede gastar la cuota en escribir lo mismo encima ni subirle la revisión
+//    a ochocientos días que nadie corrigió. Se compara el CONTENIDO —nunca el
+//    sello ni la partida de nacimiento— con el mismo criterio que el cargador de
+//    consola (`herramientas/cargar-cargabilidad.mjs`), y hay una prueba de
+//    paridad que se pone roja si los dos criterios se separan.
+//
 // ⚠️ Y lo que NO hace: no borra. Un histórico del que se puede quitar una hora
 // incómoda no es un histórico. Las reglas de la base lo niegan además de esto.
 // ============================================================================
 import {
-  CargaDeCargabilidad, DiaDeCargabilidad, type Estadistico, idDelDia, idDelResumen,
-  ResumenDiarioCargabilidad, VERSION_CONTRATO,
+  CargaDeCargabilidad, type DiaApartado, DiaDeCargabilidad, type Estadistico, idDelDia, idDelResumen,
+  ResumenDiarioCargabilidad, ROTULO_MOTIVO_APARTADO, VERSION_CONTRATO,
 } from '@lineas/contratos';
 import nucleoPkg from '@lineas/nucleo/package.json';
 import { cargarFirebase } from './cargar';
@@ -66,6 +80,22 @@ const POR_LOTE = 400;
 
 export interface Sesion { uid: string; orgId: string }
 
+/**
+ * UN DÍA QUE NO ENTRA, Y POR QUÉ (decisión del Ingeniero, 2026-09-20).
+ *
+ * ⚠️ **Un día con AL MENOS UNA hora cuyo sello no sea «Actual» se aparta
+ * ENTERO.** No se recortan las horas malas ni se cargan «las buenas»: o entra
+ * completo o no entra. Lo apartado se puede sumar después; **lo cargado no se
+ * puede retirar** —`firestore.rules` niega el borrado de las tres colecciones a
+ * propósito—, así que ante la duda se deja fuera.
+ *
+ * La FORMA es del molde (`contratos/src/cargabilidad.ts`) y se reexporta aquí
+ * para que la pantalla no tenga que importarla de dos sitios: fecha, motivo de
+ * un catálogo CERRADO —para poder CONTAR cuántos días se apartaron por sello—,
+ * y el detalle de qué sello y en qué horas. Aquí no se inventa nada de eso.
+ */
+export type { DiaApartado };
+
 export interface LoQueSeGuarda {
   dias: Record<string, unknown>[];
   resumenes: Record<string, unknown>[];
@@ -78,16 +108,111 @@ export interface LoQueSeGuarda {
     /** Qué estadísticos traía. Se escribe al crear: la carga es inmutable. */
     estadisticos?: string[];
     desde?: string; hasta?: string;
+    /**
+     * LOS DÍAS QUE SE DEJARON FUERA, con su motivo.
+     *
+     * ⚠️ VA EN EL RASTRO, no solo en la pantalla. `cargabilidad_cargas` es
+     * INMUTABLE (`update: if false` en las reglas): lo que no se escriba al
+     * crearla no se escribe nunca. Una carga que calla lo apartado afirma,
+     * dentro de seis meses, que aquel día **no vino** — cuando lo que pasó es
+     * que se dejó fuera a propósito y se puede sumar cuando él lo decida.
+     *
+     * Es el campo `apartados` del molde. Si el molde no lo conservara, el
+     * guardado SE PARA: ver la comprobación dentro de `guardarCarga`.
+     */
+    apartados?: DiaApartado[];
   };
 }
 
+/**
+ * EL ACUSE DE UNA TANDA — con todo lo que hace falta para sumarlo con los demás.
+ *
+ * ⚠️ POR QUÉ TRAE MÁS DE LO QUE PARECE. La pantalla admite **100 archivos por
+ * carga** —es el tope del rastro de procedencia, `CargaDeCargabilidad.archivos`,
+ * y no un capricho—, así que ocho meses de una línea entran en DIECISIETE
+ * tandas. Si cada tanda devolviera solo «se guardaron N días», la pantalla
+ * tendría que recalcular el total por su cuenta; y un total recalculado por
+ * quien no escribió acaba discrepando de la base sin que nadie lo note. Aquí va
+ * contado lo que de verdad pasó, y `acumularAcuses` lo suma.
+ */
 export interface Acuse {
   cargaId: string;
+  /** Días que traía ESTA tanda. No todos acaban en una escritura (ver abajo). */
   dias: number;
   resumenes: number;
-  /** Cuántos de esos días YA existían y se han reemplazado. */
+  /**
+   * Cuántos de esos días YA estaban guardados, decían **otra cosa** y se han
+   * reescrito con lo que traen estos archivos.
+   *
+   * ⚠️ Antes contaba «los que ya existían», dijeran lo mismo o no. Con la carga
+   * por tandas eso se vuelve una mentira cómoda: volver a pasar la misma carpeta
+   * contestaría «ochocientos días reemplazados» sin haber cambiado una cifra.
+   */
   reemplazados: number;
+  /** Escrituras de verdad contra la base, el rastro de la carga incluido. */
   escrituras: number;
+  /** Lo que se escribió, por colección. */
+  escritos: { dias: number; resumenes: number };
+  /** Lo que YA estaba y decía exactamente lo mismo: no se reescribe. */
+  repetidos: { dias: number; resumenes: number };
+  /**
+   * De los repetidos, cuántos se habían escrito con OTRA versión del motor.
+   * Mismas cifras, otro sello: no se reescriben, se dicen. Ponerle el sello de
+   * hoy a una cifra que produjo otro motor sería inventar la trazabilidad.
+   */
+  otroMotor: number;
+  /** Los días que se dejaron fuera, tal y como quedaron escritos en el rastro. */
+  apartados: DiaApartado[];
+}
+
+/**
+ * LO QUE NO SE COMPARA AL DECIDIR SI UN DÍA «YA ESTÁ IGUAL».
+ *
+ * ⚠️ Es la MISMA lista que `herramientas/cargar-cargabilidad.mjs`, y no una
+ * copia libre: hay una prueba de paridad que compara las dos y se pone roja si
+ * se separan. Dos criterios para decidir si un día cambió son dos históricos.
+ *
+ * `cargaId`, `creadoEn` y `revision` cambian en CADA pasada sin que cambie una
+ * sola medida: compararlos haría que nada fuera nunca idéntico y la pantalla
+ * reescribiría el histórico entero cada vez que se guarda.
+ *
+ * ⚠️ Y `versionMotor` queda fuera A PROPÓSITO: es el sello de con qué se produjo
+ * la cifra (`CLAUDE.md §3.1`), pero **no es la cifra**. Un día cuyos valores son
+ * los mismos no se ha «corregido» porque el núcleo haya pasado de 0.21.0 a
+ * 0.21.1; reescribir ochocientos días por un cambio de versión sería gastar la
+ * cuota del plan gratuito en no cambiar nada. La diferencia se DICE en el acuse
+ * (`otroMotor`), que es donde sirve.
+ */
+export const NO_SE_COMPARAN = Object.freeze([
+  'id', 'orgId', 'creadoEn', 'creadoPor', 'actualizadoEn', 'actualizadoPor',
+  'revision', 'revisionBase', 'cargaId', 'versionMotor',
+]);
+
+/** Ordena las claves de un objeto y las de los suyos. Las listas NO se tocan. */
+function ordenarHondo(v: unknown): unknown {
+  if (Array.isArray(v)) return v.map(ordenarHondo);
+  if (v && typeof v === 'object' && !(v instanceof Date)) {
+    return Object.fromEntries(Object.entries(v as Record<string, unknown>)
+      .sort(([a], [b]) => a.localeCompare(b)).map(([k, x]) => [k, ordenarHondo(x)]));
+  }
+  return v;
+}
+
+/**
+ * ¿ESTE DOCUMENTO DICE LO MISMO QUE EL QUE YA ESTÁ GUARDADO?
+ *
+ * Compara el CONTENIDO, no la metadata (ver `NO_SE_COMPARAN`). Se serializa con
+ * las claves ordenadas porque la base devuelve los campos en su orden, no en el
+ * que se escribieron, y dos objetos iguales con las claves al revés se leerían
+ * como distintos — y entonces cada tanda reescribiría todo lo anterior.
+ */
+export function mismoContenido(
+  nuevo: Record<string, unknown>, previo: Record<string, unknown>,
+): boolean {
+  const limpio = (o: Record<string, unknown>) => JSON.stringify(ordenarHondo(
+    Object.fromEntries(Object.entries(o ?? {}).filter(([k]) => !NO_SE_COMPARAN.includes(k))),
+  ));
+  return limpio(nuevo) === limpio(previo);
 }
 
 /**
@@ -124,6 +249,8 @@ export async function guardarCarga(
   const db = await baseDatos();
   const ahora = new Date().toISOString();
 
+  const apartados = carga.apartados ?? [];
+
   const cargaId = crypto.randomUUID();
   const docCarga = CargaDeCargabilidad.parse({
     id: cargaId, orgId: sesion.orgId, creadoEn: ahora, creadoPor: sesion.uid, revision: 0,
@@ -131,13 +258,37 @@ export async function guardarCarga(
     cargadoEn: ahora, cargadoPor: sesion.uid,
     estado: 'guardada',
     ...SELLO,
-  });
+  }) as unknown as Record<string, unknown>;
+
+  // ⚠️ ¿SOBREVIVIÓ LO APARTADO AL MOLDE? Se cuenta lo que entró contra lo que
+  // salió, y si no coincide NO SE GUARDA NADA.
+  //
+  // El molde es un `z.object` sin `passthrough`: **un campo que él no conozca se
+  // cae sin error y sin aviso**. Aquí ese silencio sería el peor de los posibles
+  // —el rastro es INMUTABLE, así que no hay segunda oportunidad de escribirlo— y
+  // dejaría una carga que afirma que entró todo. Es la misma cuenta de entrada
+  // contra salida que salvó el guardado de días (`feedback: guardado parcial
+  // silencioso`): escribir menos de lo que se enseñó no da error en ninguna capa.
+  //
+  // Se comprueba ANTES del `setDoc` a propósito: parar aquí no deja rastro a
+  // medias, y el Ingeniero puede volver a guardar cuando el molde lo admita.
+  const apartadosEscritos = (docCarga.apartados as DiaApartado[] | undefined) ?? [];
+  if (apartadosEscritos.length !== apartados.length) {
+    throw new Error(
+      `Se iban a dejar fuera ${apartados.length} día(s) y el rastro de la carga solo conserva `
+      + `${apartadosEscritos.length}: el molde de los datos no está conservando el campo «apartados» `
+      + '(«contratos/src/cargabilidad.ts»). No se guarda nada: el rastro de una carga no se puede '
+      + 'corregir después —las reglas lo niegan—, y uno que calla lo apartado dice que entró todo.',
+    );
+  }
   await setDoc(doc(db, CARGAS, cargaId), docCarga);
 
-  // Cuántos días de éstos YA estaban. Se lee ANTES de escribir por dos razones,
-  // y la segunda costó una tarde:
+  // QUÉ DÍAS DE ÉSTOS YA ESTABAN. Se leen ANTES de escribir por dos razones, y
+  // la segunda costó una tarde:
   //
-  //   1. el Ingeniero pidió poder distinguir lo NUEVO de lo REEMPLAZADO;
+  //   1. el Ingeniero pidió poder distinguir lo NUEVO de lo REEMPLAZADO —y, con
+  //      la carga por tandas, también lo que ya estaba y decía LO MISMO, que no
+  //      se vuelve a escribir;
   //   2. ⚠️ y porque **una reescritura no puede reescribir la partida de
   //      nacimiento del documento** (`99 §ADR-111`). `creadoEn`, `creadoPor` y
   //      `orgId` son campos RESERVADOS: `firestore.rules` deniega cualquier
@@ -182,8 +333,6 @@ export async function guardarCarga(
       if (d.exists()) previos.set(`${RESUMENES}/${id}`, d.data() as Record<string, unknown>);
     }),
   ]);
-  const reemplazados = ids.filter((id) => previos.has(`${DIAS}/${id}`)).length;
-
   /** El origen del documento: el suyo si ya existía, éste si nace ahora. */
   const partida = (col: string, id: string) => {
     const p = previos.get(`${col}/${id}`);
@@ -197,19 +346,54 @@ export async function guardarCarga(
   };
 
   const paraEscribir: [string, string, Record<string, unknown>][] = [];
+  const repetidos = { dias: 0, resumenes: 0 };
+  /** Los días que ya estaban guardados y decían OTRA cosa: ésos sí se pisan. */
+  const distintos: string[] = [];
+  let otroMotor = 0;
+
+  /**
+   * ⚠️ LO QUE YA ESTÁ IGUAL NO SE MANDA. Con la carga por tandas, volver a pasar
+   * una carpeta ya cargada escribiría ochocientos documentos idénticos encima:
+   * gastaría la cuota del plan gratuito, subiría la revisión de días que nadie
+   * corrigió y borraría de su historia la fecha en que de verdad se cargaron.
+   * Se cuenta y se dice (`repetidos`), que es lo que hace falta saber.
+   */
+  const encolar = (
+    col: string, id: string, documento: Record<string, unknown>, cual: 'dias' | 'resumenes',
+  ) => {
+    const previo = previos.get(`${col}/${id}`);
+    if (previo) {
+      if (mismoContenido(documento, previo)) {
+        repetidos[cual] += 1;
+        if (previo.versionMotor !== SELLO.versionMotor) otroMotor += 1;
+        return;
+      }
+      if (col === DIAS) distintos.push(id);
+    }
+    paraEscribir.push([col, id, documento]);
+  };
+
   dias.forEach((d, i) => {
-    paraEscribir.push([DIAS, ids[i], DiaDeCargabilidad.parse({
+    encolar(DIAS, ids[i], DiaDeCargabilidad.parse({
       id: ids[i], orgId: sesion.orgId, ...partida(DIAS, ids[i]),
       ...d, cargaId, versionMotor: SELLO.versionMotor,
-    }) as unknown as Record<string, unknown>]);
+    }) as unknown as Record<string, unknown>, 'dias');
   });
   resumenes.forEach((r, i) => {
     const id = idsResumen[i];
-    paraEscribir.push([RESUMENES, id, ResumenDiarioCargabilidad.parse({
+    encolar(RESUMENES, id, ResumenDiarioCargabilidad.parse({
       id, orgId: sesion.orgId, ...partida(RESUMENES, id), ...r,
       versionMotor: SELLO.versionMotor,
-    }) as unknown as Record<string, unknown>]);
+    }) as unknown as Record<string, unknown>, 'resumenes');
   });
+
+  // Se cuenta ANTES de escribir: después es imposible distinguir lo nuevo de lo
+  // reemplazado, y el Ingeniero pidió expresamente poder diferenciarlos.
+  const reemplazados = distintos.length;
+  const escritos = {
+    dias: paraEscribir.filter(([col]) => col === DIAS).length,
+    resumenes: paraEscribir.filter(([col]) => col === RESUMENES).length,
+  };
 
   for (let i = 0; i < paraEscribir.length; i += POR_LOTE) {
     const lote = writeBatch(db);
@@ -222,7 +406,138 @@ export async function guardarCarga(
   return {
     cargaId, dias: dias.length, resumenes: resumenes.length,
     reemplazados, escrituras: paraEscribir.length + 1,
+    escritos, repetidos, otroMotor, apartados: apartadosEscritos,
   };
+}
+
+/** El acuse de TODAS las tandas de una carga larga, ya sumado. */
+export interface AcuseAcumulado {
+  /** Cuántas tandas se guardaron (cada una es una carga con su rastro). */
+  tandas: number;
+  /** El id de cada carga, en el orden en que se guardaron. */
+  cargas: string[];
+  /** Días y resúmenes que se ENTREGARON entre todas las tandas. */
+  dias: number;
+  resumenes: number;
+  /** Lo que de verdad se escribió. */
+  escritos: { dias: number; resumenes: number };
+  /** Lo que ya estaba y decía lo mismo. */
+  repetidos: { dias: number; resumenes: number };
+  reemplazados: number;
+  escrituras: number;
+  otroMotor: number;
+  /**
+   * Los días apartados: lo que NO entró y se puede sumar después. Sin repetir
+   * —mismo día y mismo motivo es el mismo hecho— y de la fecha más vieja a la
+   * más nueva.
+   */
+  apartados: DiaApartado[];
+  /**
+   * Cuántos DÍAS se apartaron por cada motivo, ya rotulado.
+   *
+   * ⚠️ Es para lo que el catálogo de motivos es CERRADO: «8 por sello y 1 fuera
+   * del periodo» se cuenta; una frase escrita a mano, no. Se cuenta aquí y no
+   * en la pantalla para que la cuenta y la lista no puedan discrepar.
+   */
+  apartadosPorMotivo: { motivo: string; rotulo: string; dias: number }[];
+  /**
+   * La frase para la pantalla, ya escrita.
+   *
+   * Va aquí y no en la pantalla por lo mismo que el aviso del recorte: el único
+   * sitio que SABE qué se escribió y qué se dejó fuera es el que lo hizo. Una
+   * pantalla que redacta el acuse por su cuenta acaba diciendo lo que ya no es
+   * verdad — y aquí lo que se afirma es sobre un histórico que no se puede
+   * retirar.
+   */
+  frase: string;
+}
+
+/**
+ * SUMAR LOS ACUSES DE UNA CARGA LARGA — sin que la pantalla recalcule nada.
+ *
+ * ⚠️ POR QUÉ ES UNA PIEZA APARTE Y PURA. Ocho meses de una línea son unos 812
+ * archivos y entran en **diecisiete tandas** de cien; el Ingeniero no quiere
+ * diecisiete acuses sueltos, quiere saber **qué quedó guardado, qué ya estaba y
+ * qué se dejó fuera**. Sumarlo es lo único que puede salir mal aquí, así que se
+ * prueba sin base de datos.
+ *
+ * Los días apartados NO se suman: se unen sin repetir. La lista de lo apartado
+ * es la misma para todas las tandas de una carpeta, y sumarla diría «136 días
+ * apartados» donde hay ocho.
+ */
+export function acumularAcuses(acuses: Acuse[]): AcuseAcumulado {
+  const vacio: AcuseAcumulado = {
+    tandas: 0, cargas: [], dias: 0, resumenes: 0,
+    escritos: { dias: 0, resumenes: 0 }, repetidos: { dias: 0, resumenes: 0 },
+    reemplazados: 0, escrituras: 0, otroMotor: 0, apartados: [], apartadosPorMotivo: [], frase: '',
+  };
+  const vistos = new Set<string>();
+  const total = (acuses ?? []).reduce((t, a) => {
+    for (const x of a.apartados ?? []) {
+      // El mismo día apartado por el mismo motivo es el MISMO hecho, aunque
+      // venga repetido en cada tanda de la carpeta.
+      const clave = `${x.fecha}|${x.motivo}`;
+      if (vistos.has(clave)) continue;
+      vistos.add(clave);
+      t.apartados.push(x);
+    }
+    return {
+      ...t,
+      tandas: t.tandas + 1,
+      cargas: [...t.cargas, a.cargaId],
+      dias: t.dias + a.dias,
+      resumenes: t.resumenes + a.resumenes,
+      escritos: {
+        dias: t.escritos.dias + a.escritos.dias,
+        resumenes: t.escritos.resumenes + a.escritos.resumenes,
+      },
+      repetidos: {
+        dias: t.repetidos.dias + a.repetidos.dias,
+        resumenes: t.repetidos.resumenes + a.repetidos.resumenes,
+      },
+      reemplazados: t.reemplazados + a.reemplazados,
+      escrituras: t.escrituras + a.escrituras,
+      otroMotor: t.otroMotor + a.otroMotor,
+      apartados: t.apartados,
+    };
+  }, vacio);
+
+  total.apartados.sort((a, b) => (a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : 0));
+  const fechasApartadas = new Set(total.apartados.map((x) => x.fecha));
+
+  // ⚠️ SE CUENTAN DÍAS, NO ANOTACIONES: un día que trajera dos motivos se cuenta
+  // UNA vez, por el primero. Si no, la suma de los motivos daría más días
+  // apartados que días hay, y la frase se contradiría a sí misma.
+  const porMotivo = new Map<string, number>();
+  const contados = new Set<string>();
+  for (const x of total.apartados) {
+    if (contados.has(x.fecha)) continue;
+    contados.add(x.fecha);
+    porMotivo.set(x.motivo, (porMotivo.get(x.motivo) ?? 0) + 1);
+  }
+  total.apartadosPorMotivo = [...porMotivo].map(([motivo, dias]) => ({
+    motivo,
+    rotulo: ROTULO_MOTIVO_APARTADO[motivo as keyof typeof ROTULO_MOTIVO_APARTADO] ?? motivo,
+    dias,
+  }));
+
+  total.frase = total.tandas === 0
+    ? 'No se guardó ninguna tanda.'
+    : `${conMiles(total.tandas)} tanda(s): ${conMiles(total.escritos.dias)} día(s) y `
+      + `${conMiles(total.escritos.resumenes)} resumen(es) escritos`
+      + (total.repetidos.dias
+        ? ` · ${conMiles(total.repetidos.dias)} día(s) ya estaban igual y no se reescribieron`
+        : '')
+      + (total.reemplazados
+        ? ` · ⚠️ ${conMiles(total.reemplazados)} día(s) ya estaban y decían otra cosa: se reemplazaron`
+        : '')
+      + (fechasApartadas.size
+        ? ` · ${conMiles(fechasApartadas.size)} día(s) apartados SIN CARGAR `
+          + `(${total.apartadosPorMotivo.map((m) => `${conMiles(m.dias)} porque ${m.rotulo}`).join('; ')}). `
+          + 'Lo apartado se puede sumar después; lo cargado no se puede retirar.'
+        : '.');
+
+  return total;
 }
 
 /**

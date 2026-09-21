@@ -10968,3 +10968,79 @@ las dos lleguen a la misma subestación es lo que hace creíble el tramo común.
 `pantallas/` con el render real, y los tres revisores de cada tanda).
 
 ---
+
+## ADR-134 · 2026-09-20 · La carpeta entera por tandas: una sola cuenta del sello, y reanudar deja de mentir en un papel que no se corrige
+
+**Deliberación:** orden suya del 20-09 («procede») tras elegir **apartar el día entero** cuando alguna
+hora no dice «Actual». Se construyó con un workflow de tres implementadores y **un revisor
+adversario**, que midió tres averías antes de que nada se subiera. El workflow de corrección murió
+entero —límite mensual de gasto— con **dos de los tres agentes a medio escribir**: uno dejó
+`sellos-de-calidad.mjs` roto (`ReferenceError`), otro no llegó a tocar la pantalla. Se terminó a
+mano. **Sin consejo externo: NO revisada externamente.**
+
+### El problema, y por qué es caro
+
+`firestore.rules` niega `update` y `delete` en las tres colecciones de cargabilidad a propósito: *un
+histórico del que se puede quitar una hora incómoda no es un histórico*. De ahí se sigue todo lo
+demás — **lo que se escriba mal se queda mal para siempre**, y el sitio donde más duele es
+`CargaDeCargabilidad.apartados`, que es el único papel que responde «¿por qué falta el 26-01?».
+
+| Lo que medía el revisor | Cifra real |
+|---|---|
+| ① Reanudar tras una tanda fallida (mover «Desde») | **105 días YA CARGADOS** quedaban escritos como que no entraron, y **5** perdían su motivo real |
+| ② La pantalla contaba CELDAS y la consola hora·señal | «×9» contra «×8» · `36.215/25` contra `37.294/26` (1.080 lecturas repetidas en LN-617) |
+| ③ Dos frenos solo en la consola | choque de sellos · eje no horario |
+
+### Decisión
+
+1. **Reanudar NO es acotar el periodo, y ahora son dos campos.** «Periodo» (`--desde/--hasta`) dice
+   QUÉ SE QUIERE CARGAR: es un juicio sobre el dato y **se escribe**. «Ya cargado hasta»
+   (`--ya-cargado-hasta`) dice QUÉ YA ESTÁ ESCRITO: es un hecho del histórico y **no se escribe
+   nada** de esos días — lo que haya que decir lo dijo la carga que los escribió. Causa nueva
+   `OTRA_CORRIDA` en el núcleo, **deliberadamente SIN sitio en el molde**: que no quepa es la
+   defensa de fondo.
+2. **La cuenta del sello es UNA y vive en el núcleo** (`indiceDeSellos`): cada hora·señal vale una
+   vez la traigan uno o cinco archivos, y dos lecturas distintas de la misma hora son un CHOQUE que
+   se dice y frena, no se promedia. `sellos-de-calidad.mjs` dejó su copia y consume esa.
+3. **Los dos frenos, en las dos puertas** — y dicho con honestidad: **«eje no horario» hoy no puede
+   dispararse**, porque `encontrarEjeDeTiempo` exige horas estrictamente crecientes y esos archivos
+   caen antes en `sinEje`. Se queda como segunda puerta por si se afloja esa regla; lo que NO se
+   hace es contarla como la que para el archivo.
+4. **Un aviso que mandaba a buscar lo que ya estaba dado:** con todos los sellos ilegibles se decía
+   «no hay NINGÚN archivo de sello». Ahora se distingue «no hay» de «no se pudieron leer»: son
+   averías distintas y se arreglan en sitios distintos.
+5. **El cargador de consola escribe sus apartados** (`CargaDeCargabilidad.apartados`, molde 0.18.0) y
+   usa `repartirEnLotes` del núcleo en vez de su copia.
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| No escribir nunca los días fuera del periodo (lo que hacía la consola) | Seguro, pero pierde el juicio real: dejar fuera el archivo de 2025 **sí** dice algo de 2025 |
+| Adivinar si «Desde» es periodo o reanudación (por año, por hueco) | Una heurística escribiendo en un documento inmutable es justo lo que se está arreglando |
+| Añadir `otra_corrida` al catálogo de motivos | Escribir «no se tocó» en el rastro de una carga es ruido: de ese día ya habla otra carga |
+| Recortar la lista de apartados al tope del molde | Una lista que se corta deja huecos sin explicar, y en silencio |
+
+### Supuestos que deben ser ciertos — y la señal que diría que dejaron de serlo
+
+| Supuesto | Señal |
+|---|---|
+| El eje del SCADA es horario y estrictamente creciente | `sinEje` deja de ser 0 en una carpeta suya: hay exportación sub-horaria y hay que decidir qué hora manda |
+| «Ya cargado hasta» lo pone bien quien reanuda | Un día se cargaría dos veces: no se duplica —reemplaza— pero gasta escrituras. El acuse lo dice |
+| Los días sin ningún sello son dato bueno (decisión suya, 20-09) | 13 días entran sin respaldo propio en las dos líneas; se NOMBRAN en el plan |
+
+### Consecuencias
+
+- **3.446 pruebas** (3.441 verdes, 5 declaradas) · contrato 0.18.0 · `tsc` y `build` limpios ·
+  `brain:check` sano. Prueba nueva: `tests/sellos-una-sola-cuenta.test.js`.
+- **Medido sobre su dato real, los dos caminos escriben lo mismo**: 8 días apartados en LN-617 y 11
+  en LN-628, **cero diferencias** de fecha, texto y cifras entre pantalla y consola.
+- Listo para cargar: **779 documentos** (LN-617, 8 tandas) y **767** (LN-628, 8 tandas); 812 y 811
+  archivos explicados sin uno suelto.
+- El escenario del corte, medido: **105 → 0** mentiras escritas, **5 → 0** motivos perdidos, y el
+  rastro de las tandas 5-8 pasa de 114 entradas a 4.
+- **Queda abierto (`TODO-105`)**: la carga de verdad. Y `TODO-104` sigue siendo suya.
+
+**Crudo de respaldo:** `research-archive/2026-09-20-carga-por-carpeta/`
+
+---
