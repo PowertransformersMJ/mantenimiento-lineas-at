@@ -911,8 +911,12 @@ async function principal(argv) {
   // ⚠️ LO QUE VA EN EL RASTRO DE CADA CARGA, y se escribe una sola vez en la
   // vida: los días apartados POR UNA REGLA. Los de «--ya-cargado-hasta» NO van —
   // ver `apartadosParaElRastro`— porque ya los escribió otra pasada.
+  // ⚠️ Y de un día que YA ESCRIBIÓ otra pasada no se repite el veredicto, aunque
+  // sea cierto: su carga ya lo dijo, con su detalle. Es además lo que hace la
+  // pantalla, y las dos tienen que escribir lo MISMO o vuelven a ser dos verdades.
   const apartadosDelRastro = apartadosParaElRastro({
-    porSello: diasApartados.map((f) => ({ ...detalleDe(f), porQue: motivoDe(f) })),
+    porSello: diasApartados.filter((f) => !yaEscritos.has(f))
+      .map((f) => ({ ...detalleDe(f), porQue: motivoDe(f) })),
     fueraDelPeriodo,
     periodo: { desde: DESDE, hasta: HASTA },
     sinLecturas: entranSinDocumento,
@@ -980,14 +984,19 @@ async function principal(argv) {
   }
 
   console.log('\nEL RASTRO DE CADA CARGA — lo que queda escrito para siempre sobre lo que NO entró');
+  const conMotivo = (m) => apartadosDelRastro.filter((a) => a.motivo === m).length;
   console.log(`   ${apartadosDelRastro.length} día(s) apartados por una regla`
-    + `: ${apartadosDelRastro.filter((a) => a.motivo === 'sello_no_actual').length} por sello`
-    + ` + ${apartadosDelRastro.filter((a) => a.motivo === 'sin_lecturas').length} sin lecturas con número`
+    + `: ${conMotivo('sello_no_actual')} por sello`
+    + ` + ${conMotivo('fuera_del_periodo')} fuera del periodo`
+    + ` + ${conMotivo('sin_lecturas')} sin lecturas con número`
     + ' · la MISMA lista en las ' + `${lotes.length} carga(s), porque lo apartado es de la carpeta`);
-  if (fuera.size) {
-    console.log(`   los ${n(fuera.size)} día(s) fuera del periodo NO van al rastro: acotar con `
-      + '«--desde/--hasta» es lo que usted pidió cargar hoy —y es la forma de reanudar—, no un juicio');
-    console.log('   sobre esos días. Quedan dichos aquí y en el informe «--json».');
+  // ⚠️ Lo ya escrito por otra pasada NO va al rastro, y se dice para que no
+  // quepa duda: de esos días esta carga calla, que es lo único cierto que puede
+  // decir de ellos. Lo demás —lo apartado por una regla— sí queda escrito.
+  if (yaEscritos.size) {
+    console.log(`   los ${n(yaEscritos.size)} día(s) de «--ya-cargado-hasta» NO van al rastro: ya los `
+      + 'escribió otra pasada, así que de ellos esta carga no dice nada. Lo que haya que decir');
+    console.log('   lo dijo la carga que los escribió. Quedan dichos aquí y en el informe «--json».');
   }
   if (desajustes.length) alto('EL RECUENTO NO CUADRA. No se carga nada:', ...desajustes.map((d) => `· ${d}`));
 
