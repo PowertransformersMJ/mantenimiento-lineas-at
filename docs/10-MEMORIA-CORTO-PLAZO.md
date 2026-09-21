@@ -65,25 +65,25 @@ Todo EN PRODUCCIÓN y **verificado en vivo con su sesión**.
 | **TODO-80** | **¿Qué tope de puesta a tierra rige?** El campo existe (`ADR-052`); declararlo basta. Sin decisión suya siguen **10 Ω** | Con 18 Ω medidos, 10 Ω dice «revisar» y 25 Ω «cumple» |
 | **TODO-90** | **La capa de rayos que piden las NORMAS** (rayos/km²/año, RETIE e IEEE 1243). Espera una **cuenta Earthdata gratuita** (`99 §ADR-079`) | La horaria dice CUÁNDO hubo tormenta; ésta entra en el cálculo de salidas |
 | **TODO-89** ⬅️ **ORDEN SUYA** | **Encender el despliegue automático.** Faltan los dos secretos de Cloudflare, que no pasan por el chat (`§ADR-077`). ⚠️ Nadie mirará el mapa antes de publicar | Último eslabón de «cada 4 h» |
-| **TODO-72** | **¿Autorización del IGAC para sus ortoimágenes?** Cubren esto a **3 m** y **10 cm**, contra los 10 m de Sentinel-2 (`99 §ADR-040`) | Única vía a más resolución |
+| **TODO-72** | **¿Autorización del IGAC?** Sus ortoimágenes cubren esto a **3 m** y **10 cm**, contra los 10 m de hoy (`§ADR-040`) | Única vía a más resolución |
 | **TODO-71** | **¿Se cierran las hipótesis con dato real?** El **viento** (`ADR-035`) y los **1.000 W/m²**: los atlas los ACERCAN, no los cierran (`ADR-055`) | De ahí salen los tiros y la capacidad |
 | **TODO-59** | **Qué ficha se le pide a CADA tipología.** La línea mezcla 4 y el molde es de POSTE (`40 §8.3`) | Son 3 o 4 formularios |
 | **TODO-33** | **50 % o 25 % de RTS** como tope de tiro. Ya no hay dos dueños (`§ADR-051`): falta decidir CUÁL rige | Factor 2 sobre un dictamen |
 | **TODO-98** 🔴 **MÍA** | **El recibo de la contraseña se auto-firma** desde la consola y **se salta el muro del cambio obligatorio** (y `ultimoAcceso`) | Un muro que se salta no es un muro |
 | **TODO-95/93 · 101** 🔴 ⬅️ **SUYA, URGENTE** | Tres cosas, todas del mismo veredicto. ① **La FICHA del fabricante del conductor** y ② **ratificar la condición** de ampacidad (hoy ADOPTADA: 718 A); sin ellas se publica pero **NO SE FIRMA** (`§ADR-098/099`). ③ **`TODO-101`: re-exportar del SCADA** el **MÁXIMO del 3 al 12/01** (dicta el térmico) · el mínimo del 1 al 12/01 · el 01/02 (carpeta vacía) · el 12/08 (su «12Agosto» trae el 13) · mayo (`TODO-103`); el 30-31/01 no existe («30Enero» es el 29-jul: ⚠️ no borrarla) | 718 A hoy · **611 A** a 75 °C · y diez días de enero **sin pico** |
 | **TODO-103** ⬅️ **SUYA** | **Lo apartado de ene-ago** (`§ADR-128`): ① el **20-04** 7-19 h, congelado «Not Renewed»: ¿fuera, sin esas horas o tal cual? ② re-bajar **MAYO** ③ el archivo de **2025** ④ ¿fallas o maniobras el 24-02, 20-06, 05-08, 29-08 y el 22-07 17 h? ⑤ ¿las horas contra la AMPACIDAD sustituyen a las del % del archivo? (`§ADR-129`) ⑥ ofrecido 11-09: validar lo DERIVADO y los resúmenes; el aviso «del 3 al 12/01 SÍ hay promedio e instantáneo» | Nada se carga sin su decisión |
-| **TODO-104** ⬅️ **SUYA** | **LN-617/628** (`§ADR-132/133`): ⓪ **dar el alta** usted ① ¿E01-E06, E09, E24? ¿fuera del 618? ② función de cada torre ③ conductor e hipótesis ④ 185 h no «Actual» ⑤ 15 y 29 horas de evento | Sin ⓪ no hay dónde cargar el SCADA |
-| **TODO-100** 🔴 **MÍA** | El lector no abre los `.xls`: el paso 0 ya es herramienta (`normalizar-xls`); falta que lo haga la pantalla | Fallar oscuro se lee «dato malo» |
+| **TODO-104** ⬅️ **SUYA** | **LN-617/628** (`§ADR-132/133`): ✅ altas hechas el 20-09 · ① ¿E01-E06, E09, E24? ¿fuera del 618? ② función de cada torre ③ conductor e hipótesis ④ 185 h no «Actual» ⑤ 15 y 29 horas de evento | Sin ② no hay torres; sin ③ no hay veredicto |
+| **TODO-100** 🔴 **MÍA** | El lector no abre los `.xls`: el paso 0 ya es herramienta; falta que lo haga la pantalla | Fallar oscuro se lee «dato malo» |
 | **TODO-44/34** | Alerta de gasto en Cloudflare · **nada tiene copia**: la bóveda sin remoto **y Firestore sin punto de recuperación** (`§ADR-089`) | Un fallo de disco se lleva la bóveda; un comando, la base |
-| **TODO-61/54/68** | ¿App Check? · ¿linter de frescura? · ¿cazar un ADR repetido o citado sin escribir? Las dos últimas tocan el KERNEL | Las TRES son TUYAS |
-| **TODO-76** | **¿Se guarda si un apoyo es autosoportado / retenido?** No cabe en el modelo: iría por APOYO (26 declaraciones) | Cierra media incógnita de la capacidad longitudinal |
+| **TODO-61/54/68** | ¿App Check? · ¿linter de frescura? · ¿cazar un ADR repetido o citado sin escribir? Las dos últimas, KERNEL | Las TRES son TUYAS |
+| **TODO-76** | **¿Autosoportado o retenido?** No cabe en el modelo: iría por APOYO (26 declaraciones) | Cierra media incógnita de la capacidad longitudinal |
 | **TODO-78/84** ⬆️⬆️ | **Cerebro LLENO** (`§ADR-065/083/102/125`): el ARRANQUE vive sin margen y **cada sesión poda texto bueno**. Shard o recalibrar | El freno más caro del día a día |
 
 ## 🔲 Pendientes de CLAUDE — en este orden
 
 | # | Qué | Dónde está el plan |
 |---|---|---|
-| **TODO-105** 🔴 | **Torre común hecha** (`§ADR-133`). Falta: desplegar, su alta, cargar el SCADA y verificar en frío | `§ADR-133` |
+| **TODO-105** 🔴 | **Torre común hecha y en producción** (`§ADR-133`): las dos líneas, de alta el 20-09. Falta cargar su SCADA | `§ADR-133` |
 | **TODO-102** 🔴 | ① >100 archivos da un error crudo y el sello de calidad no se enseña (`§ADR-128`) · ② hermanas en el calendario pero sin ver con dato real (falta %); barras del Atlas, reglas viejas · ④ sondas 3·4·7 (`§ADR-121`) · ⑤ los ceros al final miran solo el día 1 · ⑥ conductor «fabricante» vs `supuesto`; `--tx-tenue` no existe; la guardia de color solo mira `estilo.css` · ⑦ «hoy» con dos dueños: `iso()` local y `diaDe` de Colombia · ⑧ `deploy` que se niegue con el remoto sin traer (`35 · L-77`) · ⑨ el arnés que DIBUJA, a `herramientas/` (`32 · L-90`), y el guardián que barra las gráficas (`§ADR-125`) | `99 §ADR-125..129` |
 | **TODO-70** | **Cerrar la ola de la ficha.** Queda SOLO ③: el gesto «Confirmo este dato», que exige su propio molde | `99 §ADR-030/032/033/038` |
 | **TODO-66** | **Que una acción pruebe que FUNCIONÓ**, no solo que se hizo: verificación posterior con fecha | `99 §ADR-026` |
