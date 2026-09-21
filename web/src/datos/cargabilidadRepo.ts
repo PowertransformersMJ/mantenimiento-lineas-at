@@ -454,7 +454,7 @@ export async function ultimasCargas(sesion: Sesion, { cuantas = 20 } = {}) {
 // ⚠️ POR QUÉ, y no es cosmética. Hoy la línea del archivo se escribe a mano en
 // una casilla de texto libre, y esa casilla es **lo más caro de equivocar de
 // toda la pantalla**: con un solo parque de una línea, un dedazo se notaba; con
-// tres líneas, «LN-618» en vez de «LN-617» escribe un histórico entero a nombre
+// tres líneas, un dedazo en el código escribe un histórico entero a nombre
 // de una línea que no existe, y **no hay forma de retirarlo** —`firestore.rules`
 // niega el borrado a propósito («un histórico del que se puede quitar una hora
 // incómoda no es un histórico»)—. Nadie lo ve nunca: ninguna pantalla abre esa

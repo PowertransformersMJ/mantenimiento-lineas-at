@@ -10949,6 +10949,11 @@ y lo ratificó: **las 28 torres las comparten LN-617 y LN-628**, «618» es solo
 del tramo común, LN-617 entra con su SCADA y la bahía de LN-628 no cambia. El diseño no se toca. Que
 las dos lleguen a la misma subestación es lo que hace creíble el tramo común.
 
+> ⚠️ **No existe ninguna línea «LN-618», y no se trabaja sobre ella** (orden suya del 20-09). **618 es
+> el número de PLACA del tramo compartido** —en el sistema `TR-618`, en pantalla «tramo compartido
+> 618»—, y las líneas que lo recorren son LN-617 y LN-628. El libro de códigos solo anota esas dos y
+> LN-627; una prueba comprueba que «LN-618» no resuelve a nada.
+
 ### Lo que salió al ponerlo en sus manos (20-09)
 
 - **Las reglas no se habían desplegado.** El código sí; `levantamientos` quedaba cerrada y la pantalla

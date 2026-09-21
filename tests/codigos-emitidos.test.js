@@ -460,6 +460,10 @@ describe('LAS DOS FÓRMULAS DAN LO MISMO — la de consola y la del navegador', 
     const { idDelLibro, filaDelLibro } = await import('@lineas/importar/identidad');
     // El dedazo concreto que esto cierra: un cero de más. `firestore.rules` no
     // deja borrar líneas, así que esa línea fantasma se quedaría para siempre.
+    // ⚠️ «LN-618» está en esta lista PORQUE NO EXISTE: 618 es el número de placa
+    // del tramo compartido (`TR-618`), no una línea, y sobre una línea 618 no se
+    // ha trabajado nunca (orden del Ingeniero, 20-09). Aquí solo se comprueba
+    // que confundirlos no puede acuñar nada.
     for (const inexistente of ['LN-6280', 'LN-618', 'TR-617', '618', 'constructor', 'toString', '_nota']) {
       assert.equal(filaDelLibro(LIBRO, inexistente), undefined);
       assert.throws(() => idDelLibro(LIBRO, inexistente), /libro de códigos/,
