@@ -11102,3 +11102,71 @@ vacía solo y la página nunca llega a calcular el plan. Y dos cosas más que se
 **Crudo de respaldo:** `research-archive/2026-09-20-carga-por-carpeta/`
 
 ---
+
+## ADR-136 · 2026-09-22 · Las once capas del Atlas, corridas contra su fuente: «desactualizado» y «en el tope de lo que publican» no son lo mismo
+
+### Contexto
+
+El Ingeniero preguntó si el Atlas estaba al día, **cada una de las once capas**. La pregunta tiene
+trampa: la ficha de cada capa dice hasta qué día llega (`30 · M-01`), pero no dice si ese día es el
+último que ella pudo traer o el último que su fuente publica. Dos capas —sol y nubes medidos— se
+quedaban en junio, y a simple vista eso parece un atlas abandonado.
+
+Además la producción venía de arrastrar un desfase real con el repo (`TODO-89`: el vigía construye
+cada 4 h, pero publicar sigue siendo a mano), así que «está viejo» podía ser tres cosas distintas:
+la fuente no publica más, el constructor no corrió, o corrió y nadie lo desplegó.
+
+### Decisión
+
+**Se corren las once, una por una, contra su fuente, y se separa el diagnóstico en tres casillas.**
+No se declara una capa «al día» ni «atrasada» por su fecha: se declara por la **distancia entre su
+fecha y el tope de su fuente**, medido el mismo día.
+
+Resultado del 22-09, con el tope preguntado directamente al proveedor ese mismo día:
+
+| Familia | Capas | Último día | Tope de la fuente hoy | Veredicto |
+|---|---|---|---|---|
+| NASA POWER · MERRA-2 | temperatura, viento, lluvia | 2026-09-17 | 2026-09-17 | **en el tope** |
+| NASA POWER · CERES SYN1deg | sol, nubes | 2026-06-29 | 2026-06-29 | **en el tope** (el horario de CERES va ~3 meses atrás, no es nuestro retraso) |
+| GOES-19 | rayos, nubes-vivo | 2026-09-22 | el día en curso | **en el tope** (+1 hora nueva cada una) |
+| GOES-19 | sol-vivo | 2026-09-21 | el día en curso | **en el tope** de lo publicado al correr |
+| MET Norway | los tres pronósticos | 01-10 / 25-09 | — | **horizonte intacto** |
+
+**Ninguna capa avanzó de DÍA porque ninguna podía**: todas estaban ya donde termina su fuente.
+
+**El pronóstico pierde horas por el frente, y eso no es una regresión.** Las tres capas de
+pronóstico contaban una hora menos que en la corrida anterior. Es la ventana móvil: la hora que ya
+pasó se cae por delante mientras el horizonte se mantiene (01-10 en temperatura y viento, 25-09 en
+lluvia). **La señal de alarma no es que el número de horas baje, es que el ÚLTIMO DÍA baje.**
+
+### Alternativas descartadas
+
+- **Fiarse de la fecha de la ficha.** Es la que hizo sospechar de sol y nubes sin motivo. La fecha
+  sola no distingue «llegó hasta donde hay» de «se quedó corto».
+- **Refrescar solo las capas que se veían viejas.** Habría dejado sin comprobar justo las que sí
+  cambiaron (rayos y nubes-vivo ganaron una hora) y no habría detectado el desfase de producción.
+- **Esperar a `TODO-89`.** El despliegue automático sigue faltando; mientras tanto, cada corrida del
+  Atlas se publica a mano en el mismo turno o la producción vuelve a quedarse atrás.
+
+### Supuestos que deben ser ciertos — y la señal que diría que dejaron de serlo
+
+| Supuesto | Señal de que dejó de ser cierto |
+|---|---|
+| El horario de CERES seguirá ~3 meses por detrás | Su tope salta a días atrás: entonces sol y nubes medidos pasan a refrescarse como los de MERRA-2 |
+| El pronóstico solo pierde horas por el frente | Baja el **último día**, no solo el conteo de horas |
+| Una capa que no avanza está en el tope, no rota | La fuente publica un día que nuestra capa no trae: ahí sí es defecto nuestro |
+
+### Consecuencias
+
+- Las once capas verificadas en producción el 22-09: el JSON servido es **idéntico** al construido
+  (mismo último día, mismos cuadros, misma marca de construcción) en las once.
+- El portero (`herramientas/mirar-los-atlas.mjs`) pasó en las seis capas que cambiaron: mapa vivo,
+  capa puesta y lienzo con dibujo.
+- Queda escrito el criterio para la próxima vez: **capa vieja ≠ capa rota**. Antes de tocar un
+  constructor, se le pregunta a la fuente hasta dónde llega.
+- `TODO-89` sube de prioridad: mientras publicar sea a mano, este trabajo hay que repetirlo entero
+  cada vez que alguien pregunte si el mapa está al día.
+
+**Crudo de respaldo:** `research-archive/2026-09-22-atlas-contra-su-fuente/`
+
+---

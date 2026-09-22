@@ -233,6 +233,7 @@ vive en `10 · TODO-79`, y los **relevos de sesión** `2026-08-22/24/26-relevo-c
 | `ADR-133` | 2026-09-18 | Una torre, dos líneas: el tramo compartido 618, el alta que pulsa él y la línea que se abre sin conductor | `research-archive/2026-09-16-ln617-ln628/` |
 | `ADR-134` | 2026-09-20 | La carpeta entera por tandas: una sola cuenta del sello, y reanudar deja de mentir en un papel que no se corrige | `research-archive/2026-09-20-carga-por-carpeta/` |
 | `ADR-135` | 2026-09-22 | El SCADA de LN-617 y LN-628 cargado por SEGMENTOS: 1.546 documentos, y una carpeta de 800 archivos no cabe por la puerta | `research-archive/2026-09-20-carga-por-carpeta/` |
+| `ADR-136` | 2026-09-22 | Las once capas del Atlas corridas contra su fuente: «desactualizado» y «en el tope de lo que publican» no son lo mismo | `research-archive/2026-09-22-atlas-contra-su-fuente/` |
 
 > Toda decisión cara de revertir entra aquí con su ADR y su crudo enlazado. Si hubo comité o consejo
 > externo y el crudo no está archivado, la tarea **no está cerrada** (`CLAUDE.md §G.4`).
