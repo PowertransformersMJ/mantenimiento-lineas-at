@@ -247,7 +247,7 @@ export default function Cargabilidad({
   /**
    * Las opciones de la casilla «Línea»: LAS DEL PARQUE. El libro de códigos NO
    * sirve de lista: anota códigos reservados que todavía no existen en la base
-   * («todavía NO existe en la base», dice él mismo), y guardar el histórico a
+   * —el propio libro lo declara fila por fila en su `origen`—, y guardar el histórico a
    * nombre de una línea que no existe deja un dato que no se puede borrar —las
    * reglas niegan el borrado de las tres colecciones de cargabilidad—. Si el
    * parque no llegó, se ofrece SOLO la línea abierta y se dice por qué.

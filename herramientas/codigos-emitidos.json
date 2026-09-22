@@ -17,14 +17,14 @@
     "semilla": "linea",
     "id": "6d9ca4ca-1734-8823-2b99-7a107ddae99f",
     "emitidoEn": "2026-09-17",
-    "origen": "Parque 617-628. Código RESERVADO el 17-09-2026, antes del alta: la pantalla elige de aquí. Recorre el tramo compartido TR-618. Todavía NO existe en la base — el alta la pulsa el Ingeniero."
+    "origen": "Parque 617-628. Código RESERVADO el 17-09-2026, antes del alta: la pantalla elige de aquí. Recorre el tramo compartido TR-618. Al reservarse todavía NO existía en la base. **De ALTA desde el 20-09-2026**, pulsada por el Ingeniero desde la pantalla (`§ADR-133`): recorre TR-618 con los 28 puntos del levantamiento, **sin torres registradas y sin conductor** —esos esperan a que él declare la función de cada torre (`TODO-104`)—."
   },
   "LN-628": {
     "tipo": "linea",
     "semilla": "linea",
     "id": "85038a14-252b-fcdf-1c0c-c9d5b187f2b6",
     "emitidoEn": "2026-09-17",
-    "origen": "Parque 617-628. Código RESERVADO el 17-09-2026, antes del alta: la pantalla elige de aquí. Recorre el mismo tramo compartido TR-618 que LN-617. Todavía NO existe en la base — el alta la pulsa el Ingeniero."
+    "origen": "Parque 617-628. Código RESERVADO el 17-09-2026, antes del alta: la pantalla elige de aquí. Recorre el mismo tramo compartido TR-618 que LN-617. Al reservarse todavía NO existía en la base. **De ALTA desde el 20-09-2026**, pulsada por el Ingeniero desde la pantalla (`§ADR-133`): recorre TR-618 con los 28 puntos del levantamiento, **sin torres registradas y sin conductor** —esos esperan a que él declare la función de cada torre (`TODO-104`)—."
   },
   "TR-618": {
     "tipo": "tramo",
