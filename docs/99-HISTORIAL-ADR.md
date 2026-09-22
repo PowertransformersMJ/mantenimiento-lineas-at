@@ -11283,6 +11283,13 @@ Firestore, que se publicaban sin portero (`npm run reglas:publicar`).
 
 ### ⚠️ Lo que se destapó al probarlo, y NO es de este cambio
 
+> 🛑 **CORREGIDO POR `§ADR-138` (22-09, el mismo día).** Lo que sigue se midió después y
+> **no se sostuvo**: el pronóstico ya no corría en el reloj horario (lleva su `if` desde el 26-08),
+> `couldn't find remote ref` resultó ser una línea normal y no la avería, y esa frase sobre
+> `vigia/pronostico-caribe` sale **una sola vez**: en esta misma prueba, no el 10-09. Las 13 rojas
+> son **cinco averías distintas** y el atlas **no ha perdido ni una hora**. Se deja el texto en pie
+> —es la historia de cómo se leyó mal un registro— pero **no se actúa sobre él**: se actúa sobre el `138`.
+
 Al lanzar el vigía dos veces seguidas para comprobar el portero, la segunda corrida murió con
 `couldn't find remote ref vigia/pronostico-caribe`. **Es un fallo VIEJO**: de las 13 corridas del vigía que
 han fallado en su vida, **12 son anteriores a este cambio** y al menos cuatro llevan esa misma frase,
@@ -11307,3 +11314,103 @@ No se tocó ninguna de las dos en este cambio: arreglar de paso algo que no se h
 cómo se rompe un vigía que lleva semanas funcionando.
 
 **Crudo de respaldo:** `research-archive/2026-09-22-cadena-de-publicacion/`
+
+---
+
+## ADR-138 · 2026-09-22 · Las 13 corridas rojas del vigía NO eran el doble reloj: son cinco averías distintas, y el atlas no ha perdido ni una hora
+
+### Contexto
+
+`§ADR-137` cerró apuntando una carrera del vigía y dejó al Ingeniero dos salidas para elegir. Al ir
+a medirlas —antes de tocar nada— **el diagnóstico no resistió la medición**. Se escribe aquí entero
+porque el error estaba ya en el cerebro, y un cerebro con un hecho falso dirige mal la mano siguiente.
+
+### Lo medido el 22-09 (13 corridas, sus registros leídos uno a uno)
+
+**① El pronóstico NO corre en el reloj horario, y no corre desde que nació.**
+`vigia-nasa.yml:605` lleva `if: github.event.schedule != '17 * * * *'` desde el commit `499458f4`
+(26-08), el mismo que creó el trabajo. Verificado vivo: en la corrida `35743124634` (22-09 14:50,
+reloj horario) el trabajo «¿Cómo viene el tiempo?» sale **`skipped`**. La salida ① del `§ADR-137`
+**ya estaba aplicada**: no había nada que decidir ahí.
+
+**② `couldn't find remote ref` no es un fallo: es ruido.** Aparece en 7 corridas, y en 6 de ellas el
+paso «Abrir la propuesta» terminó **en verde**. La acción imprime esa línea, sigue con
+`Pull request branch '…' does not exist yet.` y **crea la rama**. Es lo normal cuando la propuesta
+anterior se fusionó y se borró. Se tomó un mensaje informativo por la causa de la muerte.
+
+**③ Sobre `vigia/pronostico-caribe` esa frase sale UNA sola vez**, el 22-09 a las 16:00, en la
+corrida `35750861534` — **la de la propia prueba**, lanzada a mano 6 minutos después de otra. No
+existe ninguna del 10-09: las de ese día son de otro trabajo y otro fallo. La prueba no destapó un
+fallo viejo: **fabricó uno nuevo**, y era un disparo a mano, no el reloj.
+
+**④ Las 13 rojas son CINCO averías, ninguna «el doble reloj mata el pronóstico»:**
+
+| Cuántas | Trabajo | Dónde muere | Causa REAL |
+|---|---|---|---|
+| **5** | rayos | Fusionar la propuesta | **Conflicto de fusión**: dos corridas solapadas tocan los mismos libros |
+| **4** | vigilar · lluvia | Comparar | **NASA devolvió vacío** — «sin una sola hora con dato». Es la fuente |
+| **2** | portero | Mirar el mapa | **Chrome no publicó su puerto de depuración** (10 s y 40 s) |
+| **1** | pronóstico | Abrir la propuesta | **Empuje rechazado por falta de permiso `workflows`** (22-09) |
+| **1** | vigilar (estructura vieja) | Abrir la propuesta | «GitHub Actions is not permitted…» + rampa. 24-08, ya corregido |
+
+**⑤ El que SÍ sufre el doble reloj es RAYOS, no el pronóstico** — y es el único trabajo sin `if`,
+porque el reloj horario existe **para él**. Ponerle el `if` sería apagar la razón de ser del reloj.
+Su síntoma tampoco es la rama borrada: es **conflicto de fusión**, y el reintento de 6 × 10 s no lo
+arregla nunca, porque esperar no resuelve un conflicto.
+
+### La pregunta que importaba: ¿cuánto atlas se ha perdido? — **NI UNA HORA**
+
+| Qué se midió | Resultado |
+|---|---|
+| Horas en el libro de rayos | **709**, del 23-08 16:00 al 22-09 09:00 |
+| Huecos atribuibles a una corrida fallida | **0 de 5** — las 5 horas de cada fallo están presentes |
+| Horas ausentes en todo el libro | 5 (12-09 19-22 h · 22-09 05 h) — **no coinciden con ningún fallo**: son de la fuente |
+| Retraso tras cada fallo de rayos | **0,0 h en 4 de 5** · 2,4 h en uno — bajo la cadencia normal (mediana **2,6 h**) |
+
+**Por qué el retraso es cero:** la corrida que muere es **la duplicada**. Su gemela ya fusionó lo
+mismo en el mismo minuto — de ahí el conflicto. El rojo señala trabajo repetido, no dato perdido.
+
+**Y la publicación tampoco se pierde.** `publicar` cuelga de
+`contains(needs.*.result, 'success')`: basta que UN trabajo acabe bien. Verificado en la corrida
+roja `35750861534` — «Publicar el atlas fusionado» salió **success** con el pronóstico caído.
+La frase del `§ADR-137` «una corrida caída es una publicación que no ocurre» **solo sería cierta si
+fallaran todos los trabajos a la vez**, que no ha pasado nunca.
+
+### Decisión
+
+**No se toca nada del vigía en este movimiento.** Lo que se corrige es el cerebro, que es donde
+estaba el daño: un diagnóstico falso ya escrito. Las dos salidas del `§ADR-137` quedan **retiradas
+por medición**, no por preferencia: la ① ya estaba puesta y la ② remienda un paso que solo ha
+fallado una vez, y por otra causa.
+
+**Lo que queda para su palabra, con el coste medido delante** (ninguna es urgente: el dato está
+intacto y la publicación llega):
+
+- **A · Dejarlo como está.** Coste: una corrida roja cada pocos días, que no cuesta dato ni
+  publicación. Beneficio: cero riesgo sobre un vigía que lleva semanas funcionando.
+- **B · Que el conflicto se resuelva en vez de esperarse.** Ante conflicto, rehacer la rama sobre
+  `main` fresco y reintentar, en lugar de dormir 10 s seis veces. Coste: tocar el paso de fusionar
+  de los tres trabajos. Beneficio: se apaga la causa de **5 de las 13**.
+- **C · Callar la corrida duplicada.** Que la segunda corrida solapada se retire al ver que su
+  contenido ya está en `main`. Coste: una comprobación más. Beneficio: el rojo desaparece de raíz.
+- **D · Los rojos de fuente y de Chrome** (4 + 2) **no son del vigía** y no se arreglan aquí.
+
+### Lo que NO se determinó, y se deja escrito en vez de inventarlo
+
+Por qué GitHub contó aquel empuje como «create or update workflow `ci.yml`» **no queda establecido**.
+La correlación es fuerte —es la única corrida de toda la vida del vigía que creó su rama partiendo de
+un `main` que acababa de recibir, de una persona y minutos antes, un cambio en `ci.yml` (`613643b`,
+15:54; la corrida arrancó 15:57 y empujó 16:00)— pero **correlación de un solo caso no es mecanismo**.
+Se deja como hipótesis marcada, igual que se hizo con `workflow_run` en `§ADR-137`.
+⚠️ **La salida fácil sería darle el permiso `workflows` al robot. No se propone**: sube lo que el
+vigía puede tocar para tapar un fallo que ha ocurrido una vez y no costó dato.
+
+### Lección que deja
+
+**Un mensaje en rojo dentro de un registro no es la causa de la muerte.** `couldn't find remote ref`
+se leyó como la avería y era la línea normal de una acción creando una rama. Antes de escribir un
+mecanismo en el cerebro: mirar **en qué paso** murió el trabajo (`conclusion` de cada paso), no qué
+frase alarmante aparece cerca. Y contar los casos: «al menos cuatro llevan esa frase» eran cuatro
+corridas que fallaron **en otro trabajo y por otra causa**.
+
+**Crudo de respaldo:** `research-archive/2026-09-22-las-trece-rojas-del-vigia/`

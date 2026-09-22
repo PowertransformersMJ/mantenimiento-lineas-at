@@ -235,6 +235,7 @@ vive en `10 · TODO-79`, y los **relevos de sesión** `2026-08-22/24/26-relevo-c
 | `ADR-135` | 2026-09-22 | El SCADA de LN-617 y LN-628 cargado por SEGMENTOS: 1.546 documentos, y una carpeta de 800 archivos no cabe por la puerta | `research-archive/2026-09-20-carga-por-carpeta/` |
 | `ADR-136` | 2026-09-22 | Las once capas del Atlas corridas contra su fuente: «desactualizado» y «en el tope de lo que publican» no son lo mismo | `research-archive/2026-09-22-atlas-contra-su-fuente/` |
 | `ADR-137` | 2026-09-22 | El atlas nunca llegaba solo a producción, y no era por los secretos: la cadena de publicar estaba rota en TRES sitios | `research-archive/2026-09-22-cadena-de-publicacion/` |
+| `ADR-138` | 2026-09-22 | Las 13 corridas rojas del vigía NO eran el doble reloj: cinco averías distintas, y el atlas no ha perdido ni una hora | `research-archive/2026-09-22-las-trece-rojas-del-vigia/` |
 
 > Toda decisión cara de revertir entra aquí con su ADR y su crudo enlazado. Si hubo comité o consejo
 > externo y el crudo no está archivado, la tarea **no está cerrada** (`CLAUDE.md §G.4`).

@@ -27,7 +27,7 @@ Todo EN PRODUCCIÓN y **verificado en vivo con su sesión**.
 3. **EL ATLAS: ONCE CAPAS EN 3 FAMILIAS + DOS FINAS DEL CORREDOR** (`§ADR-079/081/086/087`): 5 del
    año · 3 del satélite · 3 de pronóstico; retraso y reloj de cada una, en `20`. ⚠️ **CADA CAPA
    DECLARA QUÉ ES** (`medida` · `pronostico` · `promedio`), sin defecto, o no se publica
-   (`§ADR-082/084`). ⚙️ El vigía FUSIONA SOLO, con portero (`§ADR-085`) y ya LLAMA a publicar (`§ADR-137`): falta la llave (`TODO-89`).
+   (`§ADR-082/084`). ⚙️ El vigía FUSIONA SOLO y LLAMA a publicar (`§ADR-085/137`): falta la llave (`TODO-89`); sus rojos no cuestan dato (`§ADR-138`).
 4. **LO QUE NO SE PUEDE ROMPER DEL CLIMA (`§ADR-057..086`):** gana el HECHO sobre el modelo · el recorrido se comprueba **punto a punto**, nunca por promedio · el clima vive en el ATLAS · **«tormenta eléctrica» NO existe en la fuente**.
 
 ## 🚫 INVARIANTES — índice; cada uno vive ENTERO en su ADR
