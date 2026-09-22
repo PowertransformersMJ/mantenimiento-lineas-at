@@ -12,7 +12,12 @@ permissions:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # En las ramas de trabajo sí se cancela la corrida vieja: ahorra minutos y a
+  # nadie le importa el resultado de un empuje que ya quedó atrás. En `main`
+  # NO, porque desde el 22-09 esta corrida PUBLICA (`§ADR-137`): cancelarla a
+  # mitad dejaría producción a medio subir por algo tan tonto como empujar dos
+  # veces seguidas.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   verificar:
@@ -66,3 +71,26 @@ jobs:
             exit 1
           fi
           echo "✅ el SDK del modelo no se importa fuera de funciones/ia/pasarela"
+
+  # ── PUBLICAR, aquí y no en otro sitio (`§ADR-137`) ────────────────────────
+  #
+  # El despliegue colgaba de `workflow_run` sobre este mismo flujo y ESE ESLABÓN
+  # NUNCA FUNCIONÓ: 386 corridas verdes en `main` y cero despliegues. Llamarlo
+  # con `uses:` no pasa por el sistema de eventos de GitHub, así que no puede
+  # fallar en silencio: o corre, o se ve que no corrió.
+  #
+  # Las tres condiciones, y cada una tapa un agujero distinto:
+  #   · `needs: verificar`  → NUNCA se publica con las pruebas en rojo.
+  #   · `event_name == 'push'` → un fork no puede provocar un despliegue. El
+  #     repositorio es PÚBLICO: una propuesta desde fuera dispara `pull_request`,
+  #     jamás `push`.
+  #   · `ref == main`       → las ramas de trabajo se prueban, no se publican.
+  #
+  # Y publica EL MISMO COMMIT que acaba de aprobar la suite, porque el flujo
+  # llamado fija `ref: github.sha` en vez de coger «lo último que haya en main».
+  publicar:
+    name: Publicar en producción
+    needs: verificar
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    uses: ./.github/workflows/desplegar.yml
+    secrets: inherit

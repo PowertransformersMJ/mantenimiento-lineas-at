@@ -721,3 +721,42 @@ jobs:
           done
           echo "::error::La #$N pasó guardianes y portero pero no se dejó fusionar. Queda ABIERTA."
           exit 1
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # PUBLICAR LO QUE SE ACABA DE FUSIONAR (`§ADR-137`)
+  # ══════════════════════════════════════════════════════════════════════════
+  #
+  # ⚠️ ESTE ES EL ESLABÓN QUE FALTABA, y faltaba desde siempre. El vigía llevaba
+  # semanas reconstruyendo el atlas cada pocas horas y fusionándolo solo —113
+  # commits en 7 días— y **nada de eso llegaba nunca a producción**: había que
+  # entrar a publicar a mano. La cabecera de este mismo fichero ya avisaba de la
+  # causa para las PROPUESTAS, y la causa es la misma aquí: **GitHub no despierta
+  # ningún evento con la llave del propio flujo** (anti-recursión). La fusión del
+  # vigía no dispara el CI de `main`, y por tanto no disparaba nada más.
+  #
+  # Medido el 22-09: los 7 últimos commits fusionados por el vigía tienen CERO
+  # corridas de CI; los 3 empujados por una persona, una cada uno.
+  #
+  # `uses:` no pasa por el sistema de eventos: por eso esto sí funciona.
+  #
+  # ⚠️ PUBLICA `main`, NO `github.sha`. Es la única llamada que lo hace, y a
+  # propósito: en una corrida por reloj, `github.sha` es la punta de `main` de
+  # ANTES de fusionar. Lo que hay que publicar es lo que acaba de entrar.
+  #
+  # ⚠️ CORRE AUNQUE NO SE HAYA FUSIONADO NADA, y está bien así. Detectar «¿hubo
+  # fusión?» exigiría salidas de un trabajo con matriz, que es precisamente lo
+  # que se pisa entre patas y ya costó un fallo en este mismo fichero (ver el
+  # aviso del trabajo `vigilar`). Publicar sin cambios sube CERO ficheros, tarda
+  # segundos y no cuesta nada: Actions es ilimitado en repositorio público. Una
+  # comprobación frágil valía menos que el trabajo que evitaría.
+  #
+  # `!cancelled()` + `contains(..., 'success')`: si las tres patas fallaron no
+  # hay nada que publicar; si alguna salió bien, su atlas debe llegar.
+  publicar:
+    name: Publicar el atlas fusionado
+    needs: [vigilar, rayos, pronostico]
+    if: ${{ !cancelled() && contains(needs.*.result, 'success') }}
+    uses: ./.github/workflows/desplegar.yml
+    with:
+      ref: main
+    secrets: inherit
