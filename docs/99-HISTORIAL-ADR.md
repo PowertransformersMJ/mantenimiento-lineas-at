@@ -11281,4 +11281,29 @@ Firestore, que se publicaban sin portero (`npm run reglas:publicar`).
   camino crítico, pero está escrito para que nadie vuelva a apoyarse en él sin comprobarlo.
 - `TODO-89` deja de ser «faltan dos secretos» y pasa a ser **solo eso, de verdad**.
 
+### ⚠️ Lo que se destapó al probarlo, y NO es de este cambio
+
+Al lanzar el vigía dos veces seguidas para comprobar el portero, la segunda corrida murió con
+`couldn't find remote ref vigia/pronostico-caribe`. **Es un fallo VIEJO**: de las 13 corridas del vigía que
+han fallado en su vida, **12 son anteriores a este cambio** y al menos cuatro llevan esa misma frase,
+la más antigua del 10-09.
+
+**El mecanismo.** El vigía tiene DOS relojes —cada 4 h y cada hora— y en las horas múltiplo de 4
+disparan los dos. Su cabecera lo da por bueno porque «la del reloj horario encuentra el libro ya al
+día y termina en segundos»… **y eso es cierto para los rayos, no para el pronóstico**: un pronóstico
+cambia siempre, así que la segunda corrida SIEMPRE quiere abrir propuesta sobre
+`vigia/pronostico-caribe` — la rama que la primera acaba de fusionar y borrar.
+
+**Por qué importa más ahora:** antes costaba una actualización del atlas; desde este ADR, una corrida
+caída es además una publicación que no ocurre.
+
+**Las dos salidas, y la elección es del Ingeniero porque cambia el producto:**
+① Que el reloj horario mueva SOLO los rayos —que es lo que la cabecera dice que hace—. El pronóstico
+   pasaría de rehacerse cada hora a cada 4 h: **menos fresco**, y por eso no se toca sin su palabra.
+② Dejar la cadencia y hacer tolerante el paso que abre la propuesta (reintento, como ya se hace al
+   fusionar). No cambia nada de cara a él, pero hay que entender bien por qué la acción falla.
+
+No se tocó ninguna de las dos en este cambio: arreglar de paso algo que no se ha medido del todo es
+cómo se rompe un vigía que lleva semanas funcionando.
+
 **Crudo de respaldo:** `research-archive/2026-09-22-cadena-de-publicacion/`
