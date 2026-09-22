@@ -138,6 +138,7 @@
 - `L-90` · Una prueba que lee el TEXTO del fuente no prueba el dibujo *(`32`)*
 - `L-91` · Leer la base de producción con SU sesión, en solo lectura *(`35`)*
 - `L-92` · Lo que se escribe en un papel que no se corrige exige UNA fuente de verdad *(`33`)*
+- `L-93` · Un banco de trabajo olvidado en el disco es una copia del sitio que puede publicar *(`35`)*
 - `M-03` · Un agente «ancho» no implementa: un archivo, un rango y el texto exacto *(aquí)*
 - `M-04` · Dos sesiones en la MISMA carpeta: la otra te cambia las herramientas mientras las usas *(aquí)*
 

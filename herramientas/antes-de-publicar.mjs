@@ -28,6 +28,11 @@
 // `mirar-los-atlas.mjs`— ni si producción quedó bien: eso se comprueba después.
 //
 // USO:  node herramientas/antes-de-publicar.mjs
+//       node herramientas/antes-de-publicar.mjs --solo-remoto
+//         ↳ solo la comprobación ①. Para publicar cosas que NO son el sitio y
+//           no tienen `dist` —las REGLAS de Firestore, sobre todo—, donde
+//           retroceder no cuesta horas de clima: cuesta quién puede entrar.
+//
 // Se salta a propósito con:  PUBLICAR_IGUAL=1 npm run deploy --workspace web
 // ============================================================================
 import { spawnSync } from 'node:child_process';
@@ -39,6 +44,7 @@ const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = join(RAIZ, 'web', 'dist');
 const SITIO = join(RAIZ, 'web', 'public');
 const FUENTE = join(RAIZ, 'web', 'src');
+const SOLO_REMOTO = process.argv.includes('--solo-remoto');
 
 const git = (...args) => {
   const r = spawnSync('git', args, { cwd: RAIZ, encoding: 'utf8' });
@@ -113,6 +119,11 @@ if (!esRepo || !tieneOrigen) {
 }
 
 // ── ② ¿hay algo construido? ─────────────────────────────────────────────────
+if (SOLO_REMOTO) {
+  console.log('🟢 portero (solo remoto): adelante.\n');
+  process.exit(0);
+}
+
 if (!existsSync(join(DIST, 'index.html'))) {
   no(
     'no hay nada construido',

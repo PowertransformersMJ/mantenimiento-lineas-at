@@ -221,6 +221,32 @@ detrás del remoto, si no hay `web/dist` o si lo construido es más viejo que el
 la publicación, dice cuántos ficheros del sitio se perderían y los nombra. Se salta a propósito con
 `PUBLICAR_IGUAL=1`, que es la diferencia entre equivocarse y decidir.
 
+### L-93 · Un banco de trabajo olvidado en el disco es una copia del sitio que puede publicar
+
+**Hallado el 22-09**, buscando otra cosa. En `.claude/worktrees/` había un banco de trabajo de un
+agente, **abandonado desde el 17-08**, en un commit suelto y con su propio `web/dist` YA CONSTRUIDO.
+
+Ese `dist` tenía **1 fichero de mapas. El bueno tiene 97.** Un `npm run deploy` lanzado desde ahí
+—por un agente que trabaje aislado, o por una pestaña de terminal olvidada en esa carpeta— habría
+dejado producción **sin 96 de los 97 ficheros del atlas**, y con el sitio de hacía cinco semanas.
+
+**Por qué no lo cazaba nada.** `L-77` enseñó a mirar si MI copia está atrasada. Esto es otra cosa:
+una copia **paralela**, que no aparece en `git status`, que está limpia (no tiene cambios sin
+guardar, así que nada la señala) y que ya trae construido lo viejo. Está en `.gitignore`, o sea
+invisible por diseño. Y el comando de publicar es el mismo desde cualquier carpeta del repo.
+
+**La regla:** *en un repositorio donde se publica desde el disco, cualquier copia del disco es un
+botón de publicar.* Los bancos de trabajo de agentes son copias del disco.
+
+**Qué lo cierra.** El portero (`antes-de-publicar.mjs`) compara **el HEAD de la carpeta desde la que
+se publica** con el remoto, no el de la carpeta principal: desde un banco de agosto ve cientos de
+commits de retraso y se niega. Y `git worktree list` dice en una línea cuántas copias hay vivas —
+conviene mirarlo de vez en cuando, porque estos bancos no se limpian solos.
+
+**Lo que se hizo con aquél:** etiquetado (`banco-abandonado/2026-08-17-adr-032`) para no perder su
+commit, comprobado que su contenido —`ADR-032`— ya estaba en `main`, y movido a la Papelera.
+**Cerrada en** `99 §ADR-137`. Hermana de `L-77` y de `L-35`.
+
 ### L-80 · Borrar IndexedDB de Firebase con la página abierta cuelga ese Chrome, y el error dice «sin red» con el servidor sano
 - **Qué pasó (06-09-2026, mío):** al cerrar la sesión vieja del Ingeniero borré por JavaScript
   `firebase-heartbeat-database`. La base quedó bloqueada: el SDK esperaba 30 s por llamada y fallaba
