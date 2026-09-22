@@ -28,6 +28,7 @@ import { fileURLToPath } from 'node:url';
 
 import { frescuraDelAtlas, diaEnPalabras } from '../web/src/vistas/atlasCaribe.ts';
 import { ATLAS_EN_ORDEN } from '../web/src/vistas/atlasCatalogo.ts';
+import { CORREDOR_EN_ORDEN } from '../web/src/vistas/corredor.ts';
 
 /** Una ficha de juguete: solo lo que mira esta pieza. */
 const ficha = (construido, ultimoDiaConHoras) => ({
@@ -296,15 +297,36 @@ describe('el portero mira el mapa, y la propuesta se fusiona sola', () => {
   test('NINGÚN atlas se publica sin que alguien lo haya mirado', () => {
     // Los de POWER van por matriz (`${{ matrix.clave }}`); los del satélite,
     // escritos a mano. La unión de los dos tiene que ser TODO el catálogo.
-    const deLaMatriz = [...VIGIA.matchAll(/^\s*- clave:\s*(\w+)/gm)].map((m) => m[1]);
-    const aMano = [...VIGIA.matchAll(/mirar-los-atlas\.mjs([^\n]*)/g)]
+    //
+    // ⚠️ La lista de un paso puede venir partida en varias líneas con `>-`, así
+    // que se lee hasta el siguiente paso, no hasta el fin de línea: leyendo solo
+    // la primera línea, partir la orden en dos habría «perdido» capas vigiladas
+    // y esta prueba se pondría roja sin que nadie hubiera dejado de mirar nada.
+    const aMano = [...VIGIA.matchAll(/mirar-los-atlas\.mjs([\s\S]*?)(?=\n\s*-\s|\n\s*#|$)/g)]
       .flatMap((m) => m[1].trim().split(/\s+/))
       .filter((x) => x && !x.includes('{{'));
+    const deLaMatriz = [...VIGIA.matchAll(/^\s*- clave:\s*(\w+)/gm)].map((m) => m[1]);
     const porMatriz = /mirar-los-atlas\.mjs \$\{\{ matrix\.clave \}\}/.test(VIGIA) ? deLaMatriz : [];
     const vigilados = new Set([...porMatriz, ...aMano]);
     const sinMirar = ATLAS_EN_ORDEN.filter((c) => !vigilados.has(c));
     assert.deepEqual(sinMirar, [],
       `atlas que se publicarían sin que nadie los mire: ${sinMirar.join(', ')}`);
+  });
+
+  // ⚠️ LAS DOS CAPAS FINAS DEL CORREDOR, que llevaban desde agosto sin mirar
+  // (`§ADR-137`). No las reconstruye nadie —son fichas fijas (`§ADR-087`)— y por
+  // eso se caían del guardián de arriba, que solo recorre `ATLAS_EN_ORDEN`. El
+  // portero sabía abrirlas desde el primer día; simplemente nunca se le pedía.
+  // Sin esta prueba, el hueco se vuelve a abrir solo la próxima vez que entre
+  // una capa que no tenga calendario.
+  test('las capas del CORREDOR tampoco se publican sin que alguien las mire', () => {
+    const aMano = [...VIGIA.matchAll(/mirar-los-atlas\.mjs([\s\S]*?)(?=\n\s*-\s|\n\s*#|$)/g)]
+      .flatMap((m) => m[1].trim().split(/\s+/))
+      .filter(Boolean);
+    const vigiladas = new Set(aMano);
+    const sinMirar = CORREDOR_EN_ORDEN.filter((c) => !vigiladas.has(`corredor:${c}`));
+    assert.deepEqual(sinMirar, [],
+      `capas del corredor que se publicarían sin que nadie las mire: ${sinMirar.join(', ')}`);
   });
 
   test('el portero puede DECIR QUE NO', () => {

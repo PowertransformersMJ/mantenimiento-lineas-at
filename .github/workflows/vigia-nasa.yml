@@ -654,8 +654,19 @@ jobs:
 
       # ⚖️ EL PORTERO, los TRES. Mismo motivo que en el satélite: se reconstruyen
       # juntos, así que se miran los tres o queda uno publicándose a ciegas.
-      - name: Mirar los tres mapas (portero)
-        run: node herramientas/mirar-los-atlas.mjs pronTemperatura pronViento pronLluvia
+      #
+      # ⚠️ Y AQUÍ SE MIRAN TAMBIÉN LAS DOS CAPAS FINAS DEL CORREDOR (`§ADR-137`).
+      # No las reconstruye nadie —son fichas fijas (`§ADR-087`)— y por eso
+      # llevaban desde agosto sin que NADIE las mirara: el portero sabía abrirlas
+      # desde el primer día y nunca se le pedía. Mientras se publicaba a mano eso
+      # era un descuido; desde que la corrida PUBLICA, es un mapa que puede salir
+      # en blanco sin que nada lo diga. Se cuelgan de este trabajo porque ya tiene
+      # el banco levantado y el Chrome abierto: mirarlas no cuesta nada más.
+      - name: Mirar los tres mapas y las dos capas del corredor (portero)
+        run: >-
+          node herramientas/mirar-los-atlas.mjs
+          pronTemperatura pronViento pronLluvia
+          corredor:radiacion corredor:temperatura
 
       - name: Guardar las fotos
         if: always()
