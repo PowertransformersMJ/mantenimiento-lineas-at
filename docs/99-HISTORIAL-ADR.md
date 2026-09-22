@@ -11170,3 +11170,115 @@ lluvia). **La señal de alarma no es que el número de horas baje, es que el ÚL
 **Crudo de respaldo:** `research-archive/2026-09-22-atlas-contra-su-fuente/`
 
 ---
+
+## ADR-137 · 2026-09-22 · El atlas nunca llegaba solo a producción, y no era por los secretos: la cadena de publicar estaba rota en TRES sitios
+
+### Contexto
+
+`TODO-89` decía, desde hace semanas, que para encender el despliegue automático «faltan los dos
+secretos de Cloudflare». Al ir a cerrarlo se midió, y la frase era falsa: los secretos son el TERCER
+eslabón roto, no el único. Los otros dos habrían dejado el despliegue igual de muerto con las claves
+puestas.
+
+El síntoma que lo destapó fue otro: el Ingeniero preguntó si el Atlas estaba al día. El vigía lo
+reconstruye cada pocas horas y lo fusiona solo —**113 commits en 7 días**— y aun así había que
+entrar a publicar a mano cada vez.
+
+**Lo medido el 22-09, no supuesto:**
+
+| Qué se midió | Resultado |
+|---|---|
+| Corridas del flujo «Desplegar» en toda su vida | **1**, a mano, el 24-08 |
+| Corridas verdes del CI en `main` que deberían haberlo disparado | **386** |
+| Corridas de CI sobre los 7 últimos commits del vigía | **0** (los 3 de una persona: 1 cada uno) |
+| Experimentos propios: CI verde en `main` → ¿nace «Desplegar»? | **3 de 3 veces, no** |
+
+### Decisión
+
+**Un solo sitio publica, y se le LLAMA; no se espera a que un evento lo despierte.**
+`desplegar.yml` pasa a ser un flujo *llamable* (`workflow_call`) y lo invocan con `uses:`:
+
+| Quién | Cuándo | Qué publica |
+|---|---|---|
+| `ci.yml` (trabajo `publicar`) | tras pasar la suite, solo en empuje a `main` de una persona | **el commit exacto** que se aprobó |
+| `vigia-nasa.yml` (trabajo `publicar`) | tras fusionar un atlas nuevo | la punta de `main` recién fusionada |
+| a mano (`workflow_dispatch`) | cuando haga falta | solo desde `main` |
+
+`uses:` **no pasa por el sistema de eventos de GitHub**. Ésa es toda la razón: lo que estaba roto
+era el sistema de eventos, en sus dos formas.
+
+**Los tres eslabones, y por qué cada uno estaba roto:**
+
+① **`workflow_run` nunca disparó.** Se descartaron una a una las causas documentadas —el flujo
+   `active`, el fichero en la rama por defecto, el nombre coincidente **byte a byte** (`4349 20c2
+   b7…`), sin diferencias con `origin/main`—. **La causa de fondo quedó SIN DETERMINAR**, y se deja
+   escrito así en vez de inventar una: lo que se corrige es la dependencia, no el misterio.
+
+② **La llave del propio flujo no despierta a nadie.** El vigía fusiona con `GITHUB_TOKEN`, y GitHub
+   impide a propósito que los eventos creados con esa llave disparen nuevos flujos (anti-recursión).
+   El propio `vigia-nasa.yml` ya documentaba esa trampa **para las propuestas** —por eso firma su
+   check él mismo— y nadie vio que la misma trampa mataba el despliegue. Por diseño, **ningún
+   disparador por evento habría publicado jamás el atlas del vigía.**
+
+③ **Sin secretos, el flujo salía VERDE sin publicar.** Todos los pasos de verdad colgaban de un `if`
+   y se saltaban en bloque; la única corrida de su vida terminó en «success» con los cuatro pasos
+   omitidos. Es exactamente lo que esta casa llama mentir (`32 · L-65`). **Ahora lo DICE en el
+   resumen de la corrida**, no en una nota que nadie abre.
+
+**Endurecimiento que entra en el mismo movimiento** (todo salió de la auditoría adversaria: 30
+hallazgos, 9 en pie tras el escéptico):
+
+- **Se publica el commit que se aprobó**, no «lo último que haya en `main`»: el `checkout` fija
+  `ref`. Entre la aprobación y el despliegue cabía otro empuje.
+- **Huella que cambia siempre** (`version.json` con la corrida). La comprobación anterior miraba el
+  nombre del paquete de JavaScript, que **no cambia cuando solo cambia el DATO** — o sea, daba verde
+  sin probar nada en el 90 % de los despliegues de este proyecto, que son de atlas.
+- **`--branch=main` explícito**: en CI el `checkout` va suelto y `wrangler` podía dejarlo en «vista
+  previa» sin que producción cambiara. Comprobado que la rama de producción del proyecto es `main`.
+- Los secretos entran **por variable**, no interpolados dentro del guion; `persist-credentials:
+  false`; tope de 20 min; el disparo a mano **solo sobre `main`** (antes ofrecía cualquier rama,
+  incluidas dos muertas de agosto).
+- **`main` deja de auto-cancelarse** en el CI: desde ahora esa corrida publica, y cancelarla a mitad
+  por empujar dos veces seguidas dejaría producción a medio subir.
+
+**Y en el lado de casa, el mismo día:** el portero del despliegue a mano
+(`herramientas/antes-de-publicar.mjs`, `predeploy` de `web/`), que cierra `35 · L-77` tras dos
+recaídas; el banco de trabajo abandonado que también podía publicar (`35 · L-93`); y las reglas de
+Firestore, que se publicaban sin portero (`npm run reglas:publicar`).
+
+### Alternativas descartadas
+
+- **Poner los secretos y ya.** Era el plan escrito en `TODO-89`. No habría publicado nada: los
+  eslabones ① y ② siguen rotos aunque las claves existan.
+- **Arreglar `workflow_run`** (quitar el filtro `branches:`, moverlo dentro del trabajo). Se apoya en
+  entender un fallo que no se entiende. Se deja el diagnóstico escrito y se quita del camino.
+- **Que el CI llame al despliegue con `gh workflow run`.** Vuelve a depender de un evento, y con la
+  llave del propio flujo — o sea, el eslabón ② otra vez.
+- **Meter los pasos del despliegue dentro de `ci.yml`.** Los triplicaría (CI, vigía, a mano) y los
+  dejaría a merced de la auto-cancelación del CI.
+- **Detectar «¿el vigía fusionó algo?» antes de publicar.** Exige salidas de un trabajo con matriz,
+  que se pisan entre patas — el fallo que ya costó un `§ADR-076` en ese mismo fichero. Publicar sin
+  cambios sube **cero** ficheros y Actions es ilimitado en repositorio público: la comprobación
+  frágil valía menos que el trabajo que evitaba.
+
+### Supuestos que deben ser ciertos — y la señal que diría que dejaron de serlo
+
+| Supuesto | Señal |
+|---|---|
+| `uses:` seguirá sin depender del sistema de eventos | Una fusión del vigía sin su trabajo `publicar` en la corrida |
+| La rama de producción de Cloudflare es `main` | Un despliegue aparece como «Preview» en `wrangler pages deployment list` |
+| Publicar sin cambios es gratis | Aparece cobro en Actions o en Pages (hoy: ilimitado en repo público) |
+| El portero del vigía basta como «alguien mira el mapa» | Llega a producción un atlas en blanco con la corrida en verde |
+
+### Consecuencias
+
+- **Nada se publica todavía**, y es correcto que así sea: faltan los dos secretos, que **los pone el
+  Ingeniero y no pasan por el chat**. Lo que cambia es que ahora, el día que los pegue, la cadena
+  entera funciona — y mientras tanto cada corrida **dice en su resumen que no publicó**.
+- El orden importa: **secretos primero, y la cadena ya está detrás**. Al revés se habría encendido
+  un verde que miente cada 3 horas.
+- Queda un misterio declarado: por qué `workflow_run` no dispara en este repositorio. No está en el
+  camino crítico, pero está escrito para que nadie vuelva a apoyarse en él sin comprobarlo.
+- `TODO-89` deja de ser «faltan dos secretos» y pasa a ser **solo eso, de verdad**.
+
+**Crudo de respaldo:** `research-archive/2026-09-22-cadena-de-publicacion/`

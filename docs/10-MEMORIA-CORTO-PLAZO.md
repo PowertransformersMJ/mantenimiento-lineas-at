@@ -27,7 +27,7 @@ Todo EN PRODUCCIÓN y **verificado en vivo con su sesión**.
 3. **EL ATLAS: ONCE CAPAS EN 3 FAMILIAS + DOS FINAS DEL CORREDOR** (`§ADR-079/081/086/087`): 5 del
    año · 3 del satélite · 3 de pronóstico; retraso y reloj de cada una, en `20`. ⚠️ **CADA CAPA
    DECLARA QUÉ ES** (`medida` · `pronostico` · `promedio`), sin defecto, o no se publica
-   (`§ADR-082/084`). ⚙️ El vigía FUSIONA SOLO, con portero (`§ADR-085`); publicar, a mano (`TODO-89`).
+   (`§ADR-082/084`). ⚙️ El vigía FUSIONA SOLO, con portero (`§ADR-085`) y ya LLAMA a publicar (`§ADR-137`): falta la llave (`TODO-89`).
 4. **LO QUE NO SE PUEDE ROMPER DEL CLIMA (`§ADR-057..086`):** gana el HECHO sobre el modelo · el recorrido se comprueba **punto a punto**, nunca por promedio · el clima vive en el ATLAS · **«tormenta eléctrica» NO existe en la fuente**.
 
 ## 🚫 INVARIANTES — índice; cada uno vive ENTERO en su ADR
@@ -62,7 +62,7 @@ Todo EN PRODUCCIÓN y **verificado en vivo con su sesión**.
 | **TODO-88** | **¿Se junta otra vez el eje del tiempo?** El pronóstico está en el atlas con mes, día y hora (`§ADR-086`) pero en su propia FAMILIA. ¿Lo quiere junto a lo medido en **una sola tira**? | Medido y modelo juntos hacían «ganar el hecho» |
 | **TODO-80** | **¿Qué tope de puesta a tierra rige?** El campo existe (`ADR-052`); declararlo basta. Sin decisión suya siguen **10 Ω** | Con 18 Ω medidos, 10 Ω dice «revisar» y 25 Ω «cumple» |
 | **TODO-90** | **La capa de rayos que piden las NORMAS** (rayos/km²/año, RETIE e IEEE 1243). Espera una **cuenta Earthdata gratuita** (`99 §ADR-079`) | La horaria dice CUÁNDO hubo tormenta; ésta entra en el cálculo de salidas |
-| **TODO-89** ⬅️ **ORDEN SUYA** | **Encender el despliegue automático.** Faltan los dos secretos de Cloudflare, que no pasan por el chat (`§ADR-077`). ⚠️ Nadie mirará el mapa antes de publicar | Último eslabón de «cada 4 h» |
+| **TODO-89** ⬅️ **ORDEN SUYA** | **Encender el despliegue automático.** La cadena ya está cableada y probada (`§ADR-137`); faltan los dos secretos de Cloudflare, que pone él y no pasan por el chat. Sin ellos la corrida DICE que no publicó | El atlas no llega solo |
 | **TODO-72** | **¿Autorización del IGAC?** Sus ortoimágenes cubren esto a **3 m** y **10 cm**, contra los 10 m de hoy (`§ADR-040`) | Única vía a más resolución |
 | **TODO-71** | **¿Se cierran las hipótesis con dato real?** El **viento** (`ADR-035`) y los **1.000 W/m²**: los atlas los ACERCAN, no los cierran (`ADR-055`) | De ahí salen los tiros y la capacidad |
 | **TODO-59** | **Qué ficha se le pide a CADA tipología.** La línea mezcla 4 y el molde es de POSTE (`40 §8.3`) | Son 3 o 4 formularios |
@@ -82,7 +82,7 @@ Todo EN PRODUCCIÓN y **verificado en vivo con su sesión**.
 | # | Qué | Dónde está el plan |
 |---|---|---|
 | **TODO-105** ✅ | **HECHO el 22-09** (`§ADR-135`): el SCADA de las dos líneas, cargado por la pantalla en 18 segmentos: **779 docs en LN-617** y **767 en LN-628**, verificados en frío; 8 y 11 días apartados y 2025 fuera | `§ADR-133/134/135` |
-| **TODO-102** 🔴 | ① >100 archivos da un error crudo y el sello de calidad no se enseña (`§ADR-128`) · ② hermanas en el calendario pero sin ver con dato real (falta %); barras del Atlas, reglas viejas · ④ sondas 3·4·7 (`§ADR-121`) · ⑤ los ceros al final miran solo el día 1 · ⑥ conductor «fabricante» vs `supuesto`; `--tx-tenue` no existe; la guardia de color solo mira `estilo.css` · ⑦ «hoy» con dos dueños: `iso()` local y `diaDe` de Colombia · ⑧ `deploy` que se niegue con el remoto sin traer (`35 · L-77`) · ⑨ el arnés que DIBUJA, a `herramientas/` (`32 · L-90`), y el guardián que barra las gráficas (`§ADR-125`) | `99 §ADR-125..129` |
+| **TODO-102** 🔴 | ① >100 archivos da un error crudo y el sello de calidad no se enseña (`§ADR-128`) · ② hermanas en el calendario pero sin ver con dato real (falta %); barras del Atlas, reglas viejas · ④ sondas 3·4·7 (`§ADR-121`) · ⑤ los ceros al final miran solo el día 1 · ⑥ conductor «fabricante» vs `supuesto`; `--tx-tenue` no existe; la guardia de color solo mira `estilo.css` · ⑦ «hoy» con dos dueños: `iso()` local y `diaDe` de Colombia · ⑧ el arnés que DIBUJA, a `herramientas/` (`32 · L-90`), y el guardián que barra las gráficas (`§ADR-125`) | `99 §ADR-125..129` |
 | **TODO-70** | **Cerrar la ola de la ficha.** Queda SOLO ③: el gesto «Confirmo este dato», que exige su propio molde | `99 §ADR-030/032/033/038` |
 | **TODO-66** | **Que una acción pruebe que FUNCIONÓ**, no solo que se hizo: verificación posterior con fecha | `99 §ADR-026` |
 | **TODO-79** | **Saldo del entorno: 34 vivos + 5 parciales** (`§ADR-049`); lo más caro: el id crudo en el **informe firmable** y la red del **mapa** | Varios son decisión suya |

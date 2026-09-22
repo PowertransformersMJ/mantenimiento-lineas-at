@@ -294,8 +294,16 @@ mantenimiento-lineas-at/
 ├── .claude/settings.json        hooks de sesión (SÍ se commitea; el resto no)
 ├── .github/workflows/ci.yml     «CI · Cerebro + Tests»: kernel + pruebas. Esperarlo por HASH
 │                                (`gh run list --json databaseId,headSha`): buscar «CI» da id vacío = falso rojo
+│                                ⚙️ y **LLAMA a publicar** (ADR-137) tras la suite, solo en empuje a `main`
+├── …/desplegar.yml              🚀 EL ÚNICO SITIO QUE PUBLICA (ADR-137). No se dispara por evento:
+│                                es `workflow_call` y lo LLAMAN con `uses:` el CI y el vigía. Antes
+│                                colgaba de `workflow_run` y ESE ESLABÓN NUNCA DISPARÓ —386 CI verdes,
+│                                0 despliegues, causa de fondo sin determinar—. Fija el commit, sella
+│                                `version.json` (el hash del paquete NO cambia cuando solo cambia el
+│                                DATO) y comprueba la página REAL. Sin secretos, lo DICE y no publica
 └── …/vigia-nasa.yml             LOS ONCE atlas, dos relojes (4 h · 1 h). El portero MIRA el mapa
-                              y FUSIONA solo (ADR-080/085). Falta publicar: TODO-89
+                              y FUSIONA solo (ADR-080/085); ya llama a publicar `main` (ADR-137).
+                              Falta la llave de Cloudflare: TODO-89
 ```
 
 ---
