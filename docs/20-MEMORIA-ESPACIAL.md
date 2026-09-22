@@ -297,7 +297,7 @@ mantenimiento-lineas-at/
 │                                ⚙️ y **LLAMA a publicar** (ADR-137) tras la suite, solo en empuje a `main`
 ├── …/desplegar.yml              🚀 EL ÚNICO SITIO QUE PUBLICA (ADR-137). No se dispara por evento:
 │                                es `workflow_call` y lo LLAMAN con `uses:` el CI y el vigía. Antes
-│                                colgaba de `workflow_run` y ESE ESLABÓN NUNCA DISPARÓ —386 CI verdes,
+│                                colgaba de `workflow_run` y ESE ESLABÓN NUNCA DISPARÓ —390 CI verdes,
 │                                0 despliegues, causa de fondo sin determinar—. Fija el commit, sella
 │                                `version.json` (el hash del paquete NO cambia cuando solo cambia el
 │                                DATO) y comprueba la página REAL. Sin secretos, lo DICE y no publica

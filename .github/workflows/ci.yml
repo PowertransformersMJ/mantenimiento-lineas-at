@@ -75,7 +75,7 @@ jobs:
   # ── PUBLICAR, aquí y no en otro sitio (`§ADR-137`) ────────────────────────
   #
   # El despliegue colgaba de `workflow_run` sobre este mismo flujo y ESE ESLABÓN
-  # NUNCA FUNCIONÓ: 386 corridas verdes en `main` y cero despliegues. Llamarlo
+  # NUNCA FUNCIONÓ: 390 corridas verdes en `main` y cero despliegues. Llamarlo
   # con `uses:` no pasa por el sistema de eventos de GitHub, así que no puede
   # fallar en silencio: o corre, o se ve que no corrió.
   #

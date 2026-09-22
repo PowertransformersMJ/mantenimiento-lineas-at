@@ -5,7 +5,7 @@ name: Desplegar · Cloudflare Pages
 #
 # ⚠️ POR QUÉ DEJÓ DE DISPARARSE SOLO (`§ADR-137`). Antes colgaba de
 # `workflow_run` sobre el CI. **Ese eslabón nunca funcionó**: medido el 22-09,
-# 386 corridas verdes del CI en `main` y CERO despliegues; el flujo había corrido
+# 390 corridas verdes del CI en `main` y CERO despliegues; el flujo había corrido
 # UNA vez en su vida, a mano, el 24-08. Descartadas una a una las causas
 # documentadas —el flujo activo, el fichero en la rama por defecto, el nombre
 # idéntico byte a byte— la causa de fondo quedó SIN DETERMINAR. Por eso ya no se

@@ -11189,7 +11189,7 @@ entrar a publicar a mano cada vez.
 | Qué se midió | Resultado |
 |---|---|
 | Corridas del flujo «Desplegar» en toda su vida | **1**, a mano, el 24-08 |
-| Corridas verdes del CI en `main` que deberían haberlo disparado | **386** |
+| Corridas verdes del CI en `main` que deberían haberlo disparado | **390** |
 | Corridas de CI sobre los 7 últimos commits del vigía | **0** (los 3 de una persona: 1 cada uno) |
 | Experimentos propios: CI verde en `main` → ¿nace «Desplegar»? | **3 de 3 veces, no** |
 
