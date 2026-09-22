@@ -81,7 +81,7 @@ Todo EN PRODUCCIÓN y **verificado en vivo con su sesión**.
 
 | # | Qué | Dónde está el plan |
 |---|---|---|
-| **TODO-105** 🔴 ⬅️ **SUYA** | Las dos líneas, de alta el 20-09. **Falta su SCADA, y ya va por CARPETA ENTERA** (`§ADR-134`): suelte la del paso 2 y la del 1 (sellos): **779 docs** y **767** en 8 tandas. Si falla, reanude con «Ya cargado hasta», no con el periodo | `§ADR-133/134` |
+| **TODO-105** ✅ | **HECHO el 22-09** (`§ADR-135`): el SCADA de las dos líneas, cargado por la pantalla en 18 segmentos: **779 docs en LN-617** y **767 en LN-628**, verificados en frío; 8 y 11 días apartados y 2025 fuera | `§ADR-133/134/135` |
 | **TODO-102** 🔴 | ① >100 archivos da un error crudo y el sello de calidad no se enseña (`§ADR-128`) · ② hermanas en el calendario pero sin ver con dato real (falta %); barras del Atlas, reglas viejas · ④ sondas 3·4·7 (`§ADR-121`) · ⑤ los ceros al final miran solo el día 1 · ⑥ conductor «fabricante» vs `supuesto`; `--tx-tenue` no existe; la guardia de color solo mira `estilo.css` · ⑦ «hoy» con dos dueños: `iso()` local y `diaDe` de Colombia · ⑧ `deploy` que se niegue con el remoto sin traer (`35 · L-77`) · ⑨ el arnés que DIBUJA, a `herramientas/` (`32 · L-90`), y el guardián que barra las gráficas (`§ADR-125`) | `99 §ADR-125..129` |
 | **TODO-70** | **Cerrar la ola de la ficha.** Queda SOLO ③: el gesto «Confirmo este dato», que exige su propio molde | `99 §ADR-030/032/033/038` |
 | **TODO-66** | **Que una acción pruebe que FUNCIONÓ**, no solo que se hizo: verificación posterior con fecha | `99 §ADR-026` |

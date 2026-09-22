@@ -11044,3 +11044,61 @@ demás — **lo que se escriba mal se queda mal para siempre**, y el sitio donde
 **Crudo de respaldo:** `research-archive/2026-09-20-carga-por-carpeta/`
 
 ---
+
+## ADR-135 · 2026-09-22 · El SCADA de LN-617 y LN-628, cargado por SEGMENTOS: 1.546 documentos y la lección de que una carpeta de 800 archivos no cabe por la puerta
+
+**Deliberación:** idea suya —«¿podemos ingresar por segmentos que permita la sesión, paso a paso, para que no
+se caiga?»— después de que la carga de la carpeta entera se ahogara. **No revisada externamente.**
+
+### Qué estaba pasando
+
+La pantalla `§ADR-134` estaba bien y medía bien; lo que no aguantaba era **meterle 800 archivos de una vez
+desde fuera**. Medido: 200 archivos entran; **812 dejan el navegador congelado varios minutos**, el campo se
+vacía solo y la página nunca llega a calcular el plan. Y dos cosas más que se aprendieron a golpes:
+
+| Lo que se creía | Lo que se midió |
+|---|---|
+| Se cargan medidas y luego sellos | `alElegirCarpeta` **borra los sellos a propósito** al soltar una carpeta nueva (Cargabilidad.tsx:576). El orden es medidas→sellos, y la pantalla separa AMBOS de una sola selección: van **juntos, en un envío** |
+| La sesión aguanta | **Recargar la página cierra la sesión.** Durante una carga larga no se recarga, y se entra marcando «Recordar en este dispositivo» |
+
+### Decisión
+
+1. **Segmentar por PERIODO, no por archivo.** Cada segmento lleva sus medidas **y los sellos de sus propios
+   días**: un día se decide con su sello, así que partir por días no cambia ninguna decisión. Medido antes de
+   tocar producción: los 18 segmentos dan **exactamente** el mismo resultado que la carpeta entera —los
+   mismos 8 y 11 días apartados, uno por uno, y el cuadre correcto en los 18—.
+2. **El día de cada archivo se toma de su EJE DE TIEMPO, nunca del nombre ni de la carpeta.** Por eso el
+   «30Enero» que en realidad es de julio cayó donde le tocaba (`§ADR-128`).
+3. **Tope de ~150 archivos por tipo y ~300 por envío**, con margen sobre lo que se midió que aguanta.
+4. **Cada segmento se lee ANTES de escribir**: días que entran, apartados con su motivo, fuera del periodo.
+   Los 18 planes coincidieron con la medición local, cifra por cifra.
+
+### Consecuencias
+
+- **EN PRODUCCIÓN y verificado en frío contra la base, no contra la pantalla:**
+
+  | | Máximo | Mínimo | Promedio | Instantáneo | Total |
+  |---|---|---|---|---|---|
+  | LN-617 | 190 | 188 | 200 | 201 | **779** |
+  | LN-628 | 187 | 185 | 197 | 198 | **767** |
+
+- **1.546 documentos de día y otros tantos resúmenes**, en 25 cargas. Cero reemplazos y cero duplicados.
+- **La corrección del `§ADR-134` quedó probada con dato real**: el 28-07 de LN-617 se apartó con «×8» —la
+  cifra de la consola—, no con el «×9» que contaba la pantalla vieja.
+- Apartados por sello: 8 días en LN-617 y 11 en LN-628, cada uno con su motivo escrito. El archivo de **2025
+  quedó fuera del periodo** y consta como tal: sigue esperando su decisión (`TODO-103`).
+- **Queda vivo**: 13 días entran SIN NINGÚN SELLO en cada línea (1-12 de enero y el 31-05). No son días
+  apartados —ninguna hora suya dice algo distinto de «Actual» porque no traen sello— pero tampoco están
+  dados por buenos (`TODO-104`).
+
+### Supuestos que deben ser ciertos — y la señal que diría que dejaron de serlo
+
+| Supuesto | Señal |
+|---|---|
+| Partir por días no cambia ninguna decisión | Un día apartado en la carpeta entera y no en su segmento. Se comprobó antes de escribir: 0 diferencias |
+| El navegador aguanta ~300 archivos por envío | Vuelve a congelarse. Entonces se baja el tope, no se fuerza |
+| Lo cargado no se pisa | «reemplazados» deja de ser 0 en un acuse |
+
+**Crudo de respaldo:** `research-archive/2026-09-20-carga-por-carpeta/`
+
+---
