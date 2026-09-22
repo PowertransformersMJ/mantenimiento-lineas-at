@@ -138,6 +138,11 @@ mantenimiento-lineas-at/
 ├── herramientas/foto-del-banco.mjs 📸 MIRAR el lienzo (ADR-074): Chrome sin cabeza + reloj REAL; con
 │                                el tiempo virtual MIENTE (`34 · L-72`) · `--exigir` suspende
 ├── herramientas/mirar-los-atlas.mjs ⚖️ EL PORTERO (ADR-085/087): mira cada atlas y las capas del corredor, y SUSPENDE
+├── herramientas/antes-de-publicar.mjs 🚦 EL PORTERO DEL DESPLIEGUE A MANO (`35 · L-77`): corre SOLO
+│                                antes de `npm run deploy` (`predeploy` de `web/`) y dice que NO si el
+│                                disco va por detrás del remoto —publicar así devolvió 28 ficheros de
+│                                clima—, si no hay `web/dist` o si lo construido es más viejo que el
+│                                sitio. Se salta a propósito con `PUBLICAR_IGUAL=1`
 ├── herramientas/pronostico-caribe.mjs 🌦️ 36 celdas a MET Norway → `pron-*` (ADR-086), con `naturaleza` y caducidad
 ├── herramientas/teselas/        construir-raster.py — rehace las capas del mapa (ADR-087: y
 │                             declara su `naturaleza`). ⚠️ ÚNICO Python del repo

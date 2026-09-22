@@ -214,6 +214,13 @@ integrar no es publicar lo tuyo: es **pisar lo suyo**.
 el push rechazado. No retrocedió lo publicado, pero tras el rebase **no se volvió a desplegar**. La
 causa: el arranque daba build→deploy sin el pull (corregido en `10`).
 
+✅ **Puesta en manos de una máquina el 22-09 (`§ADR-137`).** Dos recaídas bastaron: la regla escrita
+no se cumple sola. Ahora `herramientas/antes-de-publicar.mjs` corre como `predeploy` de `web/` —o
+sea, SIEMPRE, antes de cada `npm run deploy --workspace web`— y **se niega** si el disco va por
+detrás del remoto, si no hay `web/dist` o si lo construido es más viejo que el sitio. No avisa: para
+la publicación, dice cuántos ficheros del sitio se perderían y los nombra. Se salta a propósito con
+`PUBLICAR_IGUAL=1`, que es la diferencia entre equivocarse y decidir.
+
 ### L-80 · Borrar IndexedDB de Firebase con la página abierta cuelga ese Chrome, y el error dice «sin red» con el servidor sano
 - **Qué pasó (06-09-2026, mío):** al cerrar la sesión vieja del Ingeniero borré por JavaScript
   `firebase-heartbeat-database`. La base quedó bloqueada: el SDK esperaba 30 s por llamada y fallaba
