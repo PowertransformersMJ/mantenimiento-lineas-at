@@ -76,7 +76,7 @@ export function DetalleGps({
   apoyos: Apoyo[];
   /**
    * EL RECORRIDO LEVANTADO, cuando la línea todavía no tiene torres registradas
-   * (`99 §ADR-138`). Es lo que permite que una línea recién dada de alta vea
+   * (`99 §ADR-139`). Es lo que permite que una línea recién dada de alta vea
    * ESTA pantalla y no otra: el Ingeniero pidió que todas tuvieran la misma
    * interfaz, y el mapa solo necesita posición para dibujar.
    *
@@ -202,7 +202,8 @@ export function DetalleGps({
           <Suspense fallback={soloRecorrido && recorrido
             ? <EsquemaRecorrido r={recorrido} />
             : <PlantaSvg apoyos={apoyos} nota="Descargando el mapa…" />}>
-            <Mapa apoyos={apoyos} recorrido={recorrido} eventos={investigaciones} alVerEvento={alVerEvento}
+            <Mapa apoyos={apoyos} recorrido={recorrido} codigos={codigos}
+              eventos={investigaciones} alVerEvento={alVerEvento}
               panelALado pantalla="detalle-gps"
               respaldo={soloRecorrido && recorrido
                 ? <EsquemaRecorrido r={recorrido} />
@@ -437,7 +438,7 @@ function DeclararCableGuarda({ apoyos }: { apoyos: Apoyo[] }) {
  */
 function AtlasDelCaribe({ apoyos, recorrido, codigo, hipotesis }: {
   apoyos: Apoyo[];
-  /** Para situar el atlas cuando la línea todavía no tiene torres (`§ADR-138`). */
+  /** Para situar el atlas cuando la línea todavía no tiene torres (`§ADR-139`). */
   recorrido?: RecorridoLevantado;
   codigo?: string;
   /**
@@ -457,7 +458,7 @@ function AtlasDelCaribe({ apoyos, recorrido, codigo, hipotesis }: {
   // vecina, y el punto está para situar, no para medir.
   const marca = useMemo(() => {
     /**
-     * ⚠️ TAMBIÉN CON EL RECORRIDO (`§ADR-138`). El atlas solo necesita UN punto
+     * ⚠️ TAMBIÉN CON EL RECORRIDO (`§ADR-139`). El atlas solo necesita UN punto
      * para saber qué celda mirar, y un levantamiento trae 28. Que una línea
      * recién dada de alta se quedara sin el clima de su corredor no era una
      * consecuencia de que le falten torres: era que nadie le pasó la posición.
@@ -506,7 +507,14 @@ function AtlasDelCaribe({ apoyos, recorrido, codigo, hipotesis }: {
               mismo que a pantalla completa: pone el foco en la celda de la
               línea y publica su día HORA A HORA sin pedir un clic a ciegas.
               Las dos cosas a la vez sobran: el trazado ya dice dónde cae. */}
-          {codigo
+          {/* ⚠️ LA RAMA SE ELIGE POR LO QUE HAY, NO POR SI VINO EL CÓDIGO.
+              Antes bastaba con tener código para entrar por la rama de la
+              línea… y entonces se le pasaba `apoyos` VACÍO: el atlas no podía
+              situar nada y la `marca` que ya estaba calculada no se usaba
+              jamás. Una línea sin torres abría el clima sin saber dónde está.
+              Con torres va la línea entera; sin ellas, el punto marcado, que es
+              exactamente para lo que existe esa segunda rama. */}
+          {codigo && apoyos.length > 0
             ? (
               <AtlasCaribe atlas={abierto} embebido linea={{ codigo, apoyos }}
                 hipotesis={hipotesis}

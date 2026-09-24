@@ -22,6 +22,7 @@ import { prepararTeselas } from '../datos/teselas';
 import { FUNCIONES_ANCLA, type Apoyo, type Investigacion } from '@lineas/contratos';
 import { derivarLevantamiento } from '@lineas/exportar/levantamiento';
 import type { RecorridoLevantado } from '../vistas/recorrido';
+import { sinPrefijoDeSerie } from '../vistas/rotulos';
 import { COLORES_TRAMO_CSS, COLOR_SIN_GUARDA, COLOR_SIN_GUARDA_FUNDA } from '../vistas/tramoColores';
 import { cableDeGuarda } from '../vistas/cableGuarda';
 import { nf } from '../vistas/formato';
@@ -119,7 +120,7 @@ const COLORES: Record<string, string> = {
   terminal: '#e05252',
   empalme: '#8b98a5',
   /**
-   * EL PUNTO LEVANTADO QUE TODAVÍA NO ES TORRE (`99 §ADR-138`). Blanco de
+   * EL PUNTO LEVANTADO QUE TODAVÍA NO ES TORRE (`99 §ADR-139`). Blanco de
    * borde gris: no es ninguno de los otros cuatro y no debe parecerlo.
    *
    * ⚠️ NO puede caer en el `default` del `match` de abajo, que es «suspensión»:
@@ -165,11 +166,11 @@ function fichaPopup(p: ReturnType<typeof derivarLevantamiento>['puntos'][number]
   return `<div class="pop-ficha">${filas.join('<br>')}</div>`;
 }
 
-export default function Mapa({ apoyos, recorrido, respaldo, eventos, alVerEvento, panelALado, pantalla = 'sin-declarar' }:
+export default function Mapa({ apoyos, recorrido, codigos, respaldo, eventos, alVerEvento, panelALado, pantalla = 'sin-declarar' }:
   { apoyos: Apoyo[];
     /**
      * EL RECORRIDO LEVANTADO, cuando la línea todavía no tiene torres
-     * registradas (`99 §ADR-138`). Aditivo: si vienen `apoyos`, mandan ellos y
+     * registradas (`99 §ADR-139`). Aditivo: si vienen `apoyos`, mandan ellos y
      * esto se ignora.
      *
      * ⚠️ SOLO APORTA POSICIÓN. Un punto levantado tiene latitud, longitud y
@@ -181,6 +182,17 @@ export default function Mapa({ apoyos, recorrido, respaldo, eventos, alVerEvento
      * interpretación, no medida. Se quedan vacías solas, sin un `if` por capa.
      */
     recorrido?: RecorridoLevantado;
+    /**
+     * Las series del parque, para recortar el prefijo del RÓTULO sobre el mapa
+     * — el mismo recorte que ya hacen la tabla, Distancias y Fichas
+     * (`vistas/rotulos.ts`).
+     *
+     * ⚠️ POR QUÉ ENTRA AHORA. La etapa 1 recortó el prefijo en la tabla y dejó
+     * el mapa con el nombre entero: el MISMO punto salía con dos nombres a
+     * veinte centímetros uno del otro, en la misma pantalla. Y en una línea
+     * sobre un tramo compartido el prefijo es el del TRAMO, no el de la línea.
+     */
+    codigos?: readonly string[];
     respaldo?: ReactNode;
     /** Expedientes de falla a señalar sobre el mapa. Vacío = línea sin eventos. */
     eventos?: Investigacion[];
@@ -298,7 +310,7 @@ export default function Mapa({ apoyos, recorrido, respaldo, eventos, alVerEvento
   // deriva por su cuenta del recorrido que recibe.
 
   /**
-   * CUÁNTOS PUNTOS HAY QUE DIBUJAR, sean torres o recorrido (`§ADR-138`).
+   * CUÁNTOS PUNTOS HAY QUE DIBUJAR, sean torres o recorrido (`§ADR-139`).
    * Mandan los apoyos: una línea con torres registradas se dibuja con ellas
    * aunque conserve su levantamiento en ficha.
    */
@@ -326,7 +338,7 @@ export default function Mapa({ apoyos, recorrido, respaldo, eventos, alVerEvento
       // dejan una pintando y otra recibiendo las capas, que es la peor avería
       // posible: el interruptor se marca, no da error y no pasa nada.
       if (mapa.current) mapa.current.remove();
-      creado = crearMapa(caja.current, apoyos, meta, eventos ?? [], alVerEvento, recorrido);
+      creado = crearMapa(caja.current, apoyos, meta, eventos ?? [], alVerEvento, recorrido, codigos);
       mapa.current = creado;
       // EL MAPA, ALCANZABLE DESDE LA CONSOLA — y el MISMO objeto que reciben las
       // capas, no otro. Se da de alta en la sonda CON SU PANTALLA (`sondaMapa.ts`),
@@ -677,6 +689,7 @@ function crearMapa(
   eventos: Investigacion[],
   alVerEvento?: (id: string) => void,
   recorrido?: RecorridoLevantado,
+  codigos?: readonly string[],
 ): maplibregl.Map {
     const origen = location.origin;
     /**
@@ -692,11 +705,11 @@ function crearMapa(
       apoyos.length > 0
         ? [...apoyos].sort((a, b) => a.orden - b.orden).map((a) => ({
             lon: a.coordenada.lon, lat: a.coordenada.lat,
-            nombre: a.nombreNormalizado ?? a.nombreCampo,
+            nombre: sinPrefijoDeSerie(a.nombreNormalizado ?? a.nombreCampo, codigos),
             clase: claseDe(a), esEmpalme: a.tipoPunto === 'Empalme' ? 1 : 0,
           }))
         : (recorrido?.puntos ?? []).map((p) => ({
-            lon: p.lon, lat: p.lat, nombre: p.nombreCampo,
+            lon: p.lon, lat: p.lat, nombre: sinPrefijoDeSerie(p.nombreCampo, codigos),
             clase: 'levantado', esEmpalme: 0,
           }));
     // Centro inicial en la propia línea: aunque algo más fallara, la cámara
@@ -861,11 +874,23 @@ function crearMapa(
       });
       // El trazado completo queda debajo como respaldo fino; encima, cada tramo
       // de tensión con su color (clic → nombre, vanos y longitud del tramo).
+      /**
+       * ⚠️ EL GROSOR DEPENDE DE QUIÉN VA ENCIMA. Con torres, esta capa es solo
+       * el respaldo fino que asoma bajo los tramos de tensión (3,5 px de color),
+       * y 1 px basta. SIN torres no hay tramos —son interpretación y no se
+       * dibujan—, así que esta capa es TODO el trazado: a 1 px bajo un halo
+       * blanco de 7 quedaba un pelo invisible, y sobre la foto satelital,
+       * directamente no se veía. El recorrido tiene que leerse en los dos
+       * fondos, que es lo que el Ingeniero pidió.
+       */
       m.addLayer({
         id: 'linea',
         type: 'line',
         source: 'trazado',
-        paint: { 'line-color': '#d97706', 'line-width': 1 },
+        paint: {
+          'line-color': '#d97706',
+          'line-width': tramos.features.length > 0 ? 1 : 3.5,
+        },
       });
       m.addLayer({
         id: 'tramos',
@@ -1016,13 +1041,29 @@ function crearMapa(
           .addTo(m);
       }
 
-      // Encuadre a la línea completa, con aire.
-      const lons = ordenados.map((a) => a.coordenada.lon);
-      const lats = ordenados.map((a) => a.coordenada.lat);
-      m.fitBounds(
-        [[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]],
-        { padding: 60, duration: 0 },
-      );
+      /**
+       * ENCUADRE A LO QUE HAYA QUE VER, CON AIRE.
+       *
+       * ⚠️ AQUÍ ESTABA EL FALLO, y era mío: la etapa 1 cambió el `centro` de
+       * arranque a la lista `base` —que sirve para torres y para recorrido— y
+       * dejó ESTE encuadre leyendo `ordenados`, que solo tiene torres. En una
+       * línea sin ellas, `Math.min(...[])` es `Infinity` y `fitBounds` revienta
+       * con «Invalid LngLat latitude value». El error salía en consola en cada
+       * apertura y el mapa se quedaba donde lo dejó el constructor: mirando
+       * media región en vez de la línea. Un mapa que no se acerca a lo que
+       * tiene que enseñar no está «a nivel», y con razón.
+       *
+       * La guarda no es adorno: sin ella, el mismo `Infinity` vuelve el día que
+       * alguien monte el mapa con las dos listas vacías.
+       */
+      if (base.length > 0) {
+        const lons = base.map((p) => p.lon);
+        const lats = base.map((p) => p.lat);
+        m.fitBounds(
+          [[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]],
+          { padding: 60, duration: 0 },
+        );
+      }
     });
 
     return m;

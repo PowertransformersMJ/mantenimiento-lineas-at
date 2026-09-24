@@ -1570,7 +1570,7 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
             tramo={tramoAbierto} vecinas={codigosVecinos}
             torres={apoyos.length} faltan={faltan} />
         ))}
-        {/* ⚠️ UNA SOLA PANTALLA PARA LAS TRES LÍNEAS (`99 §ADR-138`, orden del
+        {/* ⚠️ UNA SOLA PANTALLA PARA LAS TRES LÍNEAS (`99 §ADR-139`, orden del
             Ingeniero del 22-09: «todo el esquema de LN-627 replicado en las
             líneas que van ingresando»).
 
@@ -1626,7 +1626,7 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
             evidencias={evidencias} noSePudoLeerFotos={noSePudoLeer?.evidencias}
             sesion={quien} codigos={codigosDeSerie} />
         )}
-        {/* ⚠️ EL HUECO EN BLANCO QUE ESPERABA (`99 §ADR-138`). La tabla de
+        {/* ⚠️ EL HUECO EN BLANCO QUE ESPERABA (`99 §ADR-139`). La tabla de
             requisitos pide solo TORRES para esta pestaña, y es deliberado: una
             ficha no «calcula», es de una torre, y nombrar ahí el conductor
             mandaría a buscar algo que no pinta nada (maqueta M2, aprobada).

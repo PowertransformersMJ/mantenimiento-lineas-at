@@ -55,7 +55,7 @@ describe('el mapa nunca se monta sin sus redes', () => {
     assert.match(GPS, /Suspense/);
   });
 
-  // ⚠️ LOS DOS RESPALDOS, uno por cada estado de la línea (`99 §ADR-138`).
+  // ⚠️ LOS DOS RESPALDOS, uno por cada estado de la línea (`99 §ADR-139`).
   // Desde que esta pantalla también la ven las líneas SIN torres registradas,
   // un solo respaldo no basta: `PlantaSvg` devuelve null con menos de dos
   // APOYOS, así que en una línea de solo recorrido el respaldo era un hueco en

@@ -112,7 +112,7 @@ function lineaFalsaEnElAtlas(ficha: FichaAtlas, cruzando: boolean): Apoyo[] {
  * centro del recorte público que declara el `.pmtiles` de este repositorio. Ni
  * una coordenada de cliente, ni un literal con decimales escrito a mano.
  *
- * ⚠️ POR QUÉ HACE FALTA (`99 §ADR-138`). Desde que el Detalle GPS también lo ven
+ * ⚠️ POR QUÉ HACE FALTA (`99 §ADR-139`). Desde que el Detalle GPS también lo ven
  * las líneas SIN torres registradas, hay DOS pantallas que comprobar y sólo una
  * se podía mirar. La otra vivía detrás de la sesión del Ingeniero, así que cada
  * comprobación dependía de que él abriera su navegador — y así se entregaron dos
@@ -226,7 +226,7 @@ function Banco() {
             producción y con un archivo de prueba, que es lo que su orden pide. */}
         <button type="button" className={'boton chico' + (que === 'cargabilidad' ? ' activo' : '')}
           onClick={() => setQue('cargabilidad')}>Cargabilidad eléctrica</button>
-        {/* ⚠️ LAS DOS CARAS DEL DETALLE GPS (`§ADR-138`). Una al lado de la otra
+        {/* ⚠️ LAS DOS CARAS DEL DETALLE GPS (`§ADR-139`). Una al lado de la otra
             es la única forma honesta de comprobar la PARIDAD que pidió el
             Ingeniero: «la misma interfaz y alcance». Comparar de memoria entre
             dos sesiones es exactamente como se entregan diferencias sin verlas. */}
