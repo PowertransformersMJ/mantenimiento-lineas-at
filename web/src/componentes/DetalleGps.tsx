@@ -26,8 +26,10 @@
 import { Suspense, lazy, useMemo, useState } from 'react';
 import type { Apoyo, Hipotesis, Investigacion } from '@lineas/contratos';
 import { conReintentos } from '../datos/cargar';
-import { PlantaSvg, RespaldoMapa } from './Linea';
+import { PlantaSvg, RespaldoMapa, EsquemaRecorrido, SelloDelRecorrido } from './Linea';
 import { soloEstructuras, nombreVisible, resumenDelLevantamiento } from '../vistas/planta';
+import { sinPrefijoDeSerie } from '../vistas/rotulos';
+import type { RecorridoLevantado } from '../vistas/recorrido';
 import { aGMS, nf } from '../vistas/formato';
 import { cableDeGuarda, type EstadoGuarda } from '../vistas/cableGuarda';
 import { almacen } from '../datos/enlace';
@@ -69,9 +71,26 @@ interface FilaGps {
 }
 
 export function DetalleGps({
-  apoyos, investigaciones, alVerEvento, hipotesis, sesion, codigoLinea,
+  apoyos, recorrido, investigaciones, alVerEvento, hipotesis, sesion, codigoLinea, codigos,
 }: {
   apoyos: Apoyo[];
+  /**
+   * EL RECORRIDO LEVANTADO, cuando la línea todavía no tiene torres registradas
+   * (`99 §ADR-138`). Es lo que permite que una línea recién dada de alta vea
+   * ESTA pantalla y no otra: el Ingeniero pidió que todas tuvieran la misma
+   * interfaz, y el mapa solo necesita posición para dibujar.
+   *
+   * Manda `apoyos`: con torres registradas, esto se ignora.
+   */
+  recorrido?: RecorridoLevantado;
+  /**
+   * Las series del parque, para recortar el prefijo de los nombres — lo mismo
+   * que ya reciben Distancias y Fichas (`vistas/rotulos.ts`). Esta pantalla era
+   * la ÚNICA tabla de puntos que no lo recibía, y en una línea sobre un tramo
+   * compartido el prefijo es el del TRAMO: se leía «TR-618 E07» donde las demás
+   * pestañas dicen «E07».
+   */
+  codigos?: readonly string[];
   investigaciones?: Investigacion[];
   alVerEvento?: (id: string) => void;
   hipotesis?: Hipotesis;
@@ -90,22 +109,47 @@ export function DetalleGps({
    */
   sesion?: Pick<SesionDePantalla, 'rol' | 'claims'>;
 }) {
-  const filas = useMemo<FilaGps[]>(() => [...apoyos]
-    .sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0))
-    .map((a) => {
-      const c = a.coordenada;
-      return {
-        id: a.id,
-        nombre: nombreVisible(a),
-        esEstructura: (a.tipoPunto ?? 'Estructura') === 'Estructura',
-        lat: c.lat,
-        lon: c.lon,
-        cota_m: c.cotaTerreno_m ?? null,
-        precision_m: c.precision_m ?? null,
-        metodo: c.metodo === 'gps_mano' ? 'GPS de mano' : (c.metodo ?? '—'),
-        sistema: c.sistemaReferencia ?? '—',
-      };
-    }), [apoyos]);
+  /**
+   * ¿ESTA LÍNEA TIENE TORRES, O SOLO EL RECORRIDO? Una pregunta, un sitio.
+   * Todo lo de abajo cuelga de aquí, y así no hay dos criterios que puedan
+   * divergir el día que alguien toque uno solo.
+   */
+  const soloRecorrido = apoyos.length === 0 && !!recorrido;
+
+  const filas = useMemo<FilaGps[]>(() => {
+    if (soloRecorrido && recorrido) {
+      // Un punto levantado trae lo que se midió y NADA MÁS. No se le inventa
+      // tipo, ni orden de la línea, ni nombre canónico (`§ADR-133`): se listan
+      // en el orden del ARCHIVO, que es lo único que consta.
+      return recorrido.puntos.map((pt) => ({
+        id: `lev-${pt.n}`,
+        nombre: sinPrefijoDeSerie(pt.nombreCampo, codigos),
+        esEstructura: true,
+        lat: pt.lat,
+        lon: pt.lon,
+        cota_m: pt.ele,
+        precision_m: recorrido.precision_m,
+        metodo: 'GPS de mano',
+        sistema: 'WGS84',
+      }));
+    }
+    return [...apoyos]
+      .sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0))
+      .map((a) => {
+        const c = a.coordenada;
+        return {
+          id: a.id,
+          nombre: sinPrefijoDeSerie(nombreVisible(a), codigos),
+          esEstructura: (a.tipoPunto ?? 'Estructura') === 'Estructura',
+          lat: c.lat,
+          lon: c.lon,
+          cota_m: c.cotaTerreno_m ?? null,
+          precision_m: c.precision_m ?? null,
+          metodo: c.metodo === 'gps_mano' ? 'GPS de mano' : (c.metodo ?? '—'),
+          sistema: c.sistemaReferencia ?? '—',
+        };
+      });
+  }, [apoyos, recorrido, soloRecorrido, codigos]);
 
   const estructuras = useMemo(() => soloEstructuras(apoyos).length, [apoyos]);
   // Quién es dueño de este hecho: `vistas/planta.ts`. Aquí no se agrega nada —
@@ -117,11 +161,31 @@ export function DetalleGps({
     <>
       <section className="panel">
         <h2>Detalle GPS de la línea</h2>
-        <p className="saludo">
-          El recorrido completo, a pantalla entera. Los filtros de fondo y las capas van
-          <b> a un lado</b>, para que no tapen el trazado. Clic en un punto: su ficha; clic en el
-          trazado: su tramo de tensión.
-        </p>
+        {/* ⚠️ EL MISMO TÍTULO PARA LAS TRES, Y EL SALUDO NO. El Ingeniero pidió
+            la misma interfaz, no las mismas promesas: el saludo de una línea con
+            torres ofrece dos gestos —la ficha del apoyo y el tramo de tensión—
+            que sin torres registradas NO responden. Prometerlos y que no pasara
+            nada sería peor que la pantalla distinta que había antes. */}
+        {soloRecorrido ? (
+          <p className="saludo">
+            El recorrido completo, a pantalla entera. Los filtros de fondo y las capas van
+            <b> a un lado</b>, para que no tapen el trazado. Clic en un punto: lo que se midió de
+            él. <b>Todavía no hay ficha ni tramo de tensión</b>: nacen cuando usted declare la
+            función de cada torre.
+          </p>
+        ) : (
+          <p className="saludo">
+            El recorrido completo, a pantalla entera. Los filtros de fondo y las capas van
+            <b> a un lado</b>, para que no tapen el trazado. Clic en un punto: su ficha; clic en el
+            trazado: su tramo de tensión.
+          </p>
+        )}
+
+        {/* La procedencia del recorrido, que HOY solo veía la pantalla vieja.
+            Va condicionada a que no haya torres a propósito: el sello termina en
+            «sin registrar como torres» y ponerlo encima de un mapa de torres
+            registradas sería decir lo contrario de lo que se está viendo. */}
+        {soloRecorrido && recorrido && <SelloDelRecorrido r={recorrido} />}
 
         {/* Las mismas TRES redes que el Resumen, y por los mismos motivos: el
             error boundary impide que un fallo del mapa se lleve por delante la
@@ -129,49 +193,101 @@ export function DetalleGps({
             funciona sin conexión— en vez de dejar una caja vacía con un panel de
             capas que parece sano y no hace nada. Un hueco disfrazado de pantalla
             buena es justo lo que este producto no puede permitirse. */}
+        {/* ⚠️ EL RESPALDO TAMBIÉN TIENE QUE SABER DE RECORRIDO. `PlantaSvg`
+            devuelve null con menos de dos APOYOS, así que en una línea sin
+            torres el respaldo era un hueco en blanco: el mapa se caía y no
+            quedaba nada. `EsquemaRecorrido` es su gemelo para este caso y ya
+            existía; aquí solo se elige. */}
         <RespaldoMapa apoyos={apoyos}>
-          <Suspense fallback={<PlantaSvg apoyos={apoyos} nota="Descargando el mapa…" />}>
-            <Mapa apoyos={apoyos} eventos={investigaciones} alVerEvento={alVerEvento}
+          <Suspense fallback={soloRecorrido && recorrido
+            ? <EsquemaRecorrido r={recorrido} />
+            : <PlantaSvg apoyos={apoyos} nota="Descargando el mapa…" />}>
+            <Mapa apoyos={apoyos} recorrido={recorrido} eventos={investigaciones} alVerEvento={alVerEvento}
               panelALado pantalla="detalle-gps"
-              respaldo={<PlantaSvg apoyos={apoyos} nota="El mapa no se pudo descargar; se muestra el esquema geométrico (funciona sin conexión). Las coordenadas de abajo siguen completas." />} />
+              respaldo={soloRecorrido && recorrido
+                ? <EsquemaRecorrido r={recorrido} />
+                : <PlantaSvg apoyos={apoyos} nota="El mapa no se pudo descargar; se muestra el esquema geométrico (funciona sin conexión). Las coordenadas de abajo siguen completas." />} />
           </Suspense>
         </RespaldoMapa>
 
-        <p className="leyenda">
-          <span className="li ancla" /> anclaje
-          <span className="li susp2" /> suspensión
-          <span className="li term2" /> terminal
-          <span className="li emp" /> empalme (no es apoyo)
-        </p>
+        {soloRecorrido ? (
+          <p className="leyenda">
+            <span className="li lev" /> punto levantado — <b>sin función declarada</b>.
+            Ni anclaje, ni suspensión, ni terminal: eso se sabrá cuando usted lo declare.
+          </p>
+        ) : (
+          <p className="leyenda">
+            <span className="li ancla" /> anclaje
+            <span className="li susp2" /> suspensión
+            <span className="li term2" /> terminal
+            <span className="li emp" /> empalme (no es apoyo)
+          </p>
+        )}
       </section>
 
-      <AtlasDelCaribe apoyos={apoyos} codigo={codigoLinea} hipotesis={hipotesis} />
+      <AtlasDelCaribe apoyos={apoyos} recorrido={recorrido} codigo={codigoLinea} hipotesis={hipotesis} />
 
-      {puede(sesion, 'apoyos.editar') && (
+      {/* ⚠️ EL BLOQUE NO DESAPARECE (orden del Ingeniero, 22-09): antes, sin
+          torres, aquí no había nada —ni el panel ni una palabra— y el hueco era
+          mudo. Ahora dice qué espera.
+          Y NO se enseña el declarador con los selectores apagados: un control
+          que no se puede pulsar invita a intentarlo y a preguntarse qué se hizo
+          mal. El vano del cable de guarda es ENTRE ESTRUCTURAS; con puntos
+          levantados no existe todavía, y decirlo es más honesto que fingirlo. */}
+      {soloRecorrido ? (
+        <section className="panel">
+          <h2>Cable de guarda, vano a vano</h2>
+          <p className="aviso">
+            <b>Todavía no se puede declarar.</b> El cable de guarda se declara <b>vano a vano entre
+            torres registradas</b>, y esta línea aún no tiene ninguna: lo que hay es el recorrido
+            levantado en campo. Los tramos entre puntos levantados que se ven en <b>Distancias</b> no
+            son vanos de la línea — son lo que se recorrió.
+          </p>
+          <p className="fine">
+            Se abre solo, aquí mismo, en cuanto usted declare la función de cada torre.
+          </p>
+        </section>
+      ) : puede(sesion, 'apoyos.editar') && (
         <DeclararCableGuarda apoyos={apoyos} />
       )}
 
       <section className="panel">
         <h2>Coordenadas levantadas</h2>
-        <p className="fine">
-          {nf(estructuras)} estructuras y {nf(filas.length - estructuras)} empalmes ·
-          sistema <b>{lev.sistemas.join(' / ') || '—'}</b> · {lev.metodos.join(' / ') || '—'}
-          {lev.peorPrecision_m !== null && (
-            <> · precisión declarada más floja: <b>± {nf(lev.peorPrecision_m)} m</b></>
-          )}.
-        </p>
+        {soloRecorrido && recorrido ? (
+          <p className="fine">
+            {nf(filas.length)} puntos levantados · <b>0 torres registradas</b> · sistema{' '}
+            <b>WGS84</b> · GPS de mano · precisión declarada por el sistema:{' '}
+            <b>± {nf(recorrido.precision_m)} m</b>. {recorrido.sello}.
+          </p>
+        ) : (
+          <p className="fine">
+            {nf(estructuras)} estructuras y {nf(filas.length - estructuras)} empalmes ·
+            sistema <b>{lev.sistemas.join(' / ') || '—'}</b> · {lev.metodos.join(' / ') || '—'}
+            {lev.peorPrecision_m !== null && (
+              <> · precisión declarada más floja: <b>± {nf(lev.peorPrecision_m)} m</b></>
+            )}.
+          </p>
+        )}
+        {/* ⚠️ ESTE AVISO SE QUEDA EN LOS DOS CASOS, y no por simetría: es el
+            que impide usar un GPS de mano para dictaminar una distancia
+            vertical. Perderlo al unificar la pantalla habría sido cambiar una
+            diferencia de aspecto por una de seguridad. */}
         <p className="advertencia">
-          <b>Esta precisión no sirve para verificar despejes.</b> Un GPS de mano sitúa el apoyo en el
-          plano con el error que él mismo declara; la cota que entrega arrastra ese mismo error y por
-          eso el relieve no se dibuja ni entra en el vano peso. Sirve para saber dónde
-          está el apoyo y para llegar hasta él, no para dictaminar una distancia vertical.
+          <b>Esta precisión no sirve para verificar despejes.</b> Un GPS de mano sitúa
+          {soloRecorrido ? ' el punto' : ' el apoyo'} en el plano con el error que él mismo declara;
+          la cota que entrega arrastra ese mismo error y por eso el relieve no se dibuja ni entra en
+          el vano peso. Sirve para saber dónde está y para llegar hasta él, no para dictaminar una
+          distancia vertical.
         </p>
 
         <div className="tabla-caja">
           <table className="tabla">
             <caption>
-              Un punto por fila, en el orden del recorrido. Los empalmes se listan igual: tienen su
-              propio punto levantado aunque no sean apoyos.
+              {soloRecorrido
+                ? 'Un punto por fila, en el ORDEN DEL ARCHIVO — que es lo único que consta: '
+                  + 'todavía nadie ha declarado cuál es el orden de la línea.'
+                : 'Un punto por fila, en el orden del recorrido. Los empalmes se listan igual: '
+                  + 'tienen su propio punto levantado aunque no sean apoyos.'}
             </caption>
             <thead>
               <tr>
@@ -319,8 +435,11 @@ function DeclararCableGuarda({ apoyos }: { apoyos: Apoyo[] }) {
  * que antes. Es la condición que hacía falta para traerlo aquí sin castigar a
  * quien la abre desde el teléfono, en campo.
  */
-function AtlasDelCaribe({ apoyos, codigo, hipotesis }: {
-  apoyos: Apoyo[]; codigo?: string;
+function AtlasDelCaribe({ apoyos, recorrido, codigo, hipotesis }: {
+  apoyos: Apoyo[];
+  /** Para situar el atlas cuando la línea todavía no tiene torres (`§ADR-138`). */
+  recorrido?: RecorridoLevantado;
+  codigo?: string;
   /**
    * ⚠️ LA HIPÓTESIS VIAJA HASTA AQUÍ (`§ADR-087`). No la usa el atlas: la usa la
    * leyenda de la temperatura del corredor, que se mudó a esta pantalla con su
@@ -337,12 +456,23 @@ function AtlasDelCaribe({ apoyos, codigo, hipotesis }: {
   // de 111 km, cualquier punto del recorrido cae en la misma celda o en la
   // vecina, y el punto está para situar, no para medir.
   const marca = useMemo(() => {
-    const puntos = soloEstructuras(apoyos).map((a) => a.coordenada).filter(Boolean);
+    /**
+     * ⚠️ TAMBIÉN CON EL RECORRIDO (`§ADR-138`). El atlas solo necesita UN punto
+     * para saber qué celda mirar, y un levantamiento trae 28. Que una línea
+     * recién dada de alta se quedara sin el clima de su corredor no era una
+     * consecuencia de que le falten torres: era que nadie le pasó la posición.
+     */
+    const puntos = apoyos.length > 0
+      ? soloEstructuras(apoyos).map((a) => a.coordenada).filter(Boolean)
+      : (recorrido?.puntos ?? []).map((pt) => ({ lon: pt.lon, lat: pt.lat }));
     if (!puntos.length) return null;
     const lon = puntos.reduce((s, c) => s + c.lon, 0) / puntos.length;
     const lat = puntos.reduce((s, c) => s + c.lat, 0) / puntos.length;
-    return { lon, lat, nombre: nombreVisible(apoyos[0]).split(' ')[0] || 'esta línea' };
-  }, [apoyos]);
+    const nombre = apoyos.length > 0
+      ? (nombreVisible(apoyos[0]).split(' ')[0] || 'esta línea')
+      : (codigo || 'esta línea');
+    return { lon, lat, nombre };
+  }, [apoyos, recorrido, codigo]);
 
   return (
     <section className="panel">

@@ -21,6 +21,7 @@ import { layers, namedFlavor } from '@protomaps/basemaps';
 import { prepararTeselas } from '../datos/teselas';
 import { FUNCIONES_ANCLA, type Apoyo, type Investigacion } from '@lineas/contratos';
 import { derivarLevantamiento } from '@lineas/exportar/levantamiento';
+import type { RecorridoLevantado } from '../vistas/recorrido';
 import { COLORES_TRAMO_CSS, COLOR_SIN_GUARDA, COLOR_SIN_GUARDA_FUNDA } from '../vistas/tramoColores';
 import { cableDeGuarda } from '../vistas/cableGuarda';
 import { nf } from '../vistas/formato';
@@ -117,6 +118,16 @@ const COLORES: Record<string, string> = {
   suspension: '#5b8dd9',
   terminal: '#e05252',
   empalme: '#8b98a5',
+  /**
+   * EL PUNTO LEVANTADO QUE TODAVÍA NO ES TORRE (`99 §ADR-138`). Blanco de
+   * borde gris: no es ninguno de los otros cuatro y no debe parecerlo.
+   *
+   * ⚠️ NO puede caer en el `default` del `match` de abajo, que es «suspensión»:
+   * lo pintaría del azul de una torre de suspensión y estaría AFIRMANDO una
+   * función estructural que nadie ha declarado — justo lo que `§ADR-133`
+   * prohíbe. Un color de más es más barato que un dato inventado.
+   */
+  levantado: '#ffffff',
 };
 
 // La lista de funciones que anclan tiene UN dueño (el contrato). La regex que
@@ -154,8 +165,23 @@ function fichaPopup(p: ReturnType<typeof derivarLevantamiento>['puntos'][number]
   return `<div class="pop-ficha">${filas.join('<br>')}</div>`;
 }
 
-export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, panelALado, pantalla = 'sin-declarar' }:
-  { apoyos: Apoyo[]; respaldo?: ReactNode;
+export default function Mapa({ apoyos, recorrido, respaldo, eventos, alVerEvento, panelALado, pantalla = 'sin-declarar' }:
+  { apoyos: Apoyo[];
+    /**
+     * EL RECORRIDO LEVANTADO, cuando la línea todavía no tiene torres
+     * registradas (`99 §ADR-138`). Aditivo: si vienen `apoyos`, mandan ellos y
+     * esto se ignora.
+     *
+     * ⚠️ SOLO APORTA POSICIÓN. Un punto levantado tiene latitud, longitud y
+     * cota medidas, y nada más: no tiene función estructural, ni orden de la
+     * línea, ni nombre canónico, ni deflexión —`§ADR-133` los prohíbe por
+     * nombre hasta que el Ingeniero los declare—. Por eso con un recorrido se
+     * dibujan el trazado y los puntos, y NO se dibujan los tramos de tensión,
+     * ni el cable de guarda, ni el símbolo por función: esas cuatro capas son
+     * interpretación, no medida. Se quedan vacías solas, sin un `if` por capa.
+     */
+    recorrido?: RecorridoLevantado;
+    respaldo?: ReactNode;
     /** Expedientes de falla a señalar sobre el mapa. Vacío = línea sin eventos. */
     eventos?: Investigacion[];
     /** Qué hacer al pulsar el marcador (abrir la pestaña Falla). */
@@ -271,8 +297,15 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, panelALad
   // servía al clima, y el clima vive ahora en la pantalla del atlas, que lo
   // deriva por su cuenta del recorrido que recibe.
 
+  /**
+   * CUÁNTOS PUNTOS HAY QUE DIBUJAR, sean torres o recorrido (`§ADR-138`).
+   * Mandan los apoyos: una línea con torres registradas se dibuja con ellas
+   * aunque conserve su levantamiento en ficha.
+   */
+  const nPuntos = apoyos.length > 0 ? apoyos.length : (recorrido?.puntos.length ?? 0);
+
   useEffect(() => {
-    if (!caja.current || mapa.current || apoyos.length < 2) return;
+    if (!caja.current || mapa.current || nPuntos < 2) return;
     let cancelado = false;
     let creado: maplibregl.Map | null = null;
 
@@ -293,7 +326,7 @@ export default function Mapa({ apoyos, respaldo, eventos, alVerEvento, panelALad
       // dejan una pintando y otra recibiendo las capas, que es la peor avería
       // posible: el interruptor se marca, no da error y no pasa nada.
       if (mapa.current) mapa.current.remove();
-      creado = crearMapa(caja.current, apoyos, meta, eventos ?? [], alVerEvento);
+      creado = crearMapa(caja.current, apoyos, meta, eventos ?? [], alVerEvento, recorrido);
       mapa.current = creado;
       // EL MAPA, ALCANZABLE DESDE LA CONSOLA — y el MISMO objeto que reciben las
       // capas, no otro. Se da de alta en la sonda CON SU PANTALLA (`sondaMapa.ts`),
@@ -643,12 +676,33 @@ function crearMapa(
   meta: { limites: [number, number, number, number]; zMin: number; zMax: number },
   eventos: Investigacion[],
   alVerEvento?: (id: string) => void,
+  recorrido?: RecorridoLevantado,
 ): maplibregl.Map {
     const origen = location.origin;
+    /**
+     * DE DÓNDE SALE CADA PUNTO QUE SE DIBUJA. Una sola lista, con lo único que
+     * el mapa necesita para situar algo: dónde está y cómo se llama.
+     *
+     * Se declara aquí y no se vuelve a preguntar de dónde vino: así el resto de
+     * `crearMapa` no se llena de `if (hayTorres)`. Lo que SÍ distingue los dos
+     * casos es `clase`, y eso es una afirmación sobre el fierro, no sobre el
+     * dibujo: con recorrido vale `levantado`, que no dice nada de su función.
+     */
+    const base: { lon: number; lat: number; nombre: string; clase: string; esEmpalme: number }[] =
+      apoyos.length > 0
+        ? [...apoyos].sort((a, b) => a.orden - b.orden).map((a) => ({
+            lon: a.coordenada.lon, lat: a.coordenada.lat,
+            nombre: a.nombreNormalizado ?? a.nombreCampo,
+            clase: claseDe(a), esEmpalme: a.tipoPunto === 'Empalme' ? 1 : 0,
+          }))
+        : (recorrido?.puntos ?? []).map((p) => ({
+            lon: p.lon, lat: p.lat, nombre: p.nombreCampo,
+            clase: 'levantado', esEmpalme: 0,
+          }));
     // Centro inicial en la propia línea: aunque algo más fallara, la cámara
     // nunca arranca viendo el planeta entero.
-    const lons0 = apoyos.map((a) => a.coordenada.lon);
-    const lats0 = apoyos.map((a) => a.coordenada.lat);
+    const lons0 = base.map((p) => p.lon);
+    const lats0 = base.map((p) => p.lat);
     const centro: [number, number] = [
       (Math.min(...lons0) + Math.max(...lons0)) / 2,
       (Math.min(...lats0) + Math.max(...lats0)) / 2,
@@ -705,7 +759,9 @@ function crearMapa(
       properties: {},
       geometry: {
         type: 'LineString',
-        coordinates: ordenados.map((a) => [a.coordenada.lon, a.coordenada.lat]),
+        // Con torres, en el orden de la línea; con recorrido, en el orden del
+        // ARCHIVO — que es lo único que consta y así se dice en la tabla.
+        coordinates: base.map((p) => [p.lon, p.lat]),
       },
     };
 
@@ -764,16 +820,30 @@ function crearMapa(
 
     const puntos: GeoJSON.FeatureCollection = {
       type: 'FeatureCollection',
-      // `ordenados` y `lev.puntos` comparten orden (ambos por `orden`).
-      features: ordenados.map((a, i) => ({
+      // `base` y `lev.puntos` comparten orden cuando hay torres (ambos por
+      // `orden`); con recorrido `lev.puntos` está vacío y la ficha es otra.
+      features: base.map((p, i) => ({
         type: 'Feature',
         properties: {
-          nombre: lev.puntos[i].nombre,
-          clase: claseDe(a),
-          ficha: fichaPopup(lev.puntos[i], lev.puntos.length, lev.nEstructuras),
-          esEmpalme: a.tipoPunto === 'Empalme' ? 1 : 0,
+          nombre: p.nombre,
+          clase: p.clase,
+          /**
+           * ⚠️ DOS FICHAS, Y NO SE PARECEN A PROPÓSITO. La de una torre trae
+           * vano anterior, azimut y progresiva: todo eso nace del ORDEN de la
+           * línea. Un punto levantado no lo tiene, así que su ficha dice lo que
+           * de verdad consta —dónde está y cómo lo llamó quien lo levantó— y
+           * declara en voz alta que todavía no es una torre. Rellenarla con los
+           * mismos campos sería fabricar la línea (`§ADR-133`).
+           */
+          ficha: lev.puntos[i]
+            ? fichaPopup(lev.puntos[i], lev.puntos.length, lev.nEstructuras)
+            : `<div class="pop-ficha"><b>${escHtml(p.nombre)}</b><br>`
+              + `${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}<br>`
+              + '<i>Punto levantado. Todavía no es una torre registrada: no tiene '
+              + 'función declarada ni número de vano.</i></div>',
+          esEmpalme: p.esEmpalme,
         },
-        geometry: { type: 'Point', coordinates: [a.coordenada.lon, a.coordenada.lat] },
+        geometry: { type: 'Point', coordinates: [p.lon, p.lat] },
       })),
     };
 
@@ -860,9 +930,17 @@ function crearMapa(
             'ancla', COLORES.ancla,
             'terminal', COLORES.terminal,
             'empalme', COLORES.empalme,
+            // ⚠️ ANTES DEL DEFECTO. Si `levantado` cayera en el `default` se
+            // pintaría del azul de una suspensión: el mapa estaría afirmando
+            // una función que nadie declaró (`§ADR-133/138`).
+            'levantado', COLORES.levantado,
             COLORES.suspension],
           'circle-stroke-width': 1.5,
-          'circle-stroke-color': '#ffffff',
+          // El punto levantado es blanco: sin un borde oscuro desaparecería
+          // sobre el fondo claro del callejero.
+          'circle-stroke-color': ['match', ['get', 'clase'],
+            'levantado', '#3a3a3a',
+            '#ffffff'],
         },
       });
 

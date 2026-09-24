@@ -271,6 +271,13 @@ body {
 .li.susp2 { background: var(--az); width: 8px; height: 8px; }
 .li.term2 { background: var(--rd); }
 .li.emp { background: var(--mut); width: 7px; height: 7px; }
+/* EL PUNTO LEVANTADO QUE TODAVÍA NO ES TORRE (`99 §ADR-138`). Hueco y con
+   borde: no es ninguno de los cuatro de arriba y no debe parecerse a ninguno.
+   Relleno claro —no de color— porque un color aquí se leería como una función
+   estructural declarada, que es justo lo que no consta. Mismo par de variables
+   que usa `.lev-punto` en el esquema, para que el mapa y el dibujo de respaldo
+   pinten el mismo punto. */
+.li.lev { background: var(--pnl-alto); border: 1.6px solid var(--tx3); }
 /* El tramo sin cable de guarda: CORTADO. Un cable que falta se lee como línea
    interrumpida; un cuadrito lleno se leería como un tramo más. El COLOR no está
    aquí: lo pone `vistas/tramoColores.ts`, el mismo que pinta el mapa, para que

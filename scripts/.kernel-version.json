@@ -1,12 +1,12 @@
 {
-  "version": "1.10.0",
-  "date": "2026-09-07",
+  "version": "1.11.0",
+  "date": "2026-09-24",
   "files": {
-    "brain-check.mjs": "4c27f08833b82d8672c2e1e89206152efe2b72cc5eab1d41a8ee01580ea4926b",
+    "brain-check.mjs": "d70a09e2b01e7deee720c3891b91e4662cd47eded69257ee292021e6dcd79af2",
     "brain-diff.mjs": "1d9fefd496a4fb27f4e0d5cca06f127b1e5136d759522cad81f13cbc0f34d043",
     "brain-index.mjs": "cafcab9e57fd5659ac845917e4ad77449a3303ded65a1adb23ae3c909b518b8d",
-    "session-handoff.mjs": "3ef889fa385686b1966baaa98c789603036ee7a5e30f202fc66eafc41a49fc14",
-    "boot-gate.mjs": "7a1a45eb0f09a0957468ecd4784ce7eb3753b928b28ead8dcac9fb1dfda82ea8",
+    "session-handoff.mjs": "8658b143dfaeecd5c6caf148f4366f734ef8feba0f32bf852d6da3aade230569",
+    "boot-gate.mjs": "8a12c181285c16a9a152327709493d97e8f94535ed2d9818a63a6fe73ef61fd1",
     "brain-archive.mjs": "e461118db36e73cd6ecbd09b096a261d3ee4bc1d048eac81440e0d02e2776cfa"
   }
 }

@@ -782,7 +782,7 @@ function Horizonte({ ejes, vanos, total, puntosLevantados, torres, faltan }: {
 }
 
 /** El esquema del recorrido: un dibujo del trazado, nunca un mapa. */
-function EsquemaRecorrido({ r }: { r: RecorridoLevantado }) {
+export function EsquemaRecorrido({ r }: { r: RecorridoLevantado }) {
   const g = r.esquema;
   if (!g) return null;
   return (
@@ -805,7 +805,7 @@ function EsquemaRecorrido({ r }: { r: RecorridoLevantado }) {
 }
 
 /** La ficha de procedencia del recorrido: de qué día, de qué aparato, cuántos puntos. */
-function SelloDelRecorrido({ r }: { r: RecorridoLevantado }) {
+export function SelloDelRecorrido({ r }: { r: RecorridoLevantado }) {
   const detalles = [
     r.aparato,
     r.primeraHora && r.ultimaHora ? `${r.primeraHora} → ${r.ultimaHora}` : null,
@@ -1570,10 +1570,30 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
             tramo={tramoAbierto} vecinas={codigosVecinos}
             torres={apoyos.length} faltan={faltan} />
         ))}
-        {!cartel && activa === 'gps' && (hipotesis && apoyos.length >= 2 ? (
-          <DetalleGps apoyos={apoyos} investigaciones={investigaciones}
-            alVerEvento={() => irA('falla')} hipotesis={hipotesis}
-            codigoLinea={linea.codigo}
+        {/* ⚠️ UNA SOLA PANTALLA PARA LAS TRES LÍNEAS (`99 §ADR-138`, orden del
+            Ingeniero del 22-09: «todo el esquema de LN-627 replicado en las
+            líneas que van ingresando»).
+
+            Antes esta guarda era `hipotesis && apoyos.length >= 2` y mandaba a
+            OTRO componente —otro título, sin mapa, sin atlas, sin cable de
+            guarda—. Dos cosas estaban mal en ella:
+
+            ① `hipotesis` sobraba. `DetalleGps` la declara OPCIONAL y solo se la
+               pasa al atlas para una leyenda. Exigirla aquí dejaba fuera la
+               pantalla entera por un rótulo, y además `App.tsx` la fuerza a
+               `null` en fase «recorrido»: con esa guarda, una línea SIN
+               CONDUCTOR no vería nunca el mapa aunque tuviera sus 28 torres.
+            ② `apoyos.length >= 2` daba por hecho que dibujar exige torres.
+               Dibujar exige POSICIÓN, y un recorrido levantado la tiene.
+
+            Ahora entra quien tenga dos puntos, vengan de donde vengan. Lo que
+            de verdad falta —función, tramos, cable de guarda— lo dice la propia
+            pantalla en el sitio del bloque, que es lo que él pidió. */}
+        {!cartel && activa === 'gps' && (apoyos.length >= 2 || (recorrido?.puntos.length ?? 0) >= 2 ? (
+          <DetalleGps apoyos={apoyos} recorrido={recorrido ?? undefined}
+            investigaciones={investigaciones}
+            alVerEvento={() => irA('falla')} hipotesis={hipotesis ?? undefined}
+            codigoLinea={linea.codigo} codigos={codigosDeSerie}
             sesion={quien && { rol: quien.rol, claims: quien.claims }} />
         ) : recorrido ? <DetalleDelRecorrido r={recorrido} torres={apoyos.length} /> : (
           <section className="panel vacio">
@@ -1605,6 +1625,31 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
           <Fichas apoyos={apoyos} linea={linea} conductor={conductor} hipotesis={hipotesis}
             evidencias={evidencias} noSePudoLeerFotos={noSePudoLeer?.evidencias}
             sesion={quien} codigos={codigosDeSerie} />
+        )}
+        {/* ⚠️ EL HUECO EN BLANCO QUE ESPERABA (`99 §ADR-138`). La tabla de
+            requisitos pide solo TORRES para esta pestaña, y es deliberado: una
+            ficha no «calcula», es de una torre, y nombrar ahí el conductor
+            mandaría a buscar algo que no pinta nada (maqueta M2, aprobada).
+            Pero el JSX de arriba sí exige `conductor && hipotesis`. Con las
+            torres ya registradas y el conductor todavía pendiente —el estado
+            siguiente de LN-617 y LN-628— no salía NI cartel NI contenido: un
+            panel vacío, sin una palabra. Hoy no se ve porque no hay torres; se
+            habría visto justo al avanzar.
+            Se tapa aquí y no aflojando la tabla, para no contradecir lo que él
+            aprobó y para que el motivo se lea donde ocurre. */}
+        {!cartel && activa === 'fichas' && !(conductor && hipotesis) && (
+          <section className="panel">
+            <h2>Fichas</h2>
+            <p className="aviso">
+              <b>Las torres ya están registradas; falta con qué llenar su ficha.</b> La ficha de un
+              apoyo lleva sus tiros y su flecha, y eso sale del <b>conductor</b> y de las{' '}
+              <b>hipótesis</b> de la línea. Mientras no consten, no hay ficha que emitir — y no se
+              toma el conductor de otra línea.
+            </p>
+            <p className="fine">
+              Se llena sola, aquí mismo, en cuanto la línea tenga conductor e hipótesis declarados.
+            </p>
+          </section>
         )}
         {!cartel && activa === 'mecanico' && conductor && hipotesis && <Mecanico apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} />}
         {!cartel && activa === 'fundamentos' && conductor && hipotesis && <Fundamentos apoyos={apoyos} conductor={conductor} hipotesis={hipotesis} codigos={codigosDeSerie} />}

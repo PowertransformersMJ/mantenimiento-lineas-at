@@ -24,7 +24,7 @@
 //   (5) Refs cruzadas ADR/L-M/hojas [warn]              (13) Specs: checklist con evidencia RESOLUBLE [warn, --full]
 //       + 5c) cita viva a lección ⚰️ cuarentenada [warn] (14) deepAudit Nivel-2 vencida [info] + tableFile existe [warn]
 //   (6) Skills↔inventario [warn, --full]                (15) Schema del manifest: clave desconocida [warn]
-//   (7) archiveDir íntegro [warn, --full]               (16) Fiabilidad M-22: `verificado-vivo` stale [info, --full]
+//   (7) archiveDir íntegro [warn, --full]               (16) Fiabilidad: `verificado-vivo` stale [info, --full]
 //       + 7b) bóveda: commits ≠ origin vía fs [warn]
 // ===========================================================
 const KERNEL_VERSION = '1.9.0';
@@ -165,7 +165,7 @@ if (BOOT_CHARS_TARGET) {
   // al cumplirse ×3, este gate sube a warn EN EL KERNEL, no por manifest).
   if (bootChars > Math.round(BOOT_CHARS_TARGET * 1.1))
     info(`BOOT always-on = ${bootChars}c (~${bootTok} tok) vs objetivo ${BOOT_CHARS_TARGET}c — destilar/diferir (informativo)`);
-  else if (bootChars > BOOT_CHARS_TARGET) // fix TODO-28 #2: antes imprimía ✅ falso en este tramo
+  else if (bootChars > BOOT_CHARS_TARGET) // antes imprimía ✅ falso en este tramo
     info(`BOOT always-on = ${bootChars}c (~${bootTok} tok) > objetivo ${BOOT_CHARS_TARGET}c (leve exceso — destilar)`);
   else say(`  ✅ BOOT always-on = ${bootChars}c (~${bootTok} tok) ≤ objetivo ${BOOT_CHARS_TARGET}c`);
 }
@@ -539,10 +539,11 @@ else {
   } else info('manifest sin deepAudit — la auditoría Nivel-2 no tiene disparador (declararlo, §173)');
 }
 
-// 16) Fiabilidad (M-22 §257/TODO-44): marcadores `verificado-vivo:` stale [info, --full]
+// 16) Fiabilidad: marcadores `verificado-vivo:` stale [info, --full]
 //     Cura del hueco "documentado ✅ ≠ real": una afirmación sobre realidad externa
 //     (desplegado/live/datos) lleva `verificado-vivo: YYYY-MM-DD`; este gate avisa cuando se
-//     vuelve stale. Opt-in: 0 marcadores → 0 hallazgos → no rompe ningún repo (mecaniza M-22).
+//     vuelve stale. Opt-in: 0 marcadores → 0 hallazgos → no rompe ningún repo. Mecaniza la
+//     lección de que un sello con fecha se lee como verificado aunque nadie lo haya verificado.
 head('\n16) Fiabilidad: claims `verificado-vivo` vs realidad:');
 if (BOOT) head('  ⏭️  omitido en --boot');
 else {

@@ -162,6 +162,17 @@ const REQUISITOS: Readonly<Record<string, readonly FaltaDeLinea[]>> = Object.fre
   resumen: [],
   gps: [],
   distancias: [],
+  /**
+   * ⚠️ SOLO LAS TORRES, Y ES DELIBERADO (maqueta M2, aprobada por él). Una ficha
+   * no «calcula»: es de una torre. Listar aquí el conductor mandaría a buscar
+   * algo que en esta pestaña no pinta nada.
+   *
+   * ⚠️ PERO OJO AL HUECO QUE DEJA (`99 §ADR-138`): con torres registradas y sin
+   * conductor, esta tabla se da por satisfecha y el JSX de `Linea.tsx` exige
+   * `conductor && hipotesis` — sin las dos, ni cartel ni contenido: panel en
+   * blanco. No se tapa aflojando esta tabla, sino diciéndolo en su sitio: ver
+   * el bloque `fichas` de `Linea.tsx`.
+   */
   fichas: ['torres'],
   falla: [],
   fundamentos: ['torres', 'conductor', 'hipotesis'],

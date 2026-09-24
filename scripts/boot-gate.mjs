@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // ===========================================================
-// 🔒 boot-gate.mjs — candado del presupuesto de boot (TODO-28 #2)
+// 🔒 boot-gate.mjs — candado del presupuesto de boot
 // ===========================================================
 // Comité 2026-07-18 (bóveda comite-futuro-cerebro): "advertir se ignoró
 // 3 veces; bloquear funciona". Si los archivos always-on superan

@@ -49,10 +49,29 @@ describe('el mapa nunca se monta sin sus redes', () => {
 
   test('donde se monta el mapa hay error boundary Y respaldo', () => {
     assert.match(GPS, /<RespaldoMapa/, 'sin boundary, un fallo del mapa se lleva la aplicación entera');
-    assert.match(GPS, /respaldo=\{<PlantaSvg/,
+    assert.match(GPS, /respaldo=\{/,
       'sin respaldo, un fallo de descarga deja una caja vacía con el panel de capas encima: '
       + 'parece que funciona y no hace nada');
     assert.match(GPS, /Suspense/);
+  });
+
+  // ⚠️ LOS DOS RESPALDOS, uno por cada estado de la línea (`99 §ADR-138`).
+  // Desde que esta pantalla también la ven las líneas SIN torres registradas,
+  // un solo respaldo no basta: `PlantaSvg` devuelve null con menos de dos
+  // APOYOS, así que en una línea de solo recorrido el respaldo era un hueco en
+  // blanco — el mapa se caía y no quedaba nada donde antes había un dibujo.
+  // Esta prueba es la que impide volver a dejar a una de las dos sin red.
+  test('el respaldo dibuja algo en LOS DOS estados: con torres y con recorrido', () => {
+    assert.match(GPS, /<PlantaSvg/,
+      'se perdió el respaldo de la línea con torres registradas');
+    assert.match(GPS, /<EsquemaRecorrido/,
+      'la línea sin torres se quedaría con un hueco en blanco si el mapa se cae: '
+      + 'PlantaSvg no dibuja nada con menos de dos apoyos');
+    // Y que el respaldo del `Suspense` también contemple los dos: quedarse
+    // «Descargando el mapa…» sobre un vacío es el mismo fallo, más temprano.
+    const enSuspense = GPS.match(/fallback=\{[\s\S]{0,240}?\}>/);
+    assert.ok(enSuspense && /EsquemaRecorrido/.test(enSuspense[0]),
+      'mientras descarga, la línea de solo recorrido no enseña nada');
   });
 
   test('el respaldo dice que los datos siguen ahí, no solo que falló', () => {

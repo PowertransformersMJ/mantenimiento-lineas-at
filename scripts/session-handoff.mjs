@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * session-handoff.mjs — Caja negra anti-saturación (TODO-28 #1, comité §33).
+ * session-handoff.mjs — Caja negra anti-saturación.
  * Escribe la foto REAL de la sesión (git, no promesas) a docs/.handoff-auto.md para que
  * el próximo operador arranque con datos aunque esta sesión muera sin consolidar (mata M-01).
  *
@@ -58,9 +58,15 @@ const heartbeat = () => {
     `- git: branch ${probe(() => git(['branch', '--show-current']))} · HEAD ${probe(() => git(['log', '-1', '--format=%h · %s']))}`,
     `- sucios sin commit: ${probe(() => { const d = git(['status', '--porcelain']); return d ? `${d.split('\n').length} archivo(s) (detalle: git status)` : '(limpio)'; })}`,
     `- origin visto hace: ${probe(() => { const p = join(ROOT, '.git', 'FETCH_HEAD'); if (!existsSync(p)) return 'NUNCA → git fetch antes de afirmar deploy (§3.3)'; const h = (Date.now() - statSync(p).mtimeMs) / 3.6e6; return `${h.toFixed(1)}h${h > 24 ? ' ⚠️ refs remotas VIEJAS → git fetch antes de afirmar deploy (§3.3)' : ''}`; })}`,
-    `- SW cache vigente: ${swP ? probe(() => (readFileSync(swP, 'utf8').match(/CACHE_(?:NAME|VERSION)\s*=\s*['"]([^'"]+)['"]/) || [])[1]) + ` (${swP.split(/[\\/]/).pop()})` : '(sin service worker)'}`,
+    // El ❌ de este renglón contradecía al gate #4 del MISMO arranque, que dice
+    // «sin service-worker o sin §4 — omitido»: si el router no declara viva la
+    // sección de cache, aquí no hay nada que verificar y no se grita un rojo.
+    `- SW cache vigente: ${swP ? probe(() => {
+      const v = (readFileSync(swP, 'utf8').match(/CACHE_(?:NAME|VERSION)\s*=\s*['"]([^'"]+)['"]/) || [])[1];
+      return v ? `${v} (${swP.split(/[\\/]/).pop()})` : 'no aplica (sin versión de cache declarada)';
+    }) : '(sin service worker)'}`,
     `- CNAME: ${probe(() => existsSync(join(ROOT, 'CNAME')) ? readFileSync(join(ROOT, 'CNAME'), 'utf8').trim() : '(no aplica)')}`,
-    `- 🧮 costo-cerebro 30d: ${probe(() => { const out = git(['log', '--since=30.days', '--name-only', '--format=%x01']); const cs = out.split('\x01').map((c) => c.trim()).filter(Boolean); if (!cs.length) return 'sin commits en 30d'; const brain = cs.filter((c) => { const fs_ = c.split('\n').map((l) => l.trim()).filter(Boolean); return fs_.length && fs_.every((f) => BRAIN_RE.test(f)); }).length; costoPct = Math.round((brain / cs.length) * 100); return `${costoPct}% (${brain}/${cs.length} commits solo-cerebro, por paths)${costoPct > 30 ? ' 🔴 > bandera 30% (TODO-28 #6: recortar doctrina, no añadir)' : ' ✅ ≤ 30%'}`; })}`,
+    `- 🧮 costo-cerebro 30d: ${probe(() => { const out = git(['log', '--since=30.days', '--name-only', '--format=%x01']); const cs = out.split('\x01').map((c) => c.trim()).filter(Boolean); if (!cs.length) return 'sin commits en 30d'; const brain = cs.filter((c) => { const fs_ = c.split('\n').map((l) => l.trim()).filter(Boolean); return fs_.length && fs_.every((f) => BRAIN_RE.test(f)); }).length; costoPct = Math.round((brain / cs.length) * 100); return `${costoPct}% (${brain}/${cs.length} commits solo-cerebro, por paths)${costoPct > 30 ? ' 🔴 > bandera 30% (recortar doctrina, no añadir)' : ' ✅ ≤ 30%'}`; })}`,
     `- 🧊 consolidación: ${probe(() => { const last99 = git(['log', '-1', '--format=%ct', '--', 'docs/99-HISTORIAL-ADR.md']); if (!/^\d+$/.test(last99)) return 'sin 99 trackeado'; const prod = git(['log', `--since=${new Date(+last99 * 1000).toISOString()}`, '--name-only', '--format=%x01']).split('\x01').map((c) => c.trim()).filter(Boolean).filter((c) => c.split('\n').map((l) => l.trim()).filter(Boolean).some((f) => f && !BRAIN_RE.test(f))).length; return prod >= 3 ? `⚠️ ${prod} commits de PRODUCTO sin ADR desde el último toque a 99 → CONSOLIDAR EN FRÍO es la 1ª tarea de ESTA sesión (contexto fresco > saturado, M-02; fontanería: npm run brain:archive)` : `al día (${prod} commit(s) de producto desde el último ADR)`; })}`,
   ];
   // 🧭 Banner EN CRISTIANO (F3 §53 — primer entregable visible para el dueño; el calendario vive
@@ -120,7 +126,7 @@ try {
       systemMessage: '🧠 PreCompact: foto de sesión escrita en docs/.handoff-auto.md',
       hookSpecificOutput: {
         hookEventName: 'PreCompact',
-        additionalContext: 'ORDEN DEL CEREBRO (hook PreCompact, TODO-28 #1): el contexto está por compactarse. ANTES de seguir con la tarea, consolida el estado vivo AHORA en docs/10-MEMORIA-CORTO-PLAZO.md (foco, avances no documentados, callejones) y si cambió la salud, docs/05. La foto real de git quedó en docs/.handoff-auto.md.',
+        additionalContext: 'ORDEN DEL CEREBRO (hook PreCompact): el contexto está por compactarse. ANTES de seguir con la tarea, consolida el estado vivo AHORA en docs/10-MEMORIA-CORTO-PLAZO.md (foco, avances no documentados, callejones) y si cambió la salud, docs/05. La foto real de git quedó en docs/.handoff-auto.md.',
       },
     }));
   }
