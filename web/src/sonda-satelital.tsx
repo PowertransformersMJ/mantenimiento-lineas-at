@@ -242,7 +242,12 @@ function Banco() {
       )}
       {que === 'detalle-torres'
         ? <DetalleGps apoyos={apoyos} codigoLinea="LN-FALSA" codigos={['LN-FALSA']}
-            sesion={{ rol: 'propietario', claims: { f: ['apoyos.editar'] } } as never} />
+            /* ⚠️ SIN NOMBRAR NINGÚN ROL. `puede()` decide por los RECLAMOS del
+               token, no por el nombre del rol, así que aquí basta la función
+               concreta — y un guardián prohíbe teclear nombres de rol en la
+               pantalla (`tests/usuarios-pantalla.test.js`): tienen un dueño y
+               no se copian. Me lo cazó él, no yo. */
+            sesion={{ claims: { f: ['apoyos.editar'] } } as never} />
         : que === 'detalle-recorrido'
         ? <DetalleGps apoyos={[]} recorrido={recorrido ?? undefined} codigoLinea="LN-FALSA"
             codigos={['LN-FALSA']} />
