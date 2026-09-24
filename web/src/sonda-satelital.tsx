@@ -25,6 +25,9 @@ import { StrictMode, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { Apoyo } from '@lineas/contratos';
 import Mapa from './componentes/Mapa';
+import { DetalleGps } from './componentes/DetalleGps';
+import { recorridoLevantado } from './vistas/recorrido';
+import type { Levantamiento } from '@lineas/contratos';
 import { AtlasCaribe } from './componentes/AtlasCaribe';
 import Cargabilidad from './componentes/Cargabilidad';
 import { ATLAS, ATLAS_EN_ORDEN, type ClaveAtlas } from './vistas/atlasCatalogo';
@@ -104,8 +107,51 @@ function lineaFalsaEnElAtlas(ficha: FichaAtlas, cruzando: boolean): Apoyo[] {
   })) as unknown as Apoyo[];
 }
 
+/**
+ * UN LEVANTAMIENTO SINTÉTICO, por el mismo camino que los apoyos de arriba: del
+ * centro del recorte público que declara el `.pmtiles` de este repositorio. Ni
+ * una coordenada de cliente, ni un literal con decimales escrito a mano.
+ *
+ * ⚠️ POR QUÉ HACE FALTA (`99 §ADR-138`). Desde que el Detalle GPS también lo ven
+ * las líneas SIN torres registradas, hay DOS pantallas que comprobar y sólo una
+ * se podía mirar. La otra vivía detrás de la sesión del Ingeniero, así que cada
+ * comprobación dependía de que él abriera su navegador — y así se entregaron dos
+ * versiones seguidas sin que nadie hubiera visto la pantalla. Aquí se montan las
+ * dos, el mismo componente real, sin sesión y sin tocar producción.
+ *
+ * 12 puntos y no 6: con menos, un recorrido no enseña si el encuadre, los
+ * rótulos y el trazado aguantan cuando los puntos se juntan.
+ */
+function levantamientoSintetico(limites: [number, number, number, number]): Levantamiento {
+  const lon0 = (limites[0] + limites[2]) / 2;
+  const lat0 = (limites[1] + limites[3]) / 2;
+  return {
+    id: 'levantamiento-falso',
+    tipo: 'levantamiento',
+    orgId: 'org-falsa',
+    lineaId: 'linea-falsa',
+    codigoSerie: 'LN-FALSA',
+    fecha: '2026-01-15',
+    aparato: 'aparato de banco',
+    archivo: { nombre: 'banco.gpx', huella: 'sin-huella', bytes: 0 },
+    nota: null,
+    creadoEn: '2026-01-15T12:00:00.000Z',
+    creadoPor: 'banco',
+    revision: 1,
+    puntos: Array.from({ length: 12 }, (_, i) => ({
+      nombreCampo: `P${i + 1}`,
+      lat: lat0 + i * 0.0012,
+      lon: lon0 + i * 0.0016,
+      ele: 10 + (i % 4),
+      instante: null,
+      nota: null,
+    })),
+  } as unknown as Levantamiento;
+}
+
 /** Qué se está mirando en el banco. */
-type Que = 'mapa' | 'atlas-una' | 'atlas-dos' | 'cargabilidad';
+type Que = 'mapa' | 'atlas-una' | 'atlas-dos' | 'cargabilidad'
+  | 'detalle-torres' | 'detalle-recorrido';
 
 /**
  * EL BANCO SE PUEDE ABRIR YA PUESTO, por la dirección: `?que=atlas-una&atlas=lluvia`.
@@ -125,7 +171,9 @@ function Banco() {
   const [apoyos, setApoyos] = useState<Apoyo[] | null>(null);
   const [fallo, setFallo] = useState<string | null>(null);
   const [que, setQue] = useState<Que>(
-    () => delDirectorio<Que>('que', ['mapa', 'atlas-una', 'atlas-dos', 'cargabilidad'], 'mapa'));
+    () => delDirectorio<Que>('que',
+      ['mapa', 'atlas-una', 'atlas-dos', 'cargabilidad', 'detalle-torres', 'detalle-recorrido'],
+      'mapa'));
   const [atlas, setAtlas] = useState<ClaveAtlas>(
     () => delDirectorio<ClaveAtlas>('atlas', ATLAS_EN_ORDEN, 'temperatura'));
   const [ficha, setFicha] = useState<FichaAtlas | null>(null);
@@ -139,9 +187,14 @@ function Banco() {
   const corredor = delDirectorio<ClaveCorredor | 'no'>(
     'corredor', ['no', ...CORREDOR_EN_ORDEN], 'no');
 
+  const [recorrido, setRecorrido] = useState<ReturnType<typeof recorridoLevantado> | null>(null);
+
   useEffect(() => {
     void prepararTeselas()
-      .then((m) => setApoyos(apoyosSinteticos(m.limites)))
+      .then((m) => {
+        setApoyos(apoyosSinteticos(m.limites));
+        setRecorrido(recorridoLevantado(levantamientoSintetico(m.limites)));
+      })
       .catch((e: Error) => setFallo(e.message));
   }, []);
 
@@ -173,13 +226,27 @@ function Banco() {
             producción y con un archivo de prueba, que es lo que su orden pide. */}
         <button type="button" className={'boton chico' + (que === 'cargabilidad' ? ' activo' : '')}
           onClick={() => setQue('cargabilidad')}>Cargabilidad eléctrica</button>
+        {/* ⚠️ LAS DOS CARAS DEL DETALLE GPS (`§ADR-138`). Una al lado de la otra
+            es la única forma honesta de comprobar la PARIDAD que pidió el
+            Ingeniero: «la misma interfaz y alcance». Comparar de memoria entre
+            dos sesiones es exactamente como se entregan diferencias sin verlas. */}
+        <button type="button" className={'boton chico' + (que === 'detalle-torres' ? ' activo' : '')}
+          onClick={() => setQue('detalle-torres')}>Detalle GPS · CON torres</button>
+        <button type="button" className={'boton chico' + (que === 'detalle-recorrido' ? ' activo' : '')}
+          onClick={() => setQue('detalle-recorrido')}>Detalle GPS · SOLO recorrido</button>
       </div>
       {corredor !== 'no' && (
         <p className="fine">
           Banco con la capa fina del corredor puesta: <b>{CORREDOR[corredor].rotulo}</b>.
         </p>
       )}
-      {que === 'cargabilidad'
+      {que === 'detalle-torres'
+        ? <DetalleGps apoyos={apoyos} codigoLinea="LN-FALSA" codigos={['LN-FALSA']}
+            sesion={{ rol: 'propietario', claims: { f: ['apoyos.editar'] } } as never} />
+        : que === 'detalle-recorrido'
+        ? <DetalleGps apoyos={[]} recorrido={recorrido ?? undefined} codigoLinea="LN-FALSA"
+            codigos={['LN-FALSA']} />
+        : que === 'cargabilidad'
         ? <Cargabilidad lineaAbierta="LN-FALSA" />
         : que === 'mapa'
         ? <Mapa apoyos={apoyos} pantalla="banco-componente-real" />
