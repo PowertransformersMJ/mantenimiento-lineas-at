@@ -94,12 +94,12 @@
     }
   ],
   "deepAudit": {
-    "last": "2026-09-07",
-    "coveredHeaderCount": 120,
+    "last": "2026-09-24",
+    "coveredHeaderCount": 141,
     "maxAdrGap": 12,
     "maxDays": 30,
     "_que": "Auditoria Nivel-2 del cerebro (skill auditoria-cerebro): correrla cuando el linter lo pida (gate #14). La del 2026-09-06 (ADR-102) corrio LAS OCHO sondas por primera vez -> 2026-09-06-auditoria-cerebro-nivel2.json, 25 hallazgos, 21 cerrados. OJO CON EL CERO: brain-check calcula gap = coveredHeaderCount ? headers - coveredHeaderCount : 0, asi que con coveredHeaderCount en 0 el disparador por ADRs NO EXISTE y solo manda maxDays. SEGUNDO MODO DE FALLO, visto el 06-09: este campo se escribe IGUAL si corrieron 8 sondas que si corrieron 6, asi que la auditoria mas floja compra la misma ventana de silencio (30d/12 ADRs) que la mas rigurosa; la del 24-08 sello con las sondas 3 y 7 sin correr y tardaron 15 dias en correrse. Propuesto: deepAudit.probesRun y media ventana si faltan sondas. TERCERO: en --boot el tramo por ADRs va tras un if(!BOOT), o sea que el disparo por ADRs solo aparece corriendo --full a mano.",
-    "probesRun": "0-2 y 6 de 8 (PARCIAL, ADR-121, 2026-09-07). Las sondas 3, 4, 5 y 7 no corrieron. Se escribe aqui porque 'last' se sella IGUAL para una auditoria completa que para una parcial (ver _que, segundo modo de fallo). El 10-09 una auditoria documental de 12 frentes (ADR-125) cubrio de facto las sondas 1, 2, 5 y 6, y NO la 3 (retrieval-drill) ni la 7."
+    "probesRun": "8 de 8 (COMPLETA, ADR-141, 2026-09-24). Las 0,1,2 y 6 por verificacion directa; las 3,4,5 y 7 con subagentes — eran las que llevaban DOS auditorias sin correr, y son las que encontraron los seis hallazgos. Las que si se corrian (estructura, frescura, economia) no cazaron ninguno. Marcador del retrieval-drill: 4 aciertos de 5, ~1 salto. Los 6 hallazgos quedaron CERRADOS, dos de ellos con guardian nuevo y probado contra un caso falso."
   },
   "_caps60Retirado": "2026-09-10 (§ADR-125): se retiro el tope de docs/60-WORKFLOWS.md. Ese nodo NO ha existido nunca en este proyecto —vino heredado de la plantilla— y el linter lo saltaba en silencio: un guardian sobre un archivo inexistente tranquiliza sin vigilar nada."
 }

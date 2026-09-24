@@ -11414,3 +11414,331 @@ frase alarmante aparece cerca. Y contar los casos: «al menos cuatro llevan esa 
 corridas que fallaron **en otro trabajo y por otra causa**.
 
 **Crudo de respaldo:** `research-archive/2026-09-22-las-trece-rojas-del-vigia/`
+
+## ADR-139 · 2026-09-23 · Una sola pantalla de Detalle GPS para las tres líneas: el mapa aprende a dibujar un recorrido
+
+**Deliberación:** órdenes del Ingeniero del 22 y 23-09 («todos deben adoptar la misma interfaz y
+apreciación» · «tomes todo el esquema de LN-627 y sea replicado en las líneas que van ingresando» ·
+«no se parecen en nada, está crudo, necesito que tengan el mismo nivel»). Dos auditorías adversarias
+—54 y 41 agentes— con un escéptico por hallazgo.
+
+### Contexto
+
+LN-617 y LN-628 no veían una versión pobre del Detalle GPS: veían **otra pantalla**. `Linea.tsx`
+cambiaba de componente entero según una guarda, y el sustituto no tenía mapa, ni atlas, ni cable de
+guarda, ni siquiera el mismo título. Sobre fondo liso, puntos sueltos: «está crudo», con razón.
+
+### Decisión
+
+**Una sola pantalla, y el mapa aprende a recibir un recorrido levantado.** Prop aditiva: si vienen
+torres mandan ellas; si no, se dibuja con los puntos del levantamiento, que traen posición medida.
+
+**La guarda que lo impedía pedía de más, por dos motivos distintos:**
+
+① **`hipotesis` sobraba.** `DetalleGps` la declara OPCIONAL y solo la usa para una leyenda del atlas.
+   Y `App.tsx` la fuerza a `null` en fase «recorrido»: con esa guarda, una línea **sin conductor no
+   habría visto el mapa ni con sus 28 torres registradas**.
+② **`apoyos.length >= 2` daba por hecho que dibujar exige torres.** Dibujar exige **posición**, y un
+   levantamiento la tiene: latitud, longitud y cota medidas.
+
+### La frontera que NO se cruza
+
+Con un recorrido se dibujan el trazado y los puntos. **NO** se dibujan los tramos de tensión, ni el
+cable de guarda, ni el símbolo por función: esas cuatro capas son **interpretación**, y `§ADR-133`
+prohíbe por nombre —función estructural, orden, nombre canónico y deflexión— hasta que el Ingeniero
+las declare. Se quedan vacías solas, sin un `if` por capa.
+
+El punto levantado lleva **color propio**: caer en el `default` del `match` lo habría pintado del
+azul de una suspensión, afirmando una función que nadie declaró. Un color de más es más barato que
+un dato inventado.
+
+Y los bloques que no se pueden llenar **se quedan visibles diciendo qué esperan** (él eligió esa
+opción sobre ocultarlos o plegarlos).
+
+### Lo que se rompió por el camino, y es lo que más enseña
+
+La primera entrega **se dio por buena sin haberla visto**, dos veces seguidas:
+
+- El **encuadre** seguía calculándose solo con torres. Sin ellas, `Math.min(...[])` es `Infinity` y
+  `fitBounds` reventaba: error en cada apertura y el mapa mirando media región. **Eso era lo que él
+  veía como «no está a nivel».**
+- El **trazado** quedaba en 1 px bajo un halo blanco —invisible sobre el satelital— porque la capa
+  gruesa la pintaban los tramos, que aquí no existen.
+- Un **punto, dos nombres** en la misma pantalla: se recortó el prefijo en la tabla y no en el mapa.
+- El **atlas se abría ciego**: elegía rama por si venía el código, no por si hay torres.
+- El **respaldo** del mapa era un hueco en blanco: solo sabía dibujar torres.
+
+**La causa común: no se podía VER.** La pantalla vive tras la sesión del Ingeniero. Por eso se
+extendió el banco (`sonda-satelital.html`, solo con `SONDA_MAPA=1`) para montar el `DetalleGps` real
+en sus **dos caras** con dato sintético — y por eso la regla de que **un `localhost` no es un
+preview para él** quedó escrita en `35 · L-77`.
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| Fabricar `Apoyo` falsos para el mapa | Exige inventar función y orden: lo que `§ADR-133` prohíbe |
+| Copiar el saludo de LN-627 tal cual | Promete dos clics —ficha y tramo— que sin torres no responden |
+| Rellenar las quince pestañas de bloques vacíos | Las auditorías coincidieron: más confuso, no menos |
+| Aflojar `REQUISITOS.fichas` para tapar un panel en blanco | Contradice la maqueta M2 que él aprobó |
+
+### Supuestos que deben ser ciertos — y la señal que diría que dejaron de serlo
+
+| Supuesto | Señal |
+|---|---|
+| Un punto levantado solo aporta posición | Aparece función, orden o deflexión en un `Levantamiento` |
+| Las teselas cubren la zona de cualquier línea nueva | Un mapa en gris con la sonda diciendo 0 teselas |
+| El banco basta para comprobar antes de desplegar | Vuelve a entregarse algo que él ve distinto |
+
+### Consecuencias
+
+- `3.449` pruebas, 0 en rojo. Red nueva: el respaldo del mapa se exige **en los dos estados**.
+- Cerrado de paso un hueco que esperaba: con torres registradas y el conductor pendiente, **Fichas
+  no pintaba ni cartel ni contenido**. Se tapó diciéndolo en su sitio, sin aflojar la maqueta M2.
+- **Queda vivo:** la franja de cabecera sigue sin salir en líneas nuevas; el clic en un punto da
+  menos que en LN-627; el Resumen de una línea nueva sigue sin mapa; y los rótulos arrastran el
+  número de placa del tramo compartido en vez de decirlo **una vez**.
+
+**Crudo de respaldo:** `research-archive/2026-09-22-detalle-gps-paridad/`
+
+---
+## ADR-140 · 2026-09-24 · La sesión del propietario deja de caducar: el reloj era de pantalla y le echaba dos veces al día
+
+### Contexto
+
+El Ingeniero mandó el pantallazo de «Su sesión se cerró por inactividad» **con la casilla «Recordar
+en este dispositivo» MARCADA**, y escribió: «me gustaría mantener siempre la sesión iniciada».
+
+Tenía dos motivos, y los dos son buenos:
+
+① **La casilla decía menos de lo que la gente entiende.** Solo elegía si la sesión sobrevive a cerrar
+   el navegador (`browserLocalPersistence` contra `browserSessionPersistence`); **no tocaba el reloj
+   de la aplicación**. Se leía como «marcándola no me echan», y no era verdad.
+② **El reloj le echaba dos veces al día.** Como `propietario` tenía 30 min de inactividad y 8 h
+   absolutas: a media mañana y a media tarde.
+
+### Lo que se midió antes de tocar nada
+
+Una auditoría adversaria (39 agentes) barrió **todos** los caminos por los que la sesión puede morir,
+para no apagar uno y dejar otro vivo:
+
+| Camino | ¿Cierra la sesión? |
+|---|---|
+| Los dos relojes del catálogo (`RelojDeSesion.tsx:91` → `enlace.ts:237-247`) | **SÍ — son los únicos** |
+| Los tres `salir()` restantes | No: son botones que pulsa una persona |
+| Un 401 del trabajador de personas | No: solo enseña un texto |
+| `REVOCADOS_ANTES_DE` del portero de fotos | Rechaza tokens viejos, no echa de la pantalla |
+| Firebase con «Recordar» marcada | Renueva solo, indefinidamente |
+
+Y el hallazgo que decide el caso: **el reloj es SOLO de pantalla.** `firestore.rules` no tiene ni una
+condición de tiempo de sesión, y el trabajador mira `auth_time` únicamente para exigir un ingreso
+reciente en el arranque. **La frontera de verdad son las reglas, y no se toca.**
+
+### Decisión
+
+**`propietario: { absoluto: null, inactividad: null }`.** Ni uno ni otro.
+
+Se le advirtió **una vez** qué compra y qué vende, y eligió. Queda escrito para poder revisarlo:
+
+- **Qué compra:** no volver a entrar dos veces al día en su propio equipo.
+- **Qué vende:** con el portátil robado **y desbloqueado**, la sesión ya no se cierra sola.
+  ⚠️ **Y NO HAY BOTÓN DE EMERGENCIA, contra lo que este ADR decía en su primera redacción.** La
+  auditoría del cerebro lo cazó: al propietario **la aplicación no lo toca**, por UID y por rol, y
+  eso es deliberado — es la **cuenta de rescate** (`§ADR-100`, `usuarios/src/index.js:541-553`, y lo
+  aplican las siete operaciones). La única salida real es **apagar la cuenta desde la consola de
+  Firebase**, y aun así el token ya emitido **sigue escribiendo hasta una hora**, porque
+  `firestore.rules` no comprueba revocación.
+  Decirlo importa: creer que hay un interruptor que no existe es peor que saber que no lo hay.
+- **Lo que de verdad protege un portátil desatendido es el bloqueo de pantalla del equipo**, no un
+  contador dentro de una pestaña. El reloj daba una sensación de seguridad mayor que la que compraba.
+
+**Y no se afloja para nadie más.** `admin` conserva sus 8 h / 30 min. Un rol desconocido sigue
+recibiendo el **mínimo** de los declarados: los `null` no entran en ese mínimo, así que esto no abre
+una puerta de atrás — y ahora hay una prueba que lo vigila.
+
+**La casilla pasa a decir la verdad**: qué hace y, sobre todo, **qué no hace**.
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| Subir la inactividad a 8 h | **No cambia NADA.** El absoluto cuenta desde que abrió la sesión y siempre empata o gana: el corte por inactividad quedaría como código muerto y le echaría igual |
+| Quitar solo el corte por inactividad | Deja vivo el absoluto, que corta **aunque esté trabajando** y a propósito NO trae botón «Sigo aquí». Le seguiría echando una vez por jornada |
+| Que la casilla apague el reloj | Más honesto, pero más piezas; y él no pidió «a veces», pidió **siempre** |
+| Dejarlo como estaba | Es su sistema, su equipo y una herramienta interna. Advertir una vez y obedecer bien |
+
+### Supuestos que deben ser ciertos — y la señal que diría que dejaron de serlo
+
+| Supuesto | Señal |
+|---|---|
+| El propietario es UNA persona, en SU equipo | Entra una segunda persona con ese rol, o desde un equipo compartido |
+| Las reglas siguen siendo la frontera real | Aparece una condición de tiempo de sesión en `firestore.rules` |
+| El equipo se bloquea solo | Deja de hacerlo: entonces el reloj de pantalla vuelve a valer algo |
+
+### Consecuencias
+
+- `3.449` pruebas, 0 en rojo. Una prueba **afinada**: declarar «el reloj absoluto no se pudo aplicar»
+  exige que ese reloj EXISTA; decirlo de un rol que no lo tiene sería inventar un reloj. Y una
+  **nueva**: que un rol sin relojes no afloje el mínimo que recibe un rol desconocido.
+- `TODO-61` (App Check) sube de prioridad: con el sitio público y sin él, es la defensa que de verdad
+  falta — mucho más que este contador.
+
+**Crudo de respaldo:** `research-archive/2026-09-24-sesion-y-lluvia/`
+
+## ADR-141 · 2026-09-24 · Auditoría de cerebro Nivel 2: trece punteros rotos, dos afirmaciones falsas mías y un saber que el cerebro no entregaba
+
+**Deliberación:** skill `auditoria-cerebro`, con las sondas **3, 4, 5 y 7** que llevaban dos
+auditorías sin correr (la del 07-09 selló como PARCIAL). Las 0, 1, 2 y 6, por verificación directa.
+
+### Contexto
+
+El linter bloqueó un commit: auditoría semántica vencida con 18 ADR nuevos. **Se intentó saltar el
+gate y el sistema lo negó, con razón.** Así que se hizo — y encontró seis cosas, todas reales.
+
+### Lo que encontró, y las dos que más duelen
+
+**① Trece punteros rotos.** El código citaba `§ADR-139` en 13 sitios de 7 archivos —componentes,
+una hoja de estilo y una prueba— y **ese ADR no estaba escrito**. Antes de eso se había citado
+`§ADR-138`, número que **ya había ocupado otra sesión en paralelo** día y medio antes: trece
+comentarios mandando a leer una decisión que hablaba de otra cosa.
+**Ningún gate lo miraba:** los controles del cerebro se quedan DENTRO de `docs/` y nunca cruzan el
+código contra el historial.
+
+**② Dos afirmaciones FALSAS escritas por mí en sendos ADR.** Ésta es la categoría más peligrosa,
+porque un ADR se lee como verdad establecida:
+
+- `ADR-140` ofrecía como contrapartida del riesgo **«revocar desde Personas»**. El código dice lo
+  contrario: al propietario **la aplicación no lo toca**, por UID y por rol, y es deliberado — es la
+  **cuenta de rescate** (`§ADR-100`). La salida real es la consola de Firebase, y aun así el token ya
+  emitido escribe hasta una hora. *Creer que hay un interruptor que no existe es peor que saber que
+  no lo hay.*
+- `ADR-139` afirmaba que la regla del `localhost` **ya estaba guardada** en `35 · L-77`. No lo
+  estaba: L-77 no se había tocado. El peor hueco posible — quien lee el ADR va confiado y no
+  encuentra nada.
+
+**③ Un fallo de RUTEO: el saber existía y el cerebro no lo entregaba.** El síntoma «el mapa no
+dibuja nada en una línea nueva» enrutaba a `34`, cuyas cuatro lecciones de «no pinta» son causas de
+MapLibre — y la real era el encuadre. **Marcador del retrieval-drill: 4 aciertos de 5, ~1 salto.**
+Las otras cuatro preguntas las contestó bien, dos de ellas desde el propio boot.
+
+**④ La memoria del harness mezclaba los dos cerebros.** Citaba `ADR-051`, `ADR-058`, `L-63`, `L-01`
+y una rama **del repo de Transformadores** sin decirlo. En Líneas AT esos números son decisiones
+distintas. Es exactamente la regla que el paraguas prohíbe, rota por la propia memoria.
+
+### Decisión
+
+Los seis hallazgos, **cerrados en el mismo movimiento**. Y los dos que se podían volver a abrir
+solos, cerrados con guardián:
+
+- **`tests/adr-citado-existe.test.js`**: ninguna cita del código puede apuntar a un ADR inexistente,
+  y el historial no puede tener dos con el mismo número. Probado con un `ADR-999` falso: lo caza y
+  vuelve a verde al quitarlo. **No es vacuo.**
+- La regla del `localhost` **escrita de verdad** en `35 · L-77`, y la frase del ADR corregida.
+- Fila de síntoma nueva en `00` para el mapa en blanco.
+- La memoria del harness, con aviso al principio y cada número marcado con su repo.
+
+### Lo que esta auditoría dice de sí misma
+
+El manifiesto ya avisaba de que **una auditoría PARCIAL compra la misma ventana de silencio que una
+completa**. Se cumplió: las sondas 3, 4, 5 y 7 llevaban dos rondas sin correr, y son justo las que
+encontraron todo lo de arriba. Las que sí se corrían —estructura, frescura, economía— no cazaron
+ninguno de los seis.
+
+### Supuestos que deben ser ciertos — y la señal que diría que dejaron de serlo
+
+| Supuesto | Señal |
+|---|---|
+| Un ADR citado describe lo que el comentario dice | Solo se vigila que EXISTA; que hable de eso no lo sabe una máquina |
+| Dos sesiones en paralelo no se pisan el numerador | Vuelve a aparecer un número duplicado: ahora hay prueba |
+| El retrieval sigue en 4/5 o mejor | La próxima auditoría lo vuelve a medir con las mismas preguntas |
+
+### Consecuencias
+
+- `3.453` pruebas. Dos guardianes nuevos, los dos probados contra un caso falso.
+- **Queda encargado:** el gate código→99 vive en el kernel y debe subirse allí para que lo tengan los
+  dos proyectos; aquí quedó su equivalente como prueba.
+
+**Crudo de respaldo:** `research-archive/2026-09-24-auditoria-cerebro-nivel2/`
+
+---
+
+## ADR-142 · 2026-09-24 · Los tres pronósticos salían ESPEJADOS, y el panel de rayos mentía: dos fallos que ningún control veía
+
+**Deliberación:** orden del Ingeniero «valida los atlas sobre todo los de pronósticos». Auditoría
+adversaria sobre el atlas de lluvia; se agotó el presupuesto de agentes a mitad, así que lo que
+sobrevivió se verificó a mano, uno por uno.
+
+### Contexto
+
+La validación de las once capas salió limpia en todo lo que se sabía mirar: los píxeles con dato
+cuadran **exactamente** con lo que promete cada ficha, los tres pronósticos se declaran como tales,
+están vivos y sus valores caen en rango.
+
+**Y aun así dos capas estaban mal.** La lección es esa: *un atlas puede estar ENTERO, COMPLETO y en
+rango, y estar del revés.*
+
+### ① Los tres pronósticos, espejados de norte a sur
+
+`herramientas/pronostico-caribe.mjs:95` calculaba la latitud de cada celda con **`SUR + fy`**,
+mientras el atlas medido usa **`NORTE - fy - 0.5`** (`atlas-caribe.mjs:187`, con ese comentario al
+lado). Los dos construyen la misma rejilla de 6×6 y la pantalla dibuja la fila 0 arriba en los dos
+casos.
+
+Resultado: **la fila de La Guajira enseñaba el tiempo de Córdoba, y al revés.** Ninguna fila quedaba
+bien:
+
+| Fila | Enseñaba la fila | Desplazamiento |
+|---|---|---|
+| 0 y 5 | 5 y 0 | 5 celdas ≈ **555 km** |
+| 1 y 4 | 4 y 1 | 3 celdas ≈ 333 km |
+| 2 y 3 | 3 y 2 | 1 celda ≈ 111 km |
+
+**Por qué nadie lo vio:** el mapa pintaba, los valores estaban en rango y la ficha cuadraba
+consigo misma. Ningún control miraba la GEOMETRÍA.
+
+### ② El panel de rayos escribía un número y el mapa pintaba otro
+
+`web/src/vistas/atlasCaribe.ts:148` tenía una **segunda copia** de la fórmula del byte, escrita a
+mano y **solo lineal** — ignorando la curva `exacta-y-log` que declara la ficha de los rayos.
+
+Medido: el máximo estaba mal en **553 de 755 horas (73 %)**, con un peor caso de **230 rayos escritos
+donde el mapa pintaba 5.350**. Y la propia ficha imprimía 5.350 **tres líneas más arriba, en la misma
+pantalla**.
+
+### Decisión
+
+**① La fila 0 vuelve al norte**, y una **aserción determinista** que corre al construir: la fila 0
+tiene que ser la más al norte, y la celda (0,0) del pronóstico tiene que caer donde la (0,0) del
+atlas medido. Sin red, sin datos y sin estadística.
+
+**② Un formato, un decodificador.** El panel pasa por `valorDeByte`, y un guardián
+(`tests/un-solo-decodificador.test.js`) prohíbe reescribir la fórmula fuera de su dueño.
+
+> **Dos decodificadores para un formato son un decodificador y una mentira esperando:** el segundo
+> no se entera el día que el formato crece, y nadie lo nota porque sigue dando un número creíble.
+
+### Alternativas descartadas
+
+| Alternativa | Por qué no |
+|---|---|
+| Cazar el espejo correlacionando el pronóstico con el atlas medido | Suena mejor y es peor: **nunca comparten horas** (lo medido acaba días antes de que empiece el pronóstico); en lluvia la correlación es ruido porque ese lienzo está casi en cero; y al cambiar de mes no hay con qué comparar |
+| Ponerlo en el portero de mapas | Él mismo dice que «dice si hay algo dibujado, no si está bien dibujado». Un criterio numérico no es su sitio |
+| Arreglar solo el rótulo «medido» sobre un pronóstico | Son **cinco** rótulos, no dos: arreglar dos deja tres hermanos mintiendo |
+
+### Supuestos que deben ser ciertos — y la señal que diría que dejaron de serlo
+
+| Supuesto | Señal |
+|---|---|
+| Las dos rejillas se construyen igual | La aserción falla al construir: para el pronóstico antes de publicarlo |
+| `valorDeByte` es el único que convierte bytes | El guardián encuentra una segunda copia |
+| Un atlas en rango está bien | **Ya se demostró que no.** Entero, completo y del revés a la vez |
+
+### Consecuencias
+
+- El vigía rehace el pronóstico cada 4 h: **se corrige solo en la siguiente corrida**, sin reconstruir a mano.
+- **Queda vivo y dicho:** el lienzo horario de lluvia pierde la llovizna por su escalón de 0,25 mm/h
+  —262 días con lluvia en la ficha contra 1 en el lienzo—, y por eso la *memoria de lluvia desde
+  enero* que pidió el Ingeniero todavía no se puede dar. Y quedan los cinco rótulos que dicen
+  «medido» sobre un pronóstico.
+
+**Crudo de respaldo:** `research-archive/2026-09-24-sesion-y-lluvia/`

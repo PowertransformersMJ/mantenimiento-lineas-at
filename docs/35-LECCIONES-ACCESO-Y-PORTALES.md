@@ -172,23 +172,18 @@ Verificado el 2026-08-04 contra `datos.gov.co` (IDEAM), integrando el clima del 
 
 ### L-77 · Construir sin integrar primero PUBLICA datos viejos: el despliegue deshace el trabajo del bot
 
-**Síntoma (2026-09-01).** Se desplegó y todo salió bien: el bundle correcto, hashes comprobados. Y
-sin querer se devolvió el atlas del clima **varios días hacia atrás** en producción.
+**Síntoma (2026-09-01).** Despliegue perfecto —bundle correcto, hashes comprobados— y el atlas del
+clima **devuelto varios días atrás** en producción: 28 ficheros de dato retrocedidos.
 
-**Causa.** Este repositorio tiene un robot de GitHub Actions que empuja **commits de DATO** cada
-pocas horas —atlas de satélite, pronóstico, temperatura, viento, lluvia— y esos datos viven en
-`web/public/mapas/`, o sea **dentro del sitio publicado**. Yo llevaba 37 commits de retraso.
-`npm run build` empaquetó mi copia local, que era vieja, y `wrangler pages deploy` la publicó
-encima de la buena. El sitio quedó con **28 ficheros de datos retrocedidos**.
+**Causa.** El vigía empuja **commits de DATO** cada pocas horas a `web/public/mapas/`, o sea
+**dentro del sitio publicado**. Con 37 commits de retraso, `build` empaquetó la copia vieja y
+`deploy` la publicó encima de la buena.
 
-**Lo que hace esto especialmente traicionero:** todas las comprobaciones daban verde. El bundle de
-código era el correcto y su hash coincidía con producción, porque **mi código sí era el más
-nuevo**. Lo que había retrocedido era el DATO, que no viaja en el bundle y que ninguna prueba mira.
-Se descubrió por casualidad, al rechazar el `git push` por estar detrás del remoto.
+**Lo traicionero:** todo daba verde. El hash del bundle coincidía porque **el código sí era el más
+nuevo**; lo que retrocedió fue el DATO, que no viaja en el bundle y que ninguna prueba mira.
 
-**Es hermana de `L-35` pero NO es la misma.** Aquélla: *`deploy` no construye, se publica un `dist/`
-rancio*. Ésta: *`build` sí construyó, y construyó bien — sobre un árbol rancio*. Poner `build`
-delante no salva de esto. Lo único que salva es **traerse el remoto ANTES de construir**.
+**Hermana de `L-35`, no la misma.** Aquélla: `deploy` no construye. Ésta: `build` SÍ construyó, y
+bien — sobre un árbol rancio. Poner `build` delante no salva; solo salva **traer el remoto antes**.
 
 **La regla, en este orden y sin saltarse el primero:**
 
@@ -196,17 +191,12 @@ delante no salva de esto. Lo único que salva es **traerse el remoto ANTES de co
 git pull --rebase origin main   →   npm run build   →   deploy   →   comprobar
 ```
 
-**Y comprobar el DATO, no solo el bundle.** El hash del `index-*.js` no dice nada del atlas. Se
-compara el fichero de datos:
+**Y se comprueba el DATO, no solo el bundle** (`shasum` del JSON de mapas contra el que sirve
+producción): el hash del `index-*.js` no dice nada del atlas.
 
-```
-shasum -a 256 web/public/mapas/temp-caribe.json
-curl -s https://…/mapas/temp-caribe.json | shasum -a 256
-```
-
-**Regla general que sale de aquí:** en un repositorio donde **un automatismo empuja datos**, el
-despliegue manual es una operación de escritura sobre lo que ese automatismo produjo. Desplegar sin
-integrar no es publicar lo tuyo: es **pisar lo suyo**.
+**Regla general:** donde **un automatismo empuja datos**, el despliegue manual es una escritura
+sobre lo que ese automatismo produjo. Desplegar sin integrar no es publicar lo tuyo: es **pisar lo
+suyo**.
 
 **Cerrada en** `99 §ADR-091`. Emparenta con `L-35` y con `L-75`.
 
@@ -220,6 +210,22 @@ sea, SIEMPRE, antes de cada `npm run deploy --workspace web`— y **se niega** s
 detrás del remoto, si no hay `web/dist` o si lo construido es más viejo que el sitio. No avisa: para
 la publicación, dice cuántos ficheros del sitio se perderían y los nombra. Se salta a propósito con
 `PUBLICAR_IGUAL=1`, que es la diferencia entre equivocarse y decidir.
+
+⚠️ **Y LA OTRA MITAD, que costó dos entregas (23-09, `§ADR-139`):** el portero impide publicar MAL,
+pero no obliga a publicar. Se dejó un cambio en `main` **sin desplegar** y se le pidió al Ingeniero
+que lo mirara en `localhost:5173`. Él abrió el sitio de siempre —que es lo que hace— vio la pantalla
+vieja y contestó dos veces «aún no está adaptado». Se defendió un trabajo que él no podía estar
+viendo.
+
+> **Un `localhost` NO es un preview para él: es un sitio al que no va.**
+
+· Si el cambio necesita su visto bueno, **la maqueta se la lleva uno**: capturas en el chat o el
+  banco ya abierto en su pantalla. Nunca «ábrame este puerto».
+· Si ya está aprobado, **se despliega** y se verifica con su Chrome contra producción.
+· Y si no se puede desplegar todavía, **se dice en la primera línea**, no al final: si no, compara
+  contra algo que no existe.
+· El banco (`sonda-satelital.html`, solo con `SONDA_MAPA=1`) sirve para que lo compruebe UNO antes
+  de desplegar — no es la validación de él.
 
 ### L-93 · Un banco de trabajo olvidado en el disco es una copia del sitio que puede publicar
 

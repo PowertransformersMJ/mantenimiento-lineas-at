@@ -351,9 +351,28 @@ export type EntradaDeAuditoria = z.infer<typeof EntradaDeAuditoria>;
  * volviendo a entrar cada media hora. Uno de los CRM PERDIÓ su corte de 30 min
  * en una migración y nadie lo notó en meses: por eso esto es un dato, con
  * prueba, y no un número dentro de un componente.
+ *
+ * ⚠️ EL PROPIETARIO NO CADUCA, POR ORDEN SUYA (2026-09-24, `99 §ADR-140`):
+ * «me gustaría mantener siempre la sesión iniciada». Se le advirtió una vez qué
+ * compra y qué vende, y eligió. Lo que hay que saber para revisarlo mañana:
+ *
+ *   · Es UNA persona, en SU equipo, con una herramienta interna. El reloj le
+ *     echaba a media mañana y otra vez a media tarde.
+ *   · **El reloj es solo de PANTALLA.** Se comprobó: `firestore.rules` no tiene
+ *     ninguna condición de tiempo de sesión, y el trabajador solo mira
+ *     `auth_time` para exigir un ingreso reciente en el arranque. La frontera de
+ *     verdad son las reglas, y no se toca.
+ *   · Lo que de verdad protege un portátil desatendido es el bloqueo de
+ *     pantalla del equipo, no un contador dentro de una pestaña.
+ *   · Lo que SÍ se pierde: con el equipo robado y desbloqueado, la sesión ya no
+ *     se cierra sola. La contrapartida es revocar desde Personas.
+ *
+ * ⚠️ NO SE AFLOJA PARA NADIE MÁS. `admin` conserva sus 8 h / 30 min, y un rol
+ * desconocido sigue recibiendo el MÍNIMO de los declarados (`topesDeRol`): los
+ * `null` no entran en ese mínimo, así que esto no abre la puerta de atrás.
  */
 export const DURACION_SESION_MIN: Record<Rol, { absoluto: number | null; inactividad: number | null }> = {
-  propietario: { absoluto: 8 * 60, inactividad: 30 },
+  propietario: { absoluto: null, inactividad: null },
   admin:       { absoluto: 8 * 60, inactividad: 30 },
   editor:      { absoluto: 12 * 60, inactividad: 60 },
   auditor:     { absoluto: 12 * 60, inactividad: 60 },

@@ -45,6 +45,7 @@ vive en `10 · TODO-79`, y los **relevos de sesión** `2026-08-22/24/26-relevo-c
 | «entra en local y falla en producción», «no me deja entrar / leer», «el portal contesta y miente» | `35` |
 | «desplegué y la pantalla sigue igual», «ese número está mal escrito» | `32` |
 | «el mapa es un rectángulo gris», «enciendo la capa y no pasa nada», «no veo el gradiente» | `34` |
+| el mapa no dibuja NADA en una línea recién dada de alta (sin torres) | `99 §ADR-139` — el encuadre se calculaba solo con torres; NO es MapLibre, mirar `34` después |
 | «este número del informe firmable no cuadra» | `33` |
 | «el CI está VERDE pero el cambio NO está en producción», «Actions en verde y la pantalla igual» | `35 · L-35/L-18` |
 | «¿cuántas horas puedo sacar la línea al año?», «¿esto cuenta como mantenimiento mayor?» | `41 §1` (38 h · 0,5 h por reprogramación · 96 h/6 años) |
@@ -236,6 +237,10 @@ vive en `10 · TODO-79`, y los **relevos de sesión** `2026-08-22/24/26-relevo-c
 | `ADR-136` | 2026-09-22 | Las once capas del Atlas corridas contra su fuente: «desactualizado» y «en el tope de lo que publican» no son lo mismo | `research-archive/2026-09-22-atlas-contra-su-fuente/` |
 | `ADR-137` | 2026-09-22 | El atlas nunca llegaba solo a producción, y no era por los secretos: la cadena de publicar estaba rota en TRES sitios | `research-archive/2026-09-22-cadena-de-publicacion/` |
 | `ADR-138` | 2026-09-22 | Las 13 corridas rojas del vigía NO eran el doble reloj: cinco averías distintas, y el atlas no ha perdido ni una hora | `research-archive/2026-09-22-las-trece-rojas-del-vigia/` |
+| `ADR-139` | 2026-09-23 | Una sola pantalla de Detalle GPS para las tres líneas: el mapa aprende a dibujar un recorrido | `research-archive/2026-09-22-detalle-gps-paridad/` |
+| `ADR-140` | 2026-09-24 | La sesión del propietario deja de caducar: el reloj era de pantalla y le echaba dos veces al día | `research-archive/2026-09-24-sesion-y-lluvia/` |
+| `ADR-141` | 2026-09-24 | Auditoría de cerebro Nivel 2: trece punteros rotos, dos afirmaciones falsas y un saber que el cerebro no entregaba | `research-archive/2026-09-24-auditoria-cerebro-nivel2/` |
+| `ADR-142` | 2026-09-24 | Los tres pronósticos salían ESPEJADOS y el panel de rayos mentía: dos fallos que ningún control veía | `research-archive/2026-09-24-sesion-y-lluvia/` |
 
 > Toda decisión cara de revertir entra aquí con su ADR y su crudo enlazado. Si hubo comité o consejo
 > externo y el crudo no está archivado, la tarea **no está cerrada** (`CLAUDE.md §G.4`).

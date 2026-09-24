@@ -144,8 +144,22 @@ export function resumenDelCuadro(cuadro: Uint8Array, cod: CodificacionRejilla): 
   const vs: number[] = [];
   let nSinDato = 0;
   for (const b of cuadro) {
-    if (b === cod.sin_dato) { nSinDato++; continue; }
-    vs.push((b - 1) * cod.paso + cod.offset);
+    /**
+     * ⚠️ POR `valorDeByte` Y NO A MANO (`99 §ADR-142`). Aquí vivía la fórmula
+     * lineal reescrita —`(b - 1) * paso + offset`— y eso IGNORA la curva que
+     * declara la ficha.
+     *
+     * No era teórico: en el atlas de RAYOS, que se codifica `exacta-y-log`,
+     * este panel llevaba meses imprimiendo el máximo mal en 553 de 755 horas.
+     * El peor caso escribía **230 rayos donde el mapa pintaba 5.350** — y la
+     * propia ficha imprimía 5.350 tres líneas más arriba, en la misma pantalla.
+     *
+     * Dos decodificadores para un formato es un decodificador y una mentira
+     * esperando: el segundo no se entera el día que el formato crece.
+     */
+    const v = valorDeByte(b, cod);
+    if (v === null) { nSinDato++; continue; }
+    vs.push(v);
   }
   if (!vs.length) return { min: null, max: null, mediana: null, nSinDato };
   vs.sort((a, b) => a - b);

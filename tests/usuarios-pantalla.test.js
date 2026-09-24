@@ -268,9 +268,34 @@ describe('el reloj de sesión sale del catálogo y no de un número suelto', () 
       });
       assert.equal(r.fase, 'sin_corte',
         `a «${rol}» se le aplicó un corte por inactividad que su catálogo no declara`);
-      assert.equal(r.absolutoNoAplicado, true,
-        'si no consta cuándo empezó la sesión hay que DECIRLO, no fingir que el reloj se cumple');
+      // ⚠️ SOLO SE DECLARA LO QUE NO SE PUDO APLICAR, y para eso tiene que haber
+      // algo que aplicar. Esta prueba daba por hecho que todo rol sin corte de
+      // inactividad SÍ tenía uno absoluto — cierto mientras la cuadrilla era el
+      // único caso. Desde `§ADR-140` el propietario no tiene NINGUNO de los dos,
+      // y «no se pudo aplicar» sería mentira: no hay reloj que aplicar.
+      const { absoluto } = topesDeRol(rol);
+      assert.equal(r.absolutoNoAplicado, absoluto !== null,
+        absoluto !== null
+          ? `a «${rol}» no le consta cuándo empezó la sesión y hay que DECIRLO, no fingir que el reloj se cumple`
+          : `«${rol}» no declara reloj absoluto: decir que «no se pudo aplicar» inventaría un reloj que no existe`);
     }
+  });
+
+  // ⚠️ LA PUERTA DE ATRÁS QUE HAY QUE VIGILAR DESDE `§ADR-140`. Al quitarle los
+  // dos relojes al propietario, un `null` podría colarse en el mínimo que recibe
+  // un rol desconocido y dejarlo TAMBIÉN sin corte — que es justo lo contrario
+  // de «mínimo privilegio ante la duda». Los `null` no entran en ese mínimo, y
+  // esto lo sujeta.
+  test('que un rol NO caduque no afloja el mínimo de los demás', () => {
+    const sinNingunCorte = Object.entries(DURACION_SESION_MIN)
+      .filter(([, t]) => t.absoluto === null && t.inactividad === null).map(([r]) => r);
+    assert.ok(sinNingunCorte.length > 0,
+      'ya no hay ningún rol sin relojes: esta prueba se quedó sin caso que vigilar');
+    const topes = topesDeRol('un-rol-que-no-existe');
+    assert.ok(typeof topes.absoluto === 'number' && topes.absoluto > 0,
+      'un rol desconocido se quedó SIN reloj absoluto: un null se coló en el mínimo');
+    assert.ok(typeof topes.inactividad === 'number' && topes.inactividad > 0,
+      'un rol desconocido se quedó SIN reloj de inactividad: un null se coló en el mínimo');
   });
 
   test('el reloj absoluto corta aunque se esté trabajando', () => {

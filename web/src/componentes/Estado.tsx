@@ -110,10 +110,17 @@ export function SinSesion({ onEntrar, onRecuperar, motivoDeSalida }: {
         <label className="acceso-recordar">
           <input type="checkbox" checked={recordar} disabled={enviando}
             onChange={(e) => setRecordar(e.target.checked)} />
+          {/* ⚠️ ESTA CASILLA DECÍA MENOS DE LO QUE LA GENTE ENTENDÍA (`99 §ADR-140`).
+              Decía «sin marcarla, la sesión se cierra al cerrar el navegador», y
+              se leía como «marcándola, no me echan». El Ingeniero la marcó y la
+              aplicación lo echó igual —por su propio reloj, que esta casilla no
+              toca— y con razón escribió que quería mantener la sesión iniciada.
+              Ahora dice QUÉ hace y, sobre todo, qué NO hace. */}
           <span>
             Recordar en este dispositivo
-            <b className="fine"> — solo si el aparato es suyo: sin marcarla, la sesión se cierra
-            al cerrar el navegador.</b>
+            <b className="fine"> — solo si el aparato es suyo. Marcada, la sesión sobrevive a
+            cerrar el navegador; sin marcar, se cierra con él. No cambia cuánto dura la sesión:
+            eso lo decide su rol.</b>
           </span>
         </label>
         {fallo && <p className="acceso-fallo" role="alert">{fallo}</p>}

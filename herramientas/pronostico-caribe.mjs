@@ -56,7 +56,7 @@
 //
 // Uso:  node herramientas/pronostico-caribe.mjs [--salida web/public/mapas]
 // ============================================================================
-import { PERFILES, ANCHO, ALTO, OESTE, SUR, publicarAtlas } from './atlas-caribe.mjs';
+import { PERFILES, ANCHO, ALTO, OESTE, SUR, NORTE, publicarAtlas } from './atlas-caribe.mjs';
 
 /** Lo que MET pide que se mande para saber quién consulta. Es su condición. */
 const AGENTE = 'mantenimiento-lineas-at/1.0 github.com/PowertransformersMJ/mantenimiento-lineas-at';
@@ -92,8 +92,49 @@ const dormir = (ms) => new Promise((r) => setTimeout(r, ms));
  * devuelven 403.
  */
 function puntoDe(fx, fy) {
-  return { lon: +(OESTE + fx + 0.5).toFixed(4), lat: +(SUR + fy + 0.5).toFixed(4) };
+  /**
+   * ⚠️ LA FILA 0 ES EL NORTE, COMO EN UNA IMAGEN — y aquí era el SUR
+   * (`99 §ADR-142`). Decía `SUR + fy`, mientras el atlas MEDIDO usa
+   * `NORTE - fy - 0.5` (`atlas-caribe.mjs:187`, con ese comentario al lado).
+   *
+   * Los dos construyen la misma rejilla de 6×6 y la pantalla dibuja la fila 0
+   * arriba en los dos casos, así que **los tres pronósticos salían espejados
+   * de norte a sur**: la fila de La Guajira enseñaba el tiempo de Córdoba y al
+   * revés. Ninguna fila quedaba bien — el desplazamiento va de 1 celda
+   * (~111 km) en las del medio a 5 celdas (~555 km) en los extremos.
+   *
+   * No se veía porque el mapa sí pintaba, los valores estaban en rango y la
+   * ficha cuadraba consigo misma: un atlas puede estar ENTERO y COMPLETO y aun
+   * así estar del revés. Por eso abajo hay una aserción que lo comprueba sin
+   * red y sin datos.
+   */
+  return { lon: +(OESTE + fx + 0.5).toFixed(4), lat: +(NORTE - fy - 0.5).toFixed(4) };
 }
+
+/**
+ * LA ASERCIÓN QUE HABRÍA CAZADO EL ESPEJO, y cuesta dos comparaciones.
+ *
+ * No mira el dato ni pide nada a la red: mira la GEOMETRÍA, que es donde estaba
+ * el fallo. Se descartó la idea de correlacionar el pronóstico con el atlas
+ * medido —suena mejor y es peor—: nunca comparten horas (lo medido acaba días
+ * antes de que empiece el pronóstico), en lluvia la correlación es ruido porque
+ * el lienzo medido está casi en cero, y en cuanto cambia el mes no hay con qué
+ * comparar.
+ */
+function comprobarLaRejilla() {
+  const norte = puntoDe(0, 0).lat;
+  const sur = puntoDe(0, ALTO - 1).lat;
+  if (!(norte > sur)) {
+    throw new Error(`la fila 0 tiene que ser la MÁS AL NORTE y da ${norte} contra ${sur}: `
+      + 'el pronóstico saldría espejado (§ADR-142)');
+  }
+  const esperada = NORTE - 0.5;
+  if (Math.abs(norte - esperada) > 1e-9) {
+    throw new Error(`la celda (0,0) del pronóstico cae en ${norte} y la del atlas medido en `
+      + `${esperada}: las dos rejillas dejaron de coincidir (§ADR-142)`);
+  }
+}
+comprobarLaRejilla();
 
 async function pedirCelda(fx, fy, intentos = 3) {
   const { lon, lat } = puntoDe(fx, fy);
