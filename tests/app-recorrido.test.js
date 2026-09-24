@@ -336,16 +336,25 @@ describe('la línea de defecto es la primera por fecha de alta', () => {
 // ════════════════════════════════════════════════════════════════════════════
 describe('lo que todavía no está', () => {
 
-  test('el botón «+ Alta de línea» de la columna del parque lleva a `#/alta`', {
-    todo: 'La columna del parque vive en `web/src/componentes/Linea.tsx`, que NO es de esta tanda. '
-      + 'El almacén ya expone `almacen.abrirAlta()` y la dirección ya existe: falta el botón de la '
-      + 'maqueta M1/M4 (`<a class="boton chico parque-alta">+ Alta de línea</a>`, visible solo para '
-      + 'quien puede crear líneas y cargar el trazado) llamándolo. Lo cierra quien haga esa columna; '
-      + 'esta prueba se pone verde sola y entonces hay que quitarle el `todo`.',
-  }, () => {
+  // ⚠️ ESTA PRUEBA ESTÁ AL REVÉS DE COMO NACIÓ, y a propósito. Pedía que la
+  // columna del parque tuviera el botón «+ Alta de línea» (maqueta M1/M4). El
+  // Ingeniero lo retiró el 2026-09-24 —«no quiero que esto se vea en el
+  // módulo»—, así que lo que hay que vigilar ya no es que esté: es que NO
+  // vuelva a colarse ahí, y que al quitarlo no se haya llevado por delante la
+  // capacidad de dar de alta.
+  test('la columna del parque NO ofrece el alta de línea, y el alta sigue alcanzable', () => {
     const LINEA = leer('web/src/componentes/Linea.tsx');
-    assert.ok(/parque-alta/.test(LINEA) && /abrirAlta\(\)/.test(LINEA),
-      'la columna del parque no tiene por dónde llegar al alta de línea');
+    // El botón, fuera: ni la clase de la maqueta ni el rótulo, fuera de comentarios.
+    const sinComentar = LINEA.replace(/\{\/\*[\s\S]*?\*\/\}/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
+    assert.ok(!/parque-alta/.test(sinComentar),
+      'volvió el botón de alta a la columna del parque: el Ingeniero lo retiró de ahí');
+    assert.ok(!/\+ Alta de línea/.test(sinComentar),
+      'volvió el rótulo del alta a la columna del parque');
+    // Y la capacidad, intacta: el estado cero es el único camino que no se toca.
+    const ESTADO = leer('web/src/componentes/Estado.tsx');
+    assert.match(ESTADO, /abrirAlta\(\)/,
+      'al retirar el botón del parque se perdió también el del parque VACÍO: '
+      + 'entonces la primera línea no podría darse nunca desde la pantalla');
   });
 
   test('desde el parque VACÍO también se puede dar de alta la primera línea', {

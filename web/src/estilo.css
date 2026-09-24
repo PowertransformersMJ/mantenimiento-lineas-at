@@ -658,7 +658,6 @@ p.fund-vivo + .sello-calculo { margin-top: 5px; }
 .parque-sub { display: block; margin-top: 2px; font-size: 10.5px; color: var(--mut); font-variant-numeric: tabular-nums; }
 .parque-nota { margin: 8px 4px 0; font-size: 10.5px; color: var(--mut); line-height: 1.5; }
 /* Dar de alta otra línea: debajo de la lista del parque, no dentro de ella. */
-.parque-alta { width: 100%; margin-top: 8px; }
 
 /* ── la columna de secciones: las MISMAS pestañas, en vertical ───────────── */
 .col-secciones .pestanas { flex-direction: column; flex-wrap: nowrap; gap: 1px; margin-bottom: 0; }

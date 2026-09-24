@@ -1451,16 +1451,22 @@ export function VistaLinea({ linea, apoyos, conductor, hipotesis, investigacione
               );
             })}
           </div>
-          {/* DAR DE ALTA OTRA LÍNEA. Solo se ofrece a quien puede hacerlo: crear
-              la línea y cargar su trazado. Esconderlo a los demás es cosmético
-              —quien decide son las reglas—, pero ofrecer un botón que va a ser
-              denegado es peor que no ofrecerlo. */}
-          {puede(quien, 'lineas.editar') && puede(quien, 'cargar.puntos') && (
-            <button type="button" className="boton chico parque-alta"
-              onClick={() => almacen.abrirAlta()}>
-              + Alta de línea
-            </button>
-          )}
+          {/* ⚠️ AQUÍ IBA «+ Alta de línea», Y SE RETIRÓ (orden del Ingeniero,
+              2026-09-24: «no quiero que esto se vea en el módulo»).
+
+              Se retira EL BOTÓN DE ESTA COLUMNA, nada más. La capacidad sigue
+              entera y por tres caminos que no se tocan:
+                · la dirección `#/alta`, escribiéndola;
+                · el botón del parque VACÍO (`Estado.tsx`), que es la frontera
+                  del estado cero — sin él, la primera línea no podría darse
+                  nunca desde la pantalla;
+                · `almacen.abrirAlta()`, que sigue exportado.
+
+              Por qué molestaba: dar de alta una línea es un acto raro y caro de
+              deshacer —escribe documentos que no se borran— y estaba a un clic
+              de distancia, permanente, en la columna que se usa para NAVEGAR
+              entre líneas. Un botón de escritura viviendo en un menú de lectura.
+              No se retira la sección ni la lista: solo el botón señalado. */}
           {parque.length === 1 && (
             <p className="parque-nota">
               Una sola línea consolidada. Esta columna crece sola cuando entren más:
