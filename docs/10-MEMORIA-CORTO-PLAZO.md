@@ -6,9 +6,9 @@
 ## 🎯 Dónde estamos
 
 **Cifras en `05`.** 15 pestañas + RCA + tres informes; las olas cerradas, en el `00`.
-Todo EN PRODUCCIÓN y **verificado en vivo con su sesión**.
+Todo EN PRODUCCIÓN y **verificado en vivo**.
 
-> 🧭 **SE VA POR FASES, orden suya (22-08).** El **módulo RCA sigue APARCADO** —lo cerrado ahí es
+> 🧭 **SE VA POR FASES, orden suya (22-08).** El **RCA sigue APARCADO** —lo cerrado ahí es
 > `§ADR-049/050`—. La fase viva es **la página**: no eligió entre ② **se lee** y ③ **no se cae**.
 
 ## 🛑 LO PRIMERO AL RETOMAR
@@ -20,15 +20,15 @@ Todo EN PRODUCCIÓN y **verificado en vivo con su sesión**.
    forma de EVENTO; la sostenida, **490 A de promedio el 22-07**. 📊 Filtro por gráfica, sin
    tablas, eje día a día y un día abre sus 24 h (`§ADR-129..131`).
    ⚠️ Sin capacidad nominal no hay porcentaje; en **P y Q, negativas, el «max» es el de MENOS carga**.
-1. **EL CUELLO DE BOTELLA NO ES CÓDIGO: ES EL DATO**: 0 de 26 con veredicto (`TODO-57`).
+1. **EL CUELLO DE BOTELLA NO ES CÓDIGO, ES EL DATO**: 0 de 26 con veredicto (`TODO-57`).
 2. **EL PATRÓN QUE LO DOMINA TODO:** *«arreglado donde se veía, vivo en la pieza hermana»* (`34 · L-65/74`,
    `32 · L-67`, `30 · L-68/M-01`; mordió en `§ADR-078/087/098`). ⚠️ **ORDEN SUYA (24-08):** cambiar sin
-   dañar lo que está bien, y actuar solo sobre lo que él indica o se DETECTA midiendo, **nunca sobre una suposición**.
+   dañar lo bueno, y actuar solo sobre lo que él indica o se DETECTA midiendo, **nunca sobre una suposición**.
 3. **EL ATLAS: ONCE CAPAS EN 3 FAMILIAS + DOS FINAS DEL CORREDOR** (`§ADR-079/081/086/087`): 5 del
    año · 3 del satélite · 3 de pronóstico; retraso y reloj de cada una, en `20`. ⚠️ **CADA CAPA
    DECLARA QUÉ ES** (`medida` · `pronostico` · `promedio`), sin defecto, o no se publica
-   (`§ADR-082/084`). ⚙️ El vigía FUSIONA SOLO y LLAMA a publicar (`§ADR-085/137`): falta la llave (`TODO-89`); sus rojos no cuestan dato (`§ADR-138`). 🧭 La **geometría** se asegura al construir (`§ADR-142`).
-4. **LO QUE NO SE PUEDE ROMPER DEL CLIMA (`§ADR-057..086`):** gana el HECHO sobre el modelo · el recorrido se comprueba **punto a punto**, nunca por promedio · el clima vive en el ATLAS · **«tormenta eléctrica» NO existe en la fuente**.
+   (`§ADR-082/084`); la **geometría** se asegura al construir (`§ADR-142`). ⚙️ El vigía fusiona y LLAMA a publicar (`§ADR-085/137`), pero **sin la llave (`TODO-89`) nada llega al sitio: se despliega A MANO**.
+4. **LO QUE NO SE ROMPE DEL CLIMA (`§ADR-057..086`):** gana el HECHO sobre el modelo · el recorrido se comprueba **punto a punto**, nunca por promedio · el clima vive en el ATLAS · **«tormenta eléctrica» NO existe en la fuente**.
 
 ## 🚫 INVARIANTES — índice; cada uno vive ENTERO en su ADR
 
@@ -42,7 +42,7 @@ Todo EN PRODUCCIÓN y **verificado en vivo con su sesión**.
 · **Señales de la página** `§ADR-051` — banda, pestaña y tope de tiro salen del DATO, con un solo dueño; la versión del motor la ata un gate de `pre-commit`.
 · **El número que se firma** `§ADR-052` — un tope declarado manda en TODAS las piezas, y el molde tiene que admitirlo o la base lo tira en silencio.
 · **Atlas** `§ADR-045/055/079/086` — UN motor y UN escritor de fichas para los ONCE. Viento, rayos y **ningún pronóstico** marcan hipótesis; en el mapa de la línea van como dato del SITIO.
-· **Parámetros eléctricos** `§ADR-088/112/117/119` — **un hueco NO es un cero** y sin archivo, jamás cifras de muestra; el % del archivo no se pisa; el estadístico se supone solo al LEER, nunca al guardar; el máximo DICTA y no se sustituye; manda la fecha del DATO; se cuenta lo escrito contra lo leído; y se verifica abriendo EN FRÍO. **Pantalla nueva: MAQUETA con su dato y su «sí» ANTES** (`32 · L-88`).
+· **Parámetros eléctricos** `§ADR-088/112/117/119` — **un hueco NO es un cero** y sin archivo, jamás cifras de muestra; el % del archivo no se pisa; el estadístico se supone al LEER, nunca al guardar; el máximo DICTA; manda la fecha del DATO; se cuenta lo escrito contra lo leído; se verifica EN FRÍO. **Pantalla nueva: MAQUETA con su dato y su «sí» ANTES** (`32 · L-88`).
 
 ## 🧭 Cómo retomar
 
@@ -62,30 +62,30 @@ Todo EN PRODUCCIÓN y **verificado en vivo con su sesión**.
 | **TODO-88** | **¿Se junta otra vez el eje del tiempo?** El pronóstico está en el atlas con mes, día y hora (`§ADR-086`) pero en su propia FAMILIA. ¿Lo quiere junto a lo medido en **una sola tira**? | Medido y modelo juntos hacían «ganar el hecho» |
 | **TODO-80** | **¿Qué tope de puesta a tierra rige?** El campo existe (`ADR-052`); declararlo basta. Sin decisión suya siguen **10 Ω** | Con 18 Ω medidos, 10 Ω dice «revisar» y 25 Ω «cumple» |
 | **TODO-90** | **La capa de rayos que piden las NORMAS** (rayos/km²/año, RETIE e IEEE 1243). Espera **cuenta Earthdata gratuita** (`99 §ADR-079`) | La horaria dice CUÁNDO; ésta entra en el cálculo de salidas |
-| **TODO-89** ⬅️ **ORDEN SUYA** | **Encender el despliegue automático.** La cadena ya está cableada y probada (`§ADR-137`); faltan los dos secretos de Cloudflare, que pone él y no pasan por el chat. Sin ellos la corrida DICE que no publicó | El atlas no llega solo |
+| **TODO-89** 🔴 ⬅️ **ORDEN SUYA** | **Encender el despliegue automático.** La cadena está cableada y probada (`§ADR-137`); faltan los dos secretos de Cloudflare, que pone él y no pasan por el chat. Sin ellos la corrida DICE que no publicó | **Medido el 25-09:** el vigía rehizo el pronóstico 4 veces bien y producción seguía con el de hacía 31 h, **espejado y caducado** (`§ADR-142`). Cada arreglo de atlas exige despliegue A MANO |
 | **TODO-72** | **¿Autorización del IGAC?** Sus ortoimágenes llegan a **3 m** y **10 cm**, contra los 10 m de hoy (`§ADR-040`) | Única vía a más resolución |
 | **TODO-71** | **¿Se cierran las hipótesis con dato real?** El **viento** (`ADR-035`) y los **1.000 W/m²**: los atlas los ACERCAN, no los cierran (`ADR-055`) | De ahí salen los tiros y la capacidad |
 | **TODO-59** | **Qué ficha pide CADA tipología.** La línea mezcla 4 y el molde es de POSTE (`40 §8.3`) | Son 3 o 4 formularios |
 | **TODO-33** | **50 % o 25 % de RTS** de tope de tiro. Ya no hay dos dueños (`§ADR-051`): falta decidir CUÁL rige | Factor 2 sobre un dictamen |
-| **TODO-98** 🔴 **MÍA** | **El recibo de la contraseña se auto-firma** desde la consola y **se salta el muro del cambio obligatorio** (y `ultimoAcceso`) | Un muro que se salta no es un muro |
-| **TODO-95/93 · 101** 🔴 ⬅️ **SUYA, URGENTE** | Tres cosas, todas del mismo veredicto. ① **La FICHA del fabricante del conductor** y ② **ratificar la condición** de ampacidad (hoy ADOPTADA: 718 A); sin ellas se publica pero **NO SE FIRMA** (`§ADR-098/099`). ③ **`TODO-101`: re-exportar del SCADA** el **MÁXIMO del 3 al 12/01** (dicta el térmico) · el mínimo del 1 al 12/01 · el 01/02 (carpeta vacía) · el 12/08 (su «12Agosto» trae el 13) · mayo (`TODO-103`); el 30-31/01 no existe («30Enero» es el 29-jul: ⚠️ no borrarla) | 718 A hoy · **611 A** a 75 °C · y diez días de enero **sin pico** |
+| **TODO-98** 🔴 **MÍA** | **El recibo de la contraseña se auto-firma** desde la consola y **se salta el muro del cambio obligatorio** (y `ultimoAcceso`) | Un muro que se salta no es muro |
+| **TODO-95/93 · 101** 🔴 ⬅️ **SUYA, URGENTE** | Todas del mismo veredicto. ① **La FICHA del fabricante del conductor** y ② **ratificar la condición** de ampacidad (hoy ADOPTADA: 718 A); sin ellas se publica pero **NO SE FIRMA** (`§ADR-098/099`). ③ **`TODO-101`: re-exportar del SCADA** el **MÁXIMO del 3 al 12/01** (dicta el térmico) · el mínimo del 1 al 12/01 · el 01/02 (carpeta vacía) · el 12/08 (su «12Agosto» trae el 13) · mayo (`TODO-103`); el 30-31/01 no existe («30Enero» es el 29-jul: ⚠️ no borrarla) | 718 A hoy · **611 A** a 75 °C · diez días de enero **sin pico** |
 | **TODO-103** ⬅️ **SUYA** | **Lo apartado de ene-ago** (`§ADR-128`): ① el **20-04** 7-19 h, congelado «Not Renewed»: ¿fuera, sin esas horas o tal cual? ② re-bajar **MAYO** ③ el archivo de **2025** ④ ¿fallas o maniobras el 24-02, 20-06, 05-08, 29-08 y el 22-07 17 h? ⑤ ¿las horas contra la AMPACIDAD sustituyen a las del % del archivo? (`§ADR-129`) ⑥ ofrecido 11-09: validar lo DERIVADO y los resúmenes; el aviso «del 3 al 12/01 SÍ hay promedio e instantáneo» | Nada se carga sin su decisión |
 | **TODO-106** 🔴 **MÍA** | **Deuda del Atlas tras `§ADR-142`.** ① Lluvia horaria codifica a **0,25 mm/h** y se traga la llovizna (**262 días con lluvia en la ficha contra 1 en el lienzo**) → **curva log**, como rayos, y rehacer los 9 meses. ② **Cinco rótulos** dicen «medido» sobre un **pronóstico** (`AtlasCaribe.tsx` ~1026·1031·1101·1108·1133): bifurcar por `naturaleza`. ③ **Tres PNG huérfanos** `pron-*-2026-08.png`: en disco, fuera de toda ficha y **espejados** | Sin ① **no hay memoria de lluvia desde enero** (`34 · L-96`) |
 | **TODO-107** | **Detalle GPS, lo que falta para la paridad** (`§ADR-139`; LN-617 contra LN-627 en su Chrome): ① sin **cinta de cabecera** ② pulsar un punto da **2 líneas** donde LN-627 da 8 ③ el **Resumen** no trae mapa ④ no todo lo vacío **dice qué espera** | La orden fue «**el mismo nivel**» |
 | **TODO-104** ⬅️ **SUYA** | **LN-617/628** (`§ADR-132/133`): ✅ altas hechas el 20-09 · ① ¿E01-E06, E09, E24? ¿fuera del 618? ② función de cada torre ③ conductor e hipótesis ④ 185 h no «Actual» ⑤ 15 y 29 horas de evento | Sin ② no hay torres; sin ③ no hay veredicto |
 | **TODO-100** 🔴 **MÍA** | El lector no abre los `.xls`: el paso 0 ya es herramienta; falta que lo haga la pantalla | Fallar oscuro se lee «dato malo» |
-| **TODO-44/34** | Alerta de gasto en Cloudflare · **nada tiene copia**: la bóveda sin remoto **y Firestore sin punto de recuperación** (`§ADR-089`) | Un fallo de disco se lleva la bóveda; un comando, la base |
+| **TODO-44/34** | Alerta de gasto en Cloudflare · **nada tiene copia**: bóveda sin remoto **y Firestore sin punto de recuperación** (`§ADR-089`) | Un fallo de disco se lleva la bóveda; un comando, la base |
 | **TODO-61/54/68** | ¿App Check? · ¿linter de frescura? · ¿cazar un ADR **repetido**? — el de **citado sin escribir** ya existe y BLOQUEA (`§ADR-141`), falta **subirlo al KERNEL** para el hermano | App Check es TUYA; el kernel, mía |
 | **TODO-76** | **¿Autosoportado o retenido?** No cabe en el modelo: iría por APOYO (26 declaraciones) | Cierra media incógnita de la capacidad longitudinal |
-| **TODO-78/84** ⬆️⬆️ | **Cerebro LLENO** (`§ADR-065/083/102/125`): el ARRANQUE vive sin margen y **cada sesión poda texto bueno**. Shard o recalibrar | El freno más caro del día a día |
+| **TODO-78/84** ⬆️⬆️ | **Cerebro LLENO** (`§ADR-065/083/102/125`): el ARRANQUE vive sin margen y **cada sesión poda texto bueno** — esta tanda pagó ~1.500c de GC para caber. Shard o recalibrar | El freno más caro del día a día |
 
 ## 🔲 Pendientes de CLAUDE — en este orden
 
 | # | Qué | Dónde está el plan |
 |---|---|---|
 | **TODO-102** 🔴 | ① >100 archivos da error crudo y sin sello de calidad (`§ADR-128`) · ② hermanas en el calendario sin ver con dato real (falta %) · ④ sondas 3·4·7 (`§ADR-121`) · ⑤ los ceros al final miran solo el día 1 · ⑥ conductor «fabricante» vs `supuesto`; `--tx-tenue` no existe; la guardia de color solo mira `estilo.css` · ⑦ «hoy» con dos dueños: `iso()` local y `diaDe` de Colombia · ⑧ falta el guardián que barra las gráficas (`§ADR-125`) — el arnés que dibuja ya vive en `herramientas/` | `99 §ADR-125..129` |
-| **TODO-70** | **Cerrar la ola de la ficha.** Queda SOLO ③: el gesto «Confirmo este dato», que exige su propio molde | `99 §ADR-030/032/033/038` |
-| **TODO-66** | **Que una acción pruebe que FUNCIONÓ**, no solo que se hizo: verificación posterior con fecha | `99 §ADR-026` |
+| **TODO-70** | **Cerrar la ola de la ficha.** Queda ③: el gesto «Confirmo este dato», con su propio molde | `99 §ADR-030/032/033/038` |
+| **TODO-66** | **Que una acción pruebe que FUNCIONÓ**, no solo que se hizo: comprobación posterior con fecha | `99 §ADR-026` |
 | **TODO-79** | **Saldo del entorno: 34 vivos + 5 parciales** (`§ADR-049`); lo caro: el id crudo en el **informe firmable** y la red del **mapa** | Varios son suyos |
 | **TODO-52/49/48** | RCA: lienzo del árbol · contador de PARQUE · deuda 017 | `§ADR-017/018/020` |
 | **TODO-30/11 · 13-23** | XSD de GPX/KML en CI · nota técnica de LN-627 · F3-F5 | `ADR-014` |

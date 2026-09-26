@@ -71,7 +71,7 @@ planeó —el plan por fases vive en `99`, y confundirlos manda a buscar un `.sq
 | Cómputo servidor | **DOS Workers gratuitos**: portero de fotos y de personas (`ADR-100`). Nada factura | ✅ vivo |
 | Mapas | **Protomaps / PMTiles + MapLibre**, recorte de ÁREA común | ✅ vivo |
 | CI/CD | **GitHub Actions**, runners `ubuntu-latest` **siempre** | ✅ vivo |
-| Auth | **correo + contraseña**, cero registro público, **Google no existe**; roles·funciones·alcance en el token, altas desde Personas (ADR-019/100) | ✅ vivo |
+| Auth | **correo + contraseña**, cero registro público, **Google no existe**; roles·funciones·alcance en el token; altas en Personas (ADR-019/100) | ✅ vivo |
 
 **Los tres principios que gobiernan la arquitectura** (violarlos es un fallo de diseño, no un bug):
 
@@ -99,24 +99,24 @@ Functions y el SDK solo puede importarse en `funciones/ia/pasarela.js` (lo vigil
 pagado por el Ingeniero. Y **la ausencia de bandera nunca es aprobación**.
 
 **Guardarraíles de código (ADR-002) — errores que la propia IA induce al portar:**
-- **Las fotos viajan como binario (`Blob`), jamás como texto en base64.** Es la inercia del HTML
-  original y revienta el límite de 1 MiB por documento y la RAM del móvil al parsear.
+- **Las fotos viajan como binario (`Blob`), jamás en base64.** Es la inercia del HTML original y
+  revienta el límite de 1 MiB por documento y la RAM del móvil al parsear.
 - **El motor de cálculo no entra en el ciclo de vida de ningún framework.** Nada de hooks: bucles de
-  render y pérdida de precisión. `nucleo/` ya cumple.
-- **Editar un apoyo invalida y recalcula TODO su tramo de tensión**, no solo ese apoyo. Si no, las
-  validaciones de coherencia dan falsos positivos.
+  render y pérdida de precisión. `nucleo/` cumple.
+- **Editar un apoyo invalida y recalcula TODO su tramo de tensión**, no solo ese apoyo: si no, las
+  comprobaciones de coherencia dan falsos positivos.
 - **Ante un conflicto se ACEPTA y se pone en cuarentena, nunca se rechaza:** rechazar convierte un
   problema de calidad de dato en pérdida de jornada de campo.
 
-**Lo que se descartó y por qué** (GitHub Pages, Firebase Storage/Functions, Supabase, MapTiler,
-Stadia, teselas OSM) → `99 §ADR-001` y `31 · L-01/L-02/L-03/L-10`.
+**Lo descartado y por qué** (GitHub Pages, Firebase Storage/Functions, Supabase, MapTiler, Stadia,
+teselas OSM) → `99 §ADR-001` y `31 · L-01/L-02/L-03/L-10`.
 
 ---
 
 ## §2 — Protocolo de documentación (OBLIGATORIO en cada commit relevante)
 
-**Dónde:** decisión cerrada → `99` (formato ADR) + fila en `00` · trabajo vivo → `10` · lección →
-`30` · mapa que cambió → `20` · dominio → `40` · salud → `05`.
+**Dónde:** decisión cerrada → `99` (ADR) + fila en `00` · trabajo vivo → `10` · lección → `30` ·
+mapa que cambió → `20` · dominio → `40` · salud → `05`.
 
 **Formato ADR:** `## ADR-NNN · AAAA-MM-DD · Título` → Contexto · Decisión · Alternativas descartadas
 (con el porqué) · **Supuestos que deben ser ciertos + la señal que diría que dejaron de serlo** ·
@@ -162,15 +162,15 @@ la plataforma—. La arquitectura de información también es arquitectura. *El 
 funcione; la arquitectura hace que sobreviva.*
 
 ### 3.5 🧠 Calidad por defecto — auto-crítica SIEMPRE · Comité ×3 por iniciativa propia
-- **Auto-crítica siempre (casi gratis):** antes de entregar cualquier respuesta sustantiva, una
-  pasada interna — *"¿qué falla? ¿asumí algo falso?"* — y corrige.
+- **Auto-crítica siempre (casi gratis):** antes de entregar una respuesta sustantiva, una pasada
+  interna — *"¿qué falla? ¿asumí algo falso?"* — y corrige.
 - **Comité ×3 por INICIATIVA PROPIA (caro):** dispara `comite-expertos` sin que te lo pidan ante una
   decisión con consecuencias, cara de revertir, o un entregable importante. Anúncialo. **Acotado y
   con Opus.** NO en lo trivial.
 
 ### 3.6 Ir más allá de lo indicado (orden del Ingeniero)
 Excede la instrucción literal: criterio robusto, multi-norma, multi-escenario, orientado a acción.
-**Excepción:** en BORRADOS el defecto es conservador — retira solo lo señalado, nunca su contenedor.
+**Excepción:** en BORRADOS el defecto es conservador — solo lo señalado, nunca su contenedor.
 
 ---
 
@@ -183,8 +183,8 @@ Excede la instrucción literal: criterio robusto, multi-norma, multi-escenario, 
   4,5·10⁻⁶ m); resistencia a 1,3 % de la tabla del fabricante. Tabla completa en `40 §8`.
   **Si `npm test` se pone rojo, es una regresión — no una mejora.**
 - **Deuda declarada, no olvido:** la ecuación de cambio de estado y el vano peso **aún no** están
-  contrastados contra un caso resuelto de norma (`40 §8`). Se cierran ANTES de que el sistema emita
-  un cálculo con valor de entrega a cliente.
+  contrastados contra un caso resuelto de norma (`40 §8`). Se cierran ANTES de emitir un cálculo con
+  valor de entrega a cliente.
 - **El mapa del módulo original NO funciona sin señal**; los datos, el cálculo y el esquema
   geométrico sí. Por eso Protomaps —ya vivo— no era un lujo (el detalle, `99 §ADR-001` y `40 §9`).
 

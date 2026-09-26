@@ -11746,6 +11746,24 @@ atlas medido. Sin red, sin datos y sin estadística.
 ### Consecuencias
 
 - El vigía rehace el pronóstico cada 4 h: **se corrige solo en la siguiente corrida**, sin reconstruir a mano.
+
+> ⚠️ **CORRECCIÓN 2026-09-25 — «se corrige solo» era verdad a medias, y la mitad que faltaba es la
+> que él ve.** El vigía rehízo el pronóstico **cuatro veces** desde el arreglo (`00f9439`, `6bfb197`,
+> `c706d76`, `ffd862f`), las cuatro correctas **en el repositorio**. Ninguna llegó al sitio: sin los
+> dos secretos de Cloudflare (`10 · TODO-89`) la corrida DICE que no publicó, y publicar sigue
+> siendo un gesto a mano. Medido el 25-09 a las 20:30 (hora de Colombia): producción servía el
+> pronóstico construido el **24-09 a las 13:34 UTC** —o sea, **anterior al arreglo, espejado**— y
+> **caducado desde hacía más de 28 horas**, mientras el repositorio tenía uno fresco de hacía dos.
+> Se publicó a mano y quedó verificado: las once capas sanas, los tres pronósticos vivos.
+>
+> **Lo que SÍ aguantó:** la pantalla no mintió. `atlasCaribe.ts:780` compara `caduca` contra el
+> reloj y `AtlasCaribe.tsx:836` lo pinta **en rojo** diciendo que no se puede usar. El dato estaba
+> viejo y la pantalla lo decía — que es exactamente para lo que se declaró `caduca` (`§ADR-082`).
+>
+> **La lección, que es de método y no de código:** *«se corrige solo» hay que decirlo del SITIO, no
+> del repositorio.* Un automatismo que PRODUCE bien no es un automatismo que PUBLICA (`35 · L-77` es
+> su hermana: allí el despliegue pisaba al bot, aquí el bot trabaja y nadie despliega). Mientras
+> `TODO-89` siga abierto, **cada arreglo de atlas exige un despliegue a mano** — y decirlo así.
 - **Queda vivo y dicho:** el lienzo horario de lluvia pierde la llovizna por su escalón de 0,25 mm/h
   —262 días con lluvia en la ficha contra 1 en el lienzo—, y por eso la *memoria de lluvia desde
   enero* que pidió el Ingeniero todavía no se puede dar. Y quedan los cinco rótulos que dicen

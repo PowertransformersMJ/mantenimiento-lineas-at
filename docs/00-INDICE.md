@@ -71,6 +71,8 @@ vive en `10 · TODO-79`, y los **relevos de sesión** `2026-08-22/24/26-relevo-c
 | «del 3 al 12 de enero no hay registro en la gráfica», «¿está todo bien cargado?» | `99 §ADR-128` «Validación del 11-09» + `10 TODO-101` — la gráfica abre en MÁXIMO y su exportación no lo trae esos días (promedio e instantáneo SÍ); lo que falta nunca vino del SCADA y lo cargado es idéntico hora a hora. Leer la base sin tocarla: `35 · L-91` |
 | «no veo enero con Histórico completo», «¿y las tablas?» | `99 §ADR-129/131` — las horas se piden ≤62 días por estadístico (con «Entre dos fechas» se ve); con histórico no hay tablas, por orden suya |
 | «esta gráfica no se entiende: qué fase es cada línea, en qué unidad, qué franja abarca» | `99 §ADR-122/123/124` — una gráfica que necesita el párrafo de debajo **no se puede pegar en un informe** |
+| «el vigía dice que rehízo el atlas y en el sitio sigue el viejo» | `10 · TODO-89` + `99 §ADR-142` (corrección 25-09) — el vigía PRODUCE, pero sin los dos secretos nadie PUBLICA: hay que desplegar a mano |
+| «el pronóstico sale en rojo diciendo que caducó» | Lo mismo: el repositorio tiene uno fresco sin publicar. `pull` → `build` → `deploy`. La pantalla no miente, avisa (`§ADR-082`) |
 | «el mapa del clima pinta, cuadra con su ficha… pero ¿está en su sitio?» | `34 · L-94` + `99 §ADR-142` — la geometría no la miraba NADIE; un atlas puede estar entero y del revés |
 | «el número escrito y el color del mapa no coinciden» | `34 · L-95` — busca un SEGUNDO decodificador del mismo formato; el guardián es `tests/un-solo-decodificador.test.js` |
 | «la ficha dice que llovió y el lienzo horario dice que no» | `34 · L-96` + `10 · TODO-106` — el escalón de 0,25 mm/h se traga la llovizna |
