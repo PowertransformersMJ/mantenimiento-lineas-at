@@ -29,23 +29,23 @@ El día que un número salga mal, la discusión debe ser sobre el cálculo, no s
 | `CLAUDE.md` | este router: identidad, doctrinas, gobernanza | **always-on** |
 | `docs/05-ESTADO-GLOBAL.md` | signos vitales: en qué estado está el sistema AHORA | **always-on** |
 | `docs/10-MEMORIA-CORTO-PLAZO.md` | pizarra del trabajo vivo + `TODO-NN` | **always-on** |
-| `docs/00-INDICE.md` | enrutamiento síntoma → neurona | bajo demanda |
-| `docs/20-MEMORIA-ESPACIAL.md` | dónde vive cada cosa | trigger 🟡 |
-| `docs/30-LECCIONES.md` | madre: índice de TODOS los `L-NN` + las de método | trigger 🧪 |
+| `docs/00-INDICE.md` | enrutamiento síntoma → neurona | a demanda |
+| `docs/20-MEMORIA-ESPACIAL.md` | dónde vive cada cosa | 🟡 |
+| `docs/30-LECCIONES.md` | madre: índice de TODOS los `L-NN` + método | trigger 🧪 |
 | `docs/31-LECCIONES-PROVEEDORES.md` | ↳ ANTES de contratar: licencia y coste de un tercero | trigger 🧪 |
-| `docs/35-LECCIONES-ACCESO-Y-PORTALES.md` | ↳ DESPUÉS: el tercero no deja entrar, o miente sin dar error | trigger 🧪 |
+| `docs/35-LECCIONES-ACCESO-Y-PORTALES.md` | ↳ DESPUÉS: el tercero no deja entrar, o miente sin error | trigger 🧪 |
 | `docs/32-LECCIONES-PANTALLA.md` | ↳ lo que se VE o se ABRE no es lo que el núcleo produjo | trigger 🧪 |
 | `docs/33-LECCIONES-NUCLEO-Y-DATO.md` | ↳ el número que se firma · el dato que no sale | trigger 🧪 |
 | `docs/34-LECCIONES-MAPA.md` | ↳ el mapa: no pinta, o pinta lo que no se puede leer | trigger 🧪 |
 | `docs/40-DOMINIO-LINEAS-AT.md` | ingeniería de líneas AT: fórmulas y procedencia | trigger 🔵 |
-| `docs/41-OPERACION-Y-SEGURIDAD-LINEAS-AT.md` | qué se le HACE a la línea: horas CREG, plan, cuadrilla | trigger 🔵 |
+| `docs/41-OPERACION-Y-SEGURIDAD-LINEAS-AT.md` | qué se le HACE: horas CREG, plan, cuadrilla | trigger 🔵 |
 | `docs/99-HISTORIAL-ADR.md` | por qué se decidió cada cosa (`ADR-NNN`) | trigger 🟢 |
 
 **Fuera del repo:** `../brain-private/mantenimiento-lineas-at/` — bóveda LOCAL, nunca pública:
-`research-archive/` (crudos de comités y consejos) y `fixtures/` (datos reales de cliente).
+`research-archive/` (crudos) y `fixtures/` (datos reales de cliente).
 
 ### 🏆 Regla de oro anti-saturación
-NO leas el largo plazo "por si acaso": ve al `00-INDICE` y trae SOLO lo que el síntoma pide.
+NO leas el largo plazo "por si acaso": ve al `00` y trae SOLO lo que el síntoma pide.
 
 ---
 
@@ -55,21 +55,20 @@ NO leas el largo plazo "por si acaso": ve al `00-INDICE` y trae SOLO lo que el s
 informe firmable — y cada cifra queda amarrada a la fecha, la hipótesis y la versión del cálculo con
 que se produjo, para siempre.
 
-**De dónde viene:** un módulo de campo de UNA línea (`LN-627_Modulo_Campo_10.html`, 30 MB, 92 % son
-fotos en base64). Su valor son 115 funciones de ingeniería real, ya portadas a `nucleo/`.
+**De dónde viene:** un módulo de campo de UNA línea (30 MB, 92 % fotos en base64). Su valor son 115
+funciones de ingeniería real, ya portadas a `nucleo/`.
 
-**Stack REAL (ADR-001 lo decidió; ADR-004/005/010/019 lo movieron). Esta tabla dice lo que HAY, no
-lo que se planeó — el plan por fases vive en `99`, y confundirlos manda a buscar un `.sqlite` que
-no existe:**
+**Stack REAL (ADR-001 lo decidió; ADR-004/005/010/019 lo movieron). Dice lo que HAY, no lo que se
+planeó —el plan por fases vive en `99`, y confundirlos manda a buscar un `.sqlite` que no existe:**
 
 | Capa | Qué hay hoy | Estado |
 |---|---|---|
 | Cálculo | `nucleo/` — funciones **puras**, sin DOM ni red, con pruebas de oro | ✅ vivo |
-| Datos | **Firestore** (`southamerica-east1`, región INMUTABLE). El SQLite local de ADR-001 nunca llegó a existir: ADR-004 lo adelantó | ✅ vivo |
-| Fotos | **R2 privado** detrás del portero `evidencias/` (ADR-010). El disco del Ingeniero sigue siendo el original | ✅ vivo |
+| Datos | **Firestore** (`southamerica-east1`, región INMUTABLE). El SQLite de ADR-001 nunca existió: ADR-004 lo adelantó | ✅ vivo |
+| Fotos | **R2 privado** tras el portero `evidencias/` (ADR-010); el original sigue en su disco | ✅ vivo |
 | Frontend | **React 19 + Vite + TypeScript** (ADR-005), web instalable | ✅ vivo |
 | Hosting | **Cloudflare Pages** — en producción, no en el futuro | ✅ vivo |
-| Cómputo servidor | **DOS Workers gratuitos**: el portero de fotos y el de personas (`ADR-100`). Nada que facture | ✅ vivo |
+| Cómputo servidor | **DOS Workers gratuitos**: portero de fotos y de personas (`ADR-100`). Nada factura | ✅ vivo |
 | Mapas | **Protomaps / PMTiles + MapLibre**, recorte de ÁREA común | ✅ vivo |
 | CI/CD | **GitHub Actions**, runners `ubuntu-latest` **siempre** | ✅ vivo |
 | Auth | **correo + contraseña**, cero registro público, **Google no existe**; roles·funciones·alcance en el token, altas desde Personas (ADR-019/100) | ✅ vivo |
@@ -80,14 +79,13 @@ no existe:**
    cuando hay señal.
 2. **Se purga lo REPLICADO, jamás lo CAPTURADO.** Nada capturado se borra sin acuse de recibo.
    Ninguna revocación precede a una ingesta pendiente.
-3. **La app JAMÁS bloquea la captura.** Por ninguna razón: ni por servidor, ni por permiso, ni por
-   espacio. La seguridad que impide trabajar no se cumple: se sabotea (y las fotos acaban en
-   WhatsApp, que es justo la fuga que se quería cerrar).
-4. **El dato crítico NUNCA viaja detrás de una foto** (ADR-002). Dos canales separados: los datos
-   suben **primero**, solos, en su propia transacción; las fotos van a una **cola asíncrona**. Una
-   inspección puede quedar `sincronizada` con fotos `pendientes` — es un estado válido, no un error.
-   Un hallazgo de 5 KB encolado tras 18 MB de fotos muere en un timeout de 3G rural, y con él la
-   emergencia estructural que reportaba.
+3. **La app JAMÁS bloquea la captura.** Ni por servidor, ni por permiso, ni por espacio. La
+   seguridad que impide trabajar no se cumple: se sabotea (y las fotos acaban en WhatsApp, que es
+   justo la fuga que se quería cerrar).
+4. **El dato crítico NUNCA viaja detrás de una foto** (ADR-002). Dos canales: los datos suben
+   **primero**, solos, en su transacción; las fotos, a una **cola asíncrona**. Una inspección
+   `sincronizada` con fotos `pendientes` es un estado VÁLIDO. Un hallazgo de 5 KB encolado tras
+   18 MB de fotos muere en un timeout de 3G rural, y con él la emergencia que reportaba.
 
 **La regla madre del subsistema de IA (ADR-004):**
 
@@ -107,8 +105,8 @@ pagado por el Ingeniero. Y **la ausencia de bandera nunca es aprobación**.
   render y pérdida de precisión. `nucleo/` ya cumple.
 - **Editar un apoyo invalida y recalcula TODO su tramo de tensión**, no solo ese apoyo. Si no, las
   validaciones de coherencia dan falsos positivos.
-- **Ante un conflicto se ACEPTA y se pone en cuarentena; nunca se rechaza y descarta** (rechazar
-  convierte un problema de calidad de dato en pérdida de jornada de campo).
+- **Ante un conflicto se ACEPTA y se pone en cuarentena, nunca se rechaza:** rechazar convierte un
+  problema de calidad de dato en pérdida de jornada de campo.
 
 **Lo que se descartó y por qué** (GitHub Pages, Firebase Storage/Functions, Supabase, MapTiler,
 Stadia, teselas OSM) → `99 §ADR-001` y `31 · L-01/L-02/L-03/L-10`.
@@ -124,9 +122,9 @@ Stadia, teselas OSM) → `99 §ADR-001` y `31 · L-01/L-02/L-03/L-10`.
 (con el porqué) · **Supuestos que deben ser ciertos + la señal que diría que dejaron de serlo** ·
 Consecuencias · Crudo de respaldo (ruta en la bóveda).
 
-**Reglas git (heredadas del ecosistema, ADR-051):** Claude hace **commit + push + merge + deploys sin
-pedir permiso**; validar = entregar el resumen en el mismo turno, no esperar el "sí". **NUNCA**
-force-push a `main`. Antes de afirmar estado de despliegue: `git fetch` — los refs locales mienten.
+**Reglas git (ecosistema, ADR-051):** Claude hace **commit + push + merge + deploys sin pedir
+permiso**; validar = entregar el resumen en el mismo turno, no esperar el "sí". **NUNCA** force-push
+a `main`. Antes de afirmar estado de despliegue: `git fetch` — los refs locales mienten.
 
 ---
 
@@ -154,21 +152,21 @@ verifican con fuente y fecha** (`30 · L-09`). Los hallazgos de un comité o sub
 **hipótesis**: re-verifícalos con tus propios ojos antes de actuar o de reportárselos al Ingeniero.
 
 ### 3.3 IAP — Impact Analysis Previo
-Antes de CUALQUIER commit no trivial: (A) archivos a modificar · (B) archivos INTACTOS verificados ·
-(C) código muerto · (D) alcance del refactor · (E) riesgos + rollback + pruebas.
+Antes de CUALQUIER commit no trivial: (A) archivos a tocar · (B) INTACTOS verificados · (C) código
+muerto · (D) alcance del refactor · (E) riesgos + rollback + pruebas.
 
 ### 3.4 🏛️ Piensa como arquitecto (SIEMPRE, antes de tocar nada)
 Cada cambio se decide por: negocio · escala · seguridad-por-diseño · costo · mantenibilidad ·
-integración. Módulos desacoplados; **NO** microservicios/Kubernetes/gRPC por moda —aquí la escala la
-da la plataforma—. La arquitectura de información también es arquitectura. *El código hace que
+integración. Módulos desacoplados; **NO** microservicios/Kubernetes/gRPC por moda —la escala la da
+la plataforma—. La arquitectura de información también es arquitectura. *El código hace que
 funcione; la arquitectura hace que sobreviva.*
 
 ### 3.5 🧠 Calidad por defecto — auto-crítica SIEMPRE · Comité ×3 por iniciativa propia
 - **Auto-crítica siempre (casi gratis):** antes de entregar cualquier respuesta sustantiva, una
   pasada interna — *"¿qué falla? ¿asumí algo falso?"* — y corrige.
-- **Comité ×3 por INICIATIVA PROPIA (caro):** dispara `comite-expertos` sin que te lo pidan cuando la
-  respuesta sea una decisión con consecuencias, cara de revertir o un entregable importante.
-  Anúncialo. **Acotado y con Opus.** NO en lo trivial.
+- **Comité ×3 por INICIATIVA PROPIA (caro):** dispara `comite-expertos` sin que te lo pidan ante una
+  decisión con consecuencias, cara de revertir, o un entregable importante. Anúncialo. **Acotado y
+  con Opus.** NO en lo trivial.
 
 ### 3.6 Ir más allá de lo indicado (orden del Ingeniero)
 Excede la instrucción literal: criterio robusto, multi-norma, multi-escenario, orientado a acción.
@@ -187,18 +185,16 @@ Excede la instrucción literal: criterio robusto, multi-norma, multi-escenario, 
 - **Deuda declarada, no olvido:** la ecuación de cambio de estado y el vano peso **aún no** están
   contrastados contra un caso resuelto de norma (`40 §8`). Se cierran ANTES de que el sistema emita
   un cálculo con valor de entrega a cliente.
-- **El mapa del módulo actual NO funciona sin señal** (verificado: usa
-  `tile.openstreetmap.org` y `server.arcgisonline.com`). Lo que sí funciona offline son los datos, el
-  cálculo y el esquema geométrico. Por eso Protomaps no es un lujo: tapa un agujero que ya existe.
+- **El mapa del módulo original NO funciona sin señal**; los datos, el cálculo y el esquema
+  geométrico sí. Por eso Protomaps —ya vivo— no era un lujo (el detalle, `99 §ADR-001` y `40 §9`).
 
 ---
 
 ## §G — Gobernanza Neuronal (cómo operas la memoria) — **vinculante**
 
 ### G.1 — Ignorancia Selectiva (arranque)
-Al iniciar sesión estás **obligado** a leer SOLO: `CLAUDE.md` + `docs/05` + `docs/10`. Imprime 2-3
-líneas de signos vitales de `05`. **IGNORA el resto** salvo que un trigger (§G.2) o el Ingeniero lo
-pida.
+Al iniciar sesión lee SOLO `CLAUDE.md` + `docs/05` + `docs/10`, e imprime 2-3 líneas de signos
+vitales de `05`. **IGNORA el resto** salvo que un trigger (§G.2) o el Ingeniero lo pida.
 
 ### G.2 — Triggers de Recuperación
 - **🔴 Error/saturación:** si fallas **2 veces** con el mismo bug, DETENTE y lee `00` → `99` buscando
@@ -248,8 +244,6 @@ Cada neurona tiene tope blando; los `caps` reales viven en `docs/.brain-manifest
 
 ## §7 — Cómo retomar (recap rápido)
 
-1. **Boot** (§G.1): este archivo + `05` + `10` + `brain:check`; imprime signos vitales; los
-   pendientes son los `TODO-NN` de `10`.
-2. **Antes de tocar código:** IAP (§3.3) + triggers (§G.2). **Antes de commitear:** §2.
-3. **Tras CADA tarea:** §G.3 y §G.4. Una tarea con deliberación y sin crudo archivado está
-   **incompleta**.
+Boot §G.1 → los pendientes son los `TODO-NN` de `10`. Antes de código: §3.3 + §G.2; antes de
+commitear: §2; tras cada tarea: §G.3 + §G.4. **Deliberación sin crudo archivado = tarea incompleta.**
+El paso a paso con comandos vive en `10 · Cómo retomar` (no se duplica aquí).

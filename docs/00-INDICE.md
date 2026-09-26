@@ -71,6 +71,13 @@ vive en `10 · TODO-79`, y los **relevos de sesión** `2026-08-22/24/26-relevo-c
 | «del 3 al 12 de enero no hay registro en la gráfica», «¿está todo bien cargado?» | `99 §ADR-128` «Validación del 11-09» + `10 TODO-101` — la gráfica abre en MÁXIMO y su exportación no lo trae esos días (promedio e instantáneo SÍ); lo que falta nunca vino del SCADA y lo cargado es idéntico hora a hora. Leer la base sin tocarla: `35 · L-91` |
 | «no veo enero con Histórico completo», «¿y las tablas?» | `99 §ADR-129/131` — las horas se piden ≤62 días por estadístico (con «Entre dos fechas» se ve); con histórico no hay tablas, por orden suya |
 | «esta gráfica no se entiende: qué fase es cada línea, en qué unidad, qué franja abarca» | `99 §ADR-122/123/124` — una gráfica que necesita el párrafo de debajo **no se puede pegar en un informe** |
+| «el mapa del clima pinta, cuadra con su ficha… pero ¿está en su sitio?» | `34 · L-94` + `99 §ADR-142` — la geometría no la miraba NADIE; un atlas puede estar entero y del revés |
+| «el número escrito y el color del mapa no coinciden» | `34 · L-95` — busca un SEGUNDO decodificador del mismo formato; el guardián es `tests/un-solo-decodificador.test.js` |
+| «la ficha dice que llovió y el lienzo horario dice que no» | `34 · L-96` + `10 · TODO-106` — el escalón de 0,25 mm/h se traga la llovizna |
+| «¿por qué no está la memoria de lluvia desde enero que pedí?» | `10 · TODO-106` — bloqueada por lo anterior; el plan es curva log y rehacer los nueve meses |
+| «mi validador dice que hay una avería» | `34 · L-97` — pruébalo contra un número que ya exista y contra un caso falso ANTES de reportar |
+| «esta línea nueva no se parece a LN-627» | `10 · TODO-107` + `99 §ADR-139` — la paridad es interfaz **y alcance** |
+| «¿dónde está el botón de dar de alta una línea?» | `99 §ADR-133` (enmienda 24-09) — fuera de la columna del parque por orden suya; vive en `#/alta` y en el parque vacío |
 | «¿por qué se eligió este stack y no el otro?» | `99` |
 | «¿por qué la prueba espera exactamente este número?» | `40 §8` y `tests/nucleo.test.js` |
 | «voy a tomar una decisión cara de revertir» | `CLAUDE.md §G.2` 🛰️ + comité + consejo externo |

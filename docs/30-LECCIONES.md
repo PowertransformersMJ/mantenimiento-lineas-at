@@ -139,6 +139,10 @@
 - `L-91` · Leer la base de producción con SU sesión, en solo lectura *(`35`)*
 - `L-92` · Lo que se escribe en un papel que no se corrige exige UNA fuente de verdad *(`33`)*
 - `L-93` · Un banco de trabajo olvidado en el disco es una copia del sitio que puede publicar *(`35`)*
+- `L-94` · Un atlas puede estar ENTERO, COMPLETO y en rango — y estar del revés *(`34`)*
+- `L-95` · Dos decodificadores para un formato son un decodificador y una mentira esperando *(`34`)*
+- `L-96` · Un escalón que se traga el fenómeno: la llovizna que no cabe en 0,25 mm/h *(`34`)*
+- `L-97` · El validador también es código, y el mío tenía un error de uno *(`34`)*
 - `M-03` · Un agente «ancho» no implementa: un archivo, un rango y el texto exacto *(aquí)*
 - `M-04` · Dos sesiones en la MISMA carpeta: la otra te cambia las herramientas mientras las usas *(aquí)*
 
@@ -410,35 +414,31 @@
   prisa. Y ojo con la variante silenciosa de este error: encadenar un `grep` de auditoría con `&&` a
   la acción que se quiere frenar, porque `grep` sin coincidencias devuelve 1 y **aborta la acción**,
   mientras que **con** coincidencias devuelve 0 y **la deja pasar**. Está exactamente al revés.
-- **Lo que NO se hizo, y por qué:** reescribir la historia de git. `33 · L-07` ya declara que sacar
-  después lo que no debió entrar obliga a que todas las copias se vuelvan a clonar, y que se evita no
-  cometiendo el error; se corrige hacia delante y se deja escrito, como se hizo con los nombres de las
-  subestaciones el 17-08.
+- **Lo que NO se hizo, y por qué:** reescribir la historia de git (`33 · L-07`): sacar después lo que
+  no debió entrar obliga a reclonar todas las copias. Se corrige hacia delante y se deja escrito.
 
 ### L-47 · Un número de ADR duplicado no lo caza ningún gate, y la historia de decisiones se FUSIONA, nunca se elige
 - **Síntoma:** el `ADR-023` estaba escrito **dos veces** en `99` —misma fecha, mismo `TODO-42/37`,
   mismo crudo, títulos distintos— y sus dos filas convivían en `00` junto a un `ADR-024` repetido.
   Sobrevivió desde el 06-08-2026 con `brain:check` **verde** en todas las sesiones intermedias, y lo
   cazó el Ingeniero leyendo, no el linter.
-- **Causa:** dos sesiones documentaron la MISMA decisión sin verse (`34b3d7e` del 05-08, al cerrar la
-  ola; `7c41e7c` del 06-08, tras arreglar el levantamiento a medias). Ningún control lo detecta: el
-  gate 3 (desync `00`→`99`) solo mira filas con forma `| §X | … | línea |`, y la tabla de ADR de este
-  proyecto es `| ADR-NNN | fecha | … |`, así que sale *«índice sin filas § — omitido»* y nadie
-  comprueba **unicidad**. Es `L-39` un piso más arriba: allí se duplicó una lección, aquí una
-  decisión — y los ADR se citan **por número** desde el código y desde otras neuronas, así que un
-  número ambiguo rompe la cita.
+- **Causa:** dos sesiones documentaron la MISMA decisión sin verse. El gate 3 (desync `00`→`99`) solo
+  mira filas con forma `| §X | … |`, y la tabla de ADR de este proyecto es `| ADR-NNN | fecha | … |`:
+  sale *«índice sin filas § — omitido»* y nadie comprueba **unicidad**. Es `L-39` un piso arriba —y
+  muerde más, porque los ADR se citan **por número** desde el código y desde otras neuronas.
 - **Regla:** antes de abrir un `## ADR-NNN`, `grep -o "^## ADR-[0-9]*" docs/99-HISTORIAL-ADR.md |
-  sort | uniq -d` — si devuelve algo, hay un número repetido. Y cuando aparezca: **se FUSIONA, no se
-  elige.** Dos redacciones de la misma decisión casi nunca contienen la una a la otra —aquí cada una
-  tenía material exclusivo— así que quedarse con la «mejor» pierde contenido (§3.6: en borrados, el
-  defecto es conservador). La fusión se verifica **con un script que aborte** si desaparece alguna
-  frase exclusiva de cualquiera de las dos; lo único que sí se retira es la cifra congelada que no es
-  de este nodo (`ADR-021`), y el § fusionado deja escrito qué se unió, de qué commits y qué se quitó:
-  la historia no se borra, se hace auditable.
-- **Emparenta con** `L-39` (la lección duplicada) y `99 §ADR-021` (el cerebro puede mentir con todos
-  los gates en verde). Cerrado el 15-08-2026: `ea1c283` (índice) y `44559ba` (historial). El gate que
-  lo detectaría vive en el KERNEL y afecta al proyecto hermano → es decisión del Ingeniero
-  (`10 · TODO-61/54`).
+  sort | uniq -d`. Y cuando aparezca: **se FUSIONA, no se elige** — dos redacciones de la misma
+  decisión casi nunca se contienen, así que quedarse con la «mejor» pierde contenido (§3.6: en
+  borrados, el defecto es conservador). La fusión se verifica con un script que **aborte** si
+  desaparece una frase exclusiva de cualquiera de las dos, y el § fusionado deja escrito qué se unió,
+  de qué commits y qué se quitó: la historia no se borra, se hace auditable.
+- **⚠️ El hermano, cazado y cerrado el 24-09 (`99 §ADR-141`):** citar un `ADR-NNN` que **no existe**.
+  Pasó aquí: 13 punteros en código a un número que nunca se escribió, porque una sesión paralela se
+  había llevado el que yo iba a usar. Ya hay guardián —`tests/adr-citado-existe.test.js`, probado
+  contra un caso falso— y **bloquea**. Le falta subir al KERNEL para que el proyecto hermano lo
+  herede, junto al de unicidad, que sigue sin escribirse (`10 · TODO-61/54/68`).
+- **Emparenta con** `L-39` y `99 §ADR-021` (el cerebro puede mentir con todos los gates en verde).
+  Cerrado el 15-08-2026: `ea1c283` (índice) y `44559ba` (historial).
 
 ### L-51 · «Hecho» es lo que se VE en producción, no lo que está verde en el repositorio
 
@@ -494,33 +494,26 @@
 
 ### L-52 · Un invariante que la prueba ENUNCIA y la máquina cumple por velocidad no está garantizado
 
-- **Crudo de respaldo:** `research-archive/2026-08-17-medicion-instante-de-carga.json` — las 5.000
-  repeticiones en caliente, los 200 procesos en frío antes (17 % partidas) y 200 después (0), las 20
-  corridas con el fallo reintroducido y el reproductor entero. Caro de rehacer y no se llegaba a él
-  desde ninguna neurona.
-
-- **Síntoma:** `tests/carga-contra-contrato.test.js` falló **1 de cada 4 corridas** de `npm test`; las
-  otras tres daban verde entero. La que caía se llama *«una carga entera comparte el mismo instante:
-  es UN hecho, no varios»*. Medido después: en frío falla el **17 %** de las veces (34 de 200 procesos
-  nuevos) y en caliente el 0,1 % — de ahí que pareciera azar puro y que tentara a reintentar.
+- **Crudo:** `research-archive/2026-08-17-medicion-instante-de-carga.json` — 5.000 repeticiones en
+  caliente, 200 procesos en frío antes (17 % partidas) y 200 después (0), 20 corridas con el fallo
+  reintroducido y el reproductor entero.
+- **Síntoma:** `tests/carga-contra-contrato.test.js` falló **1 de cada 4 corridas**; la que caía se
+  llama *«una carga entera comparte el mismo instante: es UN hecho, no varios»*. Medido: en frío
+  falla el **17 %** (34 de 200 procesos nuevos), en caliente el 0,1 % — de ahí que pareciera azar y
+  tentara a reintentar.
 - **Causa, dos piezas que por separado no hacen daño:** (a) `importar/plan.js` ponía el defecto ANTES
-  del spread —`{ ahora: <defecto>, ...opciones }`—, así que un llamador que pasara `ahora: undefined`
-  PISABA el defecto y lo dejaba sin valor; y (b) `importar/punto.js` tenía su propio defecto de
-  `ahora`, que volvía a sellar la hora **por documento**. Juntas: los puntos de una misma carga
-  compartían instante solo si se construían dentro del mismo milisegundo.
-- **Lo que importaba más que el rojo:** el invariante que la propia prueba ENUNCIA —*una carga es UN
-  hecho fechado, no varios*— no lo garantizaba el código; lo garantizaba la velocidad de la máquina.
-  En un sistema cuyo oficio es que cada cifra quede amarrada a su fecha, eso no es una prueba floja:
-  es el dato. Producción no lo sufría porque `Cargar.tsx` no pasa la clave — y esa casualidad era lo
-  único que separaba el defecto de un documento que no se puede borrar.
-- **Regla, y es doble.** (1) Un defecto de opciones va DESPUÉS de copiar, nunca antes:
-  `const opc = { ...opciones }; opc.ahora ??= <defecto>;`. Declarar una clave vacía es no declararla,
-  y `??=` lo trata como tal; el spread no, y con `null` tampoco actúa el defecto del *destructuring*,
-  que solo cubre `undefined`. (2) **Una prueba intermitente no se calla tocando la prueba.** Hay que
-  preguntar qué invariante enuncia y si lo garantiza el código: si la respuesta es «la velocidad de la
-  máquina», el arreglo va en el código. Y después se comprueba que la prueba SE PONE ROJA al
-  reintroducir el fallo — aquí pasó de caer 1 de cada 6 a caer **20 de 20**, subiendo el caso de dos
-  puntos a nueve, porque nueve construcciones ya no caben en un milisegundo.
-- **Emparenta con** `L-33` (si al fixture le cambias un valor y ninguna prueba se pone roja, no medía
-  lo que crees) y `L-24` (un contador en verde no dice qué se ejercitó). Pagada el 17-08-2026 en
-  `importar/plan.js`; el porqué queda en el propio archivo, que es donde se lee.
+  del spread —`{ ahora: <defecto>, ...opciones }`—, así que quien pasara `ahora: undefined` PISABA el
+  defecto; y (b) `importar/punto.js` tenía su propio defecto, que volvía a sellar la hora **por
+  documento**. Juntas: los puntos compartían instante solo si cabían en el mismo milisegundo.
+- **Lo que importaba más que el rojo:** el invariante que la prueba ENUNCIA —*una carga es UN hecho
+  fechado*— no lo garantizaba el código sino la velocidad de la máquina. En un sistema cuyo oficio es
+  amarrar cada cifra a su fecha, eso no es una prueba floja: es el dato. Producción no lo sufría
+  porque `Cargar.tsx` no pasa la clave — esa casualidad separaba el defecto de un documento que no se
+  puede borrar.
+- **Regla, doble.** (1) Un defecto de opciones va DESPUÉS de copiar:
+  `const opc = { ...opciones }; opc.ahora ??= <defecto>;` — declarar una clave vacía es no declararla
+  y `??=` lo trata así; el spread no, y el *destructuring* solo cubre `undefined`. (2) **Una prueba
+  intermitente no se calla tocando la prueba:** si el invariante lo garantiza «la velocidad de la
+  máquina», el arreglo va en el código. Y luego se comprueba que la prueba SE PONE ROJA al
+  reintroducir el fallo — aquí pasó de 1 de cada 6 a **20 de 20**, subiendo el caso a nueve puntos.
+- **Emparenta con** `L-33` y `L-24`. Pagada el 17-08-2026 en `importar/plan.js`.

@@ -10913,6 +10913,16 @@ alta la pulsa él (`TODO-104`)—.
    esperado. Con el parque vacío el alta se ofrece en la propia pantalla de «todavía no hay ninguna línea».
 6. **Informe BORRADOR no firmable** para una línea sin torres: longitud «levantado», torres sin registrar,
    calidad del levantamiento con sus hallazgos, y la firma bloqueada nombrando a las dos líneas.
+
+> ⚠️ **ENMIENDA 2026-09-24 — el botón «+ Alta de línea» sale del módulo (orden suya, con captura).**
+> El punto 5 decía que el alta se ofrece *«también»* desde la columna del parque, siempre visible. Él
+> la señaló y dijo: «no quiero que esto se vea en el módulo». **Retirado ese botón y solo ese**
+> (`Linea.tsx`, columna del parque): el camino por `#/alta` sigue vivo, y **también sigue el del
+> parque VACÍO** —la pantalla de «todavía no hay ninguna línea» lo mantiene, porque ahí no es un
+> atajo sino la única salida—. En un borrado el defecto es **conservador**: se retira el elemento
+> señalado, nunca su contenedor ni sus hermanos (`CLAUDE.md §3.6`). Dar de alta una línea es un
+> gesto raro y deliberado; un botón permanente en la columna del día a día lo ponía a un clic de
+> descuido de la pantalla que más se usa. Commit `4a95ad4`.
 7. **Tres reglas al núcleo** (`geodesia.js`): margen del quiebre, vano cuya dirección no se puede saber y vano
    con pinta de torre sin levantar. La pantalla no recalcula nada por su cuenta.
 

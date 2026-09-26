@@ -37,7 +37,6 @@
   **desigual**. Emparenta con `L-62` (una pantalla nueva hereda la doctrina del sitio, no solo el
   aspecto) y con `30 · L-56` (un guardián cuyo resultado no bloquea). Entera → `99 §ADR-046`.
 
-
 ### L-63 · Una sonda GLOBAL no puede medir dos instancias — y la primera víctima es el DIAGNÓSTICO
 
 - **Qué pasó:** `window.__mapaLineas` era UNA variable, el mapa se monta en DOS pantallas y nadie la borraba al desmontar: contestaba por una instancia retirada (`loaded()=false`, estilo vacío) y de ahí salió «hay un mapa muerto recibiendo las capas» — dos sesiones en esa dirección. Peor: **un mapa que pinta perfectamente TAMBIÉN contesta `loaded() === false`**; el síntoma no distingue nada.
@@ -52,19 +51,13 @@
   para poder añadir fuentes— **no llega nunca**. `document.visibilityState` decía `hidden` y eso
   explicaba el síntoma entero.
 - **⚠️ Lo que costó tres despliegues fue el DIAGNÓSTICO, no el arreglo.** Se persiguieron dos causas
-  plausibles antes de mirar lo obvio, y las dos dejaron cambios que se quedan porque son correctos
-  por su cuenta —pero **ninguna era el síntoma**:
-  1. el mapa vivía en un `ref`, y una referencia no dispara efectos: si un efecto de capa cae en el
-     instante en que la referencia es `null`, sale y no vuelve. El mapa pasó al ESTADO;
-  2. la puerta era `isStyleLoaded()`, que no contesta «¿está el estilo listo?» sino «¿está TODO
-     cargado?» y puede no ponerse en `true` nunca (esto sí produjo un error real:
-     «Style is not done loading»). La puerta buena es el evento `load`.
-- **Regla, y es de método:** ante «no pasa nada» sin error ni petición, la primera comprobación es
-  `document.visibilityState` y la segunda es tocar OTRO interruptor del mismo panel — si ése
-  responde, el problema no es React ni el estado. Automatizar la verificación en una pestaña de
-  fondo convierte un mapa que funciona en un mapa que parece roto, y a quien lo depura le hace
-  inventar causas.
-
+  plausibles —el mapa en un `ref`, que no dispara efectos (pasó al ESTADO); y `isStyleLoaded()` de
+  puerta, que contesta «¿está TODO cargado?» y puede no ser `true` nunca (la buena es el evento
+  `load`)—. Las dos dejaron cambios correctos por su cuenta, pero **ninguna era el síntoma**.
+- **Regla, y es de método:** ante «no pasa nada» sin error ni petición, lo primero es
+  `document.visibilityState` y lo segundo tocar OTRO interruptor del panel — si ése responde, no es
+  React ni el estado. Verificar en una pestaña de fondo convierte un mapa que funciona en un mapa
+  que parece roto, y a quien lo depura le hace inventar causas.
 
 ### L-57 · Un efecto de React que enciende su propio «cargando» se cancela a sí mismo
 
@@ -190,3 +183,77 @@
 - **Hermana de `30 · L-68`** («arreglado donde se veía, vivo en la pieza hermana»): aquí es lo
   contrario y la misma familia — la pieza no se tocó, y por eso quedó mintiendo. Detalle:
   `99 §ADR-087`.
+
+---
+
+### L-94 · Un atlas puede estar ENTERO, COMPLETO y en rango — y estar del revés
+
+- **Síntoma (24-09):** la validación de las **once capas** salió limpia. Los píxeles con dato
+  cuadraban *exactamente* con lo que promete cada ficha; los tres pronósticos se declaraban como
+  tales, vivos y en rango. **Y los tres salían espejados de norte a sur.**
+- **Causa:** el pronóstico calculaba la latitud con `SUR + fy` y el atlas medido con
+  `NORTE - fy - 0.5`. Misma rejilla, misma pantalla, **resultado invertido**: La Guajira enseñaba el
+  tiempo de Córdoba, y ninguna fila quedaba bien — de **111 km** en el centro a **555 km** en los
+  extremos.
+- **Por qué no lo cazaba NADA:** todo control miraba **cuánto** y **si hay** — el portero, si hay
+  dibujo; el validador, si el lienzo cuadra con su ficha; las pruebas, si los valores caben.
+  **Ninguno miraba DÓNDE.** La geometría no tenía dueño.
+- **Regla:** de una capa georreferenciada hay que comprobar **tres cosas, no dos**: que el dato esté,
+  que el dato quepa, y que el dato esté **EN SU SITIO**. Lo tercero se comprueba con una **aserción
+  determinista al construir** —la fila 0 es la más al norte, y la celda (0,0) de una familia cae
+  donde la (0,0) de la otra—, no con estadística.
+- **Descartado:** cazarlo correlacionando pronóstico contra medido *suena* mejor y es peor —
+  **nunca comparten horas**, en lluvia es ruido, y al cambiar de mes no hay con qué comparar.
+- Detalle: `99 §ADR-142`. Hermana de `L-74`: allí mentían las frases de al lado; aquí, el sitio.
+
+---
+
+### L-95 · Dos decodificadores para un formato son un decodificador y una mentira esperando
+
+- **Síntoma (24-09):** el panel de rayos **escribía un número y el mapa pintaba otro** — mal en
+  **553 de 755 horas (73 %)**, con un peor caso de **230 escritos donde el mapa pintaba 5.350**, que
+  la ficha imprimía **tres líneas más arriba, en la misma pantalla**.
+- **Causa:** una **segunda copia** de la fórmula del byte, escrita a mano y solo lineal, que ignoraba
+  la curva `exacta-y-log` que la ficha de los rayos declara. El decodificador bueno existía y estaba
+  bien; simplemente no se usaba en ese panel.
+- **Lo traicionero:** el segundo **no se entera el día que el formato crece**, y nadie lo nota
+  **porque sigue dando un número creíble**. No falla: miente donde nadie mira.
+- **Regla:** un formato tiene **un solo dueño que lo convierte**, con guardián que prohíbe
+  reescribir la fórmula fuera de él (`tests/un-solo-decodificador.test.js`): se **importa**, no se
+  recuerda.
+- **Cómo se prueba:** metiéndole a propósito una segunda copia — un guardián que nunca ha dicho que
+  no, no se sabe si sabe decirlo (`L-97`).
+- Detalle: `99 §ADR-142`.
+
+---
+
+### L-96 · Un escalón que se traga el fenómeno: la llovizna que no cabe en 0,25 mm/h
+
+- **Síntoma (24-09):** la ficha de lluvia dice **262 días con lluvia**; el lienzo hora a hora enseña
+  **uno**. Las dos cifras salen del mismo dato y ninguna está corrupta.
+- **Causa:** el lienzo horario codifica con un **escalón de 0,25 mm/h** y en el Caribe casi toda la
+  lluvia es **llovizna por debajo de ese umbral**: se guarda como cero. El resumen diario no pasa por
+  ese escalón — por eso ve lo que el lienzo no ve.
+- **La trampa:** el escalón se eligió mirando el **máximo** (que quepa el aguacero), no el **mínimo**
+  (que se vea la llovizna). Con 255 peldaños lineales, cubrir 63 mm/h cuesta borrar el 0,2.
+- **Regla:** la pregunta no es solo *«¿cabe el máximo?»* sino *«¿qué se pierde en el suelo, y ese
+  suelo es el fenómeno?»*. Con el interés abajo —lluvia, rayos— la respuesta es **curva
+  logarítmica**, como ya hace la capa de rayos, no reparto lineal.
+- **Consecuencia viva:** por esto la *memoria de lluvia desde enero* que pidió el Ingeniero **no se
+  puede dar todavía** (`10 · TODO-106`). Detalle: `99 §ADR-142`.
+
+---
+
+### L-97 · El validador también es código, y el mío tenía un error de uno
+
+- **Síntoma (24-09):** escribiendo el validador de atlas estuve a punto de **reportarle una avería
+  falsa** en la capa de rayos. El fallo era mío: decodifiqué con `offset + byte × paso` olvidando que
+  **el byte 0 está RESERVADO** («sin dato») y que la fórmula es `(byte − 1) × paso + offset`.
+- **Lo que lo salvó:** contrastar el resultado del validador contra un número que la propia pantalla
+  ya imprime. No una prueba nueva: **un número que ya existía y que tenía que coincidir**.
+- **Regla:** una herramienta de verificación **no se estrena contra producción**. Se estrena contra
+  un caso cuyo resultado ya se conoce, y —si es un guardián— contra un caso falso metido a propósito,
+  para ver si **sabe decir que no**. Los tres guardianes de esta tanda se validaron así.
+- **Corolario amargo:** un validador roto es **peor que no tenerlo**: gasta la confianza del
+  Ingeniero en averías que no existen y da por buenas las que sí.
+- Detalle: `99 §ADR-141/142`. Hermana de `33 · L-46`.
