@@ -16,7 +16,7 @@
 // humana y sigue viviendo a mano en 00-INDICE.md (eso es lo que Gemini llamó la capa
 // de traducción / anzuelos ricos). Este script solo compila el mapa §→línea mecánico.
 // ============================================================
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
 
 const SRC = 'docs/99-HISTORIAL-ADR.md';
 const OUT = 'docs/00-INDICE.generated.md';
@@ -87,18 +87,29 @@ const lineById = new Map(rows.map((r) => [r.id, r.lineNo]));
 // todas las líneas siguientes): la fragilidad que motivó TODO-32. El generador mantiene la
 // parte MECÁNICA (líneas); el humano mantiene las descripciones + entradas especiales
 // (BLOQUE T, §13.bis…) y la capa de ruteo semántico → esas NO matchean y quedan intactas.
-const IDX = 'docs/00-INDICE.md';
+// v1.12.0: el índice puede estar RANGE-SHARDED — 00-INDICE.md + hermanas 00[a-z]-INDICE*.md,
+// el MISMO patrón con que brain-check ya lo lee (#3/#5a/#9). Antes solo se reconciliaba 00:
+// una fila movida a la hermana quedaba fuera, y al primer inserto en medio de 99 el gate #3
+// la denunciaba como desync que había que curar a mano (la fragilidad de TODO-32, de vuelta).
+// Repos sin hermanas ⇒ solo 00 ⇒ comportamiento idéntico al de antes.
+const IDX_DIR = 'docs';
+const idxFiles = readdirSync(IDX_DIR).filter((f) => /^00[a-z]?-INDICE.*\.md$/.test(f)).sort()
+  .map((f) => `${IDX_DIR}/${f}`);
 const reRow = /^(\| §([\d.]+) \| .* \| )(\d+)( \|\s*)$/;
 let checked = 0, fixed = 0;
-const idxOut = readFileSync(IDX, 'utf8').split('\n').map((line) => {
-  const m = line.match(reRow);
-  if (!m || !lineById.has(m[2])) return line;
-  checked++;
-  const cur = String(lineById.get(m[2]));
-  if (m[3] === cur) return line;
-  fixed++;
-  return `${m[1]}${cur}${m[4]}`;
-}).join('\n');
-writeFileSync(IDX, idxOut);
+for (const IDX of idxFiles) {
+  const src = readFileSync(IDX, 'utf8');
+  const idxOut = src.split('\n').map((line) => {
+    const m = line.match(reRow);
+    if (!m || !lineById.has(m[2])) return line;
+    checked++;
+    const cur = String(lineById.get(m[2]));
+    if (m[3] === cur) return line;
+    fixed++;
+    return `${m[1]}${cur}${m[4]}`;
+  }).join('\n');
+  if (idxOut !== src) writeFileSync(IDX, idxOut);
+}
 void OUT; // (el modo shadow se reemplazó por el reconcile del índice vivo)
-console.log(`✅ 99: ${rows.length} ADRs · ${tombs.length} tombstone(s) válido(s). Índice 00: ${checked} filas verificadas, ${fixed} líneas reconciliadas.`);
+const idxTag = idxFiles.length > 1 ? `Índice 00 (${idxFiles.length} archivos)` : 'Índice 00';
+console.log(`✅ 99: ${rows.length} ADRs · ${tombs.length} tombstone(s) válido(s). ${idxTag}: ${checked} filas verificadas, ${fixed} líneas reconciliadas.`);
