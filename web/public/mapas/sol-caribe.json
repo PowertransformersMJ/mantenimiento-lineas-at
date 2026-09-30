@@ -86,8 +86,8 @@
   }
  ],
  "ultimoDiaConHoras": "2026-06-29",
- "ultimoDiaConTotal": "2026-09-24",
- "construido": "2026-09-29T10:42:10.504Z",
+ "ultimoDiaConTotal": "2026-09-25",
+ "construido": "2026-09-30T05:34:25.950Z",
  "resumenDiario": [
   {
    "d": "2026-01-01",
@@ -1152,6 +1152,10 @@
   {
    "d": "2026-09-24",
    "v": 6.36
+  },
+  {
+   "d": "2026-09-25",
+   "v": 5.55
   }
  ],
  "resumenDiarioEtiqueta": "Energía del día",
