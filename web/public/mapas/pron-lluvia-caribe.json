@@ -3,7 +3,7 @@
  "titulo": "Lluvia que se espera en el Caribe",
  "naturaleza": "pronostico",
  "caducaEn_h": 8,
- "caduca": "2026-09-30T07:44:33.361Z",
+ "caduca": "2026-09-30T13:34:30.429Z",
  "departamentos": [
   "Bolívar",
   "Córdoba",
@@ -34,7 +34,7 @@
  "valorMaximoRepresentable": 63.5,
  "medido": {
   "min": 0,
-  "max": 7.8
+  "max": 10.2
  },
  "cuadros": {
   "horas": 24,
@@ -48,36 +48,32 @@
    "clave": "09",
    "archivo": "pron-lluvia-caribe-2026-09.png",
    "dias": 30,
-   "horasConDato": 30,
-   "bytes": 425
+   "horasConDato": 24,
+   "bytes": 367
   },
   {
    "clave": "10",
    "archivo": "pron-lluvia-caribe-2026-10.png",
    "dias": 31,
-   "horasConDato": 31,
-   "bytes": 559
+   "horasConDato": 37,
+   "bytes": 632
   }
  ],
  "ultimoDiaConHoras": "2026-10-02",
  "ultimoDiaConTotal": "2026-10-09",
- "construido": "2026-09-29T23:44:33.361Z",
+ "construido": "2026-09-30T05:34:30.429Z",
  "resumenDiario": [
   {
-   "d": "2026-09-29",
-   "v": 0
-  },
-  {
    "d": "2026-09-30",
-   "v": 5.65
+   "v": 4.85
   },
   {
    "d": "2026-10-01",
-   "v": 9.1
+   "v": 8.2
   },
   {
    "d": "2026-10-02",
-   "v": 14.85
+   "v": 17.35
   },
   {
    "d": "2026-10-03",

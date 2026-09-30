@@ -3,7 +3,7 @@
  "titulo": "Viento que se espera en el Caribe",
  "naturaleza": "pronostico",
  "caducaEn_h": 8,
- "caduca": "2026-09-30T07:44:33.292Z",
+ "caduca": "2026-09-30T13:34:30.381Z",
  "departamentos": [
   "Bolívar",
   "Córdoba",
@@ -48,36 +48,32 @@
    "clave": "09",
    "archivo": "pron-viento-caribe-2026-09.png",
    "dias": 30,
-   "horasConDato": 30,
-   "bytes": 1065
+   "horasConDato": 24,
+   "bytes": 870
   },
   {
    "clave": "10",
    "archivo": "pron-viento-caribe-2026-10.png",
    "dias": 31,
-   "horasConDato": 60,
-   "bytes": 2172
+   "horasConDato": 65,
+   "bytes": 2320
   }
  ],
  "ultimoDiaConHoras": "2026-10-09",
  "ultimoDiaConTotal": "2026-10-09",
- "construido": "2026-09-29T23:44:33.292Z",
+ "construido": "2026-09-30T05:34:30.381Z",
  "resumenDiario": [
   {
-   "d": "2026-09-29",
-   "v": 14.76
-  },
-  {
    "d": "2026-09-30",
-   "v": 18.18
+   "v": 17.46
   },
   {
    "d": "2026-10-01",
-   "v": 17.82
+   "v": 15.84
   },
   {
    "d": "2026-10-02",
-   "v": 12.24
+   "v": 13.86
   },
   {
    "d": "2026-10-03",
