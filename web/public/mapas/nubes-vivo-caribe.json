@@ -60,13 +60,13 @@
    "clave": "10",
    "archivo": "nubes-vivo-caribe-2026-10.png",
    "dias": 31,
-   "horasConDato": 31,
-   "bytes": 965
+   "horasConDato": 34,
+   "bytes": 1008
   }
  ],
  "ultimoDiaConHoras": "2026-10-02",
  "ultimoDiaConTotal": "2026-10-02",
- "construido": "2026-10-02T20:46:22.028Z",
+ "construido": "2026-10-03T00:29:03.962Z",
  "resumenDiario": [
   {
    "d": "2026-08-24",
@@ -226,7 +226,7 @@
   },
   {
    "d": "2026-10-02",
-   "v": 96.64
+   "v": 96.46
   }
  ],
  "resumenDiarioEtiqueta": "Cielo cubierto, media del día",
