@@ -60,13 +60,13 @@
    "clave": "10",
    "archivo": "sol-vivo-caribe-2026-10.png",
    "dias": 31,
-   "horasConDato": 53.333333333333336,
-   "bytes": 2055
+   "horasConDato": 56.333333333333336,
+   "bytes": 2154
   }
  ],
  "ultimoDiaConHoras": "2026-10-05",
  "ultimoDiaConTotal": "2026-10-05",
- "construido": "2026-10-06T00:48:14.288Z",
+ "construido": "2026-10-06T01:18:57.155Z",
  "resumenDiario": [
   {
    "d": "2026-08-24",
@@ -238,7 +238,7 @@
   },
   {
    "d": "2026-10-05",
-   "v": 911.35
+   "v": 959.36
   }
  ],
  "resumenDiarioEtiqueta": "Máxima del día",
