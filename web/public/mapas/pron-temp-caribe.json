@@ -3,7 +3,7 @@
  "titulo": "Temperatura del aire que se espera en el Caribe",
  "naturaleza": "pronostico",
  "caducaEn_h": 8,
- "caduca": "2026-10-06T19:17:50.460Z",
+ "caduca": "2026-10-07T02:23:44.587Z",
  "departamentos": [
   "Bolívar",
   "Córdoba",
@@ -33,7 +33,7 @@
  },
  "valorMaximoRepresentable": 53.5,
  "medido": {
-  "min": 11.4,
+  "min": 12.2,
   "max": 33.4
  },
  "cuadros": {
@@ -49,24 +49,24 @@
    "archivo": "pron-temp-caribe-2026-10.png",
    "dias": 31,
    "horasConDato": 88,
-   "bytes": 2694
+   "bytes": 2709
   }
  ],
  "ultimoDiaConHoras": "2026-10-15",
  "ultimoDiaConTotal": "2026-10-15",
- "construido": "2026-10-06T11:17:50.461Z",
+ "construido": "2026-10-06T18:23:44.587Z",
  "resumenDiario": [
   {
    "d": "2026-10-06",
-   "v": 29.4
+   "v": 29.55
   },
   {
    "d": "2026-10-07",
-   "v": 29.2
+   "v": 29.4
   },
   {
    "d": "2026-10-08",
-   "v": 28.95
+   "v": 29.45
   },
   {
    "d": "2026-10-09",
@@ -74,27 +74,27 @@
   },
   {
    "d": "2026-10-10",
-   "v": 28.9
+   "v": 29.1
   },
   {
    "d": "2026-10-11",
-   "v": 28.75
+   "v": 28.95
   },
   {
    "d": "2026-10-12",
-   "v": 28.35
-  },
-  {
-   "d": "2026-10-13",
    "v": 28.4
   },
   {
+   "d": "2026-10-13",
+   "v": 28.3
+  },
+  {
    "d": "2026-10-14",
-   "v": 28.5
+   "v": 28.35
   },
   {
    "d": "2026-10-15",
-   "v": 24.65
+   "v": 28.95
   }
  ],
  "resumenDiarioEtiqueta": "Máxima que se espera",
