@@ -63,13 +63,13 @@
    "clave": "10",
    "archivo": "rayos-caribe-2026-10.png",
    "dias": 31,
-   "horasConDato": 311,
-   "bytes": 4701
+   "horasConDato": 314,
+   "bytes": 4722
   }
  ],
- "ultimoDiaConHoras": "2026-10-13",
- "ultimoDiaConTotal": "2026-10-13",
- "construido": "2026-10-14T04:55:41.912Z",
+ "ultimoDiaConHoras": "2026-10-14",
+ "ultimoDiaConTotal": "2026-10-14",
+ "construido": "2026-10-14T07:34:50.022Z",
  "resumenDiario": [
   {
    "d": "2026-08-23",
@@ -277,7 +277,11 @@
   },
   {
    "d": "2026-10-13",
-   "v": 38022
+   "v": 38037
+  },
+  {
+   "d": "2026-10-14",
+   "v": 5
   }
  ],
  "resumenDiarioEtiqueta": "Rayos contados en la región",
